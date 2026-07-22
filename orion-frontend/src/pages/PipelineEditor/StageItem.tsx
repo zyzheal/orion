@@ -70,7 +70,7 @@ const StageItem: React.FC<StageItemProps> = ({
           body: { padding: '12px 16px' },
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
           {/* 拖拽手柄 */}
           <div
             {...attributes}
@@ -104,7 +104,7 @@ const StageItem: React.FC<StageItemProps> = ({
           {/* 阶段信息 */}
           <div style={{ flex: 1 }}>
             <Space direction="vertical" size={2} style={{ width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <Text strong style={{ fontSize: spacing[4] }}>
                   {stageTypeIcon} {stage.name}
                 </Text>

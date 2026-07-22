@@ -16,6 +16,8 @@ const Header = () => {
   const dispatch = useAppDispatch();
   const [wikiUrl, setWikiUrl] = useState<string>('');
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  // 子应用模式下不允许退出，由主应用统一管理登录态
+  const isOrionChild = (window as any).__POWERED_BY_ORION__;
 
   useEffect(() => {
     if (kb_id) {
@@ -80,24 +82,27 @@ const Header = () => {
           访问 Wiki 网站
         </Button>
         <System />
-        <Tooltip arrow title='退出登录'>
-          <IconButton
-            size='small'
-            sx={{
-              bgcolor: 'background.paper',
-              width: '24px',
-              height: '24px',
-              '&:hover': {
-                color: 'primary.main',
-              },
-            }}
-            onClick={() => {
-              setLogoutConfirmOpen(true);
-            }}
-          >
-            <IconDengchu sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Tooltip>
+        {/* 子应用模式下不允许退出，由主应用统一管理登录态 */}
+        {!isOrionChild && (
+          <Tooltip arrow title='退出登录'>
+            <IconButton
+              size='small'
+              sx={{
+                bgcolor: 'background.paper',
+                width: '24px',
+                height: '24px',
+                '&:hover': {
+                  color: 'primary.main',
+                },
+              }}
+              onClick={() => {
+                setLogoutConfirmOpen(true);
+              }}
+            >
+              <IconDengchu sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Stack>
       <Modal
         open={logoutConfirmOpen}

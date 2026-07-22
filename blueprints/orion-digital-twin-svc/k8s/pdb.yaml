@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-digital-twin-pdb
+  namespace: orion
+  labels:
+    app: orion-digital-twin
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orion-digital-twin

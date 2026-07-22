@@ -16,7 +16,7 @@ import {
   message,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, PictureOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -48,8 +48,8 @@ const BuilderImageList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuilderImages();
-      const apiData = response.data.data;
-      setImages(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setImages(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建镜像失败：${error.message}`);
@@ -240,7 +240,7 @@ const BuilderImageList: React.FC = () => {
       dataIndex: 'status',
       width: 130,
       render: (value) => {
-        const statusMap: Record<string, any> = {
+        const statusMap: Record<string, unknown> = {
           active: 'success',
           deprecated: 'warning',
           building: 'running',
@@ -295,11 +295,12 @@ const BuilderImageList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <PictureOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Builder Images
           </Title>
           <Text type="secondary">{filteredImages.length} builder images</Text>
@@ -314,7 +315,7 @@ const BuilderImageList: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -344,7 +345,7 @@ const BuilderImageList: React.FC = () => {
         okText={editingImage ? 'Update' : 'Create'}
         width={520}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="Name"

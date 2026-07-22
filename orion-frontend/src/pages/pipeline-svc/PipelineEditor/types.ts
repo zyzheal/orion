@@ -105,6 +105,38 @@ export interface ApkUploadConfig {
   }>;
 }
 
+/** 超时配置 */
+export interface TimeoutConfig {
+  enabled: boolean;
+  duration: number;
+  action: 'fail' | 'skip' | 'retry';
+  retryCount?: number;
+}
+
+/** 审批配置 */
+export interface ApprovalConfig {
+  enabled: boolean;
+  approvers: string[];
+  mode: 'unanimous' | 'any';
+  timeout: number;
+  timeoutAction: 'approve' | 'reject';
+}
+
+/** 质量门禁规则 */
+export interface QualityGateRule {
+  id: string;
+  metric: 'test_pass_rate' | 'coverage' | 'vulnerability_count' | 'custom';
+  operator: '>' | '<' | '>=' | '<=' | '==';
+  threshold: number;
+}
+
+/** 质量门禁配置 */
+export interface QualityGateConfig {
+  enabled: boolean;
+  rules: QualityGateRule[];
+  failureAction: 'block' | 'warn' | 'continue';
+}
+
 export interface StageConfig {
   id: string;
   name: string;
@@ -112,13 +144,16 @@ export interface StageConfig {
   timeout?: number;
   retryCount?: number;
   dependsOn?: string[];
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   subPipeline?: SubPipelineConfig;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
   matrix?: MatrixBuildConfig;
   prTrigger?: PRTriggerConfig;
   apkUpload?: ApkUploadConfig;
+  timeoutConfig?: TimeoutConfig;
+  approvalConfig?: ApprovalConfig;
+  qualityGateConfig?: QualityGateConfig;
 }
 
 export interface PipelineFormData {

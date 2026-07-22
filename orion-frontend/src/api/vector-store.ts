@@ -9,7 +9,7 @@ import { api } from './client';
 export interface VectorDocument {
   id: string;
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   collection: string;
   dimensions: number;
   status: 'active' | 'processing' | 'failed';
@@ -34,7 +34,7 @@ export interface SearchHit {
   id: string;
   content: string;
   score: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   collection: string;
 }
 
@@ -48,14 +48,14 @@ export interface VectorStats {
 export interface AddDocumentInput {
   content: string;
   collection?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SearchInput {
   query: string;
   collection?: string;
   topK?: number;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 }
 
 export interface CreateCollectionInput {
@@ -70,39 +70,39 @@ export interface CreateCollectionInput {
 // ---- Documents ----
 
 export function addDocument(data: AddDocumentInput) {
-  return api.post<{ id: string }>('/v1/vector-store/documents', data);
+  return api.post<{ id: string }>('/api/v1/vector-store/documents', data);
 }
 
 export function deleteDocument(id: string) {
-  return api.delete(`/v1/vector-store/documents/${id}`);
+  return api.delete(`/api/v1/vector-store/documents/${id}`);
 }
 
 // ---- Search ----
 
 export function searchVectors(data: SearchInput) {
-  return api.post<SearchHit[]>('/v1/vector-store/search', data);
+  return api.post<SearchHit[]>('/api/v1/vector-store/search', data);
 }
 
 // ---- Collections ----
 
 export function getCollections() {
-  return api.get<VectorCollection[]>('/v1/vector-store/collections');
+  return api.get<VectorCollection[]>('/api/v1/vector-store/collections');
 }
 
 export function createCollection(data: CreateCollectionInput) {
-  return api.post<VectorCollection>('/v1/vector-store/collections', data);
+  return api.post<VectorCollection>('/api/v1/vector-store/collections', data);
 }
 
 export function deleteCollection(name: string) {
-  return api.delete(`/v1/vector-store/collections/${name}`);
+  return api.delete(`/api/v1/vector-store/collections/${name}`);
 }
 
 export function getCollectionDocuments(name: string) {
-  return api.get<VectorDocument[]>(`/v1/vector-store/collections/${name}/documents`);
+  return api.get<VectorDocument[]>(`/api/v1/vector-store/collections/${name}/documents`);
 }
 
 // ---- Stats ----
 
 export function getVectorStats() {
-  return api.get<VectorStats>('/v1/vector-store/stats');
+  return api.get<VectorStats>('/api/v1/vector-store/stats');
 }

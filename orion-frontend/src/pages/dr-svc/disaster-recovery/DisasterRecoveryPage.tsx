@@ -27,7 +27,7 @@ import {
   SafetyCertificateOutlined,
   PlayCircleOutlined,
   FileTextOutlined,
-} from '@ant-design/icons';
+  SyncOutlined,} from '@ant-design/icons';
 import { Tabs } from 'antd';
 import {
   getBackups,
@@ -44,6 +44,7 @@ import {
   type DRPlan,
   type FailoverTest,
 } from '@/api/disaster-recovery';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -76,8 +77,8 @@ const DisasterRecoveryPage: React.FC = () => {
         getBackups(),
         getBackupStats(),
       ]);
-      setBackups((backupRes.data as any)?.backups || []);
-      setStats((statsRes.data as any)?.stats || null);
+      setBackups((backupRes.data as { data?: { backups?: BackupRecord[] } })?.data?.backups ?? []);
+      setStats((statsRes.data as { data?: { stats?: BackupStats } })?.data?.stats ?? null);
     } catch {
       message.error('Failed to load backup data');
     } finally {
@@ -212,10 +213,11 @@ const DisasterRecoveryPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SyncOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <SafetyCertificateOutlined /> Disaster Recovery
           </Title>
           <Text type="secondary">Backup management, restore operations, and recovery drills</Text>
@@ -231,15 +233,15 @@ const DisasterRecoveryPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card><Statistic title="Total Backups" value={stats?.total ?? 0} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Successful" value={stats?.successful ?? 0} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card><Statistic title="Successful" value={stats?.successful ?? 0} valueStyle={{ color: colors.success[500] }} /></Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Failed" value={stats?.failed ?? 0} valueStyle={{ color: '#ff4d4f' }} /></Card>
+          <Card><Statistic title="Failed" value={stats?.failed ?? 0} valueStyle={{ color: colors.error[400] }} /></Card>
         </Col>
       </Row>
 
@@ -377,7 +379,7 @@ const DisasterRecoveryPage: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
         )}
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Text type="danger">Warning: Restoring will overwrite current data. This action cannot be undone.</Text>
         </div>
       </Modal>

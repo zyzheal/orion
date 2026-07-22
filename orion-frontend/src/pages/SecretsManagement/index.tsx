@@ -7,7 +7,8 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Modal, Form, Input, Select, message, Tag, Popconfirm } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, KeyOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens/colors';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@/api/secrets';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -71,7 +73,7 @@ const SecretsManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getSecrets(tenantId);
-      const data = response.data?.data;
+      const data = response.data;
       setSecrets(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       message.error(`加载 Secret 列表失败: ${(error as Error).message}`);
@@ -163,7 +165,7 @@ const SecretsManagement: React.FC = () => {
       setSubmitting(true);
 
       // Only update if value is provided
-      const payload: UpdateSecretInput = {};
+      const payload: UpdateSecretInput = { value: '' };
       if (values.value) {
         payload.value = values.value;
       }
@@ -325,11 +327,12 @@ const SecretsManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <KeyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Secrets 管理
           </Title>
           <Text type="secondary">
@@ -354,7 +357,7 @@ const SecretsManagement: React.FC = () => {
       </div>
 
       {/* Search and Filter Bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -454,7 +457,7 @@ const SecretsManagement: React.FC = () => {
               即将编辑 Secret: <Text strong>{editingSecret.name}</Text>
             </Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12, marginTop: 8, display: 'block' }}>
+            <Text type="secondary" style={{ fontSize: 12, marginTop: spacing.sm, display: 'block' }}>
               注意：更新 Secret 值后，所有引用该 Secret 的 Pipeline 在下一次运行时将使用新的值。
               旧值将被永久删除。
             </Text>

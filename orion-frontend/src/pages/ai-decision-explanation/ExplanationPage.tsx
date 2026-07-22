@@ -29,7 +29,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens/colors';
+import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   explainDecision,
@@ -90,7 +90,7 @@ const ExplainDecisionTab: React.FC = () => {
         features,
         confidence: values.confidence ? parseFloat(values.confidence) : undefined,
       });
-      setExplanation(res.data?.data || null);
+      setExplanation(res.data || null);
       message.success('决策解释已生成');
     } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
@@ -326,7 +326,7 @@ const ExplanationHistoryTab: React.FC = () => {
         limit: 50,
         decisionType: filterType,
       });
-      setHistory(res.data?.data || []);
+      setHistory(res.data || []);
     } catch (error: unknown) {
       message.error(`加载历史失败: ${(error as Error).message}`);
     } finally {
@@ -342,7 +342,7 @@ const ExplanationHistoryTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getExplanationById(id);
-      setDetail(res.data?.data || null);
+      setDetail(res.data || null);
     } catch {
       setDetail(null);
     } finally {
@@ -358,8 +358,8 @@ const ExplanationHistoryTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getExplanationById(searchId);
-      setDetail(res.data?.data || null);
-      if (!res.data?.data) {
+      setDetail(res.data || null);
+      if (!res.data) {
         message.info('未找到该解释');
       }
     } catch {
@@ -377,7 +377,7 @@ const ExplanationHistoryTab: React.FC = () => {
       width: 200,
       render: (v: string) => (
         <Text
-          style={{ cursor: 'pointer', color: '#1890ff' }}
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
           onClick={() => loadDetail(v)}
         >
           {v}
@@ -471,7 +471,7 @@ const ExplanationHistoryTab: React.FC = () => {
           </Descriptions>
 
           {detail.matchedRules && detail.matchedRules.length > 0 && (
-            <Card size="small" title="规则匹配" style={{ marginTop: 16 }}>
+            <Card size="small" title="规则匹配" style={{ marginTop: spacing.md }}>
               <Timeline>
                 {detail.matchedRules.map((rule: MatchedRule) => (
                   <Timeline.Item
@@ -479,11 +479,11 @@ const ExplanationHistoryTab: React.FC = () => {
                     color={rule.matched ? 'green' : 'gray'}
                   >
                     <Text strong>{rule.name}</Text>
-                    <Text type="secondary" style={{ marginLeft: 8 }}>
+                    <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                       {rule.condition}
                     </Text>
                     {rule.contribution !== undefined && (
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                      <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         贡献: {rule.contribution.toFixed(2)}
                       </Text>
                     )}
@@ -527,9 +527,9 @@ const ExplanationPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <InfoCircleOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <InfoCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           AI 决策解释
         </Title>
         <Text type="secondary">

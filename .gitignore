@@ -18,6 +18,9 @@ dist/
 # Editor
 .vscode/
 .idea/
+
+# Worktrees
+.worktrees/
 *.swp
 *.swo
 *~
@@ -34,6 +37,7 @@ yarn-error.log*
 
 # Test coverage
 coverage/
+.coverage-*/
 
 # Temporary files
 tmp/
@@ -41,3 +45,24 @@ temp/
 
 # Dev-engine internal
 .dev-enegine/cache/
+
+# Rust build artifacts
+target/
+
+# Large binaries (use Git LFS if needed)
+orion-knowledge/backend/bin/api
+orion-knowledge/pandawiki-api
+orion-cmdb-service/bin/cmdbd
+
+# Tool caches
+.codegraph/
+.understand-anything/
+.claude/worktrees/
+orion-ai-service/src/data/
+
+# Build artifacts
+**/server
+**/*.bak
+
+# Claude worktrees
+.claude/worktrees/

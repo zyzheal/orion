@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Checkbox, message, Select } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckCircleOutlined, BlockOutlined as BulkOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { getConfirmations, batchApprove, type ConfirmationRequest } from '@/api/confirmations';
 import dayjs from 'dayjs';
@@ -29,7 +29,7 @@ const BatchConfirmation: React.FC = () => {
     setLoading(true);
     try {
       const res = await getConfirmations({ status: 'pending' });
-      setConfirmations(Array.isArray(res.data.data) ? res.data.data : []);
+      setConfirmations(Array.isArray(res.data) ? res.data : []);
     } catch {
       message.error('Failed to load confirmations');
     } finally {
@@ -155,11 +155,12 @@ const BatchConfirmation: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BulkOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             批量确认
           </Title>
           <Text type="secondary">按优先级分组，批量处理确认请求</Text>

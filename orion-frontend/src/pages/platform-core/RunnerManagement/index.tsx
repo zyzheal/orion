@@ -29,6 +29,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
+  ThunderboltOutlined,
   ReloadOutlined,
   DeleteOutlined,
   EyeOutlined,
@@ -48,6 +49,7 @@ import {
 } from '@/api/runners';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors, spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -129,7 +131,7 @@ const RegisterRunnerModal: React.FC<RegisterModalProps> = ({ visible, onCancel, 
       cancelText="取消"
       width={520}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           name="name"
           label="Runner 名称"
@@ -198,7 +200,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
     setJobsLoading(true);
     try {
       const response = await getRunnerJobs(runnerId);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setJobs(Array.isArray(apiData) ? apiData : []);
     } catch {
       setJobs([]);
@@ -230,12 +232,12 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
       width={640}
     >
       {/* Basic Info */}
-      <Descriptions bordered column={2} size="small" style={{ marginBottom: 24 }}>
+      <Descriptions bordered column={2} size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions.Item label="状态" span={2}>
           <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
           {stale && (
             <Tooltip title="心跳超时超过 5 分钟">
-              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ marginLeft: 8 }}>
+              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ marginLeft: spacing.sm }}>
                 心跳超时
               </Tag>
             </Tooltip>
@@ -248,12 +250,12 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
         <Descriptions.Item label="当前任务">{runner.currentJobs}</Descriptions.Item>
         <Descriptions.Item label="最大并发">{runner.maxConcurrent}</Descriptions.Item>
         <Descriptions.Item label="利用率" span={2}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <div
               style={{
                 width: 120,
                 height: 8,
-                background: '#f0f0f0',
+                background: colors.neutral[200],
                 borderRadius: 4,
                 overflow: 'hidden',
               }}
@@ -262,7 +264,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
                 style={{
                   width: `${Math.min(utilization, 100)}%`,
                   height: '100%',
-                  background: utilization > 80 ? '#ff4d4f' : utilization > 50 ? '#faad14' : '#52c41a',
+                  background: utilization > 80 ? colors.error[400] : utilization > 50 ? colors.warning[500] : colors.success[500],
                   borderRadius: 4,
                   transition: 'width 0.3s',
                 }}
@@ -285,7 +287,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
       </Descriptions>
 
       {/* Recent Jobs */}
-      <Title level={5} style={{ marginBottom: 12 }}>
+      <Title level={5} style={{ marginBottom: spacing[3] }}>
         最近任务
       </Title>
       {jobsLoading ? (
@@ -375,9 +377,9 @@ const RunnerManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getRunners();
-      const apiData = response.data.data;
-      const runnerList = Array.isArray(apiData) ? apiData : (apiData as any).items || [];
-      setRunners(runnerList);
+      const apiData = response.data;
+      const runnerList = Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? [];
+      setRunners(runnerList as Runner[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Runner 列表失败：${error.message}`);
@@ -468,8 +470,8 @@ const RunnerManagement: React.FC = () => {
       filterable: true,
       render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: '#1890ff' }}>
-            <CloudServerOutlined style={{ marginRight: 6, color: '#8c8c8c' }} />
+          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
+            <CloudServerOutlined style={{ marginRight: 6, color: colors.neutral[500] }} />
             {record.name}
           </Text>
           <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>
@@ -492,7 +494,7 @@ const RunnerManagement: React.FC = () => {
             <Tag color={cfg.color}>{cfg.label}</Tag>
             {stale && (
               <Tooltip title="心跳超时（> 5 分钟）">
-                <ClockCircleOutlined style={{ color: '#faad14', fontSize: 14 }} />
+                <ClockCircleOutlined style={{ color: colors.warning[500], fontSize: 14 }} />
               </Tooltip>
             )}
           </Space>
@@ -593,11 +595,12 @@ const RunnerManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Runner 资源池
           </Title>
           <Text type="secondary">
@@ -625,7 +628,7 @@ const RunnerManagement: React.FC = () => {
       </div>
 
       {/* Search and filter */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

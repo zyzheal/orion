@@ -96,7 +96,7 @@ export interface StageConfig {
   timeout?: number;
   retryCount?: number;
   dependsOn?: string[];
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   subPipeline?: SubPipelineConfig;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;

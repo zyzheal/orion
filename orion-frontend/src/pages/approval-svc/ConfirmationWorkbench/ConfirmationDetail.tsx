@@ -17,8 +17,8 @@ import {
   Col,
   Divider,
 } from 'antd';
-import { colors } from '@/tokens';
-import { CheckOutlined, CloseOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+import { CheckOutlined, CloseOutlined, ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
 import {
   getConfirmation,
   approveConfirmation,
@@ -57,7 +57,7 @@ const ConfirmationDetail: React.FC = () => {
     setLoading(true);
     try {
       const res = await getConfirmation(confirmationId);
-      setConfirmation(res.data.data as ConfirmationRequest | null);
+      setConfirmation(res.data as ConfirmationRequest | null);
     } catch {
       message.error('Failed to load confirmation');
     } finally {
@@ -95,11 +95,11 @@ const ConfirmationDetail: React.FC = () => {
   };
 
   if (loading && !confirmation) {
-    return <div style={{ padding: 24 }}>加载中...</div>;
+    return <div style={{ padding: spacing.lg }}>加载中...</div>;
   }
 
   if (!confirmation) {
-    return <div style={{ padding: 24 }}>未找到确认请求</div>;
+    return <div style={{ padding: spacing.lg }}>未找到确认请求</div>;
   }
 
   const minutes = Math.floor(elapsedSeconds / 60);
@@ -107,20 +107,21 @@ const ConfirmationDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate(-1)}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           返回
         </Button>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           确认详情
         </Title>
       </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Descriptions column={2} bordered>
           <Descriptions.Item label="确认 ID">{confirmation.id}</Descriptions.Item>
           <Descriptions.Item label="场景类型">
@@ -163,7 +164,7 @@ const ConfirmationDetail: React.FC = () => {
         </Descriptions>
       </Card>
 
-      <Card title="AI 建议" style={{ marginBottom: 16 }}>
+      <Card title="AI 建议" style={{ marginBottom: spacing.md }}>
         <Text>{confirmation.aiSuggestion}</Text>
         <Divider />
         <Row gutter={16}>
@@ -186,7 +187,7 @@ const ConfirmationDetail: React.FC = () => {
       </Card>
 
       {confirmation.comment && (
-        <Card title="备注" style={{ marginBottom: 16 }}>
+        <Card title="备注" style={{ marginBottom: spacing.md }}>
           <Text>{confirmation.comment}</Text>
         </Card>
       )}
@@ -198,7 +199,7 @@ const ConfirmationDetail: React.FC = () => {
             onChange={(e) => setComment(e.target.value)}
             rows={3}
             placeholder="输入备注..."
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           />
           <Space>
             <Button

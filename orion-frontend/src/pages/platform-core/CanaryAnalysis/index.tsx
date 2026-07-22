@@ -21,7 +21,7 @@ import {
   Alert,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SettingOutlined, PlayCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -84,7 +84,7 @@ const CanaryAnalysis: React.FC = () => {
     try {
       const runRes = await getCanaryRuns();
       await getCanaryConfigs();
-      setRuns(Array.isArray(runRes.data.data) ? runRes.data.data : []);
+      setRuns(Array.isArray(runRes.data) ? runRes.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载金丝雀分析数据失败：${error.message}`);
@@ -122,8 +122,8 @@ const CanaryAnalysis: React.FC = () => {
         getCanaryMetrics(run.id),
         getCanaryMlResults(run.id),
       ]);
-      setMetrics(Array.isArray(metricRes.data.data) ? metricRes.data.data : []);
-      setMlResults(Array.isArray(mlRes.data.data) ? mlRes.data.data : []);
+      setMetrics(Array.isArray(metricRes.data) ? metricRes.data : []);
+      setMlResults(Array.isArray(mlRes.data) ? mlRes.data : []);
       setRunDetailVisible(true);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -323,11 +323,12 @@ const CanaryAnalysis: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             ML 金丝雀分析
           </Title>
           <Text type="secondary">全指标比对与智能决策</Text>
@@ -346,7 +347,7 @@ const CanaryAnalysis: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总运行数" value={runs.length} />
@@ -383,7 +384,7 @@ const CanaryAnalysis: React.FC = () => {
 
       {/* Runs Table */}
       <Card title="分析运行历史">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -428,7 +429,7 @@ const CanaryAnalysis: React.FC = () => {
                 type="error"
                 message="ROLLBACK TRIGGERED"
                 description="Canary detected significant degradation"
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               />
             )}
             {selectedRun.status === 'promote' && (
@@ -436,11 +437,11 @@ const CanaryAnalysis: React.FC = () => {
                 type="success"
                 message="PROMOTE DECISION"
                 description="Canary passed all analysis rounds"
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               />
             )}
 
-            <Descriptions bordered column={3} style={{ marginBottom: 16 }}>
+            <Descriptions bordered column={3} style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="部署">{selectedRun.deploymentId}</Descriptions.Item>
               <Descriptions.Item label="轮次">{selectedRun.runNumber}</Descriptions.Item>
               <Descriptions.Item label="状态">
@@ -467,7 +468,7 @@ const CanaryAnalysis: React.FC = () => {
             </Descriptions>
 
             {/* Metrics Comparison */}
-            <Card title="指标比对结果" size="small" style={{ marginBottom: 16 }}>
+            <Card title="指标比对结果" size="small" style={{ marginBottom: spacing.md }}>
               {metrics.length > 0 ? (
                 <Table
                   columns={[
@@ -551,7 +552,7 @@ const CanaryAnalysis: React.FC = () => {
                     bordered
                     column={3}
                     size="small"
-                    style={{ marginBottom: 8 }}
+                    style={{ marginBottom: spacing.sm }}
                   >
                     <Descriptions.Item label="模型">{ml.modelName}</Descriptions.Item>
                     <Descriptions.Item label="预测">

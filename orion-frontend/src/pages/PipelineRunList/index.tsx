@@ -14,7 +14,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Typography, Button, Space, Tag, DatePicker, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PlayCircleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -23,7 +23,7 @@ import {
   retryPipelineRun,
   type PipelineRunSummary,
 } from '@/api/pipelineRuns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
@@ -51,9 +51,10 @@ const triggerTagColors: Record<string, string> = {
 };
 
 /** Format duration in ms to human-readable string */
-function formatDuration(ms?: number): string {
-  if (!ms || ms <= 0) return '-';
-  const dur = dayjs.duration(ms, 'milliseconds');
+function formatDuration(ms?: number | string): string {
+  const numMs = typeof ms === 'string' ? parseInt(ms, 10) : ms;
+  if (!numMs || numMs <= 0) return '-';
+  const dur = dayjs.duration(numMs, 'milliseconds');
   const minutes = Math.floor(dur.asMinutes());
   const secs = dur.seconds();
   if (minutes > 0) return `${minutes}m ${secs}s`;
@@ -62,24 +63,71 @@ function formatDuration(ms?: number): string {
 
 const PipelineRunList: React.FC = () => {
   const navigate = useNavigate();
+  const { id: pipelineId } = useParams<{ id: string }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [loading, setLoading] = useState(false);
   const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
+  const [pipelineName, setPipelineName] = useState<string | null>(null);
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load pipeline runs from API
   const loadRuns = useCallback(async () => {
+    console.log('[PipelineRunList] loadRuns called, pipelineId:', pipelineId);
     setLoading(true);
     try {
       const response = await getAllPipelineRuns({
-        limit: 200, // Fetch enough for client-side filtering and pagination
+        limit: 200,
+        ...(pipelineId ? { pipelineId } : {}),  // 如果有 pipelineId，传给后端过滤
       });
-      const apiData = response.data;
-      const items = Array.isArray(apiData.data) ? apiData.data : [];
-      setRuns(items as PipelineRunSummary[]);
+
+      console.log('[PipelineRunList] Response object:', response);
+      console.log('[PipelineRunList] response.data:', response.data);
+      console.log('[PipelineRunList] response.data type:', typeof response.data);
+      console.log('[PipelineRunList] response.data:', response.data);
+
+      // 后端返回格式：{ data: [...], total }
+      // Axios 响应拦截器保持原样，不解包
+      // 所以 response.data 就是 { data: [...], total }
+      const raw = response.data;
+      let items: PipelineRunSummary[] = [];
+
+      if (raw && typeof raw === 'object') {
+        // 情况1：{ data: [...], total } - 标准格式
+        if (Array.isArray(raw.data)) {
+          console.log('[PipelineRunList] Found data array with', raw.data.length, 'items');
+          items = raw.data;
+        }
+        // 情况2：直接被当作数组（不应该发生，但作为后备）
+        else if (Array.isArray(raw)) {
+          console.log('[PipelineRunList] Raw is array with', raw.length, 'items');
+          items = raw;
+        } else {
+          console.log('[PipelineRunList] raw.data is not array, raw keys:', Object.keys(raw));
+        }
+      } else {
+        console.log('[PipelineRunList] raw is not object:', typeof raw);
+      }
+
+      console.log('[PipelineRunList] Final items count:', items.length);
+      if (items.length > 0) {
+        console.log('[PipelineRunList] First item:', items[0]);
+      }
+
+      // 注意：不再在前端过滤，因为已经通过 API 参数传给后端过滤了
+      // 获取 Pipeline 名称
+      if (pipelineId && items.length > 0) {
+        const firstRun = items[0];
+        if (firstRun && (firstRun as { pipelineName?: string }).pipelineName) {
+          setPipelineName((firstRun as { pipelineName?: string }).pipelineName ?? null);
+        }
+      }
+
+      console.log('[PipelineRunList] About to setRuns with', items.length, 'items');
+      setRuns(items);
     } catch (error: unknown) {
+      console.error('[PipelineRunList] Error:', error);
       if (error instanceof Error) {
         message.error(`加载 Pipeline 运行列表失败：${error.message}`);
       } else {
@@ -88,7 +136,7 @@ const PipelineRunList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pipelineId]);
 
   // Initial load
   useEffect(() => {
@@ -121,7 +169,7 @@ const PipelineRunList: React.FC = () => {
         const query = searchQuery.toLowerCase();
         const searchable = [
           run.pipelineId,
-          (run as any).pipelineName || '',
+          (run as { pipelineName?: string }).pipelineName || '',
           run.triggerBy || '',
         ]
           .join(' ')
@@ -197,9 +245,9 @@ const PipelineRunList: React.FC = () => {
           <Text
             strong
             style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/pipelines/${record.id}`)}
+            onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
           >
-            {(record as any).pipelineName || record.pipelineId}
+            {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
           </Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
             <Tag color={triggerTagColors[record.triggerType] || 'default'}>
@@ -214,7 +262,7 @@ const PipelineRunList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'} size="small" />,
     },
     {
       key: 'environment',
@@ -222,7 +270,7 @@ const PipelineRunList: React.FC = () => {
       width: 100,
       render: (_value: unknown, record) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(record as any).environment || '-'}
+          {(record as { environment?: string }).environment || '-'}
         </Text>
       ),
     },
@@ -269,7 +317,7 @@ const PipelineRunList: React.FC = () => {
           <Button
             type="link"
             size="small"
-            onClick={() => navigate(`/pipelines/${record.id}`)}
+            onClick={() => navigate(`/pipelines/${record.pipelineId}/runs/${record.id}`)}
           >
             查看
           </Button>
@@ -320,16 +368,28 @@ const PipelineRunList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            Pipeline 运行历史
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            {pipelineName ? `${pipelineName} - 运行历史` : 'Pipeline 运行历史'}
           </Title>
-          <Text type="secondary">共 {sortedRuns.length} 条运行记录</Text>
+          <Text type="secondary">
+            {pipelineId ? `Pipeline ID: ${pipelineId}` : '全部 Pipeline'}
+            {' · '}共 {sortedRuns.length} 条运行记录
+          </Text>
         </div>
         <Space>
+          {pipelineId && (
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate('/pipelines')}
+            >
+              返回列表
+            </Button>
+          )}
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
             刷新
           </Button>
@@ -337,7 +397,7 @@ const PipelineRunList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

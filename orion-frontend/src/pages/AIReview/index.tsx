@@ -3,32 +3,41 @@
  * Sidebar navigation for AI Review sub-pages
  */
 import React, { useState } from 'react';
-import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu, Typography, Spin } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ScanOutlined,
   HistoryOutlined,
-  FileSearchOutlined,
   BulbOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const menuItems = [
-  { key: '/ai-review', icon: <ScanOutlined />, label: 'Dashboard' },
-  { key: '/ai-review/history', icon: <HistoryOutlined />, label: 'Review History' },
-  { key: '/ai-review/detail', icon: <FileSearchOutlined />, label: 'Review Detail' },
-  { key: '/ai-review/rules', icon: <BulbOutlined />, label: 'Review Rules' },
-  { key: '/ai-review/config', icon: <SettingOutlined />, label: 'Configuration' },
+  { key: '/console/ai-review/dashboard', icon: <ScanOutlined />, label: 'Dashboard' },
+  { key: '/console/ai-review/history', icon: <HistoryOutlined />, label: 'Review History' },
+  { key: '/console/ai-review/rules', icon: <BulbOutlined />, label: 'Review Rules' },
+  { key: '/console/ai-review/config', icon: <SettingOutlined />, label: 'Configuration' },
 ];
+
+const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
+  '/console/ai-review/dashboard': { icon: <ScanOutlined />, title: 'AI Review Dashboard', subtitle: 'AI 代码评审总览' },
+  '/console/ai-review/history': { icon: <HistoryOutlined />, title: 'Review History', subtitle: '查看历史评审记录' },
+  '/console/ai-review/rules': { icon: <BulbOutlined />, title: 'Review Rules', subtitle: '管理评审规则配置' },
+  '/console/ai-review/config': { icon: <SettingOutlined />, title: 'Configuration', subtitle: 'AI Review 系统配置' },
+};
 
 const AIReviewLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [loading, _setLoading] = useState(false);
+
+  const selectedKey = location.pathname;
+  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'AI Review', subtitle: '' };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -50,14 +59,27 @@ const AIReviewLayout: React.FC = () => {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={handleMenuClick}
         />
       </Sider>
       <Layout>
-        <Content style={{ margin: 0 }}>
-          <Outlet />
+        <Content style={{ margin: 0, padding: spacing.lg, background: colors.light.bg.primary }}>
+          {pageInfo.title && (
+            <div style={{ marginBottom: spacing.md }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <Text type="secondary">{pageInfo.subtitle}</Text>
+              )}
+            </div>
+          )}
+          <Spin spinning={loading}>
+            <Outlet />
+          </Spin>
         </Content>
       </Layout>
     </Layout>

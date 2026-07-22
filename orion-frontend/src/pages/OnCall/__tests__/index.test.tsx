@@ -82,13 +82,13 @@ describe('OnCallManagement', { timeout: 15000 }, () => {
 
   it('loads schedules from API on mount', async () => {
     vi.spyOn(oncallApi, 'getSchedules').mockResolvedValue({
-      data: { data: { schedules: mockSchedules } },
+      data: { schedules: mockSchedules } ,
     } as any);
     vi.spyOn(oncallApi, 'getCurrentOnCall').mockResolvedValue({
-      data: { data: { isOnCall: true, primaryUserId: 'dev-001' } },
+      data: { isOnCall: true, primaryUserId: 'dev-001' } ,
     } as any);
     vi.spyOn(usersApi, 'listUsers').mockResolvedValue({
-      data: { data: { data: [] } },
+      data: [],
     } as any);
 
     await act(async () => {
@@ -104,7 +104,7 @@ describe('OnCallManagement', { timeout: 15000 }, () => {
     const errorMessage = 'Network Error';
     vi.spyOn(oncallApi, 'getSchedules').mockRejectedValue(new Error(errorMessage));
     vi.spyOn(usersApi, 'listUsers').mockResolvedValue({
-      data: { data: { data: [] } },
+      data: [],
     } as any);
 
     await act(async () => {

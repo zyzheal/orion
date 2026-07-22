@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-inception-svc
+  namespace: orion
+  labels:
+    app: orion-inception-svc
+    version: v1
+    component: inception-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orion-inception-svc
+  template:
+    metadata:
+      labels:
+        app: orion-inception-svc
+        version: v1
+        component: inception-service
+    spec:
+      containers:
+        - name: inception-svc
+          image: orion-inception-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3033
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3033"
+            - name: INCEPTION_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: INCEPTION_HOST
+            - name: INCEPTION_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: INCEPTION_PORT
+            - name: INCEPTION_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: INCEPTION_TIMEOUT
+            - name: INCEPTION_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: INCEPTION_USER
+            - name: INCEPTION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orion-inception-secrets
+                  key: INCEPTION_PASSWORD
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: LOG_LEVEL
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: CORS_ORIGIN
+            - name: NATS_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-inception-config
+                  key: NATS_SERVERS
+            - name: NATS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: orion-inception-secrets
+                  key: NATS_USER
+            - name: NATS_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: orion-inception-secrets
+                  key: NATS_PASS
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3033
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3033
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always

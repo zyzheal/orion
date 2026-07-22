@@ -40,8 +40,7 @@ import {
   ExperimentOutlined,
   WarningOutlined,
   EyeOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
+  FlagOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
@@ -135,7 +134,7 @@ const FeatureFlagsPage: React.FC = () => {
     setApiError(null);
     try {
       const response = await getFeatureFlags();
-      setFlags(response.data?.data || []);
+      setFlags(response.data || []);
     } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
@@ -148,7 +147,7 @@ const FeatureFlagsPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await getFeatureFlagStats();
-      setStats(response.data?.data || null);
+      setStats(response.data || null);
     } catch {
       setStats(null);
     }
@@ -197,8 +196,8 @@ const FeatureFlagsPage: React.FC = () => {
       await loadFlags();
       await loadStats();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`创建失败: ${(error as Error).message}`);
+      if (!(error instanceof Error)) {
+        message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
     } finally {
       setSubmitting(false);
@@ -229,9 +228,7 @@ const FeatureFlagsPage: React.FC = () => {
       editForm.resetFields();
       await loadFlags();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`更新失败: ${(error as Error).message}`);
-      }
+      message.error(`更新失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSubmitting(false);
     }
@@ -244,7 +241,7 @@ const FeatureFlagsPage: React.FC = () => {
       await loadFlags();
       await loadStats();
     } catch (error: unknown) {
-      message.error(`删除失败: ${(error as Error).message}`);
+      message.error(`删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -255,7 +252,7 @@ const FeatureFlagsPage: React.FC = () => {
       message.success(`"${flag.name}" 已${enabled ? '启用' : '禁用'}`);
       await loadStats();
     } catch (error: unknown) {
-      message.error(`操作失败: ${(error as Error).message}`);
+      message.error(`操作失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -271,12 +268,10 @@ const FeatureFlagsPage: React.FC = () => {
           ? values.userGroups.split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined,
       });
-      setEvaluationResult(String(result.data?.data?.result ?? '未知'));
+      setEvaluationResult(String(result.data?.result ?? '未知'));
       message.success('评估完成');
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
-        message.error(`评估失败: ${(error as Error).message}`);
-      }
+      message.error(`评估失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSubmitting(false);
     }
@@ -428,8 +423,8 @@ const FeatureFlagsPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FlagOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             特性开关管理
           </Title>
           <Text type="secondary">按租户/用户组的灰度发布和特性开关控制</Text>

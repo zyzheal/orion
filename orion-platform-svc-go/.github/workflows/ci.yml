@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'fix/*', 'feat/*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  GO_VERSION: '1.25'
+  IMAGE_NAME: orion-platform-svc
+
+jobs:
+  # ====== Lint & Type Check ======
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.61
+          working-directory: .
+          args: --timeout=10m
+
+      - name: go vet
+        run: go vet ./...
+
+  # ====== Build ======
+  build:
+    name: Go Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -trimpath -o /dev/null ./cmd/server
+
+  # ====== Test ======
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: orion_test
+        ports:
+          - 5432:5432
+        options: >-
+          --healthcmd "pg_isready -U test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --healthcmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_NAME: orion_test
+          REDIS_ADDR: localhost:6379
+        run: go test -v -race -timeout=10m ./...
+
+  # ====== Docker Build ======
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --target=runner -t ${{ env.IMAGE_NAME }}:ci .
+
+      - name: Verify health check
+        run: |
+          docker run -d --name svc-test -p 8080:8080 ${{ env.IMAGE_NAME }}:ci
+          sleep 5
+          curl -sf http://localhost:8080/healthz || exit 1
+          docker logs svc-test | tail -5
+
+  # ====== Dependency Check ======
+  dependency-check:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'

@@ -19,7 +19,7 @@ import {
   Descriptions,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -61,8 +61,8 @@ const ChangeIntelligence: React.FC = () => {
         getChangeReports(),
         getChangeTrends({ days: 30 }),
       ]);
-      setReports(Array.isArray(reportRes.data.data) ? reportRes.data.data : []);
-      setTrends(Array.isArray(trendRes.data.data) ? trendRes.data.data : []);
+      setReports(Array.isArray(reportRes.data) ? reportRes.data : []);
+      setTrends(Array.isArray(trendRes.data) ? trendRes.data : []);
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : 'Failed to load change intelligence data';
@@ -119,12 +119,12 @@ const ChangeIntelligence: React.FC = () => {
         getChangeReportDetail(report.id),
         getBlastRadius(report.id),
       ]);
-      const detailData = detailRes.data.data as
+      const detailData = detailRes.data as
         | { affectedServices?: AffectedService[] }
         | undefined;
       const svcList = detailData?.affectedServices;
       setAffectedServices(Array.isArray(svcList) ? svcList : []);
-      setBlastRadius((blastRes.data.data as BlastRadiusData) || null);
+      setBlastRadius((blastRes.data as BlastRadiusData) || null);
       setReportDetailVisible(true);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to load report detail';
@@ -259,11 +259,12 @@ const ChangeIntelligence: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BranchesOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI 变更智能
           </Title>
           <Text type="secondary">语义影响面分析与风险评分</Text>
@@ -283,7 +284,7 @@ const ChangeIntelligence: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="分析总数" value={reports.length} />
@@ -316,7 +317,7 @@ const ChangeIntelligence: React.FC = () => {
 
       {/* Reports Table */}
       <Card title="变更智能报告">
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -365,7 +366,7 @@ const ChangeIntelligence: React.FC = () => {
       >
         {selectedReport && (
           <>
-            <Descriptions bordered column={3} style={{ marginBottom: 24 }}>
+            <Descriptions bordered column={3} style={{ marginBottom: spacing.lg }}>
               <Descriptions.Item label="PR ID">{selectedReport.prId}</Descriptions.Item>
               <Descriptions.Item label="仓库">{selectedReport.repoId}</Descriptions.Item>
               <Descriptions.Item label="Commit">
@@ -398,10 +399,10 @@ const ChangeIntelligence: React.FC = () => {
 
             {/* SHAP Factors */}
             {selectedReport.shapFactors && selectedReport.shapFactors.length > 0 && (
-              <Card title="SHAP 风险因子" size="small" style={{ marginBottom: 16 }}>
+              <Card title="SHAP 风险因子" size="small" style={{ marginBottom: spacing.md }}>
                 {selectedReport.shapFactors.map(
                   (f: { factor: string; value: number; contribution: number }, i: number) => (
-                    <Row key={i} style={{ marginBottom: 8 }}>
+                    <Row key={i} style={{ marginBottom: spacing.sm }}>
                       <Col span={6}>
                         <Text strong>{f.factor}</Text>
                       </Col>
@@ -441,8 +442,8 @@ const ChangeIntelligence: React.FC = () => {
 
             {/* Blast Radius Visualization */}
             {blastRadius && (
-              <Card title="影响面图谱" size="small" style={{ marginBottom: 16 }}>
-                <div style={{ minHeight: 200, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <Card title="影响面图谱" size="small" style={{ marginBottom: spacing.md }}>
+                <div style={{ minHeight: 200, display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
                   {blastRadius.nodes.map((node) => (
                     <Tag
                       key={node.id}

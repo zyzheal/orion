@@ -9,16 +9,17 @@
  * - Pagination support
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message } from 'antd';
+import { Typography, Button, Space, Tag, message, Empty, Modal, Input } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, ApiOutlined, PlayCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getPipelines, type Pipeline } from '@/api/pipelines';
+import { getPipelines, triggerPipeline, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import BatchActions from './BatchActions';
 
 dayjs.extend(relativeTime);
 
@@ -30,14 +31,24 @@ const PipelineList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [runModalVisible, setRunModalVisible] = useState(false);
+  const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
+  const [runBranch, setRunBranch] = useState('main');
+  const [runVariables, setRunVariables] = useState<Record<string, string>>({});
+  const [variablesText, setVariablesText] = useState('{}');
+  const [running, setRunning] = useState(false);
 
   // Load pipelines from API
   const loadPipelines = async () => {
     setLoading(true);
     try {
       const response = await getPipelines();
-      const apiData = response.data.data;
-      setPipelines(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      // wrapper: {success, data: {data: [...], total}, meta}
+      const wrapperData = response.data as { data?: { data?: unknown[]; total?: number } };
+      const payload = wrapperData?.data ?? wrapperData;
+      const items = payload?.data ?? (Array.isArray(payload) ? payload : []);
+      setPipelines(items as Pipeline[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
@@ -89,6 +100,49 @@ const PipelineList: React.FC = () => {
     },
   ];
 
+  // Handle run pipeline
+  const handleRun = (record: Pipeline) => {
+    setSelectedPipeline(record);
+    setRunBranch('main');
+    setRunModalVisible(true);
+  };
+
+  const confirmRun = async () => {
+    if (!selectedPipeline) return;
+    setRunning(true);
+    try {
+      let variables: Record<string, string> = {};
+      try {
+        variables = JSON.parse(variablesText);
+      } catch {
+        message.error('参数格式错误，请输入有效的 JSON');
+        setRunning(false);
+        return;
+      }
+      const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch, variables });
+      const wrapperData = response.data as { data?: { id?: string } };
+      const apiData = wrapperData?.data ?? wrapperData;
+      const runId = (apiData as any).id;
+      message.success(`Pipeline "${selectedPipeline.name}" 已触发运行`);
+      setRunModalVisible(false);
+      if (runId) {
+        navigate(`/pipelines/${selectedPipeline.id}/runs/${runId}`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`触发运行失败：${error.message}`);
+      } else {
+        message.error('触发运行失败，请稍后重试');
+      }
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadPipelines();
+  };
+
   // Table column definitions
   const columns: TableColumn<Pipeline>[] = [
     {
@@ -119,7 +173,7 @@ const PipelineList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: '12%',
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={String(value) as StatusType} size="small" />,
     },
     {
       key: 'stages',
@@ -158,7 +212,7 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: '16%',
+      width: 320,
       render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
@@ -170,19 +224,23 @@ const PipelineList: React.FC = () => {
           <Button
             type="link"
             size="small"
-            danger
-            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+            icon={<PlayCircleOutlined />}
+            onClick={() => handleRun(record)}
           >
             运行
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<UnorderedListOutlined />}
+            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+          >
+            运行记录
           </Button>
         </Space>
       ),
     },
   ];
-
-  const handleRefresh = () => {
-    loadPipelines();
-  };
 
   return (
     <div style={{ padding: 0 }}>
@@ -192,11 +250,12 @@ const PipelineList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Pipeline 列表
           </Title>
           <Text type="secondary">共 {filteredPipelines.length} 个 Pipeline</Text>
@@ -212,7 +271,7 @@ const PipelineList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -221,15 +280,65 @@ const PipelineList: React.FC = () => {
         />
       </div>
 
-      {/* Pipeline table */}
-      <Table
-        columns={columns}
-        dataSource={filteredPipelines}
-        loading={loading}
-        rowKey="id"
-        size="middle"
-        striped
+      {/* Batch actions toolbar */}
+      <BatchActions
+        selectedIds={selectedRowKeys.map(String)}
+        onRefresh={loadPipelines}
+        onClearSelection={() => setSelectedRowKeys([])}
       />
+
+      {/* Pipeline table */}
+      {filteredPipelines.length === 0 && !loading ? (
+        <div style={{ textAlign: 'center', padding: spacing.xxl }}>
+          <Empty description="暂无匹配的 Pipeline">
+            <Button type="primary" onClick={() => navigate('/pipelines/new')}>
+              创建 Pipeline
+            </Button>
+          </Empty>
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={filteredPipelines}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+          rowSelection={{
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+          }}
+        />
+      )}
+
+      {/* Run Pipeline Modal */}
+      <Modal
+        title={`运行 Pipeline: ${selectedPipeline?.name || ''}`}
+        open={runModalVisible}
+        onOk={confirmRun}
+        onCancel={() => setRunModalVisible(false)}
+        confirmLoading={running}
+        okText="触发运行"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: spacing.md }}>
+          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>分支</label>
+          <Input
+            value={runBranch}
+            onChange={(e) => setRunBranch(e.target.value)}
+            placeholder="输入分支名称，默认为 main"
+          />
+        </div>
+        <div style={{ marginBottom: spacing.md }}>
+          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>参数 (JSON)</label>
+          <Input.TextArea
+            value={variablesText}
+            onChange={(e) => setVariablesText(e.target.value)}
+            placeholder='{"KEY": "value"}'
+            rows={4}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

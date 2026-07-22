@@ -24,6 +24,7 @@ import {
   Timeline,
   Progress,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   EyeOutlined,
   ReloadOutlined,
@@ -88,7 +89,7 @@ const AlertRulesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAlertRules();
-      setRules(res.data?.data?.rules || []);
+      setRules(res.data?.rules || []);
     } catch (error: unknown) {
       message.error(`加载告警规则失败: ${(error as Error).message}`);
     } finally {
@@ -234,7 +235,7 @@ const AlertRulesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">管理和配置自定义告警规则</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
@@ -321,7 +322,7 @@ const SilenceRulesTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSilenceRules();
-      setRules(res.data?.data?.rules || []);
+      setRules(res.data?.rules || []);
     } catch (error: unknown) {
       message.error(`加载静默规则失败: ${(error as Error).message}`);
     } finally {
@@ -407,7 +408,7 @@ const SilenceRulesTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">配置告警静默规则，在维护期间抑制告警通知</Text>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
@@ -459,7 +460,7 @@ const RootCauseAnalysisTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRootCauseAnalyses();
-      setAnalyses(res.data?.data?.analyses || []);
+      setAnalyses(res.data?.analyses || []);
     } catch (error: unknown) {
       message.error(`加载根因分析列表失败: ${(error as Error).message}`);
     } finally {
@@ -499,7 +500,7 @@ const RootCauseAnalysisTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getRootCauseAnalysis(analysis.id);
-      setSelectedAnalysis(res.data?.data || analysis);
+      setSelectedAnalysis(res.data || analysis);
     } catch {
       // fallback to existing data
     } finally {
@@ -641,7 +642,7 @@ const RootCauseAnalysisTab: React.FC = () => {
                   {selectedAnalysis.timeline.map((item, i) => (
                     <Timeline.Item key={i}>
                       <Text strong>{item.service}</Text>
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
+                      <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         {new Date(item.timestamp).toLocaleTimeString()}
                       </Text>
                       <div>{item.event}</div>
@@ -679,7 +680,7 @@ const ServiceHealthTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getServiceHealth();
-      setServices(res.data?.data?.services || []);
+      setServices(res.data?.services || []);
     } catch (error: unknown) {
       message.error(`加载服务健康状态失败: ${(error as Error).message}`);
     } finally {
@@ -735,7 +736,7 @@ const ServiceHealthTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">查看各服务的健康状态和关键指标</Text>
         <Button icon={<ReloadOutlined />} onClick={loadHealth} loading={loading}>刷新</Button>
       </div>
@@ -762,9 +763,9 @@ const ObservabilityPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <EyeOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <EyeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           全栈可观测性
         </Title>
         <Text type="secondary">自定义告警规则、根因分析和静默规则管理</Text>

@@ -1,7 +1,10 @@
 # 质量门禁详细规格 (Phase 1)
+> **注意**: 本文档中的 `Map()` / 内存存储描述已过时。相关服务已迁移到 PostgreSQL Repository 模式，详见 `src/repositories/` 和 `src/db/migrations/`。
+
+
 
 > **日期**: 2026-05-05
-> **状态**: 编写中
+> **状态**: 已验证
 > **能力域**: 3. 质量门禁
 > **目标成熟度**: L3 → L3.3
 > **关键交付**: 门禁豁免机制、趋势分析面板
@@ -408,4 +411,4 @@ CREATE INDEX idx_quality_gate_snapshots_tenant ON quality_gate_snapshots(tenant_
 
 ---
 
-_文档版本: v1.0 | 创建日期: 2026-05-05 | 状态: 编写中_
+_文档版本: v1.0 | 创建日期: 2026-05-05 | 状态: 已验证_

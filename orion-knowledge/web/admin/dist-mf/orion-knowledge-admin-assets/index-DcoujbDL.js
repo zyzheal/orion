@@ -1,0 +1,2 @@
+var i=Object.defineProperty;var e=(t,r)=>i(t,"name",{value:r,configurable:!0});import{j as s,S as o,B as x}from"./vendor-mui-CdSfxnlU.js";import{N as n}from"./__federation_expose_Index-Blki2IV6.js";const p=e(({text:t="暂无数据",imageWidth:r=150,sx:a})=>s.jsxs(o,{alignItems:"center",sx:a,children:[s.jsx("img",{src:n,width:r,alt:""}),s.jsx(x,{sx:{fontSize:12,lineHeight:"20px",color:"text.tertiary"},children:t})]}),"EmptyState");export{p as E};
+//# sourceMappingURL=index-DcoujbDL.js.map

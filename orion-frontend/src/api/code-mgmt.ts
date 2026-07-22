@@ -51,7 +51,7 @@ export interface WebhookEvent {
   eventType: string;
   repoType: string;
   repoName: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   receivedAt: string;
   status: 'processed' | 'failed';
 }
@@ -156,35 +156,35 @@ export interface RecommendApproversInput {
 // ============================================================================
 
 export function getCodeRepoAdapters() {
-  return api.get('/v1/code-repo/adapters');
+  return api.get('/api/v1/code-repo/adapters');
 }
 
 export function getCodeRepos(adapterId: string, params?: RepoListParams) {
-  return api.get(`/v1/code-repo/${adapterId}/repos`, { params });
+  return api.get(`/api/v1/code-repo/${adapterId}/repos`, { params });
 }
 
 export function getCodeRepoBranches(adapterId: string, repoId: string) {
-  return api.get(`/v1/code-repo/${adapterId}/repos/${repoId}/branches`);
+  return api.get(`/api/v1/code-repo/${adapterId}/repos/${repoId}/branches`);
 }
 
 export function createCodeRepoBranch(adapterId: string, repoId: string, data: CreateBranchInput) {
-  return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/branches`, data);
+  return api.post(`/api/v1/code-repo/${adapterId}/repos/${repoId}/branches`, data);
 }
 
 export function deleteCodeRepoBranch(adapterId: string, repoId: string, branchName: string) {
-  return api.delete(`/v1/code-repo/${adapterId}/repos/${repoId}/branches/${branchName}`);
+  return api.delete(`/api/v1/code-repo/${adapterId}/repos/${repoId}/branches/${branchName}`);
 }
 
 export function getPullRequests(adapterId: string, repoId: string, params?: PullRequestListParams) {
-  return api.get(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls`, { params });
+  return api.get(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls`, { params });
 }
 
 export function getPullRequest(adapterId: string, repoId: string, prId: string) {
-  return api.get(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}`);
+  return api.get(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}`);
 }
 
 export function createPullRequest(adapterId: string, repoId: string, data: CreatePullRequestInput) {
-  return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls`, data);
+  return api.post(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls`, data);
 }
 
 export function mergePullRequest(
@@ -193,11 +193,11 @@ export function mergePullRequest(
   prId: string,
   data?: MergePullRequestInput
 ) {
-  return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/merge`, data);
+  return api.post(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/merge`, data);
 }
 
 export function closePullRequest(adapterId: string, repoId: string, prId: string) {
-  return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/close`);
+  return api.post(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/close`);
 }
 
 export function addPullRequestReview(
@@ -206,11 +206,11 @@ export function addPullRequestReview(
   prId: string,
   data: AddReviewInput
 ) {
-  return api.post(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/reviews`, data);
+  return api.post(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/reviews`, data);
 }
 
 export function getPullRequestReviews(adapterId: string, repoId: string, prId: string) {
-  return api.get(`/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/reviews`);
+  return api.get(`/api/v1/code-repo/${adapterId}/repos/${repoId}/pulls/${prId}/reviews`);
 }
 
 // ============================================================================
@@ -218,23 +218,23 @@ export function getPullRequestReviews(adapterId: string, repoId: string, prId: s
 // ============================================================================
 
 export function getBranchPolicies(params?: BranchPolicyParams) {
-  return api.get('/v1/code-repo/branch-policies', { params });
+  return api.get('/api/v1/code-repo/branch-policies', { params });
 }
 
 export function createBranchPolicy(data: CreateBranchPolicyInput) {
-  return api.post('/v1/code-repo/branch-policies', data);
+  return api.post('/api/v1/code-repo/branch-policies', data);
 }
 
 export function updateBranchPolicy(id: string, data: UpdateBranchPolicyInput) {
-  return api.put(`/v1/code-repo/branch-policies/${id}`, data);
+  return api.put(`/api/v1/code-repo/branch-policies/${id}`, data);
 }
 
 export function deleteBranchPolicy(id: string) {
-  return api.delete(`/v1/code-repo/branch-policies/${id}`);
+  return api.delete(`/api/v1/code-repo/branch-policies/${id}`);
 }
 
 export function checkMergePolicy(data: CheckMergePolicyInput) {
-  return api.post('/v1/code-repo/branch-policies/check-merge', data);
+  return api.post('/api/v1/code-repo/branch-policies/check-merge', data);
 }
 
 // ============================================================================
@@ -242,23 +242,23 @@ export function checkMergePolicy(data: CheckMergePolicyInput) {
 // ============================================================================
 
 export function getCodeOwners(repoId: string) {
-  return api.get('/v1/code-repo/code-owners', { params: { repoId } });
+  return api.get('/api/v1/code-repo/code-owners', { params: { repoId } });
 }
 
 export function registerCodeOwners(data: RegisterCodeOwnersInput) {
-  return api.post('/v1/code-repo/code-owners', data);
+  return api.post('/api/v1/code-repo/code-owners', data);
 }
 
 export function deleteCodeOwners(repoId: string) {
-  return api.delete(`/v1/code-repo/code-owners/${repoId}`);
+  return api.delete(`/api/v1/code-repo/code-owners/${repoId}`);
 }
 
 export function validateCodeOwners(content: string) {
-  return api.post('/v1/code-repo/code-owners/validate', { content });
+  return api.post('/api/v1/code-repo/code-owners/validate', { content });
 }
 
 export function recommendCodeOwnersApprovers(repoId: string, filePaths: string[]) {
-  return api.post('/v1/code-repo/code-owners/recommend', { repoId, filePaths });
+  return api.post('/api/v1/code-repo/code-owners/recommend', { repoId, filePaths });
 }
 
 // ============================================================================
@@ -266,5 +266,5 @@ export function recommendCodeOwnersApprovers(repoId: string, filePaths: string[]
 // ============================================================================
 
 export function getWebhookLogs(params?: WebhookLogParams) {
-  return api.get('/v1/code-repo/webhooks/logs', { params });
+  return api.get('/api/v1/code-repo/webhooks/logs', { params });
 }

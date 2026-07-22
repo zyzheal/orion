@@ -18,12 +18,13 @@ import {
 import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
+  FileSearchOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getWorkspaces, getWorkspacePlans, type IaCPlan, type IaCResourceChange } from '@/api/iac';
 import dayjs from 'dayjs';
@@ -53,7 +54,7 @@ const PlanViewer: React.FC = () => {
     setLoading(true);
     try {
       const wsRes = await getWorkspaces();
-      const wsList = Array.isArray(wsRes.data.data) ? wsRes.data.data : [];
+      const wsList = Array.isArray(wsRes.data) ? wsRes.data : [];
       setWorkspaces(wsList.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })));
 
       // Collect plans from all workspaces
@@ -61,8 +62,8 @@ const PlanViewer: React.FC = () => {
       for (const ws of wsList.slice(0, 5)) {
         try {
           const planRes = await getWorkspacePlans(ws.id);
-          if (Array.isArray(planRes.data.data)) {
-            allPlans.push(...planRes.data.data);
+          if (Array.isArray(planRes.data)) {
+            allPlans.push(...planRes.data);
           }
         } catch (error: unknown) {
           // Workspace may not have plans - silently ignore
@@ -133,7 +134,7 @@ const PlanViewer: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'changes',
@@ -259,11 +260,12 @@ const PlanViewer: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileSearchOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             计划查看
           </Title>
           <Text type="secondary">IaC 变更计划与审查</Text>
@@ -273,7 +275,7 @@ const PlanViewer: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总计划数" value={plans.length} />
@@ -310,7 +312,7 @@ const PlanViewer: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -332,13 +334,13 @@ const PlanViewer: React.FC = () => {
       {selectedPlan && (
         <Card
           title="计划详情"
-          style={{ marginTop: 16 }}
+          style={{ marginTop: spacing.md }}
           extra={<Button onClick={() => setSelectedPlan(null)}>关闭</Button>}
         >
           <Descriptions column={2} bordered>
             <Descriptions.Item label="计划 ID">{selectedPlan.id}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <StatusBadge status={selectedPlan.status as any} />
+              <StatusBadge status={selectedPlan.status as StatusType} />
             </Descriptions.Item>
             <Descriptions.Item label="工作空间">
               {getWorkspaceName(selectedPlan.workspaceId)}
@@ -349,14 +351,14 @@ const PlanViewer: React.FC = () => {
           </Descriptions>
 
           {selectedPlan.aiReview && (
-            <Card title="AI 审查报告" style={{ marginTop: 16 }} size="small">
+            <Card title="AI 审查报告" style={{ marginTop: spacing.md }} size="small">
               <Row gutter={16}>
                 <Col span={6}>
                   <Statistic title="安全评分" value={selectedPlan.aiReview.score} suffix="/ 100" />
                 </Col>
                 <Col span={18}>
                   {selectedPlan.aiReview.risks.length > 0 && (
-                    <div style={{ marginBottom: 8 }}>
+                    <div style={{ marginBottom: spacing.sm }}>
                       <Text strong>风险:</Text>
                       <ul>
                         {selectedPlan.aiReview.risks.map((r, i) => (
@@ -383,7 +385,7 @@ const PlanViewer: React.FC = () => {
           )}
 
           {selectedPlan.resourceChanges.length > 0 && (
-            <Card title="资源变更" style={{ marginTop: 16 }} size="small">
+            <Card title="资源变更" style={{ marginTop: spacing.md }} size="small">
               <Table
                 columns={[
                   {
@@ -410,7 +412,7 @@ const PlanViewer: React.FC = () => {
                 dataSource={selectedPlan.resourceChanges as unknown as Record<string, unknown>[]}
                 rowKey="address"
                 size="small"
-                pagination={false as any}
+                pagination={false}
               />
             </Card>
           )}

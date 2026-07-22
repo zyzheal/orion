@@ -41,7 +41,7 @@ import {
   WarningOutlined,
   EyeOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+  FlagOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
@@ -135,7 +135,7 @@ const FeatureFlagsPage: React.FC = () => {
     setApiError(null);
     try {
       const response = await getFeatureFlags();
-      setFlags(response.data?.data || []);
+      setFlags(response.data || []);
     } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
@@ -148,7 +148,7 @@ const FeatureFlagsPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await getFeatureFlagStats();
-      setStats(response.data?.data || null);
+      setStats(response.data || null);
     } catch {
       setStats(null);
     }
@@ -197,7 +197,7 @@ const FeatureFlagsPage: React.FC = () => {
       await loadFlags();
       await loadStats();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
     } finally {
@@ -229,7 +229,7 @@ const FeatureFlagsPage: React.FC = () => {
       editForm.resetFields();
       await loadFlags();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`更新失败: ${(error as Error).message}`);
       }
     } finally {
@@ -271,10 +271,10 @@ const FeatureFlagsPage: React.FC = () => {
           ? values.userGroups.split(',').map((s: string) => s.trim()).filter(Boolean)
           : undefined,
       });
-      setEvaluationResult(String(result.data?.data?.result ?? '未知'));
+      setEvaluationResult(String(result.data?.result ?? '未知'));
       message.success('评估完成');
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`评估失败: ${(error as Error).message}`);
       }
     } finally {
@@ -428,7 +428,8 @@ const FeatureFlagsPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FlagOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />
             特性开关管理
           </Title>

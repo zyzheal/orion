@@ -17,7 +17,7 @@ import {
   message,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { SendOutlined, BookOutlined } from '@ant-design/icons';
+import { SendOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
 import { ragQuery, getSpaces, type RAGResult } from '@/api/ai-docs';
 import dayjs from 'dayjs';
 
@@ -43,7 +43,7 @@ const RAGQueryPage: React.FC = () => {
   const loadSpaces = async () => {
     try {
       const res = await getSpaces();
-      const spaceList = Array.isArray(res.data.data) ? res.data.data : [];
+      const spaceList = Array.isArray(res.data) ? res.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (error: unknown) {
       setSpaces([]);
@@ -74,7 +74,7 @@ const RAGQueryPage: React.FC = () => {
         spaceId: selectedSpace || undefined,
         topK: 5,
       });
-      const data = res.data.data as { answer?: string; sources?: RAGResult[]; confidence?: number };
+      const data = res.data as { answer?: string; sources?: RAGResult[]; confidence?: number };
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
@@ -99,8 +99,9 @@ const RAGQueryPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SearchOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           RAG 查询
         </Title>
         <Text type="secondary">基于知识库的问答检索</Text>
@@ -109,13 +110,13 @@ const RAGQueryPage: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card title="对话" style={{ minHeight: 500 }}>
-            <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
+            <div style={{ maxHeight: 400, overflowY: 'auto', marginBottom: spacing.md }}>
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   style={{
-                    marginBottom: 16,
-                    padding: 12,
+                    marginBottom: spacing.md,
+                    padding: spacing[3],
                     borderRadius: 8,
                     background: msg.role === 'user' ? colors.info[50] : colors.neutral[50],
                   }}
@@ -204,7 +205,7 @@ const RAGQueryPage: React.FC = () => {
                             percent={source.relevanceScore * 100}
                             size="small"
                             strokeColor="colors.primary[500]"
-                            style={{ marginTop: 8 }}
+                            style={{ marginTop: spacing.sm }}
                           />
                         </div>
                       ),

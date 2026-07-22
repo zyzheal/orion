@@ -15,6 +15,7 @@ import {
   message,
   Tag,
   Drawer,
+  Empty,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, LineChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -78,7 +79,7 @@ const MonitoringMetrics: React.FC = () => {
     setLoading(true);
     try {
       const response = await getMetrics();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setMetrics(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -151,8 +152,8 @@ const MonitoringMetrics: React.FC = () => {
         getMetricSeries(metric.name),
         getMetricSummary(metric.name),
       ]);
-      setSeriesData(seriesRes.data.data?.points || []);
-      setSummaryData(summaryRes.data.data);
+      setSeriesData(seriesRes.data?.points || []);
+      setSummaryData(summaryRes.data);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载指标详情失败';
       message.error(`加载指标详情失败: ${msg}`);
@@ -238,12 +239,12 @@ const MonitoringMetrics: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <LineChartOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             指标管理
           </Title>
           <Text type="secondary">共 {metrics.length} 个指标</Text>
@@ -265,7 +266,7 @@ const MonitoringMetrics: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           filters={filterDefs}
@@ -281,6 +282,21 @@ const MonitoringMetrics: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredMetrics.length === 0 && !loading && (
+        <Empty
+          description={(
+            <span>
+              暂无指标
+              <br />
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)} style={{ marginTop: spacing.sm }}>
+                注册指标
+              </Button>
+            </span>
+          ) as any}
+          style={{ marginTop: 48 }}
+        />
+      )}
 
       {/* Record Metric Modal */}
       <Modal
@@ -367,7 +383,7 @@ const MonitoringMetrics: React.FC = () => {
         {summaryData && (
           <>
             <Title level={5}>统计摘要</Title>
-            <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }}>
+            <Space direction="vertical" style={{ width: '100%', marginBottom: spacing.lg }}>
               <Space size="large">
                 <div>
                   <Text type="secondary">平均:</Text>

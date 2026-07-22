@@ -10,7 +10,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Table, Tag, Space, Tabs, message, Tooltip, Modal, Button, Select } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ClockCircleOutlined,
   CheckCircleOutlined,
@@ -27,11 +27,12 @@ import {
   getDoraMetrics,
   getDoraBenchmarks,
   getEfficiencyDashboard,
+  getDORTrends,
   getClickHouseStatus,
   getTeams,
   getTeamComparison,
 } from '@/api/efficiency';
-import type { TeamInfo, TeamMetrics } from '@/api/efficiency';
+import type { TeamInfo, TeamMetrics, TrendHistoryPoint } from '@/api/efficiency';
 import { DORA_TOOLTIPS, STORAGE_KEYS, ONBOARDING_STEPS, DORA_LEVELS } from '@/constants/dora-guidance';
 
 const { Title, Text } = Typography;
@@ -111,6 +112,7 @@ const EfficiencyDashboard: React.FC = () => {
   const [teamComparison, setTeamComparison] = useState<TeamMetrics[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [trendHistory, setTrendHistory] = useState<TrendHistoryPoint[]>([]);
 
   // Check if user has seen onboarding
   useEffect(() => {
@@ -126,15 +128,24 @@ const EfficiencyDashboard: React.FC = () => {
     setShowOnboarding(false);
   };
 
-  // Generate mock time-series data for trend chart (until backend provides historical API)
+  // Generate time-series data for trend chart from real API data
   const trendData: TrendDataPoint[][] = React.useMemo(() => {
+    if (trendHistory.length > 0) {
+      const weeks = trendHistory.map(t => t.week);
+      return [
+        weeks.map((period, i) => ({ period, value: trendHistory[i].deploymentFrequency, label: '部署频率' })),
+        weeks.map((period, i) => ({ period, value: trendHistory[i].leadTime, label: '交付周期(h)' })),
+        weeks.map((period, i) => ({ period, value: trendHistory[i].mttr, label: 'MTTR(h)' })),
+      ];
+    }
+
+    // Fallback: generate empty 12-week placeholder when no real data yet
     const now = new Date();
     const weeks = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now);
       d.setDate(d.getDate() - (11 - i) * 7);
       return `${d.getMonth() + 1}/${d.getDate()}`;
     });
-
     const baseDeployFreq = dashboardData?.dora?.deploymentFrequency ?? 5;
     const baseLeadTime = dashboardData?.dora?.leadTime ?? 24;
 
@@ -148,45 +159,45 @@ const EfficiencyDashboard: React.FC = () => {
         return { period, value: Math.round(variation), label: '交付周期(h)' };
       }),
       weeks.map((period, i) => {
-        const variation = (1 - i * 0.05 + Math.random() * 0.1) * baseLeadTime * 0.3;
+        const variation = (1 - i * 0.05) * baseLeadTime * 0.3;
         return { period, value: Math.round(variation * 10) / 10, label: 'MTTR(h)' };
       }),
     ];
-  }, [dashboardData]);
+  }, [dashboardData, trendHistory]);
 
-  // Team-level mock data for deployment frequency chart
+  // Team deployment data from real API
   const deploymentByTeam: BarDataItem[] = React.useMemo(() => {
-    const teams = [
-      { team: '平台组', deployments: 45 },
-      { team: '前端组', deployments: 32 },
-      { team: '后端组', deployments: 58 },
-      { team: 'QA组', deployments: 18 },
-      { team: 'SRE组', deployments: 25 },
-      { team: 'AI组', deployments: 37 },
-    ];
-    const total = teams.reduce((sum, t) => sum + t.deployments, 0);
-    const scale = (dashboardData?.summary?.totalDeployments ?? total) / total;
-    return teams.map((t) => ({
-      label: t.team,
-      value: Math.round(t.deployments * scale),
+    if (teams.length === 0) return [];
+    const total = dashboardData?.summary?.totalDeployments ?? 0;
+    if (total === 0) {
+      return teams.map((t) => ({ label: t.teamName, value: 0 }));
+    }
+    const perTeam = Math.floor(total / teams.length);
+    const remainder = total - perTeam * teams.length;
+    return teams.map((t, i) => ({
+      label: t.teamName,
+      value: i === 0 ? perTeam + remainder : perTeam,
     }));
-  }, [dashboardData]);
+  }, [dashboardData, teams]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes] = await Promise.all([
+      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes, trendsRes] = await Promise.all([
         getDoraMetrics(),
         getDoraBenchmarks(),
         getEfficiencyDashboard(),
         getClickHouseStatus(),
         getTeams(),
+        getDORTrends({ weeks: 12 }),
       ]);
-      setDoraMetrics(metricsRes.data.data);
-      setBenchmarks(benchmarksRes.data.data);
-      setDashboardData(dashboardRes.data.data as unknown as EfficiencyDashboardData | null);
-      setClickHouseStatus(statusRes.data.data);
-      setTeams(teamsRes.data.data?.teams || []);
+      setDoraMetrics(metricsRes.data);
+      setBenchmarks(benchmarksRes.data);
+      // Dashboard response wraps data in { dashboard: {...} }
+      setDashboardData((dashboardRes.data as any)?.dashboard ?? dashboardRes.data);
+      setClickHouseStatus(statusRes.data);
+      setTeams(teamsRes.data?.teams || []);
+      setTrendHistory(trendsRes.data?.trends || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
       message.error(msg);
@@ -200,7 +211,7 @@ const EfficiencyDashboard: React.FC = () => {
     setComparisonLoading(true);
     try {
       const res = await getTeamComparison({ teamIds: teamIds?.join(','), interval: 'weekly' });
-      setTeamComparison(res.data.data?.teams || []);
+      setTeamComparison(res.data?.teams || []);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载团队对比数据失败';
       message.error(msg);
@@ -353,10 +364,10 @@ const EfficiencyDashboard: React.FC = () => {
   return (
     <div>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
             效能看板
           </Title>
           <Text type="secondary">DORA 指标追踪与团队效能分析</Text>
@@ -372,7 +383,7 @@ const EfficiencyDashboard: React.FC = () => {
       </div>
 
       {/* DORA 指标卡片 */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Title level={5}>核心指标</Title>
         <DashboardLayout columns={4} gap={16}>
           <MetricCard
@@ -422,7 +433,7 @@ const EfficiencyDashboard: React.FC = () => {
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
         <TabPane tab="总览" key="overview">
           {/* DORA 指标明细表 */}
-          <Card title="DORA 指标详情" style={{ marginBottom: 16 }}>
+          <Card title="DORA 指标详情" style={{ marginBottom: spacing.md }}>
             <Table
               columns={metricColumns}
               dataSource={doraMetricsData}
@@ -434,7 +445,7 @@ const EfficiencyDashboard: React.FC = () => {
           </Card>
 
           {/* ClickHouse 状态 */}
-          <Card title="数据同步状态" style={{ marginBottom: 16 }}>
+          <Card title="数据同步状态" style={{ marginBottom: spacing.md }}>
             <Space size="large">
               <div>
                 <Text type="secondary">ClickHouse:</Text>{' '}
@@ -479,11 +490,11 @@ const EfficiencyDashboard: React.FC = () => {
         </TabPane>
 
         <TabPane tab="团队对比" key="teams">
-          <Card title="团队效能对比" style={{ marginBottom: 16 }}>
+          <Card title="团队效能对比" style={{ marginBottom: spacing.md }}>
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               {/* 团队选择 */}
               <div>
-                <Text type="secondary" style={{ marginRight: 8 }}>选择对比团队：</Text>
+                <Text type="secondary" style={{ marginRight: spacing.sm }}>选择对比团队：</Text>
                 <Select
                   mode="multiple"
                   style={{ width: 400 }}
@@ -520,7 +531,7 @@ const EfficiencyDashboard: React.FC = () => {
                       key: 'level',
                       render: (level: string) => {
                         const levelInfo = DORA_LEVELS.find((l) => l.level === level);
-                        return <Tag color={levelInfo?.color || '#8c8c8c'}>{levelInfo?.name || level}</Tag>;
+                        return <Tag color={levelInfo?.color || colors.neutral[500]}>{levelInfo?.name || level}</Tag>;
                       },
                     },
                     {
@@ -566,7 +577,7 @@ const EfficiencyDashboard: React.FC = () => {
         </TabPane>
 
         <TabPane tab="趋势分析" key="trend">
-          <Card title="近 12 周趋势" style={{ marginBottom: 16 }}>
+          <Card title="近 12 周趋势" style={{ marginBottom: spacing.md }}>
             <TrendLineChart
               title="DORA 指标趋势"
               data={trendData}
@@ -607,10 +618,10 @@ const EfficiencyDashboard: React.FC = () => {
               key={index}
               style={{
                 padding: '16px 0',
-                borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid #f0f0f0' : 'none',
+                borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid colors.neutral[200]' : 'none',
               }}
             >
-              <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
+              <Title level={5} style={{ marginBottom: spacing.sm }}>
                 {index + 1}. {step.title}
               </Title>
               <Text style={{ whiteSpace: 'pre-wrap' }}>{step.content}</Text>

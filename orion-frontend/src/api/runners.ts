@@ -56,27 +56,27 @@ export interface RegisterRunnerInput {
 
 export function getRunners(tenantId?: string) {
   const params = tenantId ? { tenantId } : undefined;
-  return api.get<Runner[]>('/v1/runners', { params });
+  return api.get<Runner[]>('/api/v1/runners', { params });
 }
 
 export function getRunner(id: string) {
-  return api.get<Runner>(`/v1/runners/${id}`);
+  return api.get<Runner>(`/api/v1/runners/${id}`);
 }
 
 export function registerRunner(data: RegisterRunnerInput) {
-  return api.post<Runner>('/v1/runners', data);
+  return api.post<Runner>('/api/v1/runners', data);
 }
 
 export function deregisterRunner(id: string) {
-  return api.delete(`/v1/runners/${id}`);
+  return api.delete(`/api/v1/runners/${id}`);
 }
 
 export function updateRunner(id: string, data: Partial<Runner>) {
-  return api.put<Runner>(`/v1/runners/${id}`, data);
+  return api.put<Runner>(`/api/v1/runners/${id}`, data);
 }
 
 // ---- Runner Jobs ----
 
 export function getRunnerJobs(id: string) {
-  return api.get<RunnerJob[]>(`/v1/runners/${id}/jobs`);
+  return api.get<RunnerJob[]>(`/api/v1/runners/${id}/jobs`);
 }

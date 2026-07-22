@@ -1,0 +1,154 @@
+{
+  "version": "3.0",
+  "name": "a1_data_structure",
+  "extends": "base",
+  "priority": 1,
+  "layer": "design",
+  "description": "前后端数据结构设计检查项",
+  "checks": [
+    {
+      "id": "A1-01",
+      "category": "schema",
+      "level": "P0",
+      "rule": "API Request/Response 类型定义",
+      "description": "每个 API 端点必须有明确的 TypeScript 类型定义",
+      "frontend": true,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-02",
+      "category": "schema",
+      "level": "P0",
+      "rule": "OpenAPI/Swagger 文档",
+      "description": "后端 API 必须有 OpenAPI 文档",
+      "frontend": false,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-03",
+      "category": "validation",
+      "level": "P0",
+      "rule": "Form rules + validator",
+      "description": "前端表单必须有校验规则",
+      "frontend": true,
+      "backend": false,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-04",
+      "category": "validation",
+      "level": "P0",
+      "rule": "后端校验规则",
+      "description": "后端必须使用 class-validator/zod 进行数据校验",
+      "frontend": false,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-05",
+      "category": "type",
+      "level": "P0",
+      "rule": "TypeScript strict 模式",
+      "description": "项目必须启用 TypeScript strict 模式",
+      "frontend": true,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-06",
+      "category": "type",
+      "level": "P1",
+      "rule": "接口定义完整，无 any",
+      "description": "避免使用 any 类型，必须有明确的接口定义",
+      "frontend": true,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-07",
+      "category": "state",
+      "level": "P0",
+      "rule": "初始状态定义",
+      "description": "组件必须有明确的初始状态定义",
+      "frontend": true,
+      "backend": false,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-08",
+      "category": "state",
+      "level": "P0",
+      "rule": "loading/error/success 状态",
+      "description": "异步操作必须有 loading/error/success 状态处理",
+      "frontend": true,
+      "backend": false,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-09",
+      "category": "default",
+      "level": "P1",
+      "rule": "数据库默认值",
+      "description": "数据库字段必须有合理的默认值",
+      "frontend": false,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-10",
+      "category": "sensitive",
+      "level": "P0",
+      "rule": "前端展示脱敏",
+      "description": "敏感数据（身份证、手机号等）前端展示必须脱敏",
+      "frontend": true,
+      "backend": false,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-11",
+      "category": "sensitive",
+      "level": "P0",
+      "rule": "API 返回脱敏",
+      "description": "API 返回的敏感数据必须在服务端脱敏",
+      "frontend": false,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-12",
+      "category": "pagination",
+      "level": "P0",
+      "rule": "分页参数定义",
+      "description": "列表 API 必须有分页参数（page/limit/offset）",
+      "frontend": true,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-13",
+      "category": "sorting",
+      "level": "P1",
+      "rule": "排序字段定义",
+      "description": "列表支持排序时必须有明确的排序字段",
+      "frontend": true,
+      "backend": true,
+      "detection": "ast"
+    },
+    {
+      "id": "A1-14",
+      "category": "filter",
+      "level": "P1",
+      "rule": "筛选条件类型",
+      "description": "筛选条件必须有明确的类型定义",
+      "frontend": true,
+      "backend": true,
+      "detection": "ast"
+    }
+  ],
+  "coveragePolicy": "ast",
+  "responsibleSkill": "design-constraint",
+  "coveragePolicyReason": "AST 可检测 Props 类型定义",
+  "noNewAST": "Props 类型检查已覆盖，不再新增"
+}

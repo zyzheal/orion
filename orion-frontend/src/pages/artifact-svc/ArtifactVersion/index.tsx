@@ -9,8 +9,8 @@ import {
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeftOutlined, ReloadOutlined, BranchesOutlined,
-  EyeOutlined, RocketOutlined,
+  ArrowLeftOutlined, ReloadOutlined,
+  EyeOutlined, RocketOutlined, TagOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
@@ -45,9 +45,9 @@ const ArtifactVersionPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArtifactVersions({ limit: pageSize, offset: (page - 1) * pageSize });
-      if (res.data.data) {
-        setVersions(res.data.data.versions || []);
-        setTotal(res.data.data.total || 0);
+      if (res.data) {
+        setVersions(res.data.versions || []);
+        setTotal(res.data.total || 0);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载版本列表失败';
@@ -67,13 +67,17 @@ const ArtifactVersionPage: React.FC = () => {
 
     try {
       const chainRes = await getTraceabilityChain(version.id);
-      if (chainRes.data.data) setChain(chainRes.data.data);
-    } catch { /* ignore */ }
+      if (chainRes.data) setChain(chainRes.data);
+    } catch (error: unknown) {
+      console.error('Failed to load traceability chain:', error);
+    }
 
     try {
       const depRes = await getDeploymentHistory(version.pipelineId);
-      if (depRes.data.data) setDeployHistory(depRes.data.data);
-    } catch { /* ignore */ }
+      if (depRes.data) setDeployHistory(depRes.data);
+    } catch (error: unknown) {
+      console.error('Failed to load deployment history:', error);
+    }
   };
 
   const handleDeploy = async (version: ArtifactVersion, environment: string) => {
@@ -160,13 +164,14 @@ const ArtifactVersionPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/artifacts')}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <BranchesOutlined /> Artifact 版本管理
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TagOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            Artifact 版本管理
           </Title>
           <Text type="secondary">共 {total} 个版本</Text>
         </div>
@@ -176,7 +181,7 @@ const ArtifactVersionPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
         <Row gutter={16}>
           <Col span={6}>
             <Statistic title="总版本数" value={total} />
@@ -231,7 +236,7 @@ const ArtifactVersionPage: React.FC = () => {
             <Text strong>追溯链</Text>
 
             {chain.pipelineRun && (
-              <Timeline style={{ marginTop: 16 }}>
+              <Timeline style={{ marginTop: spacing.md }}>
                 <Timeline.Item color="blue">
                   <Text strong>构建完成</Text>
                   <br />
@@ -254,7 +259,7 @@ const ArtifactVersionPage: React.FC = () => {
 
             <Divider />
             <Text strong>存储路径</Text>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text code>{selectedVersion.storagePath}</Text>
             </div>
           </>

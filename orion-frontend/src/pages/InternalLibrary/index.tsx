@@ -1,3 +1,5 @@
+import { colors, spacing } from '@/tokens';
+
 /**
  * Internal Library Management Page
  * M30 - 二方库管理：列表、创建、版本管理、依赖追踪
@@ -19,7 +21,7 @@ import {
   DatePicker,
   Card,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, TeamOutlined, BookOutlined } from '@ant-design/icons';
 import PageSkeleton from '@/components/PageSkeleton';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -101,7 +103,7 @@ const InternalLibraryManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getInternalLibraries();
-      setLibraries(Array.isArray(res.data?.data) ? res.data.data : []);
+      setLibraries(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setLibraries([]);
       message.error(`加载二方库数据失败: ${(error as Error).message}`);
@@ -367,8 +369,8 @@ const InternalLibraryManagement: React.FC = () => {
     setActiveTab('info');
     try {
       const [verRes, depRes] = await Promise.all([getVersions(lib.id), getDependents(lib.id)]);
-      setVersions(verRes?.data?.data || []);
-      setDependents(depRes?.data?.data || []);
+      setVersions(verRes?.data || []);
+      setDependents(depRes?.data || []);
     } catch (error: unknown) {
       setVersions([]);
       setDependents([]);
@@ -426,11 +428,12 @@ const InternalLibraryManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <BookOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 二方库管理
               </Title>
               <Text type="secondary">管理内部二方库的生命周期、版本发布和依赖追踪</Text>
@@ -454,7 +457,7 @@ const InternalLibraryManagement: React.FC = () => {
 
           {/* Library List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -644,7 +647,7 @@ const InternalLibraryManagement: React.FC = () => {
             destroyOnClose
           >
             {selectedLib && (
-              <Descriptions size="small" style={{ marginBottom: 16 }} column={3} bordered>
+              <Descriptions size="small" style={{ marginBottom: spacing.md }} column={3} bordered>
                 <Descriptions.Item label="名称">
                   <Text code>{selectedLib.name}</Text>
                 </Descriptions.Item>

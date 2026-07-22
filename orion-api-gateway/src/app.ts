@@ -12,12 +12,18 @@ import fastifyRateLimit from '@fastify/rate-limit';
 
 import { getConfig } from './config';
 import { AuthMiddleware } from './middleware/auth';
+import { createSubAppAuthHook } from './middleware/subAppAuthAdapter';
 import { LoggingMiddleware } from './middleware/logging';
 import { TenantMiddleware } from './middleware/tenant';
+import { PermissionMiddleware } from './middleware/permission';
+import { createCSPMiddleware } from './middleware/csp';
 import { errorMiddleware } from './middleware/error';
-import { registerRoutes } from './routes';
+import { registerRoutes, gatewayDynamicRoutes } from './routes';
+import { metricsRoutes, httpRequestDuration, httpRequestTotal, activeConnections } from './routes/metrics';
 import { serviceRegistry } from './services/service-registry';
 import { TokenService } from './services/token.service';
+import { grayReleaseService } from './services/gray-release.service';
+import { createGrayRouteHook } from './middleware/gray-route';
 import { redisClient } from './utils/redis';
 import { AuthRoutes } from './routes/auth.routes';
 import { TenantRoutes } from './routes/tenant.routes';
@@ -29,7 +35,6 @@ import { AIDecisionsRoutes } from './routes/ai-decisions.routes';
 import { AIDegradationRoutes } from './routes/ai-degradation.routes';
 import { ChaosRoutes } from './routes/chaos.routes';
 import { ResilienceScoreRoutes } from './routes/resilience-score.routes';
-import { SBOMRoutes } from './routes/sbom.routes';
 import { DigitalTwinRoutes } from './routes/digital-twin.routes';
 import { GovernanceRoutes } from './routes/governance.routes';
 import type { WebSocketServerManager } from './websocket/ws-server';
@@ -43,6 +48,7 @@ export async function createApp(options: AppOptions = {}): Promise<{
   authMiddleware: AuthMiddleware;
   loggingMiddleware: LoggingMiddleware;
   tenantMiddleware: TenantMiddleware;
+  permissionMiddleware: PermissionMiddleware;
   tokenService: TokenService;
   authRoutes: AuthRoutes;
   tenantRoutes: TenantRoutes;
@@ -54,7 +60,6 @@ export async function createApp(options: AppOptions = {}): Promise<{
   aiDegradationRoutes: AIDegradationRoutes;
   chaosRoutes: ChaosRoutes;
   resilienceScoreRoutes: ResilienceScoreRoutes;
-  sbomRoutes: SBOMRoutes;
   digitalTwinRoutes: DigitalTwinRoutes;
   governanceRoutes: GovernanceRoutes;
   wsServer: WebSocketServerManager;
@@ -79,9 +84,18 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   // 2. Helmet 安全头部
   await app.register(fastifyHelmet, {
-    contentSecurityPolicy: false, // 根据需求配置
+    contentSecurityPolicy: false, // 使用自定义 CSP 中间件
     crossOriginEmbedderPolicy: false,
   });
+
+  // 2.1 自定义 CSP 中间件（用于微前端子应用加载）
+  const cspMiddleware = createCSPMiddleware({
+    enabled: true,
+    reportOnly: process.env.NODE_ENV === 'development',
+    reportUri: '/api/v1/csp-report',
+    allowEval: true, // 微前端场景需要
+  });
+  app.addHook('onRequest', cspMiddleware);
 
   // 3. JWT 认证
   await app.register(fastifyJwt, {
@@ -117,6 +131,16 @@ export async function createApp(options: AppOptions = {}): Promise<{
     tokenService.setRedisClient(redisClientInstance);
   }
 
+  // ==================== 初始化灰度发布服务 ====================
+
+  // 初始化灰度发布服务（Phase 5 P0-4）
+  // 当 GRAY_RELEASE_ENABLED=true 时，连接 Redis 并订阅配置变更 channel
+  try {
+    await grayReleaseService.connect();
+  } catch (error) {
+    app.log.warn({ err: error instanceof Error ? error.message : String(error) }, 'GrayRelease service failed to initialize, falling back to static routing');
+  }
+
   // ==================== 初始化 WebSocket 服务器 ====================
 
   // 初始化 WebSocket 服务器
@@ -136,11 +160,49 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   // 认证中间件
   const authMiddleware = new AuthMiddleware(app);
+  // Phase 4.2: Wire Redis client to token blacklist checker
+  if (redisClientInstance) {
+    authMiddleware.setRedisClient(redisClientInstance);
+  }
   app.addHook('onRequest', authMiddleware.handler.bind(authMiddleware));
+
+  // 子应用认证适配：JWT 验证通过后注入用户信息到 header
+  // 子应用后端无需再解析 JWT，直接读取 X-User-* header 即可
+  const subAppAuthHook = createSubAppAuthHook(app);
+  app.addHook('onRequest', subAppAuthHook);
 
   // 租户解析中间件（在认证之后）
   const tenantMiddleware = new TenantMiddleware(app);
   app.addHook('onRequest', tenantMiddleware.handler.bind(tenantMiddleware));
+
+  // 权限检查中间件（在租户解析之后，基于 RBAC+ABAC 进行 API 路由级权限控制）
+  const permissionMiddleware = new PermissionMiddleware(app);
+  app.addHook('onRequest', permissionMiddleware.handler.bind(permissionMiddleware));
+
+  // 灰度路由中间件（Phase 5 P0-4）
+  // 在租户/权限之后、路由处理之前运行，解析灰度路由目标并写入请求上下文
+  // 路由处理器调用 proxyMiddleware.forward() 时读取 request.grayReleaseResult
+  const grayRouteHook = createGrayRouteHook(grayReleaseService);
+  app.addHook('onRequest', grayRouteHook);
+
+  // ==================== 指标采集钩子 ====================
+
+  // onResponse 钩子：请求完成后记录 Prometheus 指标
+  app.addHook('onResponse', (request, reply, done) => {
+    const route = request.routeOptions?.url ?? request.url;
+    const labels = {
+      method: request.method,
+      route,
+      status_code: String(reply.statusCode),
+    };
+    httpRequestTotal.inc(labels);
+    httpRequestDuration.observe(labels, reply.elapsedTime / 1000);
+    done();
+  });
+
+  // ==================== 注册 Metrics 路由 ====================
+
+  await app.register(metricsRoutes);
 
   // ==================== 注册认证路由 ====================
 
@@ -182,8 +244,6 @@ export async function createApp(options: AppOptions = {}): Promise<{
   const resilienceScoreRoutes = new ResilienceScoreRoutes(app);
   resilienceScoreRoutes.register();
 
-  const sbomRoutes = new SBOMRoutes(app);
-  sbomRoutes.register();
 
   // ==================== 注册高级功能路由 ====================
 
@@ -199,7 +259,8 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   // ==================== 注册路由 ====================
 
-  registerRoutes(app);
+  // 注册动态发现的路由（包括服务注册表路由 + 静态 fallback + 子应用路由）
+  await registerRoutes(app);
 
   // ==================== 注册服务到注册表 ====================
 
@@ -210,6 +271,7 @@ export async function createApp(options: AppOptions = {}): Promise<{
     healthUrl: `http://${config.host}:${config.port}/healthz`,
     metadata: {
       version: '1.0.0',
+      api_paths: ['/healthz', '/readyz', '/version', '/metrics'],
     },
   });
 
@@ -218,8 +280,14 @@ export async function createApp(options: AppOptions = {}): Promise<{
   const gracefulShutdown = async () => {
     app.log.info('Received shutdown signal, shutting down gracefully...');
 
+    // 关闭灰度发布服务
+    await grayReleaseService.close();
+
     // 关闭 WebSocket 服务器
     await wsServer.shutdown();
+
+    // 清理动态路由
+    gatewayDynamicRoutes.shutdown();
 
     // 注销服务
     serviceRegistry.unregister('api-gateway');
@@ -236,5 +304,5 @@ export async function createApp(options: AppOptions = {}): Promise<{
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);
 
-  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, tokenService, authRoutes, tenantRoutes, pipelineVersionsRoutes, pipelineBudgetRoutes, pipelineTemplatesRoutes, aiModelsRoutes, aiDecisionsRoutes, aiDegradationRoutes, chaosRoutes, resilienceScoreRoutes, sbomRoutes, digitalTwinRoutes, governanceRoutes, wsServer };
+  return { app, authMiddleware, loggingMiddleware, tenantMiddleware, permissionMiddleware, tokenService, authRoutes, tenantRoutes, pipelineVersionsRoutes, pipelineBudgetRoutes, pipelineTemplatesRoutes, aiModelsRoutes, aiDecisionsRoutes, aiDegradationRoutes, chaosRoutes, resilienceScoreRoutes, sbomRoutes, digitalTwinRoutes, governanceRoutes, wsServer };
 }

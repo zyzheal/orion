@@ -13,12 +13,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Badge, Modal, message } from 'antd';
 import {
   PlusOutlined,
+  CopyOutlined,
   ReloadOutlined,
-  BarChartOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
+  EditOutlined,
+  DeleteOutlined,
   UserAddOutlined,
   InboxOutlined,
   WarningOutlined,
@@ -26,7 +28,7 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { getTickets } from '@/api/ticketing';
+import { getTickets, deleteTicket, type Ticket } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
@@ -35,25 +37,6 @@ import CreateTicketModal from './CreateTicketModal';
 import DispatchPanel from './DispatchPanel';
 
 const { Title, Text } = Typography;
-
-// Local Ticket type definition
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  source: string;
-  reporter: string;
-  assignee: string | null;
-  createdAt: string;
-  dueDate: string;
-  escalationLevel: number;
-  tags?: Record<string, string>;
-}
-
-type MockTicket = Ticket;
 
 // ============================================================================
 // Helpers
@@ -91,19 +74,22 @@ const categoryLabels: Record<string, string> = {
  * Calculate SLA remaining percentage and status
  * Returns { percent, color, text }
  */
-function calculateSLA(ticket: MockTicket): {
+function calculateSLA(ticket: Ticket): {
   percent: number;
   color: string;
   text: string;
   overdue: boolean;
 } {
+  if (!ticket.dueDate) {
+    return { percent: 100, color: colors.neutral[500], text: '无SLA', overdue: false };
+  }
   const now = dayjs();
   const created = dayjs(ticket.createdAt);
   const due = dayjs(ticket.dueDate);
   const totalMs = due.diff(created);
   const remainingMs = due.diff(now);
 
-  if (remainingMs <= 0) {
+  if (totalMs <= 0 || remainingMs <= 0) {
     return { percent: 0, color: colors.error[400], text: '已超时', overdue: true };
   }
 
@@ -136,6 +122,8 @@ const TicketList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [dispatchPanelOpen, setDispatchPanelOpen] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
@@ -149,7 +137,7 @@ const TicketList: React.FC = () => {
       setEngineersLoading(true);
       try {
         const res = await listUsers({ limit: 200 });
-        const users: User[] = res.data?.data?.data || [];
+        const users: User[] = res.data?.data || [];
         setEngineers(users.map((u) => u.name || u.username).filter(Boolean));
       } catch {
         setEngineers([]);
@@ -166,8 +154,7 @@ const TicketList: React.FC = () => {
     try {
       const params = { page: 1, pageSize: 50, ...filters };
       const response = await getTickets(params);
-      const apiData = response.data.data;
-      setTickets(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      setTickets((response.data?.items ?? []) as unknown as Ticket[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载工单列表失败：${error.message}`);
@@ -222,7 +209,7 @@ const TicketList: React.FC = () => {
       // Assignee filter
       const assigneeFilter = filters.assignee;
       if (assigneeFilter && assigneeFilter !== 'all') {
-        if (assigneeFilter === 'unassigned' && ticket.assignee !== null) return false;
+        if (assigneeFilter === 'unassigned' && ticket.assignee) return false;
         if (assigneeFilter !== 'unassigned' && ticket.assignee !== assigneeFilter) return false;
       }
 
@@ -287,7 +274,7 @@ const TicketList: React.FC = () => {
       title: '工单ID',
       dataIndex: 'id',
       width: 100,
-      render: (value: unknown, record: MockTicket) => (
+      render: (value: unknown, record: Ticket) => (
         <Text
           strong
           style={{ cursor: 'pointer', color: colors.primary[500] }}
@@ -303,7 +290,7 @@ const TicketList: React.FC = () => {
       title: '标题',
       dataIndex: 'title',
       width: 280,
-      render: (value: unknown, record: MockTicket) => (
+      render: (value: unknown, record: Ticket) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -357,7 +344,12 @@ const TicketList: React.FC = () => {
       width: 100,
       render: (value: unknown) => {
         const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
-        return <Badge status={config.color as any} text={config.label} />;
+        return (
+          <Badge
+            status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'}
+            text={config.label}
+          />
+        );
       },
     },
     {
@@ -373,7 +365,7 @@ const TicketList: React.FC = () => {
       key: 'sla',
       title: 'SLA 剩余',
       width: 110,
-      render: (_: unknown, record: MockTicket) => {
+      render: (_: unknown, record: Ticket) => {
         const sla = calculateSLA(record);
         return (
           <Space size={4}>
@@ -410,6 +402,25 @@ const TicketList: React.FC = () => {
             data-testid={`view-ticket-${record.id}`}
           >
             详情
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            data-testid={`edit-ticket-${record.id}`}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+            data-testid={`delete-ticket-${record.id}`}
+          >
+            删除
           </Button>
           {!record.assignee && (
             <Button
@@ -457,6 +468,37 @@ const TicketList: React.FC = () => {
     message.success('工单创建成功');
   };
 
+  const handleEdit = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setEditingTicket(null);
+    loadTickets();
+  };
+
+  const handleDelete = (ticket: Ticket) => {
+    Modal.confirm({
+      title: '删除工单',
+      content: `确定要删除工单 "${ticket.title}" 吗？此操作不可撤销。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteTicket(ticket.id);
+          message.success(`工单 ${ticket.id} 已删除`);
+          loadTickets();
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error('Unknown error');
+          message.error(`删除失败：${err.message}`);
+        }
+      },
+    });
+  };
+
   return (
     <div style={{ padding: 0 }} data-testid="ticket-list-page">
       {/* Page header */}
@@ -465,11 +507,12 @@ const TicketList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CopyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             工单管理
           </Title>
           <Text type="secondary">共 {filteredTickets.length} 个工单</Text>
@@ -480,9 +523,6 @@ const TicketList: React.FC = () => {
           </Button>
           <Button icon={<ThunderboltOutlined />} onClick={handleAutoDispatch}>
             自动分派
-          </Button>
-          <Button icon={<BarChartOutlined />} onClick={() => message.info('报表功能开发中')}>
-            查看报表
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建工单
@@ -495,8 +535,8 @@ const TicketList: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
         data-testid="ticket-summary-cards"
       >
@@ -531,7 +571,7 @@ const TicketList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -542,8 +582,8 @@ const TicketList: React.FC = () => {
 
       {/* Ticket table */}
       <Table
-        columns={columns as any}
-        dataSource={filteredTickets as any}
+        columns={columns}
+        dataSource={filteredTickets}
         loading={loading}
         rowKey="id"
         size="middle"
@@ -556,6 +596,12 @@ const TicketList: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
+      />
+      <CreateTicketModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onSuccess={handleEditSuccess}
+        ticket={editingTicket}
       />
 
       {/* Dispatch panel */}

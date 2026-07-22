@@ -100,7 +100,7 @@ describe('SpaceList', () => {
 
   it('loads spaces from API on mount', async () => {
     mockApi.getSpaces.mockResolvedValue({
-      data: { data: mockSpaces },
+      data: mockSpaces,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -145,7 +145,7 @@ describe('SpaceList', () => {
 
   it('shows empty state when API returns empty array', async () => {
     mockApi.getSpaces.mockResolvedValue({
-      data: { data: [] },
+      data: [],
       status: 200,
       statusText: 'OK',
       headers: {},

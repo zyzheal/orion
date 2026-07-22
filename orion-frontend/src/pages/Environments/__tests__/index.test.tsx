@@ -108,7 +108,7 @@ describe('EnvironmentManagement', () => {
 
   it('loads environments from API on mount', async () => {
     mockApi.getEnvironments.mockResolvedValue({
-      data: { data: mockEnvironments },
+      data: mockEnvironments,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -156,7 +156,7 @@ describe('EnvironmentManagement', () => {
 
   it('shows empty state when API returns empty array', async () => {
     mockApi.getEnvironments.mockResolvedValue({
-      data: { data: [] },
+      data: [],
       status: 200,
       statusText: 'OK',
       headers: {},

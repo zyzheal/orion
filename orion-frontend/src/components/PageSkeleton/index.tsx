@@ -11,6 +11,7 @@
  */
 import React, { useMemo } from 'react';
 import { Skeleton, Row, Col, Space } from 'antd';
+import { spacing } from '@/tokens';
 
 export interface PageSkeletonProps {
   /** 统计卡片数量 (默认 0) */
@@ -49,9 +50,9 @@ const SearchBarSkeleton: React.FC<{ animated?: boolean }> = React.memo(({ animat
   <div
     style={{
       display: 'flex',
-      gap: 12,
+      gap: spacing[3],
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: spacing.md,
     }}
   >
     <Skeleton.Input
@@ -73,14 +74,14 @@ const HeaderSkeleton: React.FC<{ animated?: boolean }> = React.memo(({ animated 
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 24,
+      marginBottom: spacing.lg,
     }}
   >
     <div>
       <Skeleton.Input
         active={animated}
         size="small"
-        style={{ width: 160, height: 28, marginBottom: 8 }}
+        style={{ width: 160, height: 28, marginBottom: spacing.sm }}
       />
       <Skeleton.Input active={animated} size="small" style={{ width: 240, height: 16 }} />
     </div>
@@ -97,7 +98,7 @@ const TableSkeletonRow: React.FC<{ animated?: boolean }> = React.memo(({ animate
   <div
     style={{
       display: 'flex',
-      gap: 24,
+      gap: spacing.lg,
       alignItems: 'center',
       padding: '12px 0',
       borderBottom: '1px solid var(--border-light, transparent)',
@@ -122,7 +123,7 @@ const PageSkeleton: React.FC<PageSkeletonProps> = React.memo(
       () =>
         Array.from({ length: cards }, (_, i) => (
           <Col key={`stat-${i}`} xs={24} sm={12} md={8} lg={6} xl={4}>
-            <div style={{ padding: 16 }}>
+            <div style={{ padding: spacing.md }}>
               <StatCardSkeleton
                 rows={cardLines?.rows ?? 1}
                 width={cardLines?.width ?? '60%'}
@@ -147,7 +148,7 @@ const PageSkeleton: React.FC<PageSkeletonProps> = React.memo(
         {header && <HeaderSkeleton animated={animated} />}
 
         {cards > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Row gutter={[16, 16]}>{statCardSkeletons}</Row>
           </div>
         )}
@@ -156,7 +157,7 @@ const PageSkeleton: React.FC<PageSkeletonProps> = React.memo(
           style={{
             background: 'var(--bg-tertiary, transparent)',
             borderRadius: 8,
-            padding: 16,
+            padding: spacing.md,
             border: '1px solid var(--border-light, transparent)',
           }}
         >

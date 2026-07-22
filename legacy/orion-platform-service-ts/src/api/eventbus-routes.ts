@@ -1,0 +1,211 @@
+/**
+ * EventBus API Routes
+ * NATS message bus status, control, and event history
+ * Prefix: /api/v1/eventbus
+ *
+ * Migrated to PostgreSQL Repository pattern (M24)
+ * - Event history persisted to event_bus_events table
+ * - Subscriptions persisted to event_subscriptions table
+ * - Config persisted to event_bus_config table
+ */
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import {  OrionError, ValidationError, ErrorCode, handleError } from '../errors';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
+import { EventBusService } from '../services/event-bus-service';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('eventbus-routes');
+import {
+  EventBusConfigRepository,
+  EventSubscriptionRepository,
+  EventBusEventRepository,
+} from '../repositories/EventBusRepository';
+
+interface EventBusRoutesOptions {
+  database?: DatabasePool;
+  eventBus?: EventBusService;
+}
+
+export default async function eventbusRoutes(
+  app: FastifyInstance,
+  options: EventBusRoutesOptions
+): Promise<void> {
+  // Priority 1: Use the main eventBus instance (already connected to NATS)
+  // Priority 2: If no eventBus but database exists, create a new instance with persistence
+  // Priority 3: Fallback to disabled
+  let service: EventBusService;
+
+  if (options.eventBus) {
+    // Reuse the main NATS-connected eventBus instance
+    service = options.eventBus;
+
+    // Inject repositories if database is available and not already set
+    if (options.database && !service.getRepositories?.().eventRepo) {
+      const configRepo = new EventBusConfigRepository(options.database);
+      const subscriptionRepo = new EventSubscriptionRepository(options.database);
+      const eventRepo = new EventBusEventRepository(options.database);
+      service.setRepositories({ configRepo, subscriptionRepo, eventRepo });
+      logger.info('[EventBusRoutes] Repositories injected into main EventBusService');
+    }
+  } else if (options.database) {
+    // No main eventBus, create one with full persistence
+    const configRepo = new EventBusConfigRepository(options.database);
+    const subscriptionRepo = new EventSubscriptionRepository(options.database);
+    const eventRepo = new EventBusEventRepository(options.database);
+    service = new EventBusService(
+      { enabled: true },
+      { configRepo, subscriptionRepo, eventRepo },
+    );
+    logger.info('[EventBusRoutes] Created new EventBusService with database');
+  } else {
+    // Fallback: no persistence, no NATS
+    logger.warn('[EventBusRoutes] No database pool and no eventBus, event bus will run without persistence');
+    service = new EventBusService({ enabled: false });
+  }
+
+  // POST /eventbus/publish - Publish event
+  app.post('/publish', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { subject, data, tenantId, publishedBy } = request.body as {
+      subject: string;
+      data: any;
+      tenantId?: string;
+      publishedBy?: string;
+    };
+    return handleError(reply, new ValidationError('SUBJECT_REQUIRED'));
+    try {
+      await service.publish(subject, data, { tenantId, publishedBy });
+      return reply.send({ success: true });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/status - Get connection status
+  app.get('/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const health = await service.checkHealth();
+    const config = service.getConfig();
+    return reply.send({ ...health, servers: config.servers, enabled: config.enabled });
+  });
+
+  // POST /eventbus/connect - Connect to NATS
+  app.post('/connect', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'write' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await service.connect();
+      return reply.send({ success: true });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/events - Get event history
+  app.get('/events', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { eventType, status, limit } = request.query as {
+      eventType?: string;
+      status?: string;
+      limit?: string;
+    };
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    if (limit && isNaN(limitNum)) {
+      return handleError(reply, new ValidationError('INVALID_LIMIT'));
+    }
+    try {
+      const events = await service.getEventHistory({
+        eventType,
+        status,
+        limit: limitNum,
+      });
+      return reply.send({ events });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/subscriptions - Get active subscriptions
+  app.get('/subscriptions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { tenantId } = request.query as { tenantId?: string };
+    try {
+      const subscriptions = await service.getSubscriptions(tenantId);
+      return reply.send({ subscriptions });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/stats - Get event statistics
+  app.get('/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const stats = await service.getEventStats();
+      return reply.send({ stats });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/jetstream/metrics - Get JetStream metrics overview
+  app.get('/jetstream/metrics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!service.isJetStreamAvailable()) {
+      return reply.send({ available: false, reason: 'JetStream not initialized' });
+    }
+    try {
+      const metrics = await service.getJetStreamMetrics();
+      return reply.send({ available: true, metrics });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/jetstream/streams/:name/consumers - List consumers for a stream
+  app.get('/jetstream/streams/:name/consumers', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service.isJetStreamAvailable()) {
+      return reply.send({ available: false, reason: 'JetStream not initialized' });
+    }
+    try {
+      const { name } = request.params as { name: string };
+      const consumers = await service.listConsumers(name);
+      return reply.send({ stream: name, consumers });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /eventbus/dlq - Get DLQ message count and recent messages
+  app.get('/dlq', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'eventbus', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { limit } = request.query as { limit?: string };
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    if (limit && isNaN(limitNum)) {
+      return handleError(reply, new ValidationError('INVALID_LIMIT'));
+    }
+    try {
+      const events = await service.getEventHistory({
+        status: 'failed',
+        limit: limitNum,
+      }) as any[];
+      return reply.send({
+        total: events.length,
+        events,
+      });
+    } catch (err: any) {
+      return handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
+    }
+  });
+}

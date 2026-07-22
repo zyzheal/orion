@@ -39,35 +39,49 @@ describe('LLM Trace API', () => {
         providerId: 'openai',
         status: 'completed',
       };
-      vi.mocked(api.get).mockResolvedValue({ data: { data: mockTrace } } as any);
+      vi.mocked(api.get).mockResolvedValue({
+        data: mockTrace,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
 
       const result = await getTrace('trace-001');
       expect(api.get).toHaveBeenCalledWith('/v1/llm/traces/trace-001');
-      expect(result.data.data.traceId).toBe('trace-001');
+      expect(result.data).toEqual(mockTrace);
     });
 
     it('should get traces with filters', async () => {
       vi.mocked(api.get).mockResolvedValue({
-        data: { data: { data: [], total: 0, limit: 100 } },
+        data: [],
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
       } as any);
 
       const result = await getTraces({ tenantId: 1, limit: 50 });
       expect(api.get).toHaveBeenCalledWith('/v1/llm/traces', {
         params: { tenantId: 1, limit: 50 },
       });
-      expect(result.data.data.limit).toBe(100);
+      expect(Array.isArray(result.data)).toBe(true);
     });
 
     it('should get traces by scenario', async () => {
       vi.mocked(api.get).mockResolvedValue({
-        data: { data: { data: [{ traceId: 'trace-002' }], total: 1, limit: 100 } },
+        data: [{ traceId: 'trace-002' }],
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
       } as any);
 
       const result = await getTraces({ scenarioId: 'autofix' });
       expect(api.get).toHaveBeenCalledWith('/v1/llm/traces', {
         params: { scenarioId: 'autofix' },
       });
-      expect(result.data.data.total).toBe(1);
+      expect(result.data.length).toBe(1);
     });
   });
 
@@ -81,18 +95,28 @@ describe('LLM Trace API', () => {
         failedTraces: 8,
         totalCost: 12.5,
       };
-      vi.mocked(api.get).mockResolvedValue({ data: { data: mockStats } } as any);
+      vi.mocked(api.get).mockResolvedValue({
+        data: mockStats,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
 
       const result = await getDailyStats({ tenantId: 1, date: '2026-05-04' });
       expect(api.get).toHaveBeenCalledWith('/v1/llm/stats/daily', {
         params: { tenantId: 1, date: '2026-05-04' },
       });
-      expect(result.data.data.totalTraces).toBe(150);
+      expect(result.data).toEqual(mockStats);
     });
 
     it('should get daily stats without date', async () => {
       vi.mocked(api.get).mockResolvedValue({
-        data: { data: { date: '2026-05-04', tenantId: 1, totalTraces: 100 } },
+        data: { date: '2026-05-04', tenantId: 1, totalTraces: 100 },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
       } as any);
 
       await getDailyStats({ tenantId: 1 });
@@ -113,7 +137,13 @@ describe('LLM Trace API', () => {
           { modelId: 'claude-3', traces: 300, cost: 39.5 },
         ],
       };
-      vi.mocked(api.get).mockResolvedValue({ data: { data: mockBreakdown } } as any);
+      vi.mocked(api.get).mockResolvedValue({
+        data: mockBreakdown,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
 
       const result = await getCostBreakdown({
         tenantId: 1,
@@ -123,7 +153,7 @@ describe('LLM Trace API', () => {
       expect(api.get).toHaveBeenCalledWith('/v1/llm/cost/breakdown', {
         params: { tenantId: 1, startDate: '2026-04-01', endDate: '2026-04-30' },
       });
-      expect(result.data.data.totalCost).toBe(89.5);
+      expect(result.data).toEqual(mockBreakdown);
     });
 
     it('should get tracking accuracy', async () => {
@@ -135,11 +165,17 @@ describe('LLM Trace API', () => {
         targetAccuracy: 0.98,
         meetsTarget: true,
       };
-      vi.mocked(api.get).mockResolvedValue({ data: { data: mockAccuracy } } as any);
+      vi.mocked(api.get).mockResolvedValue({
+        data: mockAccuracy,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
 
       const result = await getTrackingAccuracy();
       expect(api.get).toHaveBeenCalledWith('/v1/llm/tracking/accuracy');
-      expect(result.data.data.meetsTarget).toBe(true);
+      expect(result.data).toEqual(mockAccuracy);
     });
   });
 
@@ -152,11 +188,17 @@ describe('LLM Trace API', () => {
           { modelId: 'gpt-4', provider: 'openai', inputPricePerToken: 0.03, outputPricePerToken: 0.06 },
         ],
       };
-      vi.mocked(api.get).mockResolvedValue({ data: { data: mockPricing } } as any);
+      vi.mocked(api.get).mockResolvedValue({
+        data: mockPricing,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
 
       const result = await getPricing();
       expect(api.get).toHaveBeenCalledWith('/v1/llm/pricing');
-      expect(result.data.data.currency).toBe('CNY');
+      expect(result.data).toEqual(mockPricing);
     });
 
     it('should estimate cost', async () => {
@@ -168,7 +210,13 @@ describe('LLM Trace API', () => {
         outputCost: 0.03,
         totalCost: 0.06,
       };
-      vi.mocked(api.post).mockResolvedValue({ data: { data: mockEstimate } } as any);
+      vi.mocked(api.post).mockResolvedValue({
+        data: mockEstimate,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
 
       const result = await estimateCost({
         modelId: 'gpt-4',
@@ -180,7 +228,7 @@ describe('LLM Trace API', () => {
         inputTokens: 1000,
         outputTokens: 500,
       });
-      expect(result.data.data.totalCost).toBe(0.06);
+      expect(result.data).toEqual(mockEstimate);
     });
   });
 

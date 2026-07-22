@@ -3,6 +3,7 @@
  * 用于 Ant Design theme 的配置生成
  */
 
+import { theme as antdTheme } from 'antd';
 import { colors } from './colors';
 import { shadows } from './shadows';
 import { radius, componentRadius } from './radius';
@@ -33,10 +34,10 @@ const designTokens = {
   paddingXL: spacing.xl,    // 32px
 
   // 圆角
-  borderRadiusXS: radius.xs,  // 2px
-  borderRadiusSM: radius.sm,  // 4px
-  borderRadius: radius.md,    // 6px
-  borderRadiusLG: radius.lg,  // 8px
+  borderRadiusXS: radius.xs,  // 4px
+  borderRadiusSM: radius.sm,  // 6px
+  borderRadius: radius.md,    // 8px
+  borderRadiusLG: radius.lg,  // 12px
 
   // 字体
   fontSizeSM: typography.fontSize.sm,   // 12px
@@ -136,7 +137,7 @@ export const lightTheme = {
     lineWidthBold: 2,
 
     // 组件默认尺寸
-    componentSize: 32, // 默认组件高度
+    componentSize: 36, // 默认组件高度 (Apple style: was 32)
 
     // 是否使用线框风格
     wireframe: false,
@@ -210,7 +211,7 @@ export const darkTheme = {
     // 组件默认
     lineWidth: 1,
     lineWidthBold: 2,
-    componentSize: 32,
+    componentSize: 36,   // Apple style: was 32
     wireframe: false,
   },
   components: {
@@ -268,19 +269,19 @@ export const getThemeConfig = (theme: 'light' | 'dark'): typeof lightTheme | typ
  */
 export function getAntdThemeConfig(
   options: { algorithm?: 'default' | 'dark' } = {}
-): AntdThemeConfig & { algorithm?: string } {
+): AntdThemeConfig & { algorithm?: typeof antdTheme.defaultAlgorithm | typeof antdTheme.darkAlgorithm } {
   const { algorithm = 'default' } = options;
 
   if (algorithm === 'dark') {
     return {
       ...darkTheme,
-      algorithm: 'dark',
+      algorithm: antdTheme.darkAlgorithm,
     };
   }
 
   return {
     ...lightTheme,
-    algorithm: 'default',
+    algorithm: antdTheme.defaultAlgorithm,
   };
 }
 

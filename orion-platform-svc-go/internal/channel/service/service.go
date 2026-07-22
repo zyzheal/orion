@@ -1,0 +1,85 @@
+package service
+
+//go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
+//go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
+
+import (
+	"context"
+	"orion/platform-svc-go/internal/channel/models"
+)
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, channel *models.NotificationChannel) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error)
+	List(ctx context.Context, tenantID string, filter *models.ChannelFilter) ([]models.NotificationChannel, int, error)
+	ListEnabledByType(ctx context.Context, tenantID, channelType string) ([]models.NotificationChannel, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.NotificationChannel, error)
+}
+
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
+	return &Service{repo: repo}
+}
+
+func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateChannelRequest) (*models.NotificationChannel, error) {
+	channel := &models.NotificationChannel{
+		TenantID: tenantID,
+		Type:     req.Type,
+		Name:     req.Name,
+		Enabled:  req.Enabled,
+		Config:   req.Config,
+		Secret:   req.Secret,
+		Retry:    req.Retry,
+	}
+	if err := s.repo.Create(ctx, channel); err != nil {
+		return nil, err
+	}
+	return channel, nil
+}
+
+func (s *Service) GetByID(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error) {
+	return s.repo.GetByID(ctx, tenantID, id)
+}
+
+func (s *Service) List(ctx context.Context, tenantID string, filter *models.ChannelFilter) ([]models.NotificationChannel, int, error) {
+	if filter == nil {
+		filter = &models.ChannelFilter{Limit: 20}
+	}
+	return s.repo.List(ctx, tenantID, filter)
+}
+
+func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateChannelRequest) (*models.NotificationChannel, error) {
+	updates := make(map[string]interface{})
+	if req.Type != nil {
+		updates["type"] = *req.Type
+	}
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Enabled != nil {
+		updates["enabled"] = *req.Enabled
+	}
+	if req.Config != nil {
+		updates["config"] = req.Config
+	}
+	if req.Secret != nil {
+		updates["secret"] = *req.Secret
+	}
+	if req.Retry != nil {
+		updates["retry"] = *req.Retry
+	}
+	return s.repo.Update(ctx, tenantID, id, updates)
+}
+
+func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error) {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) GetEnabledByType(ctx context.Context, tenantID, channelType string) ([]models.NotificationChannel, error) {
+	return s.repo.ListEnabledByType(ctx, tenantID, channelType)
+}

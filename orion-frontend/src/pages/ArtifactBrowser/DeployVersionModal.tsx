@@ -5,6 +5,7 @@ import React from 'react';
 import { Modal, Form, Select, Input, Typography, Tag, Space } from 'antd';
 import type { ArtifactVersion } from '@/api/artifactVersions';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -41,7 +42,7 @@ const DeployVersionModal: React.FC<DeployVersionModalProps> = ({
       width={480}
     >
       {version && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <Space direction="vertical" size={4}>
             <Text>
               版本: <Text strong>{version.version}</Text>

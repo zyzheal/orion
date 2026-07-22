@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-federation-svc-go
+  namespace: orion
+  labels:
+    app: orion-federation-svc-go
+    app.kubernetes.io/name: orion-federation-svc-go
+    app.kubernetes.io/part-of: orion-platform
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: orion-federation-svc-go

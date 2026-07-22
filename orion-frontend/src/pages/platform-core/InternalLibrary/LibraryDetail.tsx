@@ -36,6 +36,7 @@ import type {
 } from '@/api/internal-library';
 import { checkDependencies } from '@/api/internal-library';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -87,7 +88,7 @@ const DependencyCheckTool: React.FC = () => {
     setChecking(true);
     try {
       const res = await checkDependencies(repoName);
-      setResults(Array.isArray(res.data?.data) ? res.data.data : []);
+      setResults(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setResults([]);
       message.error(`依赖检查失败：${(error as Error).message}`);
@@ -134,7 +135,7 @@ const DependencyCheckTool: React.FC = () => {
           rowKey="libraryName"
           size="small"
           pagination={false}
-          style={{ marginTop: 12 }}
+          style={{ marginTop: spacing[3] }}
           columns={[
             {
               key: 'libraryName',
@@ -365,7 +366,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
 
   return (
     <div>
-      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing[3], display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">管理二方库版本</Text>
         <Button type="primary" size="small" icon={<PlusOutlined />} onClick={onOpenPublish}>
           发布新版本
@@ -474,7 +475,7 @@ const DependentsTab: React.FC<DependentsTabProps> = ({
     <div>
       <div
         style={{
-          marginBottom: 12,
+          marginBottom: spacing[3],
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

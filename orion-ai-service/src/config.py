@@ -53,6 +53,28 @@ class Settings(BaseSettings):
     )
     ai_timeout: int = Field(default=60, description="AI 模型请求超时 (秒)")
 
+    # ==================== 数据库配置 ====================
+    database_url: Optional[str] = Field(
+        default=None,
+        description="PostgreSQL DSN（如未提供则使用独立服务默认值）",
+    )
+    ai_db_host: str = Field(default="localhost", description="PostgreSQL 主机")
+    ai_db_port: int = Field(default=5432, description="PostgreSQL 端口")
+    ai_db_user: str = Field(default="orion", description="PostgreSQL 用户")
+    ai_db_password: str = Field(default="orion", description="PostgreSQL 密码")
+    ai_db_name: str = Field(default="orion", description="PostgreSQL 数据库名")
+    ai_db_pool_min: int = Field(default=1, description="连接池最小连接数")
+    ai_db_pool_max: int = Field(default=5, description="连接池最大连接数")
+
+    @property
+    def ai_database_url(self) -> str:
+        if self.database_url:
+            return self.database_url
+        return (
+            f"postgresql://{self.ai_db_user}:{self.ai_db_password}"
+            f"@{self.ai_db_host}:{self.ai_db_port}/{self.ai_db_name}"
+        )
+
     # ==================== 订阅主题 ====================
     subscribed_topics: str = Field(
         default="pipeline.run.completed,code.pr.opened",

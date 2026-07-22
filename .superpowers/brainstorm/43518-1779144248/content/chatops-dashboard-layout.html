@@ -1,0 +1,250 @@
+<h2>ChatOps 默认看板设计方案</h2>
+<p class="subtitle">当前页面只有对话工作台，需要在进入页面时先展示数据分析看板。选择你喜欢的布局方向。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;border:none">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+          <div style="background:#e6f7ff;border-radius:6px;padding:12px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#1890ff">128</div>
+            <div style="font-size:11px;color:#888">总会话数</div>
+          </div>
+          <div style="background:#f6ffed;border-radius:6px;padding:12px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#52c41a">94%</div>
+            <div style="font-size:11px;color:#888">意图识别率</div>
+          </div>
+          <div style="background:#fff7e6;border-radius:6px;padding:12px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#fa8c16">356</div>
+            <div style="font-size:11px;color:#888">工具调用次数</div>
+          </div>
+          <div style="background:#f9f0ff;border-radius:6px;padding:12px;text-align:center">
+            <div style="font-size:20px;font-weight:700;color:#722ed1">4.2s</div>
+            <div style="font-size:11px;color:#888">平均响应时间</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 300px;gap:12px">
+          <div style="background:#fafafa;border-radius:6px;padding:16px;min-height:180px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:8px">📈 活跃度趋势 (近7天)</div>
+            <div style="display:flex;align-items:flex-end;height:120px;gap:6px">
+              <div style="flex:1;background:#1890ff40;border-radius:3px 3px 0 0;height:40%"></div>
+              <div style="flex:1;background:#1890ff50;border-radius:3px 3px 0 0;height:55%"></div>
+              <div style="flex:1;background:#1890ff60;border-radius:3px 3px 0 0;height:45%"></div>
+              <div style="flex:1;background:#1890ff70;border-radius:3px 3px 0 0;height:70%"></div>
+              <div style="flex:1;background:#1890ff80;border-radius:3px 3px 0 0;height:60%"></div>
+              <div style="flex:1;background:#1890ff90;border-radius:3px 3px 0 0;height:85%"></div>
+              <div style="flex:1;background:#1890ff;border-radius:3px 3px 0 0;height:100%"></div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:4px">
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">一</div>
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">二</div>
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">三</div>
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">四</div>
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">五</div>
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">六</div>
+              <div style="flex:1;text-align:center;font-size:9px;color:#aaa">日</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="background:#fafafa;border-radius:6px;padding:12px;flex:1">
+              <div style="font-size:12px;font-weight:600;margin-bottom:6px">🔥 热门命令</div>
+              <div style="font-size:11px;color:#555;line-height:1.8">
+                <div>1. 查询CPU使用率 <span style="color:#1890ff">86次</span></div>
+                <div>2. 部署到生产环境 <span style="color:#1890ff">72次</span></div>
+                <div>3. 诊断服务问题 <span style="color:#1890ff">54次</span></div>
+              </div>
+            </div>
+            <div style="background:#fafafa;border-radius:6px;padding:12px;flex:1">
+              <div style="font-size:12px;font-weight:600;margin-bottom:6px">⚡ 快捷入口</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <span style="background:#1890ff;color:#fff;padding:2px 8px;border-radius:10px;font-size:10px">新对话</span>
+                <span style="background:#fff;border:1px solid #d9d9d9;padding:2px 8px;border-radius:10px;font-size:10px">历史会话</span>
+                <span style="background:#fff;border:1px solid #d9d9d9;padding:2px 8px;border-radius:10px;font-size:10px">审计日志</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案A：数据看板 + 对话融合</h3>
+      <p>上方展示关键指标卡片，中间趋势图+侧边栏热门命令，下方嵌入对话区域。一页总览全局。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;border:none">
+        <div style="display:grid;grid-template-columns:280px 1fr 300px;gap:12px;height:420px">
+          <!-- 左栏：智能推荐 -->
+          <div style="background:#fafafa;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">🎯 智能推荐</div>
+            <div style="background:#fff;border-left:3px solid #ff4d4f;padding:8px;border-radius:4px">
+              <div style="font-size:11px;font-weight:600;color:#ff4d4f">P0 告警</div>
+              <div style="font-size:10px;color:#666;margin-top:2px">API服务响应延迟&gt;3s</div>
+              <div style="margin-top:6px"><span style="background:#ff4d4f;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px">诊断</span></div>
+            </div>
+            <div style="background:#fff;border-left:3px solid #faad14;padding:8px;border-radius:4px">
+              <div style="font-size:11px;font-weight:600;color:#faad14">成本异常</div>
+              <div style="font-size:10px;color:#666;margin-top:2px">本月LLM费用超标15%</div>
+              <div style="margin-top:6px"><span style="background:#faad14;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px">查看</span></div>
+            </div>
+            <div style="background:#fff;border-left:3px solid #52c41a;padding:8px;border-radius:4px">
+              <div style="font-size:11px;font-weight:600;color:#52c41a">部署完成</div>
+              <div style="font-size:10px;color:#666;margin-top:2px">user-service v2.3.1 已上线</div>
+            </div>
+          </div>
+          <!-- 中间：对话区域 -->
+          <div style="background:#fafafa;border-radius:6px;padding:12px;display:flex;flex-direction:column">
+            <div style="font-size:12px;font-weight:600;margin-bottom:8px">💬 ChatOps 对话</div>
+            <div style="flex:1;background:#fff;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px">
+              <div style="align-self:flex-start;background:#f0f5ff;padding:8px 12px;border-radius:12px;max-width:70%;font-size:11px">你好！我是 Orion AI 运维助手</div>
+              <div style="align-self:flex-end;background:#1890ff;color:#fff;padding:8px 12px;border-radius:12px;max-width:70%;font-size:11px">查询 CPU 使用率</div>
+              <div style="align-self:flex-start;background:#f0f5ff;padding:8px 12px;border-radius:12px;max-width:70%;font-size:11px">当前 CPU 使用率为 67%...</div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <div style="flex:1;border:1px solid #d9d9d9;border-radius:6px;padding:8px;font-size:11px;color:#999">输入指令...</div>
+              <div style="background:#1890ff;color:#fff;padding:8px 16px;border-radius:6px;font-size:11px">发送</div>
+            </div>
+          </div>
+          <!-- 右栏：活跃统计 -->
+          <div style="background:#fafafa;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">📊 活跃统计</div>
+            <div style="text-align:center;padding:8px;background:#fff;border-radius:6px">
+              <div style="font-size:24px;font-weight:700;color:#1890ff">128</div>
+              <div style="font-size:11px;color:#888">总会话</div>
+            </div>
+            <div style="text-align:center;padding:8px;background:#fff;border-radius:6px">
+              <div style="font-size:24px;font-weight:700;color:#52c41a">94%</div>
+              <div style="font-size:11px;color:#888">成功率</div>
+            </div>
+            <div style="background:#fff;border-radius:6px;padding:10px;flex:1">
+              <div style="font-size:11px;font-weight:600;margin-bottom:6px">工具使用 TOP5</div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;justify-content:space-between;font-size:10px"><span>查询监控</span><span>86</span></div>
+                <div style="background:#f0f5ff;height:6px;border-radius:3px"><div style="background:#1890ff;width:85%;height:100%;border-radius:3px"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px"><span>部署服务</span><span>72</span></div>
+                <div style="background:#f0f5ff;height:6px;border-radius:3px"><div style="background:#1890ff;width:70%;height:100%;border-radius:3px"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px"><span>诊断问题</span><span>54</span></div>
+                <div style="background:#f0f5ff;height:6px;border-radius:3px"><div style="background:#1890ff;width:55%;height:100%;border-radius:3px"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案B：三栏工作台</h3>
+      <p>左侧智能推荐/告警，中间对话区域，右侧活跃统计。类似IDE布局，信息密度高，适合运维人员快速操作。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup" style="margin:0;border:none">
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:2px solid #f0f0f0">
+          <div style="padding:8px 20px;font-size:13px;font-weight:600;color:#1890ff;border-bottom:2px solid #1890ff;margin-bottom:-2px">总览看板</div>
+          <div style="padding:8px 20px;font-size:13px;color:#888">对话工作台</div>
+          <div style="padding:8px 20px;font-size:13px;color:#888">执行记录</div>
+          <div style="padding:8px 20px;font-size:13px;color:#888">审计日志</div>
+        </div>
+        <!-- 总览内容 -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+          <div style="background:linear-gradient(135deg,#e6f7ff,#f0f5ff);border-radius:8px;padding:16px">
+            <div style="font-size:22px;font-weight:700;color:#1890ff">128</div>
+            <div style="font-size:11px;color:#888;margin-top:4px">总会话数 <span style="color:#52c41a">↑12%</span></div>
+          </div>
+          <div style="background:linear-gradient(135deg,#f6ffed,#f0f5ff);border-radius:8px;padding:16px">
+            <div style="font-size:22px;font-weight:700;color:#52c41a">94%</div>
+            <div style="font-size:11px;color:#888;margin-top:4px">意图识别率 <span style="color:#52c41a">↑3%</span></div>
+          </div>
+          <div style="background:linear-gradient(135deg,#fff7e6,#f0f5ff);border-radius:8px;padding:16px">
+            <div style="font-size:22px;font-weight:700;color:#fa8c16">356</div>
+            <div style="font-size:11px;color:#888;margin-top:4px">工具调用 <span style="color:#52c41a">↑28%</span></div>
+          </div>
+          <div style="background:linear-gradient(135deg,#f9f0ff,#f0f5ff);border-radius:8px;padding:16px">
+            <div style="font-size:22px;font-weight:700;color:#722ed1">4.2s</div>
+            <div style="font-size:11px;color:#888;margin-top:4px">平均响应 <span style="color:#52c41a">↓0.8s</span></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div style="background:#fafafa;border-radius:8px;padding:14px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:10px">📈 活跃度趋势</div>
+            <div style="display:flex;align-items:flex-end;height:100px;gap:4px">
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:40%"></div>
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:55%"></div>
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:45%"></div>
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:70%"></div>
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:60%"></div>
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:85%"></div>
+              <div style="flex:1;background:linear-gradient(to top,#1890ff40,#1890ff);border-radius:3px 3px 0 0;height:100%"></div>
+            </div>
+          </div>
+          <div style="background:#fafafa;border-radius:8px;padding:14px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:10px">🔥 热门命令 TOP5</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="background:#1890ff;color:#fff;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px">1</span>查询CPU使用率 <span style="margin-left:auto;color:#1890ff">86</span></div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="background:#1890ff;color:#fff;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px">2</span>部署到生产环境 <span style="margin-left:auto;color:#1890ff">72</span></div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="background:#1890ff;color:#fff;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px">3</span>诊断服务问题 <span style="margin-left:auto;color:#1890ff">54</span></div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="background:#d9d9d9;color:#fff;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px">4</span>查看错误日志 <span style="margin-left:auto;color:#1890ff">41</span></div>
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px"><span style="background:#d9d9d9;color:#fff;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px">5</span>重启Pod <span style="margin-left:auto;color:#1890ff">33</span></div>
+            </div>
+          </div>
+          <div style="background:#fafafa;border-radius:8px;padding:14px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:10px">⚠️ 待处理告警</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="background:#fff1f0;border:1px solid #ffccc7;padding:6px 8px;border-radius:4px;font-size:10px"><span style="color:#ff4d4f;font-weight:600">[P0]</span> API响应延迟</div>
+              <div style="background:#fffbe6;border:1px solid #ffe58f;padding:6px 8px;border-radius:4px;font-size:10px"><span style="color:#faad14;font-weight:600">[P1]</span> LLM费用超标</div>
+              <div style="background:#f6ffed;border:1px solid #b7eb8f;padding:6px 8px;border-radius:4px;font-size:10px"><span style="color:#52c41a;font-weight:600">[P2]</span> 磁盘使用率80%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案C：Tab 分页结构</h3>
+      <p>用Tab将看板分为"总览看板"、"对话工作台"、"执行记录"、"审计日志"四个子页面，每个Tab专注一个功能区域。结构清晰，适合功能扩展。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px">
+  <h3>关键区别对比</h3>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead>
+      <tr style="border-bottom:2px solid #f0f0f0">
+        <th style="text-align:left;padding:8px">维度</th>
+        <th style="text-align:left;padding:8px">方案A：数据看板+对话</th>
+        <th style="text-align:left;padding:8px">方案B：三栏工作台</th>
+        <th style="text-align:left;padding:8px">方案C：Tab分页</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #f5f5f5">
+        <td style="padding:8px;font-weight:600">信息密度</td>
+        <td style="padding:8px">中高，上下滚动</td>
+        <td style="padding:8px">高，一屏展示</td>
+        <td style="padding:8px">低，分页浏览</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f5f5f5">
+        <td style="padding:8px;font-weight:600">对话体验</td>
+        <td style="padding:8px">嵌入在底部，空间受限</td>
+        <td style="padding:8px">居中独立区域</td>
+        <td style="padding:8px">独立Tab，全屏对话</td>
+      </tr>
+      <tr style="border-bottom:1px solid #f5f5f5">
+        <td style="padding:8px;font-weight:600">可扩展性</td>
+        <td style="padding:8px">中等，页面会越来越长</td>
+        <td style="padding:8px">受限于三栏布局</td>
+        <td style="padding:8px">好，随时加Tab</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;font-weight:600">适合场景</td>
+        <td style="padding:8px">偏数据分析，对话是辅助</td>
+        <td style="padding:8px">高频运维，需要同时看数据和对话</td>
+        <td style="padding:8px">多功能聚合，各功能独立</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

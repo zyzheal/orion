@@ -14,12 +14,30 @@ import {
   Button,
   Card,
   message,
+  Tag,
+  Radio,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
-import type { StageConfig, MatrixBuildConfig } from './types';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
+  BranchesOutlined,
+  UserOutlined,
+  SafetyOutlined,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
+import type {
+  StageConfig,
+  MatrixBuildConfig,
+  TimeoutConfig,
+  ApprovalConfig,
+  QualityGateConfig,
+  QualityGateRule,
+} from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
+import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -63,6 +81,27 @@ const StageModal: React.FC<StageModalProps> = ({
     enabled: false,
     provider: 'github',
     prActions: ['opened', 'synchronize'],
+  });
+  // 超时配置
+  const [timeoutConfig, setTimeoutConfig] = useState<TimeoutConfig>({
+    enabled: false,
+    duration: 300,
+    action: 'fail',
+    retryCount: 1,
+  });
+  // 审批配置
+  const [approvalConfig, setApprovalConfig] = useState<ApprovalConfig>({
+    enabled: false,
+    approvers: [],
+    mode: 'any',
+    timeout: 24,
+    timeoutAction: 'reject',
+  });
+  // 质量门禁配置
+  const [qualityGateConfig, setQualityGateConfig] = useState<QualityGateConfig>({
+    enabled: false,
+    rules: [],
+    failureAction: 'block',
   });
   // 子流水线相关状态
   const [pipelineOptions, setPipelineOptions] = useState<{ label: string; value: string }[]>([]);
@@ -119,6 +158,39 @@ const StageModal: React.FC<StageModalProps> = ({
           prActions: ['opened', 'synchronize'],
         });
       }
+      // 加载超时配置
+      if (stage.timeoutConfig) {
+        setTimeoutConfig(stage.timeoutConfig);
+      } else {
+        setTimeoutConfig({
+          enabled: false,
+          duration: 300,
+          action: 'fail',
+          retryCount: 1,
+        });
+      }
+      // 加载审批配置
+      if (stage.approvalConfig) {
+        setApprovalConfig(stage.approvalConfig);
+      } else {
+        setApprovalConfig({
+          enabled: false,
+          approvers: [],
+          mode: 'any',
+          timeout: 24,
+          timeoutAction: 'reject',
+        });
+      }
+      // 加载质量门禁配置
+      if (stage.qualityGateConfig) {
+        setQualityGateConfig(stage.qualityGateConfig);
+      } else {
+        setQualityGateConfig({
+          enabled: false,
+          rules: [],
+          failureAction: 'block',
+        });
+      }
     } else {
       form.resetFields();
       setCachePaths(['']);
@@ -129,6 +201,24 @@ const StageModal: React.FC<StageModalProps> = ({
         dimensions: [],
         exclusions: [],
       });
+      setTimeoutConfig({
+        enabled: false,
+        duration: 300,
+        action: 'fail',
+        retryCount: 1,
+      });
+      setApprovalConfig({
+        enabled: false,
+        approvers: [],
+        mode: 'any',
+        timeout: 24,
+        timeoutAction: 'reject',
+      });
+      setQualityGateConfig({
+        enabled: false,
+        rules: [],
+        failureAction: 'block',
+      });
     }
   }, [stage, form, visible]);
 
@@ -137,7 +227,7 @@ const StageModal: React.FC<StageModalProps> = ({
     if (visible) {
       getPipelines()
         .then((res) => {
-          const data = res.data?.data ?? res.data;
+          const data = res.data ?? res.data;
           const list = Array.isArray(data) ? data : [];
           const opts = list.map((p: { id: string; name: string }) => ({
             label: p.name,
@@ -259,6 +349,12 @@ const StageModal: React.FC<StageModalProps> = ({
               securityLevel: prTriggerConfig.securityLevel || 'safe',
             } as PRTriggerConfigType
           : undefined,
+        // 超时配置
+        timeoutConfig: timeoutConfig.enabled ? timeoutConfig : undefined,
+        // 审批配置
+        approvalConfig: approvalConfig.enabled ? approvalConfig : undefined,
+        // 质量门禁配置
+        qualityGateConfig: qualityGateConfig.enabled ? qualityGateConfig : undefined,
       };
       onSave(stageConfig);
     } catch (error: unknown) {
@@ -293,6 +389,67 @@ const StageModal: React.FC<StageModalProps> = ({
     newPaths[index] = value;
     setArtifactPaths(newPaths);
   };
+
+  // 质量门禁规则管理
+  const handleAddQualityRule = () => {
+    const newRule: QualityGateRule = {
+      id: `rule-${Date.now()}`,
+      metric: 'test_pass_rate',
+      operator: '>=',
+      threshold: 80,
+    };
+    setQualityGateConfig((prev) => ({
+      ...prev,
+      rules: [...prev.rules, newRule],
+    }));
+  };
+  const handleRemoveQualityRule = (id: string) => {
+    setQualityGateConfig((prev) => ({
+      ...prev,
+      rules: prev.rules.filter((r) => r.id !== id),
+    }));
+  };
+  const handleUpdateQualityRule = (id: string, field: keyof QualityGateRule, value: any) => {
+    setQualityGateConfig((prev) => ({
+      ...prev,
+      rules: prev.rules.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
+    }));
+  };
+
+  // 审批人管理
+  const handleAddApprover = () => {
+    setApprovalConfig((prev) => ({
+      ...prev,
+      approvers: [...prev.approvers, ''],
+    }));
+  };
+  const handleRemoveApprover = (index: number) => {
+    setApprovalConfig((prev) => ({
+      ...prev,
+      approvers: prev.approvers.filter((_, i) => i !== index),
+    }));
+  };
+  const handleUpdateApprover = (index: number, value: string) => {
+    setApprovalConfig((prev) => ({
+      ...prev,
+      approvers: prev.approvers.map((a, i) => (i === index ? value : a)),
+    }));
+  };
+
+  const METRIC_OPTIONS = [
+    { label: '测试通过率', value: 'test_pass_rate' },
+    { label: '代码覆盖率', value: 'coverage' },
+    { label: '漏洞数量', value: 'vulnerability_count' },
+    { label: '自定义指标', value: 'custom' },
+  ];
+
+  const OPERATOR_OPTIONS = [
+    { label: '>', value: '>' },
+    { label: '<', value: '<' },
+    { label: '>=', value: '>=' },
+    { label: '<=', value: '<=' },
+    { label: '==', value: '==' },
+  ];
 
   return (
     <Modal
@@ -354,7 +511,7 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ width: '100%' }}
             placeholder="默认 300 秒"
             formatter={(value) => `${value}s`}
-            parser={(value) => Number(value?.replace('s', '')) as any}
+            parser={(value) => (Number(value?.replace('s', '')) || 0) as 0 | 7200}
           />
         </Form.Item>
 
@@ -420,7 +577,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'sub-pipeline' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
                 <Form.Item
                   label="选择流水线"
                   name="subPipelineId"
@@ -499,7 +656,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'buildx' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space>🏷️ 多架构构建配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>🏷️ 多架构构建配置</Space>}>
                 <Form.Item
                   label="镜像名称"
                   name="buildxImageName"
@@ -554,7 +711,7 @@ const StageModal: React.FC<StageModalProps> = ({
             (formInstance.getFieldValue('type') === 'container' || formInstance.getFieldValue('type') === 'apk-upload') && (
               <>
                 {formInstance.getFieldValue('type') === 'container' && (
-                  <Card size="small" style={{ marginBottom: 16 }} title={<Space>📦 容器运行配置</Space>}>
+                  <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📦 容器运行配置</Space>}>
                     <Form.Item
                       label="容器镜像"
                       name="containerImage"
@@ -626,7 +783,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 )}
                 {/* APK Upload 配置 */}
                 {formInstance.getFieldValue('type') === 'apk-upload' && (
-                  <Card size="small" style={{ marginBottom: 16 }} title={<Space>📱 APK 上传配置</Space>}>
+                  <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📱 APK 上传配置</Space>}>
                     <Form.Item
                       label="上传类型"
                       name="apkUploadType"
@@ -811,7 +968,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate>
           {(formInstance) =>
             formInstance.getFieldValue('cacheEnabled') && (
-              <Card size="small" style={{ marginBottom: 16 }}>
+              <Card size="small" style={{ marginBottom: spacing.md }}>
                 <Form.Item
                   label="缓存 Key"
                   name="cacheKey"
@@ -864,7 +1021,7 @@ const StageModal: React.FC<StageModalProps> = ({
           构建产物 (Artifact)
         </Divider>
 
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card size="small" style={{ marginBottom: spacing.md }}>
           <Form.Item label="上传路径" required>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {artifactPaths.map((path, index) => (
@@ -899,7 +1056,7 @@ const StageModal: React.FC<StageModalProps> = ({
         {/* 矩阵构建配置 */}
         <Divider orientation="left" orientationMargin={0}>
           <Space>
-            <ThunderboltOutlined style={{ color: '#faad14' }} />
+            <ThunderboltOutlined style={{ color: colors.warning[500] }} />
             <span>矩阵构建 (Matrix Build)</span>
           </Space>
         </Divider>
@@ -907,7 +1064,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate>
           <Card
             size="small"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
             extra={
               <Space>
                 <span>启用矩阵构建</span>
@@ -931,7 +1088,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 onChange={setMatrixConfig}
               />
             ) : (
-              <div style={{ padding: '8px 0', color: '#999' }}>
+              <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
                 启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
               </div>
             )}
@@ -952,6 +1109,324 @@ const StageModal: React.FC<StageModalProps> = ({
             onChange={(config) => setPrTriggerConfig(config as Partial<PRTriggerConfigType>)}
           />
         </Form.Item>
+
+        {/* 超时配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <ClockCircleOutlined />
+            <span>超时策略配置</span>
+          </Space>
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: spacing.md }}>
+          <Form.Item label="启用超时策略" valuePropName="checked">
+            <Switch
+              checked={timeoutConfig.enabled}
+              onChange={(checked) =>
+                setTimeoutConfig((prev) => ({ ...prev, enabled: checked }))
+              }
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+            />
+          </Form.Item>
+
+          {timeoutConfig.enabled && (
+            <>
+              <Form.Item label="超时时长 (秒)" tooltip="阶段执行超过此时间将触发超时策略">
+                <InputNumber
+                  min={1}
+                  max={7200}
+                  step={60}
+                  value={timeoutConfig.duration}
+                  onChange={(value) =>
+                    setTimeoutConfig((prev) => ({ ...prev, duration: value || 300 }))
+                  }
+                  style={{ width: '100%' }}
+                  placeholder="默认 300 秒"
+                />
+              </Form.Item>
+
+              <Form.Item label="超时后动作">
+                <Radio.Group
+                  value={timeoutConfig.action}
+                  onChange={(e) =>
+                    setTimeoutConfig((prev) => ({ ...prev, action: e.target.value }))
+                  }
+                >
+                  <Space direction="vertical">
+                    <Radio value="fail">
+                      <Space>
+                        <Tag color="error">失败</Tag>
+                        <span>标记阶段为失败</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="skip">
+                      <Space>
+                        <Tag color="warning">跳过</Tag>
+                        <span>跳过当前阶段继续后续阶段</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="retry">
+                      <Space>
+                        <Tag color="processing">重试</Tag>
+                        <span>自动重试指定次数</span>
+                      </Space>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+
+              {timeoutConfig.action === 'retry' && (
+                <Form.Item label="重试次数">
+                  <InputNumber
+                    min={1}
+                    max={5}
+                    value={timeoutConfig.retryCount}
+                    onChange={(value) =>
+                      setTimeoutConfig((prev) => ({ ...prev, retryCount: value || 1 }))
+                    }
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              )}
+            </>
+          )}
+
+          {!timeoutConfig.enabled && (
+            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
+              启用后可配置超时时长和超时后的动作（失败/跳过/重试）
+            </div>
+          )}
+        </Card>
+
+        {/* 审批配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <UserOutlined />
+            <span>审批配置</span>
+          </Space>
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: spacing.md }}>
+          <Form.Item label="启用审批" valuePropName="checked">
+            <Switch
+              checked={approvalConfig.enabled}
+              onChange={(checked) =>
+                setApprovalConfig((prev) => ({ ...prev, enabled: checked }))
+              }
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+            />
+          </Form.Item>
+
+          {approvalConfig.enabled && (
+            <>
+              <Form.Item label="审批人" required tooltip="输入审批人的用户名或邮箱">
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  {approvalConfig.approvers.map((approver, index) => (
+                    <Space key={index} style={{ width: '100%' }}>
+                      <Input
+                        value={approver}
+                        onChange={(e) => handleUpdateApprover(index, e.target.value)}
+                        placeholder="输入审批人用户名或邮箱"
+                        prefix={<UserOutlined />}
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveApprover(index)}
+                        disabled={approvalConfig.approvers.length === 0}
+                      />
+                    </Space>
+                  ))}
+                  <Button
+                    type="dashed"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddApprover}
+                    block
+                  >
+                    添加审批人
+                  </Button>
+                </Space>
+              </Form.Item>
+
+              <Form.Item label="审批模式">
+                <Radio.Group
+                  value={approvalConfig.mode}
+                  onChange={(e) =>
+                    setApprovalConfig((prev) => ({ ...prev, mode: e.target.value }))
+                  }
+                >
+                  <Radio value="any">
+                    <Space>
+                      <Tag color="success">任一审批</Tag>
+                      <span>任意一个审批人通过即可</span>
+                    </Space>
+                  </Radio>
+                  <Radio value="unanimous">
+                    <Space>
+                      <Tag color="processing">全部审批</Tag>
+                      <span>所有审批人都必须通过</span>
+                    </Space>
+                  </Radio>
+                </Radio.Group>
+              </Form.Item>
+
+              <Form.Item label="审批超时 (小时)" tooltip="审批人超过此时间未处理将触发超时动作">
+                <InputNumber
+                  min={1}
+                  max={168}
+                  value={approvalConfig.timeout}
+                  onChange={(value) =>
+                    setApprovalConfig((prev) => ({ ...prev, timeout: value || 24 }))
+                  }
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+
+              <Form.Item label="超时动作">
+                <Radio.Group
+                  value={approvalConfig.timeoutAction}
+                  onChange={(e) =>
+                    setApprovalConfig((prev) => ({
+                      ...prev,
+                      timeoutAction: e.target.value,
+                    }))
+                  }
+                >
+                  <Radio value="reject">
+                    <Tag color="error">自动拒绝</Tag>
+                  </Radio>
+                  <Radio value="approve">
+                    <Tag color="success">自动通过</Tag>
+                  </Radio>
+                </Radio.Group>
+              </Form.Item>
+            </>
+          )}
+
+          {!approvalConfig.enabled && (
+            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
+              启用后可配置审批人、审批模式和超时处理策略
+            </div>
+          )}
+        </Card>
+
+        {/* 质量门禁配置 */}
+        <Divider orientation="left" orientationMargin={0}>
+          <Space>
+            <SafetyOutlined />
+            <span>质量门禁配置</span>
+          </Space>
+        </Divider>
+
+        <Card size="small" style={{ marginBottom: spacing.md }}>
+          <Form.Item label="启用质量门禁" valuePropName="checked">
+            <Switch
+              checked={qualityGateConfig.enabled}
+              onChange={(checked) =>
+                setQualityGateConfig((prev) => ({ ...prev, enabled: checked }))
+              }
+              checkedChildren="启用"
+              unCheckedChildren="禁用"
+            />
+          </Form.Item>
+
+          {qualityGateConfig.enabled && (
+            <>
+              <Form.Item label="不通过时的动作">
+                <Radio.Group
+                  value={qualityGateConfig.failureAction}
+                  onChange={(e) =>
+                    setQualityGateConfig((prev) => ({
+                      ...prev,
+                      failureAction: e.target.value,
+                    }))
+                  }
+                >
+                  <Space direction="vertical">
+                    <Radio value="block">
+                      <Space>
+                        <Tag color="error">阻断</Tag>
+                        <span>阻断流水线执行</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="warn">
+                      <Space>
+                        <Tag color="warning">警告</Tag>
+                        <span>记录警告但继续执行</span>
+                      </Space>
+                    </Radio>
+                    <Radio value="continue">
+                      <Space>
+                        <Tag color="default">继续</Tag>
+                        <span>不处理，直接继续</span>
+                      </Space>
+                    </Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+
+              <Form.Item label="规则列表">
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                  {qualityGateConfig.rules.map((rule) => (
+                    <Card
+                      key={rule.id}
+                      size="small"
+                      extra={
+                        <Button
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleRemoveQualityRule(rule.id)}
+                        />
+                      }
+                    >
+                      <Space style={{ width: '100%' }} size={8}>
+                        <Select
+                          value={rule.metric}
+                          onChange={(value) => handleUpdateQualityRule(rule.id, 'metric', value)}
+                          options={METRIC_OPTIONS}
+                          style={{ width: 160 }}
+                          placeholder="选择指标"
+                        />
+                        <Select
+                          value={rule.operator}
+                          onChange={(value) => handleUpdateQualityRule(rule.id, 'operator', value)}
+                          options={OPERATOR_OPTIONS}
+                          style={{ width: 80 }}
+                        />
+                        <InputNumber
+                          value={rule.threshold}
+                          onChange={(value) =>
+                            handleUpdateQualityRule(rule.id, 'threshold', value || 0)
+                          }
+                          style={{ width: 120 }}
+                          placeholder="阈值"
+                        />
+                      </Space>
+                    </Card>
+                  ))}
+                  <Button
+                    type="dashed"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddQualityRule}
+                    block
+                  >
+                    添加质量规则
+                  </Button>
+                </Space>
+              </Form.Item>
+            </>
+          )}
+
+          {!qualityGateConfig.enabled && (
+            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
+              启用后可配置质量检查规则，如测试通过率、代码覆盖率、漏洞数量等
+            </div>
+          )}
+        </Card>
       </Form>
     </Modal>
   );

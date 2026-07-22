@@ -88,7 +88,7 @@ describe('BudgetGuardPage', () => {
 
   it('displays empty state when no guards exist', async () => {
     vi.mocked(costOpsApi.getBudgetGuards).mockResolvedValue(emptyApiResponse as any);
-    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: { data: null } } as any);
+    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: null } as any);
 
     render(<BudgetGuardPage />);
 
@@ -112,7 +112,7 @@ describe('BudgetGuardPage', () => {
 
   it('opens create modal when Create Guard button is clicked', async () => {
     vi.mocked(costOpsApi.getBudgetGuards).mockResolvedValue(emptyApiResponse as any);
-    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: { data: null } } as any);
+    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: null } as any);
 
     render(<BudgetGuardPage />);
 
@@ -129,7 +129,7 @@ describe('BudgetGuardPage', () => {
 
   it('opens evaluation modal when Evaluate button is clicked', async () => {
     vi.mocked(costOpsApi.getBudgetGuards).mockResolvedValue(emptyApiResponse as any);
-    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: { data: null } } as any);
+    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: null } as any);
 
     render(<BudgetGuardPage />);
 
@@ -171,7 +171,7 @@ describe('BudgetGuardPage', () => {
 
   it('filters guards by search query', async () => {
     vi.mocked(costOpsApi.getBudgetGuards).mockResolvedValue(guardApiResponse as any);
-    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: { data: null } } as any);
+    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: null } as any);
 
     render(<BudgetGuardPage />);
 
@@ -191,7 +191,7 @@ describe('BudgetGuardPage', () => {
     vi.mocked(costOpsApi.getBudgetGuards)
       .mockResolvedValueOnce(emptyApiResponse as any)
       .mockResolvedValueOnce(guardApiResponse as any);
-    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: { data: null } } as any);
+    vi.mocked(costOpsApi.getCostForecast).mockResolvedValue({ data: null } as any);
 
     render(<BudgetGuardPage />);
 

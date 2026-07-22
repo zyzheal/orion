@@ -34,6 +34,8 @@ import {
   PlayCircleOutlined,
   ClockCircleOutlined,
   CopyOutlined,
+  LockOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons';
 import Table from '@/components/Table';
 import type { TableColumn } from '@/components/Table';
@@ -44,13 +46,17 @@ import {
   updateEnvironment,
   deleteEnvironment,
   updateEnvironmentStatus,
+  lockEnvironment,
+  unlockEnvironment,
   type Environment,
   type CreateEnvironmentInput,
   type UpdateEnvironmentInput,
   type EnvironmentStatus,
 } from '@/api/environments';
+import EnvironmentLockBadge from '@/components/environment/EnvironmentLockBadge';
 import dayjs from 'dayjs';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -160,7 +166,7 @@ const EnvironmentPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getEnvironments();
-      setEnvironments(Array.isArray(res.data?.data) ? res.data.data : []);
+      setEnvironments(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setEnvironments([]);
       message.error(`加载环境列表失败: ${(error as Error).message}`);
@@ -288,6 +294,26 @@ const EnvironmentPage: React.FC = () => {
     }
   };
 
+  const handleLock = async (id: string) => {
+    try {
+      await lockEnvironment(id, { reason: '手动锁定', lockedBy: 'current-user' });
+      message.success('环境已锁定');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`锁定失败: ${(error as Error).message}`);
+    }
+  };
+
+  const handleUnlock = async (id: string) => {
+    try {
+      await unlockEnvironment(id);
+      message.success('环境已解锁');
+      loadData();
+    } catch (error: unknown) {
+      message.error(`解锁失败: ${(error as Error).message}`);
+    }
+  };
+
   const openEdit = (env: Environment) => {
     setEditingEnv(env);
     editForm.setFieldsValue({
@@ -354,6 +380,25 @@ const EnvironmentPage: React.FC = () => {
       ),
     },
     {
+      key: 'locked',
+      title: '锁定',
+      width: 80,
+      render: (_: unknown, record: Environment) => (
+        <EnvironmentLockBadge
+          envId={record.id}
+          envName={record.name}
+          initialLockInfo={{
+            locked: !!(record as { locked?: boolean }).locked,
+            lockedBy: (record as { locked_by?: string }).locked_by,
+            lockedAt: (record as { locked_at?: string }).locked_at,
+            reason: (record as { locked_reason?: string }).locked_reason,
+          }}
+          showActions
+          onLockChange={() => loadData()}
+        />
+      ),
+    },
+    {
       key: 'cluster',
       title: '集群',
       width: 140,
@@ -378,7 +423,7 @@ const EnvironmentPage: React.FC = () => {
       title: '休眠',
       width: 80,
       render: (_: unknown, record: Environment) => {
-        const config = record.config as any;
+        const config = record.config as { autoSleep?: boolean; ttlHours?: number; replicas?: number; resources?: Record<string, unknown> };
         const autoSleep = config?.autoSleep;
         return (
           <Switch
@@ -395,7 +440,7 @@ const EnvironmentPage: React.FC = () => {
       title: 'TTL',
       width: 100,
       render: (_: unknown, record: Environment) => {
-        const config = record.config as any;
+        const config = record.config as { ttlHours?: number; replicas?: number; resources?: Record<string, unknown> };
         const ttl = config?.ttlHours;
         return ttl ? (
           <Tooltip title={`${ttl} 小时后自动销毁`}>
@@ -420,8 +465,10 @@ const EnvironmentPage: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 260,
-      render: (_: unknown, record: Environment) => (
+      width: 300,
+      render: (_: unknown, record: Environment) => {
+        const isLocked = (record as { locked?: boolean }).locked;
+        return (
         <Space size="small" wrap>
           <Tooltip title="详情">
             <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
@@ -466,6 +513,31 @@ const EnvironmentPage: React.FC = () => {
               </Button>
             </Tooltip>
           )}
+          {!isLocked ? (
+            <Popconfirm
+              title="确认锁定环境?"
+              description="锁定后将无法向此环境部署应用"
+              onConfirm={() => handleLock(record.id)}
+            >
+              <Tooltip title="锁定环境">
+                <Button type="link" size="small" icon={<LockOutlined />}>
+                  锁定
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确认解锁环境?"
+              description="解锁后将允许向此环境部署应用"
+              onConfirm={() => handleUnlock(record.id)}
+            >
+              <Tooltip title="解锁环境">
+                <Button type="link" size="small" icon={<UnlockOutlined />}>
+                  解锁
+                </Button>
+              </Tooltip>
+            </Popconfirm>
+          )}
           <Tooltip title="删除">
             <Popconfirm
               title="确认删除该环境?"
@@ -476,7 +548,8 @@ const EnvironmentPage: React.FC = () => {
             </Popconfirm>
           </Tooltip>
         </Space>
-      ),
+        );
+      },
     },
   ];
 
@@ -514,11 +587,12 @@ const EnvironmentPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             环境管理
           </Title>
           <Text type="secondary">管理项目的部署环境、休眠状态、TTL 配置和环境模板</Text>
@@ -538,24 +612,24 @@ const EnvironmentPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <StatCard title="总环境数" value={stats.total} icon={<CloudServerOutlined />} />
         </Col>
         <Col span={6}>
-          <StatCard title="运行中" value={stats.active} icon={<PlayCircleOutlined />} color="#52c41a" />
+          <StatCard title="运行中" value={stats.active} icon={<PlayCircleOutlined />} color={colors.success[500]} />
         </Col>
         <Col span={6}>
-          <StatCard title="休眠中" value={stats.hibernated} icon={<PauseCircleOutlined />} color="#faad14" />
+          <StatCard title="休眠中" value={stats.hibernated} icon={<PauseCircleOutlined />} color={colors.warning[500]} />
         </Col>
         <Col span={6}>
-          <StatCard title="维护中" value={stats.maintenance} icon={<ClockCircleOutlined />} color="#faad14" />
+          <StatCard title="维护中" value={stats.maintenance} icon={<ClockCircleOutlined />} color={colors.info[500]} />
         </Col>
       </Row>
 
       {/* Environment List */}
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -718,28 +792,28 @@ const EnvironmentPage: React.FC = () => {
 
             {/* TTL & Hibernate Info */}
             {selectedEnv.config && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>高级配置</Title>
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="自动休眠">
                     <Switch
-                      checked={!!(selectedEnv.config as any)?.autoSleep}
+                      checked={!!(selectedEnv.config as { autoSleep?: boolean })?.autoSleep}
                       disabled
                       checkedChildren="开启"
                       unCheckedChildren="关闭"
                     />
                   </Descriptions.Item>
                   <Descriptions.Item label="TTL">
-                    {(selectedEnv.config as any)?.ttlHours
-                      ? `${(selectedEnv.config as any).ttlHours} 小时后自动销毁`
+                    {(selectedEnv.config as { ttlHours?: number })?.ttlHours
+                      ? `${(selectedEnv.config as { ttlHours?: number }).ttlHours} 小时后自动销毁`
                       : '无限制'}
                   </Descriptions.Item>
                   <Descriptions.Item label="副本数">
-                    {(selectedEnv.config as any)?.replicas || '-'}
+                    {(selectedEnv.config as { replicas?: number })?.replicas || '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="资源限制">
-                    {(selectedEnv.config as any)?.resources
-                      ? JSON.stringify((selectedEnv.config as any).resources)
+                    {(selectedEnv.config as { resources?: Record<string, unknown> })?.resources
+                      ? JSON.stringify((selectedEnv.config as { resources?: Record<string, unknown> }).resources)
                       : '-'}
                   </Descriptions.Item>
                 </Descriptions>
@@ -748,12 +822,12 @@ const EnvironmentPage: React.FC = () => {
 
             {/* Raw Config */}
             {selectedEnv.config && Object.keys(selectedEnv.config).length > 0 && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>环境配置</Title>
                 <pre
                   style={{
                     background: colors.neutral[100],
-                    padding: 16,
+                    padding: spacing.md,
                     borderRadius: 4,
                     fontSize: 13,
                     overflow: 'auto',
@@ -766,7 +840,7 @@ const EnvironmentPage: React.FC = () => {
             )}
 
             {/* Quick status actions */}
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: spacing.lg }}>
               <Title level={5}>快捷操作</Title>
               <Space wrap>
                 {selectedEnv.status !== 'active' && (

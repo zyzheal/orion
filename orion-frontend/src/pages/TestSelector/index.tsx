@@ -9,7 +9,7 @@
  * - Search by test name
  * - Actions: Run selected tests, View detail
  *
- * Uses mock data with warning banner (no dedicated test API exists yet).
+ * Uses real backend API via @/api/test-selector.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Tag, Space, Button, message } from 'antd';
@@ -172,8 +172,8 @@ const TestSelector: React.FC = () => {
     setLoading(true);
     try {
       const [testsRes, statsRes] = await Promise.all([getTestCases(), getTestStats()]);
-      setTestCases(testsRes.data.data.testCases.map(mapApiTestCase));
-      setTestStats(mapApiTestStats(statsRes.data.data.stats));
+      setTestCases((testsRes.data as any).testCases.map(mapApiTestCase));
+      setTestStats(mapApiTestStats(statsRes.data.stats));
     } catch (error: unknown) {
       message.error(`Failed to load test data: ${(error as Error).message}`);
     } finally {
@@ -325,7 +325,7 @@ const TestSelector: React.FC = () => {
     }
     try {
       const response = await runTests(selectedRowKeys as string[]);
-      message.success(`Test run started: ${response.data.data.runId}`);
+      message.success(`Test run started: ${response.data.runId}`);
     } catch (error: unknown) {
       message.error(`Failed to run tests: ${(error as Error).message}`);
     }
@@ -343,7 +343,7 @@ const TestSelector: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ExperimentOutlined style={{ marginRight: spacing[2], color: colors.purple[500] }} />
             Test Selector
           </Title>

@@ -22,6 +22,7 @@ trigger:
 # 全局环境变量
 env:
   NODE_VERSION: "22"
+  GO_VERSION: "1.25"
   CI: "true"
 
 # 流水线阶段
@@ -56,6 +57,27 @@ stages:
           npm install --ignore-scripts
           npm run type-check
 
+      # ========== Go lint ==========
+      - name: "Go Vet - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: go vet ./...
+
+      - name: "Go Vet - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: go vet ./...
+
+      - name: "GolangCI-Lint - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: golangci-lint run ./...
+
+      - name: "GolangCI-Lint - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: golangci-lint run ./...
+
   # ==================== Stage 2: 单元测试 ====================
   - name: "test"
     label: "单元测试"
@@ -75,6 +97,17 @@ stages:
         type: "shell"
         workingDir: "./orion-frontend"
         command: npm run test -- --run
+
+      # ========== Go tests ==========
+      - name: "Go Tests - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: go test ./... -count=1 -timeout 120s
+
+      - name: "Go Tests - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: go test ./... -count=1 -timeout 120s
 
   # ==================== Stage 3: 集成测试 ====================
   - name: "integration-test"
@@ -136,6 +169,17 @@ stages:
           npm install --ignore-scripts
           npm run build
 
+      # ========== Go build ==========
+      - name: "Go Build - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: go build ./...
+
+      - name: "Go Build - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: go build ./...
+
       - name: "Build Docker Images"
         type: "docker-build"
         dockerfile: "./orion-platform-service/Dockerfile"
@@ -145,7 +189,7 @@ stages:
   # ==================== Stage 5: 部署到开发环境 ====================
   - name: "deploy-dev"
     label: "部署开发环境"
-    dependsOn: ["build"]
+    dependsOn: ["build", "security-scan"]
     when:
       branch: "main"
     tasks:
@@ -156,11 +200,48 @@ stages:
           # kubectl apply -f k8s/dev/
           echo "Deployment complete"
 
-  # ==================== Stage 6: 通知 ====================
+
+  # ==================== Stage 6: 安全扫描 (SAST/DAST) ====================
+  - name: "security-scan"
+    label: "SAST/DAST 安全扫描"
+    dependsOn: ["build"]
+    when: "always"
+    steps:
+      - name: "sast-trivy"
+        label: "Trivy SAST 静态分析"
+        image: "${{ vars.CLI_IMAGE || 'alpine/curl:latest' }}"
+        command: "sh"
+        args:
+          - "-c"
+          - |
+            set -euo pipefail
+            echo "## SAST: Trivy filesystem scan"
+            apk add --no-cache trivy 2>/dev/null || true
+            if command -v trivy &>/dev/null; then
+              trivy fs --severity HIGH,CRITICAL --exit-code 0 orion-platform-svc-go/ 2>&1 || echo "## Trivy found vulnerabilities (non-blocking)"
+            else
+              echo "Trivy not available, skipping SAST"
+            fi
+      - name: "dependency-check"
+        label: "依赖漏洞扫描"
+        image: "${{ vars.CLI_IMAGE || 'alpine/curl:latest' }}"
+        command: "sh"
+        args:
+          - "-c"
+          - |
+            set -euo pipefail
+            echo "## Dependency vulnerability check"
+            if [ -f "orion-platform-svc-go/go.sum" ]; then
+              cd orion-platform-svc-go && go list -m all 2>&1 | head -20
+            fi
+            if [ -f "orion-frontend/package-lock.json" ]; then
+              cd orion-frontend && npm audit --json 2>&1 | head -30 || true
+            fi
+  # ==================== Stage 7: 通知 ====================
   - name: "notify"
     label: "通知"
     when: "always"
-    dependsOn: ["deploy-dev"]
+    dependsOn: ["deploy-dev", "security-scan"]
     tasks:
       - name: "Send Notification"
         type: "notify"

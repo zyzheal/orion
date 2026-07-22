@@ -1,0 +1,126 @@
+{
+  "version": "3.0",
+  "name": "c2_scalability",
+  "extends": "base",
+  "priority": 1,
+  "layer": "operations",
+  "description": "扩展性检查项",
+  "checks": [
+    {
+      "id": "C2-01",
+      "category": "plugin",
+      "level": "P0",
+      "rule": "SPI/Plugin 机制",
+      "description": "核心模块应支持 SPI/Plugin 扩展机制",
+      "detection": "review"
+    },
+    {
+      "id": "C2-02",
+      "category": "plugin",
+      "level": "P1",
+      "rule": "插件热插拔",
+      "description": "插件应支持热插拔",
+      "detection": "review"
+    },
+    {
+      "id": "C2-03",
+      "category": "plugin",
+      "level": "P1",
+      "rule": "插件隔离 (Sandbox)",
+      "description": "插件应在沙箱中运行",
+      "detection": "review"
+    },
+    {
+      "id": "C2-04",
+      "category": "config",
+      "level": "P0",
+      "rule": "动态配置无需重启",
+      "description": "配置变更无需重启即可生效",
+      "detection": "review"
+    },
+    {
+      "id": "C2-05",
+      "category": "config",
+      "level": "P1",
+      "rule": "配置变更可回滚",
+      "description": "配置变更必须有回滚机制",
+      "detection": "review"
+    },
+    {
+      "id": "C2-06",
+      "category": "config",
+      "level": "P1",
+      "rule": "配置版本管理",
+      "description": "配置应有版本管理",
+      "detection": "review"
+    },
+    {
+      "id": "C2-07",
+      "category": "event",
+      "level": "P1",
+      "rule": "事件总线/消息队列",
+      "description": "跨模块通信应使用事件总线或消息队列",
+      "detection": "review"
+    },
+    {
+      "id": "C2-08",
+      "category": "event",
+      "level": "P1",
+      "rule": "事件溯源",
+      "description": "关键业务事件应有溯源能力",
+      "detection": "review"
+    },
+    {
+      "id": "C2-09",
+      "category": "event",
+      "level": "P1",
+      "rule": "事件版本兼容",
+      "description": "事件结构变更应向后兼容",
+      "detection": "review"
+    },
+    {
+      "id": "C2-10",
+      "category": "stateless",
+      "level": "P0",
+      "rule": "无状态设计",
+      "description": "服务应设计为无状态，可水平扩展",
+      "detection": "review"
+    },
+    {
+      "id": "C2-11",
+      "category": "stateless",
+      "level": "P0",
+      "rule": "会话外置 (Redis)",
+      "description": "会话状态应外置（如 Redis）",
+      "detection": "review"
+    },
+    {
+      "id": "C2-12",
+      "category": "stateless",
+      "level": "P0",
+      "rule": "负载均衡支持",
+      "description": "服务应支持负载均衡部署",
+      "detection": "review"
+    },
+    {
+      "id": "C2-13",
+      "category": "di",
+      "level": "P1",
+      "rule": "依赖注入",
+      "description": "应使用依赖注入模式",
+      "detection": "review"
+    },
+    {
+      "id": "C2-14",
+      "category": "interface",
+      "level": "P1",
+      "rule": "接口抽象",
+      "description": "核心逻辑应有接口抽象层",
+      "detection": "review"
+    }
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "design-doc-reviewer",
+  "coveragePolicyReason": "扩展性是架构设计层面",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
+}

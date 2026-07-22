@@ -1,0 +1,170 @@
+/**
+ * Pipeline SSE Routes
+ *
+ * 提供 Pipeline 执行日志的实时 SSE 推送
+ * Prefix: /api/v1/pipelines/sse
+ */
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { PipelineLogSSEService, PipelineLogEvent } from '../services/pipeline/PipelineLogSSEService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { ValidationError, UnauthorizedError, handleError } from '../errors';
+
+// Shared secret for internal SSE publish endpoints
+// Must match SSE_PUBLISH_SECRET env var set on the calling service (e.g., PipelineEngine)
+const SSE_PUBLISH_SECRET = process.env.SSE_PUBLISH_SECRET || '';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGINS?.split(',')[0]?.trim() || 'http://localhost:5173';
+
+async function verifyPublishAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const headerSecret = request.headers['x-sse-secret'] as string | undefined;
+
+  if (!SSE_PUBLISH_SECRET || headerSecret !== SSE_PUBLISH_SECRET) {
+    return handleError(reply, new UnauthorizedError('UNAUTHORIZED'))
+  }
+}
+
+interface SSEQuery {
+  pipelineId: string;
+  runId: string;
+  logLevel?: string; // 'info,warn,error'
+}
+
+/**
+ * 注册 Pipeline SSE 路由
+ * 接收外部传入的 PipelineLogSSEService 实例，确保与引擎桥接器共享同一个 localBus
+ */
+export default async function registerPipelineSSERoutes(
+  app: FastifyInstance,
+  opts: { pipelineLogSSE: PipelineLogSSEService }
+): Promise<void> {
+  const pipelineLogSSE = opts.pipelineLogSSE;
+  // GET /api/v1/pipelines/sse/logs - SSE 实时日志推送
+  app.get('/pipelines/sse/logs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pipelineId, runId, logLevel  } = request.query as any;
+    const userId = (request.user as any)?.id || 'anonymous';
+
+    if (!pipelineId || !runId) {
+      return handleError(reply, new ValidationError('Missing required parameters: pipelineId, runId'))
+    }
+
+    // 设置 SSE Headers
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('X-Accel-Buffering', 'no'); // 禁用 nginx 缓冲
+    reply.raw.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // 解析日志级别过滤
+    const logLevels = logLevel?.split(',').map((l: any) => l.trim()) as PipelineLogEvent['level'][] | undefined;
+
+    // 创建 SSE 连接
+    const connId = await pipelineLogSSE.createConnection(pipelineId, runId, userId, reply, {
+      includeLogs: true,
+      includeStatus: true,
+      logLevel: logLevels,
+    });
+
+    // 保持连接打开
+    reply.raw.on('close', () => {
+      pipelineLogSSE.removeConnection(connId).catch(() => {});
+    });
+
+    // 不调用 reply.send()，保持连接打开
+    return reply;
+  });
+
+  // GET /api/v1/pipelines/sse/status - SSE 实时状态推送
+  app.get('/pipelines/sse/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const {  pipelineId, runId  } = request.query as any;
+    const userId = (request.user as any)?.id || 'anonymous';
+
+    if (!pipelineId) {
+      return handleError(reply, new ValidationError('Missing required parameter: pipelineId'))
+    }
+
+    // 设置 SSE Headers
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // 创建 SSE 连接 (仅状态更新)
+    const connId = await pipelineLogSSE.createConnection(pipelineId, runId || 'latest', userId, reply, {
+      includeLogs: false,
+      includeStatus: true,
+    });
+
+    reply.raw.on('close', () => {
+      pipelineLogSSE.removeConnection(connId).catch(() => {});
+    });
+
+    return reply;
+  });
+
+  // POST /api/v1/pipelines/sse/publish/log - 发布日志事件 (内部 API, requires shared secret)
+  app.post('/pipelines/sse/publish/log', { onRequest: [verifyPublishAuth] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const { pipelineId, runId, stageId, stageName, stepName, logLine, level } = body;
+
+    if (!pipelineId || !runId || !stageId || !logLine) {
+      return handleError(reply, new ValidationError('Missing required fields: pipelineId, runId, stageId, logLine'))
+    }
+
+    pipelineLogSSE.publishLogEvent({
+      pipelineId,
+      runId,
+      stageId,
+      stageName,
+      stepName,
+      logLine,
+      timestamp: new Date(),
+      level: level || 'info',
+    });
+
+    return reply.send({ success: true });
+  });
+
+  // POST /api/v1/pipelines/sse/publish/status - 发布状态事件 (内部 API, requires shared secret)
+  app.post('/pipelines/sse/publish/status', { onRequest: [verifyPublishAuth] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const { pipelineId, runId, status, stageId, stageName, progress } = body;
+
+    if (!pipelineId || !runId || !status) {
+      return handleError(reply, new ValidationError('Missing required fields: pipelineId, runId, status'))
+    }
+
+    pipelineLogSSE.publishStatusEvent({
+      pipelineId,
+      runId,
+      status,
+      stageId,
+      stageName,
+      progress,
+      timestamp: new Date(),
+    });
+
+    return reply.send({ success: true });
+  });
+
+  // GET /api/v1/pipelines/sse/stats - SSE 连接统计
+  app.get('/pipelines/sse/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const stats = pipelineLogSSE.getStats();
+    return reply.send({
+      totalConnections: stats.totalConnections,
+      connectionsByUser: Object.fromEntries(stats.connectionsByUser),
+    });
+  });
+
+  // 注册优雅关闭钩子
+  app.addHook('onClose', async () => {
+    await pipelineLogSSE.shutdown();
+  });
+}

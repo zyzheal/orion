@@ -23,6 +23,7 @@ import {
   Alert,
   Progress,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   DollarOutlined,
   ReloadOutlined,
@@ -97,9 +98,9 @@ const CostOverviewTab: React.FC = () => {
         getCostTrend({ days: 30 }),
         getCostByService(),
       ]);
-      setOverview(overviewRes.data?.data || null);
-      setTrends(trendRes.data?.data?.trends || []);
-      setByService(serviceRes.data?.data?.services || []);
+      setOverview(overviewRes.data || null);
+      setTrends(trendRes.data?.trends || []);
+      setByService(serviceRes.data?.services || []);
     } catch (error: unknown) {
       message.error(`加载成本数据失败: ${(error as Error).message}`);
     } finally {
@@ -253,7 +254,7 @@ const CostOverviewTab: React.FC = () => {
               <Progress
                 percent={Math.round(overview.budgetUsagePercent)}
                 size="small"
-                style={{ marginTop: 8 }}
+                style={{ marginTop: spacing.sm }}
                 strokeColor={
                   overview.budgetUsagePercent > 90
                     ? colors.error[400]
@@ -305,7 +306,7 @@ const AnomalyDetectionTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCostAnomalies({ days: 7 });
-      setAnomalies(res.data?.data?.anomalies || []);
+      setAnomalies(res.data?.anomalies || []);
     } catch (error: unknown) {
       message.error(`加载异常检测数据失败: ${(error as Error).message}`);
     } finally {
@@ -357,7 +358,7 @@ const AnomalyDetectionTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">自动检测成本异常波动</Text>
         <Button icon={<ReloadOutlined />} onClick={loadAnomalies} loading={loading}>刷新</Button>
       </div>
@@ -401,7 +402,7 @@ const OptimizationTab: React.FC = () => {
     try {
       const params = filter !== 'all' ? { category: filter } : undefined;
       const res = await getOptimizationSuggestions(params);
-      setSuggestions(res.data?.data?.suggestions || []);
+      setSuggestions(res.data?.suggestions || []);
     } catch (error: unknown) {
       message.error(`加载优化建议失败: ${(error as Error).message}`);
     } finally {
@@ -499,7 +500,7 @@ const OptimizationTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
           <Text type="secondary">AI 驱动的成本优化建议</Text>
           <Select
@@ -554,7 +555,7 @@ const BudgetTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBudgets();
-      setBudgets(res.data?.data?.budgets || []);
+      setBudgets(res.data?.budgets || []);
     } catch (error: unknown) {
       message.error(`加载预算失败: ${(error as Error).message}`);
     } finally {
@@ -613,7 +614,7 @@ const BudgetTab: React.FC = () => {
       const values = await gateForm.validateFields();
       setGateLoading(true);
       const res = await checkBudgetGate(values.pipelineId, values.estimatedCost);
-      const data = res.data?.data;
+      const data = res.data;
       setGateResult({
         passed: !data?.wouldExceed,
         reason: data?.reason || '预算检查通过',
@@ -685,7 +686,7 @@ const BudgetTab: React.FC = () => {
 
         {gateResult && (
           <Alert
-            style={{ marginTop: 16 }}
+            style={{ marginTop: spacing.md }}
             message={gateResult.passed ? '预算检查通过' : '预算检查未通过'}
             description={`${gateResult.reason} (预估: ¥${gateResult.estimated.toFixed(2)}, 预算: ¥${gateResult.limit.toFixed(2)})`}
             type={gateResult.passed ? 'success' : 'error'}
@@ -696,7 +697,7 @@ const BudgetTab: React.FC = () => {
 
       {/* Budgets List */}
       <div>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Text type="secondary">配置和管理预算</Text>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={loadBudgets} loading={loading}>刷新</Button>
@@ -779,9 +780,10 @@ const CostOperationsPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <DollarOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <DollarOutlined style={{ marginRight: spacing.sm }} />
           成本运营
         </Title>
         <Text type="secondary">预算门禁、成本趋势分析、异常检测与优化建议</Text>

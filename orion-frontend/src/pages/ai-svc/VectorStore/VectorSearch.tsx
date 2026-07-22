@@ -5,6 +5,7 @@ import React from 'react';
 import { Card, Form, Input, Select, Button, Tag, Typography } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { VectorCollection, SearchHit } from '@/api/vector-store';
+import { spacing } from '@/tokens';
 
 const { Text, Paragraph } = Typography;
 
@@ -81,12 +82,12 @@ const VectorSearch: React.FC<VectorSearchProps> = ({
       </Form>
 
       {searchResults.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>
+        <div style={{ marginTop: spacing[3] }}>
+          <Text strong style={{ marginBottom: spacing.sm, display: 'block' }}>
             搜索结果 ({searchResults.length} 条)
           </Text>
           {searchResults.map((hit, idx) => (
-            <Card size="small" key={hit.id} style={{ marginBottom: 8 }}>
+            <Card size="small" key={hit.id} style={{ marginBottom: spacing.sm }}>
               <div
                 style={{
                   display: 'flex',

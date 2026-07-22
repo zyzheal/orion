@@ -1,0 +1,121 @@
+# Prometheus alert rules for Orion platform
+# Matches metrics emitted by orion-platform-svc-go internal/middleware/prometheus.go:
+#   - orion_http_requests_total{method,handler,status}
+#   - orion_http_requests_duration_seconds{method,handler}
+#   - orion_http_requests_errors_total{method,handler}
+
+groups:
+  - name: orion-alerts
+    interval: 30s
+    rules:
+      # ------------------------------------------------------------------
+      # Error rate alerts
+      # ------------------------------------------------------------------
+      - alert: HighErrorRate
+        expr: sum(rate(orion_http_requests_total{status=~"5.."}[5m])) / sum(rate(orion_http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High 5xx error rate detected"
+          description: "5xx error rate is {{ $value | humanizePercentage }} (threshold: 5%) over last 5m."
+
+      - alert: CriticalErrorRate
+        expr: sum(rate(orion_http_requests_total{status=~"5.."}[5m])) / sum(rate(orion_http_requests_total[5m])) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical 5xx error rate"
+          description: "5xx error rate is {{ $value | humanizePercentage }} (threshold: 10%) over last 5m."
+
+      - alert: HighErrorRateByHandler
+        expr: rate(orion_http_requests_errors_total[5m]) / ignoring(handler) group_left sum(rate(orion_http_requests_total[5m])) by (handler) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error rate for handler {{ $labels.handler }}"
+          description: "Handler {{ $labels.handler }} error rate is {{ $value | humanizePercentage }} over last 5m."
+
+      # ------------------------------------------------------------------
+      # Latency alerts
+      # ------------------------------------------------------------------
+      - alert: HighP99Latency
+        expr: histogram_quantile(0.99, sum(rate(orion_http_requests_duration_seconds_bucket[5m])) by (le)) > 2.0
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High P99 latency detected"
+          description: "P99 latency is {{ $value | humanizeDuration }} (threshold: 2s) over last 5m."
+
+      - alert: CriticalP99Latency
+        expr: histogram_quantile(0.99, sum(rate(orion_http_requests_duration_seconds_bucket[5m])) by (le)) > 5.0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical P99 latency"
+          description: "P99 latency is {{ $value | humanizeDuration }} (threshold: 5s) over last 5m."
+
+      - alert: HighP95LatencyByHandler
+        expr: histogram_quantile(0.95, sum(rate(orion_http_requests_duration_seconds_bucket[5m])) by (le, handler)) > 1.0
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High P95 latency for handler {{ $labels.handler }}"
+          description: "P95 latency for {{ $labels.handler }} is {{ $value | humanizeDuration }} (threshold: 1s) over last 5m."
+
+      # ------------------------------------------------------------------
+      # Availability alerts
+      # ------------------------------------------------------------------
+      - alert: ServiceDown
+        expr: absent(up{job=~".*orion.*"} == 1)
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Orion service is down"
+          description: "Service {{ $labels.job }} has been unreachable for more than 1 minute."
+
+      - alert: LowSuccessRate
+        expr: sum(rate(orion_http_requests_total{status=~"2..|3.."}[5m])) / sum(rate(orion_http_requests_total[5m])) < 0.95
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Low overall success rate"
+          description: "Success rate is {{ $value | humanizePercentage }} (threshold: 95%) over last 5m."
+
+      # ------------------------------------------------------------------
+      # Throughput alerts
+      # ------------------------------------------------------------------
+      - alert: NoTraffic
+        expr: sum(rate(orion_http_requests_total[5m])) == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "No traffic detected"
+          description: "No requests received in the last 5 minutes. Check if the service is still running."
+
+      - alert: TrafficSpike
+        expr: sum(rate(orion_http_requests_total[5m])) > 5 * avg_over_time(sum(rate(orion_http_requests_total[5m]))[1h])
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Traffic spike detected"
+          description: "Current traffic is {{ $value | humanize }} req/s, more than 5x the 1h average."

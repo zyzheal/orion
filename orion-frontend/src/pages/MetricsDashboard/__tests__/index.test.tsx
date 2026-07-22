@@ -80,50 +80,33 @@ vi.mock('@/components/SearchFilterBar', () => ({
   default: () => <div data-testid="search-filter-bar" />,
 }));
 
+// After API interceptor unwraps { success: true, data: T } → { data: T }
 const mockDashboardData = {
   data: {
-    data: {
-      metrics: {
-        total: 10,
-        rate: 12540,
-        latencyP50: 45,
-        latencyP95: 180,
-        latencyP99: 420,
-        throughput: 8920,
-      },
-      alerts: { total: 20, active: 3, resolved: 17 },
-      rules: { total: 5, enabled: 4 },
-      channels: { total: 3, active: 2 },
+    metrics: {
+      total: 10,
+      rate: 12540,
+      latencyP50: 45,
+      latencyP95: 180,
+      latencyP99: 420,
+      throughput: 8920,
     },
+    alerts: { total: 20, active: 3, resolved: 17 },
+    rules: { total: 5, enabled: 4 },
+    channels: { total: 3, active: 2 },
   },
-  status: 200,
-  statusText: 'OK',
-  headers: {},
-  config: {} as any,
 };
 
 const mockMetricsData = {
-  data: {
-    data: [
-      { name: 'api-gateway', value: 0.12, unit: '%', lastUpdated: '2024-03-20T10:00:00Z' },
-      { name: 'platform-service', value: 0.28, unit: '%', lastUpdated: '2024-03-20T10:00:00Z' },
-      { name: 'ai-service', value: 0.75, unit: '%', lastUpdated: '2024-03-20T10:00:00Z' },
-    ],
-  },
-  status: 200,
-  statusText: 'OK',
-  headers: {},
-  config: {} as any,
+  data: [
+    { name: 'api-gateway', value: 0.12, unit: '%', lastUpdated: '2024-03-20T10:00:00Z' },
+    { name: 'platform-service', value: 0.28, unit: '%', lastUpdated: '2024-03-20T10:00:00Z' },
+    { name: 'ai-service', value: 0.75, unit: '%', lastUpdated: '2024-03-20T10:00:00Z' },
+  ],
 };
 
 const mockHealthData = {
-  data: {
-    data: { status: 'healthy', uptime: 86400, metricsCount: 10 },
-  },
-  status: 200,
-  statusText: 'OK',
-  headers: {},
-  config: {} as any,
+  data: { status: 'healthy', uptime: 86400, metricsCount: 10 },
 };
 
 describe('MetricsDashboard', () => {
@@ -207,11 +190,11 @@ describe('MetricsDashboard', () => {
     mockApi.getMonitoringHealth.mockResolvedValue(mockHealthData);
     mockApi.getMetrics.mockResolvedValue({
       ...mockMetricsData,
-      data: { data: [] },
+      data: [],
     });
     mockApi.getDashboardData.mockResolvedValue({
       ...mockDashboardData,
-      data: { data: null },
+      data: null,
     });
 
     await act(async () => {

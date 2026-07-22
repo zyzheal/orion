@@ -20,6 +20,7 @@ import {
   ReloadOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import { useAuthStore } from '@/stores/authStore';
 import {
   getApkUploadHistory,
@@ -57,7 +58,7 @@ const ApkUploadHistoryPage: React.FC = () => {
     pageSize: 20,
   });
 
-  const tenantId = useAuthStore((state) => state.user?.tenantId) || 'default-tenant';
+  const tenantId = useAuthStore((state) => (state.user as any).tenantId) || 'default-tenant';
 
   useEffect(() => {
     loadHistory();
@@ -76,10 +77,10 @@ const ApkUploadHistoryPage: React.FC = () => {
         status: filters.status,
       });
 
-      const resData = (response as any).data;
-      const data = Array.isArray(resData?.data) ? resData.data : [];
+      const resData = response.data as { data?: { data?: ApkUploadRecord[]; total?: number } };
+      const data = Array.isArray(resData.data) ? resData.data : [];
       setRecords(data);
-      setTotal(resData?.total || 0);
+      setTotal(resData?.data?.total ?? 0);
     } catch (error) {
       console.error('Failed to load upload history:', error);
       setRecords([]);
@@ -91,8 +92,8 @@ const ApkUploadHistoryPage: React.FC = () => {
   const loadRecentFailures = async () => {
     try {
       const response = await getRecentFailures(tenantId, 5);
-      const resData = (response as any).data;
-      setRecentFailures(Array.isArray(resData?.data) ? resData.data : []);
+      const resData = response.data as { data?: { data?: ApkUploadRecord[] } };
+      setRecentFailures(Array.isArray(resData.data) ? resData.data : []);
     } catch (error) {
       console.error('Failed to load recent failures:', error);
       setRecentFailures([]);
@@ -102,13 +103,13 @@ const ApkUploadHistoryPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getApkUploadStats(tenantId);
-      const resData = (response as any).data;
-      if (resData?.data) {
+      const resData = response.data as { data?: { data?: { total?: number; published?: number; failed?: number; uploading?: number } } };
+      if (resData?.data?.data) {
         setStats({
-          total: resData.data.total,
-          published: resData.data.published,
-          failed: resData.data.failed,
-          uploading: resData.data.uploading,
+          total: (resData.data as any).total,
+          published: (resData.data as any).published,
+          failed: (resData.data as any).failed,
+          uploading: (resData.data as any).uploading,
         });
       }
     } catch (error) {
@@ -183,16 +184,17 @@ const ApkUploadHistoryPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <AppstoreOutlined /> APK 上传历史
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          APK 上传历史
         </Title>
         <Text type="secondary">查看和管理 APK 上传到各应用市场的历史记录</Text>
       </div>
 
       {/* Statistics */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总上传次数" value={displayStats.total} />
@@ -203,7 +205,7 @@ const ApkUploadHistoryPage: React.FC = () => {
             <Statistic
               title="成功发布"
               value={displayStats.published}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: colors.success[600] }}
             />
           </Card>
         </Col>
@@ -212,7 +214,7 @@ const ApkUploadHistoryPage: React.FC = () => {
             <Statistic
               title="上传失败"
               value={displayStats.failed}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: colors.error[600] }}
             />
           </Card>
         </Col>
@@ -221,7 +223,7 @@ const ApkUploadHistoryPage: React.FC = () => {
             <Statistic
               title="上传中"
               value={displayStats.uploading}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: colors.primary[500] }}
             />
           </Card>
         </Col>
@@ -231,7 +233,7 @@ const ApkUploadHistoryPage: React.FC = () => {
       {recentFailures.length > 0 && (
         <Card
           title="最近失败的上传"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
           extra={
             <Button icon={<ReloadOutlined />} onClick={loadRecentFailures}>
               刷新
@@ -247,7 +249,7 @@ const ApkUploadHistoryPage: React.FC = () => {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '8px 16px',
-                  background: '#fff1f0',
+                  background: colors.error[50],
                   borderRadius: 4,
                 }}
               >
@@ -263,7 +265,7 @@ const ApkUploadHistoryPage: React.FC = () => {
       )}
 
       {/* Filters */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <Select
             placeholder="筛选市场"

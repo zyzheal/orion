@@ -22,6 +22,7 @@ import {
   Row,
   Col,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   ThunderboltOutlined,
   ReloadOutlined,
@@ -30,7 +31,7 @@ import {
   TrophyOutlined,
   LineChartOutlined,
   InfoCircleOutlined,
-} from '@ant-design/icons';
+  RobotOutlined,} from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -77,7 +78,7 @@ const ModelVersionsTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await listModels();
-      setModels(res.data?.data?.models || []);
+      setModels(res.data?.models || []);
     } catch (error: unknown) {
       message.error(`加载模型列表失败: ${(error as Error).message}`);
     } finally {
@@ -95,7 +96,7 @@ const ModelVersionsTab: React.FC = () => {
     setDetailLoading(true);
     try {
       const res = await getModelPerformance(model.name);
-      setPerformance(res.data?.data || null);
+      setPerformance(res.data || null);
     } catch {
       setPerformance(null);
     } finally {
@@ -210,7 +211,7 @@ const ModelVersionsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">管理 AI 模型版本，查看性能和进行 A/B 测试对比</Text>
         <Button icon={<ReloadOutlined />} onClick={loadModels} loading={loading}>
           刷新
@@ -292,7 +293,7 @@ const ModelVersionsTab: React.FC = () => {
 
                 <Card size="small" title="趋势数据 (近 7 天)">
                   {performance.dailyTrend.map((d, i) => (
-                    <div key={i} style={{ marginBottom: 8 }}>
+                    <div key={i} style={{ marginBottom: spacing.sm }}>
                       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 12 }}>{d.date}</Text>
                         <Progress
@@ -331,7 +332,7 @@ const ABTestingTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getABTestResults(modelName);
-      setResults(res.data?.data || null);
+      setResults(res.data || null);
     } catch (error: unknown) {
       message.error(`加载 A/B 测试结果失败: ${(error as Error).message}`);
     } finally {
@@ -414,7 +415,7 @@ const ABTestingTab: React.FC = () => {
         <Card>
           <div style={{ textAlign: 'center', padding: 40 }}>
             <ExperimentOutlined style={{ fontSize: 48, color: colors.neutral[300] }} />
-            <Text type="secondary" style={{ display: 'block', marginTop: 16 }}>
+            <Text type="secondary" style={{ display: 'block', marginTop: spacing.md }}>
               输入模型名称并查询 A/B 测试结果
             </Text>
           </div>
@@ -446,7 +447,7 @@ const DecisionExplanationTab: React.FC = () => {
         features,
         confidence: values.confidence,
       });
-      setExplanation(res.data?.data || null);
+      setExplanation(res.data || null);
       message.success('决策解释已生成');
     } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
@@ -523,7 +524,7 @@ const DecisionExplanationTab: React.FC = () => {
           </Descriptions>
 
           {explanation.factors && explanation.factors.length > 0 && (
-            <Card size="small" title="影响因素" style={{ marginTop: 16 }}>
+            <Card size="small" title="影响因素" style={{ marginTop: spacing.md }}>
               <Table
                 dataSource={explanation.factors}
                 rowKey="name"
@@ -585,9 +586,10 @@ const AIDecisionPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
           AI 决策引擎
         </Title>
         <Text type="secondary">决策解释、模型版本管理和 A/B 测试</Text>

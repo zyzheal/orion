@@ -7,8 +7,9 @@
  * - Create agent profile modal
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, message, Modal } from 'antd';
-import { PlusOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Typography, Button, Space, message, Modal, Spin, Empty } from 'antd';
+import { colors, spacing, componentRadius, shadows } from '@/tokens';
+import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
 import {
@@ -42,6 +43,7 @@ const AgentDashboard: React.FC = () => {
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [approvals, setApprovals] = useState<AgentApproval[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
@@ -57,8 +59,8 @@ const AgentDashboard: React.FC = () => {
         getAgentProfiles(),
         getAgentRuns({ pageSize: 10 }),
       ]);
-      setAgents(agentsRes.data?.data || []);
-      setRuns(runsRes.data?.data || []);
+      setAgents(agentsRes.data || []);
+      setRuns(runsRes.data || []);
       // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
       const approvalsData = await getAgentApprovals({ status: 'pending' });
       setApprovals(approvalsData);
@@ -149,6 +151,17 @@ const AgentDashboard: React.FC = () => {
     setDetailDrawerOpen(true);
   };
 
+  const handleEditAgent = (agent: AgentProfile) => {
+    setSelectedAgent(agent);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setSelectedAgent(null);
+    loadData();
+  };
+
   const handleApprove = async (approval: AgentApproval) => {
     try {
       await respondToApproval(approval.id, { approved: true, reason: 'Approved via dashboard' });
@@ -191,11 +204,12 @@ const AgentDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Agent 编排
           </Title>
           <Text type="secondary">
@@ -224,35 +238,44 @@ const AgentDashboard: React.FC = () => {
         </Space>
       </div>
 
-      {/* Summary cards */}
-      <AgentMetrics
-        activeAgentCount={activeAgentCount}
-        todayRunCount={todayRunCount}
-        successRate={successRate}
-        avgDuration={avgDuration}
-      />
+      <Spin spinning={loading}>
+        {/* Summary cards */}
+        <AgentMetrics
+          activeAgentCount={activeAgentCount}
+          todayRunCount={todayRunCount}
+          successRate={successRate}
+          avgDuration={avgDuration}
+        />
 
-      {/* Agent profiles table */}
-      <AgentTable
-        agents={agents}
-        filteredAgents={filteredAgents}
-        loading={loading}
-        searchQuery={searchQuery}
-        filters={filters}
-        onSearch={setSearchQuery}
-        onFilter={setFilters}
-        onViewDetail={handleViewDetail}
-        onToggleAgent={handleToggleAgent}
-        onDeleteAgent={handleDeleteAgent}
-      />
+        {/* Agent profiles table */}
+        {agents.length > 0 || loading ? (
+          <AgentTable
+            agents={agents}
+            filteredAgents={filteredAgents}
+            loading={loading}
+            searchQuery={searchQuery}
+            filters={filters}
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            onViewDetail={handleViewDetail}
+            onEditAgent={handleEditAgent}
+            onToggleAgent={handleToggleAgent}
+            onDeleteAgent={handleDeleteAgent}
+          />
+        ) : (
+          <div style={{ background: colors.light.bg.primary, borderRadius: componentRadius.card, boxShadow: shadows.card, padding: '48px 0' }}>
+            <Empty description="暂无 Agent 数据" />
+          </div>
+        )}
 
-      {/* Recent runs and pending approvals */}
-      <AgentRunList
-        runs={runs}
-        approvals={approvals}
-        onApprove={handleApprove}
-        onReject={handleReject}
-      />
+        {/* Recent runs and pending approvals */}
+        <AgentRunList
+          runs={runs}
+          approvals={approvals}
+          onApprove={handleApprove}
+          onReject={handleReject}
+        />
+      </Spin>
 
       {/* Modals */}
       <CreateAgentModal
@@ -262,6 +285,12 @@ const AgentDashboard: React.FC = () => {
           setCreateModalOpen(false);
           loadData();
         }}
+      />
+      <CreateAgentModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onSuccess={handleEditSuccess}
+        agent={selectedAgent}
       />
       <TriggerRunModal
         open={triggerModalOpen}
@@ -278,6 +307,7 @@ const AgentDashboard: React.FC = () => {
           setDetailDrawerOpen(false);
           setSelectedAgent(null);
         }}
+        onEdit={handleEditAgent}
       />
     </div>
   );

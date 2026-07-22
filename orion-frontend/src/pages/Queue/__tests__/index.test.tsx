@@ -136,7 +136,7 @@ describe('Queue Page', { timeout: 15000 }, () => {
     };
 
     vi.mocked(queueApi.listJobs).mockResolvedValue({
-      data: { code: 200, message: 'success', data: { jobs: mockJobs, count: 2 } },
+      data: { code: 200, message: 'success', data: { jobs: mockJobs, count: 2 } } as any,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -144,7 +144,7 @@ describe('Queue Page', { timeout: 15000 }, () => {
     });
 
     vi.mocked(queueApi.getQueueStats).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockStats },
+      data: { code: 200, message: 'success', data: mockStats } as any,
       status: 200,
       statusText: 'OK',
       headers: {},

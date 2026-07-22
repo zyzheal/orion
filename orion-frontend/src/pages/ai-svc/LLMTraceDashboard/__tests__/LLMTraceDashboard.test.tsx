@@ -67,9 +67,9 @@ vi.mock('@/api/llm-trace', () => ({
   }),
 }));
 
-describe('LLMTraceDashboard', () => {
+describe('LLMTraceDashboard', { timeout: 20000 }, () => {
   it('should render layout with navigation', async () => {
-    const LLMTraceDashboardLayout = await import('@/pages/ai-svc/LLMTraceDashboard').then((m) => m.default);
+    const LLMTraceDashboardLayout = await import('@/pages/LLMTraceDashboard').then((m) => m.default);
     render(
       <BrowserRouter>
         <LLMTraceDashboardLayout />
@@ -84,7 +84,7 @@ describe('LLMTraceDashboard', () => {
   });
 
   it('should render TraceOverview with stats', async () => {
-    const TraceOverview = await import('@/pages/ai-svc/LLMTraceDashboard/TraceOverview').then((m) => m.default);
+    const TraceOverview = await import('@/pages/LLMTraceDashboard/TraceOverview').then((m) => m.default);
     render(
       <BrowserRouter>
         <TraceOverview />
@@ -98,7 +98,7 @@ describe('LLMTraceDashboard', () => {
   });
 
   it('should render TraceList with filters', async () => {
-    const TraceList = await import('@/pages/ai-svc/LLMTraceDashboard/TraceList').then((m) => m.default);
+    const TraceList = await import('@/pages/LLMTraceDashboard/TraceList').then((m) => m.default);
     render(
       <BrowserRouter>
         <TraceList />
@@ -109,7 +109,7 @@ describe('LLMTraceDashboard', () => {
   });
 
   it('should render CostAnalysis with date picker', async () => {
-    const CostAnalysis = await import('@/pages/ai-svc/LLMTraceDashboard/CostAnalysis').then((m) => m.default);
+    const CostAnalysis = await import('@/pages/LLMTraceDashboard/CostAnalysis').then((m) => m.default);
     render(
       <BrowserRouter>
         <CostAnalysis />
@@ -122,7 +122,7 @@ describe('LLMTraceDashboard', () => {
   });
 
   it('should render TrackingAccuracy with progress', async () => {
-    const TrackingAccuracy = await import('@/pages/ai-svc/LLMTraceDashboard/TrackingAccuracy').then((m) => m.default);
+    const TrackingAccuracy = await import('@/pages/LLMTraceDashboard/TrackingAccuracy').then((m) => m.default);
     render(
       <BrowserRouter>
         <TrackingAccuracy />

@@ -1,0 +1,2 @@
+var a=Object.defineProperty;var e=(r,s)=>a(r,"name",{value:s,configurable:!0});import{j as t,S as n,C as i}from"./vendor-mui-CdSfxnlU.js";const j=e(({text:r,size:s=24,sx:o})=>t.jsxs(n,{alignItems:"center",justifyContent:"center",gap:1,sx:{py:8,...o},children:[t.jsx(i,{size:s}),r&&t.jsx(n,{sx:{fontSize:12,color:"text.tertiary"},children:r})]}),"Loading");export{j as L};
+//# sourceMappingURL=index-D669GoiE.js.map

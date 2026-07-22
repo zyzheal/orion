@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-chatops-svc
+  namespace: orion
+  labels:
+    app: orion-chatops
+    component: chatops-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3022
+      protocol: TCP
+      name: http
+  selector:
+    app: orion-chatops
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-chatops-svc-headless
+  namespace: orion
+  labels:
+    app: orion-chatops
+    component: chatops-service
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 3022
+      targetPort: 3022
+      protocol: TCP
+      name: http
+  selector:
+    app: orion-chatops

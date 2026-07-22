@@ -9,9 +9,9 @@ updated: "2026-04-10"
 author: "Orion Security Team"
 tags: [supply-chain, sbom, slsa, security, compliance]
 related:
-  - "docs/security/AI 安全加固设计.md"
-  - "docs/security/ADR-010-Prompt 注入防护设计.md"
-  - "docs/cicd/cicd-pipeline-design.md"
+  - "docs/services/security/AI 安全加固设计.md"
+  - "docs/services/security/ADR-010-Prompt 注入防护设计.md"
+  - "docs/services/pipeline/01-pipeline-spec.md"
 ---
 
 # Orion 软件供应链安全详细设计方案

@@ -1,0 +1,25 @@
+# Compiled binaries
+main
+server
+pipeline-engine
+test_*
+cmd/server
+cmd/pipeline-engine
+
+# Go build artifacts
+vendor/
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Backup files
+*.bak
+
+# Grok cache
+.grok/

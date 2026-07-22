@@ -56,8 +56,8 @@ const AlertList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getAlerts();
-      const apiData = response.data.data;
-      setAlerts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setAlerts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);
@@ -409,18 +409,18 @@ const AlertList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BellOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             监控告警
           </Title>
           <Text type="secondary">共 {alerts.length} 条告警记录</Text>
           {/* Active alert summary */}
           {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Space size={12}>
                 {severityCounts.critical > 0 && (
                   <Tag color="red" style={{ fontWeight: 600 }}>
@@ -460,7 +460,7 @@ const AlertList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -526,7 +526,7 @@ const AlertList: React.FC = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: spacing[3],
                 padding: '12px 16px',
                 background:
                   selectedAlert.severity === 'critical'

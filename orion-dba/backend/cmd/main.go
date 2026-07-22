@@ -23,6 +23,48 @@ func main() {
 			"status":  "ok",
 		})
 	})
+
+	// 登录相关 API（Mock）
+	r.POST("/login", func(c *gin.Context) {
+		var req struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(200, gin.H{"code": 1202, "text": "用户名或密码错误", "payload": nil})
+			return
+		}
+		// Mock 登录成功
+		c.JSON(200, gin.H{"code": 0, "text": "", "payload": gin.H{
+			"token": "mock-jwt-token-" + req.Username,
+			"user": gin.H{"username": req.Username, "role": "admin"},
+		}})
+	})
+
+	// 获取系统注册状态（Mock）
+	r.GET("/fetch", func(c *gin.Context) {
+		c.JSON(200, gin.H{"code": 0, "text": "", "payload": gin.H{
+			"reg": false,
+		}})
+	})
+
+	// 国际化语言包（Mock）
+	r.GET("/lang", func(c *gin.Context) {
+		c.JSON(200, gin.H{"code": 0, "text": "", "payload": gin.H{
+			"user": gin.H{
+				"form": gin.H{"title": "登录", "username": "用户名", "password": "密码"},
+			},
+			"common": gin.H{
+				"signin": "登录", "about": "关于", "community": "社区",
+				"sponsor": "赞助", "statement": "声明",
+			},
+		}})
+	})
+
+	// OIDC 状态（Mock）
+	r.GET("/oidc/state", func(c *gin.Context) {
+		c.JSON(200, gin.H{"code": 0, "text": "", "payload": gin.H{"enabled": false}})
+	})
 	
 	// API 路由
 	api := r.Group("/api/v1")

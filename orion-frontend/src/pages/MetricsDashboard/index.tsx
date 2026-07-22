@@ -15,7 +15,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Card, Tag, Space, Button, Select, message } from 'antd';
 import {
   ReloadOutlined,
-  DashboardOutlined,
+  LineChartOutlined,
   SyncOutlined,
   ArrowUpOutlined,
 } from '@ant-design/icons';
@@ -116,8 +116,8 @@ const MetricsDashboard: React.FC = () => {
         getDashboardData(),
       ]);
 
-      const metricsData = metricsRes?.data?.data || [];
-      const dashboardData = dashboardRes?.data?.data;
+      const metricsData = metricsRes?.data || [];
+      const dashboardData = dashboardRes?.data;
 
       if (dashboardData) {
         const metrics = dashboardData.metrics;
@@ -351,8 +351,8 @@ const MetricsDashboard: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DashboardOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             Metrics Overview
           </Title>
           <Text type="secondary">全局指标概览</Text>

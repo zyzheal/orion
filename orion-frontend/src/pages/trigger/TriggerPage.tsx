@@ -25,11 +25,7 @@ import {
   Typography,
   Tabs,
 } from 'antd';
-import {
-  ThunderboltOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { ThunderboltOutlined, PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import {
   getWebhooks,
   createWebhook,
@@ -39,11 +35,8 @@ import {
   type Webhook,
   type WebhookInput,
 } from '@/api/webhook';
-import {
-  triggersApi,
-  type Trigger,
-  type TriggerStats,
-} from '@/api/triggers';
+import { triggersApi, type Trigger, type TriggerStats } from '@/api/triggers';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -80,6 +73,7 @@ const TriggerPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [createWebhookModal, setCreateWebhookModal] = useState(false);
   const [createTriggerModal, setCreateTriggerModal] = useState(false);
+  const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
   const [webhookForm] = Form.useForm();
   const [triggerForm] = Form.useForm();
 
@@ -97,7 +91,7 @@ const TriggerPage: React.FC = () => {
       ]);
 
       if (webhooksRes.status === 'fulfilled') {
-        setWebhooks((webhooksRes.value.data as any)?.webhooks || []);
+        setWebhooks((webhooksRes.value.data as { webhooks?: Webhook[] })?.webhooks ?? []);
       }
       if (triggersRes.status === 'fulfilled') {
         setTriggers(Array.isArray(triggersRes.value) ? triggersRes.value : []);
@@ -115,14 +109,32 @@ const TriggerPage: React.FC = () => {
   // Webhook handlers
   const handleCreateWebhook = async (values: WebhookInput) => {
     try {
-      await createWebhook(values);
-      message.success('Webhook 创建成功');
+      if (editingWebhook) {
+        await updateWebhook(editingWebhook.id, values);
+        message.success('Webhook 更新成功');
+      } else {
+        await createWebhook(values);
+        message.success('Webhook 创建成功');
+      }
       setCreateWebhookModal(false);
+      setEditingWebhook(null);
       webhookForm.resetFields();
       loadData();
     } catch (error: unknown) {
-      message.error(`创建 Webhook 失败: ${(error as Error).message}`);
+      message.error(
+        `${editingWebhook ? '更新' : '创建'} Webhook 失败: ${(error as Error).message}`
+      );
     }
+  };
+
+  const handleEditWebhook = (webhook: Webhook) => {
+    setEditingWebhook(webhook);
+    webhookForm.setFieldsValue({
+      url: webhook.url,
+      events: webhook.events,
+      secret: webhook.secret,
+    });
+    setCreateWebhookModal(true);
   };
 
   const handleToggleWebhook = async (id: string, currentEnabled: boolean) => {
@@ -189,7 +201,9 @@ const TriggerPage: React.FC = () => {
   };
 
   // Stats
-  const successRate = triggerStats?.successRate ? `${(triggerStats.successRate * 100).toFixed(1)}%` : '-';
+  const successRate = triggerStats?.successRate
+    ? `${(triggerStats.successRate * 100).toFixed(1)}%`
+    : '-';
 
   // Webhook columns
   const webhookColumns = [
@@ -206,9 +220,7 @@ const TriggerPage: React.FC = () => {
       key: 'status',
       width: 100,
       render: (_: unknown, record: Webhook) => (
-        <Tag color={record.enabled ? 'green' : 'default'}>
-          {record.enabled ? '活跃' : '禁用'}
-        </Tag>
+        <Tag color={record.enabled ? 'green' : 'default'}>{record.enabled ? '活跃' : '禁用'}</Tag>
       ),
     },
     {
@@ -216,7 +228,7 @@ const TriggerPage: React.FC = () => {
       dataIndex: 'lastStatus',
       key: 'lastStatus',
       width: 100,
-      render: (v: number) => v != null ? <Tag color={v < 300 ? 'green' : 'red'}>{v}</Tag> : '-',
+      render: (v: number) => (v != null ? <Tag color={v < 300 ? 'green' : 'red'}>{v}</Tag> : '-'),
     },
     { title: '失败次数', dataIndex: 'failureCount', key: 'failureCount', width: 80 },
     { title: '最后触发', dataIndex: 'lastTriggeredAt', key: 'lastTriggeredAt', width: 160 },
@@ -226,11 +238,18 @@ const TriggerPage: React.FC = () => {
       width: 200,
       render: (_: unknown, record: Webhook) => (
         <Space size="small">
-          <Button size="small" onClick={() => handleTestWebhook(record.id)}>测试</Button>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEditWebhook(record)}>
+            编辑
+          </Button>
+          <Button size="small" onClick={() => handleTestWebhook(record.id)}>
+            测试
+          </Button>
           <Button size="small" onClick={() => handleToggleWebhook(record.id, record.enabled)}>
             {record.enabled ? '禁用' : '启用'}
           </Button>
-          <Button size="small" danger onClick={() => handleDeleteWebhook(record.id)}>删除</Button>
+          <Button size="small" danger onClick={() => handleDeleteWebhook(record.id)}>
+            删除
+          </Button>
         </Space>
       ),
     },
@@ -252,7 +271,8 @@ const TriggerPage: React.FC = () => {
       width: 160,
       render: (_: unknown, record: Trigger) => {
         const parts: string[] = [];
-        if (record.target?.pipelineId) parts.push(`Pipeline: ${record.target.pipelineId.slice(0, 8)}...`);
+        if (record.target?.pipelineId)
+          parts.push(`Pipeline: ${record.target.pipelineId.slice(0, 8)}...`);
         if (record.target?.action) parts.push(record.target.action);
         return parts.join(' | ') || '-';
       },
@@ -270,7 +290,7 @@ const TriggerPage: React.FC = () => {
       dataIndex: 'lastTriggeredAt',
       key: 'lastTriggeredAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '操作',
@@ -319,12 +339,12 @@ const TriggerPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             多模态触发器
           </Title>
           <Text type="secondary">Webhook 管理、事件触发器和自动化规则</Text>
@@ -336,14 +356,18 @@ const TriggerPage: React.FC = () => {
           <Button icon={<PlusOutlined />} onClick={() => setCreateWebhookModal(true)}>
             添加 Webhook
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateTriggerModal(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateTriggerModal(true)}
+          >
             添加触发器
           </Button>
         </Space>
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="Webhooks" value={webhooks.length} />
@@ -354,7 +378,7 @@ const TriggerPage: React.FC = () => {
             <Statistic
               title="活跃 Webhook"
               value={webhooks.filter((w) => w.enabled).length}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -369,7 +393,10 @@ const TriggerPage: React.FC = () => {
               title="成功率"
               value={successRate}
               valueStyle={{
-                color: triggerStats && triggerStats.successRate >= 0.9 ? '#52c41a' : '#faad14',
+                color:
+                  triggerStats && triggerStats.successRate >= 0.9
+                    ? colors.success[500]
+                    : colors.warning[500],
               }}
             />
           </Card>
@@ -381,16 +408,24 @@ const TriggerPage: React.FC = () => {
         <Tabs items={tabItems} />
       </Card>
 
-      {/* Create Webhook Modal */}
+      {/* Create/Edit Webhook Modal */}
       <Modal
-        title="创建 Webhook"
+        title={editingWebhook ? '编辑 Webhook' : '创建 Webhook'}
         open={createWebhookModal}
-        onCancel={() => setCreateWebhookModal(false)}
+        onCancel={() => {
+          setCreateWebhookModal(false);
+          setEditingWebhook(null);
+          webhookForm.resetFields();
+        }}
         onOk={() => webhookForm.submit()}
         width={600}
       >
         <Form form={webhookForm} layout="vertical" onFinish={handleCreateWebhook}>
-          <Form.Item label="URL" name="url" rules={[{ required: true, type: 'url', message: '请输入有效 URL' }]}>
+          <Form.Item
+            label="URL"
+            name="url"
+            rules={[{ required: true, type: 'url', message: '请输入有效 URL' }]}
+          >
             <Input placeholder="https://example.com/webhook" />
           </Form.Item>
           <Form.Item label="事件" name="events" rules={[{ required: true, message: '请选择事件' }]}>
@@ -426,7 +461,12 @@ const TriggerPage: React.FC = () => {
           <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="触发器名称" />
           </Form.Item>
-          <Form.Item label="类型" name="type" rules={[{ required: true, message: '请选择类型' }]} initialValue="webhook">
+          <Form.Item
+            label="类型"
+            name="type"
+            rules={[{ required: true, message: '请选择类型' }]}
+            initialValue="webhook"
+          >
             <Select
               options={[
                 { value: 'webhook', label: 'Webhook' },

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-digital-twin-svc-go
+  namespace: orion
+  labels:
+    app: orion-digital-twin-svc-go
+    app.kubernetes.io/name: orion-digital-twin-svc-go
+    app.kubernetes.io/part-of: orion-platform
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: orion-digital-twin-svc-go

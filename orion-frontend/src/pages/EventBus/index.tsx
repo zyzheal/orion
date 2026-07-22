@@ -26,6 +26,7 @@ import {
   SwapOutlined,
   InfoCircleOutlined,
   EyeOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
@@ -122,8 +123,8 @@ const EventBusMonitoring: React.FC = () => {
     setLoading(true);
     try {
       const [eventsRes, statsRes] = await Promise.all([getEvents({ limit: 100 }), getStats()]);
-      const eventsData = eventsRes.data?.data?.events || [];
-      const statsData = statsRes.data?.data?.stats || {};
+      const eventsData = (eventsRes.data as any)?.events || [];
+      const statsData = (statsRes.data as any)?.stats || {};
       setEvents(eventsData.map(mapApiEvent));
       setStats(mapApiStats(statsData));
     } catch (error: unknown) {
@@ -279,7 +280,8 @@ const EventBusMonitoring: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             EventBus
           </Title>
           <Text type="secondary">事件总线监控</Text>

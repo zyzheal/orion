@@ -15,7 +15,7 @@ import {
   Table as AntTable,
   message,
 } from 'antd';
-import { ReloadOutlined, RiseOutlined, FundOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RiseOutlined, FundOutlined, LineChartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getROIReport } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
@@ -48,7 +48,7 @@ const ROIFeatureReport: React.FC = () => {
     setLoading(true);
     try {
       const res = await getROIReport({ period });
-      const data = res.data.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
+      const data = res.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
       setRoiData(Array.isArray(data?.features) ? data.features : []);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
     } catch (error: unknown) {
@@ -161,7 +161,8 @@ const ROIFeatureReport: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             ROI 报告
           </Title>
           <Text type="secondary">AI 功能投资回报分析与优化建议</Text>
@@ -182,7 +183,7 @@ const ROIFeatureReport: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -234,7 +235,7 @@ const ROIFeatureReport: React.FC = () => {
             各功能 ROI 分析
           </Space>
         }
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       >
         <AntTable
           columns={featureColumns}

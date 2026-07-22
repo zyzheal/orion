@@ -3167,7 +3167,7 @@ alerting:
 |------|------|
 | ADR-002: Plugin SPI 接口设计 | `docs/adr/ADR-002-Plugin-SPI 接口设计.md` |
 | Plugin SPI 开发示例 | `docs/architecture/plugin-spi-examples.md` |
-| 微前端开发规范 | `docs/frontend/micro-frontend-development-guide.md` |
+| 微前端开发规范 | `docs/architecture/微前端子应用接入与后端交互设计.md` |
 
 ### C. 变更历史
 

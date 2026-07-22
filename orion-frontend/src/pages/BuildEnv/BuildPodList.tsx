@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Popconfirm, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, StopOutlined } from '@ant-design/icons';
+import { ReloadOutlined, StopOutlined, CloudServerOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -26,8 +26,8 @@ const BuildPodList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuildPods();
-      const apiData = response.data.data;
-      setPods(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setPods(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建 Pod 失败：${error.message}`);
@@ -172,7 +172,7 @@ const BuildPodList: React.FC = () => {
       dataIndex: 'status',
       width: 130,
       render: (value) => {
-        const statusMap: Record<string, any> = {
+        const statusMap: Record<string, unknown> = {
           running: 'running',
           completed: 'success',
           failed: 'failed',
@@ -243,11 +243,12 @@ const BuildPodList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Build Pods
           </Title>
           <Text type="secondary">{filteredPods.length} build pods</Text>
@@ -257,7 +258,7 @@ const BuildPodList: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

@@ -61,7 +61,6 @@ docs/
 | orion-monitor-svc | `services/monitor/` | 9 | 监控告警、可观测性 |
 | orion-selfhealing-svc | `services/selfhealing/` | 4 | 自愈引擎、混沌工程 |
 | orion-config-mgmt-svc | `services/config-mgmt/` | 3 | GitOps 配置管理 |
-| orion-cmdb-svc | `services/cmdb/` | 3 | CMDB 设计 |
 | orion-dba-svc | `services/dba/` | 6 | SQL 审核、数据库管理 |
 
 ### 安全与合规层
@@ -97,7 +96,6 @@ docs/
 
 | 微服务 | 文档目录 | 文件数 | 状态 |
 |--------|---------|--------|------|
-| orion-visor-svc | (待补充) | 0 | 外部项目 |
 | orion-inception-svc | (待补充) | 0 | 外部项目 |
 | orion-pandawiki-svc | (待补充) | 0 | 外部项目 |
 
@@ -114,6 +112,7 @@ docs/
 | API 规范 | `cross-cutting/api/` | 4 | API 设计、版本管理、分页规范 |
 | UI 设计 | `cross-cutting/ui/` | 3 | Design Tokens、线框图、子应用启动器 |
 | 缓存层 | `cross-cutting/cache/` | 2 | 缓存设计、历史归档 |
+| 综合分析 | 根目录 | 1 | `orion-system-deep-analysis-2026-07-01.md` — 全系统 150 万行综合分析 |
 | 档案 | `cross-cutting/archive/` | 2 | OnCall 排班、集成测试脚本 |
 
 ### 工作会话记录 (`superpowers/`)

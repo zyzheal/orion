@@ -22,6 +22,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
+  ProjectOutlined,
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -48,6 +49,7 @@ import {
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -101,8 +103,8 @@ const ProjectManagement: React.FC = () => {
       const data = res.data?.data;
       if (Array.isArray(data)) {
         setProjects(data);
-      } else if (Array.isArray(data?.data)) {
-        setProjects(data.data);
+      } else if (Array.isArray((data as any).data)) {
+        setProjects((data as any).data);
       } else {
         setProjects([]);
       }
@@ -247,7 +249,7 @@ const ProjectManagement: React.FC = () => {
   const loadResources = async (projectId: string) => {
     try {
       const res = await getProjectResources(projectId);
-      setProjectResources(Array.isArray(res.data?.data) ? res.data.data : []);
+      setProjectResources(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setProjectResources([]);
     }
@@ -453,11 +455,12 @@ const ProjectManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ProjectOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 项目管理
               </Title>
               <Text type="secondary">管理项目、团队关联和资源分配</Text>
@@ -478,7 +481,7 @@ const ProjectManagement: React.FC = () => {
 
           {/* Project List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -584,7 +587,7 @@ const ProjectManagement: React.FC = () => {
           >
             {selectedProject && (
               <>
-                <Descriptions column={2} bordered size="small" style={{ marginBottom: 24 }}>
+                <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
                   <Descriptions.Item label="项目名称">{selectedProject.name}</Descriptions.Item>
                   <Descriptions.Item label="Slug">{selectedProject.slug}</Descriptions.Item>
                   <Descriptions.Item label="负责人">
@@ -635,7 +638,7 @@ const ProjectManagement: React.FC = () => {
                   </Descriptions.Item>
                 </Descriptions>
 
-                <Title level={5} style={{ marginBottom: 12 }}>
+                <Title level={5} style={{ marginBottom: spacing[3] }}>
                   关联资源
                 </Title>
                 <AntTable

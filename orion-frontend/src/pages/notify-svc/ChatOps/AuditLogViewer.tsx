@@ -11,8 +11,8 @@ import {
   Row,
   Col,
   Statistic,
-  message,
   DatePicker,
+  Empty,
 } from 'antd';
 import { spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
@@ -30,7 +30,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const AuditLogViewer: React.FC = () => {
@@ -41,11 +41,12 @@ const AuditLogViewer: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setApiError(null);
     try {
-      // 构建 API 查询参数
       const params: Record<string, string> = {};
       if (searchQuery) {
         params.command = searchQuery;
@@ -62,14 +63,12 @@ const AuditLogViewer: React.FC = () => {
       }
 
       const [logRes, statsRes] = await Promise.all([getAuditLogs(params), getAuditStats(params)]);
-      setLogs(Array.isArray(logRes.data.data) ? logRes.data.data : []);
-      setStats(statsRes.data.data as AuditStats | null);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`Failed to load audit logs：${error.message}`);
-      } else {
-        message.error('Failed to load audit logs');
-      }
+      setLogs(Array.isArray(logRes.data) ? logRes.data : []);
+      setStats(statsRes.data as AuditStats | null);
+    } catch {
+      setApiError('后端服务暂不可用');
+      setLogs([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -87,13 +86,8 @@ const AuditLogViewer: React.FC = () => {
         : dayjs().subtract(30, 'day').format('YYYY-MM-DD');
       const endDate = dateRange ? dateRange[1].format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
       await exportAuditLogs({ startDate, endDate, format: 'csv' });
-      message.success('导出成功');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`导出失败：${error.message}`);
-      } else {
-        message.error('导出失败');
-      }
+    } catch {
+      // Export failure is non-critical
     } finally {
       setExporting(false);
     }
@@ -117,7 +111,6 @@ const AuditLogViewer: React.FC = () => {
       dataIndex: 'action',
       width: 140,
       render: (v: unknown) => {
-        // action 可能是对象 { command, params } 或字符串
         const cmd =
           typeof v === 'object' && v !== null
             ? (v as { command?: string }).command || '-'
@@ -131,7 +124,6 @@ const AuditLogViewer: React.FC = () => {
       dataIndex: 'actor',
       width: 120,
       render: (v: unknown) => {
-        // actor 可能是对象 { userId, platform } 或字符串
         const uid =
           typeof v === 'object' && v !== null
             ? (v as { userId?: string }).userId || '-'
@@ -145,7 +137,6 @@ const AuditLogViewer: React.FC = () => {
       dataIndex: 'actor',
       width: 100,
       render: (v: unknown) => {
-        // actor 可能是对象 { userId, platform } 或字符串
         const p =
           typeof v === 'object' && v !== null
             ? (v as { platform?: string }).platform || '-'
@@ -213,22 +204,32 @@ const AuditLogViewer: React.FC = () => {
     },
   ];
 
+  if (apiError && logs.length === 0) {
+    return (
+      <div style={{ padding: spacing.md }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.lg }}>
+          <Space>
+            <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>导出</Button>
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          </Space>
+        </div>
+        <Card>
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={apiError} />
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: spacing.md }}>
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 24,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          marginBottom: spacing.lg,
         }}
       >
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            审计日志
-          </Title>
-          <Text type="secondary">ChatOps 命令执行审计与统计</Text>
-        </div>
         <Space>
           <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
             导出
@@ -239,7 +240,7 @@ const AuditLogViewer: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总执行数" value={stats?.totalExecutions || logs.length} />
@@ -270,8 +271,7 @@ const AuditLogViewer: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 高级过滤 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <span style={{ fontSize: spacing[3] }}>日期范围：</span>
           <RangePicker
@@ -287,7 +287,7 @@ const AuditLogViewer: React.FC = () => {
       <Row gutter={16}>
         <Col span={16}>
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -306,7 +306,7 @@ const AuditLogViewer: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          {stats && (
+          {stats ? (
             <>
               <Card
                 title={
@@ -315,12 +315,12 @@ const AuditLogViewer: React.FC = () => {
                     平台分布
                   </Space>
                 }
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               >
                 {stats.platformBreakdown?.map((item, index) => (
                   <div
                     key={index}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Tag>{item.platform}</Tag>
                     <Text>{item.count} 次</Text>
@@ -338,7 +338,7 @@ const AuditLogViewer: React.FC = () => {
                 {stats.topCommands?.map((item, index) => (
                   <div
                     key={index}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Text code>/{item.command}</Text>
                     <Text>{item.count} 次</Text>
@@ -346,6 +346,8 @@ const AuditLogViewer: React.FC = () => {
                 ))}
               </Card>
             </>
+          ) : (
+            <Empty description="暂无统计数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           )}
         </Col>
       </Row>

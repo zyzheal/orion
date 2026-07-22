@@ -106,7 +106,7 @@ export interface ReleaseTrain {
   approvalRequired?: boolean;
   approvers?: string[];
   preChecks?: Array<{ name: string; type: string; required?: boolean }>;
-  postActions?: Array<{ name: string; type: string; config?: Record<string, any> }>;
+  postActions?: Array<{ name: string; type: string; config?: Record<string, unknown> }>;
   status: {
     lastRun?: string;
     nextRun?: string;
@@ -126,7 +126,7 @@ export interface ReleaseTrainInput {
   approvalRequired?: boolean;
   approvers?: string[];
   preChecks?: Array<{ name: string; type: string; required?: boolean }>;
-  postActions?: Array<{ name: string; type: string; config?: Record<string, any> }>;
+  postActions?: Array<{ name: string; type: string; config?: Record<string, unknown> }>;
 }
 
 export interface HotfixChannel {
@@ -166,54 +166,54 @@ export interface HotfixChannelInput {
 // ---- ProductLine CRUD ----
 
 export function getProductLines(params?: { tenantId?: string; phase?: ProductLinePhase }) {
-  return api.get<ProductLine[]>('/v1/product-lines', { params });
+  return api.get<ProductLine[]>('/api/v1/product-lines', { params });
 }
 
 export function getProductLine(id: string) {
-  return api.get<ProductLine>(`/v1/product-lines/${id}`);
+  return api.get<ProductLine>(`/api/v1/product-lines/${id}`);
 }
 
 export function getProductLineByName(name: string) {
-  return api.get<ProductLine>(`/v1/product-lines/name/${name}`);
+  return api.get<ProductLine>(`/api/v1/product-lines/name/${name}`);
 }
 
 export function createProductLine(data: ProductLineCreateInput) {
-  return api.post<ProductLine>('/v1/product-lines', data);
+  return api.post<ProductLine>('/api/v1/product-lines', data);
 }
 
 export function updateProductLine(id: string, data: ProductLineUpdateInput) {
-  return api.put<ProductLine>(`/v1/product-lines/${id}`, data);
+  return api.put<ProductLine>(`/api/v1/product-lines/${id}`, data);
 }
 
 export function deleteProductLine(id: string) {
-  return api.delete(`/v1/product-lines/${id}`);
+  return api.delete(`/api/v1/product-lines/${id}`);
 }
 
 export function activateProductLine(id: string) {
-  return api.post<ProductLine>(`/v1/product-lines/${id}/activate`);
+  return api.post<ProductLine>(`/api/v1/product-lines/${id}/activate`);
 }
 
 export function suspendProductLine(id: string) {
-  return api.post<ProductLine>(`/v1/product-lines/${id}/suspend`);
+  return api.post<ProductLine>(`/api/v1/product-lines/${id}/suspend`);
 }
 
 // ---- Branch-Environment Mapping ----
 
 export function resolveEnvironment(productLineId: string, branch: string) {
-  return api.get<EnvironmentName>(`/v1/product-lines/${productLineId}/resolve-environment`, {
+  return api.get<EnvironmentName>(`/api/v1/product-lines/${productLineId}/resolve-environment`, {
     params: { branch },
   });
 }
 
 export function requiresApproval(productLineId: string, branch: string) {
   return api.get<{ requiresApproval: boolean }>(
-    `/v1/product-lines/${productLineId}/requires-approval`,
+    `/api/v1/product-lines/${productLineId}/requires-approval`,
     { params: { branch } }
   );
 }
 
 export function isHotfix(productLineId: string, branch: string) {
-  return api.get<{ isHotfix: boolean }>(`/v1/product-lines/${productLineId}/is-hotfix`, {
+  return api.get<{ isHotfix: boolean }>(`/api/v1/product-lines/${productLineId}/is-hotfix`, {
     params: { branch },
   });
 }
@@ -221,19 +221,19 @@ export function isHotfix(productLineId: string, branch: string) {
 // ---- ReleaseTrain ----
 
 export function getReleaseTrains(productLineId: string) {
-  return api.get<ReleaseTrain[]>(`/v1/product-lines/${productLineId}/release-trains`);
+  return api.get<ReleaseTrain[]>(`/api/v1/product-lines/${productLineId}/release-trains`);
 }
 
 export function createReleaseTrain(productLineId: string, data: ReleaseTrainInput) {
-  return api.post<ReleaseTrain>(`/v1/product-lines/${productLineId}/release-trains`, data);
+  return api.post<ReleaseTrain>(`/api/v1/product-lines/${productLineId}/release-trains`, data);
 }
 
 // ---- HotfixChannel ----
 
 export function getHotfixChannels(productLineId: string) {
-  return api.get<HotfixChannel[]>(`/v1/product-lines/${productLineId}/hotfix-channels`);
+  return api.get<HotfixChannel[]>(`/api/v1/product-lines/${productLineId}/hotfix-channels`);
 }
 
 export function createHotfixChannel(productLineId: string, data: HotfixChannelInput) {
-  return api.post<HotfixChannel>(`/v1/product-lines/${productLineId}/hotfix-channels`, data);
+  return api.post<HotfixChannel>(`/api/v1/product-lines/${productLineId}/hotfix-channels`, data);
 }

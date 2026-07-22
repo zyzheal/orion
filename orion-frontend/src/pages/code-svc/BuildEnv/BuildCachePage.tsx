@@ -18,7 +18,8 @@ import {
   message,
 } from 'antd';
 import { spacing } from '@/tokens';
-import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
+import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined, DatabaseOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import {
@@ -51,7 +52,7 @@ const BuildCachePage: React.FC = () => {
     setLoadingConfigs(true);
     try {
       const response = await getBuildCacheConfigs();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setConfigs(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -68,7 +69,7 @@ const BuildCachePage: React.FC = () => {
     setLoadingEntries(true);
     try {
       const response = await getBuildCacheEntries();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setEntries(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -393,7 +394,7 @@ const BuildCachePage: React.FC = () => {
       label: `Cache Configs (${configs.length})`,
       children: (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing[3] }}>
             <Space>
               <Button
                 icon={<ReloadOutlined />}
@@ -424,7 +425,7 @@ const BuildCachePage: React.FC = () => {
       label: `Cache Entries (${entries.length})`,
       children: (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing[3] }}>
             <Space>
               <Button
                 icon={<ReloadOutlined />}
@@ -459,11 +460,12 @@ const BuildCachePage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Build Cache
           </Title>
           <Text type="secondary">Manage cache configurations and cached build artifacts</Text>
@@ -487,7 +489,7 @@ const BuildCachePage: React.FC = () => {
         okText={editingConfig ? 'Update' : 'Create'}
         width={560}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="Name"

@@ -139,99 +139,99 @@ export interface SbomComplianceParams {
 // ---- SBOM Documents ----
 
 export function getSbomDocuments(params?: SbomDocumentListParams) {
-  return api.get('/v1/sbom/documents', { params });
+  return api.get('/api/v1/sbom/documents', { params });
 }
 
 export function getSbomDocument(id: string) {
-  return api.get(`/v1/sbom/documents/${id}`);
+  return api.get(`/api/v1/sbom/documents/${id}`);
 }
 
 export function createSbomDocument(data: SbomDocumentInput) {
-  return api.post('/v1/sbom/documents', data);
+  return api.post('/api/v1/sbom/documents', data);
 }
 
 export function deleteSbomDocument(id: string) {
-  return api.delete(`/v1/sbom/documents/${id}`);
+  return api.delete(`/api/v1/sbom/documents/${id}`);
 }
 
 export function getSbomPackages(sbomId: string) {
-  return api.get(`/v1/sbom/documents/${sbomId}/packages`);
+  return api.get(`/api/v1/sbom/documents/${sbomId}/packages`);
 }
 
 export function downloadSbomDocument(id: string, format?: 'spdx' | 'cyclonedx') {
-  return api.get(`/v1/sbom/documents/${id}/download`, { params: { format } });
+  return api.get(`/api/v1/sbom/documents/${id}/download`, { params: { format } });
 }
 
 // ---- Attestation ----
 
 export function signSbomAttestation(sbomId: string) {
-  return api.post(`/v1/sbom/attestations/${sbomId}/sign`);
+  return api.post(`/api/v1/sbom/attestations/${sbomId}/sign`);
 }
 
 export function getSbomAttestation(sbomId: string) {
-  return api.get(`/v1/sbom/attestations/${sbomId}`);
+  return api.get(`/api/v1/sbom/attestations/${sbomId}`);
 }
 
 export function verifySbomAttestation(sbomId: string) {
-  return api.post(`/v1/sbom/attestations/${sbomId}/verify`);
+  return api.post(`/api/v1/sbom/attestations/${sbomId}/verify`);
 }
 
 // ---- Vulnerability Scanning ----
 
 export function triggerSbomVulnerabilityScan(data: { sbomId: string }) {
-  return api.post('/v1/sbom/vulnerability/scan', data);
+  return api.post('/api/v1/sbom/vulnerability/scan', data);
 }
 
 export function getSbomVulnerabilityResults(params?: { sbomId?: string }) {
-  return api.get('/v1/sbom/vulnerability/results', { params });
+  return api.get('/api/v1/sbom/vulnerability/results', { params });
 }
 
 export function getSbomVulnerabilityDetails(resultId: string) {
-  return api.get(`/v1/sbom/vulnerability/results/${resultId}/details`);
+  return api.get(`/api/v1/sbom/vulnerability/results/${resultId}/details`);
 }
 
 export function checkSbomGate(data: { sbomId: string; policy?: string }) {
-  return api.post('/v1/sbom/vulnerability/gate/check', data);
+  return api.post('/api/v1/sbom/vulnerability/gate/check', data);
 }
 
 // ---- Waivers ----
 
 export function getSbomWaivers(params?: { scope?: string; target?: string }) {
-  return api.get('/v1/sbom/waivers', { params });
+  return api.get('/api/v1/sbom/waivers', { params });
 }
 
 export function createSbomWaiver(data: SbomWaiverInput) {
-  return api.post('/v1/sbom/waivers', data);
+  return api.post('/api/v1/sbom/waivers', data);
 }
 
 export function getSbomWaiver(id: string) {
-  return api.get(`/v1/sbom/waivers/${id}`);
+  return api.get(`/api/v1/sbom/waivers/${id}`);
 }
 
 export function updateSbomWaiver(id: string, data: UpdateSbomWaiverInput) {
-  return api.put(`/v1/sbom/waivers/${id}`, data);
+  return api.put(`/api/v1/sbom/waivers/${id}`, data);
 }
 
 export function deleteSbomWaiver(id: string) {
-  return api.delete(`/v1/sbom/waivers/${id}`);
+  return api.delete(`/api/v1/sbom/waivers/${id}`);
 }
 
 export function getActiveSbomWaivers(params?: { scope?: string; target?: string }) {
-  return api.get('/v1/sbom/waivers/active', { params });
+  return api.get('/api/v1/sbom/waivers/active', { params });
 }
 
 // ---- Compliance Reports ----
 
 export function getSbomComplianceReport(params?: SbomComplianceParams) {
-  return api.get('/v1/sbom/compliance/report', { params });
+  return api.get('/api/v1/sbom/compliance/report', { params });
 }
 
 export function getSbomEo14028Compliance() {
-  return api.get('/v1/sbom/compliance/eo14028');
+  return api.get('/api/v1/sbom/compliance/eo14028');
 }
 
 export function getSbomEuCraCompliance() {
-  return api.get('/v1/sbom/compliance/eu-cra');
+  return api.get('/api/v1/sbom/compliance/eu-cra');
 }
 
 // ---- Provenance ----
@@ -245,23 +245,23 @@ export function createSbomProvenance(data: {
   buildTrigger: string;
   sourceUri: string;
 }) {
-  return api.post('/v1/sbom/provenance', data);
+  return api.post('/api/v1/sbom/provenance', data);
 }
 
 export function getSbomProvenance(params?: { buildId?: string }) {
-  return api.get('/v1/sbom/provenance', { params });
+  return api.get('/api/v1/sbom/provenance', { params });
 }
 
 export function verifySbomProvenance(id: string) {
-  return api.get(`/v1/sbom/provenance/${id}/verify`);
+  return api.get(`/api/v1/sbom/provenance/${id}/verify`);
 }
 
 // ---- Gate ----
 
 export function evaluateSbomGate(buildId: string) {
-  return api.post('/v1/sbom/gate/evaluate', null, { params: { buildId } });
+  return api.post('/api/v1/sbom/gate/evaluate', null, { params: { buildId } });
 }
 
 export function getSbomGateHistory(params?: { buildId?: string }) {
-  return api.get('/v1/sbom/gate/history', { params });
+  return api.get('/api/v1/sbom/gate/history', { params });
 }

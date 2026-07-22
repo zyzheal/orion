@@ -10,7 +10,7 @@
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider } from 'antd';
+import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Input, Switch } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -22,6 +22,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import StatusBadge from '@/components/StatusBadge';
@@ -117,9 +118,33 @@ function makeLogId(): string {
 interface LiveLogViewerProps {
   logs: LogEntry[];
   autoScroll: boolean;
+  searchText: string;
 }
 
-const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
+// Escape special regex characters in search text
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Highlight search text within a string
+function highlightSearch(text: string, search: string): React.ReactNode {
+  if (!search) return text;
+  const escaped = escapeRegExp(search);
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+  const matchRegex = new RegExp(escaped, 'i');
+  return parts.map((part, i) =>
+    matchRegex.test(part) ? (
+      <span key={i} style={{ background: colors.warning[200], color: colors.neutral[900], borderRadius: 2, padding: '0 2px' }}>
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  );
+}
+
+const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll, searchText }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevLogCountRef = useRef(0);
 
@@ -144,7 +169,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
           fontSize: spacing[3],
         }}
       >
-        <LoadingOutlined style={{ fontSize: 24, marginBottom: 12 }} />
+        <LoadingOutlined style={{ fontSize: 24, marginBottom: spacing[3] }} />
         <div>等待日志推送...</div>
         <Text type="secondary" style={{ fontSize: spacing[2] }}>
           SSE 连接建立后将实时显示日志
@@ -159,7 +184,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
       style={{
         background: colors.neutral[900],
         borderRadius: 6,
-        padding: 12,
+        padding: spacing[3],
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
         fontSize: 12,
         lineHeight: 1.6,
@@ -170,8 +195,12 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
     >
       {logs.map((log) => {
         const textColor = logLevelColors[log.level] || colors.neutral[300];
+        // Filter: if search text is provided, skip non-matching lines
+        if (searchText && !log.text.toLowerCase().includes(searchText.toLowerCase())) {
+          return null;
+        }
         return (
-          <div key={log.id} style={{ display: 'flex', gap: 8 }}>
+          <div key={log.id} style={{ display: 'flex', gap: spacing.sm }}>
             <span style={{ color: colors.neutral[500], flexShrink: 0, userSelect: 'none' }}>
               {formatTime(log.timestamp)}
             </span>
@@ -186,7 +215,9 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
                 {log.stepName}
               </Tag>
             )}
-            <span style={{ color: textColor, wordBreak: 'break-word' }}>{log.text}</span>
+            <span style={{ color: textColor, wordBreak: 'break-word' }}>
+              {highlightSearch(log.text, searchText)}
+            </span>
           </div>
         );
       })}
@@ -230,7 +261,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
 
   if (stages.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 24, color: colors.neutral[500] }}>
+      <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[500] }}>
         <Text>暂无阶段数据</Text>
       </div>
     );
@@ -267,7 +298,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
+                  color: colors.neutral[0],
                   fontSize: spacing[4],
                   fontWeight: 600,
                   boxShadow:
@@ -317,7 +348,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
           key={stage.id || index}
           size="small"
           style={{
-            marginBottom: 8,
+            marginBottom: spacing.sm,
             borderColor:
               stage.id === currentStageId && stage.status === 'running'
                 ? colors.primary[300]
@@ -347,7 +378,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     fontSize: spacing[3],
                   }}
                 >
@@ -394,6 +425,7 @@ const PipelineRunLive: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Track stage states locally for real-time updates
@@ -401,15 +433,15 @@ const PipelineRunLive: React.FC = () => {
   const [currentStageId, setCurrentStageId] = useState<string | undefined>();
 
   // SSE hook
-  const { logs: sseLogs, status: sseStatus, isConnected, error, connect, disconnect, clearLogs } =
+  const { logs: sseLogs, status: _sseStatus, isConnected, error, connect, disconnect, clearLogs } =
     usePipelineSSE({
       pipelineId: id || '',
       runId: runId || id || '',
       autoConnect: !isPaused && !!(id && runId),
       maxLogs: 2000,
       onStatusChange: (statusEvent) => {
-        // Update pipeline status from SSE
-        if (sseStatus) {
+        // Update pipeline status from SSE event
+        if (statusEvent) {
           setPipeline((prev: any) =>
             prev
               ? { ...prev, status: statusEvent.status, progress: statusEvent.progress }
@@ -441,23 +473,33 @@ const PipelineRunLive: React.FC = () => {
       setApiError(null);
       try {
         const response = await getPipelineRun(id!);
-        const apiData = response.data.data as any;
-        if (apiData) {
-          setPipeline(apiData);
+        // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
+        const wrapperData = response.data as { data?: unknown; success?: boolean };
+        const apiData = wrapperData?.data ?? wrapperData;
+        if (apiData && ((apiData as any).run || (apiData as any).stages)) {
+          const run = (apiData as any).run || apiData;
+          const flattened = {
+            ...run,
+            branch: run.context?.branch || run.branch || 'main',
+            commit: run.context?.commitSha || run.commit || '-',
+            version: run.context?.version || run.pipelineVersion,
+            stages: (apiData as any).stages || [],
+          };
+          setPipeline(flattened);
           // Initialize stages from API data
-          if (apiData.stages) {
-            const initialized: StageState[] = apiData.stages.map((s: any, idx: number) => ({
+          if (flattened.stages.length > 0) {
+            const initialized: StageState[] = flattened.stages.map((s: any, idx: number) => ({
               id: s.id || `stage-${idx}`,
               name: s.name,
               status: s.status || 'pending',
-              startTime: s.startTime,
-              endTime: s.endTime,
+              startTime: s.startedAt,
+              endTime: s.completedAt,
               steps: (s.steps || []).map((st: any, stIdx: number) => ({
                 id: st.id || `step-${idx}-${stIdx}`,
                 name: st.name,
                 status: st.status || 'pending',
-                startTime: st.startTime,
-                endTime: st.endTime,
+                startTime: st.startedAt,
+                endTime: st.completedAt,
               })),
             }));
             setStages(initialized);
@@ -540,7 +582,7 @@ const PipelineRunLive: React.FC = () => {
       <div style={{ padding: 0 }}>
         <Card
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
               <Button
                 type="text"
                 icon={<ArrowLeftOutlined />}
@@ -548,14 +590,15 @@ const PipelineRunLive: React.FC = () => {
               >
                 返回列表
               </Button>
-              <Title level={4} style={{ margin: 0 }}>
+              <Title level={2} style={{ margin: 0 }}>
+                <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 实时执行面板
               </Title>
             </div>
           }
         >
           <div style={{ textAlign: 'center', padding: 40, color: colors.error[500] }}>
-            <CloseCircleOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+            <CloseCircleOutlined style={{ fontSize: 48, marginBottom: spacing.md }} />
             <div>{apiError}</div>
           </div>
         </Card>
@@ -575,8 +618,8 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button
@@ -587,7 +630,8 @@ const PipelineRunLive: React.FC = () => {
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline?.name || 'Pipeline'} 实时执行
           </Title>
           <Space size="middle">
@@ -613,7 +657,7 @@ const PipelineRunLive: React.FC = () => {
       </div>
 
       {/* Run metadata */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Descriptions column={4} size="small" labelStyle={{ width: 80 }}>
           <Descriptions.Item label="Pipeline">
             <Text strong>{pipeline?.name || '-'}</Text>
@@ -665,7 +709,7 @@ const PipelineRunLive: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label="提交">
             {pipeline?.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
+              <Tag color="default" style={{ marginRight: spacing.sm }}>
                 {pipeline.commit}
               </Tag>
             )}
@@ -678,13 +722,29 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          marginBottom: 16,
+          gap: spacing.sm,
+          marginBottom: spacing.md,
           padding: '8px 12px',
           background: colors.light.bg.tertiary,
           borderRadius: 6,
         }}
       >
+        <Input
+          prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
+          placeholder="搜索日志关键字..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          style={{ width: 220 }}
+          allowClear
+          size="small"
+        />
+        <Switch
+          checked={autoScroll}
+          onChange={setAutoScroll}
+          checkedChildren="自动滚动"
+          unCheckedChildren="手动查看"
+          size="small"
+        />
         <Button
           size="small"
           icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
@@ -712,15 +772,6 @@ const PipelineRunLive: React.FC = () => {
         <Divider type="vertical" />
         <Button
           size="small"
-          type={autoScroll ? 'primary' : 'default'}
-          onClick={() => setAutoScroll(!autoScroll)}
-          title={autoScroll ? '关闭自动滚动' : '开启自动滚动'}
-        >
-          {autoScroll ? '自动滚动: 开' : '自动滚动: 关'}
-        </Button>
-        <Divider type="vertical" />
-        <Button
-          size="small"
           icon={<SyncOutlined />}
           onClick={() => {
             disconnect();
@@ -730,7 +781,12 @@ const PipelineRunLive: React.FC = () => {
         >
           重连
         </Button>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+          {searchText && (
+            <Text style={{ fontSize: 12, color: colors.primary[500] }}>
+              匹配: {displayLogs.filter((l) => l.text.toLowerCase().includes(searchText.toLowerCase())).length} 条
+            </Text>
+          )}
           <Text type="secondary" style={{ fontSize: 12 }}>
             日志数: {displayLogs.length}
           </Text>
@@ -742,7 +798,7 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: '380px 1fr',
-          gap: 16,
+          gap: spacing.md,
           alignItems: 'start',
         }}
       >
@@ -763,7 +819,7 @@ const PipelineRunLive: React.FC = () => {
           }
           size="small"
         >
-          <LiveLogViewer logs={displayLogs} autoScroll={autoScroll} />
+          <LiveLogViewer logs={displayLogs} autoScroll={autoScroll} searchText={searchText} />
         </Card>
       </div>
     </div>

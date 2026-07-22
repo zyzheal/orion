@@ -33,7 +33,7 @@ export interface EnvironmentTemplate {
     name: string;
     image: string;
     replicas: number;
-    resources?: Record<string, any>;
+    resources?: Record<string, unknown>;
   }>;
   resourceLimits?: { cpuLimit: string; memoryLimit: string; storageLimit: string };
   createdAt: string;

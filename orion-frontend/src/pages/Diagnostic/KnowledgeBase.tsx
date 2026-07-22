@@ -3,7 +3,7 @@
  * Search and manage diagnostic patterns, view knowledge base stats
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -21,7 +21,7 @@ import {
   Card,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
+import { ReadOutlined, PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { searchPatterns, getPattern, addPattern, getKnowledgeStats } from '@/api/diagnostic';
@@ -52,9 +52,9 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     setLoading(true);
     try {
       const [patternsRes, statsRes] = await Promise.all([searchPatterns(), getKnowledgeStats()]);
-      const patternsData = patternsRes.data.data;
+      const patternsData = patternsRes.data;
       setPatterns(Array.isArray(patternsData) ? patternsData : []);
-      setStats(statsRes.data.data);
+      setStats(statsRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载知识库失败：${error.message}`);
@@ -77,7 +77,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       if (query) params.keyword = query;
       if (filters.category && filters.category !== 'all') params.category = filters.category;
       const response = await searchPatterns(params);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -111,7 +111,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       if (newFilters.category && newFilters.category !== 'all')
         params.category = newFilters.category;
       const response = await searchPatterns(params);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -127,7 +127,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const res = await getPattern(pattern.id);
-      setSelectedPattern(res.data.data);
+      setSelectedPattern(res.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载模式详情失败：${error.message}`);
@@ -245,12 +245,13 @@ const DiagnosticKnowledgeBase: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BookOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ReadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <BookOutlined style={{ marginRight: spacing.sm }} />
             知识库
           </Title>
           <Text type="secondary">共 {patterns.length} 个诊断模式</Text>
@@ -267,7 +268,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
 
       {/* Stats */}
       {stats && (
-        <Card style={{ marginBottom: 16 }}>
+        <Card style={{ marginBottom: spacing.md }}>
           <Row gutter={16}>
             <Col span={8}>
               <Statistic
@@ -291,7 +292,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
             </Col>
           </Row>
           {stats.categories && (
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: spacing[3] }}>
               <Space wrap>
                 {Object.entries(stats.categories).map(([cat, count]) => (
                   <Tag key={cat} color={categoryConfig[cat]?.color || 'default'}>
@@ -304,7 +305,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         </Card>
       )}
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={handleSearch}
           onFilter={handleFilter}

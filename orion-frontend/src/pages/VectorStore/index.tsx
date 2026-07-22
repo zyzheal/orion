@@ -1,3 +1,5 @@
+import { colors, spacing } from '@/tokens';
+
 /**
  * Vector Store Management Page
  * Collection management, document upload, similarity search, and collection details
@@ -76,7 +78,7 @@ const VectorStorePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCollections();
-      setCollections(Array.isArray(res.data?.data) ? res.data.data : []);
+      setCollections(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setCollections([]);
       message.error(`加载集合数据失败: ${(error as Error).message}`);
@@ -88,7 +90,7 @@ const VectorStorePage: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getVectorStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }
@@ -141,7 +143,7 @@ const VectorStorePage: React.FC = () => {
     setDocsLoading(true);
     try {
       const res = await getCollectionDocuments(name);
-      setCollectionDocs(Array.isArray(res.data?.data) ? res.data.data : []);
+      setCollectionDocs(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setCollectionDocs([]);
       message.error(`加载文档列表失败: ${(error as Error).message}`);
@@ -176,7 +178,7 @@ const VectorStorePage: React.FC = () => {
         collection: searchCollection,
         topK: searchTopK,
       });
-      setSearchResults(Array.isArray(res.data?.data) ? res.data.data : []);
+      setSearchResults(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setSearchResults([]);
       message.error(`语义搜索失败: ${(error as Error).message}`);
@@ -230,12 +232,13 @@ const VectorStorePage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DatabaseOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <DatabaseOutlined style={{ marginRight: spacing.sm }} />
             向量存储管理
           </Title>
           <Text type="secondary">管理向量集合、文档上传和语义相似度检索</Text>
@@ -263,7 +266,7 @@ const VectorStorePage: React.FC = () => {
 
       {/* Stats Panel */}
       {stats && (
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card size="small" style={{ marginBottom: spacing.md }}>
           <Row gutter={16}>
             <Col span={6}>
               <Statistic
@@ -324,7 +327,7 @@ const VectorStorePage: React.FC = () => {
             onTopKChange={setSearchTopK}
             onSearch={handleSearch}
           />
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <DocumentManager
               collections={collections}
               uploadContent={uploadContent}

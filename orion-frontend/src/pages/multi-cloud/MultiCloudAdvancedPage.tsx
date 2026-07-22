@@ -1,22 +1,33 @@
 /**
  * Multi-Cloud Advanced Page
- * Phase 4 - Cross-region disaster recovery, multi-cloud cost optimization, cloud network orchestration
+ * 多云进阶管理 - 合规检查、资源调度、跨区容灾、成本优化、网络编排
  */
-
-import React, { useState, useEffect } from 'react';
-import { multiCloudApi, CloudAccount, CloudResource } from '../../api/multi-cloud';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  multiCloudApi,
+  type CloudAccount,
+  type CloudResource,
+  type ComplianceReport,
+  type ComplianceCheckResult,
+  type SchedulingPolicy,
+  type SchedulingDecision,
+} from '@/api/multi-cloud';
 import {
   Card, Table, Button, Modal, Form, Select, Input, Tag,
   message, Space, Statistic, Row, Col, Tabs,
-  Badge as AntBadge, Descriptions, Timeline, Collapse, Progress
+  Badge as AntBadge, Descriptions, Timeline, Collapse, Progress, Typography,
 } from 'antd';
 import {
   CloudOutlined, GlobalOutlined, SafetyOutlined,
   PlusOutlined, ReloadOutlined, DollarOutlined,
-  SwapOutlined, ThunderboltOutlined
+  SwapOutlined, ThunderboltOutlined, AuditOutlined,
+  ScheduleOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  WarningOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 
 const { Panel } = Collapse;
+const { Title, Text } = Typography;
 
 const MultiCloudAdvancedPage: React.FC = () => {
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
@@ -24,10 +35,17 @@ const MultiCloudAdvancedPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [accountModal, setAccountModal] = useState(false);
   const [drModal, setDrModal] = useState(false);
+  const [_scheduleModal, setScheduleModal] = useState(false);
+  const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
+  const [complianceLoading, setComplianceLoading] = useState(false);
+  const [schedulingPolicies, setSchedulingPolicies] = useState<SchedulingPolicy[]>([]);
+  const [scheduleResult, setScheduleResult] = useState<SchedulingDecision | null>(null);
+  const [scheduleResultLoading, setScheduleResultLoading] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
     loadData();
+    loadSchedulingPolicies();
   }, []);
 
   const loadData = async () => {
@@ -37,43 +55,90 @@ const MultiCloudAdvancedPage: React.FC = () => {
         multiCloudApi.listCloudAccounts(),
         multiCloudApi.listCloudResources(),
       ]);
-      setAccounts(accountRes || []);
-      setResources(resourceRes || []);
+      const accountData = (accountRes as any)?.data ?? accountRes;
+      const resourceData = (resourceRes as any)?.data ?? resourceRes;
+      setAccounts(Array.isArray(accountData) ? accountData : []);
+      setResources(Array.isArray(resourceData) ? resourceData : []);
     } catch {
-      message.error('Failed to load data');
+      message.error('加载数据失败');
     }
     setLoading(false);
   };
 
-  const handleRegisterAccount = async (values: any) => {
+  const loadSchedulingPolicies = async () => {
     try {
-      await multiCloudApi.registerCloudAccount(values);
-      message.success('Cloud account registered');
-      setAccountModal(false);
-      loadData();
+      const res = await multiCloudApi.listSchedulingPolicies();
+      const data = (res as any)?.data ?? res;
+      setSchedulingPolicies(Array.isArray(data) ? data : []);
     } catch {
-      message.error('Failed to register cloud account');
+      // Silent fail for scheduling policies
     }
   };
 
-  const handleCreateDRPlan = async (_values: any) => {
+  const handleRunComplianceCheck = useCallback(async (categories?: string[]) => {
+    setComplianceLoading(true);
     try {
-      message.success('DR plan created');
-      setDrModal(false);
+      const res = await multiCloudApi.runComplianceCheck(categories);
+      const data = (res as any)?.data ?? res;
+      setComplianceReport(data);
+      message.success('合规检查完成');
+    } catch (error: unknown) {
+      message.error(`合规检查失败: ${(error as Error).message}`);
+    } finally {
+      setComplianceLoading(false);
+    }
+  }, []);
+
+  const handleScheduleResource = async (values: any) => {
+    setScheduleResultLoading(true);
+    try {
+      const res = await multiCloudApi.scheduleResource({
+        resourceType: values.resourceType,
+        spec: {
+          cpu: values.cpu,
+          memoryMb: values.memoryMb,
+          storageGb: values.storageGb,
+        },
+        policyId: values.policyId,
+        preferredProvider: values.preferredProvider,
+        preferredRegion: values.preferredRegion,
+      });
+      const data = (res as any)?.data ?? res;
+      setScheduleResult(data);
+      message.success('资源调度决策生成成功');
+    } catch (error: unknown) {
+      message.error(`调度失败: ${(error as Error).message}`);
+    } finally {
+      setScheduleResultLoading(false);
+    }
+  };
+
+  const handleRegisterAccount = async (values: any) => {
+    try {
+      await multiCloudApi.registerCloudAccount({
+        name: values.name,
+        provider: values.provider,
+        region: values.region,
+        credentials_ref: `${values.credentials?.accessKeyId ?? ''}`,
+        metadata: {},
+      });
+      message.success('云账号注册成功');
+      setAccountModal(false);
+      loadData();
     } catch {
-      message.error('Failed to create DR plan');
+      message.error('注册失败');
     }
   };
 
   const accountColumns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'Name', dataIndex: 'account_name', key: 'account_name', render: (v: string, r: any) => v || r.name || '-' },
     {
       title: 'Provider',
-      dataIndex: 'provider',
       key: 'provider',
-      render: (p: string) => {
-        const colors: Record<string, string> = { aws: 'orange', azure: 'blue', gcp: 'red', aliyun: 'green', tencent: 'cyan' };
-        return <Tag color={colors[p] || 'default'}>{p.toUpperCase()}</Tag>;
+      render: (_: unknown, r: any) => {
+        const p = r.provider_id || r.credential_type || r.provider || 'unknown';
+        const colorMap: Record<string, string> = { aws: 'orange', azure: 'blue', gcp: 'red', alicloud: 'green', aliyun: 'green', tencent: 'cyan' };
+        return <Tag color={colorMap[p] || 'default'}>{p.toUpperCase()}</Tag>;
       },
     },
     { title: 'Region', dataIndex: 'region', key: 'region' },
@@ -88,24 +153,23 @@ const MultiCloudAdvancedPage: React.FC = () => {
         />
       ),
     },
-    { title: 'Created', dataIndex: 'createdAt', key: 'createdAt', render: (d: string) => new Date(d).toLocaleString() },
+    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => d ? new Date(d).toLocaleString() : '-' },
   ];
 
   const resourceColumns = [
-    { title: 'Name', dataIndex: 'name', key: 'name' },
+    { title: 'Name', dataIndex: 'resource_name', key: 'resource_name', render: (v: string, r: any) => v || r.name || '-' },
     {
-      title: 'Provider',
-      dataIndex: 'provider',
-      key: 'provider',
-      render: (p: string) => <Tag>{p}</Tag>,
+      title: 'Type',
+      dataIndex: 'resource_type',
+      key: 'resource_type',
+      render: (t: string) => <Tag color="blue">{t}</Tag>,
     },
-    { title: 'Type', dataIndex: 'type', key: 'type', render: (t: string) => <Tag color="blue">{t}</Tag> },
     { title: 'Region', dataIndex: 'region', key: 'region' },
     {
       title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: string) => <Tag color={s === 'running' ? 'green' : 'default'}>{s}</Tag>,
+      dataIndex: 'state',
+      key: 'state',
+      render: (s: string) => <Tag color={s === 'running' || s === 'active' ? 'green' : 'default'}>{s}</Tag>,
     },
     {
       title: 'Tags',
@@ -115,28 +179,127 @@ const MultiCloudAdvancedPage: React.FC = () => {
     },
   ];
 
+  // Severity color map
+  const severityColorMap: Record<string, string> = {
+    critical: 'red',
+    high: 'orange',
+    medium: 'blue',
+    low: 'green',
+  };
+
+  const severityIconMap: Record<string, React.ReactNode> = {
+    critical: <CloseCircleOutlined style={{ color: colors.error[500] }} />,
+    high: <ExclamationCircleOutlined style={{ color: colors.warning[500] }} />,
+    medium: <WarningOutlined style={{ color: colors.info[500] }} />,
+    low: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
+  };
+
+  const categoryLabelMap: Record<string, string> = {
+    security: '安全',
+    cost: '成本',
+    governance: '治理',
+    availability: '可用性',
+    'data-residency': '数据驻留',
+  };
+
+  // Compliance check results table columns
+  const complianceColumns = [
+    {
+      title: '状态',
+      key: 'status',
+      width: 60,
+      render: (_: unknown, record: ComplianceCheckResult) =>
+        record.passed
+          ? <CheckCircleOutlined style={{ color: colors.success[500], fontSize: 18 }} />
+          : <CloseCircleOutlined style={{ color: colors.error[500], fontSize: 18 }} />,
+    },
+    {
+      title: '规则',
+      dataIndex: 'ruleName',
+      key: 'ruleName',
+      render: (v: string, record: ComplianceCheckResult) => (
+        <div>
+          <Text strong>{v}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>{record.ruleId}</Text>
+        </div>
+      ),
+    },
+    {
+      title: '类别',
+      dataIndex: 'category',
+      key: 'category',
+      width: 80,
+      render: (v: string) => <Tag>{categoryLabelMap[v] || v}</Tag>,
+    },
+    {
+      title: '严重程度',
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 100,
+      render: (v: string) => (
+        <Space>
+          {severityIconMap[v]}
+          <Tag color={severityColorMap[v]}>{v}</Tag>
+        </Space>
+      ),
+    },
+    {
+      title: '详情',
+      dataIndex: 'details',
+      key: 'details',
+      ellipsis: true,
+    },
+    {
+      title: '修复建议',
+      dataIndex: 'remediation',
+      key: 'remediation',
+      ellipsis: true,
+      render: (v: string) => v || '-',
+    },
+  ];
+
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg, background: colors.light.bg.secondary, minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+        <div>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            多云进阶管理
+          </Title>
+          <Text type="secondary">合规检查、资源调度、跨区容灾、成本优化、网络编排</Text>
+        </div>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAccountModal(true)}>
+            注册账号
+          </Button>
+        </Space>
+      </div>
+
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
-          <Card>
-            <Statistic title="Cloud Accounts" value={accounts.length} prefix={<CloudOutlined />} />
+          <Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${colors.primary[500]}` }}>
+            <Statistic title="云账号" value={accounts.length} prefix={<CloudOutlined style={{ color: colors.primary[500] }} />} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
-            <Statistic title="Active Providers" value={Array.from(new Set(accounts.map(a => a.provider))).length} prefix={<GlobalOutlined />} />
+          <Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${colors.success[500]}` }}>
+            <Statistic title="活跃厂商" value={Array.from(new Set(accounts.map(a => a.provider_id || a.credential_type || (a as any).provider))).length} prefix={<GlobalOutlined style={{ color: colors.success[500] }} />} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
-            <Statistic title="Total Resources" value={resources.length} prefix={<SafetyOutlined />} />
+          <Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${colors.info[500]}` }}>
+            <Statistic title="总资源" value={resources.length} prefix={<SafetyOutlined style={{ color: colors.info[500] }} />} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
-            <Statistic title="Regions" value={Array.from(new Set(accounts.map(a => a.region))).length} prefix={<SwapOutlined />} />
+          <Card size="small" style={{ borderRadius: 12, borderTop: `3px solid ${colors.warning[500]}` }}>
+            <Statistic title="覆盖区域" value={Array.from(new Set(accounts.map(a => a.region))).length} prefix={<SwapOutlined style={{ color: colors.warning[500] }} />} />
           </Card>
         </Col>
       </Row>
@@ -144,11 +307,248 @@ const MultiCloudAdvancedPage: React.FC = () => {
       <Tabs
         items={[
           {
+            key: 'compliance',
+            label: <><AuditOutlined /> 合规检查</>,
+            children: (
+              <Card
+                title="合规检查报告"
+                style={{ borderRadius: 12 }}
+                extra={
+                  <Space>
+                    <Button
+                      icon={<AuditOutlined />}
+                      onClick={() => handleRunComplianceCheck()}
+                      loading={complianceLoading}
+                      type="primary"
+                    >
+                      执行合规检查
+                    </Button>
+                    <Select
+                      placeholder="按类别筛选"
+                      style={{ width: 140 }}
+                      allowClear
+                      onChange={(value) => value && handleRunComplianceCheck([value])}
+                      options={[
+                        { value: 'security', label: '安全' },
+                        { value: 'cost', label: '成本' },
+                        { value: 'governance', label: '治理' },
+                        { value: 'availability', label: '可用性' },
+                        { value: 'data-residency', label: '数据驻留' },
+                      ]}
+                    />
+                  </Space>
+                }
+              >
+                {complianceReport ? (
+                  <>
+                    <Row gutter={16} style={{ marginBottom: spacing.lg }}>
+                      <Col span={6}>
+                        <Card size="small" style={{ textAlign: 'center', borderRadius: 8 }}>
+                          <Progress
+                            type="dashboard"
+                            percent={complianceReport.score}
+                            strokeColor={complianceReport.score >= 80 ? colors.success[500] : complianceReport.score >= 60 ? colors.warning[500] : colors.error[500]}
+                            format={(percent) => `${percent}%`}
+                          />
+                          <div style={{ marginTop: spacing.sm }}>
+                            <Text strong>合规评分</Text>
+                          </div>
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card size="small" style={{ textAlign: 'center', borderRadius: 8 }}>
+                          <Statistic
+                            title="总规则"
+                            value={complianceReport.totalRules}
+                            valueStyle={{ fontSize: 32 }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card size="small" style={{ textAlign: 'center', borderRadius: 8, borderTop: `2px solid ${colors.success[500]}` }}>
+                          <Statistic
+                            title="通过"
+                            value={complianceReport.passedRules}
+                            valueStyle={{ color: colors.success[500], fontSize: 32 }}
+                            prefix={<CheckCircleOutlined />}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={6}>
+                        <Card size="small" style={{ textAlign: 'center', borderRadius: 8, borderTop: `2px solid ${colors.error[500]}` }}>
+                          <Statistic
+                            title="未通过"
+                            value={complianceReport.failedRules}
+                            valueStyle={{ color: colors.error[500], fontSize: 32 }}
+                            prefix={<CloseCircleOutlined />}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+
+                    <Table
+                      columns={complianceColumns}
+                      dataSource={complianceReport.results}
+                      rowKey="ruleId"
+                      size="small"
+                      pagination={false}
+                    />
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                    <AuditOutlined style={{ fontSize: 48, color: colors.neutral[300], marginBottom: spacing.md }} />
+                    <div>
+                      <Text type="secondary">点击"执行合规检查"按钮开始检查云资源合规性</Text>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            ),
+          },
+          {
+            key: 'scheduling',
+            label: <><ScheduleOutlined /> 资源调度</>,
+            children: (
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Card
+                    title="资源调度面板"
+                    style={{ borderRadius: 12 }}
+                    extra={
+                      <Button type="primary" icon={<ScheduleOutlined />} onClick={() => setScheduleModal(true)}>
+                        新建调度
+                      </Button>
+                    }
+                  >
+                    <Form layout="vertical" onFinish={handleScheduleResource}>
+                      <Form.Item label="资源类型" name="resourceType" rules={[{ required: true }]}>
+                        <Select
+                          options={[
+                            { value: 'compute', label: '计算资源' },
+                            { value: 'storage', label: '存储资源' },
+                            { value: 'database', label: '数据库' },
+                            { value: 'container', label: '容器服务' },
+                            { value: 'network', label: '网络资源' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <Form.Item label="CPU (核)" name="cpu" initialValue={2}>
+                            <Input type="number" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item label="内存 (MB)" name="memoryMb" initialValue={4096}>
+                            <Input type="number" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                          <Form.Item label="存储 (GB)" name="storageGb" initialValue={100}>
+                            <Input type="number" />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Form.Item label="调度策略" name="policyId">
+                        <Select
+                          placeholder="选择调度策略（可选）"
+                          allowClear
+                          options={schedulingPolicies.map(p => ({
+                            value: p.id,
+                            label: `${p.name} (${p.strategy})`,
+                          }))}
+                        />
+                      </Form.Item>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item label="首选厂商" name="preferredProvider">
+                            <Select
+                              placeholder="不限"
+                              allowClear
+                              options={[
+                                { value: 'aws', label: 'AWS' },
+                                { value: 'azure', label: 'Azure' },
+                                { value: 'gcp', label: 'GCP' },
+                                { value: 'alicloud', label: '阿里云' },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="首选区域" name="preferredRegion">
+                            <Input placeholder="如: us-east-1" />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Form.Item>
+                        <Button type="primary" htmlType="submit" loading={scheduleResultLoading} icon={<ScheduleOutlined />}>
+                          生成调度决策
+                        </Button>
+                      </Form.Item>
+                    </Form>
+                  </Card>
+                </Col>
+                <Col span={12}>
+                  <Card title="调度决策结果" style={{ borderRadius: 12 }}>
+                    {scheduleResult ? (
+                      <>
+                        <Descriptions bordered column={1} size="small">
+                          <Descriptions.Item label="推荐厂商">
+                            <Tag color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
+                              {scheduleResult.selectedProvider.toUpperCase()}
+                            </Tag>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="推荐区域">
+                            <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>
+                              {scheduleResult.selectedRegion}
+                            </Tag>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="预估月费">
+                            <Text strong style={{ color: colors.primary[500], fontSize: 18 }}>
+                              ${scheduleResult.estimatedCost.toFixed(2)}
+                            </Text>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="决策原因">
+                            {scheduleResult.reason}
+                          </Descriptions.Item>
+                        </Descriptions>
+
+                        {scheduleResult.alternatives.length > 0 && (
+                          <div style={{ marginTop: spacing.md }}>
+                            <Text strong>备选方案</Text>
+                            <Table
+                              dataSource={scheduleResult.alternatives}
+                              rowKey={(r) => `${r.provider}-${r.region}`}
+                              size="small"
+                              pagination={false}
+                              style={{ marginTop: spacing.sm }}
+                              columns={[
+                                { title: '厂商', dataIndex: 'provider', render: (v: string) => <Tag>{v.toUpperCase()}</Tag> },
+                                { title: '区域', dataIndex: 'region' },
+                                { title: '预估费用', dataIndex: 'cost', render: (v: number) => `$${v.toFixed(2)}` },
+                              ]}
+                            />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '48px 0' }}>
+                        <ScheduleOutlined style={{ fontSize: 48, color: colors.neutral[300], marginBottom: spacing.md }} />
+                        <div><Text type="secondary">填写左侧参数并提交，生成资源调度决策</Text></div>
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            ),
+          },
+          {
             key: 'accounts',
             label: <><CloudOutlined /> Cloud Accounts</>,
             children: (
               <Card
                 title="Cloud Account Management"
+                style={{ borderRadius: 12 }}
                 extra={
                   <Space>
                     <Button icon={<PlusOutlined />} onClick={() => setAccountModal(true)}>
@@ -158,12 +558,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                   </Space>
                 }
               >
-                <Table
-                  columns={accountColumns}
-                  dataSource={accounts}
-                  rowKey="id"
-                  loading={loading}
-                />
+                <Table columns={accountColumns} dataSource={accounts} rowKey={(r: any) => r.id || r.account_id} loading={loading} />
               </Card>
             ),
           },
@@ -171,13 +566,8 @@ const MultiCloudAdvancedPage: React.FC = () => {
             key: 'resources',
             label: <><SafetyOutlined /> Cloud Resources</>,
             children: (
-              <Card title="Cloud Resources" extra={<Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>}>
-                <Table
-                  columns={resourceColumns}
-                  dataSource={resources}
-                  rowKey="id"
-                  loading={loading}
-                />
+              <Card title="Cloud Resources" style={{ borderRadius: 12 }} extra={<Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>}>
+                <Table columns={resourceColumns} dataSource={resources} rowKey={(r: any) => r.id || r.resource_id} loading={loading} />
               </Card>
             ),
           },
@@ -187,25 +577,26 @@ const MultiCloudAdvancedPage: React.FC = () => {
             children: (
               <Card
                 title="Cross-Region Disaster Recovery"
+                style={{ borderRadius: 12 }}
                 extra={<Button icon={<PlusOutlined />} onClick={() => setDrModal(true)}>Create DR Plan</Button>}
               >
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
-                    <Card title="RPO (Recovery Point Objective)" size="small">
+                    <Card title="RPO (Recovery Point Objective)" size="small" style={{ borderRadius: 8 }}>
                       <Progress type="dashboard" percent={95} format={() => '5 min'} />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Target: {'<'} 10 min</p>
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Target: {'<'} 10 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
-                    <Card title="RTO (Recovery Time Objective)" size="small">
-                      <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor="#faad14" />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Target: {'<'} 30 min</p>
+                    <Card title="RTO (Recovery Time Objective)" size="small" style={{ borderRadius: 8 }}>
+                      <Progress type="dashboard" percent={90} format={() => '15 min'} strokeColor={colors.warning[500]} />
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Target: {'<'} 30 min</p>
                     </Card>
                   </Col>
                   <Col span={8}>
-                    <Card title="DR Readiness" size="small">
-                      <Progress type="dashboard" percent={88} strokeColor="#52c41a" />
-                      <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>Status: Ready</p>
+                    <Card title="DR Readiness" size="small" style={{ borderRadius: 8 }}>
+                      <Progress type="dashboard" percent={88} strokeColor={colors.success[500]} />
+                      <p style={{ textAlign: 'center', marginTop: spacing.sm, color: colors.neutral[500] }}>Status: Ready</p>
                     </Card>
                   </Col>
                 </Row>
@@ -231,16 +622,22 @@ const MultiCloudAdvancedPage: React.FC = () => {
             key: 'cost-optimization',
             label: <><DollarOutlined /> Cost Optimization</>,
             children: (
-              <Card title="Multi-Cloud Cost Optimization">
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+              <Card title="Multi-Cloud Cost Optimization" style={{ borderRadius: 12 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={8}>
-                    <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: '#1890ff' }} />
+                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid ${colors.cloud.aws}` }}>
+                      <Statistic title="Monthly Cost (AWS)" value={12500} prefix="$" valueStyle={{ color: colors.primary[500] }} />
+                    </Card>
                   </Col>
                   <Col span={8}>
-                    <Statistic title="Monthly Cost (Azure)" value={8200} prefix="$" valueStyle={{ color: '#722ed1' }} />
+                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid ${colors.cloud.azure}` }}>
+                      <Statistic title="Monthly Cost (Azure)" value={8200} prefix="$" valueStyle={{ color: colors.purple[500] }} />
+                    </Card>
                   </Col>
                   <Col span={8}>
-                    <Statistic title="Monthly Cost (GCP)" value={6300} prefix="$" valueStyle={{ color: '#fa541c' }} />
+                    <Card size="small" style={{ borderRadius: 8, borderTop: `2px solid ${colors.cloud.gcp}` }}>
+                      <Statistic title="Monthly Cost (GCP)" value={6300} prefix="$" valueStyle={{ color: colors.error[600] }} />
+                    </Card>
                   </Col>
                 </Row>
                 <Collapse defaultActiveKey={['recommendations']}>
@@ -277,7 +674,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
             key: 'network-orchestration',
             label: <><ThunderboltOutlined /> Network Orchestration</>,
             children: (
-              <Card title="Cloud Network Orchestration">
+              <Card title="Cloud Network Orchestration" style={{ borderRadius: 12 }}>
                 <Descriptions bordered column={1}>
                   <Descriptions.Item label="VPC Peering">
                     <Tag color="green">Active</Tag> - 3 peering connections established
@@ -292,20 +689,20 @@ const MultiCloudAdvancedPage: React.FC = () => {
                     Unified policy across 5 cloud accounts
                   </Descriptions.Item>
                 </Descriptions>
-                <Card size="small" title="Network Topology" style={{ marginTop: 16 }}>
+                <Card size="small" title="Network Topology" style={{ marginTop: spacing.md, borderRadius: 8 }}>
                   <Row gutter={16}>
                     <Col span={8}>
-                      <Card size="small" title="AWS VPC">
+                      <Card size="small" title="AWS VPC" style={{ borderRadius: 8 }}>
                         <Tag>us-east-1</Tag> <Tag>us-west-2</Tag>
                       </Card>
                     </Col>
                     <Col span={8}>
-                      <Card size="small" title="Azure VNet">
+                      <Card size="small" title="Azure VNet" style={{ borderRadius: 8 }}>
                         <Tag>eastus</Tag> <Tag>westeurope</Tag>
                       </Card>
                     </Col>
                     <Col span={8}>
-                      <Card size="small" title="GCP VPC">
+                      <Card size="small" title="GCP VPC" style={{ borderRadius: 8 }}>
                         <Tag>us-central1</Tag>
                       </Card>
                     </Col>
@@ -325,25 +722,25 @@ const MultiCloudAdvancedPage: React.FC = () => {
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={handleRegisterAccount}>
-          <Form.Item label="Provider" name="provider" required>
+          <Form.Item label="Provider" name="provider" rules={[{ required: true }]}>
             <Select options={[
               { value: 'aws', label: 'AWS' },
               { value: 'azure', label: 'Azure' },
               { value: 'gcp', label: 'GCP' },
-              { value: 'aliyun', label: 'Aliyun' },
-              { value: 'tencent', label: 'Tencent Cloud' },
+              { value: 'alicloud', label: '阿里云' },
+              { value: 'tencent', label: '腾讯云' },
             ]} />
           </Form.Item>
-          <Form.Item label="Account Name" name="name" required>
+          <Form.Item label="Account Name" name="name" rules={[{ required: true }]}>
             <Input placeholder="aws-production" />
           </Form.Item>
-          <Form.Item label="Region" name="region" required>
+          <Form.Item label="Region" name="region" rules={[{ required: true }]}>
             <Input placeholder="us-east-1" />
           </Form.Item>
-          <Form.Item label="Access Key ID" name={['credentials', 'accessKeyId']} required>
+          <Form.Item label="Access Key ID" name={['credentials', 'accessKeyId']}>
             <Input.Password />
           </Form.Item>
-          <Form.Item label="Secret Access Key" name={['credentials', 'secretAccessKey']} required>
+          <Form.Item label="Secret Access Key" name={['credentials', 'secretAccessKey']}>
             <Input.Password />
           </Form.Item>
         </Form>
@@ -356,14 +753,14 @@ const MultiCloudAdvancedPage: React.FC = () => {
         onCancel={() => setDrModal(false)}
         onOk={() => form.submit()}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreateDRPlan}>
-          <Form.Item label="Plan Name" name="name" required>
+        <Form form={form} layout="vertical">
+          <Form.Item label="Plan Name" name="name" rules={[{ required: true }]}>
             <Input placeholder="primary-dr-plan" />
           </Form.Item>
-          <Form.Item label="Primary Region" name="primary_region" required>
+          <Form.Item label="Primary Region" name="primary_region" rules={[{ required: true }]}>
             <Input placeholder="us-east-1" />
           </Form.Item>
-          <Form.Item label="Failover Region" name="failover_region" required>
+          <Form.Item label="Failover Region" name="failover_region" rules={[{ required: true }]}>
             <Input placeholder="ap-northeast-1" />
           </Form.Item>
           <Form.Item label="RPO Target (minutes)" name="rpo_target">

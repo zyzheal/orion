@@ -38,6 +38,7 @@ import {
   DatabaseOutlined,
   FileProtectOutlined,
   SettingOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -196,7 +197,7 @@ const BackupManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBackups();
-      setBackups(response.data.data.backups.map(mapApiBackup));
+      setBackups((response.data as any).backups.map(mapApiBackup));
     } catch (error: unknown) {
       message.error(`Failed to load backups: ${(error as Error).message}`);
     } finally {
@@ -207,7 +208,7 @@ const BackupManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getBackupStats();
-      setStats(mapApiStats(response.data.data.stats));
+      setStats(mapApiStats((response.data as any).stats));
     } catch (error: unknown) {
       message.error(`Failed to load backup stats: ${(error as Error).message}`);
     }
@@ -288,7 +289,7 @@ const BackupManagement: React.FC = () => {
   const handleDownload = async (record: BackupRecord) => {
     try {
       const res = await getBackupDownloadUrl(record.id);
-      const url = res.data?.data?.url;
+      const url = res.data?.url;
       if (url) {
         window.open(url, '_blank');
       } else {
@@ -468,8 +469,8 @@ const BackupManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SaveOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Backup Management
           </Title>
           <Text type="secondary">数据备份与恢复</Text>
@@ -605,7 +606,7 @@ const BackupManagement: React.FC = () => {
               description="恢复备份将覆盖当前数据。此操作不可逆，请确认后再执行。"
               type="warning"
               showIcon
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             />
             <Card size="small">
               <Space direction="vertical" size={8}>

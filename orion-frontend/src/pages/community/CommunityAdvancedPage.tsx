@@ -10,6 +10,7 @@ import {
   message, Space, Statistic, Row, Col, Avatar, Tabs,
   Badge as AntBadge, List
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   TrophyOutlined, TeamOutlined, StarOutlined,
   PlusOutlined, ReloadOutlined, UserOutlined,
@@ -82,11 +83,11 @@ const CommunityAdvancedPage: React.FC = () => {
 
   const getBadgeColor = (level: string) => {
     switch (level) {
-      case 'platinum': return '#e5e4e2';
-      case 'gold': return '#ffd700';
-      case 'silver': return '#c0c0c0';
-      case 'bronze': return '#cd7f32';
-      default: return '#d9d9d9';
+      case 'platinum': return colors.tier.platinum;
+      case 'gold': return colors.warning[400];
+      case 'silver': return colors.neutral[400];
+      case 'bronze': return colors.tier.bronze;
+      default: return colors.neutral[300];
     }
   };
 
@@ -95,7 +96,7 @@ const CommunityAdvancedPage: React.FC = () => {
       title: 'Author',
       dataIndex: 'username',
       key: 'username',
-      render: (username: string) => <><Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 8 }} />{username}</>,
+      render: (username: string) => <><Avatar size="small" icon={<UserOutlined />} style={{ marginRight: spacing.sm }} />{username}</>,
     },
     { title: 'Title', dataIndex: 'title', key: 'title' },
     {
@@ -139,9 +140,9 @@ const CommunityAdvancedPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="Total Contributions" value={contributions.length} prefix={<TrophyOutlined />} />
@@ -197,23 +198,23 @@ const CommunityAdvancedPage: React.FC = () => {
               <Card title="Community Badges" extra={<Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>}>
                 <Row gutter={16}>
                   {badges.map((badge: Badge) => (
-                    <Col span={6} key={badge.id} style={{ marginBottom: 16 }}>
+                    <Col span={6} key={badge.id} style={{ marginBottom: spacing.md }}>
                       <Card hoverable size="small" style={{ textAlign: 'center' }}>
                         <Avatar
                           size={48}
-                          style={{ backgroundColor: getBadgeColor(badge.level), marginBottom: 8 }}
+                          style={{ backgroundColor: getBadgeColor(badge.level), marginBottom: spacing.sm }}
                           icon={getBadgeIcon(badge.category)}
                         />
                         <div style={{ fontWeight: 'bold' }}>{badge.name}</div>
-                        <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>{badge.description}</div>
-                        <Tag style={{ marginTop: 8 }} color={getBadgeColor(badge.level)}>
+                        <div style={{ color: colors.neutral[500], fontSize: 12, marginTop: 4 }}>{badge.description}</div>
+                        <Tag style={{ marginTop: spacing.sm }} color={getBadgeColor(badge.level)}>
                           {badge.level}
                         </Tag>
                       </Card>
                     </Col>
                   ))}
                 </Row>
-                {badges.length === 0 && <p style={{ color: '#888', textAlign: 'center' }}>No badges available</p>}
+                {badges.length === 0 && <p style={{ color: colors.neutral[500], textAlign: 'center' }}>No badges available</p>}
               </Card>
             ),
           },

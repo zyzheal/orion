@@ -3,7 +3,7 @@
  * List and manage active alerts with acknowledge, resolve, and escalate actions
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, message } from 'antd';
+import { Typography, Button, Space, Tag, Modal, Form, Input, message, Empty } from 'antd';
 import {
   ReloadOutlined,
   BellOutlined,
@@ -15,7 +15,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
 import type { Alert } from '@/api/monitoring';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -45,7 +45,7 @@ const MonitoringAlerts: React.FC = () => {
     setLoading(true);
     try {
       const response = await getAlerts();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setAlerts(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -246,12 +246,12 @@ const MonitoringAlerts: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BellOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             告警列表
           </Title>
           <Text type="secondary">共 {filteredAlerts.length} 条告警</Text>
@@ -261,7 +261,7 @@ const MonitoringAlerts: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -279,6 +279,13 @@ const MonitoringAlerts: React.FC = () => {
         striped
       />
 
+      {filteredAlerts.length === 0 && !loading && (
+        <Empty
+          description="暂无告警"
+          style={{ marginTop: 48 }}
+        />
+      )}
+
       {/* Escalate Modal */}
       <Modal
         title="升级告警"
@@ -289,7 +296,7 @@ const MonitoringAlerts: React.FC = () => {
       >
         {selectedAlert && (
           <>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text type="secondary">告警:</Text> <Text strong>{selectedAlert.ruleName}</Text>
               <br />
               <Tag color={severityConfig[selectedAlert.severity]?.color}>

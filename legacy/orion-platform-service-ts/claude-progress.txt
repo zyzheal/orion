@@ -1,0 +1,2067 @@
+# Orion Platform Migration Progress
+
+## Current Session (2026-07-03) - Task 4.7: 密码哈希双实现修复
+
+### Completed: Task 4.7 — 删除死代码 `src/utils/password.ts`（PBKDF2）
+
+**发现**: 项目存在两套密码哈希实现：
+
+| 实现 | 文件 | 算法 | 状态 |
+|------|------|------|------|
+| `src/utils/password.ts` | PBKDF2 | 死代码，0 个 import 引用 |
+| `src/services/auth/PasswordService.ts` | bcrypt (rounds=12) | 活跃，2 个 consumer |
+
+**Consumer 分析**：
+- `src/api/routes-auth.ts` — 注册/登录使用 `PasswordService.hash()` + `verifyPassword()`
+- `src/services/user/UserService.ts` — 创建/验证用户密码使用同一 PasswordService
+
+**保留方案**: `src/services/auth/PasswordService.ts`（bcrypt）
+- 更广泛使用，已有依赖注入类
+- 支持向后兼容 PBKDF2/scrypt/SHA-256 legacy 格式
+- `src/utils/password.ts` 完全未被引用，属于死代码
+
+**操作**: 删除 `src/utils/password.ts`（168 行），无任何调用点受影响。
+
+**测试验证**:
+- `npx jest -- auth`: 22 suites, 419 passed（0 regression from password change）
+- `UserService.test.ts`: 17 passed
+- 失败项均为 `pino is not defined`（预存 logger 测试问题，与本次修改无关）
+
+#### Files Changed
+- `src/utils/password.ts` (deleted, 168 lines removed)
+- `claude-progress.txt` (updated)
+
+---
+
+## Previous Session (2026-06-03) - Fix 13 Failing Route Tests
+
+### Completed: Fix 13 Route Registration Tests
+
+修复了 13 个路由测试文件，它们因 "Plugin must be a function or a promise. Received: 'undefined'" 和其他初始化错误而失败。
+
+#### 问题分类与修复
+
+**Group A: Named Export 误用 Default Import (6 个文件)**
+
+| 文件 | 导出方式 | 修复 |
+|------|---------|------|
+| product-line-routes | `export async function productLineRoutes(app, options)` | 改为 named import，直接调用函数 |
+| maintenance-window-routes | `export async function registerMaintenanceWindowRoutes(app, deps)` | 改为 named import，直接调用函数 |
+| secret-routes | `export async function registerSecretRoutes(app, deps)` | 改为 named import，直接调用函数 |
+| apk-upload-history-routes | `export async function registerApkUploadHistoryRoutes(app)` | 改为 named import，直接调用函数 |
+| ai-agent-routes | `export function registerAIAgentRoutes(app)` | 改为 named import，直接调用函数 |
+| internal-library-routes | `export async function internalLibraryRoutes(app, options)` | 改为 named import，直接调用函数 |
+
+**Group B: Default Export 但服务初始化失败 (7 个文件)**
+
+| 文件 | 失败原因 | 修复方式 |
+|------|---------|---------|
+| auth-enhanced-routes | JwtKeyRotationService.initialize() 写 DB 失败 | Mock JwtKeyRotationService 和 TokenBlacklistService (EventEmitter) |
+| apm-routes | `/services/topology` 重复注册 | 删除源码中的重复路由 |
+| ticketing-routes | TicketService 构造函数需要 TicketingRepository | Mock TicketService/TicketingService/TicketingRepository |
+| self-healing-routes | 传入 `{}` 但需要 database | Mock SelfHealingRepository 和 SelfHealingService |
+| chatops-routes | CommandService.seedDefaults() 调用 findAll 失败 | Mock CommandService 和所有相关服务 |
+| mcp-routes | SSE 端点保持连接导致超时 | Mock McpServer，SSE 测试用 Promise.race 超时 |
+| sso-unified-routes | openid-client ESM 导入失败 | Mock SsoService 和相关服务模块 |
+
+#### 附加修复
+- `src/api/apm-routes.ts`: 删除了重复的 `/services/topology` 路由定义（行 200-223）
+
+#### 测试结果
+- **修复前**: 13 个测试文件全部失败 (0 passed)
+- **修复后**: 13 个测试文件全部通过 (75 tests passed)
+- **全量路由测试**: 136 suites, 643 tests passed, 0 regressions
+
+#### Files Changed
+- `src/api/__tests__/product-line-routes.test.ts` (fix import)
+- `src/api/__tests__/auth-enhanced-routes.test.ts` (mock services)
+- `src/api/__tests__/maintenance-window-routes.test.ts` (fix import)
+- `src/api/__tests__/secret-routes.test.ts` (fix import)
+- `src/api/__tests__/apm-routes.test.ts` (mock services)
+- `src/api/__tests__/ticketing-routes.test.ts` (mock services)
+- `src/api/__tests__/apk-upload-history-routes.test.ts` (fix import)
+- `src/api/__tests__/ai-agent-routes.test.ts` (fix import)
+- `src/api/__tests__/self-healing-routes.test.ts` (mock services)
+- `src/api/__tests__/internal-library-routes.test.ts` (fix import)
+- `src/api/__tests__/chatops-routes.test.ts` (mock services)
+- `src/api/__tests__/mcp-routes.test.ts` (mock services + SSE timeout fix)
+- `src/api/__tests__/sso-unified-routes.test.ts` (mock services)
+- `src/api/apm-routes.ts` (remove duplicate route)
+
+---
+
+## Current Session (2026-06-03) - Controller TDD Tests
+
+### Completed: src/api/controllers/ TDD Test Coverage
+
+为 `src/api/controllers/` 目录下全部 67 个控制器文件创建了 TDD 测试（含 1 个已有的 CmdbController 测试）。
+
+#### 测试统计
+- **测试文件**: 66 个新增 (CmdbController 已有)
+- **测试套件**: 66 passed
+- **测试用例**: 1280 passed
+- **运行时间**: ~1.6s
+
+#### 增强测试（核心控制器，含完整 mock 和边界测试）
+
+| 控制器 | 测试数 | 覆盖重点 |
+|--------|--------|---------|
+| PipelineController | 18 | CRUD, validate, 400/404/409/500 错误处理 |
+| DeployController | 15 | deploy, rollback, cancel, 400 验证, 404 not found |
+| UserController | 21 | list, create, update, delete, authenticate, changePassword |
+| TaskController | 10 | getById, getLog, retry (状态检查, 最大重试) |
+| SessionController | 14 | create, verify, revoke, cleanup, refreshToken |
+| SkillController | 13 | list, create, update, delete, install, rate, execute |
+| MetricsController | 12 | record, query, getStats (参数验证, 400/500) |
+| EnvironmentController | 19 | CRUD, updateStatus, lock/unlock, 400 验证 |
+| PolicyController | 11 | CRUD, evaluate, history, 400/404 错误 |
+| RoleController | 12 | list, create, update, delete (tenantId 验证) |
+
+#### 基础测试（65 个控制器，每个方法 2 个测试）
+
+所有剩余控制器均有基础测试覆盖：
+- 成功路径：验证 reply.send 或 reply.status 被调用
+- 错误路径：验证空 body/params 时不崩溃
+
+#### Files Created
+- `src/api/controllers/__tests__/*.test.ts` (65 个新文件)
+
+---
+
+## Previous Session (2026-06-03) - Models TDD Tests
+
+### Completed: src/models/ TDD Test Coverage
+
+为 `src/models/` 目录下全部 37 个源文件创建了 TDD 测试。
+
+#### 测试统计
+- **测试文件**: 37 个 (与源文件 1:1 对应)
+- **测试套件**: 37 passed
+- **测试用例**: 286 passed
+- **运行时间**: ~1.7s
+
+#### 测试覆盖的模型分类
+
+**工厂函数测试 (32 个文件有 create/update/lifecycle 函数)**:
+- AgentProfile: createAgentProfile, updateAgentProfile
+- AgentRun: createAgentRun, addDecision, completeDecision, failDecision, completeRun, failRun, cancelRun, createAgentApproval
+- BuildArtifact: createArtifact, recordArtifactDownload, ArtifactType, ArtifactStorageType
+- ArtifactOps: createArtifactOperation, createRetentionPolicy, createScanResult
+- ArtifactVersion: createArtifactVersion
+- Build: createBuild, BuildStatus enum
+- BuildCache: generateCacheKey, createBuildCacheConfig, updateBuildCacheConfig, createCacheEntry, recordCacheHit
+- BuilderImage: createBuilderImage, updateBuilderImage, isImageAvailable
+- BuildLog: createBuildLog, appendLogEntry, appendLogEntries, completeBuildLog, createLogEntry, parseLogLine
+- BuildPod: createBuildPod, updatePodStatus, isPodTerminal, isPodSuccessful
+- CanaryAnalysis: createCanaryAnalysisRun, createCanaryMetricResult, createCanaryMLResult, createCanaryAnalysisConfig, createCanaryDecision
+- ChangeIntelligence: computeRiskLevel, createChangeIntelligenceReport, createAffectedService, createRiskFactor, createHistoricalMatch
+- ChatOps: createChatOpsCommand, createChatOpsExecution, createChatOpsSession, createChatOpsAuditLog
+- CostRecord: createBudget, createCostRecord, createAlertRule, createModelPricing
+- DataPipeline: createDataPipeline, createPipelineExecution
+- DeploymentStrategy: createDeploymentStrategy, createDeploymentStepTracker, createHealthCheckResult
+- Environment: createEnvironment, mergeVariables
+- EphemeralEnvironment: createEphemeralEnvironment, markRunning, markIdle, markTearingDown, markDestroyed, wakeEnvironment
+- IacWorkspace: createIaCWorkspace, createIaCPlan, createIaCStateVersion, createIaCModule
+- Pipeline: createPipeline, PipelineStatus enum
+- PipelineRun: createPipelineRun, startPipelineRun, completePipelineRun, cancelPipelineRun
+- PolicyDefinition: createPolicyDefinition, createPolicyBundle, createPolicyEvaluation, createPolicyViolation, createPolicyOverride
+- QualityGate: createQualityGate
+- Runner: createRunner, isRunnerAvailable, getRunnerUtilization, isRunnerStale
+- RunnerJob: createRunnerJob, startRunnerJob, completeRunnerJob, failRunnerJob
+- SbomDocument: createSbomDocument, createSbomPackage, createSbomAttestation, createSbomVulnerabilityResult, createSbomWaiver
+- SkillPackage: createSkillPackage, createSkillVersion, createSkillReview
+- Stage: createStage, startStage, completeStage, failStage, skipStage, canRetryStage, incrementStageRetry
+- SubPipeline: createSubPipelineInvocation, startSubPipeline, completeSubPipeline, failSubPipeline, cancelSubPipeline
+- Task: createTask, startTask, completeTask, failTask, appendTaskLog, canRetryTask, incrementTaskRetry
+- TestReport: createTestReport, createTestCase
+
+**纯类型定义兼容性测试 (5 个文件)**:
+- Artifact (Registry): ArtifactType, ArtifactStatus enums, interface compatibility
+- ExtendedArtifact: 所有接口类型兼容性验证
+- InternalLibrary: 所有接口类型兼容性验证
+- Job: JobPriority enum, 接口类型兼容性验证
+- PluginAuditLog: action/outcome 类型兼容性验证
+- ProductLine: 所有复杂嵌套接口类型兼容性验证
+
+#### Files Created
+- `src/models/__tests__/AgentProfile.test.ts`
+- `src/models/__tests__/AgentRun.test.ts`
+- `src/models/__tests__/Artifact.test.ts`
+- `src/models/__tests__/ArtifactOps.test.ts`
+- `src/models/__tests__/ArtifactVersion.test.ts`
+- `src/models/__tests__/Build.test.ts`
+- `src/models/__tests__/BuildArtifact.test.ts`
+- `src/models/__tests__/BuildCache.test.ts`
+- `src/models/__tests__/BuilderImage.test.ts`
+- `src/models/__tests__/BuildLog.test.ts`
+- `src/models/__tests__/BuildPod.test.ts`
+- `src/models/__tests__/CanaryAnalysis.test.ts`
+- `src/models/__tests__/ChangeIntelligence.test.ts`
+- `src/models/__tests__/ChatOps.test.ts`
+- `src/models/__tests__/CostRecord.test.ts`
+- `src/models/__tests__/DataPipeline.test.ts`
+- `src/models/__tests__/DeploymentStrategy.test.ts`
+- `src/models/__tests__/Environment.test.ts`
+- `src/models/__tests__/EphemeralEnvironment.test.ts`
+- `src/models/__tests__/ExtendedArtifact.test.ts`
+- `src/models/__tests__/IacWorkspace.test.ts`
+- `src/models/__tests__/InternalLibrary.test.ts`
+- `src/models/__tests__/Job.test.ts`
+- `src/models/__tests__/Pipeline.test.ts`
+- `src/models/__tests__/PipelineRun.test.ts`
+- `src/models/__tests__/PluginAuditLog.test.ts`
+- `src/models/__tests__/PolicyDefinition.test.ts`
+- `src/models/__tests__/ProductLine.test.ts`
+- `src/models/__tests__/QualityGate.test.ts`
+- `src/models/__tests__/Runner.test.ts`
+- `src/models/__tests__/RunnerJob.test.ts`
+- `src/models/__tests__/SbomDocument.test.ts`
+- `src/models/__tests__/SkillPackage.test.ts`
+- `src/models/__tests__/Stage.test.ts`
+- `src/models/__tests__/SubPipeline.test.ts`
+- `src/models/__tests__/Task.test.ts`
+- `src/models/__tests__/TestReport.test.ts`
+
+---
+
+## Previous Session (2026-06-03) - Fix Skipped Tests
+
+### Completed: Fix 3 Skipped Test Files
+
+修复了 3 个测试文件中被跳过的测试，使其与实际实现匹配。
+
+#### Changes Made
+
+1. **CacheMonitorService.test.ts** - `describe.skip('recordCacheHit')` 和 `describe.skip('recordCacheMiss')`
+   - 原因: 测试调用 `service.recordCacheHit()` 和 `service.recordCacheMiss()`，但 Service 层实际暴露的是 `recordCacheEvent(cacheId, tenantId, eventType, latencySavedMs)` 方法
+   - 修复: 将两个 `describe.skip` 合并为一个 `describe('recordCacheEvent')`，使用实际存在的 API，添加两个测试（hit 和 miss）
+
+2. **AdaptiveTimeoutService.test.ts** - `it.skip('should do nothing when db is not available')`
+   - 原因: `recordExecution` 的 catch 块调用 `this.pool.query('ROLLBACK')` 时，当 pool 为 null 会抛出 TypeError
+   - 修复: 在 catch 块中添加 `if (this.pool)` 空值检查（源码 bug 修复），然后启用测试
+
+3. **ConfigService.test.ts** - `it.skip('should allow setting event publisher after construction')`
+   - 原因: `setEventPublisher` 方法尚未在 ConfigService 上实现
+   - 修复: 改为 `it.todo` 并添加 TODO 注释
+
+#### Files Changed
+- `src/services/cache-monitor/__tests__/CacheMonitorService.test.ts` (rewrite skipped tests)
+- `src/services/pipeline/AdaptiveTimeoutService.ts` (fix null pool bug in catch block)
+- `src/services/pipeline/__tests__/AdaptiveTimeoutService.test.ts` (unskip test)
+- `src/services/config-mgmt/__tests__/ConfigService.test.ts` (skip -> todo)
+
+#### Test Results
+- **Test Suites**: 4 passed, 4 total
+- **Tests**: 122 passed, 1 todo, 123 total
+
+---
+
+### Completed: Batch Index Export Verification Tests for 39 Modules
+
+批量为 39 个缺失 index.test.ts 的服务模块补充导出验证测试。
+
+#### Changes Made
+
+**新增 39 个 index.test.ts 测试文件**，覆盖以下模块：
+agent, alert, api-governance, artifact, auth, backup, build, cache, capability, chaos-engineering, chatops, config-mgmt, cost-tracking, cross-domain-orchestration, degradation, digital-twin, efficiency, environment, escalation, federation, finops, guardian, knowledge, llm-trace, model-version, monitoring, multi-cloud, multi-modal-trigger, notification, observability, privacy, project, queue, sbom, scheduler, security, test-generation, ticketing, user
+
+**每个测试文件验证**：
+- 所有公共类/函数导出存在且类型正确
+- 模块可正常导入无错误
+- 接口/类型导出通过模块可导入性验证（运行时不存在的类型不直接断言）
+
+**Jest 配置更新** (`jest.config.js`)：
+- 添加 `openid-client` 和 `oauth4webapi` 到 `transformIgnorePatterns`，支持 ESM-only 包的测试
+
+**Auth 模块特殊处理**：
+- 添加 `openid-client` 和 `SsoStateRepository` 的 mock，解决 ESM 依赖问题
+
+#### Test Results
+- **Test Suites**: 74 passed, 74 total
+- **Tests**: 572 passed, 572 total
+- **新增测试文件**: 39 个
+- **新增测试用例**: 约 200+ 个
+
+#### Files Changed
+- `jest.config.js` (添加 openid-client 到 transformIgnorePatterns)
+- `src/services/*/index.test.ts` (39 个新文件)
+
+---
+
+## Previous Session (2026-05-17)
+
+### Completed: SSO/OIDC Integration for Enterprise Authentication
+
+Added OpenID Connect (OIDC) support as a secondary authentication method
+alongside the existing local username/password + JWT system.
+
+#### Changes Made
+- **Added dependency**: `openid-client@^6.8.4` (latest v6 API, oauth4webapi-based)
+- **Created** `src/services/auth/SsoService.ts`:
+  - OIDC discovery via `discovery()` — dynamically reads provider metadata
+  - Authorization URL generation with PKCE-style nonce + state (CSRF protection)
+  - Callback handling with `authorizationCodeGrant()` — exchanges code for tokens
+  - ID token claims extraction (sub, email, name, groups, roles)
+  - In-memory state store with automatic 10-minute cleanup
+  - Safe initialization — platform starts even if SSO is misconfigured
+  - `getConfig()` strips clientSecret for safe admin UI exposure
+- **Created** `src/api/sso-routes.ts`:
+  - `GET /api/v1/auth/sso/login` — redirects to SSO provider
+  - `GET /api/v1/auth/sso/callback` — handles OAuth2 callback, auto-provisions user, issues JWT
+  - `GET /api/v1/auth/sso/status` — returns SSO configuration status (for login page)
+  - `GET /api/v1/auth/sso/config` — returns SSO config details (for admin settings)
+  - Auto-provisioning: creates new user on first SSO login with role mapping
+  - Links existing local accounts: updates `sso_sub` if user registered locally first
+- **Created** `src/db/migrations/159_sso_support.sql`:
+  - Adds `sso_sub VARCHAR(255)` column to `users` table
+  - Creates index `idx_users_sso_sub` for efficient SSO lookups
+- **Created** `src/db/migrations/159_rollback_sso_support.sql`:
+  - Drops index and column for rollback
+- **Modified** `src/services/auth/index.ts`: exports `SsoService`, `SsoConfig`, `SsoUserProfile`
+- **Modified** `src/app.ts`: registers SSO routes under `/api/v1/auth` prefix
+
+#### Environment Variables
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SSO_ENABLED` | Yes | Set to `"true"` to enable SSO |
+| `SSO_ISSUER_URL` | Yes | OIDC issuer URL (e.g., `https://accounts.google.com`) |
+| `SSO_CLIENT_ID` | Yes | OAuth2 client ID |
+| `SSO_CLIENT_SECRET` | Yes | OAuth2 client secret |
+| `SSO_REDIRECT_URI` | No | Callback URL (defaults to `{BASE_URL}/api/v1/auth/sso/callback`) |
+| `SSO_SCOPES` | No | Comma-separated scopes (defaults to `openid,email,profile`) |
+
+#### Test Results
+- TypeScript type-check: passed with no errors
+- No regressions introduced
+
+#### Commit
+- `5d289c07` feat(auth): add SSO/OIDC integration for enterprise authentication
+
+---
+
+### Completed: OpenAPI/Swagger Documentation Auto-Generation
+
+Added OpenAPI 3.0 specification auto-generation and Swagger UI to the Orion Platform Service.
+
+#### Changes Made
+- **Added dependencies**: `@fastify/swagger@^9.7.0` and `@fastify/swagger-ui@^5.2.6`
+- **Modified** `src/app.ts`:
+  - Registered `@fastify/swagger` with OpenAPI 3.0 config (info, servers, tags, security schemes)
+  - Registered `@fastify/swagger-ui` at `/api-docs` route prefix
+  - Added `transform` function for JSON Schema to OpenAPI compatibility
+- **Added schema examples** to two route files as reference patterns:
+  - `src/api/maintenance-window-routes.ts`: POST and GET endpoints with body/querystring/response schemas
+  - `src/api/user-routes.ts`: GET (list + by ID) and POST (create) endpoints with params/body/response schemas
+
+#### Swagger UI Access
+- Development: `http://localhost:3001/api-docs`
+- OpenAPI JSON spec: `http://localhost:3001/api-docs/json`
+
+#### Test Results
+- TypeScript type-check: passed with no errors
+- No regressions introduced
+
+#### Commit
+- `fa9bd551` feat: add OpenAPI/Swagger documentation auto-generation to platform service
+
+---
+
+## Previous Session (2026-05-16)
+
+### Completed: OPA Policy Engine in orion-security-svc
+
+实现了 Open Policy Agent (OPA) 集成，支持策略即代码治理。
+
+#### Files Created/Modified
+- `orion-security-svc/src/services/OPAPolicyService.ts` (new)
+  - Policy/PolicyRule/PolicyBundle 接口定义
+  - createPolicy(): 创建策略
+  - evaluate(): 策略评估（支持 strict/permissive/audit 模式）
+  - evaluateRule(): 基于角色/租户的规则评估
+  - CRUD: getPolicy, listPolicies, updatePolicy, deletePolicy
+  - 策略 bundles: createBundle, evaluateBundle, deleteBundle
+  - togglePolicy(): 启用/禁用策略
+
+- `orion-security-svc/src/services/__tests__/OPAPolicyService.test.ts` (new, 28 tests)
+  - createPolicy 测试
+  - evaluate 测试（strict, permissive, audit 模式）
+  - 角色/租户条件评估测试
+  - CRUD 测试
+  - Bundle 测试
+
+- `orion-security-svc/src/routes/security-routes.ts` (modified)
+  - POST /api/v1/security/policies - 创建策略
+  - GET /api/v1/security/policies - 列表策略
+  - GET /api/v1/security/policies/:id - 获取策略
+  - PUT /api/v1/security/policies/:id - 更新策略
+  - DELETE /api/v1/security/policies/:id - 删除策略
+  - POST /api/v1/security/policies/evaluate - 评估输入
+  - POST /api/v1/security/policies/bundles - 创建 bundle
+  - GET /api/v1/security/policies/bundles - 列表 bundles
+  - GET /api/v1/security/policies/bundles/:id - 获取 bundle
+  - POST /api/v1/security/policies/bundles/:id/evaluate - 评估 bundle
+  - DELETE /api/v1/security/policies/bundles/:id - 删除 bundle
+  - PATCH /api/v1/security/policies/:id/toggle - 切换策略状态
+
+- `orion-security-svc/package.json` (modified)
+  - 添加 jest, @types/jest, ts-jest 依赖
+  - 添加 jest 配置和 test 脚本
+
+#### Test Results
+- 28 tests passed
+
+#### Commit
+- `3545b6de` feat(security): implement OPA Policy Engine in orion-security-svc
+
+---
+
+## Previous Session (2026-05-14)
+
+### In Progress: TypeScript Compilation Error Fixes
+
+经过全面检查服务目录，大部分服务已经有完整的业务逻辑实现，未发现空的 `constructor: {}` 空壳服务。
+
+之前迭代已完成空壳服务实现：
+- DigitalTwinService, RiskAssessmentService, PolicyEvaluationService, KnownIssueService
+- SubPipelineService, ReleaseTrainService, CanaryTrafficService, TriggerService
+- SmartDeployService, CostOptimizationService, PluginMarketplaceService, ArtifactOperationService
+- Multiple other services migrated from Map to PostgreSQL Repository
+
+#### Fixed Issues (2026-05-14)
+
+| Category | Files Modified | Issues Resolved |
+|----------|---------------|-----------------|
+| code-repo exports | types.ts, index.ts | Added RepoType, PullRequestStatus, WebhookEventType, ICodeRepoAdapter, Repository, Branch, Commit, etc. |
+| ICodeRepoAdapter | GerritAdapter.ts, GitLabAdapter.ts | Fixed listRepositories, listBranches, listPullRequests, listCommits, getBranchProtection return types |
+| PolicyService | PolicyService.ts | Added listBundles, getBundle, syncBundles, testPolicy, toggle, evaluate, getEvaluationHistory |
+| PolicyEvaluationService | PolicyEvaluationService.ts | Added evaluateGate, getEvaluations, getViolationById, waiveViolation, resolveViolation, listOverrides, createOverride |
+| SecretsService | SecretsService.ts | Added getSecretEntity, listSecretEntities, getSecretEntityById, updateSecretValue, updateSecretDescription, deleteSecretById, resolveAndReplaceSecrets |
+| QueueService | QueueService.ts | Added getStats method |
+| CanaryAnalysisService | CanaryAnalysisService.ts | Added retrainModel method |
+| SbomDocumentService | SbomDocumentService.ts | Added getComplianceReport, getEO14028Compliance, getEUCRACompliance, createProvenance, listProvenance, verifyProvenance, evaluateGate, getGateHistory |
+| PipelineController | PipelineController.ts | Fixed camelCase to snake_case (created_at, created_by, updated_at) |
+| CodeRepoController | CodeRepoController.ts | Fixed method signatures and property names |
+
+#### Remaining Errors (~177)
+
+- Repository constructors passed incorrectly to services
+- Fastify instance missing emit/on methods
+- Service method signatures still mismatched in some routes
+
+---
+
+## Previous Session (2026-05-14)
+
+### Completed: Empty-Shell Services Implementation (Round 3)
+
+实现了四个空壳服务的完整功能逻辑。
+
+#### Services Implemented
+
+| Service | Location | Methods Added |
+|---------|----------|---------------|
+| DigitalTwinService | `src/services/digital-twin/DigitalTwinService.ts` | createTwin(), getTwin(), listTwins(), updateTwin(), deleteTwin(), getMetrics(), syncTwin() |
+| RiskAssessmentService | `src/services/risk-engine/RiskAssessmentService.ts` | getPrediction(), getPredictionByTarget(), listPredictions(), getRiskTrend(), getHighRiskPredictions(), clearCache() |
+| PolicyEvaluationService | `src/services/policy/PolicyEvaluationService.ts` | getComplianceStatus(), getEnforcementSummary() |
+| KnownIssueService | `src/services/issue/KnownIssueService.ts` | createIssue(), getIssue(), listIssues(), updateIssue(), deleteIssue(), resolveIssue(), linkTicket(), findByFingerprint(), getOpenIssues(), getStats() |
+| RiskPredictionRepository | `src/repositories/RiskPredictionRepository.ts` | findById() |
+
+#### Changes Made
+
+1. **DigitalTwinService** - 添加数字孪生配置管理方法：
+   - createTwin(): 创建新的数字孪生配置
+   - getTwin()/listTwins(): 查询数字孪生
+   - updateTwin(): 更新数字孪生配置 (status, serviceStates, healthScore)
+   - deleteTwin(): 删除数字孪生
+   - getMetrics(): 获取数字孪生指标 (健康分, 服务数量, sandbox数量)
+   - syncTwin(): 同步数字孪生状态
+   - 集成 DigitalTwinEnhancedRepository (TwinConfigRepository, SandboxRepository, RecordingSessionRepository)
+
+2. **RiskAssessmentService** - 添加风险预测查询方法：
+   - getPrediction(): 根据ID获取预测结果
+   - getPredictionByTarget(): 根据目标类型和ID获取预测
+   - listPredictions(): 列表查询预测结果 (支持按租户/风险等级过滤)
+   - getRiskTrend(): 获取风险趋势 (按天统计)
+   - getHighRiskPredictions(): 获取高风险预测列表
+   - clearCache(): 清除缓存
+
+3. **PolicyEvaluationService** - 添加合规状态查询：
+   - getComplianceStatus(): 获取合规状态统计 (通过率, 按策略统计)
+   - getEnforcementSummary(): 获取策略执行摘要 (违规数, 策略统计)
+
+4. **KnownIssueService** - 创建新的已知问题管理服务：
+   - 完整的 CRUD 操作
+   - 解决/链接工单操作
+   - 按指纹搜索 (去重功能)
+   - 统计功能
+
+5. **RiskPredictionRepository** - 添加 findById() 方法
+
+#### TypeScript 验证
+```
+npx tsc --noEmit
+# 仅 Controller 有预存在的编译错误, 我们的服务实现无错误
+```
+
+---
+
+### Previous: Operations Services PostgreSQL Repository Migration
+
+迁移运维相关服务到 PostgreSQL Repository。
+
+#### Services Migrated
+| Service | Status | Notes |
+|---------|--------|-------|
+| OnCallService | ✅ Migrated | Requires PostgreSQL, removed in-memory Map fallback |
+| NamespacePoolService | ✅ Migrated | Requires PostgreSQL (constructor now requires db param) |
+| MaintenanceWindowService | ✅ Created | New service with full CRUD using existing Repository |
+| CronSchedulerService | ✅ Already migrated | Already uses CronJobRepository/CronExecutionRepository |
+
+#### Test Results
+```
+NamespacePoolService tests: 31 passed
+OnCallService tests: 6 passed
+```
+
+---
+
+### Previous: Empty-Shell Services Implementation (Round 2)
+
+实现了四个空壳服务的完整功能逻辑。
+
+#### Changes Made
+- **SubPipelineService** (`src/services/pipeline/SubPipelineService.ts`)
+  - 从空构造函数实现完整的子流水线服务
+  - 使用 SubPipelineRepository
+  - 支持 PipelineEngine 集成方法: invoke, waitForCompletion, getResults, markFailed
+
+- **ReleaseTrainService** (`src/services/release-train/ReleaseTrainService.ts`)
+  - 创建独立的服务文件，实现完整的发布列车服务
+  - 使用 ProductLineRepository 中的 ReleaseTrainRepository
+  - 方法: createRelease(), getRelease(), listReleases(), scheduleRelease(), cancelRelease()
+
+- **CanaryTrafficService** (`src/services/canary-traffic/CanaryTrafficService.ts`)
+  - 已有完整实现，包含 setTrafficRules(), getTrafficConfig(), updateTraffic(), deleteTraffic()
+
+- **TriggerService** (`src/services/multi-modal-trigger/UnifiedTriggerService.ts`)
+  - 已有完整实现，包含 registerTrigger(), getTrigger(), listTriggers(), deleteTrigger()
+
+#### Implemented Methods
+
+**SubPipelineService**:
+- `create()`: 创建子流水线调用记录
+- `getById()`: 根据 ID 获取子流水线
+- `list()`: 列出子流水线，支持过滤
+- `update()`: 更新子流水线状态
+- `delete()`: 删除子流水线
+- `invoke()`: PipelineEngine 集成 - 调用子流水线
+- `waitForCompletion()`: PipelineEngine 集成 - 等待完成
+- `getResults()`: PipelineEngine 集成 - 获取结果
+
+**ReleaseTrainService**:
+- `createRelease()`: 创建发布列车
+- `getRelease()`: 获取发布列车
+- `listReleases()`: 列出发布列车
+- `scheduleRelease()`: 调度发布
+- `cancelRelease()`: 取消发布
+
+#### Files Changed
+- `src/services/pipeline/SubPipelineService.ts` (implemented)
+- `src/services/release-train/ReleaseTrainService.ts` (created)
+
+---
+
+### Previous: Security and Knowledge Services PostgreSQL Migration
+
+分析了4个需要迁移的服务：
+
+1. **KnowledgeEmbeddingService** - 已使用 KnowledgeEmbeddingRepository，无需迁移
+2. **ModelVersionService** - 已使用 ModelVersionRepository，无需迁移
+3. **SkillRepositoryService** - 已使用 SkillRepository，无需迁移
+4. **TenantQuotaService** - 需要迁移（已迁移）
+
+#### Changes Made
+- Modified `src/services/tenant/TenantQuotaService.ts`
+- Modified `src/api/tenant-routes.ts`
+- Fixed `src/services/audit/AuditLogChain.ts`
+
+#### Commit
+- `882d641` refactor(tenant): migrate TenantQuotaService to PostgreSQL Repository only
+
+---
+
+### Previous: API Governance Services PostgreSQL Repository Migration
+
+迁移 API 治理相关服务到 PostgreSQL Repository。
+
+#### Analysis Results
+| Service | Status | Notes |
+|---------|--------|-------|
+| ApiContractService | Already uses Repository | Uses ApiContractRepository + ApiContractViolationRepository |
+| ApiVersionService | Already uses Repository | Uses ApiVersionRepository |
+| ApiGovernanceService | Refactored | Uses GovernanceRuleRepository + ApiInventoryRepository |
+
+#### Changes Made
+- Modified `src/services/api-governance/ApiGovernanceService.ts`
+- Fixed `src/repositories/ApiGovernanceRepository.ts`
+- Created migrations for API governance tables
+
+#### Test Results
+- API Governance tests: 31 passed
+
+---
+
+### Previous: Empty-Shell Services Implementation
+
+实现了四个空壳服务的完整功能逻辑。
+
+#### Changes Made
+- **SmartDeployService** (`src/services/smart-deploy/SmartDeployService.ts`)
+  - 从空构造函数实现完整智能部署服务
+  - 使用 DeploymentHistoryRepository、DeploymentStrategyRepository、DeploymentStepTrackerRepository
+
+- **CostOptimizationService** (`src/services/cost/CostOptimizationService.ts`)
+  - 从空构造函数实现完整成本优化服务
+  - 使用 CostRecordRepository 获取成本指标
+
+- **PluginMarketplaceService** (`src/services/plugin-marketplace/PluginMarketplaceService.ts`)
+  - 从空构造函数实现完整插件市场服务
+  - 使用 PostgresPluginRepository、PluginExecutionRepository、PluginAuditLogRepository
+
+- **ArtifactOperationService** (`src/services/artifact-ops/ArtifactOperationService.ts`)
+  - 从空构造函数实现完整制品操作追踪服务
+  - 使用 ArtifactOperationRepository
+
+#### Implemented Methods
+
+**SmartDeployService**:
+- `deploy(input)`: 创建并执行部署
+- `getStatus(id)`: 获取部署状态
+- `getHistory(filter)`: 获取部署历史
+- `getMetrics(filter)`: 获取部署指标
+- `getAuditTrail(deploymentId)`: 获取审计日志
+- `rollback(deploymentId, reason, triggeredBy, targetVersion)`: 回滚
+- `getRollbackHistory(deploymentId)`: 获取回滚历史
+- `cancelDeployment(deploymentId, cancelledBy)`: 取消部署
+- `getLatestDeployment(appName, environment)`: 获取最新部署
+
+**CostOptimizationService**:
+- `recordUtilization(tenantId, record)`: 记录资源利用率
+- `analyzeResourceUtilization(tenantId)`: 分析资源利用率
+- `getOptimizationSuggestions(tenantId, options)`: 获取优化建议
+- `generateSuggestions(tenantId)`: 生成优化建议
+- `applySuggestion(tenantId, suggestionId)`: 应用建议
+- `rejectSuggestion(tenantId, suggestionId)`: 拒绝建议
+- `getCostMetrics(params)`: 获取成本指标
+
+**PluginMarketplaceService**:
+- `listPlugins(filter)`: 列出插件
+- `getPlugin(pluginId)`: 获取插件详情
+- `publishPlugin(tenantId, input)`: 发布插件
+- `installPlugin(input, userId)`: 安装插件
+- `reviewPlugin(input)`: 提交评论
+- `getPluginQualityScore(pluginId)`: 获取质量分数
+- `getPluginStats()`: 获取统计信息
+- `uninstallPlugin(tenantId, pluginId)`: 卸载插件
+
+**ArtifactOperationService**:
+- `trackOperation(tenantId, input)`: 追踪操作
+- `getOperationHistory(tenantId, filter)`: 获取操作历史
+- `getArtifactStats(tenantId)`: 获取制品统计
+- `deleteTenantOperations(tenantId)`: 删除租户操作记录
+- `deleteArtifactOperations(tenantId, artifactId)`: 删除制品操作记录
+- `updateOperationStatus(...)`: 更新操作状态
+
+#### Test Results
+- Existing finops/cost tests: 186 passed
+- TypeScript compilation: No errors in implemented services
+- Service instantiation: Verified working
+
+---
+
+### Previous: CanaryAnalysisService Full Implementation
+
+实现了完整的 DisasterRecoveryService 灾备管理功能。
+
+#### Changes Made
+- **Modified** `src/services/disaster-recovery/DisasterRecoveryService.ts`
+  - DR Plan CRUD: createPlan, getPlan, listPlans, updatePlan, deletePlan
+  - Failover operations: triggerFailover, testFailover, completeFailoverTest, listFailoverTests
+  - Backup configuration: createBackupConfig, listBackupConfigs, updateBackupConfig, deleteBackupConfig
+  - RTO/RPO tracking: getRTOStatus, getRPOStatus with compliance reporting
+  - Drill scheduling: scheduleDrill, listDrills, executeScheduledDrill, getDrillReport
+  - Automated failover testing: runAutomatedFailoverTest
+  - Full input validation: plan name, RTO/RPO targets, failover strategy
+  - Error handling with DisasterRecoveryError codes
+  - Degraded mode support when repository is unavailable
+
+- **Created** `src/services/disaster-recovery/__tests__/DisasterRecoveryService.test.ts`
+  - 39 unit tests covering all major functionality
+
+#### Test Status
+- **DisasterRecoveryService tests**: 39 passed
+
+#### Commit
+- `62b8cb8` feat(disaster-recovery): implement full DisasterRecoveryService with PostgreSQL Repository
+
+---
+
+### Previous: QueueService Full Implementation
+
+实现了完整的 QueueService 任务队列管理功能。
+
+#### Changes Made
+- **Created** `src/models/Job.ts`
+  - Job: 任务定义 (id, tenantId, queueName, jobType, payload, status, priority, result, etc.)
+  - JobStatus: pending | running | completed | failed | cancelled
+  - JobPriority: LOW(-1), NORMAL(0), HIGH(1), CRITICAL(2)
+  - JobInput: 入队输入接口
+  - QueueStats: 队列统计接口
+  - ListJobsOptions: 任务列表查询选项
+
+- **Created** `src/repositories/JobRepository.ts`
+  - PostgresJobRepository: PostgreSQL 数据访问层
+  - create(): 创建任务
+  - findById(): 按ID查询
+  - findByTenant(): 按租户查询
+  - findPending(): 优先级出队查询 (FOR UPDATE SKIP LOCKED)
+  - findByStatus(): 按状态查询
+  - update(): 更新任务状态/结果
+  - countByStatus/countByOptions: 统计查询
+  - getStats(): 队列统计
+
+- **Created** `src/db/migrations/148_create_queue_jobs_table.sql`
+  - queue_jobs 表: 通用任务队列表
+  - 字段: id, tenant_id, queue_name, job_type, payload, status, priority, result, error_message, max_attempts, attempts, next_retry_at, started_at, completed_at, created_at, updated_at
+  - 索引: 优先级出队, 重试调度, 租户过滤, 队列名过滤
+
+- **Created** `src/db/migrations/148_rollback_queue_jobs_table.sql`
+
+- **Implemented** `src/services/queue/QueueService.ts`
+  - enqueue(job): 入队任务
+  - dequeue(tenantId): 优先级出队任务
+  - getJob(id): 获取任务
+  - listJobs(options): 列出任务(支持分页/过滤)
+  - completeJob(id, result): 完成任务
+  - failJob(id, error): 标记失败并自动调度重试(指数退避)
+  - cancelJob(id): 取消待处理任务
+  - requeue(id): 重试失败任务
+  - getQueueStats(): 获取队列统计
+  - 支持 PostgreSQL Repository 和内存回退模式
+
+- **Created** `src/services/queue/__tests__/QueueService.test.ts`
+  - 27 tests covering all service methods
+  - In-memory fallback mode tests
+
+#### Test Results
+```
+Test Suites: 1 passed
+Tests:       27 passed
+```
+
+#### Files Changed
+- `src/models/Job.ts` (new)
+- `src/repositories/JobRepository.ts` (new)
+- `src/db/migrations/148_create_queue_jobs_table.sql` (new)
+- `src/db/migrations/148_rollback_queue_jobs_table.sql` (new)
+- `src/services/queue/QueueService.ts` (implemented)
+- `src/services/queue/__tests__/QueueService.test.ts` (new)
+
+---
+
+## Previous Session (2026-05-14)
+
+### Completed: IaC Services PostgreSQL Repository Migration
+
+分析并修复 IaC 相关服务的 PostgreSQL Repository 集成。
+
+#### Initial Analysis
+经过全面检查,发现 IaC 服务已经在之前的迭代中迁移到 PostgreSQL Repository 模式:
+- **WorkspaceService** 使用 `IaCWorkspaceRepository`, `IaCStateVersionRepository`, `IaCModuleRepository`
+- **PlanService** 使用 `IaCPlanRepository`
+
+#### Issues Fixed
+1. **Removed legacy in-memory IaCRepository.ts** - 删除了使用 Map 的遗留实现
+2. **Fixed PlanService.create()** - name 字段使用正确的生成逻辑,添加 workspace_id 字段
+3. **Fixed PlanService.listByWorkspace()** - 使用正确的 workspaceId 字段进行过滤(之前错误使用 name)
+4. **Added findByWorkspaceId** - 为 IaCPlanRepository 添加了按 workspaceId 查询的方法(将来优化用)
+5. **Fixed migration 044** - 为 iac_plans 表添加缺失的 workspace_id 列和索引
+
+#### Test Results
+```
+Test Suites: 4 passed, 4 total
+Tests:       86 passed, 86 total
+```
+
+#### Files Changed
+- `src/services/iac/IaCRepository.ts` (deleted)
+- `src/services/iac/index.ts` (updated exports)
+- `src/services/iac/PlanService.ts` (bug fixes)
+- `src/repositories/IaCPlanRepository.ts` (new method)
+- `src/db/migrations/044_create_iac_plans.sql` (schema fix)
+
+### Previous Session
+
+### Completed: SecurityScannerService PostgreSQL Migration
+
+将 SecurityScannerService 从内存 Map 存储迁移到 PostgreSQL Repository 模式。
+
+#### Changes Made
+- **Modified** `src/services/security/SecurityScannerService.ts`
+  - Removed `memoryCache: Map<string, ScanResult[]>` property
+  - `scan()` now persists directly to PostgreSQL (no longer caches in memory)
+  - `checkGate()` looks up exclusively from database via SecurityScanRepository
+  - `getScanHistory()` queries directly from database
+  - `getSecurityMetrics()` uses database stats + findRecent for trend calculation
+  - Removed `getRecentScansFromDb()` placeholder (replaced by repository method)
+
+- **Modified** `src/repositories/SecurityScanRepository.ts`
+  - Added `findRecent(limit)` method for retrieving recent scans across all repositories
+
+- **Modified** `src/services/security/__tests__/SecurityScannerService.test.ts`
+  - Updated mocks to return data conditionally based on input parameters
+  - All 14 tests pass
+
+## Previous Session (2026-05-08)
+
+### Completed: GAP-CN-07 Build Resource Pool (Runner Management)
+
+实现了构建资源池功能，支持远程 Runner 管理、标签路由、资源隔离。
+
+#### Features Implemented
+- **Created** `src/models/Runner.ts`
+  - Runner: 远程 Runner 定义 (id, tenantId, name, status, labels, maxConcurrent, currentJobs, lastHeartbeat, metadata, endpoint)
+  - RunnerStatus: online | offline | busy | draining
+  - Helper functions: isRunnerAvailable(), getRunnerUtilization(), isRunnerStale()
+
+- **Created** `src/models/RunnerJob.ts`
+  - RunnerJob: 任务分发追踪 (id, runnerId, taskId, stageId, runId, tenantId, status, result, error)
+  - Lifecycle helpers: createRunnerJob, startRunnerJob, completeRunnerJob, failRunnerJob
+
+- **Created** `src/repositories/RunnerRepository.ts`
+  - 基于 PostgreSQL 的 Runner 数据访问层
+  - findByTenant, findByStatus, findByLabels (AND 匹配), findAvailableForTenant
+  - updateHeartbeat, decrementJobs, CRUD 方法
+
+- **Created** `src/repositories/RunnerJobRepository.ts`
+  - 任务分发记录存储
+  - findByRunnerId, findByStatus, findByTaskId
+  - markComplete, markFailed
+
+- **Created** DB migration 141:
+  - `141_create_runner_pool_tables.sql`: runners + runner_jobs 表
+  - 配套回滚脚本 `141_rollback_create_runner_pool_tables.sql`
+
+- **Created** `src/services/pipeline/RunnerPoolService.ts`
+  - registerRunner(): 注册新 Runner
+  - deregisterRunner(): 注销 Runner
+  - heartbeat(): 更新心跳
+  - selectRunner(labels, tenantId): 标签路由选择（AND 匹配，选利用率最低的）
+  - executeOnRunner(runnerId, task, endpoint): HTTP 分发任务到远程 Runner
+  - releaseRunner(): 释放 Runner（递减 current_jobs）
+  - markJobComplete/markJobFailed(): 标记任务完成/失败
+  - getStaleRunners(): 检测心跳过期的 Runner
+  - markStaleRunnersOffline(): 自动标记过期 Runner 为 offline
+
+- **Updated** `src/engine/TaskRunner.ts`
+  - 新增 runnerPoolService 可选依赖
+  - run() 方法中检测 __runnerLabels 参数
+  - 如果标签匹配且有可用 Runner，通过 HTTP 分发到远程 Runner
+  - 远程执行失败或无匹配 Runner 时自动降级为本地执行
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - initializeTasks() 新增 runsOn 参数
+  - 从 PipelineStage 的 runsOn 字段提取标签，注入到任务的 parameters.__runnerLabels
+  - 实现标签到远程 Runner 的路由
+
+- **Created** `src/services/pipeline/__tests__/RunnerPoolService.test.ts` (18 tests)
+  - Runner 注册/注销: 2 tests
+  - 心跳管理: 2 tests
+  - 标签路由选择: 6 tests (匹配/不匹配/满负载/离线/draining/最优选择)
+  - 远程任务分发: 2 tests (成功/失败)
+  - Runner 释放: 1 test
+  - 任务完成: 1 test
+  - 过期检测: 1 test
+  - DB 不可用模式: 2 tests
+
+### Test Status
+- **GAP-CN-07 tests**: 18 passed
+- **Engine tests**: 206 passed (no regressions)
+- **Pipeline service tests**: 551 passed (no new regressions)
+
+### Commits
+- `f919465` feat(pipeline): implement deployment strategies (GAP-CN-03) and runner pool (GAP-CN-07)
+
+### Completed: GAP-CN-03 Canary/Blue-Green/Rolling Deployment Strategies
+
+实现了渐进式发布能力，支持金丝雀发布（10% → 50% → 100%）、蓝绿发布、滚动发布。
+
+#### Features Implemented
+- **Created** `src/models/DeploymentStrategy.ts`
+  - DeploymentStrategy: 发布策略定义 (id, tenantId, name, type, config, enabled)
+  - CanaryConfig: 金丝雀步骤配置 (steps with weight/pause/verification)
+  - BlueGreenConfig: 蓝绿配置 (activeSlot, switchMethod: instant/gradual)
+  - RollingConfig: 滚动配置 (batchSize, maxUnavailable)
+  - DeploymentStepTracker: 运行时步骤跟踪 (currentStep, currentWeight, status)
+  - HealthCheckResult: 健康检查结果记录
+
+- **Created** `src/repositories/DeploymentStrategyRepository.ts`
+  - 基于 PostgreSQL 的策略定义存储
+  - findByTenant, findByName, findByType, CRUD 方法
+
+- **Created** `src/repositories/DeploymentStepTrackerRepository.ts`
+  - 运行时步骤跟踪存储
+  - advanceStep, updateStatus, setRollbackReason
+  - recordHealthCheck, getHealthChecks, isStepHealthy
+
+- **Created** DB migrations:
+  - `139_create_deployment_strategies.sql`: deployment_strategies 表
+  - `140_create_deployment_step_trackers.sql`: deployment_step_trackers + deployment_health_checks 表
+
+- **Created** `src/services/pipeline/DeploymentStrategyService.ts`
+  - executeCanary(): 逐步执行金丝雀步骤，每步健康检查验证
+  - executeBlueGreen(): 蓝绿切换（instant 或 gradual 模式）
+  - executeRolling(): 分批滚动发布，支持批次间暂停
+  - rollback(): 回滚到上一版本，记录回滚原因
+  - getCurrentStatus(): 获取当前部署进度和每步状态
+  - runHealthCheck(): HTTP 基础健康检查（可配置端点）
+  - 配置验证: 金丝雀步骤权重递增且最后为100%，滚动 batchSize >= 1
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 deploymentStrategyService 依赖注入
+  - PipelineStage 新增 deploymentStrategy 配置字段 (strategyId, strategyName, healthCheckEndpoint, inline)
+  - checkAndExecuteDeploymentStrategy(): 部署阶段检测并执行渐进式发布
+  - executeInlineStrategy(): 执行内联策略配置
+  - executeReferencedStrategy(): 执行引用的策略定义
+  - 健康检查失败时自动回滚（可配置）
+
+- **Created** `src/services/pipeline/__tests__/DeploymentStrategyService.test.ts` (39 tests)
+  - Strategy CRUD: 创建/查询/更新/删除 (12 tests)
+  - 配置验证: 无效金丝雀配置/滚动配置拒绝 (5 tests)
+  - 金丝雀发布: 逐步执行/健康检查/自动回滚/继续失败 (5 tests)
+  - 蓝绿发布: instant/gradual 切换/健康检查失败回滚 (4 tests)
+  - 滚动发布: 分批执行/批次失败回滚/不均等分批 (3 tests)
+  - 回滚操作: 手动回滚/找不到tracker/无DB (3 tests)
+  - 状态查询: 正常查询/异常处理/无DB (3 tests)
+  - 健康检查: 正常/异常处理 (2 tests)
+  - DB不可用模式: 5 tests
+  - 时长解析: 1 test
+
+### Test Status
+- **GAP-CN-03 tests**: 39 passed
+- **All pipeline tests**: No regressions
+
+### Commits
+- `fb58ee7` feat(pipeline): implement GAP-CN-03 canary/blue-green/rolling deployment strategies
+
+### Files Changed
+1. `src/models/DeploymentStrategy.ts` (new)
+2. `src/repositories/DeploymentStrategyRepository.ts` (new)
+3. `src/repositories/DeploymentStepTrackerRepository.ts` (new)
+4. `src/db/migrations/139_create_deployment_strategies.sql` (new)
+5. `src/db/migrations/140_create_deployment_step_trackers.sql` (new)
+6. `src/services/pipeline/DeploymentStrategyService.ts` (new)
+7. `src/services/pipeline/__tests__/DeploymentStrategyService.test.ts` (new, 39 tests)
+8. `src/models/Pipeline.ts` (deploymentStrategy field on PipelineStage)
+9. `src/engine/PipelineEngine.ts` (deployment strategy integration)
+
+### Completed: GAP-03 Reusable Workflows (Sub-Pipeline Invocation)
+
+实现了 Pipeline 可复用工作流功能，支持运行时动态调用另一个 pipeline 作为子流程。
+
+#### Features Implemented
+- **Created** `src/models/SubPipeline.ts`
+  - SubPipelineInvocation 模型: id, parentRunId, childPipelineId, childRunId, status, inputParams, outputResults, stageName, outputMapping
+  - Lifecycle helpers: createSubPipelineInvocation, startSubPipeline, completeSubPipeline, failSubPipeline, cancelSubPipeline
+
+- **Created** `src/repositories/SubPipelineRepository.ts`
+  - create, findById, findByParentRunId, findByChildRunId, findByPipelineId
+  - updateChildRun, updateStatus (支持 output_results 和 error_message)
+
+- **Created** `src/db/migrations/138_create_sub_pipeline_invocations.sql`
+  - sub_pipeline_invocations 表: parent_run_id, child_pipeline_id, child_run_id, status, input_params JSONB, output_results JSONB, stage_name, output_mapping JSONB
+  - 索引: parent_run_id, child_run_id, child_pipeline_id, status
+
+- **Created** `src/services/pipeline/SubPipelineService.ts`
+  - invoke(): 启动子流程，创建调用记录，触发子 pipeline 执行
+  - waitForCompletion(): 轮询等待子流程完成（支持超时）
+  - getResults(): 获取子流程输出，支持 outputMapping 映射
+  - cancel(): 取消运行中的子流程
+  - markCompleted/markFailed(): 由 PipelineEngine 调用标记状态
+  - getByParentRunId/getById/getByPipelineId: 查询方法
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 subPipelineService 依赖注入（第5个参数）
+  - executeStage() 中检测 sub-pipeline 类型 stage（task.type === 'sub-pipeline'）
+  - 新增 executeSubPipelineStage() 方法:
+    - 从 task parameters 提取 childPipelineId, inputParams, outputMapping
+    - 调用 SubPipelineService.invoke() 启动子流程
+    - 调用 SubPipelineService.waitForCompletion() 等待完成
+    - 调用 SubPipelineService.getResults() 获取结果
+    - 注册结果到 VariableContext 供下游 stage 使用
+    - 子流程失败传播到父 stage 失败
+
+- **Updated** `src/api/routes.ts` - 添加 subPipelineService 参数占位
+
+- **Created** `src/services/pipeline/__tests__/SubPipelineService.test.ts` (17 tests)
+  - invoke: 正常调用/找不到子流程/子流程未激活/启动失败
+  - waitForCompletion: 正常完成/失败/取消/找不到/超时
+  - getResults: 映射结果/未完成/找不到
+  - cancel: 正常取消/状态不正确/找不到
+  - markCompleted/markFailed
+  - 查询方法: getByParentRunId/getById/getByPipelineId
+
+- **Created** `src/engine/__tests__/SubPipelineIntegration.test.ts` (12 tests)
+  - 子流程 stage 调用: 正常调用/传递参数
+  - 输出映射: 子结果映射到父 stage 输出
+  - 失败传播: 子流程失败传播到父 stage/影响依赖 stage
+  - SubPipelineService 未配置: 报错
+  - 普通 stage 不受影响
+
+### Test Status
+- **GAP-03 tests**: 29 passed (17 unit + 12 integration)
+- **PipelineEngineDebug tests**: 7 passed (updated for new constructor signature)
+- **All pipeline tests**: No regressions
+
+### Commits
+- `911ab22` feat(engine): implement GAP-03 reusable workflows / sub-pipeline invocation
+
+### Files Changed
+1. `src/models/SubPipeline.ts` (new)
+2. `src/repositories/SubPipelineRepository.ts` (new)
+3. `src/db/migrations/138_create_sub_pipeline_invocations.sql` (new)
+4. `src/services/pipeline/SubPipelineService.ts` (new)
+5. `src/services/pipeline/__tests__/SubPipelineService.test.ts` (new, 17 tests)
+6. `src/engine/__tests__/SubPipelineIntegration.test.ts` (new, 12 tests)
+7. `src/engine/PipelineEngine.ts` (sub-pipeline stage integration)
+8. `src/api/routes.ts` (updated constructor args)
+9. `src/engine/__tests__/PipelineEngineDebug.test.ts` (updated constructor args)
+
+### Completed: GAP-CN-01 Visual DAG Editor Backend API
+
+实现了 Pipeline 可视化编排后端 API，支持 YAML 与 JSON 图格式的双向转换，以及全面的 YAML 校验。
+
+#### Features Implemented
+- **Created** `src/services/pipeline/PipelineGraphBuilder.ts`
+  - buildGraph(pipelineId, yamlDefinition): 从已保存 pipeline 构建 DAG 图
+  - buildGraphFromYaml(yamlString): 从 YAML 构建图（无需保存）
+  - buildGraphFromSpec(): 从解析后的 spec 对象构建图
+  - 自动计算拓扑排序布局位置（topological layering）
+  - 支持 stage 节点和 task（step）节点
+  - 支持扁平 YAML 和标准 apiVersion/kind/metadata/spec 格式
+
+- **Created** `src/services/pipeline/YamlConverter.ts`
+  - yamlToJson(): YAML -> JSON graph 转换 + 校验
+  - jsonToYaml(): JSON graph -> YAML 转换
+  - 双向转换往返测试通过
+
+- **Created** `src/services/pipeline/PipelineValidator.ts`
+  - validate(): 全面 YAML 校验
+  - 环依赖检测（DFS 算法）
+  - 缺失 dependsOn 目标检测
+  - 重复 stage 名称检测
+  - 无效 stage 类型/超时/重试次数检测
+  - 不安全条件表达式检测（eval, require, process 等）
+
+- **Created** `src/api/pipeline-graph-routes.ts`
+  - GET  /api/v1/pipelines/:id/graph  - 从已保存 pipeline 构建图
+  - POST /api/v1/pipelines/parse-yaml - YAML 转 JSON graph
+  - POST /api/v1/pipelines/to-yaml   - JSON graph 转 YAML
+  - POST /api/v1/pipelines/validate  - 校验 YAML spec
+
+- **Updated** `src/api/pipeline-routes-registrar.ts` - 注册 graph 路由
+- **Updated** `src/api/routes.ts` - 传递 pipelineService 到路由注册器
+
+### Test Status
+- **GAP-CN-01 tests**: 69 passed across 3 test suites
+  - PipelineGraphBuilder: 21 tests
+  - PipelineValidator: 27 tests
+  - YamlConverter: 21 tests
+- **All pipeline tests**: No new regressions
+
+### Commits
+- `b4aef85` feat(pipeline): implement GAP-CN-01 visual DAG editor backend API
+
+### Files Changed
+1. `src/services/pipeline/PipelineGraphBuilder.ts` (new)
+2. `src/services/pipeline/PipelineValidator.ts` (new)
+3. `src/services/pipeline/YamlConverter.ts` (new)
+4. `src/api/pipeline-graph-routes.ts` (new)
+5. `src/api/pipeline-routes-registrar.ts` (updated)
+6. `src/api/routes.ts` (updated)
+7. `src/services/pipeline/__tests__/PipelineGraphBuilder.test.ts` (new, 21 tests)
+8. `src/services/pipeline/__tests__/PipelineValidator.test.ts` (new, 27 tests)
+9. `src/services/pipeline/__tests__/YamlConverter.test.ts` (new, 21 tests)
+
+### Completed: GAP-06 Re-run from Specific Stage
+
+实现了 Pipeline 从指定阶段重跑的功能，支持从指定阶段开始或仅重跑失败阶段。
+
+#### Features Implemented
+- **Updated** `src/services/pipeline/PipelineService.ts`
+  - retryRun() 新增 options 参数: `{ fromStage?: string; onlyFailed?: boolean }`
+  - 自动计算 skippedStages（需要跳过的已完成阶段）
+  - 自动计算 failedStages（仅 onlyFailed 时需要重跑的失败阶段）
+  - 在 config_snapshot 中保存重试元数据供引擎消费
+  - 返回值从 PipelineRun 改为 string（新 run 的 ID）
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 applyRetrySkipMetadata() 方法
+  - execute() 中，初始化执行上下文后调用该方法
+  - 预标记 skippedStages 中的阶段为 SUCCESS
+  - 将预标记阶段从 pendingStages 移至 completedStages
+  - 引擎正常流程自动跳过已完成阶段
+
+- **Updated** `src/api/controllers/PipelineRunController.ts`
+  - 新增 retry() 方法
+  - 支持查询参数: ?fromStage=deploy&onlyFailed=true
+  - 租户隔离和错误处理
+
+- **Updated** `src/api/pipeline-routes-registrar.ts`
+  - 注册 POST /v1/pipeline-runs/:id/retry 路由
+
+- **Created** `src/services/pipeline/__tests__/PipelineService.rerun.test.ts` (15 tests)
+  - 默认重跑行为（向后兼容）
+  - 从指定阶段重跑（fromStage）
+  - 仅重跑失败阶段（onlyFailed）
+  - 组合使用 fromStage + onlyFailed
+  - 无效状态检查（running/success 不可重跑）
+  - 边界情况（无阶段执行记录、阶段不存在等）
+
+### Test Status
+- **GAP-06 tests**: 15 passed
+- **All pipeline tests**: No regressions
+
+### Commits
+- `bbcd988` feat(engine): implement GAP-06 re-run from specific stage support
+
+### Files Changed
+1. `src/services/pipeline/PipelineService.ts` (retryRun enhancement)
+2. `src/services/pipeline/__tests__/PipelineService.rerun.test.ts` (new, 15 tests)
+3. `src/engine/PipelineEngine.ts` (applyRetrySkipMetadata method)
+4. `src/api/controllers/PipelineRunController.ts` (retry method)
+5. `src/api/pipeline-routes-registrar.ts` (retry route)
+
+### Completed: GAP-10 External Notification Webhook (Connect HookChain to Pipeline Events)
+
+实现了 Pipeline 出站 Webhook 通知功能，将 Pipeline 完成/失败/取消事件推送到外部系统。
+
+#### Features Implemented
+- **Fixed** `src/services/pipeline/WebhookNotifier.ts`
+  - 修复了 shouldSend 方法中空事件数组的行为（空数组=不发送，undefined=发送所有）
+  - WebhookNotifier 主类已存在，包含：
+    - sendWebhook(): 指数退避重试（默认 3 次），HMAC-SHA256 签名
+    - sendAll(): 批量并行发送，互不影响
+    - shouldSend(): 事件过滤
+    - generateHmacSignature(): HMAC-SHA256 签名生成
+
+- **Created** `src/repositories/WebhookConfigRepository.ts`
+  - findByPipelineId(): 按 Pipeline ID 查询所有启用的配置
+  - findByEvent(): 按事件类型过滤查询
+  - deleteByPipelineId(): 按 Pipeline ID 批量删除
+  - create/update/delete: 标准 CRUD 操作
+
+- **Created** `src/db/migrations/136_create_pipeline_webhook_configs.sql`
+  - pipeline_webhook_configs 表：pipeline_id, url, method, headers, secret, events, enabled, retries
+  - events 数组存储，空数组表示匹配所有事件
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 webhookNotifier 和 webhookConfigRepo 依赖注入（可选）
+  - checkRunCompletion() 中，pipeline 完成后自动发送 Webhook 通知
+  - sendWebhookNotifications() 私有方法：
+    - 根据 Pipeline 最终状态映射事件类型（pipeline.complete/pipeline.failed/pipeline.cancelled）
+    - 从仓库查询匹配的 Webhook 配置
+    - 构建 payload（runId, pipelineId, status, durationMs, stagesSummary, triggerBy, metadata）
+    - 并行发送所有匹配的 Webhook
+  - buildStagesSummary() 辅助方法：从内存执行上下文或数据库获取 stages 摘要
+
+- **Updated** `src/api/routes.ts`
+  - 初始化 WebhookNotifier 和 WebhookConfigRepository
+  - 传递到 PipelineEngine 构造函数
+
+- **Created** `src/repositories/__tests__/WebhookConfigRepository.test.ts` (5 tests)
+  - findByPipelineId, findByEvent, deleteByPipelineId, mapRowToEntity
+
+- **Fixed** `src/services/pipeline/__tests__/WebhookNotifier.test.ts` 中的 1 个测试
+  - shouldSend 空事件数组行为修复后，测试从 26 passed + 1 failed 变为 27 passed
+
+### Test Status
+- **WebhookNotifier tests**: 27 passed
+- **WebhookConfigRepository tests**: 5 passed
+- **IM notification tests**: 14 passed
+- **Total notification tests**: 46 passed across 3 test suites
+
+### Commits
+- feat(notifications): implement GAP-10 external notification webhook integration
+
+### Files Changed
+1. `src/services/pipeline/WebhookNotifier.ts` (fixed empty events behavior)
+2. `src/repositories/WebhookConfigRepository.ts` (new)
+3. `src/repositories/__tests__/WebhookConfigRepository.test.ts` (new, 5 tests)
+4. `src/db/migrations/136_create_pipeline_webhook_configs.sql` (new)
+5. `src/engine/PipelineEngine.ts` (webhook notifier integration)
+6. `src/api/routes.ts` (webhook initialization and wiring)
+
+### Completed: GAP-02 Matrix Build Support
+
+实现了 Pipeline Matrix 构建功能，类似 GitHub Actions 的 `strategy.matrix` 和 GitLab CI 的 `parallel:matrix`。
+
+#### Features Implemented
+- **Updated** `src/models/Pipeline.ts`
+  - PipelineStage 新增 `matrix` 字段: `{ [key: string]: string[]; exclude?: Array<{[key: string]: string}> }`
+  - PipelineStage 新增 `env` 字段: `Record<string, string>`
+
+- **Created** `src/engine/MatrixExpander.ts`
+  - MatrixExpander 工具类，处理矩阵扩展逻辑
+  - hasMatrix(): 检测 stage 是否有矩阵配置
+  - expandMatrix(): 展开单个 stage 的矩阵（笛卡尔积 - 排除项）
+  - expandAll(): 展开所有 stages，自动重写依赖关系
+  - getMatrixDimensions(): 计算矩阵维度总数
+  - 命名格式: `stage-name (key1=value1, key2=value2)`
+  - 环境变量注入: `MATRIX_KEY=VALUE` 格式
+  - 依赖重写: 依赖矩阵 stage 的 stage 自动依赖所有展开实例
+  - 支持部分排除匹配 (partial exclusion matching)
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 MatrixExpander import
+  - execute() 方法中，YAML 解析后新增矩阵扩展步骤 (step 2.5)
+  - 新增 initializeStagesFromExpanded() 方法处理展开后的 stages
+  - Tasks 初始化也使用展开后的 stages
+  - 扩展时记录日志（原始数量、扩展后数量、矩阵 stage 数量）
+
+- **Created** `src/engine/__tests__/MatrixExpander.test.ts` (25 tests)
+  - hasMatrix: 3 tests
+  - 笛卡尔积: 4 tests (单维度、双维度、三维度、变量注入)
+  - 排除项: 2 tests (指定组合排除、部分排除匹配)
+  - 命名: 3 tests
+  - Stage 属性保留: 6 tests
+  - 依赖重写: 3 tests
+  - 无矩阵 stage: 1 test
+  - getMatrixDimensions: 3 tests
+
+### Test Status
+- **MatrixExpander tests**: 25 passed
+- **Core engine tests**: 123 passed (MatrixExpander + PipelineCheckpointManager + ExpressionEvaluator + DebugController)
+- **All pipeline tests**: No regressions
+
+### Commits
+- feat(engine): implement GAP-02 matrix build support
+
+### Files Changed
+1. `src/models/Pipeline.ts` (matrix + env fields)
+2. `src/engine/MatrixExpander.ts` (new)
+3. `src/engine/__tests__/MatrixExpander.test.ts` (new, 25 tests)
+4. `src/engine/PipelineEngine.ts` (matrix integration)
+
+### Completed: GAP-CN-05 IM Notification Integration
+
+实现了钉钉、企业微信、飞书的 Pipeline 状态通知功能。
+
+#### Features Implemented
+- **Created** `src/services/pipeline/IMNotifier.ts`
+  - IMNotifier 主类，使用适配器模式支持多种 IM 平台
+  - IMNotificationConfig / IMNotificationPayload 接口定义
+  - notifyOnPipelineComplete / notifyOnPipelineFailure / notifyOnPipelineCancelled 便捷方法
+  - sendBatch 批量发送（并行，互不影响）
+  - 所有通知发送失败被捕获并记录日志，不影响 Pipeline 状态
+
+- **Created** `src/services/pipeline/im-adapters/DingTalkAdapter.ts`
+  - 钉钉自定义机器人 Webhook 适配器
+  - 发送 Markdown 格式消息，包含状态 emoji
+  - 验证 HTTP 响应状态码和 errcode
+
+- **Created** `src/services/pipeline/im-adapters/WeComAdapter.ts`
+  - 企业微信群机器人 Webhook 适配器
+  - 发送 Markdown 格式消息，使用 blockquote 和 font color
+  - 成功/失败/取消分别使用 info/warning/comment 颜色
+
+- **Created** `src/services/pipeline/im-adapters/FeishuAdapter.ts`
+  - 飞书自定义机器人 Webhook 适配器
+  - 发送交互式卡片消息，header 模板根据状态变色（green/red/gray）
+  - 包含"查看详情"操作按钮
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 IMNotifier 和 IMNotificationConfig 构造参数（可选）
+  - checkRunCompletion() 中，pipeline 完成后自动发送 IM 通知
+  - sendIMNotifications() 私有方法，根据状态分发到不同通知方法
+  - 通知发送使用 .catch() 包裹，确保失败不影响 pipeline 状态
+
+- **Created** `src/services/pipeline/__tests__/IMNotifier.test.ts` (23 tests)
+  - 适配器注册、通知分发、错误处理
+  - PipelineComplete/Failure/Cancelled 便捷方法
+  - sendBatch 批量发送和容错
+  - Pipeline 状态保护（通知失败不抛异常）
+
+- **Created** `src/services/pipeline/__tests__/im-adapters/DingTalkAdapter.test.ts` (10 tests)
+- **Created** `src/services/pipeline/__tests__/im-adapters/WeComAdapter.test.ts` (10 tests)
+- **Created** `src/services/pipeline/__tests__/im-adapters/FeishuAdapter.test.ts` (10 tests)
+  - 每个 adapter 测试：平台类型、消息格式、状态变体、错误处理
+
+### Test Status
+- **IM notification tests**: 44 passed across 4 test suites
+- **All pipeline tests**: 450+ passed (no regressions)
+
+### Commits
+- `13ee38d` feat(engine): implement GAP-CN-05 IM notification integration (DingTalk/WeCom/Feishu)
+
+### Files Changed
+1. `src/services/pipeline/IMNotifier.ts` (new)
+2. `src/services/pipeline/im-adapters/DingTalkAdapter.ts` (new)
+3. `src/services/pipeline/im-adapters/WeComAdapter.ts` (new)
+4. `src/services/pipeline/im-adapters/FeishuAdapter.ts` (new)
+5. `src/services/pipeline/im-adapters/index.ts` (new)
+6. `src/services/pipeline/__tests__/IMNotifier.test.ts` (new, 23 tests)
+7. `src/services/pipeline/__tests__/im-adapters/DingTalkAdapter.test.ts` (new, 10 tests)
+8. `src/services/pipeline/__tests__/im-adapters/WeComAdapter.test.ts` (new, 10 tests)
+9. `src/services/pipeline/__tests__/im-adapters/FeishuAdapter.test.ts` (new, 10 tests)
+10. `src/engine/PipelineEngine.ts` (IM notifier integration)
+
+### Completed: GAP-05 Execution State Persistence with Checkpoint Manager
+
+将 Pipeline 执行状态从内存 Map 持久化到 PostgreSQL，支持 startup recovery。
+
+#### Features Implemented
+- **Created** `src/db/migrations/133_create_pipeline_checkpoints_table.sql`
+  - pipeline_checkpoints 表：run_id UNIQUE, checkpoint_data JSONB, status 索引
+  - Rollback migration: 133_rollback_pipeline_checkpoints_table.sql
+
+- **Created** `src/repositories/PipelineCheckpointRepository.ts`
+  - saveCheckpoint: INSERT ... ON CONFLICT (run_id) DO UPDATE upsert
+  - findByRunId / findAllByStatus / deleteByRunId / findByPipelineId / countByStatus
+
+- **Created** `src/engine/PipelineCheckpointManager.ts`
+  - saveCheckpoint: 序列化 PipelineExecution 为 CheckpointData JSON
+  - loadCheckpoint: 反序列化并恢复 PipelineExecution
+  - cleanupCompleted: pipeline 完成后清理 checkpoint
+  - findRunningCheckpoints: 查找所有 RUNNING 状态的 checkpoint
+  - recoverOrphanedRuns: startup recovery - 恢复或标记失败
+  - CheckpointData 包含: run, stages (含所有字段), pendingStages, runningStages, completedStages
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 新增 checkpointManager 依赖注入
+  - executeStage(): stage RUNNING/SUCCESS/FAILED 时自动 saveCheckpoint
+  - Task 完成时 saveCheckpoint (记录 lastStageName, lastTaskName)
+  - checkRunCompletion(): 成功后 cleanupCompleted
+  - cancelExecution(): 取消时 cleanupCompleted
+  - failDependentStages(): 跳过依赖 stage 时 saveCheckpoint
+  - retryStage/retryStageWithBackoff(): retry 时 saveCheckpoint
+  - recoverOrphanedRuns(): 新的 startup recovery 方法，优先使用 checkpoint
+  - recoverRuns(): 兼容旧逻辑，fallback 时使用
+
+- **Created** `src/repositories/__tests__/PipelineCheckpointRepository.test.ts` (13 tests)
+  - saveCheckpoint 插入/更新, findByRunId, findAllByStatus, deleteByRunId
+  - findByPipelineId, countByStatus
+
+- **Created** `src/engine/__tests__/PipelineCheckpointManager.test.ts` (20 tests)
+  - saveCheckpoint/loadCheckpoint/cleanupCompleted
+  - findRunningCheckpoints
+  - recoverOrphanedRuns: 恢复、标记失败、清理已完成的 checkpoint
+  - Serialization round-trip 测试
+
+### Test Status
+- **Checkpoint tests**: 33 passed across 2 test suites
+- **All pipeline tests**: 30 out of 32 suites pass (2 pre-existing failures unrelated)
+- **Type check**: No new errors introduced
+
+### Commits
+- `feat(engine): implement GAP-05 execution state persistence with checkpoint manager`
+
+### Files Changed
+1. `src/db/migrations/133_create_pipeline_checkpoints_table.sql` (new)
+2. `src/db/migrations/133_rollback_pipeline_checkpoints_table.sql` (new)
+3. `src/repositories/PipelineCheckpointRepository.ts` (new)
+4. `src/repositories/__tests__/PipelineCheckpointRepository.test.ts` (new, 13 tests)
+5. `src/engine/PipelineCheckpointManager.ts` (new)
+6. `src/engine/__tests__/PipelineCheckpointManager.test.ts` (new, 20 tests)
+7. `src/engine/PipelineEngine.ts` (checkpoint integration)
+
+### Completed: GAP-01 Condition Expression Engine Enhancement
+
+Replaced simple regex-based condition evaluation in PipelineEngine with a full expression engine.
+
+#### Features Implemented
+- **Created** `src/engine/ExpressionEvaluator.ts`
+  - Uses `expr-eval` library with strict security whitelisting
+  - Comparison operators: ==, !=, >, <, >=, <=
+  - Logical operators: &&, ||, ! (converted to expr-eval's and/or/not)
+  - String functions: startsWith(), endsWith(), contains() (works with both strings and arrays)
+  - Status functions: success(), failure(), cancelled(), always()
+  - Context variables: branch, tags, changedFiles, triggerBy
+  - Timeout protection (100ms max)
+  - Security: blocks eval, Function, require, process, __proto__, constructor, prototype, etc.
+  - Graceful handling of undefined variables
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - Added ExpressionEvaluator as class member
+  - Replaced evaluateCondition() with full expression evaluation
+  - Added mapRunStatusToExpression() for status function support
+  - Error logging with fallback to false on evaluation failure
+
+- **Created** `src/engine/__tests__/ExpressionEvaluator.test.ts` (45 tests)
+  - Comparison operators (8 tests)
+  - Logical operators (6 tests)
+  - String functions (4 tests)
+  - Status functions (5 tests)
+  - Context variables (4 tests)
+  - Security blocked functions (6 tests)
+  - Edge cases (6 tests)
+  - Timeout protection (1 test)
+  - Real-world pipeline scenarios (5 tests)
+
+#### Dependencies Added
+- `expr-eval@^2.0.2` - Expression evaluation library
+- `@types/expr-eval` - TypeScript types
+
+### Commit
+- `80439cd` feat(engine): implement condition expression engine for pipeline stages
+
+### Completed: GAP-CN-04 Code Quality Gates with Blocking
+
+实现了流水线代码质量门禁机制，支持覆盖率/复杂度/重复率/安全等指标的阈值阻断。
+
+#### Features Implemented
+- **Created** `src/models/QualityGate.ts`
+  - QualityGate: 门禁定义 (id, tenantId, name, rules, externalProvider, enabled)
+  - QualityGateRule: 规则 (metric, operator, threshold, severity)
+  - QualityGateResult: 评估结果 (metrics, passed, blockedRules, warnedRules)
+  - 支持 6 种指标: coverage, complexity, duplication, security_hotspots, bugs, vulnerabilities
+  - 支持 5 种运算符: <, <=, >, >=, ==
+  - 支持 2 种严重级别: block (阻断流水线), warn (仅警告)
+
+- **Created** `src/repositories/QualityGateRepository.ts`
+  - 基于 PostgreSQL 的门禁定义存储
+  - findByTenant, findByName, CRUD 方法
+
+- **Created** `src/repositories/QualityGateResultRepository.ts`
+  - 评估结果持久化
+  - findByRunId, findByStageName, createResult 方法
+
+- **Created** `src/db/migrations/138_create_quality_gates.sql`
+  - quality_gates 表 (定义存储, JSONB rules)
+  - quality_gate_results 表 (评估结果, JSONB metrics/blocked_rules/warned_rules)
+  - 配套回滚脚本 138_rollback_quality_gates.sql
+
+- **Created** `src/services/pipeline/QualityGateService.ts`
+  - evaluate(gate, metrics): 规则评估引擎
+  - evaluateAndStore(input): 完整评估+存储流程
+  - isBlocking(result): 阻断检查
+  - getBlockingReason(result): 人类可读的阻断原因
+  - fetchMetricsFromProvider(): SonarQube 风格外部指标获取
+
+- **Updated** `src/engine/PipelineEngine.ts`
+  - 集成 QualityGateService 作为构造函数可选依赖
+  - checkStageQualityGate(): 阶段执行后自动评估质量门禁
+  - collectStageQualityMetrics(): 从任务输出收集质量指标
+  - PipelineStage 新增 qualityGate 配置字段
+
+- **Created** `src/services/pipeline/__tests__/QualityGateService.test.ts` (36 tests)
+  - CRUD 操作测试
+  - 规则验证测试 (无效指标/运算符/严重级别)
+  - 评估测试 (通过/失败/警告/边界值)
+  - 多规则评估测试 (混合通过/失败)
+  - 比较运算符测试 (<, <=, >, >=, ==)
+  - 无数据库模式测试
+
+- **Created** `src/engine/__tests__/QualityGateIntegration.test.ts` (18 tests)
+  - 质量门禁评估逻辑测试
+  - 多规则评估测试
+  - 模拟 PipelineEngine 集成测试
+  - 阻断/警告/无门禁配置场景测试
+
+### Test Status
+- **GAP-CN-04 tests**: 54 passed (36 + 18)
+- **All pipeline tests**: No regressions
+
+### Commit
+- `209a94d` feat(pipeline): implement GAP-CN-04 code quality gates with blocking
+
+### Previous: Pipeline Plugin System Phase 4 — Security Hardening
+
+All 5 features of Phase 4 implemented and tested:
+
+#### Feature 1: Pipeline Tenant Isolation (Security Fix)
+- **Created** `src/services/pipeline/PipelineTenantIsolationService.ts`
+  - Extract tenantId from x-tenant-id header
+  - validatePipelineTenant: ensures pipeline belongs to requesting tenant
+  - validateRunTenant: ensures run belongs to requesting tenant
+- **Updated** `src/api/controllers/PipelineRunController.ts` — all endpoints now validate tenant:
+  - trigger(): validates pipeline tenant before execution
+  - cancel(): validates run tenant before cancellation
+  - list(): filters runs by tenant scope
+  - getById/getStages/getTasks(): all validate run tenant access
+- **Fixed** `src/services/pipeline/PipelineRunService.ts` — mapCreateInput now extracts tenantId from context instead of hardcoding default tenant
+- Returns 403 TENANT_ISOLATION_VIOLATION on cross-tenant access attempts
+
+#### Feature 2: Container Image Signature Verification
+- **Created** `src/services/plugin/ImageVerifier.ts`
+  - verifyImage: full image verification with digest pinning support
+  - Warns when using :latest tag (non-deterministic)
+  - Digest-pinned images (@sha256:...) use as-is without warnings
+  - docker inspect to verify image exists locally
+  - Pulls image based on pull policy (Always/IfNotPresent/Never)
+  - Registry auth support via DOCKER_REGISTRY_USERNAME/PASSWORD env vars
+  - Uses --password-stdin for credential safety
+- **New tests**: `src/services/plugin/__tests__/ImageVerifier.test.ts` (13 tests)
+
+#### Feature 3: Pipeline-level RBAC
+- **Created** `src/services/pipeline/PipelineRBACService.ts`
+  - Roles: pipeline.admin, pipeline.editor, pipeline.viewer, pipeline.approver
+  - canTrigger/canView/canCancel/canApprove permission checks
+  - If no RBAC rules exist for a pipeline, default to allow (backward compatible)
+  - In-memory rule store with setRules/addRule/removeRule operations
+- **Wired into** PipelineRunController.trigger() and cancel()
+- **New tests**: `src/services/pipeline/__tests__/PipelineRBACService.test.ts` (23 tests)
+
+#### Feature 4: SCM Webhook Receiver
+- **Created** `src/services/pipeline/SCMWebhookService.ts`
+  - handleGitHubPush: parse GitHub push events with HMAC signature validation
+  - handleGitLabPush: parse GitLab push events with secret token validation
+  - Trigger rules matching: repository pattern, branch pattern, event type
+  - Auto-triggers matching pipelines with SCM context
+  - Stores webhook events (last 100) for history
+- **Added route** POST /api/v1/webhooks/scm (public, signature validated)
+- **Added route** GET /api/v1/webhooks/scm/events (auth protected)
+- **New tests**: `src/services/pipeline/__tests__/SCMWebhookService.test.ts` (16 tests)
+
+#### Feature 5: Container Image Pre-pull Enhancement
+- ImageVerifier consolidates and enhances the existing pullImageIfNeeded logic
+- Adds clear error messages when image pull fails
+- Registry auth with DOCKER_REGISTRY_SERVER/USERNAME/PASSWORD env vars
+
+### Test Status Summary
+- **Pipeline-related tests**: 450 passed across 25 test suites
+- **New tests this session**: 52 (13 + 23 + 16)
+- **Total new tests across all sessions**: 407 (355 previous + 52 this session)
+
+### Commits This Session (Phase 4)
+1. `feat(security): implement Phase 4 security hardening for pipeline plugin system`
+
+### Files Changed This Session (Phase 4)
+1. `src/services/pipeline/PipelineTenantIsolationService.ts` (new)
+2. `src/services/pipeline/PipelineRBACService.ts` (new)
+3. `src/services/pipeline/SCMWebhookService.ts` (new)
+4. `src/services/plugin/ImageVerifier.ts` (new)
+5. `src/services/pipeline/__tests__/PipelineRBACService.test.ts` (new, 23 tests)
+6. `src/services/pipeline/__tests__/SCMWebhookService.test.ts` (new, 16 tests)
+7. `src/services/plugin/__tests__/ImageVerifier.test.ts` (new, 13 tests)
+8. `src/api/controllers/PipelineRunController.ts` (tenant isolation + RBAC wiring)
+9. `src/api/pipeline-routes-registrar.ts` (SCM webhook routes)
+10. `src/services/pipeline/PipelineRunService.ts` (fix hardcoded tenantId)
+
+### Previous: Pipeline Plugin System Phase 3 — Production Readiness (SRE Review)
+
+All 5 features of Phase 2 implemented and tested:
+
+#### Feature 1: Parallel Stage Execution + Fan-out/Fan-in
+- **Modified** `src/engine/PipelineEngine.ts` executePendingStages() to detect independent stages
+  and execute them concurrently using Promise.allSettled
+- Added locking mechanism in checkNextStages to prevent concurrent calls from parallel completions
+- Enhanced fan-in: dependent stages only unlock when ALL dependencies succeed
+- Failed dependency causes dependent stages to be skipped automatically
+
+#### Feature 2: Artifact Passing Between Stages
+- **Created** `src/services/pipeline/ArtifactService.ts` with filesystem-based storage
+- upload/download/listByRun/listByStage/passToStage operations
+- Auto-passes artifacts when stage dependencies resolve in PipelineEngine
+- StageExecutor gains getAvailableArtifacts and passUpstreamArtifacts methods
+- **New tests**: `src/services/pipeline/__tests__/ArtifactService.test.ts` (18 tests)
+
+#### Feature 3: Cron Scheduler
+- **Updated** `src/services/pipeline/PipelineTriggerService.ts` with cron scheduling
+- scheduleTrigger/unscheduleTrigger using CronExpressionParser for validation
+- Auto-schedules when registering schedule-type triggers with cronExpression
+- Callback-based execution: onTick fires pipeline runs and records history
+- Reschedules on status changes (inactive -> active)
+- **New tests**: `src/services/pipeline/__tests__/PipelineTriggerService.cron.test.ts` (14 tests)
+
+#### Feature 4: Approval Gate
+- **Created** `src/services/pipeline/ApprovalGateService.ts` with request/approve/reject lifecycle
+- Enforces approver authorization: only configured approvers can approve/reject
+- Wired into PipelineEngine: checks approval before executing stages
+- Added API endpoints for approval management (list, get status, approve, reject)
+- Extended ApprovalController with pipeline approval gate methods
+- **New tests**: `src/services/pipeline/__tests__/ApprovalGateService.test.ts` (21 tests)
+
+### Test Status Summary
+- **Pipeline-related tests**: 94 passed across 5 test suites
+- **Total project tests**: 6221+ passed (6257 total, 4 pre-existing failures unrelated to this session)
+- **New tests this session**: 53 (18 + 14 + 21)
+- **Total new tests across both sessions**: 355 (302 previous + 53 this session)
+
+### Commits This Session (Phase 2)
+1. `461ba6f` feat(engine): implement parallel stage execution with fan-out/fan-in
+2. `d9e7b6d` feat(pipeline): add ArtifactService for stage-to-stage artifact passing
+3. `75992d7` feat(pipeline): add cron scheduler using cron-parser
+4. `ad7aa39` feat(pipeline): add approval gate for human approval before deployment
+
+### Files Changed This Session (Phase 2)
+1. `src/engine/PipelineEngine.ts` (parallel execution + approval gate + artifact passing)
+2. `src/engine/StageExecutor.ts` (artifact awareness methods)
+3. `src/services/pipeline/ArtifactService.ts` (new)
+4. `src/services/pipeline/__tests__/ArtifactService.test.ts` (new, 18 tests)
+5. `src/services/pipeline/PipelineTriggerService.ts` (cron scheduler)
+6. `src/services/pipeline/__tests__/PipelineTriggerService.cron.test.ts` (new, 14 tests)
+7. `src/services/pipeline/ApprovalGateService.ts` (new)
+8. `src/services/pipeline/__tests__/ApprovalGateService.test.ts` (new, 21 tests)
+9. `src/api/controllers/ApprovalController.ts` (pipeline approval endpoints)
+10. `src/api/pipeline-routes-registrar.ts` (approval routes)
+
+### Previous: Pipeline Plugin System Remaining Gaps (G1-G6)
+
+All 5 phases of the Pipeline Plugin System gap implementation are complete.
+
+#### Phase 1: WASM Runtime (G1 + G5)
+- **Rewrote** `src/services/inline-script/WasmRuntime.ts` to use real QuickJS execution
+- **Updated** `src/services/plugin-executor-service.ts` executeWASMPlugin() to delegate to WasmRuntime
+- **New tests**: `src/services/inline-script/__tests__/WasmRuntime.test.ts` (12 tests)
+- Verified: QuickJS isolates from Node.js APIs, enforces timeouts, captures console.log
+
+#### Phase 2: AI Diagnosis (G2)
+- **Rewrote** `src/services/ai/AIDiagnosisService.ts` with HTTP call to orion-ai-service
+- Added 12 rule-based diagnosis patterns (network, memory, permissions, Docker, auth)
+- Graceful fallback when AI service is unavailable
+- **New tests**: `src/services/ai/__tests__/AIDiagnosisService.test.ts` (12 tests)
+
+#### Phase 3: AI Script Generation (G3)
+- **Created** `src/services/ai/AIGenerateService.ts` with 17 script templates
+- **Wired** `/ai-generate` endpoint in `src/api/script-routes.ts` (replaced 501 stub)
+- Template-based fallback with keyword matching
+- **New tests**: `src/services/ai/__tests__/AIGenerateService.test.ts` (11 tests)
+
+#### Phase 4: Debug Controller (G4)
+- **Created** `src/engine/DebugController.ts` with pause/resume/step/getState
+- **Wired** debug endpoints in `src/api/plugin-routes.ts` (replaced 3x 501 stubs)
+- Added GET /:runId/debug/state endpoint
+- Singleton pattern for global debug state access
+- **New tests**: `src/engine/__tests__/DebugController.test.ts` (16 tests)
+
+#### Phase 5: Container Image Validation (G6)
+- Added `PullPolicy` enum (Always, IfNotPresent, Never)
+- Added `pullImageIfNeeded()` with local image check and pull logic
+- Added `ensureRegistryAuth()` with --password-stdin for credential safety
+- Added digest pinning support and :latest tag warnings
+- **New tests**: `src/services/__tests__/plugin-executor-image.test.ts` (7 tests)
+
+### Test Status Summary
+- **Test Suites**: 309 passed, 312 total (3 pre-existing Docker failures)
+- **Tests**: 6180 passed, 6204 total (新增 58 个 from this session)
+- **New test files**:
+  - WasmRuntime.test.ts (12 tests)
+  - AIDiagnosisService.test.ts (12 tests)
+  - AIGenerateService.test.ts (11 tests)
+  - DebugController.test.ts (16 tests)
+  - plugin-executor-image.test.ts (7 tests)
+
+### Commits This Session
+1. `bd58653` Phase 1: Implement real WASM runtime via quickjs-emscripten (G1 + G5)
+2. `fac8fc4` Phase 2: Implement AI Diagnosis with rule-based fallback (G2)
+3. `1a18486` Phase 3: Implement AI Script Generation with template fallback (G3)
+4. `ce43f3f` Phase 4: Implement Debug Controller with pause/resume/step (G4)
+5. `469b6a5` Phase 5: Add container image validation and registry auth (G6)
+
+### Files Changed This Session
+1. `src/services/inline-script/WasmRuntime.ts` (rewrite - QuickJS execution)
+2. `src/services/inline-script/__tests__/WasmRuntime.test.ts` (new, 12 tests)
+3. `src/services/plugin-executor-service.ts` (WASM delegation + image validation)
+4. `src/services/ai/AIDiagnosisService.ts` (rewrite - AI + rule-based fallback)
+5. `src/services/ai/__tests__/AIDiagnosisService.test.ts` (new, 12 tests)
+6. `src/services/ai/AIGenerateService.ts` (new)
+7. `src/services/ai/__tests__/AIGenerateService.test.ts` (new, 11 tests)
+8. `src/api/script-routes.ts` (wire /ai-generate endpoint)
+9. `src/engine/DebugController.ts` (new)
+10. `src/engine/__tests__/DebugController.test.ts` (new, 16 tests)
+11. `src/api/plugin-routes.ts` (wire debug endpoints)
+12. `src/services/__tests__/plugin-executor-image.test.ts` (new, 7 tests)
+13. `jest.config.js` (transformIgnorePatterns for quickjs-emscripten)
+14. `package.json` (added quickjs-emscripten dependency)
+
+### Next Steps
+1. P2 - 测试覆盖率门槛配置
+2. P3 - CI/CD 改进
+3. Consider integrating DebugController into PipelineEngine/StageExecutor for actual pause-at-boundary behavior
+
+## Previous Sessions (2026-05-08 - Phase 3)
+
+### Completed: Pipeline Plugin System Phase 3 — Production Readiness (SRE Review)
+
+All 6 features of Phase 3 implemented and tested:
+
+#### Feature 1: Global Execution Queue with Backpressure
+- **Created** `src/services/pipeline/PipelineExecutionQueue.ts`
+- Priority-based queue (HIGH/NORMAL/LOW) using sorted array
+- Max concurrent runs configurable via MAX_CONCURRENT_PIPELINES env var (default 10)
+- Backpressure: rejects new runs when queue exceeds MAX_QUEUE_SIZE (default 100)
+- Wired into PipelineEngine.execute() — enqueues instead of immediate execution
+- Added queue stats, queued runs listing, and cancel-from-queue APIs
+
+#### Feature 2: Real TaskRunner Execution
+- **Rewrote** `src/engine/TaskRunner.ts` executeGit/npm/k8s/shell methods
+- git/*: Real `spawn('git', [...])` for clone/checkout/push/pull/status/log
+- npm/*: Real `spawn('npm'/'npx', [...])` with timeout support
+- shell/*: Real `spawn('sh', ['-c', script])` with dangerous command filtering
+- k8s/*: Real `spawn('kubectl', [...])` for apply/delete/rollout/get/describe/logs
+- All tasks: capture stdout/stderr, handle timeouts, return real exit codes
+- Clean environment: minimal PATH, HOME, no secrets
+- Graceful fallback to mock if required binary unavailable
+
+#### Feature 3: Persistent Pipeline State & Crash Recovery
+- **Added** `PipelineRunRepository.findByStatus()` for querying runs by status
+- **Added** `PipelineRunService.findRunsByStatus()`
+- `PipelineEngine.recoverRuns()`: finds RUNNING runs from DB, marks as failed
+- Wired into `src/api/routes.ts` startup — runs recovery on each server start
+- `rebuildExecutionQueue()`: placeholder for future persistent execution progress
+
+#### Feature 4: EventBus Wiring (Verified — already complete)
+- EventBusService properly wired to PipelineEventPublisher via EventBusAdapter
+- NATS publish with PostgreSQL persistence, in-memory fallback, and retry on reconnect
+- No changes needed — existing implementation is production-ready
+
+#### Feature 5: Auto-Retry Integration
+- **Added** `AutoRetryService` as constructor parameter to PipelineEngine
+- Stage failure triggers `AutoRetryService.shouldRetry()` with error classification
+- Exponential backoff with jitter for transient errors
+- Fallback to simple retry logic when AutoRetryService unavailable
+- New `retryStageWithBackoff()` method for intelligent retry scheduling
+
+#### Feature 6: Metrics Export
+- **Created** `src/services/pipeline/PipelineMetricsService.ts`
+- Tracks: total runs, success rate, avg/median/p95 duration
+- Failures by error type, runs by pipeline, runs by trigger type
+- Queue depth monitoring
+- `getPrometheusMetrics()`: exports standard Prometheus text format
+- **New endpoints**:
+  - `GET /v1/pipeline/metrics` — JSON metrics
+  - `GET /v1/pipeline/metrics?format=prometheus` — Prometheus format
+  - `GET /v1/pipeline/metrics/:pipelineId` — Per-pipeline metrics
+  - `GET /v1/pipeline/queue` — Queue status and pending runs
+- Wired via `onRunComplete` callback in PipelineEngine
+
+### Test Results
+- All 23 pipeline test suites pass (411+ tests)
+- No new TypeScript type errors introduced
+- Recovery mechanism verified: "No running pipeline runs to recover"
+
+### Commit
+13. `1358477` Implement Phase 3: Pipeline Plugin System production readiness features
+
+### Files Changed This Session (Phase 3)
+1. `src/services/pipeline/PipelineExecutionQueue.ts` (new)
+2. `src/services/pipeline/PipelineMetricsService.ts` (new)
+3. `src/engine/PipelineEngine.ts` (queue, retry, recovery, metrics callback)
+4. `src/engine/TaskRunner.ts` (real task execution)
+5. `src/services/pipeline/PipelineRunRepository.ts` (findByStatus)
+6. `src/services/pipeline/PipelineRunService.ts` (findRunsByStatus)
+7. `src/api/routes.ts` (wire all Phase 3 features + new endpoints)
+
+## Previous Sessions (2026-05-07)
+
+### Completed: P1 功能域测试完善
+- Multi-Cloud, IaC, Data Pipeline 功能域测试 (96 new tests)
+
+### Completed: Federation 功能域增强 (P1)
+- 37 Federation tests (39 new tests)
+
+### Frontend Mock Data Migration (Session 2)
+- 10 frontend pages migrated from mock data to real API connections
+
+## Key Achievements
+- Pipeline Plugin System: ALL remaining gaps (G1-G6) implemented and tested
+- 从 5902 增加到 6204，总共新增 302 个测试
+- 0 regressions introduced
+
+### 2026-05-16: Root Cause Analysis Service Implementation
+
+#### Completed Features
+- RootCauseAnalysisService: 实现告警和事件根因分析
+  - Incident, RCARequest, RootCause, RCAReport 接口定义
+  - analyze(): 分析事件并生成根因报告
+  - detectPatterns(): 检测资源耗尽、级联失败、配置问题等模式
+  - determineRootCauses(): 确定基础设施、应用、配置、外部等类型根因
+  - getTimeline(): 获取事件时间线
+  - suggestFixes(): 为根因建议修复方案
+- RCA路由: 
+  - POST /api/v1/alerts/rca/analyze - 分析事件根因
+  - GET /api/v1/alerts/rca/:incidentId/timeline - 获取时间线
+  - GET /api/v1/alerts/rca/:rootCauseId/fixes - 获取修复建议
+- 21个测试全部通过
+- TypeScript编译无错误
+
+#### Files Created/Modified
+- orion-monitor-svc/src/services/RootCauseAnalysisService.ts (new)
+- orion-monitor-svc/src/services/__tests__/RootCauseAnalysisService.test.ts (new)
+- orion-monitor-svc/src/routes/rca-routes.ts (new)
+- orion-monitor-svc/src/app.ts (modified)
+
+### Completed: TDD Test Coverage for ticketing and pipeline modules (2026-06-03)
+
+Added 14 new test files covering missing service modules in ticketing and pipeline.
+All 92 test suites pass with 1976+ tests.
+
+#### New Test Files (14 files, 4963 lines)
+
+**ticketing module** (2 new tests):
+- `src/services/ticketing/__tests__/TicketAnalyticsService.test.ts` - SLA compliance, resolution stats, backlog, trends, statistics
+- `src/services/ticketing/__tests__/TicketingService.test.ts` - CRUD, assign, resolve, close, comments
+
+**pipeline module** (12 new tests):
+- `src/services/pipeline/__tests__/ApkMarketUploadService.test.ts` - register uploaders, upload to market, error categories
+- `src/services/pipeline/__tests__/ApkUploadHistoryService.test.ts` - CRUD, tenant queries, stats, failure tracking
+- `src/services/pipeline/__tests__/PathFilter.test.ts` - glob matching, negation, brace expansion, filter
+- `src/services/pipeline/__tests__/PipelineEventSSEBridge.test.ts` - run/stage/task events, enable/disable flags
+- `src/services/pipeline/__tests__/PipelineLogSSEService.test.ts` - SSE publish, event forwarding, stage/step events
+- `src/services/pipeline/__tests__/PipelineRepository.test.ts` - Pipeline/Stage/Run/Execution repositories
+- `src/services/pipeline/__tests__/PipelineRunService.test.ts` - run lifecycle, stages, tasks, environment resolution
+- `src/services/pipeline/__tests__/PipelineService.test.ts` - CRUD, validate, trigger, pagination, cache
+- `src/services/pipeline/__tests__/PipelineTenantIsolationService.test.ts` - tenant validation, run validation
+- `src/services/pipeline/__tests__/PipelineVersionService.test.ts` - CRUD, diff, rollback, tags, baseline
+- `src/services/pipeline/__tests__/PullRequestService.test.ts` - GitHub/GitLab clients, debounce, context extraction
+- `src/services/pipeline/__tests__/RollbackService.test.ts` - initiate, complete, fail, execute, query
+
+### Completed: TDD Test Coverage Supplementation for 7 Service Modules (2026-06-03)
+
+Supplemented TDD test coverage for 7 modules in orion-platform-service that had existing tests but insufficient coverage.
+
+#### Modules Covered
+
+| Module | Source Dir | New Test File | New Tests | Coverage Focus |
+|--------|-----------|---------------|-----------|----------------|
+| output-validation | src/services/output-validation/ | PatchSchemaDefinition.test.ts | 24 | JSON Schema structure, required fields, enums, patterns, defaults |
+| scheduler | src/services/scheduler/ | OnCallService.comprehensive.test.ts | 26 | Error handling, rotation types, escalation, DB mode, overrides |
+| test-generation | src/services/test-generation/ | types.test.ts | 18 | Default strategy constants, framework mappings |
+| queue | src/services/queue/ | QueueService.error.test.ts | 30 | Error class, compatibility methods, pagination, stats |
+| project | src/services/project/ | ProjectService.error.test.ts | 5 | Error class properties, inheritance, error codes |
+| api-key | src/services/api-key/ | ApiKeyService.error.test.ts | 4 | Error class properties, inheritance |
+| metrics | src/repositories/ | (existing tests already comprehensive) | 0 | Already at target coverage |
+
+#### New Test Files (6 files, 107 new tests)
+
+1. `src/services/output-validation/__tests__/PatchSchemaDefinition.test.ts` - PATCH_SCHEMA and SECURITY_BOUNDARY_SCHEMA validation
+2. `src/services/scheduler/__tests__/OnCallService.comprehensive.test.ts` - Enhanced OnCallService coverage
+3. `src/services/test-generation/__tests__/types.test.ts` - Type constants and framework mappings
+4. `src/services/queue/__tests__/QueueService.error.test.ts` - Error class + compatibility methods
+5. `src/services/project/__tests__/ProjectService.error.test.ts` - Error class validation
+6. `src/services/api-key/__tests__/ApiKeyService.error.test.ts` - Error class validation
+
+#### Test Results
+- All 7 module test suites: 17 suites, 364 tests passed
+- Full project: 719 suites passed, 17406 tests passed (3 pre-existing failures in test-selector, not related to this work)
+
+#### Fixes Applied During Development
+- PatchSchemaDefinition: Changed `toContain('.ts')` to `toContain('ts')` due to escaped dots in regex pattern
+- OnCallService DB mode: Mock DB needs two `query` calls for `findAll()` (data + count); used `mockResolvedValueOnce` chain
+
+---
+
+## Current Session (2026-07-03) - Task 4.59: Create supply-chain Module
+
+### Completed: Create supply-chain Module and Unify SBOM Services
+
+创建供应链安全模块 `src/services/supply-chain/`，统一 SBOM 能力。
+
+#### Features Implemented
+
+**SupplyChainService** (`SupplyChainService.ts`):
+- `analyzeDependencies(packageJson)` — 分析 package.json 依赖树，支持 prod/dev/peer/optional 四种 scope，深度限制为 3，循环依赖检测
+- `generateSbom(artifactId, components)` — 生成 SPDX JSON 格式 SBOM，自动设置 1 年过期时间
+- `serializeSbom(sbom)` — 将 SBOM 序列化为 SPDX JSON 字符串，支持 supplier 和 purl 字段
+- `checkCompliance(sbom, policy?)` — 检查许可证合规性和漏洞合规性，使用默认策略或自定义策略
+- `generateReport(artifactId, sbom)` — 生成供应链安全报告，包含风险评分（0-100）
+
+**SbomService** (`SbomService.ts`):
+- `fetchVulnerabilities(component)` — 调用 NVD/OSV API 实时查询组件漏洞
+- `getCachedVulnerabilities(component)` — 30min TTL 缓存查询，优先 OSV，回退 NVD
+- `warmupCache(components)` — 批量预热缓存
+- `getCacheStats()` — 获取缓存统计
+- `cleanupExpiredCache()` — 清理过期缓存
+- `clearCache()` — 清空缓存
+
+**SbomService 底层依赖**:
+- `VulnerabilityDatabaseClient` — 底层 NVD/OSV 查询客户端
+- `VulnerabilityCache` — 30min TTL 缓存实现
+
+#### Files Created
+
+| 文件 | 说明 |
+|------|------|
+| `src/services/supply-chain/SupplyChainService.ts` | 供应链安全核心逻辑 |
+| `src/services/supply-chain/SbomService.ts` | SBOM 统一服务 |
+| `src/services/supply-chain/types.ts` | SBOM, Component, License, Compliance 类型定义 |
+| `src/services/supply-chain/index.ts` | barrel 导出 |
+| `src/services/supply-chain/__tests__/SupplyChainService.test.ts` | 20 个单元测试 |
+
+#### Bug Fixes During Development
+
+1. **analyzeDependencies**: `packageJson.dependencies` 是 `Record<string, string>`，不能直接展开。修复：使用 `Object.entries()` 转换为 `[string, string][]` 后展开。
+2. **serializeSbom**: 当 `purl` 不存在时，`externalRefs` 应为 `undefined` 而非空数组 `[]`。修复：使用条件展开 `...(comp.purl ? { externalRefs: [...] } : {})`。
+3. **checkCompliance**: 默认策略只检查 `blockedLicenseCategories`，未检查 `isApproved`。修复：对 `!isApproved` 的许可证直接标记违规（不限 category）。
+4. **totalNodes**: 根节点未加入 `allNodes`，导致无依赖时 `totalNodes` 为 0。修复：初始化时将 root 加入 `allNodes`。
+
+#### Test Results
+
+- **SupplyChainService tests**: 20 passed, 0 failed
+- **TypeScript type-check**: 0 errors in supply-chain module
+
+#### Commit
+
+- `76f2216b` feat(supply-chain): create supply-chain module and unify SBOM services
+
+---
+
+## Current Session (2026-07-03) - Task 4.37: DigitalTwin 状态模拟接入真实引擎
+
+### Completed: Task 4.37 — GET /:id/state 接入 StateSimulationEngine
+
+**问题**: `src/api/digital-twin-routes.ts` 第 89-97 行 `GET /:id/state` 端点返回硬编码的 `Math.random()` 随机值，从未调用已实现的 `StateSimulationEngine`。
+
+**修改**:
+1. 在 `digitalTwinRoutes()` 函数内实例化 `StateSimulationEngine`（第 38 行）
+2. 将硬编码状态对象替换为引擎计算结果：
+   - `status` ← `simulated.state`（Markov chain 真实状态：healthy/degraded/faulted/recovering/offline）
+   - `cpuUsage` ← `Math.round((simulated.latency / (latency + 800)) * 100)`（基于引擎延迟计算）
+   - `memoryUsage` ← `Math.round(simulated.errorRate * 100)`（基于引擎错误率计算）
+   - `networkIO` ← 基于 `simulated.latency` 动态计算
+   - `lastSync` ← `simulated.lastTransitionAt`（引擎真实时间戳）
+3. 使用 `twin.id` 作为引擎 serviceName，确保每个 twin 独立跟踪状态
+
+**保持兼容**: 路由返回数据结构完全不变（twinId, status, replicas, cpuUsage, memoryUsage, networkIO, lastSync）
+
+#### Files Changed
+- `src/api/digital-twin-routes.ts` (+11/-6 lines)
+
+#### 验证结果
+- `npx tsc --noEmit 2>&1 | grep digital-twin` → **digital-twin-routes.ts 无类型错误**（引擎文件 TS2418 为修改前既有错误，不在任务范围）
+- `npx jest --testPathPattern="digital" --no-coverage` → **12 suites passed, 1 suite failed**
+  - `digital-twin-routes.test.ts`: **PASS** ✅
+  - `StateSimulationEngine.test.ts`: 30 failures（`injectFailure is not a function` — 测试文件调用错误的方法名，与本次修改无关，为修改前既有失败）
+
+---
+
+## Current Session (2026-07-04) - Task 4.65: 服务深度分析
+
+### Completed: Task 4.65 — 为 40% 无分析目录补充深度分析
+
+**目标**: 对 orion-platform-service/src/ 下尚未进行深度分析的服务目录进行架构和代码质量分析。
+
+**分析结果**:
+
+| 指标 | 数值 |
+|------|------|
+| 总服务数 | 169 |
+| 有设计文档 | 30 (17.8%) |
+| 无设计文档 | 139 (82.2%) |
+| 缺少 barrel export | 27 |
+| 无单元测试 | 27 |
+| 未使用 PostgreSQL Repository | 41 |
+
+**关键发现**:
+
+1. **139 个服务无设计文档** (82.2%)，远超预期的 40%
+2. **27 个服务缺少 barrel export**，影响模块化引用
+3. **27 个服务无单元测试**
+4. **41 个服务未使用 PostgreSQL Repository**，仍使用 Map 存储
+5. 多个大型服务（pipeline 40856行, ticketing 20736行, ai 18022行）存在 throw new Error 反模式
+
+**Top 5 最需要关注的服务**:
+1. pipeline (40856 行)
+2. ticketing (20736 行)
+3. ai (18022 行)
+4. chatops (16329 行)
+5. config-mgmt (12487 行)
+
+**输出**:
+- `docs/analysis/service-deep-analysis-2026-07-04.md` — 完整分析报告
+- `scripts/analyze-services.js` — 自动化分析脚本
+
+#### Files Changed
+- `docs/analysis/service-deep-analysis-2026-07-04.md` (created)
+- `docs/implementation-plan-2026-07-02.md` (updated Task 4.65 status)
+- `scripts/analyze-services.js` (created)
+
+---
+
+## Current Session (2026-07-04) - Task 2.38: ArtifactOperationService FallbackStorageService Migration
+
+### Completed: Migrate ArtifactOperationService from inMemoryOperations Map to FallbackStorageService
+
+**问题**: `src/services/artifact-ops/ArtifactOperationService.ts` 使用模块级 `inMemoryOperations = new Map<string, ArtifactOperationRecord[]>()` 做存储，数据仅存于进程内存，重启丢失，且多实例间不共享。
+
+**修改**:
+1. 移除模块级 `inMemoryOperations` Map 声明
+2. 构造函数中注入 `FallbackStorageService`（DB 模式 `persistToDb=true`，内存模式 `persistToDb=false`）
+3. key 设计：`artifact-ops:tenant:{tenantId}`，支持 tenant_id 隔离
+4. TTL = 0（permanent until explicitly deleted），maxSize = 5000
+5. 所有 `Map.get/set/delete` 替换为 `storage.get/set/delete`（异步）
+6. `updateOperationStatus` 中补充 `await this.storage!.set()` 保存更新后的列表
+7. 日志从 `pino` 迁移到 `createLogger`
+
+#### 验证结果
+- `npx tsc --noEmit 2>&1 | grep -i artifact-ops/ArtifactOperationService` → **无错误**
+- `npx jest --testPathPattern="artifact-ops|ArtifactOperation"` → **5 suites passed, 69 tests passed**
+
+#### Commit
+- `3ab1f1f7` refactor(artifact-ops): migrate ArtifactOperationService from Map to FallbackStorageService
+
+#### Files Changed
+- `src/services/artifact-ops/ArtifactOperationService.ts` (migrated)
+
+---
+
+## Current Session (2026-07-04) - Task 6.10 准备: Go Phase 2 迁移方案分析
+
+### Completed: 10 个业务服务 TS→Go 迁移可行性分析
+
+**任务**: 为 Go 迁移第二阶段（Task 6.10）做准备，分析 10 个候选业务服务的迁移可行性。
+
+**分析的服务**:
+1. approval（审批）
+2. canary-analysis（灰度分析）
+3. chatops（ChatOps）
+4. compliance（合规）
+5. config（配置管理）
+6. incident（事件/Incident）
+7. knowledge（知识库）
+8. monitoring（监控）
+9. report-designer（报表设计器）
+10. user（用户管理）
+
+**核心发现**:
+
+| 服务 | 代码行数 | API 端点 | Go 蓝图 | 难度 | 建议批次 |
+|------|----------|----------|---------|------|----------|
+| approval | 7,601 | 33 | ✅ 1,597 lines | 中高 | 第 1-2 批 |
+| canary-analysis | 1,400 | 19 | ❌ | 低 | 第 1 批 |
+| chatops | 16,280 | 113 | ✅ 2,873 lines | 极高 | 第 3 批 |
+| compliance | 1,313 | - | ❌ | 低 | 第 1 批 |
+| config | 7,780 | 多路由 | ✅ 空目录 | 中高 | 第 2 批 |
+| incident | 2,541 | 47 | ✅ 空目录 | 中 | 第 2 批 |
+| knowledge | 3,425 | - | ❌ | 中 | 第 2 批 |
+| monitoring | 10,062 | 52 | ✅ 8 files | 高 | 第 2-3 批 |
+| report-designer | 1,590 | 21 | ❌ | 中低 | 第 1 批 |
+| user | 3,627 | 多路由 | ❌ | 中 | 第 2 批 |
+
+**建议分批方案**:
+- **第 1 批**（快速 Wins，7 人天）: canary-analysis、compliance、report-designer
+- **第 2 批**（中等复杂度，19 人天）: incident、knowledge、user、approval
+- **第 3 批**（高复杂度，27 人天）: config、monitoring、chatops
+
+**关键依赖关系**:
+- chatops 依赖最广（6 个 Phase 1 服务），必须最后迁移
+- canary-analysis、compliance、incident、report-designer 无强依赖，可独立迁移
+- user 依赖 auth（Phase 1 已完成），可紧随 auth 迁移
+
+**关键风险**:
+- ⚠️ alert 服务 Go 迁移状态未确认，影响 monitoring 批次规划
+- ⚠️ chatops 有 113 个 API 端点，迁移风险极高
+- ⚠️ approval 工作流引擎逻辑复杂，需重构状态机
+
+**输出文档**: `docs/migration/go-phase2-analysis.md`（1,092 行）
+
+**下一步**:
+1. 组织技术评审本方案
+2. 确认 alert 服务 Go 迁移状态
+3. 启动第 1 批试点（canary-analysis）
+4. 确认 2-4 人 Go 开发资源
+
+#### Files Changed
+- `docs/migration/go-phase2-analysis.md` (created, 1092 lines)
+- `claude-progress.txt` (updated)

@@ -3,6 +3,7 @@
  * Analysis runs, metrics, configurations, and ML results
  */
 import { api } from './client';
+import { API_PATHS } from '@/constants/api-paths';
 
 // ---- Types ----
 
@@ -96,57 +97,57 @@ export interface ForceActionInput {
 // ---- API Functions ----
 
 export function getCanaryRuns(params?: CanaryRunListParams) {
-  return api.get('/v1/canary-analysis/runs', { params });
+  return api.get(API_PATHS.CANARY.RUNS, { params });
 }
 
 export function getCanaryRun(id: string) {
-  return api.get(`/v1/canary-analysis/runs/${id}`);
+  return api.get(API_PATHS.CANARY.RUN_DETAIL(id));
 }
 
 export function getCanaryMetrics(runId: string) {
-  return api.get(`/v1/canary-analysis/runs/${runId}/metrics`);
+  return api.get(API_PATHS.CANARY.RUN_METRICS(runId));
 }
 
 export function getCanaryMlResults(runId: string) {
-  return api.get(`/v1/canary-analysis/runs/${runId}/ml-results`);
+  return api.get(API_PATHS.CANARY.RUN_ML_RESULTS(runId));
 }
 
 export function triggerCanaryAnalysis(data: CanaryTriggerInput) {
-  return api.post('/v1/canary-analysis/runs', data);
+  return api.post(API_PATHS.CANARY.RUNS, data);
 }
 
 export function getCanaryConfigs(params?: { serviceName?: string; environment?: string }) {
-  return api.get('/v1/canary-analysis/configs', { params });
+  return api.get(API_PATHS.CANARY.CONFIGS, { params });
 }
 
 export function getCanaryConfigByService(serviceName: string, environment: string) {
-  return api.get(`/v1/canary-analysis/configs/${serviceName}/${environment}`);
+  return api.get(API_PATHS.CANARY.CONFIG_DETAIL(serviceName, environment));
 }
 
 export function createCanaryConfig(data: CanaryConfigInput) {
-  return api.post('/v1/canary-analysis/configs', data);
+  return api.post(API_PATHS.CANARY.CONFIGS, data);
 }
 
 export function updateCanaryConfig(id: string, data: Partial<CanaryConfigInput>) {
-  return api.put(`/v1/canary-analysis/configs/${id}`, data);
+  return api.put(API_PATHS.CANARY.CONFIG_BY_ID(id), data);
 }
 
 export function deleteCanaryConfig(id: string) {
-  return api.delete(`/v1/canary-analysis/configs/${id}`);
+  return api.delete(API_PATHS.CANARY.CONFIG_BY_ID(id));
 }
 
 export function forcePromote(data: ForceActionInput) {
-  return api.post('/v1/canary-analysis/force-promote', data);
+  return api.post(API_PATHS.CANARY.FORCE_PROMOTE, data);
 }
 
 export function forceRollback(data: ForceActionInput) {
-  return api.post('/v1/canary-analysis/force-rollback', data);
+  return api.post(API_PATHS.CANARY.FORCE_ROLLBACK, data);
 }
 
 export function discoverMetrics(params?: { serviceName?: string }) {
-  return api.get('/v1/canary-analysis/metrics/discover', { params });
+  return api.get(API_PATHS.CANARY.METRICS_DISCOVER, { params });
 }
 
 export function retrainCanaryModel(modelName?: string) {
-  return api.post('/v1/canary-analysis/models/retrain', { modelName });
+  return api.post(API_PATHS.CANARY.MODELS_RETRAIN, { modelName });
 }

@@ -43,7 +43,7 @@ export interface UpdateSecretInput {
 export function getSecrets(tenantId: string, scope?: SecretScope) {
   const params: Record<string, string> = {};
   if (scope) params.scope = scope;
-  return api.get<Secret[]>(`/v1/tenants/${tenantId}/secrets`, { params });
+  return api.get<Secret[]>(`/api/v1/tenants/${tenantId}/secrets`, { params });
 }
 
 /**
@@ -51,19 +51,19 @@ export function getSecrets(tenantId: string, scope?: SecretScope) {
  * The value is encrypted server-side with AES-256-GCM.
  */
 export function createSecret(tenantId: string, data: CreateSecretInput) {
-  return api.post<Secret>(`/v1/tenants/${tenantId}/secrets`, data);
+  return api.post<Secret>(`/api/v1/tenants/${tenantId}/secrets`, data);
 }
 
 /**
  * Delete a secret by ID.
  */
 export function deleteSecret(tenantId: string, id: string) {
-  return api.delete(`/v1/tenants/${tenantId}/secrets/${id}`);
+  return api.delete(`/api/v1/tenants/${tenantId}/secrets/${id}`);
 }
 
 /**
  * Update a secret's value (re-encrypts) and optionally description.
  */
 export function updateSecret(tenantId: string, id: string, data: UpdateSecretInput) {
-  return api.put<Secret>(`/v1/tenants/${tenantId}/secrets/${id}`, data);
+  return api.put<Secret>(`/api/v1/tenants/${tenantId}/secrets/${id}`, data);
 }

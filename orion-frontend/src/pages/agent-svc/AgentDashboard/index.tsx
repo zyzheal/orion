@@ -8,7 +8,13 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, message, Modal } from 'antd';
-import { PlusOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  PlayCircleOutlined,
+  RobotOutlined,
+} from '@ant-design/icons';
+import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
 import {
@@ -27,6 +33,7 @@ import AgentRunList from './AgentRunList';
 import AgentDetailDrawer from './AgentDetailDrawer';
 import CreateAgentModal from './CreateAgentModal';
 import TriggerRunModal from './TriggerRunModal';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -42,6 +49,7 @@ const AgentDashboard: React.FC = () => {
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [approvals, setApprovals] = useState<AgentApproval[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
@@ -57,8 +65,8 @@ const AgentDashboard: React.FC = () => {
         getAgentProfiles(),
         getAgentRuns({ pageSize: 10 }),
       ]);
-      setAgents(agentsRes.data?.data || []);
-      setRuns(runsRes.data?.data || []);
+      setAgents(agentsRes.data || []);
+      setRuns(runsRes.data || []);
       // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
       const approvalsData = await getAgentApprovals({ status: 'pending' });
       setApprovals(approvalsData);
@@ -149,6 +157,11 @@ const AgentDashboard: React.FC = () => {
     setDetailDrawerOpen(true);
   };
 
+  const handleEditAgent = (agent: AgentProfile) => {
+    setSelectedAgent(agent);
+    setEditModalOpen(true);
+  };
+
   const handleApprove = async (approval: AgentApproval) => {
     try {
       await respondToApproval(approval.id, { approved: true, reason: 'Approved via dashboard' });
@@ -191,11 +204,12 @@ const AgentDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Agent 编排
           </Title>
           <Text type="secondary">
@@ -243,6 +257,7 @@ const AgentDashboard: React.FC = () => {
         onFilter={setFilters}
         onViewDetail={handleViewDetail}
         onToggleAgent={handleToggleAgent}
+        onEditAgent={handleEditAgent}
         onDeleteAgent={handleDeleteAgent}
       />
 
@@ -262,6 +277,15 @@ const AgentDashboard: React.FC = () => {
           setCreateModalOpen(false);
           loadData();
         }}
+      />
+      <CreateAgentModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onSuccess={() => {
+          setEditModalOpen(false);
+          loadData();
+        }}
+        agent={selectedAgent}
       />
       <TriggerRunModal
         open={triggerModalOpen}

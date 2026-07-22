@@ -136,7 +136,7 @@ const ValidationReport: React.FC<ValidationReportProps> = ({
           <Paragraph type="secondary" style={{ marginBottom: spacing[3] }}>
             根据依赖关系拓扑排序得出的推荐启动顺序。请确保按照此顺序启动模块，以避免依赖未就绪的问题。
           </Paragraph>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
             {startupOrder.map((moduleId, index) => (
               <Tag
                 key={moduleId}

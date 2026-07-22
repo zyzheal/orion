@@ -6,15 +6,15 @@ import '@testing-library/jest-dom';
 import PRTriggerManagement from '../index';
 
 // Mock the API calls
-jest.mock('@/api/prTriggers', () => ({
-  getPRTriggerRules: jest.fn().mockResolvedValue({ data: [] }),
-  createPRTrigger: jest.fn().mockResolvedValue({ data: {} }),
-  updatePRTrigger: jest.fn().mockResolvedValue({ data: {} }),
-  deletePRTrigger: jest.fn().mockResolvedValue({ data: {} }),
+vi.mock('@/api/prTriggers', () => ({
+  getPRTriggerRules: vi.fn().mockResolvedValue({ data: [] }),
+  createPRTrigger: vi.fn().mockResolvedValue({ data: {} }),
+  updatePRTrigger: vi.fn().mockResolvedValue({ data: {} }),
+  deletePRTrigger: vi.fn().mockResolvedValue({ data: {} }),
 }));
 
-jest.mock('@/api/pipelines', () => ({
-  getPipelines: jest.fn().mockResolvedValue({ data: [] }),
+vi.mock('@/api/pipelines', () => ({
+  getPipelines: vi.fn().mockResolvedValue({ data: [] }),
 }));
 
 describe('PRTriggerManagement', () => {

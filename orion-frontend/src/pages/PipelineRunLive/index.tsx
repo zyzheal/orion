@@ -10,7 +10,7 @@
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider } from 'antd';
+import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Result } from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -22,6 +22,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
+  CloudUploadOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import StatusBadge from '@/components/StatusBadge';
@@ -33,6 +34,9 @@ import { getPipelineRun } from '@/api/pipelines';
 
 dayjs.extend(duration);
 
+type PipelineRun = { id: string; name: string; status: string; startTime?: string; endTime?: string };
+type Task = { id: string; name: string; status: string };
+type Step = { id: string; name: string; status: string };
 const { Title, Text } = Typography;
 
 // ============================================================================
@@ -144,7 +148,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
           fontSize: spacing[3],
         }}
       >
-        <LoadingOutlined style={{ fontSize: 24, marginBottom: 12 }} />
+        <LoadingOutlined style={{ fontSize: 24, marginBottom: spacing[3] }} />
         <div>等待日志推送...</div>
         <Text type="secondary" style={{ fontSize: spacing[2] }}>
           SSE 连接建立后将实时显示日志
@@ -159,7 +163,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
       style={{
         background: colors.neutral[900],
         borderRadius: 6,
-        padding: 12,
+        padding: spacing[3],
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
         fontSize: 12,
         lineHeight: 1.6,
@@ -171,7 +175,7 @@ const LiveLogViewer: React.FC<LiveLogViewerProps> = ({ logs, autoScroll }) => {
       {logs.map((log) => {
         const textColor = logLevelColors[log.level] || colors.neutral[300];
         return (
-          <div key={log.id} style={{ display: 'flex', gap: 8 }}>
+          <div key={log.id} style={{ display: 'flex', gap: spacing.sm }}>
             <span style={{ color: colors.neutral[500], flexShrink: 0, userSelect: 'none' }}>
               {formatTime(log.timestamp)}
             </span>
@@ -230,7 +234,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
 
   if (stages.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 24, color: colors.neutral[500] }}>
+      <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[500] }}>
         <Text>暂无阶段数据</Text>
       </div>
     );
@@ -267,7 +271,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
+                  color: colors.neutral[0],
                   fontSize: spacing[4],
                   fontWeight: 600,
                   boxShadow:
@@ -317,7 +321,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
           key={stage.id || index}
           size="small"
           style={{
-            marginBottom: 8,
+            marginBottom: spacing.sm,
             borderColor:
               stage.id === currentStageId && stage.status === 'running'
                 ? colors.primary[300]
@@ -347,7 +351,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     fontSize: spacing[3],
                   }}
                 >
@@ -440,24 +444,25 @@ const PipelineRunLive: React.FC = () => {
       setLoading(true);
       setApiError(null);
       try {
-        const response = await getPipelineRun(id!);
-        const apiData = response.data.data as any;
+        const response = await getPipelineRun(runId!);
+        // Backend returns { run, stages, tasks } directly, not wrapped in data
+        const apiData = response.data as { run?: PipelineRun; stages?: StageState[]; tasks?: Task[] };
         if (apiData) {
           setPipeline(apiData);
           // Initialize stages from API data
           if (apiData.stages) {
-            const initialized: StageState[] = apiData.stages.map((s: any, idx: number) => ({
+            const initialized: StageState[] = apiData.stages.map((s: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string; steps?: Step[] }, idx: number) => ({
               id: s.id || `stage-${idx}`,
-              name: s.name,
-              status: s.status || 'pending',
-              startTime: s.startTime,
-              endTime: s.endTime,
-              steps: (s.steps || []).map((st: any, stIdx: number) => ({
+              name: s.name || '',
+              status: (s.status || 'pending') as StageState['status'],
+              startTime: s.startTime || '',
+              endTime: s.endTime || '',
+              steps: (s.steps || []).map((st: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string }, stIdx: number) => ({
                 id: st.id || `step-${idx}-${stIdx}`,
-                name: st.name,
-                status: st.status || 'pending',
-                startTime: st.startTime,
-                endTime: st.endTime,
+                name: st.name || '',
+                status: (st.status || 'pending') as StepState['status'],
+                startTime: st.startTime || '',
+                endTime: st.endTime || '',
               })),
             }));
             setStages(initialized);
@@ -538,27 +543,19 @@ const PipelineRunLive: React.FC = () => {
   if (apiError && !pipeline) {
     return (
       <div style={{ padding: 0 }}>
-        <Card
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Button
-                type="text"
-                icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/pipelines')}
-              >
-                返回列表
+        <Result
+          status="error"
+          title="加载失败"
+          subTitle={apiError}
+          extra={
+            <Space>
+              <Button onClick={() => navigate('/pipelines')}>返回列表</Button>
+              <Button type="primary" onClick={() => window.location.reload()}>
+                重新加载
               </Button>
-              <Title level={4} style={{ margin: 0 }}>
-                实时执行面板
-              </Title>
-            </div>
+            </Space>
           }
-        >
-          <div style={{ textAlign: 'center', padding: 40, color: colors.error[500] }}>
-            <CloseCircleOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-            <div>{apiError}</div>
-          </div>
-        </Card>
+        />
       </div>
     );
   }
@@ -570,27 +567,21 @@ const PipelineRunLive: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page header */}
+      {/* Page header - 与列表页 space-between 布局一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-        >
-          返回列表
-        </Button>
-        <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline?.name || 'Pipeline'} 实时执行
           </Title>
-          <Space size="middle">
+          <Space size="middle" wrap>
             <Text type="secondary">
               运行 #{pipeline?.runNumber || runId || id}
             </Text>
@@ -603,17 +594,21 @@ const PipelineRunLive: React.FC = () => {
                 连接错误: {error.message}
               </Text>
             )}
+            {pipeline && <StatusBadge status={pipeline.status} size="small" />}
           </Space>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <Space>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-          </Space>
-        </div>
+        <Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+          >
+            返回列表
+          </Button>
+        </Space>
       </div>
 
       {/* Run metadata */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Descriptions column={4} size="small" labelStyle={{ width: 80 }}>
           <Descriptions.Item label="Pipeline">
             <Text strong>{pipeline?.name || '-'}</Text>
@@ -665,7 +660,7 @@ const PipelineRunLive: React.FC = () => {
           </Descriptions.Item>
           <Descriptions.Item label="提交">
             {pipeline?.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
+              <Tag color="default" style={{ marginRight: spacing.sm }}>
                 {pipeline.commit}
               </Tag>
             )}
@@ -678,8 +673,8 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          marginBottom: 16,
+          gap: spacing.sm,
+          marginBottom: spacing.md,
           padding: '8px 12px',
           background: colors.light.bg.tertiary,
           borderRadius: 6,
@@ -742,7 +737,7 @@ const PipelineRunLive: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: '380px 1fr',
-          gap: 16,
+          gap: spacing.md,
           alignItems: 'start',
         }}
       >

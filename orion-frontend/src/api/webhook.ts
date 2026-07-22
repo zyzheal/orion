@@ -37,30 +37,30 @@ export interface WebhookLog {
 }
 
 export async function getWebhooks() {
-  return api.get<{ webhooks: Webhook[] }>('/v1/webhooks');
+  return api.get<Webhook[]>('/api/v1/webhooks');
 }
 
 export async function getWebhook(id: string) {
-  return api.get<{ webhook: Webhook }>(`/v1/webhooks/${id}`);
+  return api.get<Webhook>(`/api/v1/webhooks/${id}`);
 }
 
 export async function createWebhook(input: WebhookInput) {
-  return api.post<{ webhook: Webhook }>('/v1/webhooks', input);
+  return api.post<Webhook>('/api/v1/webhooks', input);
 }
 
 export async function updateWebhook(id: string, input: Partial<WebhookInput>) {
-  return api.put<{ webhook: Webhook }>(`/v1/webhooks/${id}`, input);
+  return api.put<Webhook>(`/api/v1/webhooks/${id}`, input);
 }
 
 export async function deleteWebhook(id: string) {
-  return api.delete<void>(`/v1/webhooks/${id}`);
+  return api.delete<void>(`/api/v1/webhooks/${id}`);
 }
 
 export async function testWebhook(id: string) {
-  return api.post<void>(`/v1/webhooks/${id}/test`);
+  return api.post<void>(`/api/v1/webhooks/${id}/test`);
 }
 
 export async function getWebhookLogs(id: string, limit?: number) {
   const qs = limit ? `?limit=${limit}` : '';
-  return api.get<{ logs: WebhookLog[] }>(`/v1/webhooks/${id}/logs${qs}`);
+  return api.get<WebhookLog[]>(`/api/v1/webhooks/${id}/logs${qs}`);
 }

@@ -10,6 +10,7 @@ import {
   PlayCircleOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
+import { spacing } from '@/tokens';
 
 interface AgentMetricsProps {
   activeAgentCount: number;
@@ -29,8 +30,8 @@ const AgentMetrics: React.FC<AgentMetricsProps> = ({
       style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: 16,
-        marginBottom: 24,
+        gap: spacing.md,
+        marginBottom: spacing.lg,
       }}
       data-testid="agent-summary-cards"
     >

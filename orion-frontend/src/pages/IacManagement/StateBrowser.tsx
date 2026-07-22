@@ -2,7 +2,7 @@
  * IaC State Browser - State version history, resource list, state diff
  */
 import React, { useState, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,7 @@ import {
   Modal,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, DiffOutlined, EyeOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, ReloadOutlined, DiffOutlined, EyeOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getWorkspaces,
@@ -45,7 +45,7 @@ const StateBrowser: React.FC = () => {
   const loadWorkspaces = async () => {
     try {
       const res = await getWorkspaces();
-      const wsList = Array.isArray(res.data.data) ? res.data.data : [];
+      const wsList = Array.isArray(res.data) ? res.data : [];
       setWorkspaces(wsList.map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })));
       if (wsList.length > 0) {
         setSelectedWorkspaceId(wsList[0].id);
@@ -67,8 +67,8 @@ const StateBrowser: React.FC = () => {
         getWorkspaceStateVersions(wsId),
         getWorkspaceResources(wsId),
       ]);
-      setStateVersions(Array.isArray(verRes.data.data) ? verRes.data.data : []);
-      setResources(Array.isArray(resRes.data.data) ? resRes.data.data : []);
+      setStateVersions(Array.isArray(verRes.data) ? verRes.data : []);
+      setResources(Array.isArray(resRes.data) ? resRes.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load state data：${error.message}`);
@@ -192,11 +192,12 @@ const StateBrowser: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DatabaseOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             状态浏览
           </Title>
           <Text type="secondary">IaC 状态版本历史与资源查看</Text>
@@ -219,7 +220,7 @@ const StateBrowser: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="状态版本数" value={stateVersions.length} />
@@ -311,7 +312,7 @@ const StateBrowser: React.FC = () => {
               rowKey="id"
               size="small"
               striped
-              pagination={{ pageSize: 8, current: 1, total: stateVersions.length } as any}
+              pagination={{ pageSize: 8, current: 1, total: stateVersions.length }}
             />
           </Card>
         </Col>
@@ -329,7 +330,7 @@ const StateBrowser: React.FC = () => {
         </p>
         <Text type="secondary">工作空间: {selectedWsName}</Text>
         <div
-          style={{ marginTop: 16, padding: 16, background: colors.neutral[50], borderRadius: 4 }}
+          style={{ marginTop: spacing.md, padding: spacing.md, background: colors.neutral[50], borderRadius: 4 }}
         >
           <Text>差异对比结果将在此显示</Text>
         </div>

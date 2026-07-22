@@ -13,7 +13,9 @@ import {
   Card,
   Divider,
   Alert,
+  Form,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   GitlabOutlined,
   GithubOutlined,
@@ -165,8 +167,8 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
   return (
     <Card size="small" title={<Space>{providerIcon} PR/MR 触发配置</Space>}>
       {/* 基础开关 */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ marginRight: 8 }}>启用 PR/MR 触发</span>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: spacing.md }}>
+        <span style={{ marginRight: spacing.sm }}>启用 PR/MR 触发</span>
         <Switch
           checked={config.enabled}
           onChange={(checked) => updateConfig({ enabled: checked })}
@@ -208,7 +210,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 return (
                   <Space direction="vertical" size={0}>
                     <span>{option.label}</span>
-                    <span style={{ fontSize: 12, color: '#999' }}>{data.description}</span>
+                    <span style={{ fontSize: 12, color: colors.neutral[500] }}>{data.description}</span>
                   </Space>
                 );
               }}
@@ -263,7 +265,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 style={{ flex: 1 }}
               />
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {config.branchFilter.targetBranches.map((branch, index) => (
                 <Tag
                   key={`target-${branch}-${index}`}
@@ -276,7 +278,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.branchFilter.targetBranches.length === 0 && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，将匹配所有分支</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有分支</span>
               )}
             </div>
           </Form.Item>
@@ -293,7 +295,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 style={{ flex: 1 }}
               />
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {config.branchFilter.sourceBranches?.map((branch, index) => (
                 <Tag
                   key={`source-${branch}-${index}`}
@@ -306,7 +308,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {(!config.branchFilter.sourceBranches || config.branchFilter.sourceBranches.length === 0) && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，将匹配所有来源分支</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有来源分支</span>
               )}
             </div>
           </Form.Item>
@@ -321,7 +323,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             message="路径过滤使用 glob 模式"
             description="例如：src/** 匹配 src 目录下所有文件，*.md 匹配所有 markdown 文件，!docs/** 排除 docs 目录"
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           />
 
           <Form.Item label="包含路径">
@@ -336,7 +338,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 style={{ flex: 1 }}
               />
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {config.pathFilter.includePaths.map((path, index) => (
                 <Tag
                   key={`include-${path}-${index}`}
@@ -349,7 +351,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.pathFilter.includePaths.length === 0 && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，将匹配所有文件变更</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有文件变更</span>
               )}
             </div>
           </Form.Item>
@@ -366,7 +368,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 style={{ flex: 1 }}
               />
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {config.pathFilter.excludePaths.map((path, index) => (
                 <Tag
                   key={`exclude-${path}-${index}`}
@@ -398,7 +400,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 style={{ flex: 1 }}
               />
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {config.labelFilter.requiredLabels.map((label, index) => (
                 <Tag
                   key={`required-${label}-${index}`}
@@ -411,7 +413,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.labelFilter.requiredLabels.length === 0 && (
-                <span style={{ color: '#999', fontSize: 12 }}>未配置，不限制标签</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，不限制标签</span>
               )}
             </div>
           </Form.Item>
@@ -428,7 +430,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 style={{ flex: 1 }}
               />
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {config.labelFilter.excludedLabels.map((label, index) => (
                 <Tag
                   key={`excluded-${label}-${index}`}
@@ -456,8 +458,8 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
             />
           </Form.Item>
 
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ marginRight: 8 }}>自动评论</span>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: spacing.md }}>
+            <span style={{ marginRight: spacing.sm }}>自动评论</span>
             <Switch
               checked={config.autoComment}
               onChange={(checked) => updateConfig({ autoComment: checked })}
@@ -467,8 +469,8 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
           </div>
 
           {config.autoComment && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ marginBottom: 8 }}>评论模板</div>
+            <div style={{ marginBottom: spacing.md }}>
+              <div style={{ marginBottom: spacing.sm }}>评论模板</div>
               <TextArea
                 value={config.commentTemplate}
                 onChange={(e) => updateConfig({ commentTemplate: e.target.value })}
@@ -483,7 +485,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
 {{duration}} - 执行耗时
 {{passRate}} - 测试通过率`}
               />
-            </Form.Item>
+            </div>
           )}
         </>
       )}

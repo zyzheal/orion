@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { VectorCollection } from '@/api/vector-store';
 import dayjs from 'dayjs';
 import { statusColorMap, indexTypeLabelMap, metricLabelMap } from './utils';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -141,7 +142,7 @@ const CollectionList: React.FC<CollectionListProps> = ({
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', gap: spacing[3] }}>
         <Input.Search
           placeholder="搜索集合..."
           allowClear

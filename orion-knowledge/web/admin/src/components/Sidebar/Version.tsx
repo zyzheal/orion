@@ -16,7 +16,12 @@ const Version = () => {
   const [typeOpen, setTypeOpen] = useState(false);
 
   useEffect(() => {
-    // fetch('https://orion-knowledge.local/release/version.txt')
+    // 开发环境跳过远程版本检查
+    if (import.meta.env.DEV) {
+      setLatestVersion('');
+      return;
+    }
+    fetch('/release/version.txt')
       .then(response => response.text())
       .then(data => {
         setLatestVersion(data);

@@ -24,6 +24,7 @@ import {
   DownloadOutlined,
   EyeOutlined,
   FileTextOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { PieChart, BarChart, StatCard, GaugeChart, TreeMap, type PieDataItem, type BarDataItem } from '@/components/charts';
 import Table, { type TableColumn } from '@/components/Table';
@@ -72,9 +73,9 @@ const SbomDashboard: React.FC = () => {
         getSbomWaivers(),
         getSbomComplianceReport(),
       ]);
-      setDocuments(Array.isArray(docRes?.data?.data) ? (docRes.data.data as SbomDocument[]) : []);
-      setWaivers(Array.isArray(waiverRes?.data?.data) ? (waiverRes.data.data as SbomWaiver[]) : []);
-      setCompliance((compRes?.data?.data as SbomComplianceReport) || null);
+      setDocuments(Array.isArray(docRes?.data) ? (docRes.data as SbomDocument[]) : []);
+      setWaivers(Array.isArray(waiverRes?.data) ? (waiverRes.data as SbomWaiver[]) : []);
+      setCompliance((compRes?.data as SbomComplianceReport) || null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load SBOM data：${error.message}`);
@@ -255,11 +256,12 @@ const SbomDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             SBOM 供应链仪表盘
           </Title>
           <Text type="secondary">软件物料清单与漏洞管理</Text>
@@ -279,7 +281,7 @@ const SbomDashboard: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <StatCard title="SBOM 总数" value={documents.length} suffix="个" />
         </Col>
@@ -307,8 +309,8 @@ const SbomDashboard: React.FC = () => {
       </Row>
 
       {/* SBOM List */}
-      <Card title="SBOM 文档列表" style={{ marginBottom: 24 }}>
-        <div style={{ marginBottom: 16 }}>
+      <Card title="SBOM 文档列表" style={{ marginBottom: spacing.lg }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -339,7 +341,7 @@ const SbomDashboard: React.FC = () => {
             导出 PDF
           </Button>
         }
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       >
         {compliance ? (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>

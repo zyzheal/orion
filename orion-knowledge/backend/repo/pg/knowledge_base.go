@@ -467,11 +467,17 @@ func (r *KnowledgeBaseRepository) checkUniquePortHost(kbList []*domain.Knowledge
 }
 
 func (r *KnowledgeBaseRepository) GetKnowledgeBaseList(ctx context.Context) ([]*domain.KnowledgeBaseListItem, error) {
+	return r.GetKnowledgeBaseListByTenant(ctx, "")
+}
+
+// GetKnowledgeBaseListByTenant 带租户过滤的知识库列表，tenantID 为空时返回全部
+func (r *KnowledgeBaseRepository) GetKnowledgeBaseListByTenant(ctx context.Context, tenantID string) ([]*domain.KnowledgeBaseListItem, error) {
 	var kbs []*domain.KnowledgeBaseListItem
-	if err := r.db.WithContext(ctx).
-		Model(&domain.KnowledgeBase{}).
-		Order("created_at ASC").
-		Find(&kbs).Error; err != nil {
+	query := r.db.WithContext(ctx).Model(&domain.KnowledgeBase{}).Order("created_at ASC")
+	if tenantID != "" {
+		query = query.Where("tenant_id = ?", tenantID)
+	}
+	if err := query.Find(&kbs).Error; err != nil {
 		return nil, err
 	}
 	return kbs, nil
@@ -494,9 +500,19 @@ func (r *KnowledgeBaseRepository) GetKnowledgeBaseListByUserId(ctx context.Conte
 		return nil, fmt.Errorf("authInfo not found in context")
 	}
 
+	// 租户过滤：从 context 获取 tenant_id
+	tenantID := ""
+	if tid, ok := ctx.Value("tenant_id").(string); ok && tid != "" {
+		tenantID = tid
+	}
+
+	baseQuery := r.db.WithContext(ctx).Model(&domain.KnowledgeBase{})
+	if tenantID != "" {
+		baseQuery = baseQuery.Where("tenant_id = ?", tenantID)
+	}
+
 	if authInfo.IsToken {
-		if err := r.db.WithContext(ctx).
-			Model(&domain.KnowledgeBase{}).
+		if err := baseQuery.
 			Where("id = ?", authInfo.KBId).
 			Order("created_at ASC").
 			Find(&kbs).Error; err != nil {
@@ -512,8 +528,7 @@ func (r *KnowledgeBaseRepository) GetKnowledgeBaseListByUserId(ctx context.Conte
 		}
 
 		if user.Role == consts.UserRoleAdmin {
-			if err := r.db.WithContext(ctx).
-				Model(&domain.KnowledgeBase{}).
+			if err := baseQuery.
 				Order("created_at ASC").
 				Find(&kbs).Error; err != nil {
 				return nil, err

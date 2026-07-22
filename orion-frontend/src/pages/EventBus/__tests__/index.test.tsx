@@ -90,10 +90,10 @@ describe('EventBusMonitoring', () => {
 
   it('loads events and stats from API on mount', async () => {
     mockApi.getEvents.mockResolvedValue({
-      data: { data: { events: [mockApiEvent] } },
+      data: { events: [mockApiEvent] } ,
     });
     mockApi.getStats.mockResolvedValue({
-      data: { data: { stats: mockStats } },
+      data: { stats: mockStats } ,
     });
 
     renderWithRouter(<EventBusMonitoring />);
@@ -130,10 +130,10 @@ describe('EventBusMonitoring', () => {
 
   it('shows empty state when API returns empty array', async () => {
     mockApi.getEvents.mockResolvedValue({
-      data: { data: { events: [] } },
+      data: { events: [] } ,
     });
     mockApi.getStats.mockResolvedValue({
-      data: { data: { stats: {} } },
+      data: { stats: {} } ,
     });
 
     renderWithRouter(<EventBusMonitoring />);

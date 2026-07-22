@@ -2,6 +2,7 @@
  * My Skills - Installed skills list, upgrade available, uninstall
  */
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Typography,
   Button,
@@ -15,8 +16,15 @@ import {
   Col,
   Statistic,
 } from 'antd';
-import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import {
+  ReloadOutlined,
+  DeleteOutlined,
+  ReloadOutlined as ReloadIcon,
+  AppstoreOutlined,
+  PlayCircleOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -29,6 +37,7 @@ dayjs.extend(relativeTime);
 const { Title, Text } = Typography;
 
 const MySkills: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [skills, setSkills] = useState<SkillPackage[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +48,7 @@ const MySkills: React.FC = () => {
     setLoading(true);
     try {
       const res = await getMySkills();
-      setSkills(Array.isArray(res.data.data) ? res.data.data : []);
+      setSkills(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load installed skills：${error.message}`);
@@ -122,7 +131,12 @@ const MySkills: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'error' ? 'failed' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'rating',
@@ -154,10 +168,31 @@ const MySkills: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 160,
+      width: 220,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<ReloadIcon />}>
+          <Button
+            type="link"
+            size="small"
+            icon={<AppstoreOutlined />}
+            onClick={() => navigate(`/skills/${record.id}/instances`)}
+          >
+            实例
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<PlayCircleOutlined />}
+            onClick={() => navigate(`/skills/${record.id}/executions`)}
+          >
+            执行
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<ReloadIcon />}
+            onClick={() => navigate(`/skills/${record.id}/versions`)}
+          >
             升级
           </Button>
           <Button
@@ -198,11 +233,12 @@ const MySkills: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             我的技能
           </Title>
           <Text type="secondary">已安装的技能包管理</Text>
@@ -212,7 +248,7 @@ const MySkills: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card>
             <Statistic title="已安装技能" value={skills.length} suffix="个" />
@@ -242,7 +278,7 @@ const MySkills: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

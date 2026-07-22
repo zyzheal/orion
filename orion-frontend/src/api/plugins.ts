@@ -53,7 +53,7 @@ export interface Plugin {
   state: PluginState;
   status?: 'enabled' | 'disabled';
   configSchema: Record<string, PluginConfigField>;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   installedAt?: string;
   updatedAt?: string;
   permissions?: string[];
@@ -93,18 +93,18 @@ export interface PluginListParams {
 
 export interface InstallPluginInput {
   version?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface ConfigurePluginInput {
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface ExecutePluginInput {
   taskId: string;
   pipelineRunId?: string;
   stageId?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   workspace?: {
     rootPath: string;
     files?: Record<string, string>;
@@ -141,62 +141,79 @@ export interface PluginExecutionResult {
 /**
  * 列出可用插件
  */
-export function getAvailablePlugins(params?: { type?: PluginType; tags?: string }) {
-  return api.get<Plugin[]>('/v1/plugins/available', { params });
+export async function getAvailablePlugins(params?: { type?: PluginType; tags?: string }) {
+  const res = await api.get('/api/v1/plugins/available', { params });
+  const body = res.data as { success: boolean; data: Plugin[] };
+  return { data: { data: body.data || [] } };
 }
 
 /**
  * 列出已安装插件
  */
-export function getInstalledPlugins(params?: { type?: PluginType; state?: PluginState }) {
-  return api.get<Plugin[]>('/v1/plugins/installed', { params });
+export async function getInstalledPlugins(params?: { type?: PluginType; state?: PluginState }) {
+  const res = await api.get('/api/v1/plugins/installed', { params });
+  const body = res.data as { success: boolean; data: Plugin[] };
+  return { data: { data: body.data || [] } };
 }
 
 /**
  * 获取插件详情
  */
-export function getPlugin(pluginId: string) {
-  return api.get<Plugin>(`/v1/plugins/${pluginId}`);
+export async function getPlugin(pluginId: string) {
+  const res = await api.get(`/api/v1/plugins/${pluginId}`);
+  const body = res.data as { success: boolean; data: Plugin };
+  return { data: { data: body.data } };
 }
 
 /**
  * 安装插件
  */
-export function installPlugin(pluginId: string, data: InstallPluginInput) {
-  return api.post<Plugin>(`/v1/plugins/${pluginId}/install`, data);
+export async function installPlugin(pluginId: string, data: InstallPluginInput) {
+  const res = await api.post(`/api/v1/plugins/${pluginId}/install`, data);
+  const body = res.data as { success: boolean; data: Plugin };
+  return { data: { data: body.data } };
 }
 
 /**
  * 卸载插件
  */
-export function uninstallPlugin(pluginId: string) {
-  return api.post<Plugin>(`/v1/plugins/${pluginId}/uninstall`);
+export async function uninstallPlugin(pluginId: string) {
+  const res = await api.post(`/api/v1/plugins/${pluginId}/uninstall`);
+  return { data: { data: res.data } };
 }
 
 /**
  * 激活插件 (启用)
  */
-export function activatePlugin(pluginId: string) {
-  return api.post<Plugin>(`/v1/plugins/${pluginId}/activate`);
+export async function activatePlugin(pluginId: string) {
+  const res = await api.post(`/api/v1/plugins/${pluginId}/activate`);
+  const body = res.data as { success: boolean; data: Plugin };
+  return { data: { data: body.data } };
 }
 
 /**
  * 停用插件 (禁用)
  */
-export function deactivatePlugin(pluginId: string) {
-  return api.post<Plugin>(`/v1/plugins/${pluginId}/deactivate`);
+export async function deactivatePlugin(pluginId: string) {
+  const res = await api.post(`/api/v1/plugins/${pluginId}/deactivate`);
+  const body = res.data as { success: boolean; data: Plugin };
+  return { data: { data: body.data } };
 }
 
 /**
  * 配置插件
  */
-export function configurePlugin(pluginId: string, data: ConfigurePluginInput) {
-  return api.post<Plugin>(`/v1/plugins/${pluginId}/configure`, data);
+export async function configurePlugin(pluginId: string, data: ConfigurePluginInput) {
+  const res = await api.post(`/api/v1/plugins/${pluginId}/configure`, data);
+  const body = res.data as { success: boolean; data: Plugin };
+  return { data: { data: body.data } };
 }
 
 /**
  * 执行插件任务
  */
-export function executePlugin(pluginId: string, data: ExecutePluginInput) {
-  return api.post<PluginExecutionResult>(`/v1/plugins/${pluginId}/execute`, data);
+export async function executePlugin(pluginId: string, data: ExecutePluginInput) {
+  const res = await api.post(`/api/v1/plugins/${pluginId}/execute`, data);
+  const body = res.data as { success: boolean; data: PluginExecutionResult };
+  return { data: { data: body.data } };
 }

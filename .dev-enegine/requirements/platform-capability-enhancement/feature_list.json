@@ -1,0 +1,519 @@
+{
+  "features": [
+    {
+      "id": "F001",
+      "category": "infrastructure",
+      "description": "通用熔断器服务层 (CircuitBreakerService) - 构建在现有 CircuitBreaker 工具类之上，提供熔断器注册表、配置管理、状态查询能力",
+      "steps": [
+        "创建 CircuitBreakerService 核心类（注册表 + 按目标键管理熔断器实例）",
+        "实现熔断器配置持久化（PostgreSQL circuit_breaker_configs 表）",
+        "实现熔断器事件日志（PostgreSQL circuit_breaker_events 表）",
+        "编写编写 DB 迁移文件 0208_circuit_breaker_tables.sql",
+        "编写单元测试（状态转换、配置管理、事件记录）"
+      ],
+      "test_cases": [
+        "熔断器注册/获取/删除",
+        "CLOSED→OPEN→HALF_OPEN→CLOSED 状态转换",
+        "配置热更新后生效",
+        "事件日志正确写入数据库"
+      ],
+      "depends_on": [],
+      "passes": false
+    },
+    {
+      "id": "F002",
+      "category": "infrastructure",
+      "description": "熔断器 Fastify 中间件 - 在请求处理前检查目标依赖的熔断状态",
+      "steps": [
+        "创建 circuitBreakerMiddleware 中间件",
+        "实现自动从请求上下文提取依赖目标键",
+        "实现 OPEN 状态快速返回 503 + Retry-After",
+        "集成到 Fastify 实例"
+      ],
+      "test_cases": [
+        "CLOSED 状态请求正常通过",
+        "OPEN 状态返回 503",
+        "HALF_OPEN 状态允许探测请求",
+        "Retry-After 头正确设置"
+      ],
+      "depends_on": ["F001"],
+      "passes": false
+    },
+    {
+      "id": "F003",
+      "category": "infrastructure",
+      "description": "熔断器 API 路由 - 提供熔断器 CRUD 和状态查询接口",
+      "steps": [
+        "创建 circuit-breaker-routes.ts 路由文件",
+        "实现 GET /circuit-breakers（列表）",
+        "实现 GET /circuit-breakers/:targetKey（详情）",
+        "实现 POST /circuit-breakers/:targetKey/reset（重置）",
+        "实现 POST /circuit-breakers/:targetKey/trip（触发）",
+        "实现 PUT /circuit-breakers/:targetKey/config（配置更新）",
+        "在 routes.ts 中注册路由"
+      ],
+      "test_cases": [
+        "列表返回所有熔断器",
+        "详情返回指定目标键状态",
+        "重置后状态为 CLOSED",
+        "触发后状态为 OPEN",
+        "配置更新后熔断阈值变更"
+      ],
+      "depends_on": ["F001"],
+      "passes": false
+    },
+    {
+      "id": "F004",
+      "category": "functional",
+      "description": "Pipeline 服务集成熔断器 - Pipeline 外部调用（SCM、镜像仓库、通知）通过熔断器保护",
+      "steps": [
+        "在 PipelineService 中注入 CircuitBreakerService",
+        "SCM API 调用（GitHub/GitLab）通过 circuitBreaker.execute()",
+        "Docker Registry 调用通过 circuitBreaker.execute()",
+        "通知服务调用通过 circuitBreaker.execute()",
+        "Pipeline 详情 API 增加熔断器状态字段"
+      ],
+      "test_cases": [
+        "SCM 不可用时熔断器打开",
+        "熔断后 Pipeline 不卡死快速失败",
+        "恢复后熔断器自动关闭",
+        "Pipeline 详情返回熔断器状态"
+      ],
+      "depends_on": ["F001", "F002"],
+      "passes": false
+    },
+    {
+      "id": "F005",
+      "category": "functional",
+      "description": "消息队列核心服务 (MessageQueueService) - 任务入队/消费/确认/重试",
+      "steps": [
+        "创建 MessageQueueService 核心类",
+        "实现 enqueue() - Redis LPUSH + PostgreSQL 异步落盘",
+        "实现 dequeue() - Redis RPOP + 消费确认机制",
+        "实现 ack() - 消费确认",
+        "实现 nack() - 消费失败 + 重试计数",
+        "实现 retry() - 指数退避重试",
+        "编写 DB 迁移文件 0209_message_queue_tables.sql"
+      ],
+      "test_cases": [
+        "任务入队后出队顺序正确",
+        "消费确认后任务移除",
+        "消费失败后自动重试（最多 N 次）",
+        "指数退避延迟正确",
+        "并发消费者不重复消费同一任务"
+      ],
+      "depends_on": [],
+      "passes": false
+    },
+    {
+      "id": "F006",
+      "category": "functional",
+      "description": "消息队列延迟队列 + 死信队列",
+      "steps": [
+        "实现 DelayQueue - Redis ZADD (score = 执行时间戳)",
+        "实现延迟任务定时扫描与触发",
+        "实现 DeadLetterQueue - 超限任务移入 DLQ",
+        "实现 DLQ 查看和重放功能",
+        "编写 DLQ API 端点"
+      ],
+      "test_cases": [
+        "延迟任务在指定时间后执行",
+        "重试超限任务进入死信队列",
+        "死信任务可查看",
+        "死信任务可重放回主队列"
+      ],
+      "depends_on": ["F005"],
+      "passes": false
+    },
+    {
+      "id": "F007",
+      "category": "functional",
+      "description": "消息队列消费者组 - 支持多消费者并发消费",
+      "steps": [
+        "实现 ConsumerGroup 注册",
+        "实现轮询分发策略",
+        "实现消费超时检测",
+        "实现消费者心跳机制"
+      ],
+      "test_cases": [
+        "多消费者并发消费不重复",
+        "消费者下线后任务重新分配",
+        "消费超时后任务重新入队",
+        "心跳超时触发消费者剔除"
+      ],
+      "depends_on": ["F005"],
+      "passes": false
+    },
+    {
+      "id": "F008",
+      "category": "functional",
+      "description": "消息队列 API 路由 - 提供队列管理接口",
+      "steps": [
+        "创建 message-queue-routes.ts 路由文件",
+        "实现 POST /enqueue（入队）",
+        "实现 POST /dequeue（出队）",
+        "实现 POST /:taskId/ack（确认）",
+        "实现 POST /:taskId/retry（重试）",
+        "实现 POST /schedule（延迟入队）",
+        "实现 GET /dead-letter（死信列表）",
+        "实现 POST /dead-letter/:taskId/replay（死信重放）",
+        "实现 GET /stats（队列统计）",
+        "在 routes.ts 中注册"
+      ],
+      "test_cases": [
+        "入队返回 taskId",
+        "出队返回任务内容",
+        "确认后任务不在出队列表",
+        "重试后任务重新进入队列",
+        "延迟任务不出现在立即出队",
+        "死信列表包含超限任务",
+        "死信重放后任务回到主队列"
+      ],
+      "depends_on": ["F005", "F006"],
+      "passes": false
+    },
+    {
+      "id": "F009",
+      "category": "functional",
+      "description": "消息队列与 NATS JetStream 集成 - 事件桥接",
+      "steps": [
+        "创建 EventBridge 模块",
+        "实现 MQ 任务完成事件发布到 NATS",
+        "实现 NATS 事件消费入 MQ",
+        "配置 NATS 主题与 MQ 队列映射"
+      ],
+      "test_cases": [
+        "MQ 任务完成触发 NATS 事件",
+        "NATS 事件正确路由到 MQ",
+        "双写一致性"
+      ],
+      "depends_on": ["F005"],
+      "passes": false
+    },
+    {
+      "id": "F010",
+      "category": "infrastructure",
+      "description": "L1 内存缓存层 - 本地热点数据缓存",
+      "steps": [
+        "创建 InMemoryCache 类（基于 Map + TTL 管理）",
+        "实现 TTL 自动过期清理",
+        "实现 LRU 淘汰策略",
+        "实现容量限制",
+        "编写单元测试"
+      ],
+      "test_cases": [
+        "get/set/del 操作正确",
+        "TTL 过期后返回 null",
+        "容量满时 LRU 淘汰",
+        "并发读写安全"
+      ],
+      "depends_on": [],
+      "passes": false
+    },
+    {
+      "id": "F011",
+      "category": "infrastructure",
+      "description": "多级缓存服务 (CacheStrategyService) - L1 + L2 整合",
+      "steps": [
+        "创建 CacheStrategyService 类",
+        "实现读取策略: L1 → L2 → DB",
+        "实现写入策略: Write-through (L1 + L2 同步写)",
+        "实现删除策略: L1 + L2 同时删除",
+        "集成现有 RedisCache 作为 L2",
+        "集成 InMemoryCache 作为 L1"
+      ],
+      "test_cases": [
+        "L1 命中时不查询 L2",
+        "L1 未命中时查询 L2",
+        "L2 未命中时调用 loader",
+        "写入同时更新 L1 和 L2",
+        "删除同时清除 L1 和 L2"
+      ],
+      "depends_on": ["F010"],
+      "passes": false
+    },
+    {
+      "id": "F012",
+      "category": "functional",
+      "description": "缓存防护策略 - 防穿透 + 防击穿 + 防雪崩",
+      "steps": [
+        "实现防穿透：空值缓存（DB 返回 null 时缓存短 TTL 空标记）",
+        "实现防击穿：互斥锁（同一 key 仅一个请求加载，其余等待）",
+        "实现防雪崩：随机 TTL（基础 TTL ± 随机偏移）",
+        "编写单元测试覆盖三种场景"
+      ],
+      "test_cases": [
+        "空值缓存生效（穿透防护）",
+        "并发请求同一 key 仅一个加载（击穿防护）",
+        "TTL 含随机偏移（雪崩防护）",
+        "防穿透+防击穿+防雪崩同时生效"
+      ],
+      "depends_on": ["F011"],
+      "passes": false
+    },
+    {
+      "id": "F013",
+      "category": "functional",
+      "description": "缓存预热与失效策略",
+      "steps": [
+        "实现 CacheWarming - 启动时预加载关键数据",
+        "实现批量失效（按 pattern 失效缓存）",
+        "实现缓存预热配置管理（PostgreSQL cache_warmup_configs 表）",
+        "编写 DB 迁移文件 0211_cache_warmup_tables.sql"
+      ],
+      "test_cases": [
+        "预热启动后 L1/L2 有数据",
+        "按 pattern 批量失效生效",
+        "预热配置 CRUD 正确",
+        "定时预热任务执行"
+      ],
+      "depends_on": ["F011"],
+      "passes": false
+    },
+    {
+      "id": "F014",
+      "category": "functional",
+      "description": "缓存管理 API 路由",
+      "steps": [
+        "创建 cache-management-routes.ts",
+        "实现 GET /cache/stats（缓存统计）",
+        "实现 POST /cache/warmup（触发预热）",
+        "实现 POST /cache/invalidate（批量失效）",
+        "实现 GET /cache/health（健康检查）",
+        "在 routes.ts 中注册"
+      ],
+      "test_cases": [
+        "统计返回 L1/L2 命中率",
+        "预热触发后数据加载",
+        "批量失效后缓存清空",
+        "健康检查返回正常状态"
+      ],
+      "depends_on": ["F011", "F013"],
+      "passes": false
+    },
+    {
+      "id": "F015",
+      "category": "functional",
+      "description": "Pipeline 缓存加速 - Pipeline 模板/配置/参数通过多级缓存",
+      "steps": [
+        "在 PipelineService 中注入 CacheStrategyService",
+        "Pipeline 模板查询通过缓存",
+        "Pipeline 配置查询通过缓存",
+        "Pipeline 运行参数查询通过缓存",
+        "Pipeline 更新时自动失效相关缓存"
+      ],
+      "test_cases": [
+        "Pipeline 模板二次查询命中缓存",
+        "Pipeline 配置变更后缓存失效",
+        "缓存命中时响应时间显著降低"
+      ],
+      "depends_on": ["F011", "F012"],
+      "passes": false
+    },
+    {
+      "id": "F016",
+      "category": "functional",
+      "description": "统一容灾策略引擎 (DRPolicyEngine) - 评估各组件容灾能力",
+      "steps": [
+        "创建 DRPolicyEngine 类",
+        "实现 DB 容灾能力评估（复用 DatabaseFailoverHandler）",
+        "实现 Redis 容灾能力评估",
+        "实现 NATS 容灾能力评估",
+        "实现文件系统容灾能力评估",
+        "计算整体 RTO/RPO",
+        "编写 DB 迁移文件 0210_drill_tables.sql"
+      ],
+      "test_cases": [
+        "DB 主从正常时 RTO 达标",
+        "Redis 单节点时 RPO 不达标",
+        "整体 RTO = max(各组件 RTO)",
+        "整体 RPO = max(各组件 RPO)"
+      ],
+      "depends_on": [],
+      "passes": false
+    },
+    {
+      "id": "F017",
+      "category": "functional",
+      "description": "容灾演练编排器 (DrillOrchestrator) - 自动化容灾演练",
+      "steps": [
+        "创建 DrillOrchestrator 类",
+        "实现 DB 恢复演练（从备份恢复并验证）",
+        "实现 Redis 恢复演练（从 RDB/AOF 恢复）",
+        "实现切换演练（主从切换验证）",
+        "实现演练报告生成",
+        "实现定时调度（cron 表达式）"
+      ],
+      "test_cases": [
+        "DB 恢复演练成功",
+        "Redis 恢复演练成功",
+        "演练报告包含 RTO/RPO 实际值",
+        "定时调度正确触发"
+      ],
+      "depends_on": ["F016"],
+      "passes": false
+    },
+    {
+      "id": "F018",
+      "category": "functional",
+      "description": "RTO/RPO 跟踪与告警",
+      "steps": [
+        "创建 RTOTracker 类",
+        "实现实时 RTO/RPO 计算",
+        "实现超标告警",
+        "实现 RTO/RPO 历史趋势",
+        "实现达标率统计"
+      ],
+      "test_cases": [
+        "RTO 超标触发告警",
+        "RPO 超标触发告警",
+        "历史趋势数据正确",
+        "达标率统计准确"
+      ],
+      "depends_on": ["F016"],
+      "passes": false
+    },
+    {
+      "id": "F019",
+      "category": "functional",
+      "description": "容灾管理 API 路由",
+      "steps": [
+        "创建 disaster-recovery-routes.ts",
+        "实现 GET /disaster-recovery/status（容灾状态）",
+        "实现 GET /disaster-recovery/rto-rpo（RTO/RPO 统计）",
+        "实现 POST /disaster-recovery/drill（触发演练）",
+        "实现 GET /disaster-recovery/drills（演练历史）",
+        "实现 GET /disaster-recovery/report（容灾报告）",
+        "在 routes.ts 中注册"
+      ],
+      "test_cases": [
+        "状态返回各组件容灾能力",
+        "RTO/RPO 返回当前值与目标",
+        "触发演练返回执行 ID",
+        "演练历史包含最近执行",
+        "容灾报告包含健康评分"
+      ],
+      "depends_on": ["F016", "F017", "F018"],
+      "passes": false
+    },
+    {
+      "id": "F020",
+      "category": "frontend",
+      "description": "熔断器状态面板前端 (CircuitBreakerDashboard)",
+      "steps": [
+        "创建 CircuitBreakerDashboard 页面组件",
+        "实现熔断器列表表格（目标键、状态、失败率、操作）",
+        "实现状态卡片（总熔断器数、OPEN 数、HALF_OPEN 数）",
+        "实现手动重置/触发操作按钮",
+        "实现详情弹窗（熔断器配置、事件历史）",
+        "对接 circuit-breaker API"
+      ],
+      "test_cases": [
+        "列表正确展示熔断器数据",
+        "状态卡片数字正确",
+        "重置操作成功刷新",
+        "触发操作成功刷新",
+        "详情弹窗展示配置和历史"
+      ],
+      "depends_on": ["F003"],
+      "passes": false
+    },
+    {
+      "id": "F021",
+      "category": "frontend",
+      "description": "消息队列监控面板前端 (MessageQueueDashboard)",
+      "steps": [
+        "创建 MessageQueueDashboard 页面组件",
+        "实现队列统计卡片（待处理、处理中、死信数）",
+        "实现任务列表表格（任务 ID、状态、重试次数、创建时间）",
+        "实现死信队列 Tab",
+        "实现任务重试/重放操作",
+        "对接 message-queue API"
+      ],
+      "test_cases": [
+        "统计卡片数字正确",
+        "任务列表正确展示",
+        "死信 Tab 展示超限任务",
+        "重试操作成功",
+        "死信重放操作成功"
+      ],
+      "depends_on": ["F008"],
+      "passes": false
+    },
+    {
+      "id": "F022",
+      "category": "frontend",
+      "description": "容灾管理面板前端 (DisasterRecoveryDashboard)",
+      "steps": [
+        "创建 DisasterRecoveryDashboard 页面组件",
+        "实现容灾状态卡片（各组件健康状态）",
+        "实现 RTO/RPO 监控面板（当前值 vs 目标值）",
+        "实现演练历史表格",
+        "实现触发演练按钮",
+        "实现容灾报告查看",
+        "对接 disaster-recovery API"
+      ],
+      "test_cases": [
+        "状态卡片展示各组件状态",
+        "RTO/RPO 超标时告警展示",
+        "演练历史正确展示",
+        "触发演练成功",
+        "容灾报告可查看"
+      ],
+      "depends_on": ["F019"],
+      "passes": false
+    },
+    {
+      "id": "F023",
+      "category": "enhancement",
+      "description": "Pipeline 列表增加熔断器状态列",
+      "steps": [
+        "修改 PipelineList 页面增加熔断器状态列",
+        "在 Pipeline 详情 API 响应中增加熔断器状态",
+        "点击可查看熔断器详情"
+      ],
+      "test_cases": [
+        "Pipeline 列表显示外部依赖熔断状态",
+        "点击可跳转到熔断器面板"
+      ],
+      "depends_on": ["F004", "F020"],
+      "passes": false
+    },
+    {
+      "id": "F024",
+      "category": "enhancement",
+      "description": "缓存监控页面增加多级缓存统计",
+      "steps": [
+        "修改 CacheMonitor 页面增加 L1/L2 命中率",
+        "增加防穿透/击穿/雪崩事件统计",
+        "增加预热任务状态展示",
+        "对接 cache-management API"
+      ],
+      "test_cases": [
+        "L1/L2 命中率正确展示",
+        "防护事件统计正确",
+        "预热任务状态正确"
+      ],
+      "depends_on": ["F014"],
+      "passes": false
+    },
+    {
+      "id": "F025",
+      "category": "enhancement",
+      "description": "备份管理页面增加容灾演练入口",
+      "steps": [
+        "修改 BackupManagement 页面增加容灾演练 Tab",
+        "增加触发演练按钮",
+        "增加演练结果展示",
+        "对接 disaster-recovery API"
+      ],
+      "test_cases": [
+        "容灾演练 Tab 可访问",
+        "触发演练成功",
+        "演练结果正确展示"
+      ],
+      "depends_on": ["F019", "F022"],
+      "passes": false
+    }
+  ]
+}

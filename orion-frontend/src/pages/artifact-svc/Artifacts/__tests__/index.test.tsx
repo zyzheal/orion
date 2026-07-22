@@ -175,8 +175,9 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
 
     const mockNamespaces = ['platform', 'ai'];
 
+    // After API interceptor unwraps { success: true, data: T } → { data: T }
     vi.mocked(artifactApi.getArtifacts).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockArtifacts as any, total: 2 } as any,
+      data: mockArtifacts as any,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -184,7 +185,7 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
     });
 
     vi.mocked(artifactApi.getArtifactStats).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockStats },
+      data: mockStats as any,
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -192,7 +193,7 @@ describe('Artifacts Page', { timeout: 15000 }, () => {
     });
 
     vi.mocked(artifactApi.getNamespaces).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockNamespaces },
+      data: mockNamespaces as any,
       status: 200,
       statusText: 'OK',
       headers: {},

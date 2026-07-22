@@ -126,7 +126,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
     const loadEngineers = async () => {
       try {
         const res = await listUsers({ limit: 200 });
-        setEngineers(res.data?.data?.data || []);
+        setEngineers(res.data?.data || []);
       } catch {
         setEngineers([]);
       }
@@ -142,10 +142,10 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           getComments(ticketId),
           getAttachments(ticketId),
         ]);
-        const commentsData = commentsRes.data?.data;
-        const attachmentsData = attachmentsRes.data?.data;
-        setComments(Array.isArray(commentsData) ? commentsData : []);
-        setAttachments(Array.isArray(attachmentsData) ? attachmentsData : []);
+        const commentsData = commentsRes.data?.items;
+        const attachmentsData = attachmentsRes.data?.items;
+        setComments(Array.isArray(commentsData) ? commentsData as TicketComment[] : []);
+        setAttachments(Array.isArray(attachmentsData) ? attachmentsData as TicketAttachment[] : []);
       } catch {
         setComments([]);
         setAttachments([]);
@@ -250,7 +250,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         </Space>
       }
       size="small"
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: spacing.md }}
       data-testid="ticket-comments-section"
     >
       {/* Tab switch */}
@@ -258,22 +258,22 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         activeKey={activeTab}
         onChange={(key) => setActiveTab(key as 'comment' | 'internal-note')}
         items={tabItems}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
         size="small"
       />
 
       {/* Comment list - timeline style */}
-      <div style={{ marginBottom: 16 }} data-testid="comment-list">
+      <div style={{ marginBottom: spacing.md }} data-testid="comment-list">
         {comments.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
             {comments.map((comment) => (
               <div
                 key={comment.id}
                 data-testid={`comment-${comment.id}`}
                 style={{
                   display: 'flex',
-                  gap: 12,
-                  padding: 12,
+                  gap: spacing[3],
+                  padding: spacing[3],
                   borderRadius: 8,
                   background:
                     comment.type === 'internal-note' ? colors.warning[50] : colors.neutral[50],
@@ -302,7 +302,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 8,
+                      gap: spacing.sm,
                       marginBottom: 4,
                       flexWrap: 'wrap',
                     }}
@@ -372,8 +372,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
       {attachments.length > 0 && (
         <>
           <Divider style={{ margin: '0 0 12px' }} />
-          <div style={{ marginBottom: 16 }} data-testid="attachments-section">
-            <Text strong style={{ fontSize: spacing[3], marginBottom: 8, display: 'block' }}>
+          <div style={{ marginBottom: spacing.md }} data-testid="attachments-section">
+            <Text strong style={{ fontSize: spacing[3], marginBottom: spacing.sm, display: 'block' }}>
               <PaperClipOutlined style={{ marginRight: 4 }} />
               附件 ({attachments.length})
             </Text>
@@ -385,7 +385,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     padding: '6px 10px',
                     borderRadius: 6,
                     background: colors.neutral[50],
@@ -423,7 +423,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
           }
           rows={3}
           maxLength={maxChars}
-          style={{ marginBottom: 8 }}
+          style={{ marginBottom: spacing.sm }}
           data-testid="comment-textarea"
         />
 
@@ -454,7 +454,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
+                  gap: spacing.sm,
                   borderBottom: `1px solid ${colors.light.border.light}`,
                 }}
                 onMouseEnter={(e) => {

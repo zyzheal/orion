@@ -35,6 +35,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { pipelineTemplatesApi } from '@/api/pipeline-templates';
 import type { PipelineTemplate } from '@/api/pipeline-templates';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -328,11 +329,12 @@ const PipelineTemplatePage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             流水线模板
           </Title>
           <Text type="secondary">管理流水线模板库，快速实例化流水线</Text>
@@ -353,7 +355,7 @@ const PipelineTemplatePage: React.FC = () => {
 
       {/* Template List */}
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', gap: spacing[3] }}>
           <Input.Search
             placeholder="搜索模板名称、描述..."
             onSearch={setSearchQuery}
@@ -464,12 +466,12 @@ const PipelineTemplatePage: React.FC = () => {
             </Descriptions>
 
             {selectedTemplate.yaml_definition && (
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: spacing.lg }}>
                 <Title level={5}>YAML 定义</Title>
                 <pre
                   style={{
-                    background: '#f5f5f5',
-                    padding: 16,
+                    background: colors.neutral[100],
+                    padding: spacing.md,
                     borderRadius: 4,
                     fontSize: 13,
                     overflow: 'auto',
@@ -481,7 +483,7 @@ const PipelineTemplatePage: React.FC = () => {
               </div>
             )}
 
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: spacing.lg }}>
               <Space>
                 <Button
                   type="primary"
@@ -525,7 +527,7 @@ const PipelineTemplatePage: React.FC = () => {
         width={700}
         destroyOnClose
       >
-        <Steps current={instantiateStep} items={instantiateSteps} style={{ marginBottom: 24 }} />
+        <Steps current={instantiateStep} items={instantiateSteps} style={{ marginBottom: spacing.lg }} />
 
         {selectedTemplate && (
           <>

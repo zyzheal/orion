@@ -16,7 +16,8 @@ import {
   message,
   Popconfirm,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, BellOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, BellOutlined, DollarOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import { getAlerts, type CostAlert } from '@/api/ai-cost';
@@ -88,7 +89,7 @@ const AlertConfig: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAlerts();
-      setAlerts(Array.isArray(res.data.data) ? res.data.data : []);
+      setAlerts(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setAlerts([]);
       message.error(`加载告警数据失败: ${(error as Error).message}`);
@@ -216,7 +217,7 @@ const AlertConfig: React.FC = () => {
       dataIndex: 'enabled',
       width: 80,
       render: (v: unknown) => (
-        <StatusBadge status={v ? ('success' as any) : ('warning' as any)} size="small" />
+        <StatusBadge status={v ? 'success' : 'warning'} size="small" />
       ),
     },
     {
@@ -245,8 +246,9 @@ const AlertConfig: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           告警设置
         </Title>
         <Text type="secondary">配置成本告警规则与通知</Text>
@@ -259,7 +261,7 @@ const AlertConfig: React.FC = () => {
             活跃告警
           </Space>
         }
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       >
         <Table
           columns={alertColumns}
@@ -283,7 +285,7 @@ const AlertConfig: React.FC = () => {
           </Button>
         }
       >
-        <Table columns={ruleColumns} dataSource={rules} rowKey="id" size="middle" striped />
+        <Table columns={ruleColumns} dataSource={rules} rowKey="id" size="middle" striped loading={loading} />
       </Card>
 
       {/* Create Rule Modal */}

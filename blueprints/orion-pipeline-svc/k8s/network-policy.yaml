@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: orion-pipeline-svc-network-policy
+  namespace: orion
+spec:
+  podSelector:
+    matchLabels:
+      app: orion-pipeline
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: orion
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3002
+    - from:
+        - podSelector:
+            matchLabels:
+              app: orion-api-gateway
+      ports:
+        - protocol: TCP
+          port: 3002
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432  # PostgreSQL
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 6379  # Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: orion-platform-service
+      ports:
+        - protocol: TCP
+          port: 3001
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53  # DNS
+        - protocol: UDP
+          port: 53

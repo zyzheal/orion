@@ -15,11 +15,12 @@ import {
   Timeline,
   message,
 } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined,} from '@ant-design/icons';
 import { getIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title } = Typography;
 
@@ -38,7 +39,7 @@ const IncidentDetail: React.FC = () => {
     setLoading(true);
     try {
       const res = await getIncident(id);
-      setIncident(res.data.data || null);
+      setIncident((res.data || null) as unknown as SelfHealingIncident | null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载事件详情失败：${error.message}`);
@@ -56,7 +57,7 @@ const IncidentDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
         <Spin size="large" tip="加载中..." />
       </div>
     );
@@ -64,7 +65,7 @@ const IncidentDetail: React.FC = () => {
 
   if (!incident) {
     return (
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: spacing.lg }}>
         <Alert
           message="未找到事件记录"
           description="请检查事件 ID 是否正确"
@@ -106,13 +107,14 @@ const IncidentDetail: React.FC = () => {
   const duration = dayjs(incident.updatedAt).diff(dayjs(incident.createdAt), 'minute');
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/self-healing')}>
           返回
         </Button>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           事件详情
         </Title>
         <Button icon={<ReloadOutlined />} onClick={loadDetail}>
@@ -135,11 +137,11 @@ const IncidentDetail: React.FC = () => {
               ? 'error'
               : 'info'
         }
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       {/* Basic Info */}
-      <Card title="基本信息" style={{ marginBottom: 16 }}>
+      <Card title="基本信息" style={{ marginBottom: spacing.md }}>
         <Descriptions column={2} bordered>
           <Descriptions.Item label="事件 ID">{incident.id}</Descriptions.Item>
           <Descriptions.Item label="类型">{incident.type}</Descriptions.Item>

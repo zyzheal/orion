@@ -8,7 +8,7 @@
  * - Template versioning
  * - Template usage statistics
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Typography,
   Card,
@@ -38,6 +38,12 @@ import type { ColumnsType } from 'antd/es/table';
 import MetricCard from '@/components/MetricCard';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { colors, spacing } from '@/tokens';
+import {
+  listPipelineTemplate,
+  createPipelineTemplate,
+  updatePipelineTemplate,
+  deletePipelineTemplate,
+} from '@/api/pipeline-template';
 
 const { Title, Text } = Typography;
 
@@ -58,52 +64,6 @@ interface PipelineTemplate {
   updatedAt: string;
   isPublic: boolean;
 }
-
-// ============================================================================
-// Mock Data
-// ============================================================================
-
-const mockTemplates: PipelineTemplate[] = [
-  {
-    id: 'template-1',
-    name: 'Standard Build Pipeline',
-    description: 'Standard CI build with lint, test, and artifact stages',
-    category: 'build',
-    version: '1.2.0',
-    stages: 3,
-    usageCount: 45,
-    createdBy: 'admin',
-    createdAt: '2026-01-10T00:00:00Z',
-    updatedAt: '2026-04-15T00:00:00Z',
-    isPublic: true,
-  },
-  {
-    id: 'template-2',
-    name: 'Kubernetes Deploy',
-    description: 'Deploy to Kubernetes with canary rollout',
-    category: 'deploy',
-    version: '2.0.1',
-    stages: 5,
-    usageCount: 32,
-    createdBy: 'admin',
-    createdAt: '2026-02-01T00:00:00Z',
-    updatedAt: '2026-04-20T00:00:00Z',
-    isPublic: true,
-  },
-  {
-    id: 'template-3',
-    name: 'Integration Test Suite',
-    description: 'Full integration test with mock services',
-    category: 'integration',
-    version: '1.0.0',
-    stages: 4,
-    usageCount: 18,
-    createdBy: 'dev-team',
-    createdAt: '2026-03-01T00:00:00Z',
-    updatedAt: '2026-03-15T00:00:00Z',
-    isPublic: false,
-  },
-];
 
 const categoryLabels: Record<string, string> = {
   build: '构建',
@@ -127,18 +87,50 @@ const categoryColors: Record<string, string> = {
 
 const PipelineTemplatePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<PipelineTemplate[]>(mockTemplates);
+  const [templates, setTemplates] = useState<PipelineTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<PipelineTemplate | null>(null);
   const [createForm] = Form.useForm();
 
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await listPipelineTemplate();
+      const items = (res.data || []).map((t: any) => ({
+        id: t.id,
+        name: t.name || '',
+        description: t.description || '',
+        category: t.category || 'custom',
+        version: t.version || '1.0.0',
+        stages: t.stages ?? 0,
+        usageCount: t.usage_count ?? t.usageCount ?? 0,
+        createdBy: t.created_by || '',
+        createdAt: t.created_at || '',
+        updatedAt: t.updated_at || '',
+        isPublic: t.is_public ?? false,
+      }));
+      setTemplates(items);
+    } catch {
+      message.error('加载模板列表失败');
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   // Stats
-  const stats = useMemo(() => ({
-    total: templates.length,
-    public: templates.filter((t) => t.isPublic).length,
-    totalUsage: templates.reduce((sum, t) => sum + t.usageCount, 0),
-  }), [templates]);
+  const stats = useMemo(
+    () => ({
+      total: templates.length,
+      public: templates.filter((t) => t.isPublic).length,
+      totalUsage: templates.reduce((sum, t) => sum + t.usageCount, 0),
+    }),
+    [templates]
+  );
 
   // Filtered templates
   const filteredTemplates = useMemo(() => {
@@ -169,9 +161,7 @@ const PipelineTemplatePage: React.FC = () => {
       key: 'category',
       width: 100,
       render: (category: string) => (
-        <Tag color={categoryColors[category]}>
-          {categoryLabels[category]}
-        </Tag>
+        <Tag color={categoryColors[category]}>{categoryLabels[category]}</Tag>
       ),
     },
     {
@@ -201,9 +191,7 @@ const PipelineTemplatePage: React.FC = () => {
       key: 'isPublic',
       width: 80,
       render: (isPublic: boolean) => (
-        <Tag color={isPublic ? 'green' : 'default'}>
-          {isPublic ? '公开' : '私有'}
-        </Tag>
+        <Tag color={isPublic ? 'green' : 'default'}>{isPublic ? '公开' : '私有'}</Tag>
       ),
     },
     {
@@ -216,7 +204,12 @@ const PipelineTemplatePage: React.FC = () => {
             <Button type="link" size="small" icon={<CopyOutlined />} />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            />
           </Tooltip>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
@@ -228,31 +221,51 @@ const PipelineTemplatePage: React.FC = () => {
     },
   ];
 
-  const handleDelete = (id: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
-    message.success('模板已删除');
+  const handleDelete = async (id: string) => {
+    try {
+      await deletePipelineTemplate(id);
+      message.success('模板已删除');
+      loadData();
+    } catch {
+      message.error('删除模板失败');
+    }
+  };
+
+  const handleEdit = (template: PipelineTemplate) => {
+    setEditingTemplate(template);
+    createForm.setFieldsValue({
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      isPublic: template.isPublic,
+    });
+    setCreateModalVisible(true);
   };
 
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      const newTemplate: PipelineTemplate = {
-        id: `template-${Date.now()}`,
-        name: values.name,
-        description: values.description || '',
-        category: values.category,
-        version: '1.0.0',
-        stages: 1,
-        usageCount: 0,
-        createdBy: 'current-user',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isPublic: values.isPublic ?? false,
-      };
-      setTemplates((prev) => [...prev, newTemplate]);
-      message.success('模板创建成功');
+      if (editingTemplate) {
+        await updatePipelineTemplate(editingTemplate.id, {
+          name: values.name,
+          description: values.description || '',
+          category: values.category,
+          isPublic: values.isPublic,
+        });
+        message.success('模板更新成功');
+      } else {
+        await createPipelineTemplate({
+          name: values.name,
+          description: values.description || '',
+          category: values.category,
+          status: 'active',
+        });
+        message.success('模板创建成功');
+      }
       setCreateModalVisible(false);
+      setEditingTemplate(null);
       createForm.resetFields();
+      loadData();
     } catch {
       // Form validation failed
     }
@@ -286,14 +299,15 @@ const PipelineTemplatePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             Pipeline 模板
           </Title>
           <Text type="secondary">管理和复用 Pipeline 配置模板</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => setLoading(true)}>
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
             刷新
           </Button>
           <Button
@@ -343,11 +357,15 @@ const PipelineTemplatePage: React.FC = () => {
         />
       </Card>
 
-      {/* Create Modal */}
+      {/* Create/Edit Modal */}
       <Modal
-        title="创建 Pipeline 模板"
+        title={editingTemplate ? '编辑 Pipeline 模板' : '创建 Pipeline 模板'}
         open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          setEditingTemplate(null);
+          createForm.resetFields();
+        }}
         onOk={handleCreate}
         width={600}
         destroyOnClose

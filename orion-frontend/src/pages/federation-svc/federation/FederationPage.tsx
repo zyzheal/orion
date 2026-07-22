@@ -40,6 +40,7 @@ import {
   type CrossClusterJob,
   type ResourcePool,
 } from '@/api/federation';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -305,12 +306,12 @@ const FederationPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <GlobalOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <GlobalOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             联邦调度
           </Title>
           <Text type="secondary">跨集群调度和资源管理</Text>
@@ -332,7 +333,7 @@ const FederationPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={5}>
           <Card>
             <Statistic title="集群总数" value={stats.total} prefix={<ClusterOutlined />} />
@@ -340,12 +341,12 @@ const FederationPage: React.FC = () => {
         </Col>
         <Col span={5}>
           <Card>
-            <Statistic title="活跃集群" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃集群" value={stats.active} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={5}>
           <Card>
-            <Statistic title="运行中作业" value={stats.runningJobs} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="运行中作业" value={stats.runningJobs} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={5}>

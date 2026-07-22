@@ -6,6 +6,7 @@ import { Typography, Tag, Badge, Descriptions, Divider, Drawer } from 'antd';
 import Table from '@/components/Table';
 import type { AgentProfile } from '@/api/agents';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -27,7 +28,7 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
       open={open}
       data-testid="agent-detail-drawer"
     >
-      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: 24 }}>
+      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions.Item label="名称">{agent.name}</Descriptions.Item>
         <Descriptions.Item label="角色">
           <Tag color="blue">{agent.role}</Tag>

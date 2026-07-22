@@ -1,0 +1,377 @@
+// @ts-nocheck
+/**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/alert/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
+ * Alert Management API Routes
+ *
+ * 告警关联、去重、抑制功能
+ *
+ * Prefix: /api/v1/alert
+ *
+ * Migrated to replyHelper (2026-05-21)
+ */
+
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { AlertCorrelationService } from '../services/alert/AlertCorrelationService';
+import { AlertDeduplication } from '../services/alert/AlertDeduplication';
+import { AlertSuppressionService } from '../services/alert/AlertSuppressionService';
+import { AlertStatus, Alert, AlertSeverity } from '../services/alert/AlertTypes';
+import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
+import { ErrorCodes } from '../types/error-codes';
+import { DatabasePool } from '../services/database';
+import { createLogger } from '../utils/logger';
+
+// Notification integration for auto-triggering alerts
+import { NotificationPolicyService } from '../services/notification-policy/NotificationPolicyService';
+import { NotificationPolicyRepository, NotificationWorkflowRepository } from '../services/notification-policy/NotificationPolicyRepository';
+import { AlertNotificationService } from '../services/monitoring/AlertNotificationService';
+import type { Alert as MonitoringAlert } from '../services/monitoring/types';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+
+// Adapter: convert alert module Alert → monitoring Alert for sendNotification
+function toMonitoringAlert(alert: Alert): MonitoringAlert {
+  return {
+    ...alert,
+    ruleId: alert.id,
+    metric: (alert as any).metric || alert.labels?.metric || 'unknown',
+    triggeredAt: (alert as any).startsAt || new Date(),
+  } as MonitoringAlert;
+}
+
+const logger = createLogger('alert-routes');
+
+interface AlertRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function alertRoutes(
+  app: FastifyInstance,
+  options: AlertRoutesOptions = {}
+): Promise<void> {
+  const db = options.database;
+
+  // Alert routes require database for persistence
+  if (!db) {
+    return;
+  }
+
+  // Initialize services with DB for persistence
+  const correlationService = new AlertCorrelationService(undefined, db);
+  const deduplication = new AlertDeduplication(db);
+  const suppressionService = new AlertSuppressionService(deduplication, correlationService, undefined, db);
+
+  // Initialize notification services for auto-trigger on alert evaluation
+  const policyRepo = new NotificationPolicyRepository(db);
+  const workflowRepo = new NotificationWorkflowRepository(db);
+  const notificationPolicyService = new NotificationPolicyService(policyRepo, workflowRepo);
+  const alertNotificationService = new AlertNotificationService(db);
+
+  // Start deduplication service
+  deduplication.start();
+
+  // ==================== Alert Ingestion ====================
+  // POST /alert/ingest - 接收告警
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
+  app.post('/ingest', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown>;
+    try {
+      const alert: Alert = {
+        id: `alert-${Date.now()}`,
+        fingerprint: '',
+        name: body.name as string,
+        severity: body.severity as AlertSeverity,
+        status: AlertStatus.FIRING,
+        sourceType: body.sourceType as any,
+        sourceId: body.sourceId as string,
+        sourceName: body.sourceName as string,
+        labels: (body.labels as Record<string, string>) || {},
+        annotations: (body.annotations as Record<string, string>) || {},
+        value: (body.value as number) || 0,
+        threshold: (body.threshold as number) || 0,
+        tenantId: (body.tenantId as string) || (request as any).user?.tenantId,
+        startsAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Generate fingerprint
+      const fingerprint = deduplication.generateFingerprint(alert);
+      alert.fingerprint = fingerprint.fingerprint;
+
+      // Check suppression
+      const suppressionResult = await suppressionService.processAlert(alert);
+      if (suppressionResult.suppressed) {
+        return success(reply, request, {
+          status: 'suppressed',
+          reason: suppressionResult.reason,
+          alert,
+        });
+      }
+
+      // Process deduplication
+      const processResult = await deduplication.processAlert(alert);
+
+      // ==================== Auto-trigger notification (4.44) ====================
+      // After alert is created/updated, evaluate notification policies
+      // and send notifications for matched policies
+      if (processResult.action === 'create' && !processResult.isDuplicate) {
+        // Fire-and-forget: evaluate policies and trigger notifications
+        (async () => {
+          try {
+            const matchedPolicies = await notificationPolicyService.evaluatePolicies({
+              event: 'alert.triggered',
+              alertId: alert.id,
+              alertName: alert.name,
+              severity: alert.severity,
+              metric: (alert as any).metric,
+              value: alert.value,
+              threshold: alert.threshold,
+              status: alert.status,
+              tenantId: alert.tenantId,
+              labels: alert.labels,
+              annotations: alert.annotations,
+              timestamp: new Date().toISOString(),
+            });
+
+            if (matchedPolicies.length > 0) {
+              // Collect channel IDs from matched policies
+              const channelIds: string[] = [];
+              for (const policy of matchedPolicies) {
+                if (policy.channels && policy.channels.length > 0) {
+                  channelIds.push(...policy.channels);
+                }
+              }
+
+              if (channelIds.length > 0) {
+                const records = await alertNotificationService.sendNotification(toMonitoringAlert(alert), channelIds);
+                logger.info(
+                  {
+                    alertId: alert.id,
+                    matchedPolicies: matchedPolicies.length,
+                    channelsSent: records.filter(r => r.status === 'sent').length,
+                  },
+                  '[AlertIngest] Auto-triggered notifications'
+                );
+              }
+            }
+          } catch (notifError) {
+            logger.error(
+              {
+                alertId: alert.id,
+                error: notifError instanceof Error ? notifError.message : 'Unknown error',
+              },
+              '[AlertIngest] Failed to auto-trigger notification'
+            );
+          }
+        })();
+      }
+      // =========================================================================
+
+      return created(reply, request, {
+        status: processResult.action === 'create' ? 'created' : 'updated',
+        alert,
+        isDuplicate: processResult.isDuplicate,
+      });
+    } catch (error) {
+      return internalError(reply, request, error instanceof Error ? error.message : 'Alert ingest failed');
+    }
+  });
+
+  // ==================== Alert Correlation ====================
+  // POST /alert/correlate - 告警关联分析
+  app.post('/correlate', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown>;
+    try {
+      const alerts = body.alerts as Alert[];
+      if (!alerts || alerts.length === 0) {
+        return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_INVALID, 'alerts is required');
+      }
+
+      // Update topology health
+      correlationService.updateNodeHealth(alerts);
+
+      // Perform correlation analysis
+      const analysis = correlationService.analyzeRootCause(alerts);
+      return success(reply, request, { analysis });
+    } catch (error) {
+      return internalError(reply, request, error instanceof Error ? error.message : 'Correlation analysis failed');
+    }
+  });
+
+  // GET /alert/topology - 获取告警拓扑图
+  app.get('/topology', async (request: FastifyRequest, reply: FastifyReply) => {
+    const topology = await correlationService.getTopology();
+    return success(reply, request, { topology });
+  });
+
+  // POST /alert/topology - 设置告警拓扑图
+  app.post('/topology', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown>;
+    try {
+      await correlationService.setTopology(body as any);
+      return success(reply, request, {
+        status: 'updated',
+        nodeCount: (body.nodes as any[])?.length || 0,
+        edgeCount: (body.edges as any[])?.length || 0,
+      });
+    } catch (error) {
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_INVALID, error instanceof Error ? error.message : 'Invalid topology');
+    }
+  });
+
+  // ==================== Alert Deduplication ====================
+  // GET /alert/deduplication/stats - 获取去重统计
+  app.get('/deduplication/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+    const stats = await deduplication.getStats();
+    return success(reply, request, { stats });
+  });
+
+  // GET /alert/groups - 获取告警分组
+  app.get('/groups', async (request: FastifyRequest, reply: FastifyReply) => {
+    const groups = await deduplication.getActiveGroups();
+    return success(reply, request, { groups });
+  });
+
+  // ==================== Alert Suppression ====================
+  // GET /alert/suppression/stats - 获取抑制统计
+  app.get('/suppression/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+    const stats = await suppressionService.getStats();
+    return success(reply, request, { stats });
+  });
+
+  // GET /alert/suppression/maintenance-windows - 获取维护窗口
+  app.get('/suppression/maintenance-windows', async (request: FastifyRequest, reply: FastifyReply) => {
+    const windows = await suppressionService.getActiveMaintenanceWindows();
+    return success(reply, request, { windows });
+  });
+
+  // POST /alert/suppression/maintenance-windows - 添加维护窗口
+  app.post('/suppression/maintenance-windows', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown>;
+    try {
+      await suppressionService.addMaintenanceWindow({
+        name: body.name as string,
+        startTime: new Date(body.startTime as string),
+        endTime: new Date(body.endTime as string),
+        scope: (body.scope as any) || {},
+      });
+      return created(reply, request, { status: 'created' });
+    } catch (error) {
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_INVALID, error instanceof Error ? error.message : 'Invalid maintenance window');
+    }
+  });
+
+  // GET /alert/suppression/known-issues - 获取已知问题
+  app.get('/suppression/known-issues', async (request: FastifyRequest, reply: FastifyReply) => {
+    const issues = await suppressionService.getOpenKnownIssues();
+    return success(reply, request, { issues });
+  });
+
+  // POST /alert/suppression/known-issues - 添加已知问题
+  app.post('/suppression/known-issues', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown>;
+    try {
+      await suppressionService.addKnownIssue({
+        title: body.title as string,
+        description: body.description as string,
+        fingerprintPattern: body.fingerprintPattern as string,
+        labelSelectors: body.labelSelectors as Record<string, string>,
+        silenceDuration: (body.silenceDuration as number) || 3600000, // 1 hour default
+        status: 'open',
+      });
+      return created(reply, request, { status: 'created' });
+    } catch (error) {
+      return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_INVALID, error instanceof Error ? error.message : 'Invalid known issue');
+    }
+  });
+
+  // GET /alert/suppression/alerts - 获取活跃告警
+  // P0-6 Fix: Return active alerts instead of stats
+  app.get('/suppression/alerts', async (request: FastifyRequest, reply: FastifyReply) => {
+    const groups = await deduplication.getActiveGroups();
+    const allAlerts = groups.flatMap(g => g.alerts);
+    return success(reply, request, { alerts: allAlerts, total: allAlerts.length });
+  });
+
+  // ==================== Alert List ====================
+  // GET /alert/list - 获取告警列表
+  app.get('/list', async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as Record<string, unknown>;
+
+    // Get active groups from deduplication service
+    const groups = await deduplication.getActiveGroups();
+    const allAlerts = groups.flatMap(g => g.alerts);
+
+    // Filter by severity
+    let filtered = allAlerts;
+    if (query.severity) {
+      filtered = allAlerts.filter((a) => a.severity === query.severity);
+    }
+
+    // Filter by status
+    if (query.status) {
+      filtered = allAlerts.filter((a) => a.status === query.status);
+    }
+
+    // Apply limit
+    const limit = (query.limit as number) || 100;
+    filtered = filtered.slice(0, limit);
+
+    return success(reply, request, {
+      alerts: filtered,
+      total: filtered.length,
+    });
+  });
+
+  // GET /alert/:id - 获取告警详情
+  app.get('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const { id } = request.params;
+    const groups = await deduplication.getActiveGroups();
+    const allAlerts = groups.flatMap(g => g.alerts);
+    const alert = allAlerts.find((a) => a.id === id);
+
+    if (!alert) {
+      return notFound(reply, request, ErrorCodes.CLIENT_RESOURCE_NOT_FOUND, `Alert ${id} not found`);
+    }
+
+    return success(reply, request, { alert });
+  });
+
+  // PUT /alert/:id - Update alert
+  // @ts-expect-error - legacy: RouteGenericInterface type mismatch on param-typed route
+  app.put('/:id', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    // TODO: call service
+    await reply.send({ success: true, data: {} });
+  });
+
+  // DELETE /alert/:id - Delete alert
+  // @ts-expect-error - legacy: RouteGenericInterface type mismatch on param-typed route
+  app.delete('/:id', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'delete' })],
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    // TODO: call service
+    await reply.send({ success: true, data: {} });
+  });
+}

@@ -218,12 +218,12 @@ const FinOpsDashboard: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DollarOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             成本分析
           </Title>
           <Text type="secondary">数据更新时间：{dataTimestamp}</Text>
@@ -234,7 +234,7 @@ const FinOpsDashboard: React.FC = () => {
       {loading || !costSummary ? (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>Loading...</div>
       ) : (
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
           {/* Monthly Cost */}
           <Col xs={24} sm={12} lg={6}>
             <StatCard
@@ -302,7 +302,7 @@ const FinOpsDashboard: React.FC = () => {
               </Space>
             }
             bordered={false}
-            style={{ borderRadius: 8, marginBottom: 16 }}
+            style={{ borderRadius: 8, marginBottom: spacing.md }}
             loading={loading}
           >
             {costTrend.length > 0 ? (
@@ -338,7 +338,7 @@ const FinOpsDashboard: React.FC = () => {
           <Card
             title="各服务成本明细"
             bordered={false}
-            style={{ borderRadius: 8, marginBottom: 16 }}
+            style={{ borderRadius: 8, marginBottom: spacing.md }}
             loading={loading}
           >
             <TableComponent
@@ -354,7 +354,7 @@ const FinOpsDashboard: React.FC = () => {
           <Card
             title="服务成本排行"
             bordered={false}
-            style={{ borderRadius: 8, marginBottom: 16 }}
+            style={{ borderRadius: 8, marginBottom: spacing.md }}
             loading={loading}
           >
             {costByService.length > 0 ? (
@@ -417,7 +417,7 @@ const FinOpsDashboard: React.FC = () => {
           <Card
             title="预算分配"
             bordered={false}
-            style={{ borderRadius: 8, marginBottom: 16 }}
+            style={{ borderRadius: 8, marginBottom: spacing.md }}
             loading={loading}
           >
             {costByService.length > 0 ? (
@@ -450,7 +450,7 @@ const FinOpsDashboard: React.FC = () => {
           <Card
             title="优化建议"
             bordered={false}
-            style={{ borderRadius: 8, marginBottom: 16 }}
+            style={{ borderRadius: 8, marginBottom: spacing.md }}
             loading={loading}
           >
             <Space direction="vertical" style={{ width: '100%' }} size={12}>

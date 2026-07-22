@@ -7007,6 +7007,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "tenant_id": {
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 }

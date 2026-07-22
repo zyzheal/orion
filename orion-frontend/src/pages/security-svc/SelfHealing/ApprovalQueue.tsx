@@ -17,10 +17,11 @@ import {
   message,
   Radio,
 } from 'antd';
-import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, ReloadOutlined, CheckCircleOutlined,} from '@ant-design/icons';
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -41,8 +42,8 @@ const ApprovalQueue: React.FC = () => {
     setLoading(true);
     try {
       const res = await getApprovals({ status: statusFilter, page, pageSize });
-      setData(res.data.data?.items || []);
-      setTotal(res.data.data?.total || 0);
+      setData((res.data as any)?.items || []);
+      setTotal((res.data as any)?.total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载审批队列失败：${error.message}`);
@@ -177,10 +178,11 @@ const ApprovalQueue: React.FC = () => {
   const pendingCount = data.filter((r) => r.status === 'pending').length;
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             审批队列
           </Title>
           <Text type="secondary">
@@ -193,7 +195,7 @@ const ApprovalQueue: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <Select
             placeholder="状态"

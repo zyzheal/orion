@@ -3,9 +3,9 @@
  * Table of build logs with search/filter and navigation to the log viewer.
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, message } from 'antd';
-import { spacing } from '@/tokens';
-import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { Typography, Button, message, Empty } from 'antd';
+import { colors, spacing } from '@/tokens';
+import { ReloadOutlined, EyeOutlined, FileTextOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -26,8 +26,8 @@ const BuildLogList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuildLogs();
-      const apiData = response.data.data;
-      setLogs(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setLogs(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建日志失败：${error.message}`);
@@ -139,7 +139,7 @@ const BuildLogList: React.FC = () => {
       dataIndex: 'status',
       width: 130,
       render: (value) => {
-        const statusMap: Record<string, any> = {
+        const statusMap: Record<string, unknown> = {
           streaming: 'running',
           completed: 'success',
           failed: 'failed',
@@ -191,11 +191,12 @@ const BuildLogList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Build Logs
           </Title>
           <Text type="secondary">{filteredLogs.length} build logs</Text>
@@ -205,7 +206,7 @@ const BuildLogList: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -222,6 +223,13 @@ const BuildLogList: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredLogs.length === 0 && !loading && (
+        <Empty
+          description="暂无构建日志"
+          style={{ marginTop: 48 }}
+        />
+      )}
     </div>
   );
 };

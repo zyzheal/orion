@@ -39,6 +39,7 @@ import {
   type Badge,
   type Mentorship,
 } from '@/api/community';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -71,10 +72,10 @@ const statusLabelMap: Record<string, string> = {
 };
 
 const badgeLevelColor: Record<string, string> = {
-  bronze: '#cd7f32',
-  silver: '#c0c0c0',
-  gold: '#ffd700',
-  platinum: '#e5e4e2',
+  bronze: colors.tier.bronze,
+  silver: colors.neutral[400],
+  gold: colors.warning[400],
+  platinum: colors.tier.platinum,
 };
 
 const CommunityPage: React.FC = () => {
@@ -304,12 +305,12 @@ const CommunityPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TeamOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             社区生态
           </Title>
           <Text type="secondary">社区贡献、共享插件和导师计划</Text>
@@ -328,7 +329,7 @@ const CommunityPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="贡献总数" value={stats.totalContributions} />
@@ -336,7 +337,7 @@ const CommunityPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已通过" value={stats.approved} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="已通过" value={stats.approved} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>

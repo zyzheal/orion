@@ -23,36 +23,62 @@ describe('Backup API', () => {
 
   it('should get backup stats', async () => {
     vi.mocked(api.get).mockResolvedValue({
-      data: { data: { stats: { total: 42, successful: 38, failed: 2 } } },
+      data: { total: 42, successful: 38, failed: 2 },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
     } as any);
     const result = await getBackupStats();
     expect(api.get).toHaveBeenCalledWith('/v1/backup/stats');
-    expect(result.data.data.stats.total).toBe(42);
+    expect(result.data.total).toBe(42);
   });
 
   it('should get backups', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { backups: [] } } } as any);
+    vi.mocked(api.get).mockResolvedValue({
+      data: [],
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
     const result = await getBackups();
     expect(api.get).toHaveBeenCalledWith('/v1/backup');
-    expect(Array.isArray(result.data.data.backups)).toBe(true);
+    expect(Array.isArray(result.data)).toBe(true);
   });
 
   it('should create a backup', async () => {
     vi.mocked(api.post).mockResolvedValue({
-      data: { data: { backup: { id: '1', name: 'db-backup' } } },
+      data: { id: '1', name: 'db-backup' },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
     } as any);
     await createBackup({ name: 'db-backup', type: 'database' });
     expect(api.post).toHaveBeenCalledWith('/v1/backup', { name: 'db-backup', type: 'database' });
   });
 
   it('should restore a backup', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { data: undefined } } as any);
+    vi.mocked(api.post).mockResolvedValue({
+      data: undefined,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
     await restoreBackup('1');
     expect(api.post).toHaveBeenCalledWith('/v1/backup/1/restore');
   });
 
   it('should delete a backup', async () => {
-    vi.mocked(api.delete).mockResolvedValue({ data: { data: undefined } } as any);
+    vi.mocked(api.delete).mockResolvedValue({
+      data: undefined,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    } as any);
     await deleteBackup('1');
     expect(api.delete).toHaveBeenCalledWith('/v1/backup/1');
   });

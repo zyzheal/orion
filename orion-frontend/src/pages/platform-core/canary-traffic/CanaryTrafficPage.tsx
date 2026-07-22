@@ -1,3 +1,5 @@
+import { colors, spacing } from '@/tokens';
+
 /**
  * Canary Traffic Page
  * Phase 3 - Gradual traffic shifting, canary analysis, and promotion/rollback decisions
@@ -25,7 +27,7 @@ import {
   ReloadOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-} from '@ant-design/icons';
+  RocketOutlined,} from '@ant-design/icons';
 import {
   getCanaryRuns,
   getCanaryConfigs,
@@ -56,8 +58,8 @@ const CanaryTrafficPage: React.FC = () => {
         getCanaryRuns(),
         getCanaryConfigs(),
       ]);
-      setRuns((runRes.data as any)?.data || []);
-      setConfigs((configRes.data as any)?.data || []);
+      setRuns(((runRes.data as { data?: unknown[] })?.data ?? []) as CanaryAnalysisRun[]);
+      setConfigs(((configRes.data as { data?: unknown[] })?.data ?? []) as CanaryAnalysisConfig[]);
     } catch {
       message.error('Failed to load canary data');
     } finally {
@@ -168,10 +170,11 @@ const CanaryTrafficPage: React.FC = () => {
     : 0;
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <ExperimentOutlined /> Canary Traffic
           </Title>
           <Text type="secondary">Gradual traffic shifting and canary analysis</Text>
@@ -187,7 +190,7 @@ const CanaryTrafficPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card><Statistic title="Total Runs" value={runs.length} /></Card>
         </Col>
@@ -203,7 +206,7 @@ const CanaryTrafficPage: React.FC = () => {
       </Row>
 
       {/* Analysis Runs */}
-      <Card title="Canary Analysis Runs" style={{ marginBottom: 24 }}>
+      <Card title="Canary Analysis Runs" style={{ marginBottom: spacing.lg }}>
         <Table columns={runColumns} dataSource={runs} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
       </Card>
 

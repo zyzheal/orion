@@ -14,7 +14,7 @@ import {
   message,
   Spin,
 } from 'antd';
-import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, LineChartOutlined } from '@ant-design/icons';
 import { getTrackingAccuracy, type TrackingAccuracy } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
 
@@ -28,7 +28,7 @@ const TrackingAccuracyView: React.FC = () => {
     setLoading(true);
     try {
       const response = await getTrackingAccuracy();
-      setAccuracy(response.data.data as TrackingAccuracy | null);
+      setAccuracy(response.data as TrackingAccuracy | null);
     } catch (error: unknown) {
       setAccuracy(null);
       message.error(`加载精度数据失败: ${(error as Error).message}`);
@@ -63,7 +63,8 @@ const TrackingAccuracyView: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             追踪精度监控
           </Title>
           <Text type="secondary">
@@ -79,7 +80,7 @@ const TrackingAccuracyView: React.FC = () => {
       <Card style={{ marginBottom: spacing[6] }}>
         <Row gutter={16} align="middle">
           <Col span={8}>
-            <Title level={4} style={{ marginBottom: 8 }}>
+            <Title level={4} style={{ marginBottom: spacing.sm }}>
               追踪准确率
             </Title>
             <Progress
@@ -99,7 +100,7 @@ const TrackingAccuracyView: React.FC = () => {
               value={accuracy?.targetAccuracy ? Math.round(accuracy.targetAccuracy * 100) : 98}
               suffix="%"
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               {meetsTarget ? (
                 <Tag color="success" icon={<CheckCircleOutlined />}>
                   达标

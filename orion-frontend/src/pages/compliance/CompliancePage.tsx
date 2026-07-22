@@ -33,7 +33,7 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-} from '@ant-design/icons';
+  SafetyCertificateOutlined,} from '@ant-design/icons';
 import {
   getAuditLogs,
   verifyChain,
@@ -54,6 +54,13 @@ import {
   type ComplianceScore,
   type AuditPlan,
 } from '@/api/compliance';
+import { colors, spacing } from '@/tokens';
+
+// API 响应包装接口
+interface AuditLogResponse { data?: { entries?: AuditLogEntry[] } }
+interface ChainInfoResponse { data?: { totalEntries?: number } }
+interface IntegrityReportResponse { data?: { reports?: IntegrityReport[] } }
+interface ComplianceReportResponse { data?: SbomComplianceReport }
 
 const { Title, Text } = Typography;
 
@@ -111,26 +118,26 @@ const CompliancePage: React.FC = () => {
 
       // Audit logs
       if (logRes.status === 'fulfilled') {
-        const logData = logRes.value.data as any;
-        setAuditLogs(logData?.entries || []);
+        const logData = logRes.value.data as AuditLogResponse;
+        setAuditLogs(logData?.data?.entries || []);
       }
 
       // Chain info
       if (chainInfoRes.status === 'fulfilled') {
-        const chainData = chainInfoRes.value.data as any;
-        setChainInfo({ totalEntries: chainData?.totalEntries || 0, isValid: true });
+        const chainData = chainInfoRes.value.data as ChainInfoResponse;
+        setChainInfo({ totalEntries: chainData?.data?.totalEntries || 0, isValid: true });
       }
 
       // Integrity reports
       if (reportRes.status === 'fulfilled') {
-        const reportData = reportRes.value.data as any;
-        setIntegrityReports(reportData?.reports || []);
+        const reportData = reportRes.value.data as IntegrityReportResponse;
+        setIntegrityReports(reportData?.data?.reports || []);
       }
 
       // SBOM compliance
       if (complianceRes.status === 'fulfilled') {
-        const complianceData = complianceRes.value.data as any;
-        setComplianceReports(complianceData || null);
+        const complianceData = complianceRes.value.data as ComplianceReportResponse;
+        setComplianceReports(complianceData?.data || null);
       }
 
       // Policies
@@ -193,7 +200,7 @@ const CompliancePage: React.FC = () => {
         description: values.description || '',
         rules: (values.rules || '').split('\n').filter(Boolean).map((line: string) => {
           const [name, condition, severity] = line.split('|').map((s: string) => s.trim());
-          return { id: `rule-${Date.now()}`, name: name || '', condition: condition || '', severity: (severity as any) || 'medium' };
+          return { id: `rule-${Date.now()}`, name: name || '', condition: condition || '', severity: (severity as 'critical' | 'high' | 'medium' | 'low') || 'medium' };
         }),
       });
       message.success('合规策略创建成功');
@@ -469,12 +476,13 @@ const CompliancePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <SecurityScanOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <SecurityScanOutlined style={{ marginRight: spacing.sm }} />
             安全与合规
           </Title>
           <Text type="secondary">合规策略管理、审计日志链验证和完整性报告</Text>
@@ -499,14 +507,14 @@ const CompliancePage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
               title="合规分数"
               value={overallScore}
               suffix="/ 100"
-              valueStyle={{ color: overallScore >= 80 ? '#52c41a' : '#faad14' }}
+              valueStyle={{ color: overallScore >= 80 ? colors.success[500] : colors.warning[500] }}
             />
           </Card>
         </Col>
@@ -520,7 +528,7 @@ const CompliancePage: React.FC = () => {
             <Statistic
               title="不合规评估"
               value={nonCompliantCount}
-              valueStyle={{ color: nonCompliantCount > 0 ? '#ff4d4f' : '#52c41a' }}
+              valueStyle={{ color: nonCompliantCount > 0 ? colors.error[400] : colors.success[500] }}
             />
           </Card>
         </Col>
@@ -529,7 +537,7 @@ const CompliancePage: React.FC = () => {
             <Statistic
               title="总违规数"
               value={totalViolations}
-              valueStyle={{ color: totalViolations > 0 ? '#ff4d4f' : '#52c41a' }}
+              valueStyle={{ color: totalViolations > 0 ? colors.error[400] : colors.success[500] }}
             />
           </Card>
         </Col>
@@ -542,7 +550,7 @@ const CompliancePage: React.FC = () => {
 
       {/* Chain Info */}
       {chainInfo && (
-        <Card title="审计日志链状态" style={{ marginTop: 16 }}>
+        <Card title="审计日志链状态" style={{ marginTop: spacing.md }}>
           <Row gutter={24}>
             <Col span={8}>
               <Statistic title="总条目数" value={chainInfo.totalEntries} />
@@ -551,7 +559,7 @@ const CompliancePage: React.FC = () => {
               <Statistic
                 title="链完整性"
                 value={chainInfo.isValid ? '有效' : '无效'}
-                valueStyle={{ color: chainInfo.isValid ? '#52c41a' : '#ff4d4f' }}
+                valueStyle={{ color: chainInfo.isValid ? colors.success[500] : colors.error[400] }}
               />
             </Col>
             <Col span={8}>
@@ -559,7 +567,7 @@ const CompliancePage: React.FC = () => {
                 title="合规趋势"
                 value={complianceScore?.trend === 'improving' ? '改善中' : complianceScore?.trend === 'degrading' ? '恶化中' : '稳定'}
                 valueStyle={{
-                  color: complianceScore?.trend === 'improving' ? '#52c41a' : complianceScore?.trend === 'degrading' ? '#ff4d4f' : '#faad14',
+                  color: complianceScore?.trend === 'improving' ? colors.success[500] : complianceScore?.trend === 'degrading' ? colors.error[400] : colors.warning[500],
                 }}
               />
             </Col>

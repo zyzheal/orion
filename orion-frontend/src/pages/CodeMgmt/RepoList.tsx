@@ -10,8 +10,10 @@ import {
   DeleteOutlined,
   BranchesOutlined,
   MergeOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   getCodeRepoAdapters,
   getCodeRepos,
@@ -30,6 +32,10 @@ interface AdapterOption {
   type: string;
 }
 
+// API 响应包装接口
+interface ApiResponse<T> { data?: T | T[] }
+interface ListResponse<T> { data?: T[]; items?: T[] }
+
 const RepoList: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -43,7 +49,7 @@ const RepoList: React.FC = () => {
   const loadAdapters = useCallback(async () => {
     try {
       const response = await getCodeRepoAdapters();
-      const data = response.data.data as AdapterOption[];
+      const data = response.data as AdapterOption[];
       setAdapters(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -58,7 +64,7 @@ const RepoList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getCodeRepos(adapterId);
-      const data = response.data.data as CodeRepo[];
+      const data = response.data as CodeRepo[];
       setRepos(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -85,7 +91,7 @@ const RepoList: React.FC = () => {
   const loadRepoDetails = useCallback(async (repo: CodeRepo) => {
     try {
       const branchesResp = await getCodeRepoBranches(repo.adapterId, repo.id);
-      const branches = branchesResp.data.data as any[];
+      const branches = (branchesResp.data as ApiResponse<string[]>)?.data ?? (branchesResp.data as ListResponse<string>)?.items ?? [];
       if (Array.isArray(branches)) {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
@@ -94,7 +100,7 @@ const RepoList: React.FC = () => {
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
-      const prs = prResp.data.data as any[];
+      const prs = (prResp.data as ApiResponse<unknown[]>)?.data ?? (prResp.data as ListResponse<unknown>)?.items ?? [];
       if (Array.isArray(prs)) {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }
@@ -140,11 +146,12 @@ const RepoList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             代码仓库
           </Title>
           <Text type="secondary">管理所有代码仓库、分支和 Pull Request</Text>
@@ -156,7 +163,7 @@ const RepoList: React.FC = () => {
 
       {/* Adapter filter buttons */}
       {adapters.length > 0 && (
-        <Space wrap style={{ marginBottom: 24 }}>
+        <Space wrap style={{ marginBottom: spacing.lg }}>
           <Text strong>Adapter:</Text>
           {adapters.map((adapter) => (
             <Button

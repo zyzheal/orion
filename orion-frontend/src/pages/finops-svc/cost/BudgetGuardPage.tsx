@@ -387,9 +387,9 @@ const BudgetGuardPage: React.FC = () => {
     setEvalResult(null);
     try {
       const res = await evaluateBudgetGuard(values.pipelineId, values.estimatedCost);
-      setEvalResult(res.data?.data?.data || null);
+      setEvalResult(res.data?.data || null);
       setEvaluationCount((prev) => prev + 1);
-      if (res.data?.data?.data?.passed === false) {
+      if (res.data?.data?.passed === false) {
         setBlockedCount((prev) => prev + 1);
       }
     } catch (error: unknown) {
@@ -546,8 +546,8 @@ const BudgetGuardPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <SafetyOutlined style={{ marginRight: spacing[2] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Budget Guard
           </Title>
           <Text type="secondary">

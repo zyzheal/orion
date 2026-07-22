@@ -6,7 +6,7 @@
 export const typography = {
   // ============ 字体系列 ============
   fontFamily: {
-    base: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    base: 'SF Pro Display, -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif',
     code: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace',
     cn: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif',
   },
@@ -27,7 +27,7 @@ export const typography = {
   lineHeight: {
     none: 1,
     tight: 1.25,
-    normal: 1.5,
+    normal: 1.57,   // Apple style: was 1.5
     relaxed: 1.625,
     loose: 2,
     // 具体数值
@@ -72,27 +72,31 @@ export const typography = {
       fontSize: 32,
       lineHeight: 40,
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 0,
       marginBottom: 24,
     },
     h2: {
-      fontSize: 24,
-      lineHeight: 32,
+      fontSize: 28,     // was 24
+      lineHeight: 36,   // was 32
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 32,
       marginBottom: 16,
     },
     h3: {
-      fontSize: 20,
-      lineHeight: 28,
+      fontSize: 22,     // was 20
+      lineHeight: 30,   // was 28
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 24,
       marginBottom: 12,
     },
     h4: {
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 18,     // was 16
+      lineHeight: 26,   // was 24
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 16,
       marginBottom: 8,
     },

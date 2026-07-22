@@ -12,6 +12,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { ExtendedAction } from '@/components/ChatOps/types';
+import type { CommandListResponse, RecommendationListResponse } from '@/types/api';
 import {
   getCommands,
   executeCommand as executeCommandAPI,
@@ -44,6 +45,9 @@ export interface Recommendation {
   actions: ExtendedAction[];
   createdAt: Date;
   source: string;
+  // Extended fields for frontend processing state
+  status?: 'pending' | 'dismissed' | 'resolved' | 'archived';
+  assignee?: string;
 }
 
 export interface PageContext {
@@ -191,14 +195,14 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = (response.data as any)?.data;
+        const execData = (response.data as { data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] } })?.data ?? response.data;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: execData?.result?.output || `命令 ${command} 执行完成`,
+          content: (execData as { result?: { output?: string } })?.result?.output || `命令 ${command} 执行完成`,
           timestamp: new Date(),
-          status: execData?.status === 'completed' ? 'success' : 'failed',
-          actions: extractActionsFromResult(execData),
+          status: (execData as { status?: string }).status === 'completed' ? 'success' : 'failed',
+          actions: extractActionsFromResult(execData as { actions?: ExtendedAction[] }),
         };
 
         // TE-11: 函数式更新，基于当前 state 追加
@@ -241,14 +245,14 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = (response.data as any)?.data;
+        const execData = (response.data as { data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] } })?.data ?? response.data;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: execData?.result?.output || `操作 ${command} 执行完成`,
+          content: (execData as { result?: { output?: string } })?.result?.output || `操作 ${command} 执行完成`,
           timestamp: new Date(),
-          status: execData?.status === 'completed' ? 'success' : 'failed',
-          actions: extractActionsFromResult(execData),
+          status: (execData as { status?: string }).status === 'completed' ? 'success' : 'failed',
+          actions: extractActionsFromResult(execData as { actions?: ExtendedAction[] }),
         };
 
         set((state) => ({
@@ -285,11 +289,11 @@ export const useChatOpsStore = create<ChatOpsState>()(
       set({ isRecommendationLoading: true });
       try {
         const response = await fetchRecommendations({});
-        const recs = (response.data as any)?.data || [];
+        const recs = (response.data as RecommendationListResponse)?.data?.recommendations || [];
         set({
           recommendations: recs,
           unreadAlerts: recs.filter(
-            (r: any) => r.severity === 'critical' || r.severity === 'warning'
+            (r: { severity?: string }) => r.severity === 'critical' || r.severity === 'warning'
           ).length,
         });
       } catch (err) {
@@ -312,10 +316,10 @@ export const useChatOpsStore = create<ChatOpsState>()(
           limit: 50,
           cursor: state.nextCursor ?? undefined,
         });
-        const data = (response.data as any) ?? {};
-        const newMsgs = data.data ?? data.messages ?? [];
-        const hasMore = data.hasMore ?? false;
-        const nextCursor = data.nextCursor ?? null;
+        const data = (response.data as { data?: ChatMessage[] }) ?? {};
+        const newMsgs = data.data ?? [];
+        const hasMore = (response.data as { hasMore?: boolean })?.hasMore ?? false;
+        const nextCursor = (response.data as { nextCursor?: string | null })?.nextCursor ?? null;
         set({
           messages: [...state.messages, ...newMsgs].slice(-500),
           hasMoreMessages: hasMore,
@@ -383,17 +387,17 @@ export async function initializeChatOpsStore(): Promise<void> {
   _initialized = true;
 
   try {
-    const { data } = await getCommands();
-    const commands = (data as any)?.data || [];
+    const response = await getCommands();
+    const commands = (response.data as CommandListResponse)?.data?.commands || [];
     if (Array.isArray(commands)) {
-      commands.forEach((cmd: any) => {
+      commands.forEach((cmd: { name: string; schema?: Record<string, unknown> }) => {
         parser.registerSchema(cmd.name, cmd.schema || {});
       });
-      useChatOpsStore.setState({ commands });
+      useChatOpsStore.setState({ commands: commands as any });
     }
     useChatOpsStore.getState().fetchRecommendations();
   } catch (err) {
-    console.error('[ChatOps] Failed to initialize store:', err);
+    console.warn('[ChatOps] Commands unavailable (check permission):', err);
     _initialized = false; // 失败时允许重试
   }
 }

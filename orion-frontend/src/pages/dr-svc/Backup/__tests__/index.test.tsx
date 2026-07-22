@@ -19,10 +19,10 @@ const { mockMessage, mockApi } = vi.hoisted(() => ({
   mockApi: {
     getBackupDownloadUrl: vi.fn(),
     getBackups: vi.fn().mockResolvedValue({
-      data: { data: { backups: [] } },
+      data: { backups: [] } ,
     }),
     getBackupStats: vi.fn().mockResolvedValue({
-      data: { data: { stats: { total: 0, successful: 0, failed: 0 } } },
+      data: { stats: { total: 0, successful: 0, failed: 0 } } ,
     }),
     createBackup: vi.fn(),
     restoreBackup: vi.fn(),
@@ -89,7 +89,7 @@ describe('BackupManagement', () => {
 
   it('handleDownload calls API and opens window on success', async () => {
     mockApi.getBackupDownloadUrl.mockResolvedValue({
-      data: { data: { url: 'https://example.com/download/backup.tar.gz' } },
+      data: { url: 'https://example.com/download/backup.tar.gz' } ,
     });
 
     renderWithRouter(<BackupManagement />);
@@ -101,7 +101,7 @@ describe('BackupManagement', () => {
     const result = await getBackupDownloadUrl('bak-001');
 
     expect(mockApi.getBackupDownloadUrl).toHaveBeenCalledWith('bak-001');
-    const url = result.data?.data?.url;
+    const url = result.data?.url;
     expect(url).toBe('https://example.com/download/backup.tar.gz');
     if (url) {
       window.open(url, '_blank');
@@ -114,12 +114,12 @@ describe('BackupManagement', () => {
 
   it('handleDownload shows warning when no URL returned', async () => {
     mockApi.getBackupDownloadUrl.mockResolvedValue({
-      data: { data: { url: undefined } },
+      data: { url: undefined } ,
     });
 
     const { getBackupDownloadUrl } = await import('@/api/backup');
     const result = await getBackupDownloadUrl('bak-001');
-    const url = result.data?.data?.url;
+    const url = result.data?.url;
 
     if (!url) {
       mockMessage.warning('未获取到下载链接');

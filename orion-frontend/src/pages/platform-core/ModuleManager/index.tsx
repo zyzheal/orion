@@ -134,7 +134,7 @@ const ModuleManagerPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await getModules();
-      setModules(response.data?.data || []);
+      setModules(response.data || []);
     } catch (error: unknown) {
       message.error(`加载模块列表失败: ${(error as Error).message}`);
       setModules([]);
@@ -150,8 +150,8 @@ const ModuleManagerPage: React.FC = () => {
         validateDependencies(),
         getStartupOrder(),
       ]);
-      setValidationResult(validationRes.data?.data?.validation || null);
-      setStartupOrder(orderRes.data?.data?.order || []);
+      setValidationResult(validationRes.data?.validation || null);
+      setStartupOrder(orderRes.data?.order || []);
     } catch (error: unknown) {
       message.error(`加载校验数据失败: ${(error as Error).message}`);
     } finally {
@@ -402,8 +402,8 @@ const ModuleManagerPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ClusterOutlined style={{ marginRight: spacing[2], color: colors.info[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ClusterOutlined style={{ marginRight: spacing[3], color: colors.info[500] }} />
             模块管理
           </Title>
           <Text type="secondary">

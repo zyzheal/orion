@@ -20,6 +20,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
+  ClockCircleOutlined,
   CheckOutlined,
   CloseOutlined,
   InfoCircleOutlined,
@@ -73,7 +74,7 @@ const PendingList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getConfirmations();
-      setConfirmations(Array.isArray(res.data.data) ? res.data.data : []);
+      setConfirmations(Array.isArray(res.data) ? res.data : []);
     } catch {
       message.error('Failed to load confirmations');
     } finally {
@@ -195,7 +196,12 @@ const PendingList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'confirmed' ? 'success' : status === 'rejected' ? 'failed' : status === 'expired' ? 'cancelled' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'pushTime',
@@ -297,11 +303,12 @@ const PendingList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ClockCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             确认工作台
           </Title>
           <Text type="secondary">待确认的 AI 操作建议</Text>
@@ -311,7 +318,7 @@ const PendingList: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -343,7 +350,7 @@ const PendingList: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -370,11 +377,11 @@ const PendingList: React.FC = () => {
       >
         {selectedConfirmation && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Tag color={priorityColorMap[selectedConfirmation.priority]}>
                 {selectedConfirmation.priority}
               </Tag>
-              <StatusBadge status={selectedConfirmation.status as any} />
+              <StatusBadge status={selectedConfirmation.status === 'confirmed' ? 'success' : selectedConfirmation.status === 'rejected' ? 'failed' : selectedConfirmation.status === 'expired' ? 'cancelled' : 'pending'} />
             </Space>
             <p>
               <Text strong>AI 建议:</Text> {selectedConfirmation.aiSuggestion}

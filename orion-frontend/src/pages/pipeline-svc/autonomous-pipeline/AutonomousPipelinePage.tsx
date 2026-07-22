@@ -21,6 +21,7 @@ import {
   Col,
   Progress,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   RobotOutlined,
   ClockCircleOutlined,
@@ -76,7 +77,7 @@ const ErrorClassificationTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getErrorStats({ days: 7 });
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       message.error(`加载错误统计失败: ${(error as Error).message}`);
     } finally {
@@ -99,7 +100,7 @@ const ErrorClassificationTab: React.FC = () => {
         errorMessage: values.errorMessage,
         errorCode: values.errorCode,
       });
-      setLastClassification(res.data?.data || null);
+      setLastClassification(res.data || null);
       message.success('错误分类完成');
       loadStats();
     } catch (error: unknown) {
@@ -282,7 +283,7 @@ const AdaptiveTimeoutTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getTimeoutForStage(stageName);
-      setTimeoutConfig(res.data?.data || null);
+      setTimeoutConfig(res.data || null);
     } catch (error: unknown) {
       message.error(`加载超时配置失败: ${(error as Error).message}`);
     } finally {
@@ -363,7 +364,7 @@ const AdaptiveTimeoutTab: React.FC = () => {
               </Card>
             </Col>
           </Row>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: spacing.md }}>
             <Text type="secondary">样本数: {timeoutConfig.sampleSize}</Text>
           </div>
         </Card>
@@ -428,7 +429,7 @@ const AutoRetryTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRetryStats(pipelineId);
-      setRetryStats(res.data?.data || null);
+      setRetryStats(res.data || null);
     } catch (error: unknown) {
       message.error(`加载重试统计失败: ${(error as Error).message}`);
     } finally {
@@ -605,9 +606,9 @@ const AutonomousPipelinePage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <RobotOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           自治流水线
         </Title>
         <Text type="secondary">错误分类、自适应超时配置和自动重试管理</Text>

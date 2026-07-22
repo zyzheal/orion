@@ -24,12 +24,13 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
-import { getReviewDetail } from '@/api/ai-review';
+import { getReviewDetail, getReviewComments } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title } = Typography;
 
@@ -40,6 +41,7 @@ const AIReviewDetail: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<AIReviewResult | null>(null);
+  const [issues, setIssues] = useState<AIReviewResult['comments']>([]);
 
   const loadDetail = async () => {
     if (!reviewId) {
@@ -49,7 +51,15 @@ const AIReviewDetail: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewDetail(reviewId);
-      setDetail(res.data.data || null);
+      setDetail((res.data || null) as unknown as AIReviewResult | null);
+      // Load real issues/comments from API
+      try {
+        const commentsRes = await getReviewComments(reviewId);
+        setIssues(commentsRes.data || []);
+      } catch {
+        // If comments endpoint fails, use empty array (backward compatible)
+        setIssues([]);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审详情失败：${error.message}`);
@@ -67,7 +77,7 @@ const AIReviewDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
         <Spin size="large" tip="加载中..." />
       </div>
     );
@@ -75,7 +85,7 @@ const AIReviewDetail: React.FC = () => {
 
   if (!detail) {
     return (
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: spacing.lg }}>
         <Alert
           message="未找到评审记录"
           description="请检查评审 ID 是否正确"
@@ -123,35 +133,23 @@ const AIReviewDetail: React.FC = () => {
         <Tag color={s === 'critical' ? 'red' : s === 'warning' ? 'orange' : 'blue'}>{s}</Tag>
       ),
     },
-    { title: '文件', dataIndex: 'file', key: 'file', ellipsis: true },
-    { title: '行号', dataIndex: 'line', key: 'line', width: 80 },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+    { title: '文件', dataIndex: 'filePath', key: 'file', ellipsis: true },
+    { title: '行号', dataIndex: 'lineNumber', key: 'line', width: 80 },
+    { title: '描述', dataIndex: 'message', key: 'description', ellipsis: true },
     { title: '建议', dataIndex: 'suggestion', key: 'suggestion', ellipsis: true },
   ];
 
-  // Simulated issues based on counts
-  const mockIssues = Array.from({ length: Math.min(detail.totalIssues, 20) }, (_, i) => ({
-    key: `issue-${i}`,
-    severity:
-      i < detail.criticalCount
-        ? 'critical'
-        : i < detail.criticalCount + detail.warningCount
-          ? 'warning'
-          : 'info',
-    file: `src/components/${['Button', 'Table', 'Form', 'Modal'][i % 4]}.tsx`,
-    line: Math.floor(Math.random() * 200) + 1,
-    description: `Issue #${i + 1}: 代码规范问题`,
-    suggestion: '建议修复...',
-  }));
+  // Real issues loaded from backend API (via getReviewComments)
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ai-review/history')}>
           返回
         </Button>
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           评审详情
         </Title>
         <Button icon={<ReloadOutlined />} onClick={loadDetail}>
@@ -169,11 +167,11 @@ const AIReviewDetail: React.FC = () => {
         type={
           detail.status === 'completed' ? 'success' : detail.status === 'failed' ? 'error' : 'info'
         }
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       {/* Basic Info */}
-      <Card title="基本信息" style={{ marginBottom: 16 }}>
+      <Card title="基本信息" style={{ marginBottom: spacing.md }}>
         <Descriptions column={2} bordered>
           <Descriptions.Item label="评审 ID">{detail.id}</Descriptions.Item>
           <Descriptions.Item label="PR ID">{detail.prId}</Descriptions.Item>
@@ -193,7 +191,7 @@ const AIReviewDetail: React.FC = () => {
       </Card>
 
       {/* Issue Statistics */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -239,7 +237,8 @@ const AIReviewDetail: React.FC = () => {
       <Card title={`问题列表 (${detail.totalIssues})`}>
         <Table
           columns={issueColumns}
-          dataSource={mockIssues}
+          dataSource={issues}
+          rowKey="id"
           pagination={{ pageSize: 10 }}
           size="small"
         />

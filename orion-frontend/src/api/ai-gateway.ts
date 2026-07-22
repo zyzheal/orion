@@ -92,51 +92,61 @@ export interface Rule {
 export interface RuleCondition {
   field: string;
   operator: 'contains' | 'in' | 'equals' | 'greater_than' | 'less_than';
-  value: any;
+  value: string | number | boolean;
 }
 
 export interface RuleAction {
   type: 'set' | 'block' | 'route';
   field: string;
-  value: any;
+  value: string | number | boolean;
 }
 
 // ==================== AI Gateway Execution ====================
 
 export function executeAIRequest(request: AIRequest) {
-  return api.post<AIResponse>('/v1/ai-gateway/execute', request);
+  return api.post<AIResponse>('/api/v1/ai-gateway/execute', request);
 }
 
 // ==================== Health Monitoring ====================
 
 export function getScenarioHealth(scenario: AIScenario) {
-  return api.get<AIGatewayHealth>(`/v1/ai-gateway/health/${scenario}`);
+  return api.get<AIGatewayHealth>(`/api/v1/ai-gateway/health/${scenario}`);
 }
 
 export function getAllHealth() {
-  return api.get<{ health: AIGatewayHealth[] }>('/v1/ai-gateway/health/all');
+  return api.get<{ health: AIGatewayHealth[] }>('/api/v1/ai-gateway/health/all');
 }
 
 export function getGatewayStatus() {
-  return api.get<{ status: string }>('/v1/ai-gateway/status');
+  return api.get<{ status: string }>('/api/v1/ai-gateway/status');
 }
 
 // ==================== Rule Engine ====================
 
+export interface AIGatewayConfig {
+  enabled: boolean;
+  defaultScenario?: AIScenario;
+  timeoutMs?: number;
+  maxRetries?: number;
+  fallbackEnabled?: boolean;
+  auditEnabled?: boolean;
+  [key: string]: unknown;
+}
+
 export function getRules() {
-  return api.get<{ rules: any }>('/v1/ai-gateway/rules');
+  return api.get<{ rules: RuleSet[] }>('/api/v1/ai-gateway/rules');
 }
 
 export function getEngineStatus() {
-  return api.get<{ cacheEnabled: boolean; auditEnabled: boolean }>('/v1/ai-gateway/engine/status');
+  return api.get<{ cacheEnabled: boolean; auditEnabled: boolean }>('/api/v1/ai-gateway/engine/status');
 }
 
 // ==================== Configuration ====================
 
 export function getConfig() {
-  return api.get<{ config: any }>('/v1/ai-gateway/config');
+  return api.get<{ config: AIGatewayConfig }>('/api/v1/ai-gateway/config');
 }
 
-export function updateConfig(config: any) {
-  return api.put('/v1/ai-gateway/config', config);
+export function updateConfig(config: Partial<AIGatewayConfig>) {
+  return api.put('/api/v1/ai-gateway/config', config);
 }

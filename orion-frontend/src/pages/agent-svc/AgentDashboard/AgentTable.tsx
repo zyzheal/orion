@@ -9,6 +9,7 @@ import {
   ThunderboltOutlined,
   ClockCircleOutlined,
   EyeOutlined,
+  EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -29,6 +30,7 @@ interface AgentTableProps {
   onFilter: (filters: Record<string, string | string[] | undefined>) => void;
   onViewDetail: (agent: AgentProfile) => void;
   onToggleAgent: (agent: AgentProfile) => void;
+  onEditAgent: (agent: AgentProfile) => void;
   onDeleteAgent: (agent: AgentProfile) => void;
 }
 
@@ -42,6 +44,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
   onFilter,
   onViewDetail,
   onToggleAgent,
+  onEditAgent,
   onDeleteAgent,
 }) => {
   const filterDefs: FilterDefinition[] = [
@@ -127,7 +130,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
     {
       key: 'actions',
       title: '操作',
-      width: 200,
+      width: 260,
       render: (_: unknown, record: AgentProfile) => (
         <Space size="small" wrap>
           <Button
@@ -150,6 +153,15 @@ const AgentTable: React.FC<AgentTableProps> = ({
           <Button
             type="link"
             size="small"
+            icon={<EditOutlined />}
+            onClick={() => onEditAgent(record)}
+            data-testid={`edit-agent-${record.id}`}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
             danger
             icon={<DeleteOutlined />}
             onClick={() => onDeleteAgent(record)}
@@ -164,10 +176,10 @@ const AgentTable: React.FC<AgentTableProps> = ({
 
   return (
     <div>
-      <Typography.Title level={5} style={{ marginBottom: 12 }}>
+      <Typography.Title level={5} style={{ marginBottom: spacing[3] }}>
         Agent Profiles
       </Typography.Title>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={onSearch}
           onFilter={onFilter}

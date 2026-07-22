@@ -102,6 +102,14 @@ const Sidebar = () => {
   const theme = useTheme();
   const [showQrcode, setShowQrcode] = useState(false);
   const navigate = useNavigate();
+
+  // 在文档编辑器页面隐藏侧边栏
+  // 注意：微前端模式下 pathname 可能包含 /knowledge 前缀
+  const isEditorPage = pathname.includes('/doc/editor');
+  if (isEditorPage) {
+    return null;
+  }
+
   const menus = useMemo(() => {
     return MENUS.filter(it => {
       return it.perms.includes(kbDetail.perm!);
@@ -137,6 +145,30 @@ const Sidebar = () => {
         overflow: 'auto',
       }}
     >
+      {/* 返回 Orion 主应用按钮 */}
+      <Button
+        variant="text"
+        size="small"
+        onClick={() => {
+          console.log('[Sidebar] Returning to Orion main app');
+          // 清除知识子应用的 basename 标志，避免主应用误判
+          delete (window as any).__BASENAME__;
+          (window as any).__POWERED_BY_ORION__ = false;
+          // 直接导航到主应用 dashboard
+          window.location.href = '/dashboard';
+        }}
+        sx={{
+          mb: 1,
+          color: 'text.primary',
+          fontSize: 12,
+          justifyContent: 'center',
+          '&:hover': {
+            bgcolor: 'action.hover',
+          },
+        }}
+      >
+        ← Orion
+      </Button>
       <Stack
         direction={'row'}
         alignItems={'center'}
@@ -231,9 +263,9 @@ const Sidebar = () => {
           startIcon={
             <IconBangzhuwendang1 sx={{ fontSize: '14px !important' }} />
           }
-          onClick={() =>
+          onClick={() => {
             // 外部文档链接已移除
-          }
+          }}
         >
           帮助文档
         </Button>

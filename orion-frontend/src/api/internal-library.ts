@@ -158,66 +158,68 @@ export interface LibraryListParams {
 
 // ---- API Functions ----
 
+const BASE_URL = '/api/v1/internal-libraries';
+
 /** List internal libraries with optional filters */
 export function getInternalLibraries(params?: LibraryListParams) {
-  return api.get<InternalLibrary[]>('/internal-libraries', { params });
+  return api.get<InternalLibrary[]>(BASE_URL, { params });
 }
 
 /** Get library detail by ID */
 export function getInternalLibrary(id: string) {
-  return api.get<InternalLibrary>(`/internal-libraries/${id}`);
+  return api.get<InternalLibrary>(`${BASE_URL}/${id}`);
 }
 
 /** Get library by name */
 export function getInternalLibraryByName(name: string) {
-  return api.get<InternalLibrary>(`/internal-libraries/name/${name}`);
+  return api.get<InternalLibrary>(`${BASE_URL}/name/${name}`);
 }
 
 /** List libraries by language */
 export function getLibrariesByLanguage(language: LibraryLanguage) {
-  return api.get<InternalLibrary[]>(`/internal-libraries/language/${language}`);
+  return api.get<InternalLibrary[]>(`${BASE_URL}/language/${language}`);
 }
 
 /** List libraries by owner/team */
 export function getLibrariesByOwner(owner: string) {
-  return api.get<InternalLibrary[]>(`/internal-libraries/owner/${owner}`);
+  return api.get<InternalLibrary[]>(`${BASE_URL}/owner/${owner}`);
 }
 
 /** Create a new internal library */
 export function createInternalLibrary(data: CreateLibraryInput) {
-  return api.post<InternalLibrary>('/internal-libraries', data);
+  return api.post<InternalLibrary>(BASE_URL, data);
 }
 
 /** Delete an internal library */
 export function deleteInternalLibrary(id: string) {
-  return api.delete(`/v1/internal-libraries/${id}`);
+  return api.delete(`${BASE_URL}/${id}`);
 }
 
 /** Deprecate an internal library */
 export function deprecateInternalLibrary(id: string, data: DeprecateLibraryInput) {
-  return api.post<InternalLibrary>(`/internal-libraries/${id}/deprecate`, data);
+  return api.post<InternalLibrary>(`${BASE_URL}/${id}/deprecate`, data);
 }
 
 /** Activate an internal library */
 export function activateInternalLibrary(id: string) {
-  return api.post<InternalLibrary>(`/internal-libraries/${id}/activate`);
+  return api.post<InternalLibrary>(`${BASE_URL}/${id}/activate`);
 }
 
 // ---- Version Management ----
 
 /** Publish a new version */
 export function publishVersion(id: string, data: PublishVersionInput) {
-  return api.post<LibraryVersion>(`/internal-libraries/${id}/versions`, data);
+  return api.post<LibraryVersion>(`${BASE_URL}/${id}/versions`, data);
 }
 
 /** Get version list for a library */
 export function getVersions(id: string) {
-  return api.get<LibraryVersion[]>(`/internal-libraries/${id}/versions`);
+  return api.get<LibraryVersion[]>(`${BASE_URL}/${id}/versions`);
 }
 
 /** Get specific version detail */
 export function getVersion(id: string, version: string) {
-  return api.get<LibraryVersion>(`/internal-libraries/${id}/versions/${version}`);
+  return api.get<LibraryVersion>(`${BASE_URL}/${id}/versions/${version}`);
 }
 
 /** Deprecate a specific version */
@@ -228,7 +230,7 @@ export function deprecateVersion(
   eolDate: string,
   migrationGuide?: string
 ) {
-  return api.post<LibraryVersion>(`/internal-libraries/${id}/versions/${version}/deprecate`, {
+  return api.post<LibraryVersion>(`${BASE_URL}/${id}/versions/${version}/deprecate`, {
     reason,
     eolDate,
     migrationGuide,
@@ -239,25 +241,25 @@ export function deprecateVersion(
 
 /** Get dependents list for a library */
 export function getDependents(id: string) {
-  return api.get<LibraryDependent[]>(`/internal-libraries/${id}/dependents`);
+  return api.get<LibraryDependent[]>(`${BASE_URL}/${id}/dependents`);
 }
 
 /** Add a dependent relationship */
 export function addDependent(id: string, data: AddDependentInput) {
-  return api.post<LibraryDependent>(`/internal-libraries/${id}/dependents`, data);
+  return api.post<LibraryDependent>(`${BASE_URL}/${id}/dependents`, data);
 }
 
 /** Update dependent version */
 export function updateDependent(id: string, repoName: string, version: string) {
-  return api.put(`/v1/internal-libraries/${id}/dependents/${repoName}`, { version });
+  return api.put(`${BASE_URL}/${id}/dependents/${repoName}`, { version });
 }
 
 /** Check project dependencies */
 export function checkDependencies(repoName: string) {
-  return api.get<DependencyCheckResult[]>(`/repositories/${repoName}/dependencies`);
+  return api.get<DependencyCheckResult[]>(`${BASE_URL}/dependencies/${repoName}`);
 }
 
 /** Update dependency statistics */
 export function updateDependentStats(id: string) {
-  return api.post(`/v1/internal-libraries/${id}/update-stats`);
+  return api.post(`${BASE_URL}/${id}/update-stats`);
 }

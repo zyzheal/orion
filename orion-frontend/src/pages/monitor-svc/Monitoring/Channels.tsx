@@ -17,7 +17,7 @@ import {
   message,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, MailOutlined } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getChannels,
@@ -50,7 +50,7 @@ const MonitoringChannels: React.FC = () => {
     setLoading(true);
     try {
       const response = await getChannels();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setChannels(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -66,7 +66,7 @@ const MonitoringChannels: React.FC = () => {
   const loadEscalationPolicies = async () => {
     try {
       const response = await getEscalationPolicies();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setEscalationPolicies(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -116,7 +116,7 @@ const MonitoringChannels: React.FC = () => {
     try {
       const res = await toggleChannel(id);
       setChannels((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, enabled: res.data.data?.enabled ?? !c.enabled } : c))
+        prev.map((c) => (c.id === id ? { ...c, enabled: res.data?.enabled ?? !c.enabled } : c))
       );
       message.success('渠道状态已切换');
     } catch (error: unknown) {
@@ -230,7 +230,7 @@ const MonitoringChannels: React.FC = () => {
       dataIndex: 'steps',
       render: (v: unknown) => (
         <Space>
-          {(v as any[]).map((step, idx) => (
+          {(v as Array<unknown>).map((step: any, idx) => (
             <Tag key={idx} color="blue">
               #{step.order} → {step.channel} ({step.delayMs}ms)
             </Tag>
@@ -254,12 +254,12 @@ const MonitoringChannels: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <MailOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <MailOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             通知渠道
           </Title>
           <Text type="secondary">管理告警通知渠道与升级策略</Text>
@@ -271,7 +271,7 @@ const MonitoringChannels: React.FC = () => {
 
       <Tabs defaultActiveKey="channels">
         <TabPane tab={`通知渠道 (${channels.length})`} key="channels">
-          <div style={{ marginBottom: 16, textAlign: 'right' }}>
+          <div style={{ marginBottom: spacing.md, textAlign: 'right' }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -290,7 +290,7 @@ const MonitoringChannels: React.FC = () => {
           />
         </TabPane>
         <TabPane tab={`升级策略 (${escalationPolicies.length})`} key="escalation">
-          <div style={{ marginBottom: 16, textAlign: 'right' }}>
+          <div style={{ marginBottom: spacing.md, textAlign: 'right' }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}

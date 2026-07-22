@@ -12,17 +12,25 @@
  * - Real-time status refresh (polling every 5s for running runs)
  */
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Typography, Button, Space, Tag, DatePicker, message } from 'antd';
-import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Typography, Button, Space, Tag, DatePicker, message, Dropdown, Modal } from 'antd';
+import { colors, spacing, componentRadius } from '@/tokens';
+import {
+  ReloadOutlined,
+  PlayCircleOutlined,
+  RocketOutlined,
+  StopOutlined,
+  DownOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getAllPipelineRuns,
   retryPipelineRun,
+  cancelPipelineRun,
   type PipelineRunSummary,
 } from '@/api/pipelineRuns';
+import StageSelectorModal from './StageSelectorModal';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -67,6 +75,14 @@ const PipelineRunList: React.FC = () => {
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
   const [loading, setLoading] = useState(false);
   const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
+  const [stageRetryModal, setStageRetryModal] = useState<{
+    visible: boolean;
+    runId: string | null;
+  }>({
+    visible: false,
+    runId: null,
+  });
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load pipeline runs from API
@@ -119,11 +135,7 @@ const PipelineRunList: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          run.pipelineId,
-          (run as any).pipelineName || '',
-          run.triggerBy || '',
-        ]
+        const searchable = [run.pipelineId, (run as { pipelineName?: string }).pipelineName || '', run.triggerBy || '']
           .join(' ')
           .toLowerCase();
         if (!searchable.includes(query)) return false;
@@ -199,7 +211,7 @@ const PipelineRunList: React.FC = () => {
             style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/pipelines/${record.id}`)}
           >
-            {(record as any).pipelineName || record.pipelineId}
+            {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
           </Text>
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
             <Tag color={triggerTagColors[record.triggerType] || 'default'}>
@@ -214,7 +226,7 @@ const PipelineRunList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'} size="small" />,
     },
     {
       key: 'environment',
@@ -222,7 +234,7 @@ const PipelineRunList: React.FC = () => {
       width: 100,
       render: (_value: unknown, record) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(record as any).environment || '-'}
+          {(record as { environment?: string }).environment || '-'}
         </Text>
       ),
     },
@@ -246,7 +258,7 @@ const PipelineRunList: React.FC = () => {
       width: 100,
       render: (_value: unknown, record) => (
         <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
-          {formatDuration(record.durationMs)}
+          {formatDuration(Number(record.durationMs) || undefined)}
         </Text>
       ),
     },
@@ -263,48 +275,196 @@ const PipelineRunList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 120,
+      width: 220,
       render: (_: unknown, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/pipelines/${record.id}`)}
-          >
+          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
           </Button>
-          {record.status === 'failed' && (
+          {/* Cancel button for running status */}
+          {record.status === 'running' && (
             <Button
               type="link"
               size="small"
-              icon={<PlayCircleOutlined />}
+              icon={<StopOutlined />}
               danger
+              loading={cancellingIds.has(record.id)}
+              disabled={cancellingIds.has(record.id)}
               onClick={(e) => {
                 e.stopPropagation();
-                handleRetry(record.id);
+                handleCancelConfirm(record.id);
               }}
             >
-              重跑
+              取消
             </Button>
+          )}
+          {/* Dropdown menu for failed/cancelled status */}
+          {(record.status === 'failed' || record.status === 'cancelled') && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'retryAll',
+                    label: '完整重试',
+                    icon: <PlayCircleOutlined />,
+                    onClick: () => handleRetryConfirm(record.id),
+                  },
+                  {
+                    key: 'retryFailedOnly',
+                    label: '仅失败阶段',
+                    icon: <ReloadOutlined />,
+                    onClick: () => handleRetry(record.id, { onlyFailed: true }),
+                  },
+                  {
+                    key: 'retryFromStage',
+                    label: '从阶段重试',
+                    icon: <RocketOutlined />,
+                    onClick: () => {
+                      setStageRetryModal({ visible: true, runId: record.id });
+                    },
+                  },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button
+                type="link"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                danger
+                onClick={(e) => e.stopPropagation()}
+              >
+                重跑 <DownOutlined />
+              </Button>
+            </Dropdown>
           )}
         </Space>
       ),
     },
   ];
 
-  // Handle re-run for a failed run
-  const handleRetry = async (runId: string) => {
+  // Handle re-run for a failed/cancelled run
+  const handleRetry = async (
+    runId: string,
+    options?: { fromStage?: string; onlyFailed?: boolean }
+  ) => {
     try {
-      await retryPipelineRun(runId);
+      const response = await retryPipelineRun(runId, options);
       message.success('Pipeline 重新运行已触发');
       // Refresh list after retry
       await loadRuns();
+      // If API returns a new run ID, navigate to the new run's detail page
+      const responseData = response as { data?: { id?: string; newRunId?: string } };
+      const newRunId = responseData.data?.id || responseData.data?.newRunId;
+      if (newRunId) {
+        navigate(`/pipelines/${newRunId}`);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`重新运行失败：${error.message}`);
+        const errMsg = error.message;
+        // Handle edge case: run no longer exists
+        if (
+          errMsg.includes('not found') ||
+          errMsg.includes('不存在') ||
+          errMsg.includes('已删除')
+        ) {
+          message.error('该 Pipeline 运行已不存在，可能已被删除');
+        } else {
+          message.error(`重新运行失败：${errMsg}`);
+        }
       } else {
         message.error('重新运行失败，请稍后重试');
       }
+    }
+  };
+
+  // Handle cancel confirmation dialog
+  const handleCancelConfirm = (runId: string) => {
+    Modal.confirm({
+      title: '确认取消此 Pipeline 运行？',
+      content: '取消后，正在运行的阶段将被停止，此操作不可恢复。',
+      okText: '确认取消',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      style: { borderRadius: componentRadius.modal },
+      onOk: () => handleCancel(runId),
+    });
+  };
+
+  // Handle cancel for a running run
+  const handleCancel = async (runId: string) => {
+    setCancellingIds((prev) => new Set(prev).add(runId));
+    try {
+      await cancelPipelineRun(runId);
+      message.success('Pipeline 已取消');
+      // Refresh list after cancel
+      await loadRuns();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errMsg = error.message;
+        // Handle edge case: run no longer running
+        if (
+          errMsg.includes('not running') ||
+          errMsg.includes('已结束') ||
+          errMsg.includes('已取消')
+        ) {
+          message.warning('该 Pipeline 运行已结束，无需取消');
+        } else {
+          message.error(`取消失败：${errMsg}`);
+        }
+      } else {
+        message.error('取消失败，请稍后重试');
+      }
+    } finally {
+      setCancellingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(runId);
+        return next;
+      });
+    }
+  };
+
+  // Handle retry confirmation dialog for "完整重试"
+  const handleRetryConfirm = (runId: string) => {
+    Modal.confirm({
+      title: '确认重新运行此 Pipeline？',
+      content: '将从头开始重新运行整个 Pipeline，所有阶段都将被重新执行。',
+      okText: '确认重跑',
+      cancelText: '取消',
+      style: { borderRadius: componentRadius.modal },
+      onOk: () => handleRetry(runId),
+    });
+  };
+
+  // Handle retry from stage
+  const handleRetryFromStage = async (runId: string, stageId?: string, onlyFailed?: boolean) => {
+    try {
+      const response = await retryPipelineRun(runId, { fromStage: stageId, onlyFailed });
+      message.success('Pipeline 重新运行已触发');
+      await loadRuns();
+      // If API returns a new run ID, navigate to the new run's detail page
+      const responseData = response as { data?: { id?: string; newRunId?: string } };
+      const newRunId = responseData.data?.id || responseData.data?.newRunId;
+      if (newRunId) {
+        navigate(`/pipelines/${newRunId}`);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        const errMsg = error.message;
+        if (
+          errMsg.includes('not found') ||
+          errMsg.includes('不存在') ||
+          errMsg.includes('已删除')
+        ) {
+          message.error('该 Pipeline 运行已不存在，可能已被删除');
+        } else {
+          message.error(`重新运行失败：${errMsg}`);
+        }
+      } else {
+        message.error('重新运行失败，请稍后重试');
+      }
+    } finally {
+      setStageRetryModal({ visible: false, runId: null });
     }
   };
 
@@ -320,11 +480,12 @@ const PipelineRunList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Pipeline 运行历史
           </Title>
           <Text type="secondary">共 {sortedRuns.length} 条运行记录</Text>
@@ -337,7 +498,7 @@ const PipelineRunList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -346,7 +507,9 @@ const PipelineRunList: React.FC = () => {
           extra={
             <RangePicker
               value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+              onChange={(dates) =>
+                setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)
+              }
               placeholder={['开始日期', '结束日期']}
               style={{ minWidth: 240 }}
             />
@@ -362,6 +525,14 @@ const PipelineRunList: React.FC = () => {
         rowKey="id"
         size="middle"
         striped
+      />
+
+      {/* Stage selector modal for retry from specific stage */}
+      <StageSelectorModal
+        visible={stageRetryModal.visible}
+        runId={stageRetryModal.runId}
+        onClose={() => setStageRetryModal({ visible: false, runId: null })}
+        onRetry={handleRetryFromStage}
       />
     </div>
   );

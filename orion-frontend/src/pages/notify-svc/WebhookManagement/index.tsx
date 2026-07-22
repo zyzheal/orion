@@ -54,7 +54,7 @@ const WebhookManagement: React.FC = () => {
     setError(null);
     try {
       const res = await getWebhooks();
-      setWebhooks(res.data.data?.webhooks ?? []);
+      setWebhooks((res.data as any)?.webhooks ?? []);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('加载 Webhook 列表失败'));
     } finally {
@@ -115,7 +115,7 @@ const WebhookManagement: React.FC = () => {
     setLogDrawerVisible(true);
     try {
       const res = await getWebhookLogs(webhook.id, 20);
-      setLogs(res.data.data?.logs ?? []);
+      setLogs((res.data as any)?.logs ?? []);
     } catch (err) {
       message.error('加载日志失败');
       setLogs([]);
@@ -236,8 +236,8 @@ const WebhookManagement: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <LinkOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LinkOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Webhook 管理
           </Title>
           <Text type="secondary">平台 Webhook 配置与监控</Text>

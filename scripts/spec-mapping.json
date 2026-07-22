@@ -1,0 +1,93 @@
+{
+  "pipeline": {
+    "PipelineVersionService.test.ts": ["V1", "V2", "V3", "V4", "V5", "V7"],
+    "PipelineBudgetService.test.ts": ["B1", "B2", "B3", "B4", "B5", "B6"],
+    "PipelineTemplateService.test.ts": ["T1", "T2", "T3", "T4", "T5"],
+    "DynamicParamsResolver.test.ts": ["D1", "D2"],
+    "PipelineService.test.ts": ["V1", "D1"],
+    "PipelineRunService.test.ts": ["B5", "B6"],
+    "PipelineValidator.test.ts": ["D2"],
+    "PipelineTriggerService.test.ts": ["D1"]
+  },
+  "auth": {
+    "TokenBlacklistService.test.ts": ["J6"],
+    "JwtKeyRotationService.test.ts": ["J1", "J2", "J3"]
+  },
+  "notification": {
+    "NotificationService.test.ts": ["N1", "N6"]
+  },
+  "user": {
+    "UserService.test.ts": ["U1", "U3"]
+  },
+  "tenant": {
+    "TenantService.test.ts": ["T1", "T2", "T4"]
+  },
+  "cmdb": {
+    "CmdbService.test.ts": ["B1", "B2"],
+    "TopologyService.test.ts": ["T1", "T2"]
+  },
+  "chatops": {
+    "CommandService.test.ts": ["C1", "C2", "C3"],
+    "PlatformConfigService.test.ts": ["S1", "S2"],
+    "RateLimitService.test.ts": ["C1", "C2", "C4"]
+  },
+  "deploy": {
+    "DeployService.test.ts": ["D1", "D2", "D4"],
+    "ProgressiveDeployService.test.ts": ["D2"]
+  },
+  "code-repo": {
+    "GitLabAdapter.test.ts": ["R1", "R2"],
+    "BranchPolicyService.test.ts": ["R4", "R5"]
+  },
+  "self-healing": {
+    "SelfHealingService.test.ts": ["S1", "S2", "S3"],
+    "KnowledgeBaseService.test.ts": ["K1", "K2", "K3"]
+  },
+  "ticketing": {
+    "TicketingService.test.ts": ["T1", "T4"],
+    "SlaService.test.ts": ["S1", "S2", "S4"]
+  },
+  "approval": {
+    "ApprovalService.test.ts": ["A1", "A2", "A3"],
+    "MultiLevelApprovalService.test.ts": ["A1", "A4"]
+  },
+  "monitoring": {
+    "AlertRuleEngine.test.ts": ["M1", "M2"],
+    "AlertNotificationService.test.ts": ["M3"]
+  },
+  "finops": {
+    "FinOpsService.test.ts": ["F1", "F2"],
+    "BudgetService.test.ts": ["F3", "F4"]
+  },
+  "efficiency": {
+    "DoraMetricsService.test.ts": ["E1", "E2"],
+    "EfficiencyDashboardService.test.ts": ["E3", "E4"]
+  },
+  "quality-gate": {
+    "QualityGateService.test.ts": ["Q1", "Q2", "Q3"]
+  },
+  "digital-twin": {
+    "DigitalTwinService.test.ts": ["D1", "D2", "D3"]
+  },
+  "audit": {
+    "AuditService.test.ts": ["A1", "A2"]
+  },
+  "cost": {
+    "CostService.test.ts": ["C1", "C2"]
+  },
+  "incident": {
+    "IncidentService.test.ts": ["I1", "I2"]
+  },
+  "backup": {
+    "BackupService.test.ts": ["B1", "B2"]
+  },
+  "scheduler": {
+    "CronSchedulerService.test.ts": ["S1"]
+  },
+  "session": {
+    "SessionService.test.ts": ["U5"]
+  },
+  "webhook": {
+    "WebhookService.test.ts": ["W1", "W2"]
+  }
+}

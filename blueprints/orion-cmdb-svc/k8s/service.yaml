@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-cmdb-svc
+  namespace: orion
+  labels:
+    app: orion-cmdb-svc
+    component: cmdb-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3019
+      protocol: TCP
+  selector:
+    app: orion-cmdb-svc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-cmdb-svc-nodeport
+  namespace: orion
+  labels:
+    app: orion-cmdb-svc
+    component: cmdb-service
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 3019
+      targetPort: 3019
+      nodePort: 30199
+      protocol: TCP
+  selector:
+    app: orion-cmdb-svc
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: orion-cmdb-svc-hpa
+  namespace: orion
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: orion-cmdb-svc
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max

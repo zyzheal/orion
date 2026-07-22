@@ -13,8 +13,9 @@ import (
 
 // table: knowledge_bases
 type KnowledgeBase struct {
-	ID   string `json:"id" gorm:"primaryKey"`
-	Name string `json:"name"`
+	ID       string `json:"id" gorm:"primaryKey"`
+	TenantID string `json:"tenant_id" gorm:"index"` // 租户隔离
+	Name     string `json:"name"`
 
 	DatasetID string `json:"dataset_id"`
 
@@ -111,8 +112,9 @@ type UpdateKnowledgeBaseReq struct {
 }
 
 type KnowledgeBaseListItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string `json:"id"`
+	TenantID string `json:"tenant_id"`
+	Name     string `json:"name"`
 
 	DatasetID string `json:"dataset_id"`
 

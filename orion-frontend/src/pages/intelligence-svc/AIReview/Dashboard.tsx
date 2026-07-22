@@ -27,12 +27,13 @@ import {
   CloseCircleOutlined,
   WarningOutlined,
   SwapOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
 import { getReviewHistory, triggerReview, reviewDiff } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -48,7 +49,7 @@ const AIReviewDashboard: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewHistory({ pageSize: 10 });
-      setRecentReviews(res.data.data?.items || []);
+      setRecentReviews((res.data as any)?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审历史失败：${error.message}`);
@@ -187,11 +188,12 @@ const AIReviewDashboard: React.FC = () => {
   const tableData = recentReviews.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Review Dashboard
           </Title>
           <Text type="secondary">AI 代码评审概览与快速操作</Text>
@@ -211,7 +213,7 @@ const AIReviewDashboard: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="评审总数" value={recentReviews.length} prefix={<SwapOutlined />} />
