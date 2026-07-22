@@ -84,12 +84,12 @@ func (r *Repository) CreateSpace(ctx context.Context, space *models.Space) error
 	return err
 }
 
-func (r *Repository) GetSpaceByID(ctx context.Context, id string) (*models.Space, error) {
+func (r *Repository) GetSpaceByID(ctx context.Context, id, tenantID string) (*models.Space, error) {
 	var space models.Space
 	var teamID sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, tenant_id, name, type, description, team_id, owner_id, created_at, updated_at
-		 FROM kb_spaces WHERE id = $1`, id).Scan(
+		 FROM kb_spaces WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(
 		&space.ID, &space.TenantID, &space.Name, &space.Type, &space.Description,
 		&teamID, &space.OwnerID, &space.CreatedAt, &space.UpdatedAt,
 	)
@@ -100,26 +100,27 @@ func (r *Repository) GetSpaceByID(ctx context.Context, id string) (*models.Space
 	return &space, nil
 }
 
-func (r *Repository) UpdateSpace(ctx context.Context, id string, updates map[string]interface{}) error {
-	fields := make([]string, 0, len(updates)+1)
-	args := make([]interface{}, 0, len(updates)+1)
-	argNum := 1
+func (r *Repository) UpdateSpace(ctx context.Context, id, tenantID string, updates map[string]interface{}) error {
+	// collect update fields first, then append WHERE args
+	setParts := make([]string, 0, len(updates)+1)
+	args2 := make([]interface{}, 0, len(updates)+2)
+	idx := 1
 	for k, v := range updates {
-		fields = append(fields, fmt.Sprintf("%s = $%d", k, argNum))
-		args = append(args, v)
-		argNum++
+		setParts = append(setParts, fmt.Sprintf("%s = $%d", k, idx))
+		args2 = append(args2, v)
+		idx++
 	}
-	fields = append(fields, fmt.Sprintf("updated_at = NOW()"))
-	args = append(args, id)
+	setParts = append(setParts, "updated_at = NOW()")
+	args2 = append(args2, id, tenantID)
 
-	sqlQuery := fmt.Sprintf("UPDATE kb_spaces SET %s WHERE id = $%d",
-		strings.Join(fields, ", "), argNum)
-	_, err := r.db.ExecContext(ctx, sqlQuery, args...)
+	sqlQuery := fmt.Sprintf("UPDATE kb_spaces SET %s WHERE id = $%d AND tenant_id = $%d",
+		strings.Join(setParts, ", "), idx, idx+1)
+	_, err := r.db.ExecContext(ctx, sqlQuery, args2...)
 	return err
 }
 
-func (r *Repository) DeleteSpace(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_spaces WHERE id = $1", id)
+func (r *Repository) DeleteSpace(ctx context.Context, id, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_spaces WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
 
@@ -162,11 +163,11 @@ func (r *Repository) ListDocsByType(ctx context.Context, tenantID string, q mode
 	return r.ListDocs(ctx, tenantID, q)
 }
 
-func (r *Repository) GetDocByID(ctx context.Context, id string) (*models.Document, error) {
+func (r *Repository) GetDocByID(ctx context.Context, id, tenantID string) (*models.Document, error) {
 	var doc models.Document
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, tenant_id, title, content, space_id, tags, status, author_id, created_at, updated_at
-		 FROM kb_docs WHERE id = $1`, id).Scan(
+		 FROM kb_docs WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(
 		&doc.ID, &doc.TenantID, &doc.Title, &doc.Content, &doc.SpaceID,
 		&doc.Tags, &doc.Status, &doc.AuthorID, &doc.CreatedAt, &doc.UpdatedAt,
 	)
@@ -196,9 +197,9 @@ func (r *Repository) CreateDoc(ctx context.Context, doc *models.Document) error 
 	return err
 }
 
-func (r *Repository) UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) error {
+func (r *Repository) UpdateDoc(ctx context.Context, id string, tenantID string, updates map[string]interface{}) error {
 	fields := make([]string, 0, len(updates)+1)
-	args := make([]interface{}, 0, len(updates)+1)
+	args := make([]interface{}, 0, len(updates)+2)
 	argNum := 1
 
 	// Handle tags specially (JSON marshal)
@@ -215,31 +216,34 @@ func (r *Repository) UpdateDoc(ctx context.Context, id string, updates map[strin
 		argNum++
 	}
 	fields = append(fields, fmt.Sprintf("updated_at = NOW()"))
-	args = append(args, id)
+	// id and tenantID are the last two positional params for WHERE clause
+	args = append(args, id, tenantID)
 
-	sqlQuery := fmt.Sprintf("UPDATE kb_docs SET %s WHERE id = $%d",
-		strings.Join(fields, ", "), argNum)
+	sqlQuery := fmt.Sprintf("UPDATE kb_docs SET %s WHERE id = $%d AND tenant_id = $%d",
+		strings.Join(fields, ", "), argNum, argNum+1)
 	_, err := r.db.ExecContext(ctx, sqlQuery, args...)
 	return err
 }
 
-func (r *Repository) DeleteDoc(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE id = $1", id)
+func (r *Repository) DeleteDoc(ctx context.Context, id string, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
 
-func (r *Repository) DeleteDocsBySpace(ctx context.Context, spaceID string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE space_id = $1", spaceID)
+func (r *Repository) DeleteDocsBySpace(ctx context.Context, spaceID string, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE space_id = $1 AND tenant_id = $2", spaceID, tenantID)
 	return err
 }
 
 // --- Document versions ---
 
-func (r *Repository) GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error) {
+func (r *Repository) GetDocVersions(ctx context.Context, docID, tenantID string) ([]models.DocVersion, error) {
 	var items []models.DocVersion
+	// Filter tenant by verifying the document belongs to the tenant.
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, document_id, content, author_id, created_at FROM kb_doc_versions
-		 WHERE document_id = $1 ORDER BY created_at DESC`, docID)
+		`SELECT v.id, v.document_id, v.content, v.author_id, v.created_at FROM kb_doc_versions v
+		 INNER JOIN kb_docs d ON v.document_id = d.id
+		 WHERE v.document_id = $1 AND d.tenant_id = $2 ORDER BY v.created_at DESC`, docID, tenantID)
 	if err != nil {
 		return nil, err
 	}
