@@ -540,10 +540,3 @@ func (r *Repository) InsertAuditLog(ctx context.Context, tenantID, action, userI
 
 // ErrPermissionNotFound indicates a temporary permission was not found.
 var ErrPermissionNotFound = errors.New("temporary permission not found")
-
-// --- Deprecated helper ---
-
-// NotYetImplemented returns a placeholder error for unimplemented repository methods.
-func NotYetImplemented(msg string) error {
-	return fmt.Errorf("%s", msg)
-}

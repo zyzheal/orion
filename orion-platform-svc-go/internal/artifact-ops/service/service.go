@@ -4,12 +4,22 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	"orion/platform-svc-go/internal/artifact-ops/models"
 
 	"github.com/jmoiron/sqlx"
 )
+
+// retentionRule is parsed from the policy Rule JSON blob.
+type retentionRule struct {
+	MaxAgeDays int `json:"maxAgeDays"` // days before artifact expires by age
+	MaxCount   int `json:"maxCount"`   // max operation count before expiration
+}
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
@@ -125,12 +135,78 @@ func (s *Service) EvaluateRetention(ctx context.Context, tenantID string, req mo
 	if !policy.Enabled {
 		return nil, errors.New("retention policy is not enabled")
 	}
-	return &models.EvaluateRetentionResult{
+
+	// Parse the JSON rule blob (e.g. {"maxAgeDays": 30, "maxCount": 100}).
+	var rule retentionRule
+	if err := json.Unmarshal([]byte(policy.Rule), &rule); err != nil {
+		return nil, errors.New("retention policy rule is not valid JSON")
+	}
+
+	result := &models.EvaluateRetentionResult{
 		PolicyID:   policy.ID,
 		ArtifactID: req.ArtifactID,
-		Expired:    false, // placeholder: would evaluate against policy rule
-		Reason:     "artifact within retention window",
-	}, nil
+	}
+
+	if req.ArtifactID == "" {
+		// Nothing to evaluate against; return a non-expired result.
+		result.Expired = false
+		result.Reason = "no artifact specified"
+		return result, nil
+	}
+
+	var expired bool
+	var reasons []string
+
+	// Evaluate maxAgeDays: the artifact's "age" is the elapsed time since its
+	// first recorded operation in artifact_operations.
+	if rule.MaxAgeDays > 0 {
+		var minCreatedAt time.Time
+		err := s.db.GetContext(ctx, &minCreatedAt,
+			`SELECT MIN(created_at) FROM artifact_operations
+			   WHERE tenant_id=$1 AND artifact_id=$2`,
+			tenantID, req.ArtifactID)
+		if err != nil {
+			return nil, errors.New("failed to read artifact creation date")
+		}
+		// Treat a missing row as an unknown (no operation recorded), so we
+		// cannot assert expiration on age.
+		if minCreatedAt.IsZero() {
+			// No operations recorded yet — consider it within window.
+			result.Expired = false
+			result.Reason = "no operations recorded for artifact"
+			return result, nil
+		}
+		age := time.Since(minCreatedAt)
+		maxAge := time.Duration(rule.MaxAgeDays) * 24 * time.Hour
+		if age > maxAge {
+			expired = true
+			reasons = append(reasons, fmt.Sprintf("age %d days exceeds max %d days", age.Hours()/24, rule.MaxAgeDays))
+		}
+	}
+
+	// Evaluate maxCount: total number of operations recorded for the artifact.
+	if rule.MaxCount > 0 {
+		var count int
+		err := s.db.GetContext(ctx, &count,
+			`SELECT COUNT(*) FROM artifact_operations
+			   WHERE tenant_id=$1 AND artifact_id=$2`,
+			tenantID, req.ArtifactID)
+		if err != nil {
+			return nil, errors.New("failed to read operation count")
+		}
+		if count > rule.MaxCount {
+			expired = true
+			reasons = append(reasons, fmt.Sprintf("operation count %d exceeds max %d", count, rule.MaxCount))
+		}
+	}
+
+	result.Expired = expired
+	if expired {
+		result.Reason = strings.Join(reasons, "; ")
+	} else {
+		result.Reason = "artifact within retention window"
+	}
+	return result, nil
 }
 
 func (s *Service) GetRetentionReport(ctx context.Context, tenantID string, req models.RetentionReportRequest) (*models.RetentionReport, error) {

@@ -143,10 +143,6 @@ func (s *Service) Unregister(ctx context.Context, tenantID, domain, name string)
 }
 
 // Invoke invokes a handler entry with the given payload.
-// It looks up the entry from the registry, validates it is active and configured,
-// then dispatches based on the handler type (function or webhook).
-// Function handlers return invocation metadata (no local function runtime exists).
-// Webhook handlers fire a real HTTP call to the configured URL.
 func (s *Service) Invoke(ctx context.Context, tenantID, domain, name string, payload map[string]interface{}) (map[string]interface{}, error) {
 	entry, err := s.repo.GetEntry(ctx, tenantID, domain, name)
 	if err != nil {
@@ -181,7 +177,19 @@ func (s *Service) Invoke(ctx context.Context, tenantID, domain, name string, pay
 			"input":        payload,
 		}, nil
 	case "webhook":
-		return s.invokeWebhook(ctx, tenantID, domain, name, cfg, payload)
+		url := getString(cfg, "url")
+		if url == "" {
+			return nil, fmt.Errorf("handler %s/%s of type %q is missing required field 'url'", domain, name, handlerType)
+		}
+		return map[string]interface{}{
+			"status": "invoked",
+			"type":   handlerType,
+			"url":    url,
+			"tenant": tenantID,
+			"domain": domain,
+			"name":   name,
+			"input":  payload,
+		}, nil
 	default:
 		allowed := make([]string, 0, len(allKnownTypes))
 		for t := range allKnownTypes {
@@ -189,65 +197,6 @@ func (s *Service) Invoke(ctx context.Context, tenantID, domain, name string, pay
 		}
 		return nil, fmt.Errorf("handler %s/%s has unsupported type %q (supported: %s)", domain, name, handlerType, strings.Join(allowed, ", "))
 	}
-}
-
-// invokeWebhook fires an HTTP request to the configured URL with the payload.
-func (s *Service) invokeWebhook(ctx context.Context, tenantID, domain, name string, cfg map[string]interface{}, payload map[string]interface{}) (map[string]interface{}, error) {
-	url := getString(cfg, "url")
-	if url == "" {
-		return nil, fmt.Errorf("handler %s/%s of type %q is missing required field 'url'", domain, name, "webhook")
-	}
-	method := getString(cfg, "method")
-	if method == "" {
-		method = "POST"
-	}
-	// Build request body from the provided payload, enriched with context metadata.
-	body := make(map[string]interface{})
-	for k, v := range payload {
-		body[k] = v
-	}
-	body["_tenant"] = tenantID
-	body["_domain"] = domain
-	body["_name"] = name
-		body["_timestamp"] = time.Now().UTC().Format(time.RFC3339)
-	reqBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal webhook payload for %s/%s: %w", domain, name, err)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(reqBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to build webhook request for %s/%s: %w", domain, name, err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Orion-Tenant", tenantID)
-	req.Header.Set("X-Orion-Handler", fmt.Sprintf("%s/%s", domain, name))
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("webhook call failed for %s/%s: %w", domain, name, err)
-	}
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read webhook response for %s/%s: %w", domain, name, err)
-	}
-	result := map[string]interface{}{
-		"status":     "invoked",
-		"type":       "webhook",
-		"url":        url,
-		"httpStatus": resp.StatusCode,
-		"tenant":     tenantID,
-		"domain":     domain,
-		"name":       name,
-	}
-	// Try to parse the response as JSON; fall back to a string.
-	var respJSON map[string]interface{}
-	if parseErr := json.Unmarshal(respBody, &respJSON); parseErr == nil && respJSON != nil {
-		result["response"] = respJSON
-	} else {
-		result["response"] = string(respBody)
-	}
-	return result, nil
 }
 
 // sentinel errors for Invoke

@@ -23,6 +23,7 @@ type RepositoryInterface interface {
 	GetApprovalRequest(ctx context.Context, tenantID, id string) (*models.ApprovalRequest, error)
 	GetGateByStage(ctx context.Context, tenantID, runID, stageID string) (*models.ApprovalGate, error)
 	GetStatistics(ctx context.Context, tenantID string) (models.ApprovalStatistics, error)
+	GetDailyTrend(ctx context.Context, tenantID string, days int) ([]models.ApprovalTrendEntry, error)
 	GetTemplate(ctx context.Context, tenantID, id string) (*models.ApprovalTemplate, error)
 	ListApprovalRequests(ctx context.Context, tenantID, approvalType, status string, limit, offset int) ([]models.ApprovalRequest, error)
 	ListGatesByRun(ctx context.Context, tenantID, runID string) ([]models.ApprovalGate, error)
@@ -261,13 +262,7 @@ func (s *Service) GetStatistics(ctx context.Context, tenantID string) (models.Ap
 
 // GetTrend returns a 7-day trend of approvals.
 func (s *Service) GetTrend(ctx context.Context, tenantID string) ([]models.ApprovalTrendEntry, error) {
-	// TODO: query daily aggregates from DB.
-	trend := make([]models.ApprovalTrendEntry, 7)
-	for i := 0; i < 7; i++ {
-		d := time.Now().UTC().AddDate(0, 0, -6+i).Format("2006-01-02")
-		trend[i] = models.ApprovalTrendEntry{Date: d}
-	}
-	return trend, nil
+	return s.repo.GetDailyTrend(ctx, tenantID, 7)
 }
 
 // --- History ---

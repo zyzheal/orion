@@ -30,6 +30,7 @@ type RepositoryInterface interface {
 	ListPending(ctx context.Context, tenantID string) ([]models.ApprovalRequest, error)
 	ListMyPending(ctx context.Context, tenantID, userID string) ([]models.ApprovalRequest, error)
 	GetByStatus(ctx context.Context, tenantID, approvalID string) (*models.ApprovalRequest, error)
+	GetDailyTrend(ctx context.Context, tenantID string, days int) ([]models.ApprovalTrendEntry, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

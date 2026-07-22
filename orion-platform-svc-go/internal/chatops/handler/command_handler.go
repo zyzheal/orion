@@ -210,8 +210,25 @@ func (h *Handler) GetSessionMessages(c *gin.Context) {
 func (h *Handler) StreamRecommendations(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamRecommendations")
 	defer span.End()
-	// Basic placeholder: return empty recommendations stream
-	middleware.RespondSuccess(c, gin.H{"stream": "connected", "recommendations": []string{}})
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	var recommendations []string
+	if userID != "" {
+		allowed, err := h.svc.GetUserAllowedCommands(c.Request.Context(), tenantID, userID)
+		if err == nil && len(allowed) > 0 {
+			recommendations = allowed
+		}
+	}
+	if len(recommendations) == 0 {
+		recs, err := h.svc.GetKnowledgeRecommendations(c.Request.Context(), tenantID, "general", 10)
+		if err == nil {
+			recommendations = make([]string, 0, len(recs))
+			for _, r := range recs {
+				recommendations = append(recommendations, r.Title)
+			}
+		}
+	}
+	middleware.RespondSuccess(c, gin.H{"stream": "connected", "recommendations": recommendations})
 }
 
 // ---- Notification Preferences ----

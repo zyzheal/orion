@@ -33,12 +33,26 @@ var (
 	ErrInvalidBranchPattern = errors.New("invalid branch pattern")
 )
 
+// PipelineRunner is the interface used to trigger a pipeline run.
+// Implemented by pipeline.Service (StartRun).
+type PipelineRunner interface {
+	StartRun(ctx context.Context, tenantID, pipelineID string) (runID string, status string, err error)
+}
+
 type Service struct {
-	repo RepositoryInterface
+	repo    RepositoryInterface
+	pipeline PipelineRunner
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// WithPipelineRunner wires an optional pipeline runner into the service.
+// When set, Execute() will actually trigger the target pipeline instead of
+// just recording a simulated success.
+func (s *Service) WithPipelineRunner(runner PipelineRunner) {
+	s.pipeline = runner
 }
 
 // Create validates and creates a trigger.
@@ -78,49 +92,93 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return sentinel.NotFound
+		if err == sentinel.NotFound {
+			return sentinel.NotFound
+		}
+		return err
 	}
 	return s.repo.Delete(ctx, tenantID, id)
 }
 
-// Execute records an execution attempt for a trigger.
+// Execute triggers the target pipeline for a trigger and records the execution.
+//
+// When a PipelineRunner is wired and the trigger has a target pipeline, it
+// delegates to the runner to start a real pipeline run. The returned
+// TriggerExecution reflects the actual runner outcome (success/failure) so
+// callers can distinguish a genuine pipeline launch from a missing integration.
+//
+// When no runner is configured the execution is recorded as failed with a
+// descriptive error so the missing integration is visible rather than silently
+// simulated.
 func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.TriggerExecution, error) {
 	trg, err := s.repo.GetByID(ctx, tenantID, id)
-	if err != nil && err == sentinel.NotFound {
-		return nil, sentinel.NotFound
-	}
 	if err != nil {
+		if err == sentinel.NotFound {
+			return nil, sentinel.NotFound
+		}
 		return nil, err
 	}
 	if !trg.Enabled {
 		return nil, ErrDisabled
 	}
 
+	// best-effort status update on trigger (do not fail the trigger)
+	now := time.Now().UTC()
+	_ = s.repo.Update(ctx, tenantID, id, &models.UpdateTriggerRequest{
+		Status: ptr(models.TriggerStatusTriggered),
+	})
+
+	// No pipeline runner or no target — record failure so the gap is visible.
+	if s.pipeline == nil || trg.TargetPipeline == "" {
+		reason := "no pipeline runner configured"
+		if s.pipeline == nil {
+			reason = "no pipeline runner configured"
+		}
+		if trg.TargetPipeline == "" {
+			reason = "trigger has no target pipeline configured"
+		}
+		ex := &models.TriggerExecution{
+			TriggerID:   trg.ID,
+			TenantID:    tenantID,
+			TriggeredAt: now,
+			Status:      models.ExecutionStatusFailed,
+			Error:       reason,
+		}
+		if err := s.repo.CreateExecution(ctx, ex); err != nil {
+			return nil, err
+		}
+		return ex, nil
+	}
+
+	// Trigger the target pipeline.
+	pipelineRunID, _, runErr := s.pipeline.StartRun(ctx, tenantID, trg.TargetPipeline)
+	if runErr != nil {
+		ex := &models.TriggerExecution{
+			TriggerID:     trg.ID,
+			TenantID:      tenantID,
+			TriggeredAt:   now,
+			Status:        models.ExecutionStatusFailed,
+			PipelineRunID: pipelineRunID,
+			Error:         runErr.Error(),
+		}
+		if err := s.repo.CreateExecution(ctx, ex); err != nil {
+			return nil, err
+		}
+		return ex, nil
+	}
+
+	// Pipeline started successfully.
 	ex := &models.TriggerExecution{
-		TriggerID:   trg.ID,
-		TenantID:    tenantID,
-		TriggeredAt: time.Now().UTC(),
-		Status:      models.ExecutionStatusRunning,
+		TriggerID:     trg.ID,
+		TenantID:      tenantID,
+		TriggeredAt:   now,
+		Status:        models.ExecutionStatusSuccess,
+		PipelineRunID: pipelineRunID,
 	}
 	if err := s.repo.CreateExecution(ctx, ex); err != nil {
 		return nil, err
 	}
-
-	// update last triggered reference on trigger
-	_, err = s.repo.Update(ctx, tenantID, id, &models.UpdateTriggerRequest{
-		Status: ptr(models.TriggerStatusTriggered),
-	})
-	_ = err // best-effort status update
-
-	// mark execution as succeeded (simulated fire)
-	_ = s.repo.CreateExecution(ctx, &models.TriggerExecution{
-		TriggerID:   trg.ID,
-		TenantID:    tenantID,
-		TriggeredAt: time.Now().UTC(),
-		Status:      models.ExecutionStatusSuccess,
-	})
-
-	return s.repo.GetLatestExecution(ctx, id, tenantID)
+	return ex, nil
 }
 
 // GetExecutions returns execution history for a trigger.

@@ -6,32 +6,33 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"orion/platform-svc-go/internal/ai-security/models"
-
-	"github.com/gin-gonic/gin"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
 	CheckVulnerability(ctx context.Context, tenantID, cveID string) (*models.CheckVulnerabilityResult, error)
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	CreateBlock(ctx context.Context, tenantID string, block *models.BlockRecord) error
 	Delete(ctx context.Context, tenantID, id string) error
 	FindVulnerabilities(ctx context.Context, tenantID string, image string) (*models.ScanVulnerabilitiesResult, error)
 	FixVulnerability(ctx context.Context, tenantID, image string, cveIDs []string) (*models.FixVulnerabilityResult, error)
+	GetBlock(ctx context.Context, tenantID, target string) (*models.BlockRecord, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
 	GetVulnerability(ctx context.Context, tenantID, cveID string) (*models.Vulnerability, error)
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	ListAuditLogs(ctx context.Context, tenantID string, filter *models.AuditLogFilter) ([]models.AuditLog, error)
+	ListPolicies(ctx context.Context, tenantID string) ([]models.SecurityPolicy, error)
 	ListVulnerabilities(ctx context.Context, tenantID string) ([]models.Vulnerability, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
 }
 
-// BLUEPRINT STATUS: Core CRUD operations are implemented via repository.
-// Vulnerability scanning (ScanVulnerabilities, CheckVulnerability) is a
-// service-layer orchestrator over the repository's FindVulnerabilities /
-// CheckVulnerability calls, with structured error handling and degraded-mode
-// responses. Security-specific functions (ListPolicies, BlockAccess, GetRiskScore)
-// are stubs awaiting the AI security engine (prompt injection / PII / content safety).
+// BLUEPRINT STATUS: Core CRUD and vulnerability scanning operations are implemented
+// via repository. AI Security-specific functions (ListPolicies, GetAuditLog, BlockAccess,
+// GetRiskScore) now delegate to the repository with real typed models and risk scoring logic.
 
 // Repo is the subset of RepositoryInterface consumed by Service.
 type Repo interface {
@@ -45,6 +46,10 @@ type Repo interface {
 	ListVulnerabilities(ctx context.Context, tenantID string) ([]models.Vulnerability, error)
 	FixVulnerability(ctx context.Context, tenantID, image string, cveIDs []string) (*models.FixVulnerabilityResult, error)
 	CheckVulnerability(ctx context.Context, tenantID, cveID string) (*models.CheckVulnerabilityResult, error)
+	ListPolicies(ctx context.Context, tenantID string) ([]models.SecurityPolicy, error)
+	ListAuditLogs(ctx context.Context, tenantID string, filter *models.AuditLogFilter) ([]models.AuditLog, error)
+	CreateBlock(ctx context.Context, tenantID string, block *models.BlockRecord) error
+	GetBlock(ctx context.Context, tenantID, target string) (*models.BlockRecord, error)
 }
 
 type Service struct {
@@ -130,28 +135,88 @@ func (s *Service) CheckVulnerability(ctx context.Context, tenantID, cveID string
 	return s.repo.CheckVulnerability(ctx, tenantID, cveID)
 }
 
-// ---- AI Security-specific functions (placeholder - requires AI security engine integration) ----
+// ---- AI Security-specific functions ----
 
 // ListPolicies returns security policies for the tenant.
-// TODO: Implement with actual policy storage and evaluation engine.
-func (s *Service) ListPolicies(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+func (s *Service) ListPolicies(ctx context.Context, tenantID string) ([]models.SecurityPolicy, error) {
+	return s.repo.ListPolicies(ctx, tenantID)
 }
 
-// GetAuditLog returns security audit log entries.
-// TODO: Implement with actual audit log storage and query.
-func (s *Service) GetAuditLog(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+// GetAuditLog returns security audit log entries for the tenant.
+func (s *Service) GetAuditLog(ctx context.Context, tenantID string) ([]models.AuditLog, error) {
+	return s.repo.ListAuditLogs(ctx, tenantID, nil)
 }
 
 // BlockAccess blocks access for a given target.
-// TODO: Implement with actual access control integration.
-func (s *Service) BlockAccess(ctx context.Context, tenantID, target string) (gin.H, error) {
-	return gin.H{"message": "access blocked (placeholder)", "target": target}, nil
+func (s *Service) BlockAccess(ctx context.Context, tenantID, target string) (*models.BlockRecord, error) {
+	now := time.Now()
+	expiresAt := now.Add(24 * time.Hour)
+	block := &models.BlockRecord{
+		ID:        fmt.Sprintf("blk-%d", now.UnixNano()),
+		TenantID:  tenantID,
+		Target:    target,
+		Reason:    "blocked via AI security engine",
+		BlockedBy: "ai-security-engine",
+		Active:    true,
+		ExpiresAt: &expiresAt,
+		CreatedAt: now,
+	}
+	if err := s.repo.CreateBlock(ctx, tenantID, block); err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
-// GetRiskScore returns the risk score for a resource.
-// TODO: Implement with actual risk scoring engine (prompt injection, PII, content safety).
-func (s *Service) GetRiskScore(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"score": 0, "id": id, "status": "placeholder"}, nil
+// GetRiskScore calculates a risk score for a resource based on active blocks and audit logs.
+// Score is capped at 100. Level: critical(>=75), high(>=50), medium(>=25), low(default).
+func (s *Service) GetRiskScore(ctx context.Context, tenantID, id string) (*models.RiskScoreResult, error) {
+	score := 0
+	factors := []string{}
+
+	block, err := s.repo.GetBlock(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if block != nil {
+		score += 30
+		factors = append(factors, "active_block")
+	}
+
+	logs, err := s.repo.ListAuditLogs(ctx, tenantID, &models.AuditLogFilter{Actor: id})
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range logs {
+		switch entry.EventType {
+		case "CRITICAL":
+			score += 40
+			factors = append(factors, fmt.Sprintf("critical event: %s", entry.Action))
+		case "HIGH":
+			score += 25
+			factors = append(factors, fmt.Sprintf("high event: %s", entry.Action))
+		case "MEDIUM":
+			score += 15
+			factors = append(factors, fmt.Sprintf("medium event: %s", entry.Action))
+		}
+	}
+
+	if score > 100 {
+		score = 100
+	}
+
+	level := "low"
+	if score >= 75 {
+		level = "critical"
+	} else if score >= 50 {
+		level = "high"
+	} else if score >= 25 {
+		level = "medium"
+	}
+
+	return &models.RiskScoreResult{
+		Target:  id,
+		Score:   score,
+		Level:   level,
+		Factors: factors,
+	}, nil
 }

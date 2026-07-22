@@ -86,6 +86,7 @@ import (
 
 	build_handler "orion/platform-svc-go/internal/build/handler"
 	pipeline_handler "orion/platform-svc-go/internal/pipeline/handler"
+	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
 	dba_handler "orion/platform-svc-go/internal/dba/handler"
 
 	deploy_enhanced_handler "orion/platform-svc-go/internal/deploy-enhanced/handler"
@@ -211,6 +212,7 @@ import (
 	dataCatalog_handler "orion/platform-svc-go/internal/data-catalog/handler"
 	dataCatalog_repo "orion/platform-svc-go/internal/data-catalog/repository"
 	dataCatalog_service "orion/platform-svc-go/internal/data-catalog/service"
+	dataCatalog_introspector "orion/platform-svc-go/internal/data-catalog/introspector"
 
 	dataQuality_handler "orion/platform-svc-go/internal/data-quality/handler"
 	dataQuality_repo    "orion/platform-svc-go/internal/data-quality/repository"
@@ -402,6 +404,7 @@ var (
 	build_envH          *build_env_handler.Handler
 	buildH              *build_handler.Handler
 	pipelineH           *pipeline_handler.Handler
+	pipelineRunnerSvc   *pipeline_service.Service
 	dbaH                *dba_handler.Handler
 	deploy_enhancedH    *deploy_enhanced_handler.Handler
 	deployH             *deploy_handler.Handler
@@ -587,7 +590,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 
 	// Data modules (catalog, quality, pipeline) — repo -> service -> handler
 	dataCatalogRepo := dataCatalog_repo.NewRepository(infra.db.DB)
-	dataCatalogSvc := dataCatalog_service.NewService(dataCatalogRepo)
+	dataCatalogSvc := dataCatalog_service.NewService(dataCatalogRepo, dataCatalog_introspector.New())
 	dataCatalogH = dataCatalog_handler.NewHandler(dataCatalogSvc)
 
 	dataQualityRepo := dataQuality_repo.NewRepository(infra.db.DB)

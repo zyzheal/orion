@@ -21,6 +21,7 @@ import (
 type RepositoryInterface interface {
 	CreatePRTestResult(ctx context.Context, res *models.PRTestResult) error
 	CreateTestExecutionRecord(ctx context.Context, rec *models.TestExecutionRecord) error
+	CreateTestSuite(ctx context.Context, s *models.TestSuite) error
 	DeleteCodeMappingsByTenant(ctx context.Context, tenantID string) error
 	DeleteExecutionHistoryByTenant(ctx context.Context, tenantID string) error
 	DeleteTestCasesByTenant(ctx context.Context, tenantID string) error
@@ -39,13 +40,27 @@ type RepositoryInterface interface {
 	ListTestSuites(ctx context.Context, tenantID string) ([]models.TestSuite, error)
 }
 
+// TestRunner handles the actual execution of a test suite.
+// Implementations may delegate to CI/CD, in-process test frameworks, or external runners.
+type TestRunner interface {
+	// RunSuite executes a test suite and returns an execution record ID.
+	RunSuite(ctx context.Context, tenantID, suiteID string) (string, error)
+}
+
 type Service struct {
 	repo RepositoryInterface
 	db   *sqlx.DB
+	runner TestRunner
 }
 
 func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
+}
+
+// WithRunner sets an optional test runner. When configured, RunTestSuite
+// delegates execution to it; otherwise it records a pending run in the DB.
+func (s *Service) WithRunner(runner TestRunner) {
+	s.runner = runner
 }
 
 // ---------- Test Selection ----------
@@ -221,16 +236,27 @@ func (s *Service) GetTestSuite(ctx context.Context, tenantID, id string) (*model
 	return nil, fmt.Errorf("test suite not found: %s", id)
 }
 
-// CreateTestSuite creates a new test suite.
+// CreateTestSuite creates a new test suite and persists it via repo.
 func (s *Service) CreateTestSuite(ctx context.Context, tenantID string, req models.CreateTestSuiteRequest) (*models.TestSuite, error) {
-	suite := models.TestSuite{
-		ID:       uuid.New().String(),
-		TenantID: tenantID,
-		Name:     req.Name,
-		FilePath: req.FilePath,
+	sourceFilesJSON := "{}"
+	if req.SourceFiles != nil {
+		b, err := json.Marshal(req.SourceFiles)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal source files: %w", err)
+		}
+		sourceFilesJSON = string(b)
 	}
-	// TODO: persist via repo
-	return &suite, nil
+	suite := &models.TestSuite{
+		ID:          uuid.New().String(),
+		TenantID:    tenantID,
+		Name:        req.Name,
+		FilePath:    req.FilePath,
+		SourceFiles: sourceFilesJSON,
+	}
+	if err := s.repo.CreateTestSuite(ctx, suite); err != nil {
+		return nil, fmt.Errorf("failed to create test suite: %w", err)
+	}
+	return suite, nil
 }
 
 // UpdateTestSuite updates an existing test suite.
@@ -270,8 +296,43 @@ func (s *Service) GetStats(ctx context.Context, tenantID string) (*models.TestSe
 	}, nil
 }
 
-// RunTestSuite triggers a test suite run (stub).
+// RunTestSuite triggers a test suite run.
+// If a TestRunner is configured it delegates execution to it and records the
+// resulting execution ID; otherwise it persists a pending-run marker and returns
+// a sentinel error (ErrNoTestRunner) so callers can handle the "no runner" case
+// explicitly.
 func (s *Service) RunTestSuite(ctx context.Context, tenantID, id string) error {
+	if err := s.verifyTestSuiteExists(ctx, tenantID, id); err != nil {
+		return err
+	}
+	if s.runner == nil {
+		// Mark the suite as "run requested" in the DB so downstream systems can
+		// poll and reconcile it later.
+		_ = s.repo.CreateTestExecutionRecord(ctx, &models.TestExecutionRecord{
+			TenantID:   tenantID,
+			TestID:     id,
+			ExecutionID: fmt.Sprintf("pending-%s", uuid.NewString()[:8]),
+			ExecutedAt: time.Now().UTC(),
+		})
+		return fmt.Errorf("no test runner configured: %w", ErrNoTestRunner)
+	}
+	_, err := s.runner.RunSuite(ctx, tenantID, id)
+	return err
+}
+
+var ErrNoTestRunner = fmt.Errorf("no test runner configured")
+
+// verifyTestSuiteExists checks that the suite belongs to the tenant before we
+// attempt execution.
+func (s *Service) verifyTestSuiteExists(ctx context.Context, tenantID, id string) error {
+	if id == "" {
+		return fmt.Errorf("test suite id is required")
+	}
+	suite, err := s.GetTestSuite(ctx, tenantID, id)
+	if err != nil {
+		return fmt.Errorf("cannot run suite %q: %w", id, err)
+	}
+	_ = suite // suite verified; proceed
 	return nil
 }
 

@@ -16,6 +16,7 @@ type RepositoryInterface interface {
 	GetByID(ctx context.Context, tenantID, id string) (*models.OciRegistry, error)
 	List(ctx context.Context, tenantID string) ([]models.OciRegistry, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.OciRegistry, error)
+
 }
 
 type Service struct {

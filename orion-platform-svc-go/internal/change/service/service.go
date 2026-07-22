@@ -124,7 +124,25 @@ func (s *Service) UpdateStatus(ctx context.Context, tenantID, id, status, reason
 	if !validStatuses[status] {
 		return nil, repository.ErrInvalidStatus
 	}
-	// TODO: add timeline event for status transition
+	// Record a timeline event for the status transition before updating.
+	cr, err := s.repo.GetChangeRequest(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	desc := "Status changed from " + cr.Status + " to " + status
+	if reason != "" {
+		desc += " (" + reason + ")"
+	}
+	event := &models.TimelineEvent{
+		ChangeRequestID: id,
+		TenantID:        tenantID,
+		EventType:       "status_changed",
+		Description:     desc,
+		CreatedBy:       "",
+	}
+	if err := s.repo.CreateTimelineEvent(ctx, event); err != nil {
+		return nil, err
+	}
 	return s.repo.UpdateStatus(ctx, tenantID, id, status, reason)
 }
 

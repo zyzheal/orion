@@ -4,6 +4,10 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"strings"
 
 	"orion/platform-svc-go/internal/supply-chain/models"
 )
@@ -66,10 +70,17 @@ func (s *Service) GetDependencyGraph(ctx context.Context, tenantID, packageName,
 }
 
 func (s *Service) SignArtifact(ctx context.Context, tenantID, artifactID string, req *models.SignArtifactRequest) (*models.ArtifactSignature, error) {
+	// Compute a SHA-256 checksum over the artifact identity (tenantID + artifactID + signedBy)
+	// and use it as a deterministic local artifact signature. In production, this would be
+	// replaced with a real signing mechanism (e.g. cosign, Notary, or a PKI-based signature).
+	digestInput := strings.Join([]string{tenantID, artifactID, req.SignedBy}, "|")
+	hash := sha256.Sum256([]byte(digestInput))
+	signature := hex.EncodeToString(hash[:])
+
 	sig := &models.ArtifactSignature{
 		TenantID:      tenantID,
 		ArtifactID:    artifactID,
-		Signature:     "placeholder-signature",
+		Signature:     fmt.Sprintf("sha256:%s", signature),
 		SignatureType: req.SignatureType,
 		SignedBy:      req.SignedBy,
 		Metadata:      "{}",

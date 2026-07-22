@@ -253,3 +253,38 @@ func (r *Repository) GetByStatus(ctx context.Context, tenantID, approvalID strin
 	}
 	return &m, nil
 }
+
+func (r *Repository) GetDailyTrend(ctx context.Context, tenantID string, days int) ([]models.ApprovalTrendEntry, error) {
+	if days <= 0 {
+		days = 7
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT DATE(created_at) AS date,
+			COUNT(*) AS created,
+			SUM(CASE WHEN status=$2 THEN 1 ELSE 0 END) AS approved,
+			SUM(CASE WHEN status=$3 THEN 1 ELSE 0 END) AS rejected
+			FROM approval_requests
+			WHERE tenant_id=$1 AND created_at >= CURRENT_DATE - ($4::int - 1)
+			GROUP BY DATE(created_at)
+			ORDER BY date`,
+		tenantID, "approved", "rejected", days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []models.ApprovalTrendEntry
+	for rows.Next() {
+		var e models.ApprovalTrendEntry
+		var d time.Time
+		if err := rows.Scan(&d, &e.Created, &e.Approved, &e.Rejected); err != nil {
+			return nil, err
+		}
+		e.Date = d.Format("2006-01-02")
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}

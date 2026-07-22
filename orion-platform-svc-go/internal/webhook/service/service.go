@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"orion/platform-svc-go/internal/webhook/models"
@@ -306,35 +307,58 @@ func (s *Service) TriggerByEvent(ctx context.Context, tenantID, eventType string
 		EventType: &eventType,
 		Enabled:   &enabled,
 	}
-	// TODO: consider fetching all matching webhooks and triggering them concurrently.
 	webhooks, err := s.repo.List(ctx, tenantID, filter, 1000, 0)
 	if err != nil {
 		return err
 	}
+
+	// Run each matching webhook delivery in parallel and collect errors.
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(webhooks))
 	for _, w := range webhooks {
-		now := time.Now().UTC()
-		delivery := &models.WebhookDelivery{
-			WebhookID:   w.ID,
-			URL:         w.URL,
-			Status:      "triggered",
-			Attempt:     1,
-			CreatedAt:   now,
-			TriggeredAt: &now,
-		}
-		if err := s.repo.CreateDelivery(ctx, delivery); err != nil {
-			return err
-		}
-		updates := &models.Webhook{
-			ID:                 w.ID,
-			TenantID:           tenantID,
-			LastTriggeredAt:    &now,
-			LastDeliveryStatus: "triggered",
-		}
-		if err := s.repo.Update(ctx, updates); err != nil {
-			return err
-		}
+		wg.Add(1)
+		w := w // capture loop variable
+		go func() {
+			defer wg.Done()
+			now := time.Now().UTC()
+			delivery := &models.WebhookDelivery{
+				WebhookID:   w.ID,
+				URL:         w.URL,
+				Status:      "triggered",
+				Attempt:     1,
+				CreatedAt:   now,
+				TriggeredAt: &now,
+			}
+			if err := s.repo.CreateDelivery(ctx, delivery); err != nil {
+				errChan <- fmt.Errorf("webhook %s: create delivery: %w", w.ID, err)
+				return
+			}
+			updates := &models.Webhook{
+				ID:                 w.ID,
+				TenantID:           tenantID,
+				LastTriggeredAt:    &now,
+				LastDeliveryStatus: "triggered",
+			}
+			if err := s.repo.Update(ctx, updates); err != nil {
+				errChan <- fmt.Errorf("webhook %s: update: %w", w.ID, err)
+			}
+		}()
 	}
-	return nil
+
+	wg.Wait()
+	close(errChan)
+
+	var errs []error
+	for e := range errChan {
+		errs = append(errs, e)
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	return fmt.Errorf("triggered %d webhook(s) with %d error(s): %w", len(webhooks)-len(errs), len(errs), errs[0])
 }
 
 // RotateSecret generates a new secret for the webhook and updates it.

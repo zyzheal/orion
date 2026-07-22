@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"orion/platform-svc-go/internal/permission/models"
 
@@ -14,7 +15,7 @@ import (
 var errNotFound = errors.New("permission not found")
 
 // allowedColumns defines the whitelist of column names that can be used in dynamic SQL SET clauses.
-var allowedColumns = map[string]bool{"name": true, "description": true, "resource": true, "action": true, "effect": true}
+var allowedColumns = map[string]bool{"name": true, "code": true, "resource": true, "action": true, "desc": true}
 
 // Repository provides PostgreSQL-backed persistence for permissions.
 type Repository struct {
@@ -92,15 +93,46 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	return count, err
 }
 
-// Update modifies an existing permission.
+// Update modifies an existing permission, using a dynamic SET clause gated by the allowedColumns whitelist.
 func (r *Repository) Update(ctx context.Context, p *models.Permission) error {
-	_, err := r.db.ExecContext(ctx, `
-		UPDATE permissions SET
-			name=$1, code=$2, resource=$3, action=$4, desc=$5, updated_at=NOW()
-		WHERE id=$6 AND tenant_id=$7`,
-		p.Name, p.Code, p.Resource, p.Action, p.Desc,
-		p.ID, p.TenantID,
-)
+	setClauses := []string{}
+	args := []interface{}{}
+	idx := 1
+
+	if p.Name != "" && allowedColumns["name"] {
+		setClauses = append(setClauses, fmt.Sprintf("name=$%d", idx))
+		args = append(args, p.Name)
+		idx++
+	}
+	if p.Code != "" && allowedColumns["code"] {
+		setClauses = append(setClauses, fmt.Sprintf("code=$%d", idx))
+		args = append(args, p.Code)
+		idx++
+	}
+	if p.Resource != "" && allowedColumns["resource"] {
+		setClauses = append(setClauses, fmt.Sprintf("resource=$%d", idx))
+		args = append(args, p.Resource)
+		idx++
+	}
+	if p.Action != "" && allowedColumns["action"] {
+		setClauses = append(setClauses, fmt.Sprintf("action=$%d", idx))
+		args = append(args, p.Action)
+		idx++
+	}
+	if p.Desc != "" && allowedColumns["desc"] {
+		setClauses = append(setClauses, fmt.Sprintf("desc=$%d", idx))
+		args = append(args, p.Desc)
+		idx++
+	}
+
+	// Always include updated_at
+	setClauses = append(setClauses, "updated_at=NOW()")
+	args = append(args, p.ID, p.TenantID)
+
+	query := fmt.Sprintf("UPDATE permissions SET %s WHERE id=$%d AND tenant_id=$%d",
+		strings.Join(setClauses, ", "), idx, idx+1)
+
+	_, err := r.db.ExecContext(ctx, query, args...)
 	return err
 }
 

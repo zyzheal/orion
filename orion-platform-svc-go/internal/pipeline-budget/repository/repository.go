@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"orion/platform-svc-go/internal/pipeline-budget/models"
 
@@ -165,4 +166,52 @@ func (r *Repository) CreateTableIfNotExists(ctx context.Context) error {
 	}
 
 	return tx.Commit()
+}
+
+// ---------------------------------------------------------------------------
+// Run metrics (backfill usage from actual pipeline_runs)
+// ---------------------------------------------------------------------------
+
+// QueryRunMetrics retrieves aggregate run metrics for a pipeline within the
+// given time window from the pipeline_runs table.  This is used by the budget
+// service to compute real cost usage instead of a heuristic.
+//
+// pipeline_runs table schema (assumed):
+//   id, pipeline_id, tenant_id, status, started_at, completed_at, duration_ms
+func (r *Repository) QueryRunMetrics(ctx context.Context, tenantID, pipelineID string, start, end time.Time) (int64, float64, float64, error) {
+	var totalRuns sql.NullInt64
+	var totalCost float64
+	var avgDuration float64
+	err := r.db.GetContext(ctx, &totalRuns,
+		`SELECT COUNT(*)
+		   FROM pipeline_runs
+		  WHERE pipeline_id=$1 AND tenant_id=$2
+		    AND started_at >= $3 AND started_at <= $4`,
+		pipelineID, tenantID, start, end)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to count pipeline runs: %w", err)
+	}
+
+	var durModel sql.NullFloat64
+	err = r.db.GetContext(ctx, &durModel,
+		`SELECT AVG(EXTRACT(EPOCH FROM (completed_at - started_at)))
+		   FROM pipeline_runs
+		  WHERE pipeline_id=$1 AND tenant_id=$2
+		    AND started_at >= $3 AND started_at <= $4
+		    AND completed_at IS NOT NULL`,
+		pipelineID, tenantID, start, end)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get average duration: %w", err)
+	}
+	if durModel.Valid {
+		avgDuration = durModel.Float64
+	}
+
+	// Cost model: 1 run-hour ≈ 0.01 USD (default unit cost).
+	// Total cost = totalRuns × avgDurationHours × unit cost.
+	unitCost := 0.01 // USD per run-hour
+	if totalRuns.Valid {
+		totalCost = float64(totalRuns.Int64) * (avgDuration / 3600.0) * unitCost
+	}
+	return totalRuns.Int64, totalCost, avgDuration, nil
 }

@@ -21,9 +21,11 @@ type RepositoryInterface interface {
 	DeleteBudgetGuard(ctx context.Context, id string, tenantID string) (bool, error)
 	GetBudgetGuard(ctx context.Context, id string, tenantID string) (*models.BudgetGuard, error)
 	GetCostByService(ctx context.Context, tenantID string, service string) (*models.CostItem, error)
+	GetCostSummary(ctx context.Context, tenantID string, period string) (*models.CostSummary, error)
 	GetCostTrend(ctx context.Context, tenantID string, days int) ([]models.TrendPoint, error)
 	ListAnomalies(ctx context.Context, tenantID string, severity *string, timeWindow *models.TimeWindow) ([]models.Anomaly, error)
 	ListBudgetGuards(ctx context.Context, tenantID string) ([]models.BudgetGuard, error)
+	ListBudgets(ctx context.Context, tenantID string, entityType *models.CostEntityType, entityID *string) ([]models.Budget, error)
 	ListCostItems(ctx context.Context, tenantID string, service *string) ([]models.CostItem, error)
 }
 
@@ -212,17 +214,103 @@ func (s *Service) GetCostTrend(ctx context.Context, tenantID string, days int) (
 // --- Cost Overview ---
 
 func (s *Service) GetCostOverview(ctx context.Context, tenantID string) (*models.CostOverview, error) {
-	// Return a placeholder overview
+	currentPeriod := time.Now().UTC().Format("2006-01")
+	// Truncate to last month boundary for comparison (approximate: subtract 30 days)
+	previousPeriod := time.Now().UTC().AddDate(0, -1, 0).Format("2006-01")
+
+	// Current month cost from cost records
+	currentSummary, err := s.repo.GetCostSummary(ctx, tenantID, currentPeriod)
+	if err != nil {
+		return nil, err
+	}
+	currentMonthCost := currentSummary.TotalCost
+
+	// Previous month cost (reuse cost_items trend aggregated as a single month point)
+	prevTrend, err := s.repo.GetCostTrend(ctx, tenantID, 60) // 2 months of data
+	if err != nil {
+		return nil, err
+	}
+	previousMonthCost := computeMonthCostFromTrend(prevTrend, previousPeriod)
+
+	momChange := 0.0
+	if previousMonthCost > 0 {
+		momChange = ((currentMonthCost - previousMonthCost) / previousMonthCost) * 100
+	}
+
+	// Budget totals and usage (aggregate enabled tenant-level budgets)
+	budgets, err := s.repo.ListBudgets(ctx, tenantID, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	budgetTotal := 0.0
+	budgetUsagePercent := 0.0
+	for _, b := range budgets {
+		budgetTotal += b.Amount
+	}
+	// Projected monthly cost: if we have 2+ data points in trend, extrapolate
+	projectedMonthlyCost := computeProjectedMonthlyCost(prevTrend)
+
+	// Total cost across all items
+	costItems, err := s.repo.ListCostItems(ctx, tenantID, nil)
+	if err != nil {
+		return nil, err
+	}
+	totalCost := 0.0
+	for _, ci := range costItems {
+		totalCost += ci.Cost
+	}
+
+	budgetRemaining := budgetTotal - currentMonthCost
+	if budgetTotal > 0 {
+		budgetUsagePercent = (currentMonthCost / budgetTotal) * 100
+	}
+
 	return &models.CostOverview{
-		TotalCost:            0,
-		CurrentMonthCost:     0,
-		PreviousMonthCost:    0,
-		MonthOverMonthChange: 0,
-		ProjectedMonthlyCost: 0,
-		BudgetRemaining:      0,
-		BudgetTotal:          0,
-		BudgetUsagePercent:   0,
+		TotalCost:            totalCost,
+		CurrentMonthCost:     currentMonthCost,
+		PreviousMonthCost:    previousMonthCost,
+		MonthOverMonthChange: round2(momChange),
+		ProjectedMonthlyCost: projectedMonthlyCost,
+		BudgetRemaining:      round2(budgetRemaining),
+		BudgetTotal:          round2(budgetTotal),
+		BudgetUsagePercent:   round2(budgetUsagePercent),
 	}, nil
+}
+
+// computeMonthCostFromTrend sums trend points whose date prefix matches the given YYYY-MM period.
+func computeMonthCostFromTrend(points []models.TrendPoint, period string) float64 {
+	cost := 0.0
+	for _, p := range points {
+		// period stored as "2006-01-02" date string; check YYYY-MM prefix
+		if len(p.Date) >= 7 && p.Date[:7] == period {
+			cost += p.Cost
+		}
+	}
+	return cost
+}
+
+// computeProjectedMonthlyCost returns the current day's cost * average daily rate from last 7 points.
+func computeProjectedMonthlyCost(points []models.TrendPoint) float64 {
+	if len(points) == 0 {
+		return 0
+	}
+	window := len(points)
+	if window > 7 {
+		window = 7
+	}
+	// use the most recent window
+	start := len(points) - window
+	total := 0.0
+	for i := start; i < len(points); i++ {
+		total += points[i].Cost
+	}
+	dailyRate := total / float64(window)
+	return dailyRate * 30
+}
+
+// round2 rounds a float64 to 2 decimal places.
+func round2(f float64) float64 {
+	return float64(int(f*100+0.5)) / 100
 }
 
 // --- Optimization Suggestions ---

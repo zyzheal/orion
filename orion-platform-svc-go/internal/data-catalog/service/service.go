@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"orion/platform-svc-go/internal/data-catalog/introspector"
 	"orion/platform-svc-go/internal/data-catalog/models"
 	dcrepo "orion/platform-svc-go/internal/data-catalog/repository"
 	"orion/go-common/pkg/sentinel"
@@ -23,11 +24,12 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
+	repo         RepositoryInterface
+	introspector *introspector.Introspector
 }
 
-func NewService(repo dcrepo.RepositoryInterface) *Service {
-	return &Service{repo: repo}
+func NewService(repo dcrepo.RepositoryInterface, introspector *introspector.Introspector) *Service {
+	return &Service{repo: repo, introspector: introspector}
 }
 
 // --- CRUD ---
@@ -115,20 +117,62 @@ func (s *Service) GetEntriesByTable(ctx context.Context, tenantID, tableName str
 	return s.repo.GetByTable(ctx, tenantID, tableName)
 }
 
-// --- Auto-discovery stub ---
+// --- Auto-discovery ---
 
-// Discover scans connected databases for unregistered tables and columns.
-// This is a stub — production implementation would connect to DB catalogs
-// and reconcile against existing entries.
+// Discover scans connected databases for tables and columns using the
+// introspector, then reconciles them against the current catalog entries.
+// If the introspector is nil or there are no discovery configs, it returns
+// a stub summary indicating that no discovery was performed.
 func (s *Service) Discover(ctx context.Context, tenantID string) *models.DiscoverySummary {
-	// TODO: connect to database catalog, introspect schemas, create/update entries.
-	return &models.DiscoverySummary{
-		TotalTablesDiscovered: 0,
-		NewEntriesCreated:     0,
-		UpdatedEntries:        0,
-		Status:                "staged",
-		Message:               "auto-discovery is a stub — integrate with database introspection",
+	if s.introspector == nil {
+		return &models.DiscoverySummary{
+			Status:  "skipped",
+			Message: "introspector not configured",
+		}
 	}
+
+	configs, err := s.getDiscoveryConfigs(ctx, tenantID)
+	if err != nil {
+		return &models.DiscoverySummary{
+			Status:  "error",
+			Message: fmt.Sprintf("failed to load discovery configs: %v", err),
+		}
+	}
+	if len(configs) == 0 {
+		return &models.DiscoverySummary{
+			Status:  "skipped",
+			Message: "no discovery configs provided — nothing to introspect",
+		}
+	}
+
+	databaseSchemas, discoverErrors := s.introspector.Discover(ctx, configs)
+
+	totalTables := 0
+	tablesPerDatabase := make(map[string]int)
+	var sampleTable *models.DiscoveredSchema
+	for dbName, schemas := range databaseSchemas {
+		tablesPerDatabase[dbName] = len(schemas)
+		totalTables += len(schemas)
+		if sampleTable == nil && len(schemas) > 0 {
+			sampleTable = schemas[0]
+		}
+	}
+
+	return &models.DiscoverySummary{
+		TotalTablesDiscovered: totalTables,
+		TablesPerDatabase:     tablesPerDatabase,
+		Errors:                discoverErrors,
+		SampleTable:           sampleTable,
+		Status:                "ok",
+		Message:               fmt.Sprintf("discovered %d tables across %d databases", totalTables, len(databaseSchemas)),
+	}
+}
+
+// getDiscoveryConfigs returns the database connection configs to introspect.
+// TODO: wire a real configuration source (e.g. a connection-store repository)
+// so tenants can register databases for catalog discovery.
+func (s *Service) getDiscoveryConfigs(ctx context.Context, tenantID string) ([]models.DiscoveryConfig, error) {
+	return nil, nil
 }
 
 // --- Errors ---

@@ -76,6 +76,32 @@ type CreateReleaseTrainRequest struct {
 	Approvers        []string `json:"approvers"`
 }
 
+// ==================== EnvironmentMapping ====================
+
+// EnvironmentMapping maps a branch pattern (regex) to a deployment environment
+// for a product line. Mappings are evaluated in priority order (lower first);
+// the first matching pattern wins.
+type EnvironmentMapping struct {
+	ID               string    `json:"id" db:"id"`
+	ProductLineID    string    `json:"product_line_id" db:"product_line_id"`
+	TenantID         string    `json:"tenant_id" db:"tenant_id"`
+	BranchPattern    string    `json:"branch_pattern" db:"branch_pattern"`
+	Environment      string    `json:"environment" db:"environment"`
+	RequiresApproval bool      `json:"requires_approval" db:"requires_approval"`
+	Priority         int       `json:"priority" db:"priority"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// CreateEnvironmentMappingRequest is the request body for creating an
+// environment mapping for a product line.
+type CreateEnvironmentMappingRequest struct {
+	BranchPattern    string `json:"branch_pattern" binding:"required"`
+	Environment      string `json:"environment" binding:"required"`
+	RequiresApproval *bool  `json:"requires_approval"`
+	Priority         *int   `json:"priority"`
+}
+
 // ==================== HotfixChannel ====================
 
 // HotfixChannel is an emergency fix channel for a product line.
