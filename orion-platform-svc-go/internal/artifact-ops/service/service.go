@@ -180,7 +180,7 @@ func (s *Service) EvaluateRetention(ctx context.Context, tenantID string, req mo
 		maxAge := time.Duration(rule.MaxAgeDays) * 24 * time.Hour
 		if age > maxAge {
 			expired = true
-			reasons = append(reasons, fmt.Sprintf("age %d days exceeds max %d days", age.Hours()/24, rule.MaxAgeDays))
+			reasons = append(reasons, fmt.Sprintf("age %.1f days exceeds max %d days", age.Hours()/24, rule.MaxAgeDays))
 		}
 	}
 

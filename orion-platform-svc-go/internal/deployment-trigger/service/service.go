@@ -124,7 +124,7 @@ func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.Tri
 
 	// best-effort status update on trigger (do not fail the trigger)
 	now := time.Now().UTC()
-	_ = s.repo.Update(ctx, tenantID, id, &models.UpdateTriggerRequest{
+	_, _ = s.repo.Update(ctx, tenantID, id, &models.UpdateTriggerRequest{
 		Status: ptr(models.TriggerStatusTriggered),
 	})
 

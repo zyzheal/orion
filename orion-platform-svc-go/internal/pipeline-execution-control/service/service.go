@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -136,7 +137,8 @@ func (s *Service) Retry(ctx context.Context, runID string, req *models.RetryRequ
 	}
 	var metadata *string
 	if req.FromCheckpoint != nil && *req.FromCheckpoint != "" {
-		meta := `{"fromCheckpoint":"` + *req.FromCheckpoint + `"}`
+		b, _ := json.Marshal(map[string]string{"fromCheckpoint": *req.FromCheckpoint})
+		meta := string(b)
 		metadata = &meta
 	}
 	log := &models.ExecutionControlLog{

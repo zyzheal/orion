@@ -61,3 +61,16 @@ func (r *Repository) CountRunHistory(ctx context.Context, pipelineID string, ten
 	}
 	return 0, nil
 }
+
+// GetRunHistoryWithCount retrieves run history entries and the total count in two queries.
+func (r *Repository) GetRunHistoryWithCount(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, int, error) {
+	entries, err := r.GetRunHistory(ctx, pipelineID, tenantID, period, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	count, err := r.CountRunHistory(ctx, pipelineID, tenantID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return entries, count, nil
+}

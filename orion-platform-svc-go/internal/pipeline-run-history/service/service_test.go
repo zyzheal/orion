@@ -18,18 +18,11 @@ type mockHistoryRepo struct {
 	err     error
 }
 
-func (m *mockHistoryRepo) GetRunHistory(_ context.Context, pipelineID, tenantID, period string, limit int) ([]models.RunHistoryEntry, error) {
+func (m *mockHistoryRepo) GetRunHistoryWithCount(_ context.Context, pipelineID, tenantID, period string, limit int) ([]models.RunHistoryEntry, int, error) {
 	if m.err != nil {
-		return nil, m.err
+		return nil, 0, m.err
 	}
-	return m.entries, nil
-}
-
-func (m *mockHistoryRepo) CountRunHistory(_ context.Context, pipelineID, tenantID string) (int, error) {
-	if m.err != nil {
-		return 0, m.err
-	}
-	return m.count, nil
+	return m.entries, m.count, nil
 }
 
 // --- helpers ---

@@ -22,7 +22,7 @@ type mockHub struct {
 	publishLogFn       func(ctx context.Context, tenantID string, event *models.PublishLogRequest) error
 	publishStatusFn    func(ctx context.Context, tenantID string, event *models.PublishStatusRequest) error
 	getStatsFn         func() *models.SSEStats
-	listEventsFn       func(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+	listEventsFn  func(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
 }
 
 func (m *mockHub) CreateConnection(pipelineID, runID, userID string, logLevels []string, includeLogs, includeStatus bool) string {
@@ -68,9 +68,9 @@ func (m *mockHub) GetStats() *models.SSEStats {
 	}
 }
 
-func (m *mockHub) ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
+func (m *mockHub) ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
 	if m.listEventsFn != nil {
-		return m.listEventsFn(ctx, pipelineID, runID, limit)
+		return m.listEventsFn(ctx, tenantID, pipelineID, runID, limit)
 	}
 	return []map[string]interface{}{}, nil
 }
@@ -412,7 +412,7 @@ func TestGetStats_Success(t *testing.T) {
 
 func TestGetEvents_Success(t *testing.T) {
 	hub := &mockHub{
-		listEventsFn: func(_ context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
+		listEventsFn: func(_ context.Context, _, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
 			return []map[string]interface{}{
 				{"id": "event-1", "type": "log"},
 				{"id": "event-2", "type": "status"},
@@ -464,7 +464,7 @@ func TestGetEvents_MissingParams(t *testing.T) {
 func TestGetEvents_WithLimit(t *testing.T) {
 	capturedLimit := 0
 	hub := &mockHub{
-		listEventsFn: func(_ context.Context, _, _ string, limit int) ([]map[string]interface{}, error) {
+		listEventsFn: func(_ context.Context, _, _, _ string, limit int) ([]map[string]interface{}, error) {
 			capturedLimit = limit
 			return []map[string]interface{}{}, nil
 		},
@@ -485,7 +485,7 @@ func TestGetEvents_WithLimit(t *testing.T) {
 func TestGetEvents_InvalidLimit(t *testing.T) {
 	capturedLimit := 0
 	hub := &mockHub{
-		listEventsFn: func(_ context.Context, _, _ string, limit int) ([]map[string]interface{}, error) {
+		listEventsFn: func(_ context.Context, _, _, _ string, limit int) ([]map[string]interface{}, error) {
 			capturedLimit = limit
 			return []map[string]interface{}{}, nil
 		},
@@ -505,7 +505,7 @@ func TestGetEvents_InvalidLimit(t *testing.T) {
 
 func TestGetEvents_HubError(t *testing.T) {
 	hub := &mockHub{
-		listEventsFn: func(_ context.Context, _, _ string, _ int) ([]map[string]interface{}, error) {
+		listEventsFn: func(_ context.Context, _, _, _ string, _ int) ([]map[string]interface{}, error) {
 			return nil, assertError("repo error")
 		},
 	}
@@ -524,8 +524,8 @@ func TestGetTenantID_Fallback(t *testing.T) {
 	c.Request = httptest.NewRequest("GET", "/", nil)
 
 	tenantID := h.getTenantID(c)
-	if tenantID != "00000000-0000-0000-0000-000000000000" {
-		t.Errorf("expected zero UUID fallback, got %s", tenantID)
+	if tenantID != "" {
+		t.Errorf("expected empty fallback (401), got %s", tenantID)
 	}
 }
 

@@ -1,17 +1,103 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"orion/platform-svc-go/internal/oncall/service"
+	"orion/platform-svc-go/internal/oncall/models"
 
 	"github.com/gin-gonic/gin"
 )
 
+// mockOnCallService implements the handler's Service interface (no tenantID in assignment/override methods).
+type mockOnCallService struct {
+	listFn              func(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error)
+	getFn               func(ctx context.Context, id string) (*models.Schedule, error)
+	createFn            func(ctx context.Context, tenantID string, req *models.CreateScheduleRequest) (*models.Schedule, error)
+	updateFn            func(ctx context.Context, id string, req *models.UpdateScheduleRequest) (*models.Schedule, error)
+	deleteFn            func(ctx context.Context, id string) (bool, error)
+	listAssignmentsFn   func(ctx context.Context, scheduleID *string) ([]models.Assignment, int, error)
+	getAssignmentFn     func(ctx context.Context, id string) (*models.Assignment, error)
+	createAssignmentFn  func(ctx context.Context, req *models.CreateAssignmentRequest) (*models.Assignment, error)
+	updateAssignmentFn  func(ctx context.Context, id string, req *models.UpdateAssignmentRequest) (*models.Assignment, error)
+	deleteAssignmentFn  func(ctx context.Context, id string) (bool, error)
+	listOverridesFn     func(ctx context.Context, scheduleID *string) ([]models.Override, int, error)
+	getOverrideFn       func(ctx context.Context, id string) (*models.Override, error)
+	createOverrideFn    func(ctx context.Context, req *models.CreateOverrideRequest) (*models.Override, error)
+	updateOverrideFn    func(ctx context.Context, id string, req *models.UpdateOverrideRequest) (*models.Override, error)
+	deleteOverrideFn    func(ctx context.Context, id string) (bool, error)
+	getOnCallNowFn      func(ctx context.Context, scheduleID string) (*models.CurrentOnCallResult, error)
+}
+
+func (m *mockOnCallService) List(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error) {
+	if m.listFn != nil { return m.listFn(ctx, tenantID, status) }
+	return nil, 0, nil
+}
+func (m *mockOnCallService) Get(ctx context.Context, id string) (*models.Schedule, error) {
+	if m.getFn != nil { return m.getFn(ctx, id) }
+	return nil, nil
+}
+func (m *mockOnCallService) Create(ctx context.Context, tenantID string, req *models.CreateScheduleRequest) (*models.Schedule, error) {
+	if m.createFn != nil { return m.createFn(ctx, tenantID, req) }
+	return nil, nil
+}
+func (m *mockOnCallService) Update(ctx context.Context, id string, req *models.UpdateScheduleRequest) (*models.Schedule, error) {
+	if m.updateFn != nil { return m.updateFn(ctx, id, req) }
+	return nil, nil
+}
+func (m *mockOnCallService) Delete(ctx context.Context, id string) (bool, error) {
+	if m.deleteFn != nil { return m.deleteFn(ctx, id) }
+	return false, nil
+}
+func (m *mockOnCallService) ListAssignments(ctx context.Context, scheduleID *string) ([]models.Assignment, int, error) {
+	if m.listAssignmentsFn != nil { return m.listAssignmentsFn(ctx, scheduleID) }
+	return nil, 0, nil
+}
+func (m *mockOnCallService) GetAssignment(ctx context.Context, id string) (*models.Assignment, error) {
+	if m.getAssignmentFn != nil { return m.getAssignmentFn(ctx, id) }
+	return nil, nil
+}
+func (m *mockOnCallService) CreateAssignment(ctx context.Context, req *models.CreateAssignmentRequest) (*models.Assignment, error) {
+	if m.createAssignmentFn != nil { return m.createAssignmentFn(ctx, req) }
+	return &models.Assignment{ID: "a1"}, nil
+}
+func (m *mockOnCallService) UpdateAssignment(ctx context.Context, id string, req *models.UpdateAssignmentRequest) (*models.Assignment, error) {
+	if m.updateAssignmentFn != nil { return m.updateAssignmentFn(ctx, id, req) }
+	return nil, nil
+}
+func (m *mockOnCallService) DeleteAssignment(ctx context.Context, id string) (bool, error) {
+	if m.deleteAssignmentFn != nil { return m.deleteAssignmentFn(ctx, id) }
+	return false, nil
+}
+func (m *mockOnCallService) ListOverrides(ctx context.Context, scheduleID *string) ([]models.Override, int, error) {
+	if m.listOverridesFn != nil { return m.listOverridesFn(ctx, scheduleID) }
+	return nil, 0, nil
+}
+func (m *mockOnCallService) GetOverride(ctx context.Context, id string) (*models.Override, error) {
+	if m.getOverrideFn != nil { return m.getOverrideFn(ctx, id) }
+	return nil, nil
+}
+func (m *mockOnCallService) CreateOverride(ctx context.Context, req *models.CreateOverrideRequest) (*models.Override, error) {
+	if m.createOverrideFn != nil { return m.createOverrideFn(ctx, req) }
+	return &models.Override{ID: "o1"}, nil
+}
+func (m *mockOnCallService) UpdateOverride(ctx context.Context, id string, req *models.UpdateOverrideRequest) (*models.Override, error) {
+	if m.updateOverrideFn != nil { return m.updateOverrideFn(ctx, id, req) }
+	return nil, nil
+}
+func (m *mockOnCallService) DeleteOverride(ctx context.Context, id string) (bool, error) {
+	if m.deleteOverrideFn != nil { return m.deleteOverrideFn(ctx, id) }
+	return false, nil
+}
+func (m *mockOnCallService) GetOnCallNow(ctx context.Context, scheduleID string) (*models.CurrentOnCallResult, error) {
+	if m.getOnCallNowFn != nil { return m.getOnCallNowFn(ctx, scheduleID) }
+	return nil, nil
+}
+
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&mockOnCallService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {

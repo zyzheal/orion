@@ -4,15 +4,10 @@ package service
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
-	"time"
 
 	"orion/platform-svc-go/internal/handler-registry/models"
 )

@@ -14,14 +14,12 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	CountRunHistory(ctx context.Context, pipelineID string, tenantID string) (int, error)
-	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, error)
+	GetRunHistoryWithCount(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, int, error)
 }
 
 // Repository defines the data access contract needed by Service.
 type Repository interface {
-	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, error)
-	CountRunHistory(ctx context.Context, pipelineID string, tenantID string) (int, error)
+	GetRunHistoryWithCount(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, int, error)
 }
 
 type Service struct {
@@ -48,17 +46,12 @@ func (s *Service) GetRunHistory(ctx context.Context, pipelineID string, tenantID
 		return nil, ErrInvalidLimit
 	}
 
-	entries, err := s.repo.GetRunHistory(ctx, pipelineID, tenantID, period, limit)
+	entries, count, err := s.repo.GetRunHistoryWithCount(ctx, pipelineID, tenantID, period, limit)
 	if err != nil {
 		return nil, err
 	}
 	if entries == nil {
 		entries = []models.RunHistoryEntry{}
-	}
-
-	count, err := s.repo.CountRunHistory(ctx, pipelineID, tenantID)
-	if err != nil {
-		return nil, err
 	}
 
 	return &models.RunHistoryResponse{

@@ -25,12 +25,12 @@ type mockSvc struct {
 	rollbackFn                func(ctx context.Context, tenantID, id string, targetVersion, reason string) (*models.Rollback, error)
 	getRollbackHistoryFn      func(ctx context.Context, tenantID, id string) ([]models.Rollback, error)
 	cancelFn                  func(ctx context.Context, tenantID, id string) error
-	getAuditTrailFn           func(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
-	getReleaseNotesFn         func(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	getAuditTrailFn           func(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error)
+	getReleaseNotesFn         func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error)
 	generateReleaseNotesFn    func(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
 	getReleaseNotesByTenantFn func(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
 	linkGitCommitFn           func(ctx context.Context, deploymentID, commitSHA, branch string) error
-	getDeploymentChangelogFn  func(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
+	getDeploymentChangelogFn  func(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error)
 }
 
 func (m *mockSvc) Create(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error) {
@@ -81,15 +81,15 @@ func (m *mockSvc) Cancel(ctx context.Context, tenantID, id string) error {
 	}
 	return nil
 }
-func (m *mockSvc) GetAuditTrail(ctx context.Context, deploymentID string) ([]models.AuditEntry, error) {
+func (m *mockSvc) GetAuditTrail(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) {
 	if m.getAuditTrailFn != nil {
-		return m.getAuditTrailFn(ctx, deploymentID)
+		return m.getAuditTrailFn(ctx, tenantID, deploymentID)
 	}
 	return nil, nil
 }
-func (m *mockSvc) GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error) {
+func (m *mockSvc) GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) {
 	if m.getReleaseNotesFn != nil {
-		return m.getReleaseNotesFn(ctx, deploymentID)
+		return m.getReleaseNotesFn(ctx, tenantID, deploymentID)
 	}
 	return nil, nil
 }
@@ -111,9 +111,9 @@ func (m *mockSvc) LinkGitCommit(ctx context.Context, deploymentID, commitSHA, br
 	}
 	return nil
 }
-func (m *mockSvc) GetDeploymentChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error) {
+func (m *mockSvc) GetDeploymentChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error) {
 	if m.getDeploymentChangelogFn != nil {
-		return m.getDeploymentChangelogFn(ctx, deploymentID)
+		return m.getDeploymentChangelogFn(ctx, tenantID, deploymentID)
 	}
 	return nil, nil
 }
@@ -350,7 +350,7 @@ func TestHandler_Cancel_ServiceError(t *testing.T) {
 func TestHandler_GetAuditTrail_Success(t *testing.T) {
 	entries := []models.AuditEntry{{ID: 1, DeploymentID: "d1", Action: "create"}}
 	h := newHandlerWithSvc(&mockSvc{
-		getAuditTrailFn: func(ctx context.Context, deploymentID string) ([]models.AuditEntry, error) { return entries, nil },
+		getAuditTrailFn: func(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) { return entries, nil },
 	})
 	w := performRequest(h, h.GetAuditTrail, "GET", nil, map[string]string{"id": "d1"}, nil)
 	if w.Code != http.StatusOK {
@@ -363,7 +363,7 @@ func TestHandler_GetAuditTrail_Success(t *testing.T) {
 func TestHandler_GetReleaseNotes_Success(t *testing.T) {
 	note := &models.ReleaseNote{ID: "n1", DeploymentID: "d1", Content: "changelog"}
 	h := newHandlerWithSvc(&mockSvc{
-		getReleaseNotesFn: func(ctx context.Context, deploymentID string) (*models.ReleaseNote, error) { return note, nil },
+		getReleaseNotesFn: func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) { return note, nil },
 	})
 	w := performRequest(h, h.GetReleaseNotes, "GET", nil, map[string]string{"id": "d1"}, nil)
 	if w.Code != http.StatusOK {
@@ -373,7 +373,7 @@ func TestHandler_GetReleaseNotes_Success(t *testing.T) {
 
 func TestHandler_GetReleaseNotes_NotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getReleaseNotesFn: func(ctx context.Context, deploymentID string) (*models.ReleaseNote, error) {
+		getReleaseNotesFn: func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) {
 			return nil, errors.New("not found")
 		},
 	})
@@ -408,7 +408,7 @@ func TestHandler_LinkGitCommit_BadRequest(t *testing.T) {
 func TestHandler_GetDeploymentChangelog_Success(t *testing.T) {
 	entries := []models.GitChangelogEntry{{CommitSHA: "abc", Message: "fix"}}
 	h := newHandlerWithSvc(&mockSvc{
-		getDeploymentChangelogFn: func(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error) {
+		getDeploymentChangelogFn: func(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error) {
 			return entries, nil
 		},
 	})

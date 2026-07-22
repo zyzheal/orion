@@ -26,25 +26,25 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/scheduled-notifications")
 
 	// GET /scheduled-notifications - List scheduled notifications
-	f.GET("", auth.RequirePermission("notification", "read"), h.List)
+	f.GET("", auth.RequirePermission("scheduled-notification", "read"), h.List)
 	// POST /scheduled-notifications - Create scheduled notification
-	f.POST("", auth.RequirePermission("notification", "write"), h.Create)
+	f.POST("", auth.RequirePermission("scheduled-notification", "write"), h.Create)
 	// GET /scheduled-notifications/count - Get count of scheduled notifications
-	f.GET("/count", auth.RequirePermission("notification", "read"), h.Count)
+	f.GET("/count", auth.RequirePermission("scheduled-notification", "read"), h.Count)
 	// GET /scheduled-notifications/:id - Get scheduled notification by ID
-	f.GET("/:id", auth.RequirePermission("notification", "read"), h.Get)
+	f.GET("/:id", auth.RequirePermission("scheduled-notification", "read"), h.Get)
 	// PUT /scheduled-notifications/:id - Update scheduled notification
-	f.PUT("/:id", auth.RequirePermission("notification", "write"), h.Update)
+	f.PUT("/:id", auth.RequirePermission("scheduled-notification", "write"), h.Update)
 	// DELETE /scheduled-notifications/:id - Delete scheduled notification
-	f.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
+	f.DELETE("/:id", auth.RequirePermission("scheduled-notification", "delete"), h.Delete)
 	// POST /scheduled-notifications/:id/execute - Execute a scheduled notification
-	f.POST("/:id/execute", auth.RequirePermission("notification", "write"), h.Execute)
+	f.POST("/:id/execute", auth.RequirePermission("scheduled-notification", "write"), h.Execute)
 	// POST /scheduled-notifications/:id/pause - Pause a scheduled notification
-	f.POST("/:id/pause", auth.RequirePermission("notification", "write"), h.Pause)
+	f.POST("/:id/pause", auth.RequirePermission("scheduled-notification", "write"), h.Pause)
 	// POST /scheduled-notifications/:id/resume - Resume a scheduled notification
-	f.POST("/:id/resume", auth.RequirePermission("notification", "write"), h.Resume)
+	f.POST("/:id/resume", auth.RequirePermission("scheduled-notification", "write"), h.Resume)
 	// GET /scheduled-notifications/:id/logs - Get execution logs for a scheduled notification
-	f.GET("/:id/logs", auth.RequirePermission("notification", "read"), h.GetLogs)
+	f.GET("/:id/logs", auth.RequirePermission("scheduled-notification", "read"), h.GetLogs)
 }
 
 // getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.

@@ -42,6 +42,7 @@ func performRunHistoryRequest(h *Handler, pipelineID, period, limit string) *htt
 	url := "/pipelines/" + pipelineID + "/run-history"
 	c.Request = httptest.NewRequest("GET", url, nil)
 	c.Params = []gin.Param{{Key: "id", Value: pipelineID}}
+	c.Set("tenant_id", "test-tenant")
 
 	q := c.Request.URL.Query()
 	if period != "" {

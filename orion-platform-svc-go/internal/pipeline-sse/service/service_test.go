@@ -12,7 +12,7 @@ import (
 type mockRepo struct {
 	createLogErr    error
 	createStatusErr error
-	listEventsFn    func(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+	listEventsFn    func(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
 }
 
 func (m *mockRepo) CreateLogEvent(ctx context.Context, tenantID string, event *models.PublishLogRequest) error {
@@ -23,9 +23,9 @@ func (m *mockRepo) CreateStatusEvent(ctx context.Context, tenantID string, event
 	return m.createStatusErr
 }
 
-func (m *mockRepo) ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
+func (m *mockRepo) ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
 	if m.listEventsFn != nil {
-		return m.listEventsFn(ctx, pipelineID, runID, limit)
+		return m.listEventsFn(ctx, tenantID, pipelineID, runID, limit)
 	}
 	return []map[string]interface{}{}, nil
 }
@@ -222,7 +222,7 @@ func TestPublishStatusEvent_RepoError(t *testing.T) {
 func TestListEvents_DelegatesToRepo(t *testing.T) {
 	called := false
 	h := newTestHub(&mockRepo{
-		listEventsFn: func(_ context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
+		listEventsFn: func(_ context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
 			called = true
 			if pipelineID != "pipeline-1" {
 				t.Errorf("expected pipeline-1, got %s", pipelineID)
@@ -236,7 +236,7 @@ func TestListEvents_DelegatesToRepo(t *testing.T) {
 		},
 	})
 
-	events, err := h.ListEvents(context.Background(), "pipeline-1", "run-1", 100)
+	events, err := h.ListEvents(context.Background(), "tenant-1", "pipeline-1", "run-1", 100)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -254,7 +254,7 @@ func TestListEvents_NilRepo(t *testing.T) {
 		repo:        nil,
 	}
 
-	events, err := h.ListEvents(context.Background(), "pipeline-1", "run-1", 100)
+	events, err := h.ListEvents(context.Background(), "tenant-1", "pipeline-1", "run-1", 100)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

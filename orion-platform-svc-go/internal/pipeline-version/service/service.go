@@ -81,6 +81,7 @@ func (s *Service) DiffVersions(ctx context.Context, fromID string, toID string, 
 }
 
 func (s *Service) Rollback(ctx context.Context, versionID string, tenantID string) (*models.PipelineVersion, error) {
+	// TODO: implement actual rollback logic
 	return s.repo.GetVersionByID(ctx, versionID, tenantID)
 }
 

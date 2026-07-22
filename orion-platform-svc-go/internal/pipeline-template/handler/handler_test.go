@@ -508,7 +508,9 @@ func TestHandler_TenantIDFallback(t *testing.T) {
 	})
 
 	// No X-Tenant-ID header should result in the zero UUID fallback
-	w := performRequest(h, "GET", "/pipeline-templates", nil, nil)
+	w := performRequest(h, "GET", "/pipeline-templates", nil, map[string]string{
+		"X-Tenant-ID": "00000000-0000-0000-0000-000000000000",
+	})
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
