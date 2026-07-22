@@ -26,30 +26,31 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/notification-templates")
 
 	// GET /notification-templates - List notification templates
-	f.GET("", auth.RequirePermission("notification", "read"), h.List)
+	f.GET("", auth.RequirePermission("notification-template", "read"), h.List)
 	// POST /notification-templates - Create notification template
-	f.POST("", auth.RequirePermission("notification", "write"), h.Create)
+	f.POST("", auth.RequirePermission("notification-template", "write"), h.Create)
 	// GET /notification-templates/count - Count notification templates
-	f.GET("/count", auth.RequirePermission("notification", "read"), h.Count)
+	f.GET("/count", auth.RequirePermission("notification-template", "read"), h.Count)
 	// POST /notification-templates/render - Render a template
-	f.POST("/render", auth.RequirePermission("notification", "read"), h.Render)
+	f.POST("/render", auth.RequirePermission("notification-template", "read"), h.Render)
 	// GET /notification-templates/:id - Get notification template by ID
-	f.GET("/:id", auth.RequirePermission("notification", "read"), h.Get)
+	f.GET("/:id", auth.RequirePermission("notification-template", "read"), h.Get)
 	// PUT /notification-templates/:id - Update notification template
-	f.PUT("/:id", auth.RequirePermission("notification", "write"), h.Update)
+	f.PUT("/:id", auth.RequirePermission("notification-template", "write"), h.Update)
 	// DELETE /notification-templates/:id - Delete notification template
-	f.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
+	f.DELETE("/:id", auth.RequirePermission("notification-template", "delete"), h.Delete)
 	// POST /notification-templates/:id/preview - Preview a template
-	f.POST("/:id/preview", auth.RequirePermission("notification", "read"), h.Preview)
+	f.POST("/:id/preview", auth.RequirePermission("notification-template", "read"), h.Preview)
 	// POST /notification-templates/:id/duplicate - Duplicate a template
-	f.POST("/:id/duplicate", auth.RequirePermission("notification", "write"), h.Duplicate)
+	f.POST("/:id/duplicate", auth.RequirePermission("notification-template", "write"), h.Duplicate)
 }
 
 // getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
 func (h *Handler) getTenantID(c *gin.Context) string {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		return "00000000-0000-0000-0000-000000000000"
+		middleware.RespondUnauthorized(c, "tenant_id required")
+		return ""
 	}
 	return tenantID
 }

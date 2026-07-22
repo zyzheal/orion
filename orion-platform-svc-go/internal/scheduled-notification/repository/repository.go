@@ -161,9 +161,12 @@ func (r *Repository) CreateLog(ctx context.Context, log *models.ExecutionLog) er
 	return err
 }
 
-func (r *Repository) ListLogsBySchedule(ctx context.Context, scheduleID string) ([]models.ExecutionLog, error) {
+func (r *Repository) ListLogsBySchedule(ctx context.Context, tenantID, scheduleID string) ([]models.ExecutionLog, error) {
 	var logs []models.ExecutionLog
 	err := r.db.SelectContext(ctx, &logs,
-		`SELECT * FROM scheduled_notification_logs WHERE schedule_id=$1 ORDER BY created_at DESC`, scheduleID)
+		`SELECT l.* FROM scheduled_notification_logs l
+		 INNER JOIN scheduled_notifications s ON s.id = l.schedule_id
+		 WHERE s.tenant_id=$1 AND l.schedule_id=$2
+		 ORDER BY l.created_at DESC`, tenantID, scheduleID)
 	return logs, err
 }

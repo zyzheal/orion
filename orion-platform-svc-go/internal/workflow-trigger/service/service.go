@@ -18,6 +18,7 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	GetByID(ctx context.Context, tenantID, id string) (*models.WorkflowTrigger, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.WorkflowTrigger, error)
+	CreateTriggerLog(ctx context.Context, log *models.TriggerLog) error
 	SetEnabled(ctx context.Context, tenantID, id string, enabled bool) error
 	Update(ctx context.Context, t *models.WorkflowTrigger) error
 }
@@ -147,19 +148,17 @@ func (s *Service) Trigger(ctx context.Context, tenantID, id string, payload map[
 		return models.ErrTriggerDisabled
 	}
 
-	// Create a trigger log entry recording this execution.
-	// In a full implementation, this would also trigger the actual workflow execution.
-	_ = &models.TriggerLog{
-		ID:         uuid.New().String(),
+	// Create and persist a trigger log entry recording this execution.
+	logEntry := &models.TriggerLog{
 		TriggerID:  trigger.ID,
 		WorkflowID: trigger.WorkflowID,
 		TenantID:   tenantID,
 		Status:     "triggered",
 		CreatedAt:  time.Now(),
 	}
-
-	// Log entry is created; actual workflow execution would be dispatched here.
-
+	if err := s.repo.CreateTriggerLog(ctx, logEntry); err != nil {
+		return err
+	}
 
 	return nil
 }

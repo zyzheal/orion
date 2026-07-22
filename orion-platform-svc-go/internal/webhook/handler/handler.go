@@ -48,7 +48,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) getTenantID(c *gin.Context) string {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		return "00000000-0000-0000-0000-000000000000"
+		middleware.RespondUnauthorized(c, "tenant_id required")
+		return ""
 	}
 	return tenantID
 }
@@ -270,7 +271,7 @@ func (h *Handler) ListDeliveries(c *gin.Context) {
 
 	page, pageSize := parsePagination(c)
 
-	deliveries, total, err := h.svc.ListDeliveries(ctx, webhookID, page, pageSize)
+	deliveries, total, err := h.svc.ListDeliveries(ctx, tenantID, webhookID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -189,10 +189,13 @@ func (r *Repository) CreateDelivery(ctx context.Context, d *models.WebhookDelive
 }
 
 // ListByWebhook returns deliveries for a webhook, ordered by creation time descending.
-func (r *Repository) ListByWebhook(ctx context.Context, webhookID string, limit, offset int) ([]models.WebhookDelivery, error) {
+func (r *Repository) ListByWebhook(ctx context.Context, tenantID, webhookID string, limit, offset int) ([]models.WebhookDelivery, error) {
 	var deliveries []models.WebhookDelivery
 	err := r.db.SelectContext(ctx, &deliveries,
-		`SELECT * FROM webhook_deliveries WHERE webhook_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-		webhookID, limit, offset)
+		`SELECT d.* FROM webhook_deliveries d
+		 INNER JOIN webhooks w ON w.id = d.webhook_id
+		 WHERE w.tenant_id=$1 AND d.webhook_id=$2
+		 ORDER BY d.created_at DESC LIMIT $3 OFFSET $4`,
+		tenantID, webhookID, limit, offset)
 	return deliveries, err
 }

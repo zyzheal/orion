@@ -17,7 +17,7 @@ type ServiceInterface interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	Get(ctx context.Context, tenantID, id string) (*models.Webhook, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter, page, pageSize int) ([]models.Webhook, int, error)
-	ListDeliveries(ctx context.Context, webhookID string, page, pageSize int) ([]models.WebhookDelivery, int, error)
+	ListDeliveries(ctx context.Context, tenantID, webhookID string, limit, offset int) ([]models.WebhookDelivery, int, error)
 	RotateSecret(ctx context.Context, tenantID, id string) (string, error)
 	Trigger(ctx context.Context, tenantID, id string) error
 	TriggerByEvent(ctx context.Context, tenantID, eventType string) error

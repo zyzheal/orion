@@ -28,7 +28,7 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, id, tenantID string) error
 	GetByID(ctx context.Context, id, tenantID string) (*models.Webhook, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter, limit, offset int) ([]models.Webhook, error)
-	ListByWebhook(ctx context.Context, webhookID string, limit, offset int) ([]models.WebhookDelivery, error)
+	ListByWebhook(ctx context.Context, tenantID, webhookID string, limit, offset int) ([]models.WebhookDelivery, error)
 	Update(ctx context.Context, w *models.Webhook) error
 }
 
@@ -221,7 +221,7 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 }
 
 // ListDeliveries returns paginated delivery records for a webhook.
-func (s *Service) ListDeliveries(ctx context.Context, webhookID string, page, pageSize int) ([]models.WebhookDelivery, int, error) {
+func (s *Service) ListDeliveries(ctx context.Context, tenantID, webhookID string, page, pageSize int) ([]models.WebhookDelivery, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -230,7 +230,7 @@ func (s *Service) ListDeliveries(ctx context.Context, webhookID string, page, pa
 	}
 	offset := (page - 1) * pageSize
 
-	deliveries, err := s.repo.ListByWebhook(ctx, webhookID, pageSize, offset)
+	deliveries, err := s.repo.ListByWebhook(ctx, tenantID, webhookID, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}

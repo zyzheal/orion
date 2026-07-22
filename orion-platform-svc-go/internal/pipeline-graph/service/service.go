@@ -761,24 +761,29 @@ func validateCycles(stages []rawStage, resp *models.ValidateResponse) {
 		black = 2
 	)
 
+	const maxDepth = 100 // prevent stack overflow on deeply nested cycles
+
 	color := map[string]int{}
 	for _, st := range stages {
 		if st.Name != "" {
 			color[st.Name] = white
 		}
 	}
-
-	var dfs func(node string, path []string)
-	dfs = func(node string, path []string) {
+	
+	var dfs func(node string, path []string, depth int)
+	dfs = func(node string, path []string, depth int) {
+		if depth > maxDepth {
+			resp.Errors = append(resp.Errors, "GRAPH_TOO_DEEP: Pipeline graph exceeds maximum depth of 100, cycle check aborted")
+			return
+		}
 		color[node] = gray
 		path = append(path, node)
-
+		
 		for _, neighbor := range adj[node] {
 			if _, ok := color[neighbor]; !ok {
 				continue
 			}
 			if color[neighbor] == gray {
-				// Find cycle start
 				cycleStart := -1
 				for i, n := range path {
 					if n == neighbor {
@@ -791,25 +796,25 @@ func validateCycles(stages []rawStage, resp *models.ValidateResponse) {
 					cycle = append(cycle, path[cycleStart:]...)
 					cycle = append(cycle, neighbor)
 				}
-				resp.Errors = append(resp.Errors, fmt.Sprintf("CYCLIC_DEPENDENCY: Cyclic dependency detected: %s", strings.Join(cycle, " -> ")))
+				if depth <= maxDepth {
+					resp.Errors = append(resp.Errors, fmt.Sprintf("CYCLIC_DEPENDENCY: Cyclic dependency detected: %s", strings.Join(cycle, " -> ")))
+				}
 				return
 			}
 			if color[neighbor] == white {
-				dfs(neighbor, path)
+				dfs(neighbor, path, depth+1)
 			}
 		}
-
+		
 		color[node] = black
 	}
-
+	
 	for _, st := range stages {
 		if st.Name != "" && color[st.Name] == white {
-			dfs(st.Name, []string{})
+			dfs(st.Name, []string{}, 0)
 		}
 	}
 }
-
-// --- Errors ---
 
 var ErrPipelineNotFound = errors.New("pipeline not found")
 

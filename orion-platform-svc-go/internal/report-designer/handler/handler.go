@@ -395,7 +395,7 @@ func (h *Handler) GetExecutionHistory(c *gin.Context) {
 
 func (h *Handler) getDefaultTenantID(tenantID string) string {
 	if tenantID == "" {
-		return "00000000-0000-0000-0000-000000000000"
+			return ""
 	}
 	return tenantID
 }

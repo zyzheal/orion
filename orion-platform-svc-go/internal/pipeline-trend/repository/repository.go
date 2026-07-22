@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-trend/models"
@@ -95,15 +96,63 @@ func (r *Repository) GetRunHistoryTrend(ctx context.Context, tenantID, pipelineI
 	return result, nil
 }
 
-// GetRunHistoryCompare returns aggregated run history for each pipeline.
+// GetRunHistoryCompare returns aggregated run history for multiple pipelines in a
+// single SQL query using `WHERE pipeline_id IN (?, ?, ...)`, avoiding N+1 roundtrips.
 func (r *Repository) GetRunHistoryCompare(ctx context.Context, tenantID string, pipelineIDs []string, period, granularity string) (map[string][]models.TrendEntry, error) {
-	result := make(map[string][]models.TrendEntry, len(pipelineIDs))
+	if len(pipelineIDs) == 0 {
+		return make(map[string][]models.TrendEntry), nil
+	}
+	interval := intervalFromPeriod(period)
+	trunc := dateTruncFmt(granularity)
+	placeholders := strings.Repeat(",?", len(pipelineIDs)-1)
+
+	query := fmt.Sprintf(`
+		SELECT
+			pipeline_id,
+			to_char(date_trunc('%s', started_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date,
+			COUNT(*)                                                                  AS total,
+			COUNT(*) FILTER (WHERE status = 'succeeded')                               AS succeeded,
+			COUNT(*) FILTER (WHERE status = 'failed')                                  AS failed,
+			COUNT(*) FILTER (WHERE status = 'cancelled')                               AS cancelled,
+			AVG(EXTRACT(EPOCH FROM (COALESCE(completed_at, NOW()) - started_at)))      AS avg_duration
+		FROM pipeline_runs
+		WHERE pipeline_id IN (?$%s)
+		  AND tenant_id = $%d
+		  AND started_at >= NOW() - INTERVAL '%s'
+		GROUP BY pipeline_id, date_trunc('%s', started_at)
+		ORDER BY pipeline_id, date_trunc('%s', started_at) ASC
+	`, trunc, placeholders, len(pipelineIDs)+1, interval, trunc, trunc)
+
+	var args []any
 	for _, pid := range pipelineIDs {
-		entries, err := r.GetRunHistoryTrend(ctx, tenantID, pid, period, granularity)
-		if err != nil {
-			return nil, fmt.Errorf("query compare for pipeline %s: %w", pid, err)
-		}
-		result[pid] = entries
+		args = append(args, pid)
+	}
+	args = append(args, tenantID)
+
+	var rows []struct {
+		PipelineID  string   `db:"pipeline_id"`
+		Date        string   `db:"date"`
+		Total       int      `db:"total"`
+		Succeeded   int      `db:"succeeded"`
+		Failed      int      `db:"failed"`
+		Cancelled   int      `db:"cancelled"`
+		AvgDuration *float64 `db:"avg_duration"`
+	}
+	err := r.db.SelectContext(ctx, &rows, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query pipeline trend compare: %w", err)
+	}
+
+	result := make(map[string][]models.TrendEntry, len(pipelineIDs))
+	for _, row := range rows {
+		result[row.PipelineID] = append(result[row.PipelineID], models.TrendEntry{
+			Date:        row.Date,
+			Total:       row.Total,
+			Succeeded:   row.Succeeded,
+			Failed:      row.Failed,
+			Cancelled:   row.Cancelled,
+			AvgDuration: row.AvgDuration,
+		})
 	}
 	return result, nil
 }

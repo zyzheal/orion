@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"orion/platform-svc-go/internal/workflow-trigger/models"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -130,5 +133,27 @@ func (r *Repository) SetEnabled(ctx context.Context, tenantID, id string, enable
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE workflow_triggers SET enabled=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
 		enabled, id, tenantID)
+	return err
+}
+
+// CreateTriggerLog inserts a trigger log record for a manual trigger execution.
+func (r *Repository) CreateTriggerLog(ctx context.Context, log *models.TriggerLog) error {
+	log.ID = uuid.New().String()
+	log.CreatedAt = time.Now().UTC()
+	var payloadJSON string
+	if len(log.RequestPayload) > 0 {
+		b, err := json.Marshal(log.RequestPayload)
+		if err == nil {
+			payloadJSON = string(b)
+		}
+	}
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO workflow_trigger_logs (
+			id, trigger_id, workflow_id, tenant_id, status,
+			request_payload, response_body, error_message, created_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		log.ID, log.TriggerID, log.WorkflowID, log.TenantID, log.Status,
+		payloadJSON, log.ResponseBody, log.ErrorMessage, log.CreatedAt,
+	)
 	return err
 }

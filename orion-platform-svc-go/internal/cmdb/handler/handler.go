@@ -624,7 +624,7 @@ func (h *Handler) ExecuteScript(c *gin.Context) {
 // getDefaultTenantID returns the tenant ID from the context or defaults to a zero UUID.
 func (h *Handler) getDefaultTenantID(tenantID string) string {
 	if tenantID == "" {
-		return "00000000-0000-0000-0000-000000000000"
+			return "00000000-0000-0000-0000-000000000000"
 	}
 	return tenantID
 }

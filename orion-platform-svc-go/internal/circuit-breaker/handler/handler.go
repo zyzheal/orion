@@ -3,6 +3,7 @@ package handler
 import (
 	"orion/go-common/pkg/auth"
 	goerr "orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/platform-svc-go/internal/circuit-breaker/models"
 	"orion/platform-svc-go/internal/circuit-breaker/service"
@@ -38,7 +39,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) getTenantID(c *gin.Context) string {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		return "00000000-0000-0000-0000-000000000000"
+		middleware.RespondUnauthorized(c, "tenant_id required")
+		return ""
 	}
 	return tenantID
 }

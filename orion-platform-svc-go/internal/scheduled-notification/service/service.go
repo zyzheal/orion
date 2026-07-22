@@ -22,7 +22,7 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, id string, tenantID string) (bool, error)
 	GetByID(ctx context.Context, id string, tenantID string) (*models.ScheduledNotification, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter, limit, offset int) ([]models.ScheduledNotification, error)
-	ListLogsBySchedule(ctx context.Context, scheduleID string) ([]models.ExecutionLog, error)
+	ListLogsBySchedule(ctx context.Context, tenantID, scheduleID string) ([]models.ExecutionLog, error)
 	UpdateFields(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ScheduledNotification, error)
 }
 
@@ -232,7 +232,7 @@ func (s *Service) GetLogs(ctx context.Context, tenantID, id string) ([]models.Ex
 		return nil, err
 	}
 
-	logs, err := s.repo.ListLogsBySchedule(ctx, id)
+	logs, err := s.repo.ListLogsBySchedule(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
