@@ -287,6 +287,25 @@ import (
 	incident_action_handler "orion/platform-svc-go/internal/incident-action/handler"
 	ticket_automation_handler "orion/platform-svc-go/internal/ticket-automation/handler"
 
+	// ---- P0-6: Agent sandbox (isolated code execution) ----
+	sandbox_handler "orion/platform-svc-go/internal/sandbox/handler"
+	sandbox_repo "orion/platform-svc-go/internal/sandbox/repository"
+	sandbox_service "orion/platform-svc-go/internal/sandbox/service"
+
+	// ---- P0-9: Centralized logging service ----
+	logging_handler "orion/platform-svc-go/internal/logging/handler"
+	logging_repo "orion/platform-svc-go/internal/logging/repository"
+	logging_service "orion/platform-svc-go/internal/logging/service"
+
+	// ---- P0-5: Object storage (S3/MinIO abstraction) ----
+	storage_handler "orion/platform-svc-go/internal/storage/handler"
+	storage_repo "orion/platform-svc-go/internal/storage/repository"
+	storage_service "orion/platform-svc-go/internal/storage/service"
+
+	// ---- P0-8: Message queue reliable persistence ----
+	message_queue_repo "orion/platform-svc-go/internal/message-queue/repository"
+	message_queue_service "orion/platform-svc-go/internal/message-queue/service"
+
 	"os"
 
 	"go.uber.org/zap"
@@ -437,6 +456,7 @@ var (
 	integrationH        *integration_handler.Handler
 	maintenance_windowH *maintenance_window_handler.Handler
 	message_queueH      *message_queue_handler.Handler
+	storageH            *storage_handler.Handler
 	metricsH            *metrics_handler.Handler
 	multi_modal_triggerH *multi_modal_trigger_handler.Handler
 	notification_mgmtH  *notification_mgmt_handler.Handler
@@ -467,6 +487,8 @@ var (
 	deployment_triggerH *deployment_trigger_handler.Handler
 	incident_actionH    *incident_action_handler.Handler
 	ticket_automationH  *ticket_automation_handler.Handler
+	sandboxH            *sandbox_handler.Handler
+	loggingH            *logging_handler.Handler
 )
 
 func initWiring(infra *infrastructure, logger *zap.Logger) {
@@ -587,5 +609,25 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	aiGatewaySvc := aiGateway_service.NewService(aiGatewayRepo)
 	aiGatewaySvc.WithLLMProvider(llmProviderRegistry)
 	aiGatewayH = aiGateway_handler.NewHandler(aiGatewaySvc)
+
+	// P0-6: Agent sandbox (isolated code execution)
+	sandboxRepo := sandbox_repo.NewRepository(infra.db.DB)
+	sandboxSvc := sandbox_service.NewService(sandboxRepo, infra.logger)
+	sandboxH = sandbox_handler.NewHandler(sandboxSvc)
+
+	// P0-9: Centralized logging service
+	loggingRepo := logging_repo.NewRepository(infra.db.DB)
+	loggingSvc := logging_service.NewService(loggingRepo)
+	loggingH = logging_handler.NewHandler(loggingSvc)
+
+	// P0-5: Object storage metadata (S3/MinIO abstraction)
+	storageRepo := storage_repo.NewRepository(infra.db.DB)
+	storageSvc := storage_service.NewService(storageRepo)
+	storageH = storage_handler.NewHandler(storageSvc)
+
+	// P0-8: Message queue reliable persistence
+	message_queueRepo := message_queue_repo.NewRepository(infra.db.DB)
+	message_queueSvc := message_queue_service.NewService(message_queueRepo)
+	message_queueH = message_queue_handler.NewHandler(message_queueSvc)
 
 }

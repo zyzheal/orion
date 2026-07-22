@@ -550,6 +550,18 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if workflow_webhookH != nil {
     workflow_webhookH.RegisterRoutes(api)
   }
+  if sandboxH != nil {
+    sandboxH.RegisterRoutes(api)
+  }
+  if loggingH != nil {
+    loggingH.RegisterRoutes(api)
+  }
+  if storageH != nil {
+    storageH.RegisterRoutes(api)
+  }
+  if message_queueH != nil {
+    message_queueH.RegisterRoutes(api)
+  }
 	}
 
 	return r
