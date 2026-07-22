@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/go-common/pkg/auth"
 	"go.opentelemetry.io/otel"
 )
 
@@ -29,9 +30,9 @@ func NewHandler(svc Service) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/workflow-dependencies")
 
-	f.GET("/graph", h.GetGraph)
-	f.GET("/check/:definitionId", h.CheckDefinition)
-	f.GET("/visualization", h.GetVisualization)
+	f.GET("/graph", auth.RequirePermission("workflow-dependency", "read"), h.GetGraph)
+	f.GET("/check/:definitionId", auth.RequirePermission("workflow-dependency", "read"), h.CheckDefinition)
+	f.GET("/visualization", auth.RequirePermission("workflow-dependency", "read"), h.GetVisualization)
 }
 
 func (h *Handler) getTenantID(c *gin.Context) string {

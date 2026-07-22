@@ -113,7 +113,12 @@ func (s *Service) RemoveTag(ctx context.Context, versionID string, tenantID stri
 
 func (s *Service) SetBaseline(ctx context.Context, versionID string, tenantID string, set bool) (*models.PipelineVersion, error) {
 	if set {
-		if err := s.repo.UnsetAllBaselines(ctx, versionID, tenantID); err != nil {
+		// Find the pipeline_id belonging to this version so we unset other baselines on the same pipeline.
+		version, err := s.repo.GetVersionByID(ctx, versionID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.repo.UnsetAllBaselines(ctx, version.PipelineID, tenantID); err != nil {
 			return nil, err
 		}
 	}

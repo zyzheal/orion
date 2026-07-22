@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +15,8 @@ import (
 	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
 	pe_repo "orion/platform-svc-go/internal/pipeline-engine/repository"
 	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
+
+	grpcserver "orion/platform-svc-go/internal/pipeline-engine/grpc"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
@@ -146,16 +149,32 @@ func main() {
 	r.GET("/healthz", middleware.HealthCheck("orion-pipeline-engine"))
 	r.GET("/metrics", middleware.MetricsHandler())
 
-	// Listen and serve
+	// Listen and serve HTTP
 	port := getEnvInt("PIPELINE_ENGINE_PORT", "8081")
 	addr := fmt.Sprintf(":%d", port)
-	log.Printf("[pipeline-engine] listening on %s", addr)
+	log.Printf("[pipeline-engine] HTTP listening on %s", addr)
 
 	srv := &http.Server{Addr: addr, Handler: r}
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("[pipeline-engine] server error: %v", err)
+			log.Fatalf("[pipeline-engine] HTTP server error: %v", err)
+		}
+	}()
+
+	// Start gRPC server
+	grpcPort := getEnvInt("PIPELINE_ENGINE_GRPC_PORT", "8082")
+	grpcAddr := fmt.Sprintf(":%d", grpcPort)
+	grpcLis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		log.Fatalf("[pipeline-engine] failed to listen gRPC on %s: %v", grpcAddr, err)
+	}
+	log.Printf("[pipeline-engine] gRPC listening on %s", grpcAddr)
+
+	grpcSrv := grpcserver.NewServer(peEngine)
+	go func() {
+		if err := grpcSrv.Serve(grpcLis); err != nil {
+			log.Fatalf("[pipeline-engine] gRPC server error: %v", err)
 		}
 	}()
 
@@ -167,8 +186,14 @@ func main() {
 	log.Println("[pipeline-engine] shutting down...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Shutdown HTTP server
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("[pipeline-engine] server forced to shutdown: %v", err)
+		log.Fatalf("[pipeline-engine] HTTP server forced to shutdown: %v", err)
 	}
+
+	// Gracefully stop gRPC server
+	grpcSrv.GracefulStop()
+
 	log.Println("[pipeline-engine] shutdown complete")
 }

@@ -39,6 +39,9 @@ func NewService(repo RepositoryInterface) *Service {
 
 // Create creates a new hook.
 func (s *Service) Create(ctx context.Context, tenantID, userID string, req *models.CreateHookRequest) (*models.Hook, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request body is required")
+	}
 	if req.Name == "" {
 		return nil, fmt.Errorf("name is required")
 	}
@@ -98,6 +101,9 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 
 // Update modifies an existing hook.
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateHookRequest) (*models.Hook, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request body is required")
+	}
 	existing, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, sentinel.NotFound

@@ -18,12 +18,12 @@ type RepositoryInterface interface {
 	CreateReleaseNote(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
 	CreateRollback(ctx context.Context, tenantID, deploymentID, fromVersion, toVersion, reason string) (*models.Rollback, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Deployment, error)
-	GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error)
 	LatestByApp(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error)
 	LinkGitCommit(ctx context.Context, deploymentID, commitSHA, branch string) error
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Deployment, error)
-	ListAuditEntries(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
-	ListChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
+	ListAuditEntries(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error)
+	ListChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error)
 	ListReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
 	ListRollbacks(ctx context.Context, tenantID, deploymentID string) ([]models.Rollback, error)
 	Metrics(ctx context.Context, tenantID string) (*models.DeploymentMetrics, error)
@@ -109,8 +109,8 @@ func (s *Service) LogAudit(ctx context.Context, deploymentID, action, userID, de
 	return s.repo.CreateAuditEntry(ctx, deploymentID, action, userID, details)
 }
 
-func (s *Service) GetAuditTrail(ctx context.Context, deploymentID string) ([]models.AuditEntry, error) {
-	return s.repo.ListAuditEntries(ctx, deploymentID)
+func (s *Service) GetAuditTrail(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) {
+	return s.repo.ListAuditEntries(ctx, tenantID, deploymentID)
 }
 
 // --- Release notes ---
@@ -119,8 +119,8 @@ func (s *Service) GenerateReleaseNotes(ctx context.Context, tenantID, deployment
 	return s.repo.CreateReleaseNote(ctx, tenantID, deploymentID, content)
 }
 
-func (s *Service) GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error) {
-	return s.repo.GetReleaseNotes(ctx, deploymentID)
+func (s *Service) GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) {
+	return s.repo.GetReleaseNotes(ctx, tenantID, deploymentID)
 }
 
 func (s *Service) GetReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error) {
@@ -133,8 +133,8 @@ func (s *Service) LinkGitCommit(ctx context.Context, deploymentID, commitSHA, br
 	return s.repo.LinkGitCommit(ctx, deploymentID, commitSHA, branch)
 }
 
-func (s *Service) GetDeploymentChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error) {
-	return s.repo.ListChangelog(ctx, deploymentID)
+func (s *Service) GetDeploymentChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error) {
+	return s.repo.ListChangelog(ctx, tenantID, deploymentID)
 }
 
 // --- Helpers ---

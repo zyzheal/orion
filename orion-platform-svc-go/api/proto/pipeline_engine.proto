@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package pipelineengine;
+
+option go_package = "orion/platform-svc-go/internal/pipeline-engine/grpc/pb;pb";
+
+// ---------------------------------------------------------------------------
+// PipelineEngine service exposes the core pipeline execution RPCs.
+// ---------------------------------------------------------------------------
+
+service PipelineEngine {
+  // ExecutePipeline triggers a new pipeline run.
+  rpc ExecutePipeline(ExecutePipelineRequest) returns (ExecutePipelineResponse);
+
+  // GetPipelineStatus retrieves the current status of a pipeline run.
+  rpc GetPipelineStatus(GetPipelineStatusRequest) returns (GetPipelineStatusResponse);
+
+  // CancelPipeline cancels a running pipeline.
+  rpc CancelPipeline(CancelPipelineRequest) returns (CancelPipelineResponse);
+}
+
+// ---------------------------------------------------------------------------
+// ExecutePipeline
+// ---------------------------------------------------------------------------
+
+message ExecutePipelineRequest {
+  string pipeline_id = 1;
+  string pipeline_version = 2;
+  string tenant_id = 3;
+  string trigger_type = 4;
+  string trigger_by = 5;
+  string environment = 6;
+  string context_json = 7;   // arbitrary JSON context
+  optional string spec_yaml = 8;  // inline YAML spec (optional)
+}
+
+message ExecutePipelineResponse {
+  string run_id = 1;
+  string pipeline_id = 2;
+  string status = 3;
+  int64 created_at = 4;
+  string tenant_id = 5;
+}
+
+// ---------------------------------------------------------------------------
+// GetPipelineStatus
+// ---------------------------------------------------------------------------
+
+message GetPipelineStatusRequest {
+  string run_id = 1;
+  string tenant_id = 2;
+}
+
+message GetPipelineStatusResponse {
+  string run_id = 1;
+  string pipeline_id = 2;
+  string status = 3;
+  int64 started_at = 4;
+  int64 completed_at = 5;
+  int64 duration_ms = 6;
+  string tenant_id = 7;
+  string error = 8;
+}
+
+// ---------------------------------------------------------------------------
+// CancelPipeline
+// ---------------------------------------------------------------------------
+
+message CancelPipelineRequest {
+  string run_id = 1;
+  string tenant_id = 2;
+  string trigger_by = 3;
+}
+
+message CancelPipelineResponse {
+  string run_id = 1;
+  string pipeline_id = 2;
+  string status = 3;
+  int64 completed_at = 4;
+  string tenant_id = 5;
+}

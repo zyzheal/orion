@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"testing"
 	"time"
 )
 
@@ -70,24 +69,25 @@ func RequireEnv(t Testable, name string) string {
 func WaitUntilServerReady(ctx context.Context, baseURL string, timeout time.Duration) error {
 	client := &http.Client{Timeout: 2 * time.Second}
 	interval := 500 * time.Millisecond
-	deadline, _ := ctx.WithDeadline(time.Now().Add(timeout))
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	for time.Now().Before(deadline) {
-		resp, err := client.Get(baseURL + "/healthz")
-		if err == nil && resp.StatusCode == 200 {
-			resp.Body.Close()
-			return nil
-		}
-		if resp != nil {
-			resp.Body.Close()
-		}
+	for {
 		select {
-		case <-deadline.Done():
+		case <-ctx.Done():
 			return fmt.Errorf("server not ready at %s after %v", baseURL, timeout)
-		case <-time.After(interval):
+		default:
+			resp, err := client.Get(baseURL + "/healthz")
+			if err == nil && resp.StatusCode == 200 {
+				resp.Body.Close()
+				return nil
+			}
+			if resp != nil {
+				resp.Body.Close()
+			}
+			time.Sleep(interval)
 		}
 	}
-	return fmt.Errorf("server not ready at %s after %v", baseURL, timeout)
 }
 
 // GenerateTestName creates a unique test name with a timestamp suffix.

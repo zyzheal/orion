@@ -16,14 +16,12 @@ import (
 func SchemaCheckCommand(args map[string]string) int {
 	tsDSN, err := requireFlag(args, "ts-dsn")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v
-", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return types.ExitErr
 	}
 	goDSN, err := requireFlag(args, "go-dsn")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v
-", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return types.ExitErr
 	}
 	format := types.OutputFormat(args["format"])

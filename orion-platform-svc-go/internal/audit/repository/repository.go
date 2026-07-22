@@ -204,54 +204,37 @@ func (r *Repository) Export(ctx context.Context, tenantID string, q models.Audit
 }
 
 // GetActions returns distinct action types for a tenant.
+// Tenant filter is always enforced; empty tenantID returns no results.
 func (r *Repository) GetActions(ctx context.Context, tenantID string) ([]string, error) {
 	var actions []string
-	sql := `SELECT DISTINCT action FROM audit_logs WHERE tenant_id=$1 ORDER BY action`
-	if tenantID == "" {
-		sql = `SELECT DISTINCT action FROM audit_logs ORDER BY action`
-		err := r.db.SelectContext(ctx, &actions, sql)
-		return actions, err
-	}
-	err := r.db.SelectContext(ctx, &actions, sql, tenantID)
-	return actions, err
+	return actions, r.db.SelectContext(ctx, &actions,
+		`SELECT DISTINCT action FROM audit_logs WHERE tenant_id=$1 ORDER BY action`, tenantID)
 }
 
 // GetResourceTypes returns distinct resource types for a tenant.
+// Tenant filter is always enforced; empty tenantID returns no results.
 func (r *Repository) GetResourceTypes(ctx context.Context, tenantID string) ([]string, error) {
 	var resourceTypes []string
-	sql := `SELECT DISTINCT resource_type FROM audit_logs WHERE tenant_id=$1 ORDER BY resource_type`
-	if tenantID == "" {
-		sql = `SELECT DISTINCT resource_type FROM audit_logs ORDER BY resource_type`
-		err := r.db.SelectContext(ctx, &resourceTypes, sql)
-		return resourceTypes, err
-	}
-	err := r.db.SelectContext(ctx, &resourceTypes, sql, tenantID)
-	return resourceTypes, err
+	return resourceTypes, r.db.SelectContext(ctx, &resourceTypes,
+		`SELECT DISTINCT resource_type FROM audit_logs WHERE tenant_id=$1 ORDER BY resource_type`, tenantID)
 }
 
 // GetLatest returns the most recent audit log for a tenant.
+// Tenant filter is always enforced; empty tenantID returns not found.
 func (r *Repository) GetLatest(ctx context.Context, tenantID string) (*models.AuditLog, error) {
 	var m models.AuditLog
-	sql := `SELECT * FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1`
-	if tenantID == "" {
-		sql = `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 1`
-		err := r.db.GetContext(ctx, &m, sql)
-		return &m, err
-	}
-	err := r.db.GetContext(ctx, &m, sql, tenantID)
+	err := r.db.GetContext(ctx, &m,
+		`SELECT * FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1`, tenantID)
 	return &m, err
 }
 
 // VerifyChain checks hash continuity for a tenant. Returns total verified and first break.
+// Tenant filter is always enforced; empty tenantID returns empty results.
 func (r *Repository) VerifyChain(ctx context.Context, tenantID string) (int, bool, error) {
 	var logs []models.AuditLog
-	sql := `SELECT id, hash, prev_hash, created_at FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at ASC`
-	if tenantID == "" {
-		sql = `SELECT id, hash, prev_hash, created_at FROM audit_logs ORDER BY created_at ASC`
-		err := r.db.SelectContext(ctx, &logs, sql)
-		return 0, false, err
-	}
-	err := r.db.SelectContext(ctx, &logs, sql, tenantID)
+	err := r.db.SelectContext(ctx, &logs,
+		`SELECT id, hash, prev_hash, created_at FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at ASC`,
+		tenantID)
 	if err != nil {
 		return 0, false, err
 	}

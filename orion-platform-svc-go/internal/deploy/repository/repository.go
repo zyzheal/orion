@@ -152,11 +152,14 @@ func (r *Repository) CreateAuditEntry(ctx context.Context, deploymentID, action,
 	return err
 }
 
-func (r *Repository) ListAuditEntries(ctx context.Context, deploymentID string) ([]models.AuditEntry, error) {
+func (r *Repository) ListAuditEntries(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) {
 	var items []models.AuditEntry
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM deployment_audit_logs WHERE deployment_id=$1 ORDER BY created_at DESC`,
-		deploymentID)
+		`SELECT dal.* FROM deployment_audit_logs dal
+			INNER JOIN deployments d ON dal.deployment_id = d.id
+			WHERE dal.deployment_id=$1 AND d.tenant_id=$2
+			ORDER BY dal.created_at DESC`,
+		deploymentID, tenantID)
 	return items, err
 }
 
@@ -177,11 +180,14 @@ func (r *Repository) CreateReleaseNote(ctx context.Context, tenantID, deployment
 	return rn, err
 }
 
-func (r *Repository) GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error) {
+func (r *Repository) GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) {
 	var rn models.ReleaseNote
 	err := r.db.GetContext(ctx, &rn,
-		`SELECT * FROM deployment_release_notes WHERE deployment_id=$1 ORDER BY created_at DESC LIMIT 1`,
-		deploymentID)
+		`SELECT drn.* FROM deployment_release_notes drn
+			INNER JOIN deployments d ON drn.deployment_id = d.id
+			WHERE drn.deployment_id=$1 AND d.tenant_id=$2
+			ORDER BY drn.created_at DESC LIMIT 1`,
+		deploymentID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -215,12 +221,14 @@ func (r *Repository) LinkGitCommit(ctx context.Context, deploymentID, commitSHA,
 	return err
 }
 
-func (r *Repository) ListChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error) {
+func (r *Repository) ListChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error) {
 	var items []models.GitChangelogEntry
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT commit_sha, message, author, created_at FROM deployment_changelog
-			WHERE deployment_id=$1 ORDER BY created_at DESC`,
-		deploymentID)
+		`SELECT dc.commit_sha, dc.message, dc.author, dc.created_at FROM deployment_changelog dc
+			INNER JOIN deployments d ON dc.deployment_id = d.id
+			WHERE dc.deployment_id=$1 AND d.tenant_id=$2
+			ORDER BY dc.created_at DESC`,
+		deploymentID, tenantID)
 	return items, err
 }
 

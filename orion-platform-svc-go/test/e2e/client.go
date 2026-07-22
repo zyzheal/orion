@@ -6,7 +6,6 @@ package e2e
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -61,7 +60,7 @@ func (c *E2EClient) Do(req *http.Request) (*http.Response, error) {
 			time.Sleep(c.config.RetryDelay)
 		}
 	}
-	return nil, fmt.Errorf("HTTP request failed after %d attempts: %w", c.config.RetryCount, err)
+	return nil, fmt.Errorf("HTTP request failed after %d attempts", c.config.RetryCount)
 }
 
 // Get performs an HTTP GET request.

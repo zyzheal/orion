@@ -95,7 +95,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// --- Permission check ---
 	// POST /capabilities/check
-	f.POST("/check", h.CheckPermission)
+	f.POST("/check", auth.RequirePermission("capability", "read"), h.CheckPermission)
 
 	// --- Temporary permissions (legacy API) ---
 	// POST /capabilities/temporary - 授予临时权限（管理员操作）
@@ -111,9 +111,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// --- Permission request (legacy API) ---
 	// POST /capabilities/request - 提交权限申请
-	f.POST("/request", h.RequestPermission)
+	f.POST("/request", auth.RequirePermission("capability", "read"), h.RequestPermission)
 	// GET /capabilities/request/:ticketId - 查询权限申请详情
-	f.GET("/request/:ticketId", h.GetPermissionRequest)
+	f.GET("/request/:ticketId", auth.RequirePermission("capability", "read"), h.GetPermissionRequest)
 	// POST /capabilities/request/:ticketId/approve - 审批权限申请
 	f.POST("/request/:ticketId/approve", auth.RequirePermission("capability", "write"), h.ApproveRequest)
 	// POST /capabilities/request/:ticketId/reject - 拒绝权限申请
@@ -125,7 +125,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// --- Simplified permission request API ---
 	// POST /capabilities/request/permission - 简化版：申请权限
-	rg.POST("/capabilities/request/permission", h.RequestPermissionSimplified)
+	rg.POST("/capabilities/request/permission", auth.RequirePermission("capability", "read"), h.RequestPermissionSimplified)
 	// POST /capabilities/grant - 简化版：授予临时权限
 	f.POST("/grant", auth.RequirePermission("capability", "write"), h.GrantSimplified)
 	// DELETE /capabilities/grant/:id - 简化版：撤销临时权限
@@ -133,11 +133,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// --- Effective capabilities ---
 	// GET /capabilities/user/effective - 获取用户有效能力
-	f.GET("/user/effective", h.GetEffectiveCapabilities)
+	f.GET("/user/effective", auth.RequirePermission("capability", "read"), h.GetEffectiveCapabilities)
 
 	// --- User permission requests ---
 	// GET /capabilities/request/user/:userId - 获取用户的权限申请记录
-	rg.GET("/capabilities/request/user/:userId", h.GetUserPermissionRequests)
+	rg.GET("/capabilities/request/user/:userId", auth.RequirePermission("capability", "read"), h.GetUserPermissionRequests)
 }
 
 // --- Core CRUD handlers ---

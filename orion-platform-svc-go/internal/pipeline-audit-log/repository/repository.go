@@ -49,14 +49,11 @@ func (r *Repository) RecordBatch(ctx context.Context, logs []*models.AuditLog) e
 		if log.Metadata == "" {
 			log.Metadata = "{}"
 		}
+		if err := r.Record(ctx, log); err != nil {
+			return err
+		}
 	}
-	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO pipeline_audit_logs (id, tenant_id, run_id, stage_id, task_id, action, actor,
-			outcome, duration_ms, input_summary, output_summary, error_message, metadata, created_at)
-		 VALUES (:id, :tenantId, :runId, :stageId, :taskId, :action, :actor,
-			:outcome, :durationMs, :inputSummary, :outputSummary, :errorMessage, :metadata, :createdAt)`,
-		logs)
-	return err
+	return nil
 }
 
 // Query retrieves audit logs matching the given filters.
