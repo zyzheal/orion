@@ -175,3 +175,34 @@ func (r *Repository) GetEnabledHotfixChannel(ctx context.Context, tenantID, prod
 
 // driver.Valuer interface assertion for compatibility.
 var _ driver.Valuer = nil
+// ==================== EnvironmentMapping CRUD ====================
+
+// CreateEnvironmentMapping persists a new branch-to-environment mapping.
+func (r *Repository) CreateEnvironmentMapping(ctx context.Context, tenantID string, m *models.EnvironmentMapping) error {
+	m.ID = uuid.New().String()
+	m.TenantID = tenantID
+	m.CreatedAt = time.Now().UTC()
+	m.UpdatedAt = time.Now().UTC()
+	if m.Priority <= 0 {
+		m.Priority = 100
+	}
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO environment_mappings (id, product_line_id, tenant_id, branch_pattern, environment, requires_approval, priority, created_at, updated_at)
+		   VALUES (:id, :product_line_id, :tenant_id, :branch_pattern, :environment, :requires_approval, :priority, :created_at, :updated_at)`, m)
+	return err
+}
+
+// GetEnvironmentMappings lists all mappings for a product line ordered by priority.
+func (r *Repository) GetEnvironmentMappings(ctx context.Context, tenantID, productLineID string) ([]models.EnvironmentMapping, error) {
+	var items []models.EnvironmentMapping
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM environment_mappings WHERE product_line_id=$1 AND tenant_id=$2 ORDER BY priority ASC`,
+		productLineID, tenantID)
+	return items, err
+}
+
+// DeleteEnvironmentMapping removes a single mapping.
+func (r *Repository) DeleteEnvironmentMapping(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM environment_mappings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}

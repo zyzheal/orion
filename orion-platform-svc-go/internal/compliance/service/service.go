@@ -164,8 +164,8 @@ func (s *Service) RunCheck(ctx context.Context, req *CheckRequest) (*models.Comp
 
 	// Build summary description
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Infrastructure compliance check: %s/%s passed, %d warnings, %d failures\n",
-		passCount(checks), warnCount(checks), failCount(checks)))
+	sb.WriteString(fmt.Sprintf("Infrastructure compliance check: %d/%d passed, %d warnings, %d failures\n",
+		passCount(checks), len(checks), warnCount(checks), failCount(checks)))
 	for _, c := range checks {
 		sb.WriteString(fmt.Sprintf("  [%s] %s: %s (%s)\n", strings.ToUpper(c.Status), c.Name, c.Message, c.Category))
 	}

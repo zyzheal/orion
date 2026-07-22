@@ -12,8 +12,8 @@ import (
 
 // ServiceInterface defines the interface for the pipeline-trend service.
 type ServiceInterface interface {
-	GetRunHistoryCompare(ctx context.Context, pipelineIDs []string, period, granularity string) (*models.CompareResponse, error)
-	GetRunHistoryTrend(ctx context.Context, pipelineID, period, granularity string) (*models.TrendResponse, error)
+	GetRunHistoryCompare(ctx context.Context, tenantID string, pipelineIDs []string, period, granularity string) (*models.CompareResponse, error)
+	GetRunHistoryTrend(ctx context.Context, tenantID, pipelineID, period, granularity string) (*models.TrendResponse, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

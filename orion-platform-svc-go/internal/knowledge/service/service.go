@@ -18,20 +18,20 @@ type RepositoryInterface interface {
 	CreateDoc(ctx context.Context, doc *models.Document) error
 	CreateSpace(ctx context.Context, space *models.Space) error
 	CreateSyncLog(ctx context.Context, log *models.SyncLog) error
-	DeleteDoc(ctx context.Context, id string) error
-	DeleteDocsBySpace(ctx context.Context, spaceID string) error
-	DeleteSpace(ctx context.Context, id string) error
-	GetDocByID(ctx context.Context, id string) (*models.Document, error)
+	DeleteDoc(ctx context.Context, id string, tenantID string) error
+	DeleteDocsBySpace(ctx context.Context, spaceID string, tenantID string) error
+	DeleteSpace(ctx context.Context, id string, tenantID string) error
+	GetDocByID(ctx context.Context, id string, tenantID string) (*models.Document, error)
 	GetDocTags(ctx context.Context, tenantID string) ([]string, error)
-	GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error)
-	GetSpaceByID(ctx context.Context, id string) (*models.Space, error)
+	GetDocVersions(ctx context.Context, docID string, tenantID string) ([]models.DocVersion, error)
+	GetSpaceByID(ctx context.Context, id string, tenantID string) (*models.Space, error)
 	GetSyncLogs(ctx context.Context, tenantID string, limit int) ([]models.SyncLog, error)
 	ListDocs(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error)
 	ListDocsByType(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error)
 	ListSpaces(ctx context.Context, tenantID string, q models.SpaceListQuery) ([]models.Space, error)
 	Retrieve(ctx context.Context, tenantID string, query string, spaceID string, topK *int) ([]models.RAGRetrieveResult, error)
-	UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) error
-	UpdateSpace(ctx context.Context, id string, updates map[string]interface{}) error
+	UpdateDoc(ctx context.Context, id string, tenantID string, updates map[string]interface{}) error
+	UpdateSpace(ctx context.Context, id string, tenantID string, updates map[string]interface{}) error
 }
 
 type Service struct {
@@ -72,11 +72,11 @@ func (s *Service) CreateSpace(ctx context.Context, tenantID string, req models.C
 	return space, nil
 }
 
-func (s *Service) GetSpace(ctx context.Context, id string) (*models.Space, error) {
-	return s.repo.GetSpaceByID(ctx, id)
+func (s *Service) GetSpace(ctx context.Context, id string, tenantID string) (*models.Space, error) {
+	return s.repo.GetSpaceByID(ctx, id, tenantID)
 }
 
-func (s *Service) UpdateSpace(ctx context.Context, id string, req models.UpdateSpaceRequest) (*models.Space, error) {
+func (s *Service) UpdateSpace(ctx context.Context, id string, tenantID string, req models.UpdateSpaceRequest) (*models.Space, error) {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -90,18 +90,18 @@ func (s *Service) UpdateSpace(ctx context.Context, id string, req models.UpdateS
 	if req.TeamID != nil {
 		updates["team_id"] = *req.TeamID
 	}
-	if err := s.repo.UpdateSpace(ctx, id, updates); err != nil {
+	if err := s.repo.UpdateSpace(ctx, id, tenantID, updates); err != nil {
 		return nil, err
 	}
-	return s.repo.GetSpaceByID(ctx, id)
+	return s.repo.GetSpaceByID(ctx, id, tenantID)
 }
 
-func (s *Service) DeleteSpace(ctx context.Context, id string) error {
+func (s *Service) DeleteSpace(ctx context.Context, id string, tenantID string) error {
 	// Cascade delete docs for this space.
-	if err := s.repo.DeleteDocsBySpace(ctx, id); err != nil {
+	if err := s.repo.DeleteDocsBySpace(ctx, id, tenantID); err != nil {
 		return err
 	}
-	return s.repo.DeleteSpace(ctx, id)
+	return s.repo.DeleteSpace(ctx, id, tenantID)
 }
 
 // --- Document operations ---
@@ -120,13 +120,13 @@ func (s *Service) ListDocsByType(ctx context.Context, tenantID string, q models.
 	return s.repo.ListDocsByType(ctx, tenantID, q)
 }
 
-func (s *Service) GetDoc(ctx context.Context, id string) (*models.Document, error) {
-	return s.repo.GetDocByID(ctx, id)
+func (s *Service) GetDoc(ctx context.Context, id string, tenantID string) (*models.Document, error) {
+	return s.repo.GetDocByID(ctx, id, tenantID)
 }
 
 func (s *Service) CreateDoc(ctx context.Context, tenantID string, req models.CreateDocumentRequest) (*models.Document, error) {
 	// Verify space exists.
-	if _, err := s.GetSpace(ctx, req.SpaceID); err != nil {
+	if _, err := s.GetSpace(ctx, req.SpaceID, tenantID); err != nil {
 		return nil, fmt.Errorf("space not found: %w", err)
 	}
 	doc := &models.Document{
@@ -147,7 +147,7 @@ func (s *Service) CreateDoc(ctx context.Context, tenantID string, req models.Cre
 	return doc, nil
 }
 
-func (s *Service) UpdateDoc(ctx context.Context, id string, req models.UpdateDocumentRequest) (*models.Document, error) {
+func (s *Service) UpdateDoc(ctx context.Context, id string, tenantID string, req models.UpdateDocumentRequest) (*models.Document, error) {
 	updates := make(map[string]interface{})
 	if req.Title != nil {
 		updates["title"] = *req.Title
@@ -161,18 +161,18 @@ func (s *Service) UpdateDoc(ctx context.Context, id string, req models.UpdateDoc
 	if req.Status != nil {
 		updates["status"] = *req.Status
 	}
-	if err := s.repo.UpdateDoc(ctx, id, updates); err != nil {
+	if err := s.repo.UpdateDoc(ctx, id, tenantID, updates); err != nil {
 		return nil, err
 	}
-	return s.repo.GetDocByID(ctx, id)
+	return s.repo.GetDocByID(ctx, id, tenantID)
 }
 
-func (s *Service) DeleteDoc(ctx context.Context, id string) error {
-	return s.repo.DeleteDoc(ctx, id)
+func (s *Service) DeleteDoc(ctx context.Context, id string, tenantID string) error {
+	return s.repo.DeleteDoc(ctx, id, tenantID)
 }
 
-func (s *Service) GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error) {
-	return s.repo.GetDocVersions(ctx, docID)
+func (s *Service) GetDocVersions(ctx context.Context, docID string, tenantID string) ([]models.DocVersion, error) {
+	return s.repo.GetDocVersions(ctx, docID, tenantID)
 }
 
 // --- Doc center helpers ---

@@ -19,7 +19,7 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	GetPipelineByID(ctx context.Context, id string) (*repository.PipelineDefinition, error)
+	GetPipelineByID(ctx context.Context, id string, tenantID string) (*repository.PipelineDefinition, error)
 }
 
 // Service provides pipeline graph operations: YAML <-> JSON conversion,
@@ -33,8 +33,8 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 // GetPipeline retrieves a pipeline definition from the database for graph building.
-func (s *Service) GetPipeline(ctx context.Context, id string) (*repository.PipelineDefinition, error) {
-	pipeline, err := s.repo.GetPipelineByID(ctx, id)
+func (s *Service) GetPipeline(ctx context.Context, id string, tenantID string) (*repository.PipelineDefinition, error) {
+	pipeline, err := s.repo.GetPipelineByID(ctx, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrPipelineNotFound

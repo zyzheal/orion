@@ -111,3 +111,25 @@ type CreateHotfixChannelRequest struct {
 	NotifyOnCall     *bool    `json:"notify_on_call"`
 	MaxDuration      *int     `json:"max_duration"`
 }
+
+// EnvironmentMapping maps a branch pattern to a target environment.
+type EnvironmentMapping struct {
+	ID              string     `json:"id" db:"id"`
+	TenantID        string     `json:"tenant_id" db:"tenant_id"`
+	ProductLineID   string     `json:"product_line_id" db:"product_line_id"`
+	BranchPattern   string     `json:"branch_pattern" db:"branch_pattern"`
+	Environment     string     `json:"environment" db:"environment"`
+	Priority        int        `json:"priority" db:"priority"`
+	Enabled         bool       `json:"enabled" db:"enabled"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// CreateEnvironmentMappingRequest is the request body for creating an environment mapping.
+type CreateEnvironmentMappingRequest struct {
+	ProductLineID string `json:"productLineID" binding:"required"`
+	BranchPattern string `json:"branchPattern" binding:"required"`
+	Environment   string `json:"environment" binding:"required"`
+	Priority      int    `json:"priority"`
+	Enabled       *bool  `json:"enabled"`
+}

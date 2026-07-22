@@ -47,7 +47,7 @@ func dateTruncFmt(granularity string) string {
 }
 
 // GetRunHistoryTrend returns aggregated run history for a single pipeline.
-func (r *Repository) GetRunHistoryTrend(ctx context.Context, pipelineID, period, granularity string) ([]models.TrendEntry, error) {
+func (r *Repository) GetRunHistoryTrend(ctx context.Context, tenantID, pipelineID, period, granularity string) ([]models.TrendEntry, error) {
 	interval := intervalFromPeriod(period)
 	trunc := dateTruncFmt(granularity)
 
@@ -61,6 +61,7 @@ func (r *Repository) GetRunHistoryTrend(ctx context.Context, pipelineID, period,
 			AVG(EXTRACT(EPOCH FROM (COALESCE(completed_at, NOW()) - started_at)))      AS avg_duration
 		FROM pipeline_runs
 		WHERE pipeline_id = $1
+		  AND tenant_id = $2
 		  AND started_at >= NOW() - INTERVAL '%s'
 		GROUP BY date_trunc('%s', started_at)
 		ORDER BY date_trunc('%s', started_at) ASC
@@ -75,7 +76,7 @@ func (r *Repository) GetRunHistoryTrend(ctx context.Context, pipelineID, period,
 		AvgDuration *float64 `db:"avg_duration"`
 	}
 
-	err := r.db.SelectContext(ctx, &entries, query, pipelineID)
+	err := r.db.SelectContext(ctx, &entries, query, pipelineID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("query pipeline trend: %w", err)
 	}
@@ -95,10 +96,10 @@ func (r *Repository) GetRunHistoryTrend(ctx context.Context, pipelineID, period,
 }
 
 // GetRunHistoryCompare returns aggregated run history for each pipeline.
-func (r *Repository) GetRunHistoryCompare(ctx context.Context, pipelineIDs []string, period, granularity string) (map[string][]models.TrendEntry, error) {
+func (r *Repository) GetRunHistoryCompare(ctx context.Context, tenantID string, pipelineIDs []string, period, granularity string) (map[string][]models.TrendEntry, error) {
 	result := make(map[string][]models.TrendEntry, len(pipelineIDs))
 	for _, pid := range pipelineIDs {
-		entries, err := r.GetRunHistoryTrend(ctx, pid, period, granularity)
+		entries, err := r.GetRunHistoryTrend(ctx, tenantID, pid, period, granularity)
 		if err != nil {
 			return nil, fmt.Errorf("query compare for pipeline %s: %w", pid, err)
 		}

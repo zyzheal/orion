@@ -134,7 +134,7 @@ func (h *Handler) GetSpace(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSpace")
 	defer span.End()
 	id := c.Param("id")
-	space, err := h.svc.GetSpace(ctx, id)
+	space, err := h.svc.GetSpace(ctx, id, c.GetString("tenant_id"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
@@ -155,7 +155,7 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	space, err := h.svc.UpdateSpace(ctx, id, req)
+	space, err := h.svc.UpdateSpace(ctx, id, c.GetString("tenant_id"), req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
@@ -171,7 +171,7 @@ func (h *Handler) DeleteSpace(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSpace")
 	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteSpace(ctx, id); err != nil {
+	if err := h.svc.DeleteSpace(ctx, id, c.GetString("tenant_id")); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
 			return
@@ -283,7 +283,7 @@ func (h *Handler) GetDoc(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDoc")
 	defer span.End()
 	id := c.Param("id")
-	doc, err := h.svc.GetDoc(ctx, id)
+	doc, err := h.svc.GetDoc(ctx, id, c.GetString("tenant_id"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
@@ -304,7 +304,7 @@ func (h *Handler) UpdateDoc(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	doc, err := h.svc.UpdateDoc(ctx, id, req)
+	doc, err := h.svc.UpdateDoc(ctx, id, c.GetString("tenant_id"), req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
@@ -320,7 +320,7 @@ func (h *Handler) DeleteDoc(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDoc")
 	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteDoc(ctx, id); err != nil {
+	if err := h.svc.DeleteDoc(ctx, id, c.GetString("tenant_id")); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
 			return
@@ -335,7 +335,7 @@ func (h *Handler) GetDocVersions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDocVersions")
 	defer span.End()
 	id := c.Param("id")
-	versions, err := h.svc.GetDocVersions(ctx, id)
+	versions, err := h.svc.GetDocVersions(ctx, id, c.GetString("tenant_id"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
@@ -502,7 +502,7 @@ func (h *Handler) GetGraph(c *gin.Context) {
 	var spaces []models.Space
 	var err error
 	if spaceID != "" {
-		space, e := h.svc.GetSpace(ctx, spaceID)
+		space, e := h.svc.GetSpace(ctx, spaceID, c.GetString("tenant_id"))
 		if e != nil {
 			if service.IsNotFound(e) {
 				middleware.RespondNotFound(c, "space not found")

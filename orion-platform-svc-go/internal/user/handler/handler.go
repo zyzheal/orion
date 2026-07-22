@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/user/models"
 	"orion/platform-svc-go/internal/user/service"
@@ -37,14 +38,14 @@ func NewHandler(svc Service) *Handler {
 
 // RegisterRoutes mounts all user routes onto the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/users", h.Create)
-	rg.GET("/users", h.List)
-	rg.GET("/users/count", h.Count)
+	rg.POST("/users", auth.RequirePermission("user", "write"), h.Create)
+	rg.GET("/users", auth.RequirePermission("user", "read"), h.List)
+	rg.GET("/users/count", auth.RequirePermission("user", "read"), h.Count)
 	rg.POST("/users/authenticate", h.Authenticate)
-	rg.GET("/users/:id", h.Get)
-	rg.PUT("/users/:id", h.Update)
-	rg.PUT("/users/:id/password", h.ChangePassword)
-	rg.DELETE("/users/:id", h.Delete)
+	rg.GET("/users/:id", auth.RequirePermission("user", "read"), h.Get)
+	rg.PUT("/users/:id", auth.RequirePermission("user", "write"), h.Update)
+	rg.PUT("/users/:id/password", auth.RequirePermission("user", "write"), h.ChangePassword)
+	rg.DELETE("/users/:id", auth.RequirePermission("user", "delete"), h.Delete)
 }
 
 // Create creates a new user.

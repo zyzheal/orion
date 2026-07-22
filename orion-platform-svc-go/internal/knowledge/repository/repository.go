@@ -12,13 +12,14 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/jmoiron/sqlx"
 )
 
 type Repository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
@@ -84,12 +85,12 @@ func (r *Repository) CreateSpace(ctx context.Context, space *models.Space) error
 	return err
 }
 
-func (r *Repository) GetSpaceByID(ctx context.Context, id string) (*models.Space, error) {
+func (r *Repository) GetSpaceByID(ctx context.Context, id string, tenantID string) (*models.Space, error) {
 	var space models.Space
 	var teamID sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, tenant_id, name, type, description, team_id, owner_id, created_at, updated_at
-		 FROM kb_spaces WHERE id = $1`, id).Scan(
+		 FROM kb_spaces WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(
 		&space.ID, &space.TenantID, &space.Name, &space.Type, &space.Description,
 		&teamID, &space.OwnerID, &space.CreatedAt, &space.UpdatedAt,
 	)
@@ -100,7 +101,7 @@ func (r *Repository) GetSpaceByID(ctx context.Context, id string) (*models.Space
 	return &space, nil
 }
 
-func (r *Repository) UpdateSpace(ctx context.Context, id string, updates map[string]interface{}) error {
+func (r *Repository) UpdateSpace(ctx context.Context, id string, tenantID string, updates map[string]interface{}) error {
 	fields := make([]string, 0, len(updates)+1)
 	args := make([]interface{}, 0, len(updates)+1)
 	argNum := 1
@@ -111,15 +112,17 @@ func (r *Repository) UpdateSpace(ctx context.Context, id string, updates map[str
 	}
 	fields = append(fields, fmt.Sprintf("updated_at = NOW()"))
 	args = append(args, id)
+	argNum++
 
-	sqlQuery := fmt.Sprintf("UPDATE kb_spaces SET %s WHERE id = $%d",
-		strings.Join(fields, ", "), argNum)
+	sqlQuery := fmt.Sprintf("UPDATE kb_spaces SET %s WHERE id = $%d AND tenant_id = $%d",
+		strings.Join(fields, ", "), argNum-1, argNum)
+	args = append(args, tenantID)
 	_, err := r.db.ExecContext(ctx, sqlQuery, args...)
 	return err
 }
 
-func (r *Repository) DeleteSpace(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_spaces WHERE id = $1", id)
+func (r *Repository) DeleteSpace(ctx context.Context, id string, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_spaces WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
 
@@ -162,11 +165,11 @@ func (r *Repository) ListDocsByType(ctx context.Context, tenantID string, q mode
 	return r.ListDocs(ctx, tenantID, q)
 }
 
-func (r *Repository) GetDocByID(ctx context.Context, id string) (*models.Document, error) {
+func (r *Repository) GetDocByID(ctx context.Context, id string, tenantID string) (*models.Document, error) {
 	var doc models.Document
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, tenant_id, title, content, space_id, tags, status, author_id, created_at, updated_at
-		 FROM kb_docs WHERE id = $1`, id).Scan(
+		 FROM kb_docs WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(
 		&doc.ID, &doc.TenantID, &doc.Title, &doc.Content, &doc.SpaceID,
 		&doc.Tags, &doc.Status, &doc.AuthorID, &doc.CreatedAt, &doc.UpdatedAt,
 	)
@@ -196,7 +199,7 @@ func (r *Repository) CreateDoc(ctx context.Context, doc *models.Document) error 
 	return err
 }
 
-func (r *Repository) UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) error {
+func (r *Repository) UpdateDoc(ctx context.Context, id string, tenantID string, updates map[string]interface{}) error {
 	fields := make([]string, 0, len(updates)+1)
 	args := make([]interface{}, 0, len(updates)+1)
 	argNum := 1
@@ -216,30 +219,33 @@ func (r *Repository) UpdateDoc(ctx context.Context, id string, updates map[strin
 	}
 	fields = append(fields, fmt.Sprintf("updated_at = NOW()"))
 	args = append(args, id)
+	argNum++
 
-	sqlQuery := fmt.Sprintf("UPDATE kb_docs SET %s WHERE id = $%d",
-		strings.Join(fields, ", "), argNum)
+	sqlQuery := fmt.Sprintf("UPDATE kb_docs SET %s WHERE id = $%d AND tenant_id = $%d",
+		strings.Join(fields, ", "), argNum-1, argNum)
+	args = append(args, tenantID)
 	_, err := r.db.ExecContext(ctx, sqlQuery, args...)
 	return err
 }
 
-func (r *Repository) DeleteDoc(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE id = $1", id)
+func (r *Repository) DeleteDoc(ctx context.Context, id string, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
 
-func (r *Repository) DeleteDocsBySpace(ctx context.Context, spaceID string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE space_id = $1", spaceID)
+func (r *Repository) DeleteDocsBySpace(ctx context.Context, spaceID string, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM kb_docs WHERE space_id = $1 AND tenant_id = $2", spaceID, tenantID)
 	return err
 }
 
 // --- Document versions ---
 
-func (r *Repository) GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error) {
+func (r *Repository) GetDocVersions(ctx context.Context, docID string, tenantID string) ([]models.DocVersion, error) {
 	var items []models.DocVersion
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, document_id, content, author_id, created_at FROM kb_doc_versions
-		 WHERE document_id = $1 ORDER BY created_at DESC`, docID)
+		`SELECT v.id, v.document_id, v.content, v.author_id, v.created_at FROM kb_doc_versions v
+		 INNER JOIN kb_docs d ON v.document_id = d.id
+		 WHERE v.document_id = $1 AND d.tenant_id = $2 ORDER BY v.created_at DESC`, docID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +417,7 @@ func (r *Repository) buildSpaceQuery(tenantID string, spaceType, search string, 
 }
 
 // nextID generates a simple auto-increment ID (placeholder; in production use a sequence).
-func nextID(ctx context.Context, db *sql.DB) int {
+func nextID(ctx context.Context, db *sqlx.DB) int {
 	var id int
 	err := db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) + 1 FROM kb_sync_logs").Scan(&id)
 	if err != nil {

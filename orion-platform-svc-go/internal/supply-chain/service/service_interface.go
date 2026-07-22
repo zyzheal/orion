@@ -18,7 +18,7 @@ type ServiceInterface interface {
 	GetDependencyGraph(ctx context.Context, tenantID, packageName, version string) (*models.DependencyGraph, error)
 	GetSBOM(ctx context.Context, tenantID, sbomID string) (*models.SBOM, error)
 	GetSupplyChainReport(ctx context.Context, tenantID, pipelineID string) (*models.SupplyChainReport, error)
-	GetVulnerabilitiesForComponent(ctx context.Context, name, version string) ([]models.Vulnerability, error)
+	GetVulnerabilitiesForComponent(ctx context.Context, tenantID, name, version string) ([]models.Vulnerability, error)
 	ListSBOMs(ctx context.Context, tenantID string, q models.ListSBOMsQuery) ([]models.SBOM, error)
 	SignArtifact(ctx context.Context, tenantID, artifactID string, req *models.SignArtifactRequest) (*models.ArtifactSignature, error)
 	VerifyArtifactSignature(ctx context.Context, artifactID, signature string, req *models.VerifySignatureRequest) (*models.ArtifactSignature, error)

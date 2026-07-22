@@ -14,9 +14,9 @@ import (
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID, userID string, req *models.CreateSecretRequest) (*SecretListItem, error)
 	Delete(ctx context.Context, tenantID, id string) error
-	Get(ctx context.Context, id string) (*SecretListItem, error)
+	Get(ctx context.Context, id string, tenantID string) (*SecretListItem, error)
 	GetByName(ctx context.Context, tenantID, name, scope string) (*SecretListItem, error)
-	GetReferences(ctx context.Context, id string) (*models.Secret, error)
+	GetReferences(ctx context.Context, id string, tenantID string) (*models.Secret, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter) ([]SecretListItem, error)
 	Resolve(ctx context.Context, tenantID string, req *models.ResolveSecretsRequest) (*models.ResolveSecretsResult, error)
 	Update(ctx context.Context, tenantID, id string, req *models.UpdateSecretRequest) (*SecretListItem, error)

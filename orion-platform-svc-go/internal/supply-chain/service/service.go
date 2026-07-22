@@ -19,7 +19,7 @@ type RepositoryInterface interface {
 	GetSignature(ctx context.Context, artifactID, signature string) (*models.ArtifactSignature, error)
 	GetSignatureCountForArtifact(ctx context.Context, artifactID string) (int, error)
 	GetSupplyChainReport(ctx context.Context, tenantID, pipelineID string) (*models.SupplyChainReport, error)
-	GetVulnerabilitiesForComponent(ctx context.Context, name, version string) ([]models.Vulnerability, error)
+	GetVulnerabilitiesForComponent(ctx context.Context, tenantID, name, version string) ([]models.Vulnerability, error)
 	InsertDependencyGraph(ctx context.Context, tenantID, packageName, packageVersion string, directDeps, transitiveDeps, vulnerablePaths []byte, depth int) error
 	ListSBOMs(ctx context.Context, tenantID string, q models.ListSBOMsQuery) ([]models.SBOM, error)
 	VerifySignature(ctx context.Context, artifactID, signature string, verified bool) error
@@ -114,6 +114,6 @@ func (s *Service) GetSupplyChainReport(ctx context.Context, tenantID, pipelineID
 	return s.repo.GetSupplyChainReport(ctx, tenantID, pipelineID)
 }
 
-func (s *Service) GetVulnerabilitiesForComponent(ctx context.Context, name, version string) ([]models.Vulnerability, error) {
-	return s.repo.GetVulnerabilitiesForComponent(ctx, name, version)
+func (s *Service) GetVulnerabilitiesForComponent(ctx context.Context, tenantID, name, version string) ([]models.Vulnerability, error) {
+	return s.repo.GetVulnerabilitiesForComponent(ctx, tenantID, name, version)
 }

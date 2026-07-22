@@ -421,8 +421,8 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 	// Check temporary permission first
 	var activeCount int
 	err := r.db.GetContext(ctx, &activeCount,
-		`SELECT COUNT(*) FROM temporary_permissions WHERE user_id=$1 AND capability_id=$2 AND expires_at > NOW() AND revoked=false`,
-		userID, capabilityID)
+		`SELECT COUNT(*) FROM temporary_permissions WHERE tenant_id=$1 AND user_id=$2 AND capability_id=$3 AND expires_at > NOW() AND revoked=false`,
+		tenantID, userID, capabilityID)
 	if err != nil {
 		return false, "", err
 	}
@@ -433,15 +433,16 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 	// Check role-based grant using IN clause
 	if len(userRoles) > 0 {
 		placeholders := make([]string, len(userRoles))
-		args := make([]interface{}, 2+len(userRoles))
-		args[0] = capabilityID
+		args := make([]interface{}, 3+len(userRoles))
+		args[0] = tenantID
+		args[1] = capabilityID
 		for i, role := range userRoles {
-			placeholders[i] = fmt.Sprintf("$%d", i+2)
-			args[i+2] = role
+			placeholders[i] = fmt.Sprintf("$%d", i+3)
+			args[i+3] = role
 		}
 		var count int
 		err = r.db.GetContext(ctx, &count,
-			`SELECT COUNT(*) FROM capability_role_mappings WHERE capability_id=$1 AND role_name IN (`+strings.Join(placeholders, ",")+`)`,
+			`SELECT COUNT(*) FROM capability_role_mappings WHERE tenant_id=$1 AND capability_id=$2 AND role_name IN (`+strings.Join(placeholders, ",")+`)`,
 			args...)
 		if err != nil {
 			return false, "", err
@@ -454,8 +455,8 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 	// Check direct user grant
 	var userCount int
 	err = r.db.GetContext(ctx, &userCount,
-		`SELECT COUNT(*) FROM capability_user_mappings WHERE capability_id=$1 AND user_id=$2 AND (expires_at IS NULL OR expires_at > NOW())`,
-		capabilityID, userID)
+		`SELECT COUNT(*) FROM capability_user_mappings WHERE capability_id=$1 AND user_id=$2 AND tenant_id=$3 AND (expires_at IS NULL OR expires_at > NOW())`,
+		capabilityID, userID, tenantID)
 	if err != nil {
 		return false, "", err
 	}

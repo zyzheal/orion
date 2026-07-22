@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"time"
 
 	"orion/platform-svc-go/internal/digital-twin/models"
@@ -77,28 +76,27 @@ func (s *Service) FindTwin(ctx context.Context, tenantID, id string) (*models.Di
 
 // --- Twin state (simulation) ---
 
-// GetTwinState returns the simulated runtime state for a twin.
+// GetTwinState returns the runtime state for a twin sourced from the database.
+// Status is taken directly from the stored DigitalTwin record.
+// Runtime metrics (CPU, memory, network, replicas) are not yet backed by a live
+// metrics store; they are returned as zero/empty until a metrics backend
+// (e.g. Prometheus / digital-twin-simulation) is wired in.
 func (s *Service) GetTwinState(ctx context.Context, tenantID, twinID string) (*TwinState, error) {
-	_, err := s.repo.FindTwinByID(ctx, tenantID, twinID)
+	twin, err := s.repo.FindTwinByID(ctx, tenantID, twinID)
 	if err != nil {
 		return nil, err
 	}
-	simulated := s.tick(twinID)
-	cpuUsage := simulated.latency / (simulated.latency + 800) * 100
-	memUsage := simulated.errorRate * 100
-	inbound := int(float64(simulated.latency)*0.8) + rand.Intn(20)
-	outbound := int(float64(simulated.latency)*0.4) + rand.Intn(10)
 	return &TwinState{
-		TwinID:      twinID,
-		Status:      simulated.state,
-		Replicas:    3,
-		CPUUsage:    int(cpuUsage),
-		MemoryUsage: int(memUsage),
+		TwinID:      twin.ID,
+		Status:      twin.Status,
+		Replicas:    0, // not backed by a metrics store yet
+		CPUUsage:    0,
+		MemoryUsage: 0,
 		NetworkIO: NetworkIO{
-			Inbound:  strconv.Itoa(inbound) + "MB/s",
-			Outbound: strconv.Itoa(outbound) + "MB/s",
+			Inbound:  "0MB/s",
+			Outbound: "0MB/s",
 		},
-		LastSync: simulated.lastTransitionAt,
+		LastSync: twin.UpdatedAt,
 	}, nil
 }
 

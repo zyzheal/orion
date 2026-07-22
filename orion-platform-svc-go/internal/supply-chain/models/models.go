@@ -154,6 +154,7 @@ type ArtifactSignatureResponse struct {
 // Vulnerability represents a found vulnerability in a component.
 type Vulnerability struct {
 	CVEID         string             `json:"cve_id" db:"cve_id"`
+	TenantID      string             `json:"tenant_id" db:"tenant_id"`
 	Name          string             `json:"name" db:"name"`
 	Version       string             `json:"version" db:"version"`
 	Description   string             `json:"description" db:"description"`

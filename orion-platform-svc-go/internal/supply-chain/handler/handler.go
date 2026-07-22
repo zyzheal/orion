@@ -197,7 +197,8 @@ func (h *Handler) GetVulnerabilities(c *gin.Context) {
 		middleware.RespondBadRequest(c, "name and version are required")
 		return
 	}
-	vulns, err := h.svc.GetVulnerabilitiesForComponent(ctx, name, version)
+	tenantID := h.getTenantID(c)
+		vulns, err := h.svc.GetVulnerabilitiesForComponent(ctx, tenantID, name, version)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

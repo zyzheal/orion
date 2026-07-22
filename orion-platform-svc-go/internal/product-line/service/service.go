@@ -25,6 +25,9 @@ type RepositoryInterface interface {
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.ProductLine, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	UpdatePhase(ctx context.Context, tenantID, id string, phase models.Phase) (*models.ProductLine, error)
+	CreateEnvironmentMapping(ctx context.Context, tenantID string, m *models.EnvironmentMapping) error
+	GetEnvironmentMappings(ctx context.Context, tenantID, productLineID string) ([]models.EnvironmentMapping, error)
+	DeleteEnvironmentMapping(ctx context.Context, tenantID, id string) error
 }
 
 type Service struct {
@@ -188,6 +191,32 @@ func (s *Service) IsHotfixBranch(ctx context.Context, tenantID, productLineID, b
 		return false, err
 	}
 	return matched, nil
+}
+
+
+// ==================== EnvironmentMapping ====================
+
+// ResolveEnvironmentMapping looks up the target environment for a given branch
+// by evaluating the configured environment mappings in priority order.
+// The first mapping whose branch_pattern (regex) matches the branch wins.
+// If no mapping matches, the default "dev" environment is returned with the
+// branch that was matched (empty string when none was provided).
+func (s *Service) ResolveEnvironmentMapping(ctx context.Context, tenantID, productLineID, branch string) (environment string, matchedBranch string, err error) {
+	mappings, err := s.repo.GetEnvironmentMappings(ctx, tenantID, productLineID)
+	if err != nil {
+		return "", "", err
+	}
+	if branch == "" {
+		return "dev", "", nil
+	}
+	for _, m := range mappings {
+		matched, _ := regexp.MatchString(m.BranchPattern, branch)
+		if matched {
+			return m.Environment, m.BranchPattern, nil
+		}
+	}
+	// Fallback: branch provided but no mapping matched
+	return "dev", "", nil
 }
 
 // ==================== Branch helpers ====================

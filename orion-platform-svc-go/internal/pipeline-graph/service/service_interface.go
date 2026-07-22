@@ -14,7 +14,7 @@ import (
 // ServiceInterface defines the interface for the pipeline-graph service.
 type ServiceInterface interface {
 	BuildGraph(pipelineID, yamlDefinition string) (*models.GraphData, error)
-	GetPipeline(ctx context.Context, id string) (*repository.PipelineDefinition, error)
+	GetPipeline(ctx context.Context, id string, tenantID string) (*repository.PipelineDefinition, error)
 	JsonToYaml(graph models.GraphData) (*models.YamlToJsonResponse, error)
 	Validate(yamlDefinition string) (*models.ValidateResponse, error)
 	YamlToJson(yamlDefinition string) (*models.YamlParseResponse, error)

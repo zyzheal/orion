@@ -14,21 +14,21 @@ import (
 type ServiceInterface interface {
 	CreateDoc(ctx context.Context, tenantID string, req models.CreateDocumentRequest) (*models.Document, error)
 	CreateSpace(ctx context.Context, tenantID string, req models.CreateSpaceRequest) (*models.Space, error)
-	DeleteDoc(ctx context.Context, id string) error
-	DeleteSpace(ctx context.Context, id string) error
-	GetDoc(ctx context.Context, id string) (*models.Document, error)
+	DeleteDoc(ctx context.Context, id string, tenantID string) error
+	DeleteSpace(ctx context.Context, id string, tenantID string) error
+	GetDoc(ctx context.Context, id string, tenantID string) (*models.Document, error)
 	GetDocTags(ctx context.Context, tenantID string) ([]string, error)
 	GetDocToc(ctx context.Context, tenantID string) ([]models.Document, error)
-	GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error)
-	GetSpace(ctx context.Context, id string) (*models.Space, error)
+	GetDocVersions(ctx context.Context, docID string, tenantID string) ([]models.DocVersion, error)
+	GetSpace(ctx context.Context, id string, tenantID string) (*models.Space, error)
 	GetSyncLogs(ctx context.Context, tenantID string, limit int) ([]models.SyncLog, error)
 	ListDocs(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error)
 	ListDocsByType(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error)
 	ListSpaces(ctx context.Context, tenantID string, q models.SpaceListQuery) ([]models.Space, error)
 	Retrieve(ctx context.Context, tenantID string, query string, req models.RetrieveRequest) ([]models.RAGRetrieveResult, error)
 	TriggerSync(ctx context.Context, tenantID string, source string) (*models.SyncLog, error)
-	UpdateDoc(ctx context.Context, id string, req models.UpdateDocumentRequest) (*models.Document, error)
-	UpdateSpace(ctx context.Context, id string, req models.UpdateSpaceRequest) (*models.Space, error)
+	UpdateDoc(ctx context.Context, id string, tenantID string, req models.UpdateDocumentRequest) (*models.Document, error)
+	UpdateSpace(ctx context.Context, id string, tenantID string, req models.UpdateSpaceRequest) (*models.Space, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

@@ -57,7 +57,8 @@ func (h *Handler) GetRunHistoryTrend(c *gin.Context) {
 	period := c.DefaultQuery("period", "30d")
 	granularity := c.DefaultQuery("granularity", "day")
 
-	result, err := h.svc.GetRunHistoryTrend(ctx, pipelineID, period, granularity)
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetRunHistoryTrend(ctx, tenantID, pipelineID, period, granularity)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -93,7 +94,8 @@ func (h *Handler) GetRunHistoryCompare(c *gin.Context) {
 	period := c.DefaultQuery("period", "30d")
 	granularity := c.DefaultQuery("granularity", "day")
 
-	result, err := h.svc.GetRunHistoryCompare(ctx, pipelineIDs, period, granularity)
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetRunHistoryCompare(ctx, tenantID, pipelineIDs, period, granularity)
 	if err != nil {
 		switch {
 		case service.IsNotFound(err):

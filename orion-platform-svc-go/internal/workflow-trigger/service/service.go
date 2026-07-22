@@ -149,7 +149,7 @@ func (s *Service) Trigger(ctx context.Context, tenantID, id string, payload map[
 
 	// Create a trigger log entry recording this execution.
 	// In a full implementation, this would also trigger the actual workflow execution.
-	logEntry := &models.TriggerLog{
+	_ = &models.TriggerLog{
 		ID:         uuid.New().String(),
 		TriggerID:  trigger.ID,
 		WorkflowID: trigger.WorkflowID,
@@ -159,7 +159,7 @@ func (s *Service) Trigger(ctx context.Context, tenantID, id string, payload map[
 	}
 
 	// Log entry is created; actual workflow execution would be dispatched here.
-	_ = logEntry
+
 
 	return nil
 }

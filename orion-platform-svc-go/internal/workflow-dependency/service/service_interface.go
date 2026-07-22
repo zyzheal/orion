@@ -12,9 +12,9 @@ import (
 
 // ServiceInterface defines the interface for the workflow-dependency service.
 type ServiceInterface interface {
-	CheckDefinition(ctx context.Context, definitionID string) (*models.DependencyCheck, error)
-	GetGraph(ctx context.Context) (*models.DependencyGraph, error)
-	GetVisualization(ctx context.Context) (*models.VisualizationData, error)
+	CheckDefinition(ctx context.Context, definitionID, tenantID string) (*models.DependencyCheck, error)
+	GetGraph(ctx context.Context, tenantID string) (*models.DependencyGraph, error)
+	GetVisualization(ctx context.Context, tenantID string) (*models.VisualizationData, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

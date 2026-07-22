@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"orion/platform-svc-go/internal/data-catalog/models"
 
@@ -22,7 +23,6 @@ const DefaultTimeoutSeconds = 10
 
 // Introspector discovers schema metadata from one or more databases.
 type Introspector struct {
-	// Driver names mapped from dialect.
 	drivers map[models.ConnectionType]string
 }
 
@@ -40,12 +40,12 @@ func New() *Introspector {
 // Discover connects to every config and returns per-database results plus errors.
 func (i *Introspector) Discover(ctx context.Context, configs []models.DiscoveryConfig) (map[string][]*models.DiscoveredSchema, []string) {
 	databaseSchemas := make(map[string][]*models.DiscoveredSchema)
-	var errors []string
+	err := make([]string, 0)
 
 	for _, cfg := range configs {
-		schemas, err := i.discoverOne(ctx, cfg)
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("%s (%s): %v", cfg.Name, cfg.Dialect, err))
+		schemas, e := i.discoverOne(ctx, cfg)
+		if e != nil {
+			err = append(err, fmt.Sprintf("%s (%s): %v", cfg.Name, cfg.Dialect, e))
 			continue
 		}
 		if schemas != nil {
@@ -53,7 +53,7 @@ func (i *Introspector) Discover(ctx context.Context, configs []models.DiscoveryC
 		}
 	}
 
-	return databaseSchemas, errors
+	return databaseSchemas, err
 }
 
 // discoverOne connects to a single database and returns the discovered schemas.
@@ -70,53 +70,32 @@ func (i *Introspector) discoverOne(ctx context.Context, cfg models.DiscoveryConf
 	defer db.Close()
 
 	// Ping the database to confirm connectivity.
-	if pingCtx, cancel := context.WithTimeout(ctx, timeoutDuration(cfg.TimeoutSec)); cancel != nil {
+	if pingCtx, cancel := context.WithTimeout(ctx, i.timeoutDuration(cfg.TimeoutSec)); cancel != nil {
 		defer cancel()
-		if err := db.PingContext(pingCtx); err != nil {
-			return nil, fmt.Errorf("ping: %w", err)
+		if e := db.PingContext(pingCtx); e != nil {
+			return nil, fmt.Errorf("ping: %w", e)
 		}
 	}
 
-	var handler discoverer
 	switch cfg.Dialect {
 	case models.ConnectionTypePostgreSQL:
-		handler = i
+		return i.postgresDiscover(ctx, db, cfg)
 	case models.ConnectionTypeMySQL:
-		handler = i
+		return i.mysqlDiscover(ctx, db, cfg)
 	case models.ConnectionTypeSQLite:
-		handler = i
+		return i.sqliteDiscover(ctx, db, cfg)
 	}
-
-	return handler.discoverFor(ctx, db, cfg)
-}
-
-type discoverer interface {
-	discoverFor(ctx context.Context, db *sql.DB, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error)
+	return nil, fmt.Errorf("unsupported dialect: %s", cfg.Dialect)
 }
 
 // ---------- PostgreSQL ----------
 
-func (i *Introspector) discoverPostgreSQL(ctx context.Context, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error) {
-	driver := i.drivers[cfg.Dialect]
-	db, err := sql.Open(driver, cfg.DSN)
-	if err != nil {
-		return nil, fmt.Errorf("open connection: %w", err)
-	}
-	defer db.Close()
-
-	if pingCtx, cancel := context.WithTimeout(ctx, timeoutDuration(cfg.TimeoutSec)); cancel != nil {
-		defer cancel()
-		if err := db.PingContext(pingCtx); err != nil {
-			return nil, fmt.Errorf("ping: %w", err)
-		}
-	}
-
+func (i *Introspector) postgresDiscover(ctx context.Context, db *sql.DB, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error) {
 	schemaName := cfg.SchemaName
 	if schemaName == "" {
 		schemaName = "public"
 	}
 
-	// List tables.
 	tableRows, err := db.QueryContext(ctx,
 		`SELECT table_name FROM information_schema.tables WHERE table_schema=$1 AND table_type='BASE TABLE'`, schemaName)
 	if err != nil {
@@ -125,9 +104,9 @@ func (i *Introspector) discoverPostgreSQL(ctx context.Context, cfg models.Discov
 	var tableNames []string
 	for tableRows.Next() {
 		var t string
-		if err := tableRows.Scan(&t); err != nil {
+		if e := tableRows.Scan(&t); e != nil {
 			tableRows.Close()
-			return nil, fmt.Errorf("scan table: %w", err)
+			return nil, fmt.Errorf("scan table: %w", e)
 		}
 		tableNames = append(tableNames, t)
 	}
@@ -135,11 +114,10 @@ func (i *Introspector) discoverPostgreSQL(ctx context.Context, cfg models.Discov
 
 	schemas := make([]*models.DiscoveredSchema, 0, len(tableNames))
 	for _, t := range tableNames {
-		s, err := i.postgresTable(ctx, db, schemaName, t)
-		if err != nil {
-			// Log but continue; per-table failures should not abort discovery.
+		s, e := i.postgresTable(ctx, db, schemaName, t)
+		if e != nil {
 			s = &models.DiscoveredSchema{TableName: t, SchemaName: schemaName}
-			s.Columns = append(s.Columns, models.ColumnInfo{Name: "", DataType: fmt.Sprintf("error: %v", err)})
+			s.Columns = append(s.Columns, models.ColumnInfo{Name: "", DataType: fmt.Sprintf("error: %v", e)})
 		}
 		schemas = append(schemas, s)
 	}
@@ -148,7 +126,7 @@ func (i *Introspector) discoverPostgreSQL(ctx context.Context, cfg models.Discov
 
 func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, table string) (*models.DiscoveredSchema, error) {
 	ds := &models.DiscoveredSchema{
-		TableName: table,
+		TableName:  table,
 		SchemaName: schema,
 	}
 
@@ -164,7 +142,7 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 	for colRows.Next() {
 		var name, dataType, nullable, def sql.NullString
 		var ordinal int
-		if err := colRows.Scan(&name, &dataType, &nullable, &def, &ordinal); err != nil {
+		if e := colRows.Scan(&name, &dataType, &nullable, &def, &ordinal); e != nil {
 			continue
 		}
 		ds.Columns = append(ds.Columns, models.ColumnInfo{
@@ -186,7 +164,7 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 	if err == nil {
 		for pkRows.Next() {
 			var col string
-			if err := pkRows.Scan(&col); err == nil {
+			if e := pkRows.Scan(&col); e == nil {
 				ds.PrimaryKey = append(ds.PrimaryKey, col)
 				for idx := range ds.Columns {
 					if ds.Columns[idx].Name == col {
@@ -201,8 +179,8 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 	// Foreign keys.
 	fkRows, err := db.QueryContext(ctx,
 		`SELECT a.attname AS column_name,
-			    concat(relpk.relname) AS referenced_table,
-			    concat(attpk.attname) AS referenced_column
+		        concat(relpk.relname) AS referenced_table,
+		        concat(attpk.attname) AS referenced_column
 		 FROM pg_constraint con
 		  JOIN pg_class rel ON rel.oid = con.conrelid
 		  JOIN pg_class relpk ON relpk.oid = con.confrelid
@@ -213,7 +191,7 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 	if err == nil {
 		for fkRows.Next() {
 			var col, refTable, refCol string
-			if err := fkRows.Scan(&col, &refTable, &refCol); err == nil {
+			if e := fkRows.Scan(&col, &refTable, &refCol); e == nil {
 				ds.ForeignKeyRefs = append(ds.ForeignKeyRefs, models.ForeignKeyRef{
 					ColumnName:       col,
 					ReferencedTable:  refTable,
@@ -232,13 +210,13 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 	// Indexes.
 	idxRows, err := db.QueryContext(ctx,
 		`SELECT i.relname AS index_name,
-			    ARRAY(SELECT a.attname
-				      FROM pg_index pi, pg_attribute a
-				      WHERE pi.indexrelid = i.oid AND a.attrelid = i.parent
-				        AND a.attnum = ANY(pi.indkey)
-				      ORDER BY a.attnum) AS cols,
-			    ix.indisunique AS is_unique,
-			    ix.indisprimary AS is_primary
+		        ARRAY(SELECT a.attname
+		              FROM pg_index pi, pg_attribute a
+		              WHERE pi.indexrelid = i.oid AND a.attrelid = i.parent
+		                AND a.attnum = ANY(pi.indkey)
+		              ORDER BY a.attnum) AS cols,
+		        ix.indisunique AS is_unique,
+		        ix.indisprimary AS is_primary
 		 FROM pg_index ix, pg_class i, pg_class parent
 		 WHERE ix.indexrelid = i.oid AND ix.indrelid = parent.oid
 		   AND parent.relname = $1 AND parent.relnamespace = $2::regnamespace::oid`,
@@ -248,7 +226,7 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 			var name string
 			var cols []string
 			var isUnique, isPrimary bool
-			if err := idxRows.Scan(&name, &cols, &isUnique, &isPrimary); err == nil {
+			if e := idxRows.Scan(&name, &cols, &isUnique, &isPrimary); e == nil {
 				ds.Indexes = append(ds.Indexes, models.IndexInfo{
 					Name:      name,
 					Columns:   cols,
@@ -265,21 +243,7 @@ func (i *Introspector) postgresTable(ctx context.Context, db *sql.DB, schema, ta
 
 // ---------- MySQL ----------
 
-func (i *Introspector) discoverMySQL(ctx context.Context, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error) {
-	driver := i.drivers[cfg.Dialect]
-	db, err := sql.Open(driver, cfg.DSN)
-	if err != nil {
-		return nil, fmt.Errorf("open connection: %w", err)
-	}
-	defer db.Close()
-
-	if pingCtx, cancel := context.WithTimeout(ctx, timeoutDuration(cfg.TimeoutSec)); cancel != nil {
-		defer cancel()
-		if err := db.PingContext(pingCtx); err != nil {
-			return nil, fmt.Errorf("ping: %w", err)
-		}
-	}
-
+func (i *Introspector) mysqlDiscover(ctx context.Context, db *sql.DB, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error) {
 	tableName := cfg.SchemaName // for MySQL, SchemaName field is reused as the database name.
 
 	tableRows, err := db.QueryContext(ctx,
@@ -290,9 +254,9 @@ func (i *Introspector) discoverMySQL(ctx context.Context, cfg models.DiscoveryCo
 	var tableNames []string
 	for tableRows.Next() {
 		var t string
-		if err := tableRows.Scan(&t); err != nil {
+		if e := tableRows.Scan(&t); e != nil {
 			tableRows.Close()
-			return nil, fmt.Errorf("scan table: %w", err)
+			return nil, fmt.Errorf("scan table: %w", e)
 		}
 		tableNames = append(tableNames, t)
 	}
@@ -300,10 +264,10 @@ func (i *Introspector) discoverMySQL(ctx context.Context, cfg models.DiscoveryCo
 
 	schemas := make([]*models.DiscoveredSchema, 0, len(tableNames))
 	for _, t := range tableNames {
-		s, err := i.mysqlTable(ctx, db, tableName, t)
-		if err != nil {
+		s, e := i.mysqlTable(ctx, db, tableName, t)
+		if e != nil {
 			s = &models.DiscoveredSchema{TableName: t, SchemaName: tableName}
-			s.Columns = append(s.Columns, models.ColumnInfo{Name: "", DataType: fmt.Sprintf("error: %v", err)})
+			s.Columns = append(s.Columns, models.ColumnInfo{Name: "", DataType: fmt.Sprintf("error: %v", e)})
 		}
 		schemas = append(schemas, s)
 	}
@@ -312,7 +276,7 @@ func (i *Introspector) discoverMySQL(ctx context.Context, cfg models.DiscoveryCo
 
 func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, table string) (*models.DiscoveredSchema, error) {
 	ds := &models.DiscoveredSchema{
-		TableName: table,
+		TableName:  table,
 		SchemaName: database,
 	}
 
@@ -328,7 +292,7 @@ func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, tab
 		var name, dataType, nullable string
 		var def sql.NullString
 		var ordinal int
-		if err := colRows.Scan(&name, &dataType, &nullable, &def, &ordinal); err != nil {
+		if e := colRows.Scan(&name, &dataType, &nullable, &def, &ordinal); e != nil {
 			continue
 		}
 		ds.Columns = append(ds.Columns, models.ColumnInfo{
@@ -349,7 +313,7 @@ func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, tab
 	if err == nil {
 		for pkRows.Next() {
 			var col string
-			if err := pkRows.Scan(&col); err == nil {
+			if e := pkRows.Scan(&col); e == nil {
 				ds.PrimaryKey = append(ds.PrimaryKey, col)
 				for idx := range ds.Columns {
 					if ds.Columns[idx].Name == col {
@@ -364,8 +328,8 @@ func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, tab
 	// Foreign keys.
 	fkRows, err := db.QueryContext(ctx,
 		`SELECT kcu.column_name,
-			    kcu.referenced_table_name,
-			    kcu.referenced_column_name
+		        kcu.referenced_table_name,
+		        kcu.referenced_column_name
 		 FROM information_schema.referential_constraints rc
 		 JOIN information_schema.key_column_usage kcu ON kcu.constraint_name = rc.constraint_name
 		 WHERE rc.constraint_schema=? AND kcu.table_schema=? AND kcu.table_name=?`,
@@ -373,7 +337,7 @@ func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, tab
 	if err == nil {
 		for fkRows.Next() {
 			var col, refTable, refCol sql.NullString
-			if err := fkRows.Scan(&col, &refTable, &refCol); err == nil && col.String != "" {
+			if e := fkRows.Scan(&col, &refTable, &refCol); e == nil && col.String != "" {
 				ds.ForeignKeyRefs = append(ds.ForeignKeyRefs, models.ForeignKeyRef{
 					ColumnName:       col.String,
 					ReferencedTable:  refTable.String,
@@ -399,7 +363,7 @@ func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, tab
 		for idxRows.Next() {
 			var name, cols string
 			var nonUnique int
-			if err := idxRows.Scan(&name, &cols, &nonUnique); err == nil {
+			if e := idxRows.Scan(&name, &cols, &nonUnique); e == nil {
 				ds.Indexes = append(ds.Indexes, models.IndexInfo{
 					Name:      name,
 					Columns:   strings.Split(cols, ","),
@@ -416,22 +380,7 @@ func (i *Introspector) mysqlTable(ctx context.Context, db *sql.DB, database, tab
 
 // ---------- SQLite ----------
 
-func (i *Introspector) discoverSQLite(ctx context.Context, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error) {
-	driver := i.drivers[cfg.Dialect]
-	db, err := sql.Open(driver, cfg.DSN)
-	if err != nil {
-		return nil, fmt.Errorf("open connection: %w", err)
-	}
-	defer db.Close()
-
-	if pingCtx, cancel := context.WithTimeout(ctx, timeoutDuration(cfg.TimeoutSec)); cancel != nil {
-		defer cancel()
-		if err := db.PingContext(pingCtx); err != nil {
-			return nil, fmt.Errorf("ping: %w", err)
-		}
-	}
-
-	// List tables from sqlite_master.
+func (i *Introspector) sqliteDiscover(ctx context.Context, db *sql.DB, cfg models.DiscoveryConfig) ([]*models.DiscoveredSchema, error) {
 	tableRows, err := db.QueryContext(ctx,
 		`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
 	if err != nil {
@@ -440,9 +389,9 @@ func (i *Introspector) discoverSQLite(ctx context.Context, cfg models.DiscoveryC
 	var tableNames []string
 	for tableRows.Next() {
 		var t string
-		if err := tableRows.Scan(&t); err != nil {
+		if e := tableRows.Scan(&t); e != nil {
 			tableRows.Close()
-			return nil, fmt.Errorf("scan table: %w", err)
+			return nil, fmt.Errorf("scan table: %w", e)
 		}
 		tableNames = append(tableNames, t)
 	}
@@ -450,10 +399,10 @@ func (i *Introspector) discoverSQLite(ctx context.Context, cfg models.DiscoveryC
 
 	schemas := make([]*models.DiscoveredSchema, 0, len(tableNames))
 	for _, t := range tableNames {
-		s, err := i.sqliteTable(ctx, db, t)
-		if err != nil {
+		s, e := i.sqliteTable(ctx, db, t)
+		if e != nil {
 			s = &models.DiscoveredSchema{TableName: t}
-			s.Columns = append(s.Columns, models.ColumnInfo{Name: "", DataType: fmt.Sprintf("error: %v", err)})
+			s.Columns = append(s.Columns, models.ColumnInfo{Name: "", DataType: fmt.Sprintf("error: %v", e)})
 		}
 		schemas = append(schemas, s)
 	}
@@ -476,15 +425,15 @@ func (i *Introspector) sqliteTable(ctx context.Context, db *sql.DB, table string
 		var name, dataType string
 		var notNull, pk int
 		var def sql.NullString
-		if err := colRows.Scan(&cid, &name, &dataType, &notNull, &def, &pk); err != nil {
+		if e := colRows.Scan(&cid, &name, &dataType, &notNull, &def, &pk); e != nil {
 			continue
 		}
 		ds.Columns = append(ds.Columns, models.ColumnInfo{
-			Name:           name,
-			DataType:       dataType,
-			IsNullable:     notNull == 0,
-			IsPrimary:      pk != 0,
-			DefaultValue:   def.String,
+			Name:            name,
+			DataType:        dataType,
+			IsNullable:      notNull == 0,
+			IsPrimary:       pk != 0,
+			DefaultValue:    def.String,
 			OrdinalPosition: cid,
 		})
 	}
@@ -504,7 +453,7 @@ func (i *Introspector) sqliteTable(ctx context.Context, db *sql.DB, table string
 			var seq int
 			var refTable, fromCol, toCol string
 			var onUpdate, onDelete, match string
-			if err := fkRows.Scan(&seq, &refTable, &toCol, &fromCol, &onUpdate, &onDelete, &match); err != nil {
+			if e := fkRows.Scan(&seq, &refTable, &toCol, &fromCol, &onUpdate, &onDelete, &match); e != nil {
 				continue
 			}
 			ds.ForeignKeyRefs = append(ds.ForeignKeyRefs, models.ForeignKeyRef{
@@ -527,7 +476,7 @@ func (i *Introspector) sqliteTable(ctx context.Context, db *sql.DB, table string
 		for idxListRows.Next() {
 			var seq, unique, origin, partial int
 			var idxName string
-			if err := idxListRows.Scan(&seq, &idxName, &unique, &origin, &partial); err != nil {
+			if e := idxListRows.Scan(&seq, &idxName, &unique, &origin, &partial); e != nil {
 				continue
 			}
 			if idxName == "" {
@@ -535,17 +484,16 @@ func (i *Introspector) sqliteTable(ctx context.Context, db *sql.DB, table string
 			}
 			var cols []string
 			isPrimary := strings.HasPrefix(idxName, "sqlite_autoindex_")
-			if origin == "pk" || isPrimary {
+			if isPrimary {
 				isPrimary = true
 			}
 
-			infoRows, err := db.QueryContext(ctx, fmt.Sprintf(`PRAGMA index_info(%q)`, idxName))
-			if err == nil {
+			infoRows, e := db.QueryContext(ctx, fmt.Sprintf(`PRAGMA index_info(%q)`, idxName))
+			if e == nil {
 				for infoRows.Next() {
 					var seqno int
-					var col string
-					var key string
-					if err := infoRows.Scan(&seqno, &key, &col); err == nil {
+					var key, col string
+					if e := infoRows.Scan(&seqno, &key, &col); e == nil {
 						cols = append(cols, col)
 					}
 				}
@@ -567,23 +515,12 @@ func (i *Introspector) sqliteTable(ctx context.Context, db *sql.DB, table string
 
 // ---------- helper ----------
 
-func timeoutDuration(sec int) (ctx context.Context, cancel context.CancelFunc) {
-	d := fmt.Sprintf("%ds", sec)
-	return context.WithTimeout(context.Background(), parseSeconds(d))
-}
-
-func parseSeconds(spec string) int64 {
-	// Minimal parse: "10s" -> 10. Falls back to DefaultTimeoutSeconds.
-	spec = strings.TrimSuffix(spec, "s")
-	var n int
-	fmt.Sscanf(spec, "%d", &n)
-	if n <= 0 {
-		return int64(DefaultTimeoutSeconds)
+func (i *Introspector) timeoutDuration(sec int) time.Duration {
+	if sec <= 0 {
+		sec = DefaultTimeoutSeconds
 	}
-	return int64(n)
+	return time.Duration(sec) * time.Second
 }
-
-var _ discoverer = (*Introspector)(nil)
 
 // ensureErrorsHandled suppresses unused-variable warnings in tests.
 var _ = errors.Is

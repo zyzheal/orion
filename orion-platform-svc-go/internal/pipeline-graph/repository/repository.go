@@ -28,9 +28,9 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 // GetPipelineByID retrieves a pipeline definition by its ID without tenant scoping,
 // used to build the graph for the frontend DAG editor.
-func (r *Repository) GetPipelineByID(ctx context.Context, id string) (*PipelineDefinition, error) {
+func (r *Repository) GetPipelineByID(ctx context.Context, id string, tenantID string) (*PipelineDefinition, error) {
 	var def PipelineDefinition
-	err := r.db.GetContext(ctx, &def, `SELECT * FROM pipeline_definitions WHERE id=$1`, id)
+	err := r.db.GetContext(ctx, &def, `SELECT * FROM pipeline_definitions WHERE id=$1 AND tenant_id=$2`, id)
 	if err != nil {
 		return nil, err
 	}

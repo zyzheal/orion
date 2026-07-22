@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/pipeline-batch-operations/models"
@@ -105,7 +106,9 @@ func validateBatch(ids []string, entityType string) error {
 }
 
 // simulateOperations simulates starting pipelines by returning a success status for each.
+// TODO: Replace with actual downstream pipeline service calls.
 func (s *Service) simulateOperations(ids []string, statusFn func(string) (string, *string)) []models.BatchOperationResult {
+	log.Println("[WARNING] pipeline-batch-operations: simulateOperations is a simulation, not calling actual downstream services")
 	results := make([]models.BatchOperationResult, len(ids))
 	for i, id := range ids {
 		status, err := statusFn(id)
@@ -119,7 +122,9 @@ func (s *Service) simulateOperations(ids []string, statusFn func(string) (string
 }
 
 // simulateStopOperations simulates stopping pipeline runs, marking some as skipped.
+// TODO: Replace with actual downstream pipeline execution service calls.
 func (s *Service) simulateStopOperations(executionIDs []string) []models.BatchOperationResult {
+	log.Println("[WARNING] pipeline-batch-operations: simulateStopOperations is a simulation, not calling actual downstream services")
 	results := make([]models.BatchOperationResult, len(executionIDs))
 	for i, id := range executionIDs {
 		// Simulate: odd-indexed items are skipped (already stopped)
@@ -140,7 +145,9 @@ func (s *Service) simulateStopOperations(executionIDs []string) []models.BatchOp
 }
 
 // simulateDeleteOperations simulates deleting pipelines.
+// TODO: Replace with actual downstream pipeline service calls.
 func (s *Service) simulateDeleteOperations(pipelineIDs []string) []models.BatchOperationResult {
+	log.Println("[WARNING] pipeline-batch-operations: simulateDeleteOperations is a simulation, not calling actual downstream services")
 	results := make([]models.BatchOperationResult, len(pipelineIDs))
 	for i, id := range pipelineIDs {
 		deleted := true

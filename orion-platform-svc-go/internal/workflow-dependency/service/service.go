@@ -13,8 +13,8 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	GetAllWorkflows(ctx context.Context) ([]models.WorkflowDefinitionRow, error)
-	GetWorkflowByID(ctx context.Context, id string) (*models.WorkflowDefinitionRow, error)
+	GetAllWorkflows(ctx context.Context, tenantID string) ([]models.WorkflowDefinitionRow, error)
+	GetWorkflowByID(ctx context.Context, id string, tenantID string) (*models.WorkflowDefinitionRow, error)
 }
 
 type Service struct {
@@ -135,8 +135,8 @@ func detectCycles(edges map[string][]string) []models.Cycle {
 	return unique
 }
 
-func (s *Service) GetGraph(ctx context.Context) (*models.DependencyGraph, error) {
-	rows, err := s.repo.GetAllWorkflows(ctx)
+func (s *Service) GetGraph(ctx context.Context, tenantID string) (*models.DependencyGraph, error) {
+	rows, err := s.repo.GetAllWorkflows(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +166,8 @@ func (s *Service) GetGraph(ctx context.Context) (*models.DependencyGraph, error)
 	}, nil
 }
 
-func (s *Service) CheckDefinition(ctx context.Context, definitionID string) (*models.DependencyCheck, error) {
-	row, err := s.repo.GetWorkflowByID(ctx, definitionID)
+func (s *Service) CheckDefinition(ctx context.Context, definitionID, tenantID string) (*models.DependencyCheck, error) {
+	row, err := s.repo.GetWorkflowByID(ctx, definitionID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrWorkflowNotFound
@@ -184,7 +184,7 @@ func (s *Service) CheckDefinition(ctx context.Context, definitionID string) (*mo
 	edges := make(map[string][]string)
 	edges[definitionID] = deps
 	for _, depID := range deps {
-		depRow, err := s.repo.GetWorkflowByID(ctx, depID)
+		depRow, err := s.repo.GetWorkflowByID(ctx, depID, tenantID)
 		if err == nil {
 			subDeps := parseSubWorkflowIDs(depRow.NodesJSON)
 			edges[depID] = subDeps
@@ -214,8 +214,8 @@ func (s *Service) CheckDefinition(ctx context.Context, definitionID string) (*mo
 	}, nil
 }
 
-func (s *Service) GetVisualization(ctx context.Context) (*models.VisualizationData, error) {
-	rows, err := s.repo.GetAllWorkflows(ctx)
+func (s *Service) GetVisualization(ctx context.Context, tenantID string) (*models.VisualizationData, error) {
+	rows, err := s.repo.GetAllWorkflows(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}

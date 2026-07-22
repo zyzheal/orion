@@ -52,7 +52,7 @@ func (h *Handler) GetGraph(c *gin.Context) {
 	defer span.End()
 	id := c.Param("id")
 
-	pipeline, err := h.svc.GetPipeline(ctx, id)
+	pipeline, err := h.svc.GetPipeline(ctx, id, h.getTenantID(c))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline not found")

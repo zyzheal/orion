@@ -153,10 +153,10 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 // UpdatePassword updates the password hash for a user.
-func (r *Repository) UpdatePassword(ctx context.Context, id string, newPasswordHash string) error {
+func (r *Repository) UpdatePassword(ctx context.Context, id string, tenantID string, newPasswordHash string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE users SET password=$1, updated_at=NOW() WHERE id=$2`,
-		newPasswordHash, id)
+		`UPDATE users SET password=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
+		newPasswordHash, id, tenantID)
 	return err
 }
 

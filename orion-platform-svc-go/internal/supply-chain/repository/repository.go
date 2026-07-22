@@ -93,16 +93,16 @@ func (r *Repository) ListSBOMs(ctx context.Context, tenantID string, q models.Li
 
 func (r *Repository) InsertVulnerability(ctx context.Context, vuln *models.Vulnerability) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO supply_chain_vulnerabilities (cve_id, name, version, description, severity, remediation, affected_range)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		vuln.CVEID, vuln.Name, vuln.Version, vuln.Description, vuln.Severity, vuln.Remediation, vuln.AffectedRange)
+		`INSERT INTO supply_chain_vulnerabilities (cve_id, tenant_id, name, version, description, severity, remediation, affected_range)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		vuln.CVEID, vuln.TenantID, vuln.Name, vuln.Version, vuln.Description, vuln.Severity, vuln.Remediation, vuln.AffectedRange)
 	return err
 }
 
-func (r *Repository) GetVulnerabilitiesForComponent(ctx context.Context, name, version string) ([]models.Vulnerability, error) {
+func (r *Repository) GetVulnerabilitiesForComponent(ctx context.Context, tenantID, name, version string) ([]models.Vulnerability, error) {
 	var vulns []models.Vulnerability
 	err := r.db.SelectContext(ctx, &vulns,
-		`SELECT * FROM supply_chain_vulnerabilities WHERE name = $1 AND version = $2 ORDER BY severity DESC`, name, version)
+		`SELECT * FROM supply_chain_vulnerabilities WHERE name = $1 AND version = $2 AND tenant_id = $3 ORDER BY severity DESC`, name, version, tenantID)
 	return vulns, err
 }
 

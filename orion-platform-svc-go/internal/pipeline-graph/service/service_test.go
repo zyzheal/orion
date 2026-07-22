@@ -19,7 +19,7 @@ type mockGraphRepo struct {
 	noRows bool
 }
 
-func (m *mockGraphRepo) GetPipelineByID(_ context.Context, id string) (*repository.PipelineDefinition, error) {
+func (m *mockGraphRepo) GetPipelineByID(_ context.Context, id string, _ string) (*repository.PipelineDefinition, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -48,7 +48,7 @@ var (
 
 func TestGetPipelineSuccess(t *testing.T) {
 	s := newTestService(testDef, nil, false)
-	p, err := s.GetPipeline(context.Background(), "pipe-001")
+	p, err := s.GetPipeline(context.Background(), "pipe-001", "tenant-1")
 	if err != nil {
 		t.Fatalf("GetPipeline returned error: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestGetPipelineSuccess(t *testing.T) {
 
 func TestGetPipelineNotFound(t *testing.T) {
 	s := newTestService(nil, nil, true)
-	_, err := s.GetPipeline(context.Background(), "missing")
+	_, err := s.GetPipeline(context.Background(), "missing", "tenant-1")
 	if !errors.Is(err, ErrPipelineNotFound) {
 		t.Fatalf("expected ErrPipelineNotFound, got %v", err)
 	}
@@ -73,7 +73,7 @@ func TestGetPipelineNotFound(t *testing.T) {
 
 func TestGetPipelineDBError(t *testing.T) {
 	s := newTestService(nil, dbErr, false)
-	_, err := s.GetPipeline(context.Background(), "pipe-001")
+	_, err := s.GetPipeline(context.Background(), "pipe-001", "tenant-1")
 	if err != dbErr {
 		t.Fatalf("expected wrapped db error, got %v", err)
 	}

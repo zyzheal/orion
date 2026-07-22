@@ -23,11 +23,11 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, id string, tenantID string) (bool, error)
 	DeleteWorkflow(ctx context.Context, policyID string, id string) (bool, error)
 	GetByID(ctx context.Context, id string, tenantID string) (*models.Policy, error)
-	GetWorkflowByID(ctx context.Context, policyID string, id string) (*models.PolicyWorkflow, error)
+	GetWorkflowByID(ctx context.Context, policyID string, id string, tenantID string) (*models.PolicyWorkflow, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter, limit, offset int) ([]models.Policy, error)
-	ListWorkflowsByPolicyID(ctx context.Context, policyID string) ([]models.PolicyWorkflow, error)
+	ListWorkflowsByPolicyID(ctx context.Context, policyID string, tenantID string) ([]models.PolicyWorkflow, error)
 	Update(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Policy, error)
-	UpdateWorkflow(ctx context.Context, policyID string, id string, updates map[string]interface{}) (*models.PolicyWorkflow, error)
+	UpdateWorkflow(ctx context.Context, policyID string, id string, tenantID string, updates map[string]interface{}) (*models.PolicyWorkflow, error)
 }
 
 type Service struct {
@@ -145,7 +145,7 @@ func (s *Service) CreateWorkflow(ctx context.Context, tenantID string, userID st
 }
 
 func (s *Service) ListWorkflows(ctx context.Context, tenantID string, policyID string, page, pageSize int) ([]models.PolicyWorkflow, int, error) {
-	workflows, err := s.repo.ListWorkflowsByPolicyID(ctx, policyID)
+	workflows, err := s.repo.ListWorkflowsByPolicyID(ctx, policyID, tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -156,7 +156,7 @@ func (s *Service) ListWorkflows(ctx context.Context, tenantID string, policyID s
 }
 
 func (s *Service) GetWorkflow(ctx context.Context, tenantID string, policyID string, id string) (*models.PolicyWorkflow, error) {
-	workflow, err := s.repo.GetWorkflowByID(ctx, policyID, id)
+	workflow, err := s.repo.GetWorkflowByID(ctx, policyID, id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrWorkflowNotFound
@@ -183,7 +183,7 @@ func (s *Service) UpdateWorkflow(ctx context.Context, tenantID string, policyID 
 	if len(updates) == 0 {
 		return nil, errors.New("no fields to update")
 	}
-	workflow, err := s.repo.UpdateWorkflow(ctx, policyID, id, updates)
+	workflow, err := s.repo.UpdateWorkflow(ctx, policyID, id, tenantID, updates)
 	if err != nil {
 		return nil, err
 	}

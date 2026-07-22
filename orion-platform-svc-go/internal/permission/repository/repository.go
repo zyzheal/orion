@@ -13,6 +13,9 @@ import (
 
 var errNotFound = errors.New("permission not found")
 
+// allowedColumns defines the whitelist of column names that can be used in dynamic SQL SET clauses.
+var allowedColumns = map[string]bool{"name": true, "description": true, "resource": true, "action": true, "effect": true}
+
 // Repository provides PostgreSQL-backed persistence for permissions.
 type Repository struct {
 	db *sqlx.DB

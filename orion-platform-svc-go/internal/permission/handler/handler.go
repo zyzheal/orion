@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/permission/models"
 
@@ -34,12 +35,12 @@ func NewHandler(svc Service) *Handler {
 
 // RegisterRoutes mounts all permission routes onto the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/permissions", h.Create)
-	rg.GET("/permissions", h.List)
-	rg.GET("/permissions/count", h.Count)
-	rg.GET("/permissions/:id", h.Get)
-	rg.PUT("/permissions/:id", h.Update)
-	rg.DELETE("/permissions/:id", h.Delete)
+	rg.POST("/permissions", auth.RequirePermission("permission", "manage"), h.Create)
+	rg.GET("/permissions", auth.RequirePermission("permission", "manage"), h.List)
+	rg.GET("/permissions/count", auth.RequirePermission("permission", "manage"), h.Count)
+	rg.GET("/permissions/:id", auth.RequirePermission("permission", "manage"), h.Get)
+	rg.PUT("/permissions/:id", auth.RequirePermission("permission", "manage"), h.Update)
+	rg.DELETE("/permissions/:id", auth.RequirePermission("permission", "manage"), h.Delete)
 }
 
 // Create creates a new permission.

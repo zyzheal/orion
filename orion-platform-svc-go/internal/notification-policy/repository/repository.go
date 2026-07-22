@@ -141,31 +141,31 @@ func (r *Repository) CreateWorkflow(ctx context.Context, workflow *models.Policy
 	return err
 }
 
-func (r *Repository) GetWorkflowByPolicyID(ctx context.Context, policyID string) ([]models.PolicyWorkflow, error) {
+func (r *Repository) GetWorkflowByPolicyID(ctx context.Context, policyID string, tenantID string) ([]models.PolicyWorkflow, error) {
 	var workflows []models.PolicyWorkflow
 	err := r.db.SelectContext(ctx, &workflows,
-		`SELECT * FROM notification_policy_workflows WHERE policy_id=$1 ORDER BY created_at DESC`, policyID)
+		`SELECT * FROM notification_policy_workflows WHERE policy_id=$1 AND tenant_id=$2 ORDER BY created_at DESC`, policyID, tenantID)
 	return workflows, err
 }
 
-func (r *Repository) GetWorkflowByID(ctx context.Context, policyID string, id string) (*models.PolicyWorkflow, error) {
+func (r *Repository) GetWorkflowByID(ctx context.Context, policyID string, id string, tenantID string) (*models.PolicyWorkflow, error) {
 	var workflow models.PolicyWorkflow
 	err := r.db.GetContext(ctx, &workflow,
-		`SELECT * FROM notification_policy_workflows WHERE id=$1 AND policy_id=$2`, id, policyID)
+		`SELECT * FROM notification_policy_workflows WHERE id=$1 AND policy_id=$2 AND tenant_id=$3`, id, policyID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &workflow, nil
 }
 
-func (r *Repository) ListWorkflowsByPolicyID(ctx context.Context, policyID string) ([]models.PolicyWorkflow, error) {
+func (r *Repository) ListWorkflowsByPolicyID(ctx context.Context, policyID string, tenantID string) ([]models.PolicyWorkflow, error) {
 	var workflows []models.PolicyWorkflow
 	err := r.db.SelectContext(ctx, &workflows,
-		`SELECT * FROM notification_policy_workflows WHERE policy_id=$1 ORDER BY created_at DESC`, policyID)
+		`SELECT * FROM notification_policy_workflows WHERE policy_id=$1 AND tenant_id=$2 ORDER BY created_at DESC`, policyID, tenantID)
 	return workflows, err
 }
 
-func (r *Repository) UpdateWorkflow(ctx context.Context, policyID string, id string, updates map[string]interface{}) (*models.PolicyWorkflow, error) {
+func (r *Repository) UpdateWorkflow(ctx context.Context, policyID string, id string, tenantID string, updates map[string]interface{}) (*models.PolicyWorkflow, error) {
 	if len(updates) == 0 {
 		return nil, sentinel.NotFound
 	}
@@ -189,7 +189,7 @@ func (r *Repository) UpdateWorkflow(ctx context.Context, policyID string, id str
 	if n == 0 {
 		return nil, sentinel.NotFound
 	}
-	return r.GetWorkflowByID(ctx, policyID, id)
+	return r.GetWorkflowByID(ctx, policyID, id, tenantID)
 }
 
 func (r *Repository) DeleteWorkflow(ctx context.Context, policyID string, id string) (bool, error) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 )
 
 // Handler exposes HTTP endpoints for API key management.
@@ -23,9 +24,9 @@ func NewHandler(svc *service.Service) *Handler {
 
 // RegisterRoutes mounts all api-key routes onto the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.GET("/api-keys", h.List)
-	rg.POST("/api-keys", h.Create)
-	rg.DELETE("/api-keys/:id", h.Delete)
+	rg.GET("/api-keys", auth.RequirePermission("api-key", "read"), h.List)
+	rg.POST("/api-keys", auth.RequirePermission("api-key", "write"), h.Create)
+	rg.DELETE("/api-keys/:id", auth.RequirePermission("api-key", "delete"), h.Delete)
 }
 
 // Create creates a new API key (returns plaintext once).

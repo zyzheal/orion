@@ -24,12 +24,12 @@ import (
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
 	Create(ctx context.Context, s *models.Secret) error
-	Delete(ctx context.Context, id string) error
-	GetByID(ctx context.Context, id string) (*models.Secret, error)
+	Delete(ctx context.Context, id string, tenantID string) error
+	GetByID(ctx context.Context, id string, tenantID string) (*models.Secret, error)
 	GetByTenantAndName(ctx context.Context, tenantID, name, scope string) (*models.Secret, error)
 	List(ctx context.Context, tenantID string, filter *models.ListFilter) ([]models.Secret, error)
 	UpdateDescription(ctx context.Context, id string, description string) error
-	UpdateValue(ctx context.Context, id string, encryptedValue []byte) error
+	UpdateValue(ctx context.Context, id string, tenantID string, encryptedValue []byte) error
 }
 
 // maskedValue is shown in list/get responses instead of the real secret.
@@ -140,8 +140,8 @@ func (s *Service) List(ctx context.Context, tenantID string, filter *models.List
 }
 
 // Get retrieves a secret by id (value masked).
-func (s *Service) Get(ctx context.Context, id string) (*SecretListItem, error) {
-	sec, err := s.repo.GetByID(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id string) (*SecretListItem, error) {
+	sec, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -159,7 +159,7 @@ func (s *Service) GetByName(ctx context.Context, tenantID, name, scope string) (
 
 // Update updates optional fields of a secret (value, description).
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateSecretRequest) (*SecretListItem, error) {
-	sec, err := s.repo.GetByID(ctx, id)
+	sec, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -172,7 +172,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 		if err != nil {
 			return nil, fmt.Errorf("failed to encrypt secret value: %w", err)
 		}
-		if err := s.repo.UpdateValue(ctx, id, encrypted); err != nil {
+		if err := s.repo.UpdateValue(ctx, id, tenantID, encrypted); err != nil {
 			return nil, fmt.Errorf("failed to update secret value: %w", err)
 		}
 	}
@@ -183,7 +183,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 		}
 	}
 
-	updated, err := s.repo.GetByID(ctx, id)
+	updated, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -192,14 +192,14 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 
 // Delete removes a secret by id.
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
-	sec, err := s.repo.GetByID(ctx, id)
+	sec, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return sentinel.NotFound
 	}
 	if sec.TenantID != tenantID {
 		return sentinel.NotFound
 	}
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, id, tenantID)
 }
 
 // Resolve resolves secret references in a set of parameters.
@@ -229,8 +229,8 @@ func (s *Service) Resolve(ctx context.Context, tenantID string, req *models.Reso
 }
 
 // GetReferences retrieves a secret by id (used to build a reference pattern).
-func (s *Service) GetReferences(ctx context.Context, id string) (*models.Secret, error) {
-	sec, err := s.repo.GetByID(ctx, id)
+func (s *Service) GetReferences(ctx context.Context, id string, tenantID string) (*models.Secret, error) {
+	sec, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}

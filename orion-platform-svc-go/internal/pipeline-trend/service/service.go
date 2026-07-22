@@ -13,8 +13,8 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	GetRunHistoryCompare(ctx context.Context, pipelineIDs []string, period, granularity string) (map[string][]models.TrendEntry, error)
-	GetRunHistoryTrend(ctx context.Context, pipelineID, period, granularity string) ([]models.TrendEntry, error)
+	GetRunHistoryCompare(ctx context.Context, tenantID string, pipelineIDs []string, period, granularity string) (map[string][]models.TrendEntry, error)
+	GetRunHistoryTrend(ctx context.Context, tenantID, pipelineID, period, granularity string) ([]models.TrendEntry, error)
 }
 
 // Sentinel errors.
@@ -70,7 +70,7 @@ func normalizeGranularity(granularity string) (string, error) {
 }
 
 // GetRunHistoryTrend returns trend data for a single pipeline.
-func (s *Service) GetRunHistoryTrend(ctx context.Context, pipelineID, period, granularity string) (*models.TrendResponse, error) {
+func (s *Service) GetRunHistoryTrend(ctx context.Context, tenantID, pipelineID, period, granularity string) (*models.TrendResponse, error) {
 	period, err := normalizePeriod(period)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (s *Service) GetRunHistoryTrend(ctx context.Context, pipelineID, period, gr
 		return nil, err
 	}
 
-	entries, err := s.repo.GetRunHistoryTrend(ctx, pipelineID, period, granularity)
+	entries, err := s.repo.GetRunHistoryTrend(ctx, tenantID, pipelineID, period, granularity)
 	if err != nil {
 		return nil, fmt.Errorf("get run history trend: %w", err)
 	}
@@ -98,7 +98,7 @@ func (s *Service) GetRunHistoryTrend(ctx context.Context, pipelineID, period, gr
 }
 
 // GetRunHistoryCompare returns trend data comparing multiple pipelines.
-func (s *Service) GetRunHistoryCompare(ctx context.Context, pipelineIDs []string, period, granularity string) (*models.CompareResponse, error) {
+func (s *Service) GetRunHistoryCompare(ctx context.Context, tenantID string, pipelineIDs []string, period, granularity string) (*models.CompareResponse, error) {
 	if len(pipelineIDs) == 0 {
 		return nil, ErrNoPipelineIDs
 	}
@@ -115,7 +115,7 @@ func (s *Service) GetRunHistoryCompare(ctx context.Context, pipelineIDs []string
 		return nil, err
 	}
 
-	data, err := s.repo.GetRunHistoryCompare(ctx, pipelineIDs, period, granularity)
+	data, err := s.repo.GetRunHistoryCompare(ctx, tenantID, pipelineIDs, period, granularity)
 	if err != nil {
 		return nil, fmt.Errorf("get run history compare: %w", err)
 	}

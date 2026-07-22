@@ -113,7 +113,7 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
 	id := c.Param("id")
-	secret, err := h.svc.Get(ctx, id)
+	secret, err := h.svc.Get(ctx, id, c.GetString("tenant_id"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "secret not found")
@@ -169,7 +169,7 @@ func (h *Handler) GetReferences(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReferences")
 	defer span.End()
 	id := c.Param("id")
-	sec, err := h.svc.GetReferences(ctx, id)
+	sec, err := h.svc.GetReferences(ctx, id, c.GetString("tenant_id"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "secret not found")

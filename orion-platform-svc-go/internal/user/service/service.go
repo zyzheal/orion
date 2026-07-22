@@ -26,7 +26,7 @@ type RepositoryInterface interface {
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	List(ctx context.Context, tenantID string, filter *models.GetUserFilters, offset, limit int) ([]models.User, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
-	UpdatePassword(ctx context.Context, id string, newPasswordHash string) error
+	UpdatePassword(ctx context.Context, id string, tenantID string, newPasswordHash string) error
 }
 
 // Service provides user management business logic.
@@ -208,7 +208,7 @@ func (s *Service) ChangePassword(ctx context.Context, tenantID, userID string, r
 		return fmt.Errorf("failed to hash new password: %w", err)
 	}
 
-	return s.repo.UpdatePassword(ctx, userID, string(hashed))
+	return s.repo.UpdatePassword(ctx, userID, tenantID, string(hashed))
 }
 
 // Delete removes a user by id.

@@ -407,8 +407,8 @@ func TestEvaluator_CustomSQL_NilSample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if ev.Result.FailedRecords != 1 {
-		t.Fatalf("expected 1 failed (nil), got %d", ev.Result.FailedRecords)
+	if ev.Result.FailedRecords != 2 {
+		t.Fatalf("expected 2 failed (nil + 1.0 > 0 threshold), got %d", ev.Result.FailedRecords)
 	}
 }
 

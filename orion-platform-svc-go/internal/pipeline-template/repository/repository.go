@@ -61,11 +61,11 @@ func (r *Repository) UpdateTemplate(ctx context.Context, id string, tenantID str
 	args := []interface{}{}
 	i := 1
 	for key, val := range updates {
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, i))
 		// Skip keys that do not exist in pipeline_templates table
 		if key == "source_id" {
 			continue
 		}
+		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, i))
 		args = append(args, val)
 		i++
 	}

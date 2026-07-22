@@ -13,9 +13,9 @@ import (
 
 // Service defines the contract the handler needs from the service layer.
 type Service interface {
-	GetGraph(ctx context.Context) (*models.DependencyGraph, error)
-	CheckDefinition(ctx context.Context, definitionID string) (*models.DependencyCheck, error)
-	GetVisualization(ctx context.Context) (*models.VisualizationData, error)
+	GetGraph(ctx context.Context, tenantID string) (*models.DependencyGraph, error)
+	CheckDefinition(ctx context.Context, definitionID, tenantID string) (*models.DependencyCheck, error)
+	GetVisualization(ctx context.Context, tenantID string) (*models.VisualizationData, error)
 }
 
 type Handler struct {
@@ -45,7 +45,7 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) GetGraph(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGraph")
 	defer span.End()
-	graph, err := h.svc.GetGraph(ctx)
+	graph, err := h.svc.GetGraph(ctx, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -57,7 +57,7 @@ func (h *Handler) CheckDefinition(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckDefinition")
 	defer span.End()
 	definitionID := c.Param("definitionId")
-	result, err := h.svc.CheckDefinition(ctx, definitionID)
+	result, err := h.svc.CheckDefinition(ctx, definitionID, h.getTenantID(c))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow not found")
@@ -72,7 +72,7 @@ func (h *Handler) CheckDefinition(c *gin.Context) {
 func (h *Handler) GetVisualization(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVisualization")
 	defer span.End()
-	data, err := h.svc.GetVisualization(ctx)
+	data, err := h.svc.GetVisualization(ctx, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

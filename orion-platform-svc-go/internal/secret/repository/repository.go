@@ -34,10 +34,10 @@ func (r *Repository) Create(ctx context.Context, s *models.Secret) error {
 	return err
 }
 
-// GetByID retrieves a single secret by id.
-func (r *Repository) GetByID(ctx context.Context, id string) (*models.Secret, error) {
+// GetByID retrieves a single secret by id and tenant_id.
+func (r *Repository) GetByID(ctx context.Context, id string, tenantID string) (*models.Secret, error) {
 	var s models.Secret
-	err := r.db.GetContext(ctx, &s, `SELECT * FROM secrets WHERE id=$1`, id)
+	err := r.db.GetContext(ctx, &s, `SELECT * FROM secrets WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
 	}
@@ -98,10 +98,10 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.L
 }
 
 // UpdateValue updates the encrypted_value and updated_at for a secret.
-func (r *Repository) UpdateValue(ctx context.Context, id string, encryptedValue []byte) error {
+func (r *Repository) UpdateValue(ctx context.Context, id string, tenantID string, encryptedValue []byte) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE secrets SET encrypted_value=$1, updated_at=NOW() WHERE id=$2`,
-		encryptedValue, id)
+		`UPDATE secrets SET encrypted_value=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
+		encryptedValue, id, tenantID)
 	return err
 }
 
@@ -113,9 +113,9 @@ func (r *Repository) UpdateDescription(ctx context.Context, id string, descripti
 	return err
 }
 
-// Delete removes a secret by id.
-func (r *Repository) Delete(ctx context.Context, id string) error {
+// Delete removes a secret by id and tenant_id.
+func (r *Repository) Delete(ctx context.Context, id string, tenantID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM secrets WHERE id=$1`, id)
+		`DELETE FROM secrets WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }

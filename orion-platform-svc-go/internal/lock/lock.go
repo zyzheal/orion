@@ -88,7 +88,7 @@ func (l *DistributedLock) Extend(ctx context.Context, key string, value string, 
 
 // WithLock acquires a lock, runs fn, and releases the lock (best-effort).
 // Returns fn's result or ErrLockNotAcquired if the lock could not be obtained.
-func (l *DistributedLock) WithLock[T any](ctx context.Context, key string, ttl time.Duration, fn func(context.Context) (T, error)) (T, error) {
+func WithLock[T any](l *DistributedLock, ctx context.Context, key string, ttl time.Duration, fn func(context.Context) (T, error)) (T, error) {
 	lock, err := l.Acquire(ctx, key, ttl)
 	if err != nil {
 		var zero T

@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Repository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewRepository(db *sql.DB) *Repository {
+func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
@@ -204,14 +206,25 @@ func (r *Repository) ListTenantUsers(ctx context.Context, tenantID string) ([]ma
 
 	var result []map[string]any
 	for rows.Next() {
-		m := make(map[string]any)
+		var userID, role, createdAt, updatedAt string
+		var username, email, displayName, userStatus sql.NullString
 		if err := rows.Scan(
-			new(string), new(string), new(string), new(string),
-			new(sql.NullString), new(sql.NullString), new(sql.NullString),
-			new(sql.NullString),
+			&userID, &role, &createdAt, &updatedAt,
+			&username, &email, &displayName, &userStatus,
 		); err != nil {
 			return nil, err
 		}
+		m := map[string]any{
+			"user_id":      userID,
+			"role":         role,
+			"created_at":   createdAt,
+			"updated_at":   updatedAt,
+			"username":     username.String,
+			"email":        email.String,
+			"display_name": displayName.String,
+			"user_status":  userStatus.String,
+		}
+		// Null strings that are zero return empty string (sql.NullString.String)
 		result = append(result, m)
 	}
 	return result, nil

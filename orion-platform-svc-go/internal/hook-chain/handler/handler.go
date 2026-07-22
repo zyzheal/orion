@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 )
 
 // Handler exposes HTTP endpoints for hook management.
@@ -24,12 +25,12 @@ func NewHandler(svc *service.Service) *Handler {
 
 // RegisterRoutes mounts all hook routes onto the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/hooks", h.Create)
-	rg.GET("/hooks", h.List)
-	rg.GET("/hooks/count", h.Count)
-	rg.GET("/hooks/:id", h.Get)
-	rg.PUT("/hooks/:id", h.Update)
-	rg.DELETE("/hooks/:id", h.Delete)
+	rg.POST("/hooks", auth.RequirePermission("hook-chain", "write"), h.Create)
+	rg.GET("/hooks", auth.RequirePermission("hook-chain", "read"), h.List)
+	rg.GET("/hooks/count", auth.RequirePermission("hook-chain", "read"), h.Count)
+	rg.GET("/hooks/:id", auth.RequirePermission("hook-chain", "read"), h.Get)
+	rg.PUT("/hooks/:id", auth.RequirePermission("hook-chain", "write"), h.Update)
+	rg.DELETE("/hooks/:id", auth.RequirePermission("hook-chain", "delete"), h.Delete)
 }
 
 // Create creates a new hook.

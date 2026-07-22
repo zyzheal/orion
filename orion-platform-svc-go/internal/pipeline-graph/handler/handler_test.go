@@ -23,7 +23,7 @@ type mockPipelineGraphRepo struct {
 	err      error
 }
 
-func (m *mockPipelineGraphRepo) GetPipelineByID(_ context.Context, _ string) (*repository.PipelineDefinition, error) {
+func (m *mockPipelineGraphRepo) GetPipelineByID(_ context.Context, _ string, _ string) (*repository.PipelineDefinition, error) {
 	return m.pipeline, m.err
 }
 
