@@ -7,20 +7,21 @@ import (
 )
 
 type Config struct {
-	ServerPort  int
-	DBHost      string
-	DBPort      int
-	DBName      string
-	DBUser      string
-	DBPassword  string
-	DBSSLMode   string
-	RedisAddr   string
-	RedisDB     int
-	OTLPEndpoint string
-	Environment string
-	JWTSecret   string
-	NATSAddr     string
-	NATSStream   string
+	ServerPort     int
+	DBHost         string
+	DBPort         int
+	DBName         string
+	DBUser         string
+	DBPassword     string
+	DBSSLMode      string
+	RedisAddr      string
+	RedisDB        int
+	OTLPEndpoint   string
+	Environment    string
+	JWTSecret      string
+	NATSAddr       string
+	NATSStream     string
+	PrometheusURL  string
 }
 
 func Load() (*Config, error) {
@@ -55,8 +56,9 @@ return &Config{
 		OTLPEndpoint: getEnv("OTLP_ENDPOINT", "localhost:4317"),
 		Environment:  getEnv("ENVIRONMENT", "development"),
 		JWTSecret:    jwtSecret,
-		NATSAddr:     getEnv("NATS_ADDR", "nats://localhost:4222"),
-		NATSStream:   getEnv("NATS_STREAM", "EVENTS"),
+		NATSAddr:       getEnv("NATS_ADDR", "nats://localhost:4222"),
+		NATSStream:     getEnv("NATS_STREAM", "EVENTS"),
+		PrometheusURL:  getEnv("PROMETHEUS_URL", "http://localhost:9090"),
 	}, nil
 }
 

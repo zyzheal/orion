@@ -21,6 +21,25 @@ import (
 
 	nats_subscriber "orion/monitor-svc-go/pkg/nats"
 
+	alertSilenceHandler "orion/monitor-svc-go/internal/alert-silence/handler"
+	alertSilenceRepo "orion/monitor-svc-go/internal/alert-silence/repository"
+	alertSilenceSvc "orion/monitor-svc-go/internal/alert-silence/service"
+
+	oncallHandler "orion/monitor-svc-go/internal/oncall/handler"
+	oncallRepo "orion/monitor-svc-go/internal/oncall/repository"
+	oncallSvc "orion/monitor-svc-go/internal/oncall/service"
+
+	selfhealingHandler "orion/monitor-svc-go/internal/selfhealing/handler"
+	selfhealingRepo "orion/monitor-svc-go/internal/selfhealing/repository"
+	selfhealingSvc "orion/monitor-svc-go/internal/selfhealing/service"
+
+	rcaHandler "orion/monitor-svc-go/internal/rca/handler"
+	rcaRepo "orion/monitor-svc-go/internal/rca/repository"
+	rcaSvc "orion/monitor-svc-go/internal/rca/service"
+
+	monitoringHandler "orion/monitor-svc-go/internal/monitoring/handler"
+	monitoringSvc "orion/monitor-svc-go/internal/monitoring/service"
+
 	"orion/monitor-svc-go/internal/config"
 	"orion/monitor-svc-go/internal/handler"
 	"orion/monitor-svc-go/internal/repository"
@@ -105,8 +124,30 @@ func main() {
 		metricRepo, alertRepo, metricRegRepo, logger,
 	)
 
+	// Phase 1 P0 services
+	silenceRepo := alertSilenceRepo.NewAlertSilenceRepository(db, logger)
+	silenceSvc := alertSilenceSvc.NewAlertSilenceService(silenceRepo, logger)
+
+	oncallRepo := oncallRepo.NewOnCallRepository(db, logger)
+	oncallService := oncallSvc.NewOnCallService(oncallRepo, logger)
+
+	healingRepo := selfhealingRepo.NewSelfHealingRepository(db, logger)
+	healingSvc := selfhealingSvc.NewSelfHealingService(healingRepo, logger)
+
+	rcaRepository := rcaRepo.NewRCARespository(db, logger)
+	rcaService := rcaSvc.NewRCAService(rcaRepository, logger)
+
 	// Initialize handlers
 	h := handler.New(metricSvc, alertSvc, notifSvc, logger)
+
+	// Phase 1 P0 handlers
+	silenceH := alertSilenceHandler.NewAlertSilenceHandler(silenceSvc)
+	oncallH := oncallHandler.NewOnCallHandler(oncallService)
+	healingH := selfhealingHandler.NewSelfHealingHandler(healingSvc)
+	rcaH := rcaHandler.NewRCAHandler(rcaService)
+
+	// Phase 1 P0: Monitoring (Prometheus proxy)
+	monH := monitoringHandler.NewMonitoringHandler(monitoringSvc.NewMonitoringService(cfg.PrometheusURL, logger))
 
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
@@ -178,6 +219,21 @@ func main() {
 		v1.PUT("/alert-rules/:id", auth.RequirePermission("alert", "write"), h.UpdateAlertRule)
 		v1.DELETE("/alert-rules/:id", auth.RequirePermission("alert", "delete"), h.DeleteAlertRule)
 		v1.GET("/count", h.Count)
+
+		// Phase 1 P0: Alert Silences
+		silenceH.RegisterRoutes(v1)
+
+		// Phase 1 P0: On-Call
+		oncallH.RegisterRoutes(v1)
+
+		// Phase 1 P0: Self-Healing
+		healingH.RegisterRoutes(v1)
+
+		// Phase 1 P0: Root Cause Analysis
+		rcaH.RegisterRoutes(v1)
+
+		// Phase 1 P0: Monitoring (Prometheus proxy)
+		monH.RegisterRoutes(v1)
 	}
 
 	// NATS JetStream subscriber
