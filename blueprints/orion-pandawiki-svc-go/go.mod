@@ -1,4 +1,4 @@
-module orion/orion-pandawiki-svc-go
+module orion/pandawiki-svc-go
 
 go 1.25
 

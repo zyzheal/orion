@@ -1,4 +1,4 @@
-module orion/orion-community-svc-go
+module orion/community-svc-go
 
 go 1.25
 
