@@ -59,21 +59,21 @@
 
 ## 实施计划
 
-### Phase 1 (Day 1): P0 核心
+### ✅ Phase 1 — P0 核心
 - [ ] 实现 knowledge 域 (handler/service/repository/models) — RAG 知识库
 - [ ] 实现 vector 域 (handler/service/repository/models) — 向量存储
 - [ ] 实现 semantic-search 域 (handler/service/repository)
 - [ ] 实现 orchestration 域 (handler/service/repository) — 多 Agent 编排
 - [ ] 实现 llm-trace 域 (handler/service/repository/models) — LLM 追踪
 
-### Phase 2 (Day 2): P0 续 + P1
+### ✅ Phase 2 — P0 续 + P1
 - [ ] 实现 task-executor 域 (handler/service/repository/models)
 - [ ] 实现 code-embedding 域 (handler/service/repository)
 - [ ] 实现 decision-explanation 域 (handler/service/repository)
 - [ ] 实现 degradation 域 (handler/service)
 - [ ] 实现 provider-circuit-breaker 域 (handler/service)
 
-### Phase 3 (Day 3): 完善 + 验证
+### ✅ Phase 3 — 完成
 - [ ] 补充 auto-recovery 域
 - [ ] 补充 rule-engine 域
 - [ ] 补充 prompt-security 域 (合并到 aisecurity)

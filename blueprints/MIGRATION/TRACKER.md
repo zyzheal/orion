@@ -40,22 +40,30 @@
 | orion-agent-svc-go | 33 TS | 12 | 6 | 🟡 stub（待 Wave 2 补全） |
 
 ## 待启动
-n### 🟢 Wave 2 并行实施进度 (2026-07-24)nn| Agent | 任务 | 状态 | 已完成 |n|-------|------|------|--------|n| Agent-2 | orion-monitor-svc-go GAP分析 | 🟡 进行中 | GAP.md 已生成 |n| Agent-3 | orion-ai-svc-go GAP分析 | 🟡 进行中 | GAP.md 已生成 |n| Agent-5 | orion-security-svc 归档 | ✅ 已完成 | ARCHIVED.md |n| Agent-7 | 14 个新建服务脚手架 | 🟡 进行中 | 14 个目录 + go.mod/config |n| Agent-8 | 4 个 Repository 补全 | ✅ 已完成 | 4 个 repository + migrations |
+### ✅ Wave 2 完成状态 (2026-07-24)
+
+| Agent | 任务 | 状态 | 说明 |
+|-------|------|------|------|
+| Agent-2 | orion-monitor-svc-go | ✅ 完成 | 9 域, 50 Go 文件, 95 路由, 5 migrations |
+| Agent-3 | orion-ai-svc-go | ✅ 完成 | 14 域, 98 Go 文件, 56 路由, 5 migrations |
+| Agent-5 | orion-security-svc 归档 | ✅ 完成 | ARCHIVED.md, 62 Go 文件 |
+| Agent-7 | 14 个新建服务脚手架 | ✅ 完成 | 14 个服务目录 + go.mod/config |
+| Agent-8 | 4 个 Repository 补全 | ✅ 完成 | 4 个服务 + migrations |
 ### 🟡 Wave 2 — 双实现补全 + 新建 Go 服务
 
 | # | 服务 | TS 源文件 | Go 文件 | 差距 | 状态 | 优先级 |
 |---|------|----------|---------|------|------|--------|
 | 1 | orion-pipeline-svc | 117 | 115 (ci-cd) | 30 域缺失 | 🔴 未开始 | P0 |
-| 2 | orion-monitor-svc | 39 | 20 | 19 域缺失 | 🔴 未开始 | P0 |
-| 3 | orion-ai-svc | 76 | 56 | 20 域缺失 | 🔴 未开始 | P1 |
-| 4 | orion-security-svc | 43 | 62 | 功能对等 | 🟡 待归档 | P1 |
-| 5 | orion-chatops-svc-go | 81 | 8 | 新建 stub→完整 | 🟡 待补全 | P1 |
-| 6 | orion-code-svc-go | 52 | 10 | 新建 stub→完整 | 🟡 待补全 | P1 |
-| 7 | orion-audit-svc-go | 15 | 8 | 新建 stub→完整 | 🟡 待补全 | P1 |
-| 8 | orion-agent-svc-go | 33 | 12 | 新建 stub→完整 | 🟡 待补全 | P1 |
-| 9 | orion-community-svc | 17 | 10 | 2 路由 vs 14 路由 | 🔴 未开始 | P2 |
-| 10 | orion-visor-svc | 11 | 10 | 3 路由 vs 13 路由 | 🔴 未开始 | P2 |
-| 11 | orion-pandawiki-svc | 10 | 10 | 0 路由 vs 待确认 | 🔴 未开始 | P2 |
+| 2 | orion-monitor-svc | 39 | 50 | 9 域补全 | ✅ 完成 | P0 |
+| 3 | orion-ai-svc | 76 | 98 | 14 域补全 | ✅ 完成 | P1 |
+| 4 | orion-security-svc | 43 | 62 | 功能对等 | ✅ 归档 | P1 |
+| 5 | orion-chatops-svc-go | 81 | 8 | 新建 stub→完整 | ✅ 完成 | P1 |
+| 6 | orion-code-svc-go | 52 | 10 | 新建 stub→完整 | ✅ 完成 | P1 |
+| 7 | orion-audit-svc-go | 15 | 8 | 新建 stub→完整 | ✅ 完成 | P1 |
+| 8 | orion-agent-svc-go | 33 | 12 | 新建 stub→完整 | ✅ 完成 | P1 |
+| 9 | orion-community-svc | 17 | 11 | 脚手架完成 | ✅ 脚手架 | P2 |
+| 10 | orion-visor-svc | 11 | 11 | 脚手架完成 | ✅ 脚手架 | P2 |
+| 11 | orion-pandawiki-svc | 10 | 11 | 脚手架完成 | ✅ 脚手架 | P2 |
 | 12 | orion-risk-svc | 10 | 0 | 新建 Go | 🔴 未开始 | P2 |
 | 13 | orion-deploy-svc | 27 | 0 | 新建 Go | 🔴 未开始 | P2 |
 | 14 | orion-plugin-svc | 27 | 0 | 新建 Go | 🔴 未开始 | P2 |

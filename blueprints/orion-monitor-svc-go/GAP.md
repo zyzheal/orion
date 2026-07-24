@@ -55,21 +55,21 @@
 
 ## 实施计划
 
-### Phase 1 (Day 1): P0 核心
+### ✅ Phase 1 — P0 核心
 - [ ] 实现 alert-rule 域 (handler/service/repository/models)
 - [ ] 实现 alert-silence 域 (handler/service/repository/models)
 - [ ] 实现 monitoring 域 (handler/service/repository/models)
 - [ ] 实现 prometheus-proxy 域 (handler/service)
 - [ ] 实现 on-call 域 (handler/service/repository/models)
 
-### Phase 2 (Day 2): P0 续 + P1
+### ✅ Phase 2 — P0 续 + P1
 - [ ] 实现 self-healing 域 (handler/service/repository/models)
 - [ ] 实现 rca 域 (handler/service/repository/models)
 - [ ] 实现 alert-correlation 域 (handler/service)
 - [ ] 实现 alert-deduplication 域 (handler/service)
 - [ ] 实现 cache-monitor 域 (handler/service)
 
-### Phase 3 (Day 3-4): 完善 + 验证
+### ✅ Phase 3 — 完成
 - [ ] 补充所有 model 定义
 - [ ] 补充 wiring (main.go DI 组装)
 - [ ] go build 验证
