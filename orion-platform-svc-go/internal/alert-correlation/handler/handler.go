@@ -45,16 +45,16 @@ func (h *AlertCorrelationHandler) CreateGroup(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateCorrelationGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		errors.WriteSuccessBadRequest(c, err.Error())
 		return
 	}
 
 	group, err := h.svc.CreateGroup(c.Request.Context(), tenantID, req.RootAlertID, req.AlertIDs, req.GroupType)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		errors.WriteSuccessInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondCreated(c, group)
+	errors.WriteSuccessCreated(c, group)
 }
 
 // ListGroups returns paginated correlation groups.
@@ -66,10 +66,10 @@ func (h *AlertCorrelationHandler) ListGroups(c *gin.Context) {
 
 	resp, err := h.svc.QueryGroups(c.Request.Context(), tenantID, groupType, limit, offset)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		errors.WriteSuccessInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{"total": resp.Total, "data": resp.Groups})
+	errors.WriteSuccess(c, http.StatusOK, gin.H{"total": resp.Total, "data": resp.Groups})
 }
 
 // GetGroup returns a single correlation group.
@@ -77,16 +77,16 @@ func (h *AlertCorrelationHandler) GetGroup(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		middleware.RespondBadRequest(c, "invalid id format")
+		errors.WriteSuccessBadRequest(c, "invalid id format")
 		return
 	}
 
 	group, err := h.svc.GetGroup(c.Request.Context(), tenantID, id)
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		errors.WriteSuccessNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, group)
+	errors.WriteSuccess(c, http.StatusOK, group)
 }
 
 // DeleteGroup removes a correlation group.
@@ -94,12 +94,12 @@ func (h *AlertCorrelationHandler) DeleteGroup(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		middleware.RespondBadRequest(c, "invalid id format")
+		errors.WriteSuccessBadRequest(c, "invalid id format")
 		return
 	}
 
 	if err := h.svc.DeleteGroup(c.Request.Context(), tenantID, id); err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		errors.WriteSuccessNotFound(c, err.Error())
 		return
 	}
 	c.JSON(http.StatusNoContent, nil)
@@ -116,16 +116,16 @@ func (h *AlertCorrelationHandler) CreateRule(c *gin.Context) {
 		Conditions    string `json:"conditions"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		errors.WriteSuccessBadRequest(c, err.Error())
 		return
 	}
 
 	rule, err := h.svc.CreateRule(c.Request.Context(), tenantID, req.Name, req.Description, req.GroupType, req.TimeWindowSec, req.Conditions)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		errors.WriteSuccessInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondCreated(c, rule)
+	errors.WriteSuccessCreated(c, rule)
 }
 
 // ListRules returns paginated correlation rules.
@@ -136,10 +136,10 @@ func (h *AlertCorrelationHandler) ListRules(c *gin.Context) {
 
 	rules, total, err := h.svc.QueryRules(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		errors.WriteSuccessInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{"total": total, "data": rules})
+	errors.WriteSuccess(c, http.StatusOK, gin.H{"total": total, "data": rules})
 }
 
 // AutoCorrelate triggers automatic correlation.
@@ -148,8 +148,8 @@ func (h *AlertCorrelationHandler) AutoCorrelate(c *gin.Context) {
 
 	groups, err := h.svc.AutoCorrelate(c.Request.Context(), tenantID)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		errors.WriteSuccessInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{"groups": groups})
+	errors.WriteSuccess(c, http.StatusOK, gin.H{"groups": groups})
 }

@@ -20,13 +20,13 @@ func NewAutoRecoveryRepository(db *sql.DB) *AutoRecoveryRepository {
 
 // CreateRule creates a new auto-recovery rule.
 func (r *AutoRecoveryRepository) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.AutoRecoveryRule, error) {
-	now := time.Now()
 	id := fmt.Sprintf("rule_%d", time.Now().UnixNano())
 	isEnabled := true
 	if req.IsEnabled != nil {
 		isEnabled = *req.IsEnabled
 	}
 	maxRetries := req.MaxRetries
+	now := time.Now()
 	if maxRetries <= 0 {
 		maxRetries = 3
 	}
@@ -98,9 +98,8 @@ func (r *AutoRecoveryRepository) GetRule(ctx context.Context, tenantID, id strin
 
 // CreateAction records a recovery action.
 func (r *AutoRecoveryRepository) CreateAction(ctx context.Context, ruleID, tenantID, action, target string) (*models.RecoveryAction, error) {
-	now := time.Now()
 	id := fmt.Sprintf("action_%d", time.Now().UnixNano())
-
+tnow := time.Now()
 	query := `INSERT INTO recovery_actions (id, rule_id, tenant_id, action, target, status, result, retry_count, created_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	if _, err := r.DB.ExecContext(ctx, query, id, ruleID, tenantID, action, target, "pending", "", 0, now, nil); err != nil {
 		return nil, fmt.Errorf("create recovery action: %w", err)

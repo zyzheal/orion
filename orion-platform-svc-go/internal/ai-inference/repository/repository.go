@@ -112,7 +112,7 @@ func (r *Repository) DeleteByRetention(ctx context.Context, tenantID string, cut
 		return 0, err
 	}
 	n, _ := res.RowsAffected()
-	return n
+	return n, nil
 }
 
 // IsNotFound reports whether the given error is a sql.ErrNoRows.

@@ -544,7 +544,7 @@ func (r *Repository) PurgeExpiredHeartbeats(ctx context.Context, retention time.
 		return 0, err
 	}
 	n, _ := res.RowsAffected()
-	return n
+	return n, nil
 }
 
 // ===========================================================================

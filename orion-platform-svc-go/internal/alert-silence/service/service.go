@@ -89,7 +89,7 @@ func (s *AlertSilenceService) ExtendSilence(ctx context.Context, tenantID, id uu
 	now := time.Now()
 
 	query := `UPDATE alert_silences SET duration = duration + $1, expires_at = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5`
-	result, err := s.repo.Pool().Exec(ctx, query, extendBy, newExpiresAt, now, id, tenantID)
+	result, err := s.repo.DBPool().Pool().Exec(ctx, query, extendBy, newExpiresAt, now, id, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("extend silence: %w", err)
 	}

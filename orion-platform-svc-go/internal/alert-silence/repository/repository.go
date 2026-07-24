@@ -177,7 +177,9 @@ func joinStrings(items []string, sep string) string {
 	return result
 }
 
-// Pool returns the underlying PostgreSQL connection pool.
-func (r *AlertSilenceRepository) Pool() *pgxpool.Pool {
-	return r.db.Pool
+
+
+// DBPool returns the raw sql.DB for direct queries.
+func (r *AlertSilenceRepository) DBPool() *DB {
+	return r.db
 }

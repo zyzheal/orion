@@ -77,7 +77,6 @@ func (r *RCARespository) GetAnalysis(ctx context.Context, tenantID, id uuid.UUID
 
 // UpdateAnalysis updates the analysis status and root causes.
 func (r *RCARespository) UpdateAnalysis(ctx context.Context, id uuid.UUID, status string, rootCauses []models.RootCause, confidence float64) error {
-	now := time.Time{}
 	var completedAt interface{}
 	if status == "completed" || status == "failed" {
 		completedAt = time.Now()
@@ -97,7 +96,6 @@ func (r *RCARespository) UpdateAnalysis(ctx context.Context, id uuid.UUID, statu
 // CreateRootCause adds a root cause to an analysis.
 func (r *RCARespository) CreateRootCause(ctx context.Context, analysisID uuid.UUID, req *models.RootCause) (*models.RootCause, error) {
 	now := time.Now()
-	id := uuid.UUID{}
 
 	// Use a simple incrementing ID based on current timestamp for demo
 	rootCauseID := uuid.New()
@@ -267,4 +265,16 @@ func (r *RCARespository) GetTimeline(ctx context.Context, tenantID uuid.UUID, in
 		events = append(events, e)
 	}
 	return events, nil
+}
+
+// joinStrings joins string slices with a separator.
+func joinStrings(parts []string, sep string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	result := parts[0]
+	for _, p := range parts[1:] {
+		result += sep + p
+	}
+	return result
 }
