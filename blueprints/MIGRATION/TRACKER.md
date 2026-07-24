@@ -111,11 +111,135 @@ Wave 2 (待启动)
 ├── Agent-2: Monitor TS→Go → 依赖 Agent-1 的 pipeline 模式
 ├── Agent-3: AI TS→Go → 依赖 Agent-1 的 pipeline 模式
 ├── Agent-1 续: Pipeline Phase 1 → 依赖差距分析完成
-├── Agent-7: 12 个纯 TS 新建 Go → 依赖 Agent-6 的脚手架模板
+├── Agent-7: 14 个纯 TS 新建 Go → 依赖 Agent-6 的脚手架模板
 └── Agent-8: 4 个新建 Go 补全实现 → 依赖脚手架完成
 
 Wave 3 (待启动)
 ├── Agent-1 续: Pipeline Phase 2+3
 ├── Agent-9: 7 个小服务
 └── 全量 TS 归档
+```
+
+---
+
+## 附录 A. Agent 任务卡（机器可读）
+
+### Agent-2: Monitor TS→Go 补全
+
+```
+AGENT_ID:      Agent-2
+TASK:          orion-monitor-svc → orion-monitor-svc-go
+TYPE:          supplement (补全)
+TS_SOURCE:     blueprints/orion-monitor-svc (39 TS 源文件)
+GO_TARGET:     blueprints/orion-monitor-svc-go (20 Go 文件)
+GAP:           19 域缺失 (告警规则, 告警级别, 告警来源, 告警事件, 告警通知...)
+DAYS:          4
+DEPENDS_ON:    none
+STATUS:        🔴 未开始
+START_CMD:     cat blueprints/MIGRATION/TRACKER.md && cat reports/orion-architecture-reference-2026-07-22.md
+COMPLETION:    go build 通过 + 路由数 ≥ TS 路由数 + TRACKER.md 更新
+```
+
+### Agent-3: AI TS→Go 补全
+
+```
+AGENT_ID:      Agent-3
+TASK:          orion-ai-svc → orion-ai-svc-go
+TYPE:          supplement (补全)
+TS_SOURCE:     blueprints/orion-ai-svc (76 TS 源文件)
+GO_TARGET:     blueprints/orion-ai-svc-go (56 Go 文件)
+GAP:           20 域缺失 (RAG 检索, Agent 执行, 模型管理, 成本追踪...)
+DAYS:          3
+DEPENDS_ON:    none
+STATUS:        🔴 未开始
+START_CMD:     cat blueprints/MIGRATION/TRACKER.md && cat reports/orion-architecture-reference-2026-07-22.md
+```
+
+### Agent-5: Security TS 归档
+
+```
+AGENT_ID:      Agent-5
+TASK:          orion-security-svc → orion-security-svc-go
+TYPE:          archive (归档)
+TS_SOURCE:     blueprints/orion-security-svc (43 TS 源文件)
+GO_TARGET:     blueprints/orion-security-svc-go (62 Go 文件)
+GAP:           功能对等 (Go 覆盖 TS 全部功能)
+DAYS:          1
+DEPENDS_ON:    none
+STATUS:        🔴 未开始
+COMPLETION:    Go 路由数 ≥ 43 TS 路由 + ARCHIVED.md + TRACKER.md 更新
+```
+
+### Agent-7: 14 个纯 TS 新建 Go 服务
+
+```
+AGENT_ID:      Agent-7
+TASK:          14 个纯 TS 服务 → 新建 Go 服务
+TYPE:          new (新建)
+SERVICES:
+  ├── orion-risk-svc (10 TS)        → orion-risk-svc-go
+  ├── orion-deploy-svc (27 TS)      → orion-deploy-svc-go
+  ├── orion-plugin-svc (27 TS)      → orion-plugin-svc-go
+  ├── orion-dr-svc (24 TS)          → orion-dr-svc-go
+  ├── orion-artifact-svc (24 TS)    → orion-artifact-svc-go
+  ├── orion-digital-twin-svc (8 TS) → orion-digital-twin-svc-go
+  ├── orion-federation-svc (22 TS)  → orion-federation-svc-go
+  ├── orion-efficiency-svc (22 TS)  → orion-efficiency-svc-go
+  ├── orion-approval-svc (20 TS)    → orion-approval-svc-go
+  ├── orion-dba-svc (11 TS)         → orion-dba-svc-go
+  ├── orion-knowledge-svc (15 TS)   → orion-knowledge-svc-go
+  ├── orion-community-svc (17 TS)   → orion-community-svc-go (补全)
+  ├── orion-visor-svc (11 TS)       → orion-visor-svc-go (补全)
+  └── orion-pandawiki-svc (10 TS)   → orion-pandawiki-svc-go (补全)
+DAYS:          3
+DEPENDS_ON:    Agent-6 脚手架模板 (已完成)
+TEMPLATE:      reports/orion-architecture-reference-2026-07-22.md §11.3
+STATUS:        🔴 未开始
+```
+
+### Agent-8: 4 个新建 Go Repository 补全
+
+```
+AGENT_ID:      Agent-8
+TASK:          4 个新建 Go 服务 Repository 从 stub 补全为完整实现
+TYPE:          supplement (补全)
+SERVICES:
+  ├── blueprints/orion-chatops-svc-go (8 Go, 6 stub) → 完整实现
+  ├── blueprints/orion-code-svc-go (10 Go, 5 stub)   → 完整实现
+  ├── blueprints/orion-audit-svc-go (8 Go, 6 stub)   → 完整实现
+  └── blueprints/orion-agent-svc-go (12 Go, 7 stub)  → 完整实现
+DAYS:          1
+DEPENDS_ON:    Agent-6 脚手架 (已完成)
+STATUS:        🔴 未开始
+COMPLETION:    所有 repository 返回真实 SQL 查询 + go build 通过
+```
+
+### Agent-1 续: Pipeline Phase 2+3
+
+```
+AGENT_ID:      Agent-1 (续)
+TASK:          Pipeline 20 域补全 (Phase 2: 15 P1 + Phase 3: 5 P2)
+TYPE:          supplement (补全)
+GAP_DOC:       blueprints/MIGRATION/pipeline-gap-analysis.md
+DAYS:          3
+DEPENDS_ON:    Agent-2 Monitor 完成 (复用 pipeline 模式)
+STATUS:        🔴 未开始
+```
+
+### Agent-9: 7 个小服务
+
+```
+AGENT_ID:      Agent-9
+TASK:          7 个小服务新建 Go
+SERVICES:
+  ├── orion-skill-svc (11 TS)        → orion-skill-svc-go
+  ├── orion-graph-svc (10 TS)       → orion-graph-svc-go
+  ├── orion-inception-svc (9 TS)  → orion-inception-svc-go
+  ├── orion-runner-svc (9 TS)       → orion-runner-svc-go
+  ├── orion-cmdb-svc (8 TS)         → orion-cmdb-svc-go
+  ├── orion-selfhealing-svc (7 TS)  → orion-selfhealing-svc-go
+  └── orion-platform-core (23 TS)   → orion-platform-core-go
+DAYS:          1
+DEPENDS_ON:    Agent-7 完成后
+STATUS:        🔴 未开始
 ```

@@ -1,6 +1,8 @@
-# Orion 文档索引 v1.0
+# Orion 文档索引 v1.1
 
-> **版本**: v1.0 | **生成日期**: 2026-07-20 | **总文档数**: 445+
+> **版本**: v1.1 | **生成日期**: 2026-07-24 | **总文档数**: 445+
+>
+> **SDD-2026-001**: Blueprint TS→Go 迁移计划已启动。详见 `reports/` 三份文档 + `blueprints/MIGRATION/`
 
 ---
 
@@ -25,7 +27,16 @@ docs/
 ├── services/                       — 服务级设计 (140 篇)
 ├── specs/                          — 服务规格定义 (68 篇)
 ├── superpowers/                    — 专项计划 (10 篇)
-└── 规范汇总/                       — 统一规范汇总
+├── 规范汇总/                       — 统一规范汇总
+│
+├── 📋 迁移计划 (SDD-2026-001)
+│   ├── reports/orion-problem-analysis-2026-07-22.md          ← 问题分析 + §6 迁移计划
+│   ├── reports/orion-architecture-reference-2026-07-22.md    ← 架构参考 + §11 迁移计划
+│   ├── reports/neatlogic-benchmark-analysis-2026-07-22.md    ← 标杆对标 + §12 迁移方案
+│   ├── blueprints/MIGRATION/TRACKER.md                       ← 迁移追踪总表 (当前任务+进度)
+│   ├── blueprints/MIGRATION/AGENT-README.md                  ← Agent 执行入口
+│   ├── blueprints/MIGRATION/pipeline-gap-analysis.md         ← Pipeline 差距分析
+│   └── blueprints/MIGRATION/                                 ← 各服务迁移记录 (MIGRATION.md)
 ```
 
 ---

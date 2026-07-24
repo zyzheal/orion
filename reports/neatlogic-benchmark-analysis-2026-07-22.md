@@ -2507,3 +2507,83 @@ TS 服务 → 按 Orion 4 层架构重写为 Go
 | 多语言占比 | Go 44% / TS 50% | Go 93% / Python 5% / Rust 2% | 语言文件占比 |
 | 迁移完成率 | 5% | 100% | `TRACKER.md` 状态 (🟢/🟡/🔴) |
 | 已归档配对 | 5 | 12 | 双实现配对中已标记 ARCHIVED.md 的数量 |
+
+---
+
+## 13. Agent 执行指南（附录）
+
+### 13.1 基于 NeatLogic 的 Agent 决策树
+
+当 Agent 不确定如何实现某个 Go 功能时，按以下决策树查找参考：
+
+```
+功能类型?
+├── 自动化执行 → 参考 §3 (Autoexec 三层模型 + Job→Phase→Node→Operation)
+├── 通知/告警   → 参考 §2.4 + 附录 J (NotifyHandlerFactory 三层工厂)
+├── 数据库迁移  → 参考 §4.3 (changelog 日期目录 + version.json)
+├── 全文搜索    → 参考 附录 W (6 模块索引 + FullTextIndexHandler)
+├── 权限认证    → 参考 §2.3 (AuthBase + AuthAction + RequirePermission)
+├── 跨模块调用  → 参考 附录 I (CrossoverServiceFactory → Go DI)
+├── 定时任务    → 参考 附录 N (Job 接口 + SchedulerManager)
+├── 全局锁      → 参考 §2.6 (GlobalLockManager → Redis SETNX)
+├── 条件引擎    → 参考 附录 M (ConditionConfigVo → ConditionGroup → ConditionVo)
+├── 表单引擎    → 参考 附录 M (30+ 表单控件 → React 组件映射)
+├── 图可视化    → 参考 §2.7 (GraphViz Builder → Node/Link)
+├── SLA 计算    → 参考 附录 U (SLACalculator 接口 + 策略配置)
+├── 第三方集成  → 参考 附录 V (IntegrationHandler 接口 + AuthConfig)
+└── 配置管理    → 参考 附录 R (ConfigManager + ConfigWatcher)
+```
+
+### 13.2 Agent 迁移对照表（TS → Go + NeatLogic 参考）
+
+| TS 实现 | Go 等效 | NeatLogic 参考 | 位置 |
+|---------|---------|---------------|------|
+| Express router | gin.RouterGroup | ApiDispatcher | §2.2 |
+| TypeScript class | Go struct | xxxVo | §2.2 |
+| Fastify/Express | Gin + sqlx | Spring + MyBatis | §2.2 |
+| Prisma/TypeORM | sqlx 内联 SQL | MyBatis XML | §10 |
+| JWT auth | auth.RequirePermission | @AuthAction | §2.3 |
+| TS service | ServiceInterface + impl | IApiComponent | §2.2 |
+| TS repository | RepositoryInterface + impl | DAO/Mapper | §2.4 |
+| Event emitter | NATS subscriber | 事件驱动 | §3.4 |
+| CRON job | cron.AddJob | SchedulerManager | §2.5 |
+| Redis cache | idempotency.Checker | @MCache | 附录 O |
+
+### 13.3 Agent 任务完成标准
+
+```
+Archived (归档任务):
+  [  ] Go 路由数 ≥ TS 路由数
+  [  ] 所有 TS 功能有 Go 对应 handler
+  [  ] MIGRATION.md 已创建
+  [  ] ARCHIVED.md 已添加到 TS 源目录
+  [  ] TRACKER.md 状态更新为 🟢
+
+New (新建任务):
+  [  ] go build 编译通过
+  [  ] CRUD 路由完整 (List/Create/Get/Update/Delete)
+  [  ] 统一响应格式
+  [  ] 强类型 models
+  [  ] tenant_id 多租户支持
+  [  ] MIGRATION.md 已创建
+  [  ] TRACKER.md 状态更新为 🟢
+
+Supplement (补全任务):
+  [  ] 补全的域有完整 handler/service/repository/models
+  [  ] 新增路由已注册
+  [  ] 旧功能未破坏 (go build 通过)
+  [  ] TRACKER.md 状态更新为 🟢
+```
+
+### 13.4 Agent 间通信协议
+
+当 Agent 需要依赖另一个 Agent 的输出时，通过以下方式协调：
+
+```bash
+# 检查依赖 Agent 是否完成
+grep "Agent-{N}" blueprints/MIGRATION/TRACKER.md | grep "🟢"
+
+# 如果依赖未完成，等待或切换任务
+# 如果依赖已完成，读取其输出:
+cat blueprints/orion-{svc}-go/MIGRATION.md
+```

@@ -1,5 +1,12 @@
 {
   "enabledPlugins": {
     "claude-hud@zyzheal-plugins": true
+  },
+  "projectSettings": {
+    "knowledgeBase": [
+      "docs/INDEX.md",
+      "blueprints/MIGRATION/TRACKER.md",
+      "reports/orion-architecture-reference-2026-07-22.md"
+    ]
   }
 }

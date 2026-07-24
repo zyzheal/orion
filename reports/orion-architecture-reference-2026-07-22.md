@@ -1281,3 +1281,88 @@ backend/
 | ai-service | 19 | unit |
 | api-gateway | 25+ | unit + integration |
 | go-common | 20+ | unit + integration |
+
+---
+
+## 12. Agent 执行指南（附录）
+
+### 12.1 快速启动命令
+
+每个 Agent 启动时，在项目根目录执行以下命令获取上下文：
+
+```bash
+# 获取当前任务
+cat blueprints/MIGRATION/TRACKER.md | head -60
+
+# 获取标准模板
+grep -A 20 "新建 Go 服务标准模板" reports/orion-architecture-reference-2026-07-22.md
+
+# 获取该服务的差距分析（如果存在）
+cat blueprints/MIGRATION/pipeline-gap-analysis.md 2>/dev/null | head -30
+```
+
+### 12.2 Agent 工作流（标准 5 步）
+
+```
+Step 1: 分析 TS 源
+  ├── 读取 TS 路由:  grep -rn "router\.\(get\|post\|put\|delete\|patch\)" {ts_svc}/src/
+  ├── 读取 TS 模型:  cat {ts_svc}/src/types/*.ts
+  └── 产出: 路由清单 + 模型清单
+
+Step 2: 创建 Go 目录结构
+  ├── mkdir -p {go_svc}/cmd/server
+  ├── mkdir -p {go_svc}/internal/{domain}/{handler,service,repository,models,config}
+  ├── mkdir -p {go_svc}/pkg/nats
+  └── mkdir -p {go_svc}/migrations
+
+Step 3: 实现 Go 代码
+  ├── go.mod (依赖: gin, lib/pq, nats.go)
+  ├── cmd/server/main.go (入口 + DI)
+  ├── internal/{domain}/models/models.go (强类型 struct)
+  ├── internal/{domain}/repository/repository.go (接口+实现)
+  ├── internal/{domain}/service/service.go (接口+实现)
+  ├── internal/{domain}/handler/handler.go (路由+处理)
+  ├── internal/config/config.go (环境变量)
+  ├── internal/response_writer.go (统一响应)
+  ├── pkg/nats/subscriber.go (NATS 订阅)
+  └── Dockerfile + .env.example
+
+Step 4: 验证
+  ├── cd {go_svc} && go build ./cmd/server
+  ├── grep -c "rg\.\(GET\|POST\|PUT\|DELETE\|PATCH\)" internal/*/handler/*.go  (路由数)
+  └── 确认路由数 >= TS 路由数
+
+Step 5: 归档
+  ├── 创建 MIGRATION.md
+  ├── 更新 blueprints/MIGRATION/TRACKER.md
+  └── commit: "feat(migration): {ts_svc} → {go_svc}"
+```
+
+### 12.3 验证清单（Agent 自检）
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 完成以下所有项后，方可更新 TRACKER.md 状态为 🟢     │
+├─────────────────────────────────────────────────────┤
+│ [  ] go build 编译通过                               │
+│ [  ] 路由数 >= TS 源路由数                            │
+│ [  ] 统一响应格式 (response_writer.go)                │
+│ [  ] 强类型 models (无 map[string]any)               │
+│ [  ] 多租户 tenant_id 字段                           │
+│ [  ] NATS 订阅器 (pkg/nats/subscriber.go)           │
+│ [  ] Dockerfile 多阶段构建                           │
+│ [  ] .env.example 环境变量                           │
+│ [  ] MIGRATION.md 迁移记录                           │
+│ [  ] TRACKER.md 状态更新                             │
+└─────────────────────────────────────────────────────┘
+```
+
+### 12.4 常见错误避免
+
+| 错误 | 后果 | 避免方法 |
+|------|------|---------|
+| 使用 `gin.H{}` 而非统一响应 | 格式不一致 | 用 `internal.NewSuccessResponse()` |
+| 缺少 `tenant_id` 字段 | 租户隔离失效 | models 每个表加 `TenantID string \`json:"tenant_id"\`` |
+| 返回 `map[string]any` | 类型不安全 | 用强类型 struct |
+| 未加权限中间件 | 安全漏洞 | handler 加 `auth.RequirePermission()` |
+| 未加 RLS 策略 | 数据泄露 | migration 加 `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` |

@@ -306,3 +306,71 @@ Wave 3 (Wave 2 完成后, 2 Agent 并行, 1-2 天)
 3. **`map[string]any` 返回**: tenant 等域大量使用 `map[string]any` 而非强类型，影响类型安全
 4. **K8s 配置**: 234 个 YAML 文件中大量重复模板，可进一步参数化
 5. **遗留系统**: legacy/ 中旧 TS 服务已迁移但代码仍保留
+
+---
+
+## 附录 B. Agent 执行手册（面向多 Agent 并行开发）
+
+### B.1 Agent 任务分配协议
+
+每个 Agent 启动时，通过以下 3 个文件获取完整上下文：
+
+```
+reports/orion-problem-analysis-2026-07-22.md           ← 问题背景 + 验收标准
+reports/orion-architecture-reference-2026-07-22.md      ← 架构模板 + 开发规范
+blueprints/MIGRATION/TRACKER.md                         ← 当前任务列表 + 进度
+```
+
+### B.2 Agent 任务卡格式
+
+每个 Agent 接收任务时，应包含以下字段：
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Agent ID:      Agent-{N}
+任务:          {TS 服务名} → {Go 服务名}
+类型:          [归档/新建/补全]
+TS 源文件:     {N} 文件
+Go 目标:       {N} 文件
+预计工作量:    {N} 天
+依赖:          [无 / Agent-{M} 完成后]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+步骤:
+  1. 读 TS 源 → 提取路由清单
+  2. 创建 Go 4 层架构 (handler/service/repository/models)
+  3. 实现 models → repository → service → handler
+  4. 注册路由 → go build 验证
+  5. 添加 MIGRATION.md → 更新 TRACKER.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### B.3 当前 Wave 任务队列
+
+```
+Wave 1 (已完成)         ── 5 归档 + 4 脚手架 + 1 差距分析
+Wave 2 (待启动, 4 Agent 并行)
+  Agent-2:  orion-monitor-svc (39 TS → 20 Go)    [补全] 4天
+  Agent-3:  orion-ai-svc (76 TS → 56 Go)         [补全] 3天
+  Agent-5:  orion-security-svc (43 TS → 62 Go)   [归档] 1天
+  Agent-7:  14 个纯 TS 新建 Go 服务              [新建] 3天
+  Agent-8:  4 个新建 Go Repository 补全          [补全] 1天
+Wave 3 (待启动)
+  Agent-1:  Pipeline Phase 2+3 (15+5 域)         [补全] 3天
+  Agent-9:  7 个小服务                          [新建] 1天
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### B.4 与 TRACKER.md 同步机制
+
+```
+Agent 完成任务后，必须更新:
+  blueprints/MIGRATION/TRACKER.md
+    └── 对应服务状态: 🔴 → 🟡 → 🟢
+    └── 更新完成时间
+    └── 添加备注说明
+
+Agent 启动新任务前，必须检查:
+  blueprints/MIGRATION/TRACKER.md
+    └── 确认依赖任务已完成 (🟢)
+    └── 确认无冲突 (其他 Agent 未占用同一目录)
+```
