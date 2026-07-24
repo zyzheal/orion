@@ -70,6 +70,25 @@ import (
 	llmtrace_handler "orion/ai-svc-go/internal/llm-trace/handler"
 	llmtrace_repo "orion/ai-svc-go/internal/llm-trace/repository"
 	llmtrace_service "orion/ai-svc-go/internal/llm-trace/service"
+
+	autoRecovery_handler "orion/ai-svc-go/internal/auto-recovery/handler"
+	autoRecovery_repo "orion/ai-svc-go/internal/auto-recovery/repository"
+	autoRecovery_service "orion/ai-svc-go/internal/auto-recovery/service"
+
+	ruleEngine_handler "orion/ai-svc-go/internal/rule-engine/handler"
+	ruleEngine_service "orion/ai-svc-go/internal/rule-engine/service"
+
+	promptSecurity_handler "orion/ai-svc-go/internal/prompt-security/handler"
+	promptSecurity_service "orion/ai-svc-go/internal/prompt-security/service"
+
+	taskExecutor_handler "orion/ai-svc-go/internal/task-executor/handler"
+	taskExecutor_service "orion/ai-svc-go/internal/task-executor/service"
+
+	codeEmbedding_handler "orion/ai-svc-go/internal/code-embedding/handler"
+	codeEmbedding_service "orion/ai-svc-go/internal/code-embedding/service"
+
+	degradation_handler "orion/ai-svc-go/internal/degradation/handler"
+	degradation_service "orion/ai-svc-go/internal/degradation/service"
 )
 
 func main() {
@@ -162,6 +181,20 @@ func main() {
 	llmtraceSvc := llmtrace_service.NewLLMTraceService(llmtraceRepo, logger)
 	llmtraceH := llmtrace_handler.NewLLMTraceHandler(llmtraceSvc)
 
+	// Phase 2 P1 services
+	autoRecoveryRepo := autoRecovery_repo.NewAutoRecoveryRepository(db.DB)
+	autoRecoveryH := autoRecovery_handler.NewAutoRecoveryHandler(autoRecovery_service.NewAutoRecoveryService(autoRecoveryRepo, logger))
+
+	ruleEngineH := ruleEngine_handler.NewRuleEngineHandler(ruleEngine_service.NewRuleEngineService(logger))
+
+	promptSecurityH := promptSecurity_handler.NewPromptSecurityHandler(promptSecurity_service.NewPromptSecurityService(logger))
+
+	taskExecutorH := taskExecutor_handler.NewTaskExecutorHandler(taskExecutor_service.NewTaskExecutorService(logger))
+
+	codeEmbeddingH := codeEmbedding_handler.NewCodeEmbeddingHandler(codeEmbedding_service.NewCodeEmbeddingService(logger))
+
+	degradationH := degradation_handler.NewDegradationHandler(degradation_service.NewDegradationService(logger))
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -186,6 +219,14 @@ func main() {
 	semanticH.RegisterRoutes(rg)
 	orchestrationH.RegisterRoutes(rg)
 	llmtraceH.RegisterRoutes(rg)
+
+	// Phase 2 P1 routes
+	autoRecoveryH.RegisterRoutes(rg)
+	ruleEngineH.RegisterRoutes(rg)
+	promptSecurityH.RegisterRoutes(rg)
+	taskExecutorH.RegisterRoutes(rg)
+	codeEmbeddingH.RegisterRoutes(rg)
+	degradationH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-ai-svc"))
 

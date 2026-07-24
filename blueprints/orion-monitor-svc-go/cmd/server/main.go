@@ -40,6 +40,16 @@ import (
 	monitoringHandler "orion/monitor-svc-go/internal/monitoring/handler"
 	monitoringSvc "orion/monitor-svc-go/internal/monitoring/service"
 
+	alertCorrelationHandler "orion/monitor-svc-go/internal/alert-correlation/handler"
+	alertCorrelationRepo "orion/monitor-svc-go/internal/alert-correlation/repository"
+	alertCorrelationSvc "orion/monitor-svc-go/internal/alert-correlation/service"
+
+	alertDeduplicationHandler "orion/monitor-svc-go/internal/alert-deduplication/handler"
+	alertDeduplicationSvc "orion/monitor-svc-go/internal/alert-deduplication/service"
+
+	cacheMonitorHandler "orion/monitor-svc-go/internal/cache-monitor/handler"
+	cacheMonitorSvc "orion/monitor-svc-go/internal/cache-monitor/service"
+
 	"orion/monitor-svc-go/internal/config"
 	"orion/monitor-svc-go/internal/handler"
 	"orion/monitor-svc-go/internal/repository"
@@ -149,6 +159,14 @@ func main() {
 	// Phase 1 P0: Monitoring (Prometheus proxy)
 	monH := monitoringHandler.NewMonitoringHandler(monitoringSvc.NewMonitoringService(cfg.PrometheusURL, logger))
 
+	// Phase 2 P1 handlers
+	corrRepo := alertCorrelationRepo.NewAlertCorrelationRepository(db, logger)
+	corrH := alertCorrelationHandler.NewAlertCorrelationHandler(alertCorrelationSvc.NewAlertCorrelationService(corrRepo, logger))
+
+	dedupH := alertDeduplicationHandler.NewAlertDeduplicationHandler(alertDeduplicationSvc.NewAlertDeduplicationService(logger))
+
+	cacheH := cacheMonitorHandler.NewCacheMonitorHandler(cacheMonitorSvc.NewCacheMonitorService(logger))
+
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -234,6 +252,15 @@ func main() {
 
 		// Phase 1 P0: Monitoring (Prometheus proxy)
 		monH.RegisterRoutes(v1)
+
+		// Phase 2 P1: Alert Correlation
+		corrH.RegisterRoutes(v1)
+
+		// Phase 2 P1: Alert Deduplication
+		dedupH.RegisterRoutes(v1)
+
+		// Phase 2 P1: Cache Monitor
+		cacheH.RegisterRoutes(v1)
 	}
 
 	// NATS JetStream subscriber
