@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/security-compliance/models"
-	"orion/platform-svc-go/internal/security-compliance/repository"
+	"orion/platform-svc-go/internal/security/security-compliance/models"
+	"orion/platform-svc-go/internal/security/security-compliance/repository"
 )
 
 type Service struct {

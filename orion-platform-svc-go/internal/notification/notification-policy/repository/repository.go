@@ -7,7 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/notification-policy/models"
+	"orion/platform-svc-go/internal/notification/notification-policy/models"
 )
 
 type Repository struct {

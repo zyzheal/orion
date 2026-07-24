@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/secret/models"
-	"orion/platform-svc-go/internal/secret/service"
+	"orion/platform-svc-go/internal/security/secret/models"
+	"orion/platform-svc-go/internal/security/secret/service"
 
 	"orion/go-common/pkg/auth"
 

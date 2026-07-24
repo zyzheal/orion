@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	"orion/platform-svc-go/internal/approval/models"
+	"orion/platform-svc-go/internal/workflow/approval/models"
 	"orion/go-common/pkg/otel"
-	"orion/platform-svc-go/internal/approval/repository"
+	"orion/platform-svc-go/internal/workflow/approval/repository"
 
 	"github.com/jmoiron/sqlx"
 )

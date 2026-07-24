@@ -10,9 +10,17 @@ package interfaces
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/auto-exec/models"
+)
+
+// Sentinel errors for plugin validation.
+var (
+	ErrInvalidParams = errors.New("invalid parameters")
+	ErrUnknownPlugin = errors.New("unknown plugin")
+	ErrTimeout       = errors.New("execution timed out")
 )
 
 // =============================================================================

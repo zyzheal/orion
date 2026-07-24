@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/chatops/models"
+	"orion/platform-svc-go/internal/notification/chatops/models"
 
 	"github.com/jmoiron/sqlx"
 )

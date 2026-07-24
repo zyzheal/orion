@@ -2,7 +2,7 @@ package handler
 
 import (
 
-	"orion/platform-svc-go/internal/chatops/service"
+	"orion/platform-svc-go/internal/notification/chatops/service"
 
 	"github.com/gin-gonic/gin"
 )

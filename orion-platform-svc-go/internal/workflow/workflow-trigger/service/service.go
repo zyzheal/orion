@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/workflow-trigger/models"
-	"orion/platform-svc-go/internal/workflow-trigger/repository"
+	"orion/platform-svc-go/internal/workflow/workflow-trigger/models"
+	"orion/platform-svc-go/internal/workflow/workflow-trigger/repository"
 )
 
 type Service struct {

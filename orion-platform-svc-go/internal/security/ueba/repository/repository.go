@@ -7,7 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/ueba/models"
+	"orion/platform-svc-go/internal/security/ueba/models"
 )
 
 type Repository struct {

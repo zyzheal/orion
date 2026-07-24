@@ -3,7 +3,6 @@ package plugins
 import (
 	"context"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"orion/platform-svc-go/internal/auto-exec/interfaces"
@@ -27,18 +26,21 @@ func (p *ShellExecutorPlugin) Validate(params map[string]interface{}) error {
 	return nil
 }
 
-func (p *ShellExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.PluginResult, error) {
+func (p *ShellExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.Result, error) {
 	cmdStr, _ := params["command"].(string)
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", cmdStr)
 	start := time.Now()
 	output, err := cmd.CombinedOutput()
 	dur := time.Since(start)
-	return &models.PluginResult{
+	result := &models.Result{
 		ExitCode:   cmd.ProcessState.ExitCode(),
 		Stdout:     string(output),
 		DurationMs: dur.Milliseconds(),
-		Error:      err,
-	}, nil
+	}
+	if err != nil {
+		result.ErrorMessage = err.Error()
+	}
+	return result, nil
 }
 
 // PluginTypePython is the python executor plugin type.
@@ -57,18 +59,21 @@ func (p *PythonExecutorPlugin) Validate(params map[string]interface{}) error {
 	}
 	return nil
 }
-func (p *PythonExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.PluginResult, error) {
+func (p *PythonExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.Result, error) {
 	script, _ := params["script"].(string)
 	cmd := exec.CommandContext(ctx, "python3", "-c", script)
 	start := time.Now()
 	output, err := cmd.CombinedOutput()
 	dur := time.Since(start)
-	return &models.PluginResult{
+	result := &models.Result{
 		ExitCode:   cmd.ProcessState.ExitCode(),
 		Stdout:     string(output),
 		DurationMs: dur.Milliseconds(),
-		Error:      err,
-	}, nil
+	}
+	if err != nil {
+		result.ErrorMessage = err.Error()
+	}
+	return result, nil
 }
 
 // PluginTypeHTTP is the http executor plugin type.
@@ -87,8 +92,8 @@ func (p *HTTPExecutorPlugin) Validate(params map[string]interface{}) error {
 	}
 	return nil
 }
-func (p *HTTPExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.PluginResult, error) {
-	return &models.PluginResult{Stdout: "HTTP plugin (stub)"}, nil
+func (p *HTTPExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.Result, error) {
+	return &models.Result{Stdout: "HTTP plugin (stub)"}, nil
 }
 
 // PluginTypeSQL is the sql executor plugin type.
@@ -107,8 +112,8 @@ func (p *SQLEXecutorPlugin) Validate(params map[string]interface{}) error {
 	}
 	return nil
 }
-func (p *SQLEXecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.PluginResult, error) {
-	return &models.PluginResult{Stdout: "SQL plugin (stub)"}, nil
+func (p *SQLEXecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.Result, error) {
+	return &models.Result{Stdout: "SQL plugin (stub)"}, nil
 }
 
 // PluginTypeWebhook is the webhook executor plugin type.
@@ -127,8 +132,8 @@ func (p *WebhookExecutorPlugin) Validate(params map[string]interface{}) error {
 	}
 	return nil
 }
-func (p *WebhookExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.PluginResult, error) {
-	return &models.PluginResult{Stdout: "Webhook plugin (stub)"}, nil
+func (p *WebhookExecutorPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.Result, error) {
+	return &models.Result{Stdout: "Webhook plugin (stub)"}, nil
 }
 
 // NewShellPlugin creates a shell executor plugin.

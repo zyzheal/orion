@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/workflow-webhook/models"
-	"orion/platform-svc-go/internal/workflow-webhook/repository"
+	"orion/platform-svc-go/internal/workflow/workflow-webhook/models"
+	"orion/platform-svc-go/internal/workflow/workflow-webhook/repository"
 )
 
 type Service struct {

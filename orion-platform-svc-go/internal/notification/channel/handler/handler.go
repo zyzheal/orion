@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/channel/models"
-	"orion/platform-svc-go/internal/channel/service"
+	"orion/platform-svc-go/internal/notification/channel/models"
+	"orion/platform-svc-go/internal/notification/channel/service"
 
 	"github.com/gin-gonic/gin"
 )

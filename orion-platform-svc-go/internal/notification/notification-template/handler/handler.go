@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/notification-template/models"
-	"orion/platform-svc-go/internal/notification-template/service"
+	"orion/platform-svc-go/internal/notification/notification-template/models"
+	"orion/platform-svc-go/internal/notification/notification-template/service"
 
 	"github.com/gin-gonic/gin"
 )

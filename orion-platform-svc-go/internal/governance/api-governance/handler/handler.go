@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/api-governance/models"
-	"orion/platform-svc-go/internal/api-governance/service"
+	"orion/platform-svc-go/internal/governance/api-governance/models"
+	"orion/platform-svc-go/internal/governance/api-governance/service"
 
 	"github.com/gin-gonic/gin"
 )

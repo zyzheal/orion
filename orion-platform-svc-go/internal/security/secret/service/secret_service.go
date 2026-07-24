@@ -13,8 +13,8 @@ import (
 	"regexp"
 	"sort"
 
-	"orion/platform-svc-go/internal/secret/models"
-	"orion/platform-svc-go/internal/secret/repository"
+	"orion/platform-svc-go/internal/security/secret/models"
+	"orion/platform-svc-go/internal/security/secret/repository"
 
 	"github.com/google/uuid"
 )

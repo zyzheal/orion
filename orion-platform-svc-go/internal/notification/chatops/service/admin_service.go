@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"orion/platform-svc-go/internal/chatops/models"
+	"orion/platform-svc-go/internal/notification/chatops/models"
 	"orion/go-common/pkg/otel"
 
 	"github.com/google/uuid"

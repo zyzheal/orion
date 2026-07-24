@@ -3,7 +3,7 @@ package repository
 import (
 	"encoding/json"
 
-	"orion/platform-svc-go/internal/compliance/models"
+	"orion/platform-svc-go/internal/governance/compliance/models"
 )
 
 // findingsToJSONB converts a findings slice to JSONB bytes.

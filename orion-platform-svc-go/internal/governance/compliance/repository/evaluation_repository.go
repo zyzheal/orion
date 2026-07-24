@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/compliance/models"
+	"orion/platform-svc-go/internal/governance/compliance/models"
 
 	"github.com/jmoiron/sqlx"
 )

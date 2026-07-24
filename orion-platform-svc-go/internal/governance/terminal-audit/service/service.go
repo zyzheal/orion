@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/terminal-audit/models"
-	"orion/platform-svc-go/internal/terminal-audit/repository"
+	"orion/platform-svc-go/internal/governance/terminal-audit/models"
+	"orion/platform-svc-go/internal/governance/terminal-audit/repository"
 )
 
 type Service struct {

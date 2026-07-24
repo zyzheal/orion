@@ -73,17 +73,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---------- Collectors ----------
 
 func (h *Handler) ListCollectors(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCollectors")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCollectors")
 	defer span.End()
-	items := h.svc.ListCollectors(ctx)
+	items := h.svc.ListCollectors()
 	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetCollector(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCollector")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCollector")
 	defer span.End()
 	name := c.Param("name")
-	collectors := h.svc.ListCollectors(ctx)
+	collectors := h.svc.ListCollectors()
 	for _, item := range collectors {
 		if item.Name == name {
 			middleware.RespondSuccess(c, item)
@@ -96,7 +96,7 @@ func (h *Handler) GetCollector(c *gin.Context) {
 // ---------- Targets ----------
 
 func (h *Handler) ListTargets(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTargets")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTargets")
 	defer span.End()
 	tenantID := h.tenantID(c)
 	collectorName := c.Param("name")
@@ -297,7 +297,7 @@ func (h *Handler) GetDevice(c *gin.Context) {
 // ---------- Health ----------
 
 func (h *Handler) Health(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Health")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Health")
 	defer span.End()
 	middleware.RespondSuccess(c, models.HealthStatus{Status: "ok"})
 }

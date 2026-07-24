@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"orion/platform-svc-go/internal/secret/models"
+	"orion/platform-svc-go/internal/security/secret/models"
 
 	"github.com/jmoiron/sqlx"
 )

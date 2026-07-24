@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/permission-audit/models"
-	"orion/platform-svc-go/internal/permission-audit/service"
+	"orion/platform-svc-go/internal/governance/permission-audit/models"
+	"orion/platform-svc-go/internal/governance/permission-audit/service"
 
 	"github.com/gin-gonic/gin"
 )

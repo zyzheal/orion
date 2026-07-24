@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/privacy/models"
-	"orion/platform-svc-go/internal/privacy/service"
+	"orion/platform-svc-go/internal/security/privacy/models"
+	"orion/platform-svc-go/internal/security/privacy/service"
 
 	"github.com/gin-gonic/gin"
 )

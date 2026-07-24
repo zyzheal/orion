@@ -7,7 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/branch-policy/models"
+	"orion/platform-svc-go/internal/security/branch-policy/models"
 )
 
 type Repository struct {

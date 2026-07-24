@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/scheduled-notification/models"
-	"orion/platform-svc-go/internal/scheduled-notification/repository"
+	"orion/platform-svc-go/internal/notification/scheduled-notification/models"
+	"orion/platform-svc-go/internal/notification/scheduled-notification/repository"
 )
 
 type Service struct {

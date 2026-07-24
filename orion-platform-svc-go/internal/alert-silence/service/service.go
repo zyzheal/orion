@@ -93,7 +93,7 @@ func (s *AlertSilenceService) ExtendSilence(ctx context.Context, tenantID, id uu
 	if err != nil {
 		return nil, fmt.Errorf("extend silence: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows := result.RowsAffected()
 	if rows == 0 {
 		return nil, fmt.Errorf("silence not found: %s", id)
 	}

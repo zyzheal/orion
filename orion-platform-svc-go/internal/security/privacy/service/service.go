@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/privacy/models"
-	"orion/platform-svc-go/internal/privacy/repository"
+	"orion/platform-svc-go/internal/security/privacy/models"
+	"orion/platform-svc-go/internal/security/privacy/repository"
 )
 
 type Service struct {

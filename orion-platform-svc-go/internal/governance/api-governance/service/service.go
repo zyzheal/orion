@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/api-governance/models"
-	"orion/platform-svc-go/internal/api-governance/repository"
+	"orion/platform-svc-go/internal/governance/api-governance/models"
+	"orion/platform-svc-go/internal/governance/api-governance/repository"
 )
 
 type Service struct {

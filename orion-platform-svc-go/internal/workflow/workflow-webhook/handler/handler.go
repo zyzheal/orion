@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/workflow-webhook/models"
-	"orion/platform-svc-go/internal/workflow-webhook/service"
+	"orion/platform-svc-go/internal/workflow/workflow-webhook/models"
+	"orion/platform-svc-go/internal/workflow/workflow-webhook/service"
 
 	"github.com/gin-gonic/gin"
 )

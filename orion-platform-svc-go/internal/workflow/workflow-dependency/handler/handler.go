@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/workflow-dependency/models"
-	"orion/platform-svc-go/internal/workflow-dependency/service"
+	"orion/platform-svc-go/internal/workflow/workflow-dependency/models"
+	"orion/platform-svc-go/internal/workflow/workflow-dependency/service"
 
 	"github.com/gin-gonic/gin"
 )

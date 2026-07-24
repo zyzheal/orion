@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/chatops/models"
-	"orion/platform-svc-go/internal/chatops/repository"
+	"orion/platform-svc-go/internal/notification/chatops/models"
+	"orion/platform-svc-go/internal/notification/chatops/repository"
 
 	"github.com/google/uuid"
 )

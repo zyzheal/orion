@@ -7,7 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/workflow-dependency/models"
+	"orion/platform-svc-go/internal/workflow/workflow-dependency/models"
 )
 
 type Repository struct {

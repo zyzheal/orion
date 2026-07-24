@@ -2,8 +2,8 @@ package handler
 
 import (
 	"strconv"
-	"orion/platform-svc-go/internal/risk/models"
-	"orion/platform-svc-go/internal/risk/service"
+	"orion/platform-svc-go/internal/governance/risk/models"
+	"orion/platform-svc-go/internal/governance/risk/service"
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"

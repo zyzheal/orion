@@ -4,8 +4,8 @@ import (
 	"orion/go-common/pkg/errors"
 	"net/http"
 
-	"orion/platform-svc-go/internal/audit/models"
-	"orion/platform-svc-go/internal/audit/service"
+	"orion/platform-svc-go/internal/governance/audit/models"
+	"orion/platform-svc-go/internal/governance/audit/service"
 
 	"orion/go-common/pkg/auth"
 

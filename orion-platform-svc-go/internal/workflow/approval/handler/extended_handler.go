@@ -2,7 +2,7 @@ package handler
 
 import (
 
-	"orion/platform-svc-go/internal/approval/models"
+	"orion/platform-svc-go/internal/workflow/approval/models"
 
 	"github.com/gin-gonic/gin"
 )

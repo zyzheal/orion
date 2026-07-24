@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/ueba/models"
-	"orion/platform-svc-go/internal/ueba/repository"
+	"orion/platform-svc-go/internal/security/ueba/models"
+	"orion/platform-svc-go/internal/security/ueba/repository"
 )
 
 type Service struct {

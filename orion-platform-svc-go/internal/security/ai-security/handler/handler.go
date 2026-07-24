@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-security/models"
-	"orion/platform-svc-go/internal/ai-security/service"
+	"orion/platform-svc-go/internal/security/ai-security/models"
+	"orion/platform-svc-go/internal/security/ai-security/service"
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"orion/platform-svc-go/internal/ai-security/models"
-	"orion/platform-svc-go/internal/ai-security/repository"
+	"orion/platform-svc-go/internal/security/ai-security/models"
+	"orion/platform-svc-go/internal/security/ai-security/repository"
 	"regexp"
 	"time"
 )

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"orion/platform-svc-go/internal/approval/models"
+	"orion/platform-svc-go/internal/workflow/approval/models"
 )
 
 // NotificationService sends notifications for approval events.

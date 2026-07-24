@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/permission-audit/models"
-	"orion/platform-svc-go/internal/permission-audit/repository"
+	"orion/platform-svc-go/internal/governance/permission-audit/models"
+	"orion/platform-svc-go/internal/governance/permission-audit/repository"
 )
 
 type Service struct {

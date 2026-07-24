@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"orion/platform-svc-go/internal/audit/models"
+	"orion/platform-svc-go/internal/governance/audit/models"
 
 	"github.com/jmoiron/sqlx"
 )

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/channel/models"
-	"orion/platform-svc-go/internal/channel/repository"
+	"orion/platform-svc-go/internal/notification/channel/models"
+	"orion/platform-svc-go/internal/notification/channel/repository"
 )
 
 type Service struct {

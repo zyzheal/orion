@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/cross-domain/models"
-	"orion/platform-svc-go/internal/cross-domain/repository"
+	"orion/platform-svc-go/internal/security/cross-domain/models"
+	"orion/platform-svc-go/internal/security/cross-domain/repository"
 )
 
 type Service struct {

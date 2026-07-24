@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/audit/models"
+	"orion/platform-svc-go/internal/governance/audit/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"orion/platform-svc-go/internal/risk/models"
+	"orion/platform-svc-go/internal/governance/risk/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -290,7 +290,7 @@ func (r *Repository) ClearExpiredPredictions(ctx context.Context) (int64, error)
 		return 0, err
 	}
 	n, _ := res.RowsAffected()
-	return n
+	return n, nil
 }
 
 // PredictionStats holds aggregate statistics over predictions.

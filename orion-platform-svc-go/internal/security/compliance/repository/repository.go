@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/compliance/models"
+	"orion/platform-svc-go/internal/security/compliance/models"
 	"time"
 )
 

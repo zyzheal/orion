@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/ueba/models"
-	"orion/platform-svc-go/internal/ueba/service"
+	"orion/platform-svc-go/internal/security/ueba/models"
+	"orion/platform-svc-go/internal/security/ueba/service"
 
 	"github.com/gin-gonic/gin"
 )

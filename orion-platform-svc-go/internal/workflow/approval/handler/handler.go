@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strconv"
 
-	"orion/platform-svc-go/internal/approval/models"
-	"orion/platform-svc-go/internal/approval/service"
+	"orion/platform-svc-go/internal/workflow/approval/models"
+	"orion/platform-svc-go/internal/workflow/approval/service"
 
 	"orion/go-common/pkg/auth"
 

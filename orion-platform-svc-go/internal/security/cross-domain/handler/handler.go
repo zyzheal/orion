@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/cross-domain/models"
-	"orion/platform-svc-go/internal/cross-domain/service"
+	"orion/platform-svc-go/internal/security/cross-domain/models"
+	"orion/platform-svc-go/internal/security/cross-domain/service"
 
 	"github.com/gin-gonic/gin"
 )

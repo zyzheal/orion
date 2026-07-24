@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/do-not-disturb/models"
-	"orion/platform-svc-go/internal/do-not-disturb/repository"
+	"orion/platform-svc-go/internal/notification/do-not-disturb/models"
+	"orion/platform-svc-go/internal/notification/do-not-disturb/repository"
 )
 
 type Service struct {

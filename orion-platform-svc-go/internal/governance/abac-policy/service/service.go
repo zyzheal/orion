@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/abac-policy/models"
-	"orion/platform-svc-go/internal/abac-policy/repository"
+	"orion/platform-svc-go/internal/governance/abac-policy/models"
+	"orion/platform-svc-go/internal/governance/abac-policy/repository"
 )
 
 type Service struct {

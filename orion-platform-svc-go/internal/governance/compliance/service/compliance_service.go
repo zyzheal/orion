@@ -11,8 +11,8 @@ import (
 	"sort"
 	"time"
 
-	"orion/platform-svc-go/internal/compliance/models"
-	"orion/platform-svc-go/internal/compliance/repository"
+	"orion/platform-svc-go/internal/governance/compliance/models"
+	"orion/platform-svc-go/internal/governance/compliance/repository"
 )
 
 var (

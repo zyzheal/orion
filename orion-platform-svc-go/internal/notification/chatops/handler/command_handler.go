@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/chatops/models"
-	"orion/platform-svc-go/internal/chatops/service"
+	"orion/platform-svc-go/internal/notification/chatops/models"
+	"orion/platform-svc-go/internal/notification/chatops/service"
 
 	"github.com/gin-gonic/gin"
 )

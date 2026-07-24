@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
-	"orion/platform-svc-go/internal/approval/models"
+	"orion/platform-svc-go/internal/workflow/approval/models"
 
 	"github.com/jmoiron/sqlx"
 )

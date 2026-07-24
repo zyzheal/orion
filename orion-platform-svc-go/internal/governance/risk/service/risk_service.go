@@ -7,8 +7,8 @@ import (
 	"math"
 	"time"
 
-	"orion/platform-svc-go/internal/risk/models"
-	"orion/platform-svc-go/internal/risk/repository"
+	"orion/platform-svc-go/internal/governance/risk/models"
+	"orion/platform-svc-go/internal/governance/risk/repository"
 
 	"github.com/google/uuid"
 )

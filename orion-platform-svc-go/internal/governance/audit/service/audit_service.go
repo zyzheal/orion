@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/audit/models"
-	"orion/platform-svc-go/internal/audit/repository"
+	"orion/platform-svc-go/internal/governance/audit/models"
+	"orion/platform-svc-go/internal/governance/audit/repository"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/branch-policy/models"
-	"orion/platform-svc-go/internal/branch-policy/repository"
+	"orion/platform-svc-go/internal/security/branch-policy/models"
+	"orion/platform-svc-go/internal/security/branch-policy/repository"
 )
 
 type Service struct {

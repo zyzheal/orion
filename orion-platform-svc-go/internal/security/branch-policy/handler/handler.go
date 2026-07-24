@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/branch-policy/models"
-	"orion/platform-svc-go/internal/branch-policy/service"
+	"orion/platform-svc-go/internal/security/branch-policy/models"
+	"orion/platform-svc-go/internal/security/branch-policy/service"
 
 	"github.com/gin-gonic/gin"
 )

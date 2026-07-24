@@ -3,8 +3,8 @@ package handler
 import (
 	"strconv"
 
-	"orion/platform-svc-go/internal/do-not-disturb/models"
-	"orion/platform-svc-go/internal/do-not-disturb/service"
+	"orion/platform-svc-go/internal/notification/do-not-disturb/models"
+	"orion/platform-svc-go/internal/notification/do-not-disturb/service"
 
 	"github.com/gin-gonic/gin"
 )
