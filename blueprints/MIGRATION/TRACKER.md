@@ -40,7 +40,7 @@
 | orion-agent-svc-go | 33 TS | 12 | 6 | 🟡 stub（待 Wave 2 补全） |
 
 ## 待启动
-
+n### 🟢 Wave 2 并行实施进度 (2026-07-24)nn| Agent | 任务 | 状态 | 已完成 |n|-------|------|------|--------|n| Agent-2 | orion-monitor-svc-go GAP分析 | 🟡 进行中 | GAP.md 已生成 |n| Agent-3 | orion-ai-svc-go GAP分析 | 🟡 进行中 | GAP.md 已生成 |n| Agent-5 | orion-security-svc 归档 | ✅ 已完成 | ARCHIVED.md |n| Agent-7 | 14 个新建服务脚手架 | 🟡 进行中 | 14 个目录 + go.mod/config |n| Agent-8 | 4 个 Repository 补全 | ✅ 已完成 | 4 个 repository + migrations |
 ### 🟡 Wave 2 — 双实现补全 + 新建 Go 服务
 
 | # | 服务 | TS 源文件 | Go 文件 | 差距 | 状态 | 优先级 |

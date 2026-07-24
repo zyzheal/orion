@@ -1,4 +1,4 @@
-module orion/orion-visor-svc-go
+module orion/orion-digital-twin-svc-go
 
 go 1.25
 

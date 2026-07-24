@@ -1,56 +1,53 @@
 package config
 
 import (
+	"fmt"
 	"os"
-	"strconv"
 )
 
 type Config struct {
-	Port        int
-	DBHost      string
-	DBPort      int
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	DBSSLMode   string
-	JWTSecret   string
-	RedisAddr   string
-	NATSAddr    string
-	NATSStream  string
+	DBHost     string
+	DBPort     int
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DBSSLMode  string
+	RedisAddr  string
+	NATSAddr   string
+	NATSStream string
+	ServerPort int
+	Environment string
+	OTLPEndpoint string
 }
 
 func Load() *Config {
-	port, _ := strconv.Atoi(getEnv("PORT", "8080"))
-	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
-
-	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
-	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
-
+	port := getEnvInt("SERVER_PORT", 8080)
+	dbPort := getEnvInt("DB_PORT", 5432)
 	return &Config{
-		Port:       port,
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     dbPort,
-		DBUser:     requireEnv("DB_USER"),
-		DBPassword: requireEnv("DB_PASSWORD"),
-		DBName:     getEnv("DB_NAME", "orion_visor"),
+		DBUser:     getEnv("DB_USER", "postgres"),
+		DBPassword: getEnv("DB_PASSWORD", ""),
+		DBName:     getEnv("DB_NAME", "orion"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-		JWTSecret:  jwtSecret,
-		RedisAddr:  redisAddr,
+		RedisAddr:  getEnv("REDIS_ADDR", "localhost:6379"),
 		NATSAddr:   getEnv("NATS_ADDR", "nats://localhost:4222"),
-		NATSStream: getEnv("NATS_STREAM", "EVENTS"),
+		NATSStream: getEnv("NATS_STREAM", "orion"),
+		ServerPort: port,
+		Environment: getEnv("ENVIRONMENT", "development"),
+		OTLPEndpoint: getEnv("OTLP_ENDPOINT", "localhost:4317"),
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultValue
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" { return v }
+	return fallback
 }
 
-func requireEnv(key string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	panic("required environment variable not set: " + key)
+func getEnvInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" { return fallback }
+	var n int
+	_, _ = fmt.Sscanf(v, "%d", &n)
+	return n
 }

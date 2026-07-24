@@ -1,4 +1,4 @@
-module orion/orion-visor-svc-go
+module orion/orion-deploy-svc-go
 
 go 1.25
 

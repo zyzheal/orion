@@ -1,4 +1,4 @@
-module orion/orion-visor-svc-go
+module orion/orion-risk-svc-go
 
 go 1.25
 
