@@ -88,19 +88,10 @@ export class OrionWebSocketClient {
   }
 
   /**
-   * 构建 WebSocket URL（包含认证 token）
+   * 构建 WebSocket URL（不包含认证 token，避免泄露）
    */
   private buildWsUrl(): string {
-    const url = this.config.url;
-    const token = this.getAccessToken();
-
-    if (!token) {
-      return url;
-    }
-
-    // 将 token 添加到 URL 查询参数
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}token=${encodeURIComponent(token)}`;
+    return this.config.url;
   }
 
   /**
@@ -116,7 +107,15 @@ export class OrionWebSocketClient {
 
     try {
       const wsUrl = this.buildWsUrl();
-      this.ws = new WebSocket(wsUrl);
+      const token = this.getAccessToken();
+
+      // 使用 Sec-WebSocket-Protocol header 传递 token，避免 URL 参数泄露
+      const protocols: string[] = [];
+      if (token) {
+        protocols.push(`orion-auth-${token}`);
+      }
+
+      this.ws = protocols.length > 0 ? new WebSocket(wsUrl, protocols) : new WebSocket(wsUrl);
 
       // 设置连接超时
       this.connectionTimeout = setTimeout(() => {
@@ -256,7 +255,7 @@ export class OrionWebSocketClient {
   /**
    * 发送消息
    */
-  send(data: Record<string, any>): boolean {
+  send(data: Record<string, unknown>): boolean {
     const message = JSON.stringify(data);
 
     if (this.state === 'connected' && this.ws) {
@@ -293,11 +292,14 @@ export class OrionWebSocketClient {
     this.reconnectAttempts++;
 
     // 指数退避：delay = base * 2^(attempt-1) + random jitter
-    const exponentialDelay = Math.pow(2, this.reconnectAttempts - 1) * this.config.initialReconnectDelay;
+    const exponentialDelay =
+      Math.pow(2, this.reconnectAttempts - 1) * this.config.initialReconnectDelay;
     const jitter = Math.random() * 1000; // 0-1 秒的随机抖动
     const delay = Math.min(exponentialDelay + jitter, this.config.maxReconnectDelay);
 
-    console.log(`[WS] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`);
+    console.log(
+      `[WS] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`
+    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;

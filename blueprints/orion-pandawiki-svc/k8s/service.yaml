@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-pandawiki-svc
+  labels:
+    app: orion-pandawiki-svc
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3034
+      protocol: TCP
+      name: http
+  selector:
+    app: orion-pandawiki-svc
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-pandawiki-config
+  labels:
+    app: orion-pandawiki-svc
+data:
+  pandawiki-url: "http://pandawiki:8001"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-pandawiki-secrets
+  labels:
+    app: orion-pandawiki-svc
+type: Opaque
+stringData:
+  api-key: ""

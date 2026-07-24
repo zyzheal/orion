@@ -17,17 +17,17 @@ export interface WebSocketMessage {
 }
 
 export interface BackoffConfig {
-  initialDelay: number;      // 初始延迟 (ms)
-  maxDelay: number;          // 最大延迟 (ms)
-  multiplier: number;        // 增长倍数
-  jitter: number;            // 随机抖动 (0-1)
-  maxAttempts: number;       // 最大重试次数
+  initialDelay: number; // 初始延迟 (ms)
+  maxDelay: number; // 最大延迟 (ms)
+  multiplier: number; // 增长倍数
+  jitter: number; // 随机抖动 (0-1)
+  maxAttempts: number; // 最大重试次数
 }
 
 export interface HeartbeatConfig {
-  interval: number;          // 心跳间隔 (ms)
-  timeout: number;           // 超时时间 (ms)
-  maxMissed: number;         // 最大丢失次数
+  interval: number; // 心跳间隔 (ms)
+  timeout: number; // 超时时间 (ms)
+  maxMissed: number; // 最大丢失次数
 }
 
 export interface UseWebSocketOptions {
@@ -58,17 +58,17 @@ export interface UseWebSocketReturn {
 }
 
 const DEFAULT_BACKOFF: BackoffConfig = {
-  initialDelay: 1000,        // 1 秒
-  maxDelay: 30000,           // 30 秒
-  multiplier: 2,             // 指数增长
-  jitter: 0.2,               // ±20% 随机
-  maxAttempts: 10,           // 最多 10 次
+  initialDelay: 1000, // 1 秒
+  maxDelay: 30000, // 30 秒
+  multiplier: 2, // 指数增长
+  jitter: 0.2, // ±20% 随机
+  maxAttempts: 10, // 最多 10 次
 };
 
 const DEFAULT_HEARTBEAT: HeartbeatConfig = {
-  interval: 30000,           // 30 秒
-  timeout: 10000,            // 10 秒
-  maxMissed: 3,              // 3 次
+  interval: 30000, // 30 秒
+  timeout: 10000, // 10 秒
+  maxMissed: 3, // 3 次
 };
 
 /**
@@ -129,18 +129,14 @@ class MessageQueue {
 
   private cleanupExpired(): void {
     const now = Date.now();
-    this.queue = this.queue.filter(
-      (msg) => now - msg.queuedAt < this.maxMessageAge
-    );
+    this.queue = this.queue.filter((msg) => now - msg.queuedAt < this.maxMessageAge);
   }
 }
 
 /**
  * useWebSocket Hook 实现
  */
-export function useWebSocket(
-  options: UseWebSocketOptions
-): UseWebSocketReturn {
+export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   const {
     url,
     enabled = true,
@@ -181,14 +177,17 @@ export function useWebSocket(
   const previousStateRef = useRef<ConnectionState>('disconnected');
 
   // 计算退避延迟
-  const calculateBackoff = useCallback((attempt: number): number => {
-    const baseDelay = Math.min(
-      backoffConfig.initialDelay * Math.pow(backoffConfig.multiplier, attempt),
-      backoffConfig.maxDelay
-    );
-    const jitter = (Math.random() - 0.5) * 2 * backoffConfig.jitter;
-    return Math.floor(baseDelay * (1 + jitter));
-  }, [backoffConfig]);
+  const calculateBackoff = useCallback(
+    (attempt: number): number => {
+      const baseDelay = Math.min(
+        backoffConfig.initialDelay * Math.pow(backoffConfig.multiplier, attempt),
+        backoffConfig.maxDelay
+      );
+      const jitter = (Math.random() - 0.5) * 2 * backoffConfig.jitter;
+      return Math.floor(baseDelay * (1 + jitter));
+    },
+    [backoffConfig]
+  );
 
   // 构建带认证的 WebSocket URL
   const buildWebSocketUrl = useCallback(async (): Promise<string | null> => {
@@ -250,87 +249,97 @@ export function useWebSocket(
   }, []);
 
   // 处理收到的消息
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data as string);
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data as string);
 
-      // 处理 pong 响应
-      if (data.type === 'pong') {
-        missedHeartbeatsRef.current = 0;
-        if (heartbeatTimeoutRef.current) {
-          clearTimeout(heartbeatTimeoutRef.current);
+        // 处理 pong 响应
+        if (data.type === 'pong') {
+          missedHeartbeatsRef.current = 0;
+          if (heartbeatTimeoutRef.current) {
+            clearTimeout(heartbeatTimeoutRef.current);
+          }
+          incrementStat('lastPongTime');
+          return;
         }
-        incrementStat('lastPongTime');
-        return;
+
+        // 处理认证过期通知
+        if (data.type === 'auth_expired') {
+          console.warn('[WS] Server notified auth expiration, refreshing token...');
+          refreshAuthToken().then(() => {
+            // Token 刷新后可选重连
+          });
+          return;
+        }
+
+        // 统计
+        incrementStat('messagesReceived');
+        incrementStat('lastMessageTime');
+
+        // 用户回调
+        onMessage?.(data as WebSocketMessage);
+      } catch (error) {
+        console.error('[WS] Failed to parse WebSocket message:', error);
       }
-
-      // 处理认证过期通知
-      if (data.type === 'auth_expired') {
-        console.warn('[WS] Server notified auth expiration, refreshing token...');
-        refreshAuthToken().then(() => {
-          // Token 刷新后可选重连
-        });
-        return;
-      }
-
-      // 统计
-      incrementStat('messagesReceived');
-      incrementStat('lastMessageTime');
-
-      // 用户回调
-      onMessage?.(data as WebSocketMessage);
-    } catch (error) {
-      console.error('[WS] Failed to parse WebSocket message:', error);
-    }
-  }, [onMessage, incrementStat, refreshAuthToken]);
+    },
+    [onMessage, incrementStat, refreshAuthToken]
+  );
 
   // 处理错误
-  const handleError = useCallback((event: CloseEvent | ErrorEvent) => {
-    const error = new Error(
-      'WebSocket error: ' + ('reason' in event ? (event as CloseEvent).reason : (event as ErrorEvent).message)
-    );
+  const handleError = useCallback(
+    (event: CloseEvent | ErrorEvent) => {
+      const error = new Error(
+        'WebSocket error: ' +
+          ('reason' in event ? (event as CloseEvent).reason : (event as ErrorEvent).message)
+      );
 
-    setError(error);
-    setLocalError(error);
-    onError?.(error);
+      setError(error);
+      setLocalError(error);
+      onError?.(error);
 
-    console.error('[WS] WebSocket error:', error);
-  }, [setError, onError]);
+      console.error('[WS] WebSocket error:', error);
+    },
+    [setError, onError]
+  );
 
   // 断开连接处理
-  const handleDisconnect = useCallback((isHeartbeatTimeout = false) => {
-    stopHeartbeat();
+  const handleDisconnect = useCallback(
+    (_isHeartbeatTimeout = false) => {
+      stopHeartbeat();
 
-    if (isManualDisconnectRef.current) {
-      setConnectionState('closed');
-      return;
-    }
+      if (isManualDisconnectRef.current) {
+        setConnectionState('closed');
+        return;
+      }
 
-    // 检查是否需要重连
-    if (reconnectAttemptsRef.current >= backoffConfig.maxAttempts) {
-      console.error('[WS] Max reconnect attempts reached');
-      setConnectionState('error');
+      // 检查是否需要重连
+      if (reconnectAttemptsRef.current >= backoffConfig.maxAttempts) {
+        console.error('[WS] Max reconnect attempts reached');
+        setConnectionState('error');
 
-      const fallbackError = new Error(
-        'WebSocket connection failed after multiple attempts. Please refresh the page.'
-      );
-      setError(fallbackError);
-      onError?.(fallbackError);
-      return;
-    }
+        const fallbackError = new Error(
+          'WebSocket connection failed after multiple attempts. Please refresh the page.'
+        );
+        setError(fallbackError);
+        onError?.(fallbackError);
+        return;
+      }
 
-    // 进入重连状态
-    setConnectionState('reconnecting');
+      // 进入重连状态
+      setConnectionState('reconnecting');
 
-    // 计算退避延迟
-    const delay = calculateBackoff(reconnectAttemptsRef.current);
-    console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`);
+      // 计算退避延迟
+      const delay = calculateBackoff(reconnectAttemptsRef.current);
+      console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`);
 
-    reconnectTimeoutRef.current = setTimeout(() => {
-      reconnectAttemptsRef.current++;
-      connect();
-    }, delay);
-  }, [stopHeartbeat, backoffConfig, calculateBackoff, setConnectionState, setError, onError]);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectAttemptsRef.current++;
+        connect();
+      }, delay);
+    },
+    [stopHeartbeat, backoffConfig, calculateBackoff, setConnectionState, setError, onError]
+  );
 
   // 连接 WebSocket
   const connect = useCallback(async () => {
@@ -375,7 +384,9 @@ export function useWebSocket(
       };
 
       wsRef.current.onmessage = handleMessage;
-      wsRef.current.onerror = handleError as (event: ErrorEvent) => void;
+      wsRef.current.onerror = (event: Event) => {
+        handleError(event as CloseEvent | ErrorEvent);
+      };
       wsRef.current.onclose = (event) => {
         console.log('[WS] WebSocket closed:', event.code, event.reason);
         handleDisconnect(event.code !== 1000); // 非正常关闭触发重连
@@ -418,27 +429,30 @@ export function useWebSocket(
   }, [incrementStat]);
 
   // 发送消息
-  const sendMessage = useCallback((message: WebSocketMessage): boolean => {
-    const queue = messageQueueRef.current;
+  const sendMessage = useCallback(
+    (message: WebSocketMessage): boolean => {
+      const queue = messageQueueRef.current;
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify(message));
-        incrementStat('messagesSent');
-        incrementStat('lastMessageTime');
-        return true;
-      } catch (error) {
-        console.error('[WS] Failed to send message:', error);
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify(message));
+          incrementStat('messagesSent');
+          incrementStat('lastMessageTime');
+          return true;
+        } catch (error) {
+          console.error('[WS] Failed to send message:', error);
+          queue.enqueue(message);
+          return false;
+        }
+      } else {
+        // 加入队列
         queue.enqueue(message);
+        console.warn('[WS] WebSocket not connected, message queued:', message.type);
         return false;
       }
-    } else {
-      // 加入队列
-      queue.enqueue(message);
-      console.warn('[WS] WebSocket not connected, message queued:', message.type);
-      return false;
-    }
-  }, [incrementStat]);
+    },
+    [incrementStat]
+  );
 
   // 手动断开
   const disconnect = useCallback(() => {
@@ -498,9 +512,7 @@ export function useWebSocket(
 
   // 计算衍生状态
   const isConnected = connectionState === 'connected';
-  const isConnecting =
-    connectionState === 'connecting' ||
-    connectionState === 'reconnecting';
+  const isConnecting = connectionState === 'connecting' || connectionState === 'reconnecting';
 
   return {
     connectionState,

@@ -1,0 +1,51 @@
+# Multi-Target Pipeline Example
+# Demonstrates oneshot (parallel) and grayScale (sequential batch) execution modes.
+#
+# Usage:
+#   orion pipeline create --file multi-target-pipeline.yaml
+#
+# Requires: Orion >= 1.0 with multi-target execution support.
+
+apiVersion: orion/v1
+kind: Pipeline
+metadata:
+  name: multi-node-deploy
+  version: 1.0.0
+spec:
+  triggers:
+    - type: api
+
+  stages:
+    # Single-target stage (original behavior, unchanged)
+    - name: build
+      runsOn: ubuntu-latest
+      steps:
+        - name: compile
+          uses: orion://actions/build
+
+    # Oneshot: deploy to 3 nodes simultaneously (parallel)
+    - name: deploy
+      runsOn: ubuntu-latest
+      targets: [web-node-1, web-node-2, web-node-3]
+      executionMode: oneshot
+      steps:
+        - name: deploy-service
+          uses: orion://actions/deploy
+          with:
+            service: web-frontend
+
+    # GrayScale: roll out to 6 nodes, 2 at a time (sequential batches)
+    - name: rolling-restart
+      runsOn: ubuntu-latest
+      targets:
+        - web-node-1
+        - web-node-2
+        - web-node-3
+        - web-node-4
+        - web-node-5
+        - web-node-6
+      executionMode: grayScale
+      batchSize: 2
+      steps:
+        - name: restart
+          uses: orion://actions/restart

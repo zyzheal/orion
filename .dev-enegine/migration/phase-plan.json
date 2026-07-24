@@ -1,0 +1,85 @@
+{
+  "plan": "nodejs-to-go-migration",
+  "version": "1.0.0",
+  "generated": "2026-07-11",
+  "overview": {
+    "total_nodejs_route_modules": 147,
+    "total_go_services": 31,
+    "routes_with_go_equivalent": 130,
+    "routes_without_go_service": 17,
+    "go_services_with_rbac": 7,
+    "go_services_without_rbac": 24,
+    "endpoints_already_cutover": ["notification", "digital-twin", "runner", "dr", "chatops"]
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Error Envelope Standardization",
+      "priority": "P0",
+      "agent": "a916c8f515abfdb87",
+      "steps": [
+        "Create orion-go-common/pkg/errors/errors.go with ResponseEnvelope struct and error code enum",
+        "Create orion-go-common/pkg/errors/middleware.go with ErrorRecovery handler",
+        "Migrate 7 representative services as reference implementations",
+        "Align gateway error.ts and Node.js errors/index.ts to unified format"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "RBAC Guards Addition",
+      "priority": "P0",
+      "agent": "a9cd9078400ba435a",
+      "target_services": [
+        "orion-approval-svc-go", "orion-audit-svc-go", "orion-build-env-svc-go", "orion-cmdb-svc-go",
+        "orion-community-svc-go", "orion-config-mgmt-svc-go", "orion-deploy-svc-go", "orion-event-bus-svc-go",
+        "orion-finops-svc-go", "orion-identity-svc-go", "orion-incident-svc-go", "orion-inspection-svc-go",
+        "orion-knowledge-svc-go", "orion-lowcode-svc-go", "orion-monitor-svc-go", "orion-monitoring-svc-go",
+        "orion-pandawiki-svc-go", "orion-platform-svc-go", "orion-skill-config-svc-go", "orion-tenant-svc-go",
+        "orion-ticket-svc-go", "orion-tool-svc-go", "orion-visor-svc-go", "orion-workflow-svc-go"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Route Migration - Missing Go Services",
+      "priority": "P1",
+      "agent": "a266ec37e980eed6e",
+      "new_services": ["orion-alert-breaker-svc-go", "orion-cache-cleanup-svc-go", "orion-infrastructure-svc-go", "orion-mcp-svc-go"],
+      "extend_existing": [
+        {"service": "orion-ci-cd-svc-go", "routes": ["/pipeline-templates", "/pipelines/versions", "/pipelines/budgets"]},
+        {"service": "orion-infra-ops-svc-go", "routes": ["/maintenance-windows", "/middleware-ops", "/serverless"]},
+        {"service": "orion-event-bus-svc-go", "routes": ["/message-queue"]},
+        {"service": "orion-identity-svc-go", "routes": ["/auth/sso", "/user-status"]},
+        {"service": "orion-cmdb-svc-go", "routes": ["/metadata"]},
+        {"service": "orion-platform-svc-go", "routes": ["/self-service", "/handlers", "/page-registry", "/subapps", "/service-catalog", "/service-topology"]}
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Gradual Traffic Cutover",
+      "priority": "P2",
+      "status": "pending",
+      "checklist": [
+        "Error envelope unified across all services",
+        "All Go services have RBAC guards on mutating endpoints",
+        "All 17 no-service routes have Go implementations",
+        "API Gateway SERVICE_ROUTES updated for each cutover service",
+        "Shadow-read verification passed for each service pair",
+        "Canary traffic (5%) shows < 0.5% error rate delta",
+        "Partial traffic (50%) shows < 1% error rate delta",
+        "Full cutover: Node.js route disabled, gateway points to Go",
+        "Frontend API clients verified against new endpoints"
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Node.js Monolith Decommission",
+      "priority": "P3",
+      "status": "pending"
+    }
+  ],
+  "p0_blockers": [
+    "Error envelope inconsistent across Node.js / Go / Gateway (3 formats)",
+    "24 of 31 Go services lack RBAC guards on mutating endpoints",
+    "17 Node.js routes have no Go service equivalent"
+  ]
+}

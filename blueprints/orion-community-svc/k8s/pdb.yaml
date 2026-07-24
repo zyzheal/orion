@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-community-pdb
+  namespace: orion
+  labels:
+    app: orion-community
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orion-community

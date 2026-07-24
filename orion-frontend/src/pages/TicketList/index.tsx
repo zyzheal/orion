@@ -9,12 +9,12 @@
  * - SLA column: green if >50% time, orange if <25%, red if overdue
  * - Pagination at bottom
  */
-import React, { useState, useMemo } from 'react';
-import { Typography, Button, Space, Tag, Badge, Modal, message } from 'antd';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Typography, Button, Space, Tag, Badge, Modal, message, Popconfirm } from 'antd';
 import {
   PlusOutlined,
+  OrderedListOutlined,
   ReloadOutlined,
-  BarChartOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
@@ -22,31 +22,54 @@ import {
   UserAddOutlined,
   InboxOutlined,
   WarningOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CheckOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import {
-  mockTickets,
-  mockEngineers,
-  type MockTicket,
-} from '@/pages/__mocks__/mockTicketData';
+import { getTickets, deleteTicket, transitionStatus, resolveTicket, closeTicket, assignTicket } from '@/api/ticketing';
+import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import CreateTicketModal from './CreateTicketModal';
+import EditTicketModal from './EditTicketModal';
 import DispatchPanel from './DispatchPanel';
 
 const { Title, Text } = Typography;
+
+// Local Ticket type definition
+interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  source: string;
+  reporter: string;
+  assignee: string | null;
+  createdAt: string;
+  updatedAt: string;
+  dueDate: string;
+  escalationLevel: number;
+  tags?: Record<string, string>;
+}
+
+type MockTicket = Ticket;
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
 const priorityConfig: Record<string, { color: string; label: string; order: number }> = {
-  critical: { color: '#ff4d4f', label: '紧急', order: 0 },
-  high: { color: '#fa8c16', label: '高', order: 1 },
-  medium: { color: '#1890ff', label: '中', order: 2 },
-  low: { color: '#8c8c8c', label: '低', order: 3 },
+  critical: { color: colors.error[400], label: '紧急', order: 0 },
+  high: { color: colors.warning[600], label: '高', order: 1 },
+  medium: { color: colors.primary[500], label: '中', order: 2 },
+  low: { color: colors.neutral[500], label: '低', order: 3 },
 };
 
 const statusConfig: Record<string, { color: string; label: string }> = {
@@ -87,16 +110,26 @@ function calculateSLA(ticket: MockTicket): {
   const remainingMs = due.diff(now);
 
   if (remainingMs <= 0) {
-    return { percent: 0, color: '#ff4d4f', text: '已超时', overdue: true };
+    return { percent: 0, color: colors.error[400], text: '已超时', overdue: true };
   }
 
   const percent = Math.max(0, Math.round((remainingMs / totalMs) * 100));
 
   if (percent < 25) {
-    return { percent, color: '#fa8c16', text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
+    return {
+      percent,
+      color: colors.warning[600],
+      text: `${Math.round(remainingMs / 3600000)}h`,
+      overdue: false,
+    };
   }
 
-  return { percent, color: '#52c41a', text: `${Math.round(remainingMs / 3600000)}h`, overdue: false };
+  return {
+    percent,
+    color: colors.success[500],
+    text: `${Math.round(remainingMs / 3600000)}h`,
+    overdue: false,
+  };
 }
 
 // ============================================================================
@@ -109,11 +142,57 @@ const TicketList: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [dispatchPanelOpen, setDispatchPanelOpen] = useState(false);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+
+  // Engineer list for assignee filter
+  const [engineers, setEngineers] = useState<string[]>([]);
+  const [engineersLoading, setEngineersLoading] = useState(false);
+
+  // Load engineers for assignee filter
+  useEffect(() => {
+    const loadEngineers = async () => {
+      setEngineersLoading(true);
+      try {
+        const res = await listUsers({ limit: 200 });
+        const users: User[] = res.data?.data || [];
+        setEngineers(users.map((u) => u.name || u.username).filter(Boolean));
+      } catch {
+        setEngineers([]);
+      } finally {
+        setEngineersLoading(false);
+      }
+    };
+    loadEngineers();
+  }, []);
+
+  // Load tickets from API
+  const loadTickets = async () => {
+    setLoading(true);
+    try {
+      const params = { page: 1, pageSize: 50, ...filters };
+      const response = await getTickets(params);
+      setTickets((response.data?.items ?? []) as unknown as Ticket[]);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载工单列表失败：${error.message}`);
+      } else {
+        message.error('加载工单列表失败');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, [filters]);
 
   // Filter tickets based on search and filters
   const filteredTickets = useMemo(() => {
-    return mockTickets.filter((ticket) => {
+    return tickets.filter((ticket) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -123,7 +202,9 @@ const TicketList: React.FC = () => {
           ticket.assignee || '',
           ticket.reporter,
           ticket.category,
-        ].join(' ').toLowerCase();
+        ]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -157,10 +238,10 @@ const TicketList: React.FC = () => {
   }, [searchQuery, filters]);
 
   // Summary metrics
-  const openCount = mockTickets.filter((t) => t.status === 'open' || t.status === 'assigned').length;
-  const inProgressCount = mockTickets.filter((t) => t.status === 'in-progress').length;
-  const overdueCount = mockTickets.filter((t) => calculateSLA(t).overdue).length;
-  const slaBreached = mockSLABreachedCount();
+  const openCount = tickets.filter((t) => t.status === 'open' || t.status === 'assigned').length;
+  const inProgressCount = tickets.filter((t) => t.status === 'in-progress').length;
+  const overdueCount = tickets.filter((t) => calculateSLA(t).overdue).length;
+  const slaBreached = tickets.filter((t) => calculateSLA(t).overdue).length;
 
   // Filter definitions
   const filterDefs: FilterDefinition[] = [
@@ -201,13 +282,107 @@ const TicketList: React.FC = () => {
       options: [
         { label: '全部', value: 'all' },
         { label: '未分配', value: 'unassigned' },
-        ...mockEngineers.map((e) => ({ label: e.name, value: e.name })),
+        ...(engineersLoading ? [] : engineers.map((name) => ({ label: name, value: name }))),
       ],
     },
   ];
 
+  // Action handlers
+  const handleRefresh = () => {
+    loadTickets();
+  };
+
+  const handleAssign = (ticket: Ticket) => {
+    // TODO: Replace with proper assignee selection modal (engineer dropdown)
+    let assigneeInput = '';
+    Modal.confirm({
+      title: '分配工单',
+      content: (
+        <div>
+          <p>工单: {ticket.id}</p>
+          <input
+            placeholder="输入工程师名称"
+            style={{ width: '100%', padding: '4px 8px', marginTop: 8 }}
+            onChange={(e) => { assigneeInput = e.target.value; }}
+          />
+        </div>
+      ),
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        if (!assigneeInput.trim()) {
+          message.warning('请输入工程师名称');
+          throw new Error('validation');
+        }
+        try {
+          await assignTicket(ticket.id, { assignee: assigneeInput.trim() });
+          message.success(`工单已分配给 ${assigneeInput.trim()}`);
+          loadTickets();
+        } catch (error: unknown) {
+          if (error instanceof Error && error.message !== 'validation') {
+            message.error(`分配失败：${error.message}`);
+          }
+        }
+      },
+    });
+  };
+
+  const handleAutoDispatch = () => {
+    setDispatchPanelOpen(true);
+  };
+
+  const handleCreateSuccess = () => {
+    setCreateModalOpen(false);
+    loadTickets();
+  };
+
+  const handleEdit = (ticket: Ticket) => {
+    setEditingTicket(ticket);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setEditingTicket(null);
+    loadTickets();
+  };
+
+  const handleDelete = async (ticket: Ticket) => {
+    try {
+      await deleteTicket(ticket.id);
+      message.success('工单已删除');
+      loadTickets();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除失败：${error.message}`);
+      } else {
+        message.error('删除失败');
+      }
+    }
+  };
+
+  const handleStatusTransition = async (ticket: Ticket, action: string) => {
+    try {
+      if (action === 'start') {
+        await transitionStatus(ticket.id, { toStatus: 'in-progress', performedBy: 'current-user' });
+      } else if (action === 'resolve') {
+        await resolveTicket(ticket.id);
+      } else if (action === 'close') {
+        await closeTicket(ticket.id);
+      }
+      message.success('状态更新成功');
+      loadTickets();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`状态更新失败：${error.message}`);
+      } else {
+        message.error('状态更新失败');
+      }
+    }
+  };
+
   // Table columns
-  const columns: TableColumn<MockTicket>[] = [
+  const columns: TableColumn<Ticket>[] = [
     {
       key: 'id',
       title: '工单ID',
@@ -216,7 +391,7 @@ const TicketList: React.FC = () => {
       render: (value: unknown, record: MockTicket) => (
         <Text
           strong
-          style={{ cursor: 'pointer', color: '#1890ff' }}
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
           onClick={() => navigate(`/tickets/${record.id}`)}
           data-testid={`ticket-link-${record.id}`}
         >
@@ -233,13 +408,20 @@ const TicketList: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/tickets/${record.id}`)}
           >
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            来源: {record.source === 'alert' ? '告警' : record.source === 'incident' ? '事件' : record.source === 'api' ? 'API' : '手动'}
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            来源:{' '}
+            {record.source === 'alert'
+              ? '告警'
+              : record.source === 'incident'
+                ? '事件'
+                : record.source === 'api'
+                  ? 'API'
+                  : '手动'}
           </Text>
         </Space>
       ),
@@ -276,7 +458,7 @@ const TicketList: React.FC = () => {
       width: 100,
       render: (value: unknown) => {
         const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
-        return <Badge status={config.color as any} text={config.label} />;
+        return <Badge status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'} text={config.label} />;
       },
     },
     {
@@ -310,7 +492,7 @@ const TicketList: React.FC = () => {
       dataIndex: 'createdAt',
       width: 140,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).format('MM-DD HH:mm')}
         </Text>
       ),
@@ -318,9 +500,9 @@ const TicketList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 160,
-      render: (_: unknown, record: MockTicket) => (
-        <Space size="small">
+      width: 280,
+      render: (_: unknown, record: Ticket) => (
+        <Space size="small" wrap>
           <Button
             type="link"
             size="small"
@@ -330,6 +512,50 @@ const TicketList: React.FC = () => {
           >
             详情
           </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            data-testid={`edit-ticket-${record.id}`}
+          >
+            编辑
+          </Button>
+          {/* Status transition buttons based on current status */}
+          {(record.status === 'open' || record.status === 'assigned') && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => handleStatusTransition(record, 'start')}
+              data-testid={`start-ticket-${record.id}`}
+            >
+              处理中
+            </Button>
+          )}
+          {record.status === 'in-progress' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CheckOutlined />}
+              style={{ color: colors.success[500] }}
+              onClick={() => handleStatusTransition(record, 'resolve')}
+              data-testid={`resolve-ticket-${record.id}`}
+            >
+              解决
+            </Button>
+          )}
+          {record.status === 'resolved' && (
+            <Button
+              type="link"
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={() => handleStatusTransition(record, 'close')}
+              data-testid={`close-ticket-${record.id}`}
+            >
+              关闭
+            </Button>
+          )}
           {!record.assignee && (
             <Button
               type="link"
@@ -341,6 +567,24 @@ const TicketList: React.FC = () => {
               分配
             </Button>
           )}
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这个工单吗？此操作不可恢复。"
+            onConfirm={() => handleDelete(record)}
+            okText="确认"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              data-testid={`delete-ticket-${record.id}`}
+            >
+              删除
+            </Button>
+          </Popconfirm>
           {record.escalationLevel > 0 && (
             <Tag color="red" style={{ margin: 0 }}>
               升级 L{record.escalationLevel}
@@ -351,32 +595,6 @@ const TicketList: React.FC = () => {
     },
   ];
 
-  const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 800);
-  };
-
-  const handleAssign = (ticket: MockTicket) => {
-    Modal.confirm({
-      title: '分配工单',
-      content: `选择工程师来分配工单 ${ticket.id}`,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => {
-        message.success(`工单 ${ticket.id} 分配成功`);
-      },
-    });
-  };
-
-  const handleAutoDispatch = () => {
-    setDispatchPanelOpen(true);
-  };
-
-  const handleCreateSuccess = () => {
-    setCreateModalOpen(false);
-    message.success('工单创建成功');
-  };
-
   return (
     <div style={{ padding: 0 }} data-testid="ticket-list-page">
       {/* Page header */}
@@ -385,16 +603,15 @@ const TicketList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <OrderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             工单管理
           </Title>
-          <Text type="secondary">
-            共 {filteredTickets.length} 个工单
-          </Text>
+          <Text type="secondary">共 {filteredTickets.length} 个工单</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
@@ -402,9 +619,6 @@ const TicketList: React.FC = () => {
           </Button>
           <Button icon={<ThunderboltOutlined />} onClick={handleAutoDispatch}>
             自动分派
-          </Button>
-          <Button icon={<BarChartOutlined />} onClick={() => message.info('报表功能开发中')}>
-            查看报表
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建工单
@@ -417,8 +631,8 @@ const TicketList: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
         data-testid="ticket-summary-cards"
       >
@@ -426,34 +640,34 @@ const TicketList: React.FC = () => {
           title="待处理"
           value={openCount}
           icon={<InboxOutlined />}
-          color="#1890ff"
+          color={colors.primary[500]}
           footer="需要分配的工单"
         />
         <MetricCard
           title="处理中"
           value={inProgressCount}
           icon={<ExclamationCircleOutlined />}
-          color="#fa8c16"
+          color={colors.warning[500]}
           footer="正在进行处理的工单"
         />
         <MetricCard
           title="已超时"
           value={overdueCount}
           icon={<ClockCircleOutlined />}
-          color="#ff4d4f"
+          color={colors.error[400]}
           footer="超过 SLA 时限"
         />
         <MetricCard
           title="SLA 违约"
           value={slaBreached}
           icon={<WarningOutlined />}
-          color="#722ed1"
+          color={colors.purple[500]}
           footer="SLA 违约次数"
         />
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -464,8 +678,8 @@ const TicketList: React.FC = () => {
 
       {/* Ticket table */}
       <Table
-        columns={columns as any}
-        dataSource={filteredTickets as any}
+        columns={columns}
+        dataSource={filteredTickets}
         loading={loading}
         rowKey="id"
         size="middle"
@@ -480,21 +694,21 @@ const TicketList: React.FC = () => {
         onSuccess={handleCreateSuccess}
       />
 
-      {/* Dispatch panel */}
-      <DispatchPanel
-        open={dispatchPanelOpen}
-        onClose={() => setDispatchPanelOpen(false)}
+      {/* Edit ticket modal */}
+      <EditTicketModal
+        open={editModalOpen}
+        onCancel={() => {
+          setEditModalOpen(false);
+          setEditingTicket(null);
+        }}
+        onSuccess={handleEditSuccess}
+        ticket={editingTicket as any}
       />
+
+      {/* Dispatch panel */}
+      <DispatchPanel open={dispatchPanelOpen} onClose={() => setDispatchPanelOpen(false)} />
     </div>
   );
 };
-
-/** Count SLA breached tickets */
-function mockSLABreachedCount(): number {
-  return mockTickets.filter((t) => {
-    const sla = calculateSLA(t);
-    return sla.overdue;
-  }).length;
-}
 
 export default TicketList;

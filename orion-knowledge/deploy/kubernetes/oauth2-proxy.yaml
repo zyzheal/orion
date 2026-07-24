@@ -1,0 +1,158 @@
+# ──────────────────────────────────────────────────────────
+# OAuth2 Proxy - SSO/OIDC 集成
+# 支持 Keycloak, Google, GitHub, Azure AD 等 OIDC 提供商
+# ──────────────────────────────────────────────────────────
+
+# ── OAuth2 Proxy ConfigMap ──────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oauth2-proxy-config
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: oauth2-proxy
+data:
+  # ── OIDC 提供商配置 (以 Keycloak 为例) ─────────────────
+  # 其他提供商: google, github, azure, gitlab, okta 等
+  OAUTH2_PROXY_PROVIDER: "oidc"
+  OAUTH2_PROXY_OIDC_ISSUER_URL: "https://sso.example.com/realms/orion"
+
+  # ── 路由配置 ──────────────────────────────────────────
+  OAUTH2_PROXY_HTTP_ADDRESS: ":4180"
+  OAUTH2_PROXY_REDIRECT_URL: "https://knowledge.example.com/oauth2/callback"
+  OAUTH2_PROXY_COOKIE_SECRET: "change-this-to-32-byte-base64-secret"
+  OAUTH2_PROXY_COOKIE_SECURE: "true"
+  OAUTH2_PROXY_COOKIE_SAMESITE: "lax"
+  OAUTH2_PROXY_COOKIE_DOMAIN: ".example.com"
+
+  # ── 上游代理 (转发到 Admin UI) ─────────────────────────
+  OAUTH2_PROXY_UPSTREAMS: "http://orion-knowledge-admin:80"
+
+  # ── 跳过的路径 (健康检查, 静态资源) ─────────────────────
+  OAUTH2_PROXY_SKIP_AUTH_ROUTES: "^/healthz$,^/ready$"
+
+  # ── OIDC Scope ─────────────────────────────────────────
+  OAUTH2_PROXY_SCOPE: "openid email profile"
+  OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+
+  # ── Session 存储 (Redis) ──────────────────────────────
+  OAUTH2_PROXY_SESSION_STORE_TYPE: "redis"
+  OAUTH2_PROXY_REDIS_CONNECTION_URL: "redis://:Knowledge@123@orion-knowledge-redis:6379/1"
+---
+# ── OAuth2 Proxy Secrets ────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth2-proxy-secrets
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: oauth2-proxy
+type: Opaque
+stringData:
+  OAUTH2_PROXY_CLIENT_ID: "orion-knowledge"
+  OAUTH2_PROXY_CLIENT_SECRET: "change-this-to-your-oidc-client-secret"
+---
+# ── OAuth2 Proxy Deployment ─────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+      app.kubernetes.io/component: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orion-knowledge
+        app.kubernetes.io/component: oauth2-proxy
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4180
+              name: http
+          args:
+            - "--provider=$(OAUTH2_PROXY_PROVIDER)"
+            - "--oidc-issuer-url=$(OAUTH2_PROXY_OIDC_ISSUER_URL)"
+            - "--http-address=$(OAUTH2_PROXY_HTTP_ADDRESS)"
+            - "--redirect-url=$(OAUTH2_PROXY_REDIRECT_URL)"
+            - "--cookie-secret=$(OAUTH2_PROXY_COOKIE_SECRET)"
+            - "--cookie-secure=$(OAUTH2_PROXY_COOKIE_SECURE)"
+            - "--cookie-samesite=$(OAUTH2_PROXY_COOKIE_SAMESITE)"
+            - "--cookie-domain=$(OAUTH2_PROXY_COOKIE_DOMAIN)"
+            - "--upstream=$(OAUTH2_PROXY_UPSTREAMS)"
+            - "--skip-auth-regex=$(OAUTH2_PROXY_SKIP_AUTH_ROUTES)"
+            - "--scope=$(OAUTH2_PROXY_SCOPE)"
+            - "--email-domain=$(OAUTH2_PROXY_EMAIL_DOMAINS)"
+            - "--session-store-type=$(OAUTH2_PROXY_SESSION_STORE_TYPE)"
+            - "--redis-connection-url=$(OAUTH2_PROXY_REDIS_CONNECTION_URL)"
+            - "--client-id=$(OAUTH2_PROXY_CLIENT_ID)"
+            - "--client-secret=$(OAUTH2_PROXY_CLIENT_SECRET)"
+            - "--pass-access-token=true"
+            - "--pass-authorization-header=true"
+            - "--set-xauthrequest=true"
+            - "--whitelist-domain=.example.com"
+          envFrom:
+            - configMapRef:
+                name: oauth2-proxy-config
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: OAUTH2_PROXY_CLIENT_ID
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-secrets
+                  key: OAUTH2_PROXY_CLIENT_SECRET
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+---
+# ── OAuth2 Proxy Service ────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: oauth2-proxy
+spec:
+  ports:
+    - port: 4180
+      targetPort: 4180
+      name: http
+  selector:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: oauth2-proxy

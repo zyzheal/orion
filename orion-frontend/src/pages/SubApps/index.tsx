@@ -1,19 +1,26 @@
 /**
  * 子系统导航页面
  * 展示所有可用的子系统入口
+ * 支持从 menuConfigStore 动态获取配置
  */
-import React from 'react';
-import { Typography, Card, Row, Col, Tag, Button } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Typography, Card, Row, Col, Tag, Button, Spin } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   DatabaseOutlined,
   BookOutlined,
   DashboardOutlined,
   ArrowRightOutlined,
+  CodeOutlined,
+  CloudOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useMenuConfigStore, type MenuChildConfig } from '@/stores/menuConfigStore';
 
 const { Title, Paragraph } = Typography;
 
+// 子系统卡片类型
 interface SubAppCard {
   key: string;
   name: string;
@@ -24,13 +31,34 @@ interface SubAppCard {
   tags: string[];
 }
 
-const subApps: SubAppCard[] = [
+// icon 映射
+const iconMap: Record<string, React.ReactNode> = {
+  '/dba': <DatabaseOutlined />,
+  '/knowledge': <BookOutlined />,
+  '/visor': <DashboardOutlined />,
+  '/ai-gateway': <CloudOutlined />,
+  '/agents': <CodeOutlined />,
+  '/ai-security': <SafetyOutlined />,
+};
+
+// 颜色映射
+const colorMap: Record<string, string> = {
+  '/dba': colors.primary[500],
+  '/knowledge': colors.success[500],
+  '/visor': colors.purple[500],
+  '/ai-gateway': colors.primary[500],
+  '/agents': colors.warning[500],
+  '/ai-security': colors.error[500],
+};
+
+// 默认子系统列表（降级使用）
+const defaultSubApps: SubAppCard[] = [
   {
     key: 'dba',
     name: '数据库管理',
     description: '提供数据库连接管理、SQL 执行、数据建模、性能监控等功能',
     icon: <DatabaseOutlined />,
-    color: '#1890ff',
+    color: colors.primary[500],
     path: '/dba',
     tags: ['数据库', 'SQL', '管理工具'],
   },
@@ -39,7 +67,7 @@ const subApps: SubAppCard[] = [
     name: '知识库',
     description: '团队知识沉淀、文档管理、经验分享、最佳实践收集',
     icon: <BookOutlined />,
-    color: '#52c41a',
+    color: colors.success[500],
     path: '/knowledge',
     tags: ['文档', '知识管理', '协作'],
   },
@@ -48,7 +76,7 @@ const subApps: SubAppCard[] = [
     name: '监控中心',
     description: '系统监控、告警管理、性能分析、日志查询一体化平台',
     icon: <DashboardOutlined />,
-    color: '#722ed1',
+    color: colors.purple[500],
     path: '/visor',
     tags: ['监控', '告警', '分析'],
   },
@@ -56,16 +84,50 @@ const subApps: SubAppCard[] = [
 
 const SubApps: React.FC = () => {
   const navigate = useNavigate();
+  const { modules, loadConfig } = useMenuConfigStore();
+  const [subApps, setSubApps] = useState<SubAppCard[]>(defaultSubApps);
+  const [loading, setLoading] = useState(true);
 
-  return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 32 }}>
-        <Title level={2}>子系统导航</Title>
-        <Paragraph type="secondary" style={{ fontSize: 16 }}>
-          Orion 平台采用微前端架构，以下为集成的子系统应用。点击卡片进入相应子系统。
-        </Paragraph>
-      </div>
+  // 加载并处理子系统配置
+  useEffect(() => {
+    const loadSubApps = () => {
+      try {
+        // 确保配置已加载
+        loadConfig();
 
+        const subAppsModule = modules['/subapps'];
+
+        if (subAppsModule && subAppsModule.enabled && subAppsModule.children) {
+          const enabledChildren = subAppsModule.children.filter(child => child.enabled);
+
+          if (enabledChildren.length > 0) {
+            const mappedSubApps: SubAppCard[] = enabledChildren.map((child: MenuChildConfig) => ({
+              key: child.key.replace('/', ''),
+              name: child.label,
+              description: child.description || '',
+              icon: iconMap[child.key] || <CodeOutlined />,
+              color: colorMap[child.key] || colors.primary[500],
+              path: child.key,
+              tags: child.category ? [child.category] : [],
+            }));
+
+            setSubApps(mappedSubApps);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load subApps from store, using default:', error);
+        // 降级使用默认列表
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSubApps();
+  }, [modules, loadConfig]);
+
+  // 渲染内容
+  const renderContent = () => (
+    <>
       <Row gutter={[24, 24]}>
         {subApps.map((app) => (
           <Col xs={24} sm={12} md={8} key={app.key}>
@@ -75,7 +137,7 @@ const SubApps: React.FC = () => {
                 height: '100%',
                 minHeight: 280,
                 borderRadius: 12,
-                border: '1px solid #f0f0f0',
+                border: `1px solid ${colors.light.border.light}`,
                 transition: 'all 0.3s',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               }}
@@ -95,33 +157,33 @@ const SubApps: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: 16,
+                  marginBottom: spacing.md,
                 }}
               >
-                <div style={{ fontSize: 32, color: app.color }}>
-                  {app.icon}
-                </div>
+                <div style={{ fontSize: spacing[8], color: app.color }}>{app.icon}</div>
               </div>
 
-              <Title level={4} style={{ marginBottom: 8 }}>
+              <Title level={4} style={{ marginBottom: spacing.sm }}>
                 {app.name}
               </Title>
 
-              <div style={{ marginBottom: 12 }}>
-                {app.tags.map((tag) => (
-                  <Tag key={tag} color={app.color} style={{ marginRight: 4 }}>
-                    {tag}
-                  </Tag>
-                ))}
-              </div>
+              {app.tags.length > 0 && (
+                <div style={{ marginBottom: spacing[3] }}>
+                  {app.tags.map((tag) => (
+                    <Tag key={tag} color={app.color} style={{ marginRight: 4 }}>
+                      {tag}
+                    </Tag>
+                  ))}
+                </div>
+              )}
 
               <Paragraph
                 type="secondary"
                 style={{
                   flex: 1,
-                  fontSize: 14,
+                  fontSize: spacing[4],
                   lineHeight: 1.6,
-                  marginBottom: 24,
+                  marginBottom: spacing.lg,
                 }}
               >
                 {app.description}
@@ -151,21 +213,44 @@ const SubApps: React.FC = () => {
       <Card
         style={{
           marginTop: 32,
-          background: '#fafafa',
+          background: colors.neutral[50],
           border: 'none',
         }}
       >
         <Title level={5}>🏗️ 微前端架构说明</Title>
-        <Paragraph style={{ fontSize: 14, color: '#666' }}>
+        <Paragraph style={{ fontSize: spacing[4], color: colors.neutral[500] }}>
           <ul style={{ paddingLeft: 20 }}>
-            <li>采用 <strong>Wujie（无界）</strong> 微前端框架，实现子系统间完全隔离</li>
+            <li>
+              采用 <strong>Wujie（无界）</strong> 微前端框架，实现子系统间完全隔离
+            </li>
             <li>支持子系统独立开发、独立部署、技术栈无关</li>
-            <li>通过 <strong>eventBus</strong> 实现主子应用通信</li>
+            <li>
+              通过 <strong>eventBus</strong> 实现主子应用通信
+            </li>
             <li>共享用户认证状态、主题配置等全局状态</li>
             <li>支持子应用预加载和保活模式，提升切换体验</li>
           </ul>
         </Paragraph>
       </Card>
+    </>
+  );
+
+  return (
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ marginBottom: spacing.xl }}>
+        <Title level={2}>子系统导航</Title>
+        <Paragraph type="secondary" style={{ fontSize: spacing[4] }}>
+          Orion 平台采用微前端架构，以下为集成的子系统应用。点击卡片进入相应子系统。
+        </Paragraph>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '100px 0' }}>
+          <Spin size="large" />
+        </div>
+      ) : (
+        renderContent()
+      )}
     </div>
   );
 };

@@ -3,22 +3,22 @@
  * Personal performance dashboard for individual engineers, including personal
  * metrics, trend analysis, strengths/weaknesses, and active ticket tracking.
  *
- * Uses mock data initially; real API integration will be added later.
+ * P0-3 Fix: Removed mock data fallback. Now uses real API data with proper
+ * loading, error, and empty states. Mock data is kept only in test files.
  */
 import React from 'react';
 import {
   Card,
   Row,
   Col,
-  Statistic,
   Tag,
-  Progress,
   Table,
   Typography,
   Space,
-  Divider,
   Badge,
+  Result,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
   TrophyOutlined,
@@ -29,21 +29,25 @@ import {
   WarningOutlined,
   FlagOutlined,
   UserOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
-import { mockEngineerDashboard } from '@/pages/__mocks__/mockBIData';
+import { StatCard, TrendLineChart, GaugeChart, BarChart } from '@/components/charts';
+import DataState from '@/components/DataState';
+import { useBiDashboard } from '@/hooks/useBiDashboard';
+import type { EngineerDashboardData } from '@/types/pages';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 // Color constants
 const COLORS = {
-  success: '#52c41a',
-  warning: '#faad14',
-  error: '#ff4d4f',
-  info: '#1890ff',
-  purple: '#722ed1',
-  cyan: '#13c2c2',
+  success: colors.success[500],
+  warning: colors.warning[500],
+  error: colors.error[400],
+  info: colors.primary[500],
+  purple: colors.purple[500],
+  cyan: colors.info[500],
 };
 
 /**
@@ -54,13 +58,13 @@ const priorityColor = (priority: string): string => {
     case 'critical':
       return COLORS.error;
     case 'high':
-      return '#fa8c16';
+      return colors.warning[500];
     case 'medium':
       return COLORS.warning;
     case 'low':
       return COLORS.info;
     default:
-      return '#8c8c8c';
+      return colors.neutral[400];
   }
 };
 
@@ -108,7 +112,30 @@ const categoryName = (category: string): string => {
 };
 
 const EngineerDashboard: React.FC = () => {
-  const data = mockEngineerDashboard;
+  const { data: apiData, loading, error } = useBiDashboard('engineer');
+
+  // Retry handler - reload page on error
+  const handleRetry = () => window.location.reload();
+
+  // Show empty state when no data available
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle="个人效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
+        />
+      </div>
+    );
+  }
+
+  // Cast API data to expected type
+  const data = apiData as EngineerDashboardData | undefined;
+
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
 
   // Grade color
   const gradeColorMap: Record<string, string> = {
@@ -195,30 +222,36 @@ const EngineerDashboard: React.FC = () => {
 
   // Trend data for last 14 days
   const recentTrend = data.personalTrend.slice(-14);
-  const maxResolved = Math.max(...recentTrend.map((d) => d.resolved), 1);
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <UserOutlined style={{ marginRight: 8, color: COLORS.purple }} />
-          个人看板
-        </Title>
-        <Text type="secondary">
-          {data.personalOverview.engineerName} — 个人效能与工单管理 —{' '}
-          {dayjs().format('YYYY-MM-DD HH:mm')}
-        </Text>
-      </div>
+      <DataState
+        loading={loading}
+        error={error}
+        empty={false}
+        loadingText="加载效能数据..."
+        retry={handleRetry}
+      >
+        {/* Page header */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ToolOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            个人看板
+          </Title>
+          <Text type="secondary">
+            {data.personalOverview.engineerName} — 个人效能与工单管理 —{' '}
+            {dayjs().format('YYYY-MM-DD HH:mm')}
+          </Text>
+        </div>
 
       {/* Personal Overview Card */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel>
           <Row gutter={[24, 16]} align="middle">
             {/* Left: Name, Rank, Grade */}
             <Col xs={24} sm={8} md={6}>
               <Space direction="vertical" size={8}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
                   <div
                     style={{
                       width: 56,
@@ -229,7 +262,7 @@ const EngineerDashboard: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 24,
+                      fontSize: spacing[6],
                     }}
                   >
                     <UserOutlined />
@@ -238,7 +271,7 @@ const EngineerDashboard: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                       {data.personalOverview.engineerName}
                     </Title>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       {data.personalOverview.engineerId}
                     </Text>
                   </div>
@@ -247,13 +280,15 @@ const EngineerDashboard: React.FC = () => {
                   <Tag
                     color="gold"
                     icon={<TrophyOutlined />}
-                    style={{ fontWeight: 700, fontSize: 14, padding: '4px 12px' }}
+                    style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
                   >
                     排名 #{data.personalOverview.rank}/{data.personalOverview.totalInTeam}
                   </Tag>
                   <Tag
-                    color={gradeColorMap[data.personalOverview.performanceGrade] || '#8c8c8c'}
-                    style={{ fontWeight: 700, fontSize: 14, padding: '4px 12px' }}
+                    color={
+                      gradeColorMap[data.personalOverview.performanceGrade] || colors.neutral[400]
+                    }
+                    style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
                   >
                     等级 {data.personalOverview.performanceGrade}
                   </Tag>
@@ -265,43 +300,38 @@ const EngineerDashboard: React.FC = () => {
             <Col xs={24} sm={16} md={18}>
               <Row gutter={[16, 16]}>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="当前负载"
                     value={data.personalOverview.currentLoad}
                     suffix="个"
-                    prefix={<ClockCircleOutlined />}
-                    valueStyle={{ fontSize: 22, fontWeight: 600 }}
+                    icon={<ClockCircleOutlined />}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="已解决总数"
                     value={data.personalOverview.totalResolved}
                     suffix="个"
-                    prefix={<CheckCircleOutlined style={{ color: COLORS.success }} />}
-                    valueStyle={{ fontSize: 22, fontWeight: 600, color: COLORS.success }}
+                    icon={<CheckCircleOutlined />}
+                    trend={{ value: 12, direction: 'up', good: 'up' }}
+                    sparklineData={recentTrend.map(d => d.resolved)}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="平均解决时间"
                     value={data.personalOverview.avgResolutionTimeHours}
                     suffix="h"
-                    prefix={<ThunderboltOutlined />}
-                    valueStyle={{ fontSize: 22, fontWeight: 600 }}
+                    icon={<ThunderboltOutlined />}
+                    trend={{ value: 5, direction: 'down', good: 'down' }}
                   />
                 </Col>
                 <Col xs={12} sm={6}>
-                  <Statistic
+                  <StatCard
                     title="SLA合规率"
                     value={data.personalOverview.slaComplianceRate}
                     suffix="%"
-                    prefix={<FlagOutlined style={{ color: COLORS.info }} />}
-                    valueStyle={{
-                      fontSize: 22,
-                      fontWeight: 600,
-                      color: data.personalOverview.slaComplianceRate >= 95 ? COLORS.success : COLORS.warning,
-                    }}
+                    icon={<FlagOutlined />}
                   />
                 </Col>
               </Row>
@@ -311,51 +341,20 @@ const EngineerDashboard: React.FC = () => {
       </div>
 
       {/* Personal Trend Chart */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="个人趋势（近14天）" extra={<Tag color="cyan">解决数 & 耗时</Tag>}>
-          <div style={{ height: 200, display: 'flex', alignItems: 'flex-end', gap: 4, padding: '0 8px' }}>
-            {recentTrend.map((d, i) => (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <div style={{ height: 160, display: 'flex', alignItems: 'flex-end' }}>
-                  <div
-                    style={{
-                      width: 16,
-                      height: `${(d.resolved / maxResolved) * 100}%`,
-                      backgroundColor: COLORS.success,
-                      borderRadius: '4px 4px 0 0',
-                      opacity: 0.8,
-                      minWidth: 10,
-                    }}
-                    title={`解决: ${d.resolved}, 平均: ${d.avgResolutionHours}h`}
-                  />
-                </div>
-                <Text style={{ fontSize: 10, color: '#8c8c8c' }}>
-                  {dayjs(d.period).format('MM/DD')}
-                </Text>
-              </div>
-            ))}
-          </div>
-          <Divider style={{ margin: '12px 0 8px' }} />
-          <Space size={24}>
-            <Space size={4}>
-              <div style={{ width: 10, height: 10, backgroundColor: COLORS.success, borderRadius: 2 }} />
-              <Text style={{ fontSize: 12 }}>每日解决数</Text>
-            </Space>
-          </Space>
+          <TrendLineChart
+            title=""
+            data={[recentTrend.map(d => ({ period: dayjs(d.period).format('MM/DD'), value: d.resolved, label: '解决数' }))]}
+            height={200}
+            showArea={true}
+            smooth={false}
+          />
         </CardPanel>
       </div>
 
       {/* Strengths & Weaknesses */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {/* Strengths */}
         <Col xs={24} xl={12}>
           <CardPanel title="优势领域" extra={<RiseOutlined style={{ color: COLORS.success }} />}>
@@ -367,25 +366,18 @@ const EngineerDashboard: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 8,
+                      marginBottom: spacing.sm,
                     }}
                   >
                     <Tag color={COLORS.success}>{categoryName(s.category)}</Tag>
                     <Space>
-                      <Text style={{ fontSize: 12 }}>
-                        解决 {s.resolvedCount} 个
-                      </Text>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: spacing[3] }}>解决 {s.resolvedCount} 个</Text>
+                      <Text style={{ fontSize: spacing[3] }}>
                         SLA {(s.slaComplianceRate * 100).toFixed(0)}%
                       </Text>
                     </Space>
                   </div>
-                  <Progress
-                    percent={s.proficiencyScore}
-                    size="small"
-                    strokeColor={COLORS.success}
-                    format={() => `熟练度 ${s.proficiencyScore}`}
-                  />
+                  <GaugeChart value={s.proficiencyScore} title={`熟练度 ${s.proficiencyScore}%`} max={100} size={120} unit="%" />
                 </Card>
               ))}
             </Space>
@@ -394,7 +386,10 @@ const EngineerDashboard: React.FC = () => {
 
         {/* Weaknesses */}
         <Col xs={24} xl={12}>
-          <CardPanel title="待提升领域" extra={<WarningOutlined style={{ color: COLORS.warning }} />}>
+          <CardPanel
+            title="待提升领域"
+            extra={<WarningOutlined style={{ color: COLORS.warning }} />}
+          >
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               {data.weaknesses.map((w) => (
                 <Card
@@ -411,29 +406,29 @@ const EngineerDashboard: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 8,
+                      marginBottom: spacing.sm,
                     }}
                   >
                     <Tag color={w.slaComplianceRate < 0.6 ? 'error' : 'warning'}>
                       {categoryName(w.category)}
                     </Tag>
                     <Space>
-                      <Text style={{ fontSize: 12 }}>
-                        解决 {w.resolvedCount} 个
-                      </Text>
-                      <Text style={{ fontSize: 12 }}>
+                      <Text style={{ fontSize: spacing[3] }}>解决 {w.resolvedCount} 个</Text>
+                      <Text style={{ fontSize: spacing[3] }}>
                         SLA {(w.slaComplianceRate * 100).toFixed(0)}%
                       </Text>
                     </Space>
                   </div>
-                  <Progress
-                    percent={Math.round(w.slaComplianceRate * 100)}
-                    size="small"
-                    strokeColor={w.slaComplianceRate < 0.6 ? COLORS.error : COLORS.warning}
-                    format={() => `SLA ${(w.slaComplianceRate * 100).toFixed(0)}%`}
+                  <GaugeChart
+                    value={Math.round(w.slaComplianceRate * 100)}
+                    title={`SLA ${Math.round(w.slaComplianceRate * 100)}%`}
+                    max={100}
+                    size={120}
+                    unit="%"
+                    thresholds={{ warning: 70, danger: 60 }}
                   />
-                  <div style={{ marginTop: 8 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                  <div style={{ marginTop: spacing.sm }}>
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
                       <WarningOutlined style={{ marginRight: 4 }} />
                       建议: {w.suggestion}
                     </Text>
@@ -445,15 +440,26 @@ const EngineerDashboard: React.FC = () => {
         </Col>
       </Row>
 
+      {/* Ability Distribution */}
+      <div style={{ marginBottom: spacing.lg }}>
+        <CardPanel title="能力分布">
+          <BarChart
+            title="各类别熟练度"
+            data={[
+              ...data.strengths.map(s => ({ label: categoryName(s.category), value: s.proficiencyScore, series: '优势' })),
+              ...data.weaknesses.map(w => ({ label: categoryName(w.category), value: Math.round(w.slaComplianceRate * 100), series: '待提升' })),
+            ]}
+            height={200}
+          />
+        </CardPanel>
+      </div>
+
       {/* Active Tickets */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel
           title="活跃工单"
           extra={
-            <Badge
-              count={data.activeTickets.length}
-              style={{ backgroundColor: COLORS.info }}
-            >
+            <Badge count={data.activeTickets.length} style={{ backgroundColor: COLORS.info }}>
               <Tag>处理中</Tag>
             </Badge>
           }
@@ -469,14 +475,15 @@ const EngineerDashboard: React.FC = () => {
           {/* Inline style for overdue row highlighting */}
           <style>{`
             .overdue-row {
-              background-color: #fff1f0 !important;
+              background-color: ${colors.error[50]} !important;
             }
             .overdue-row:hover td {
-              background-color: #ffccc7 !important;
+              background-color: ${colors.error[100]} !important;
             }
           `}</style>
         </CardPanel>
       </div>
+      </DataState>
     </div>
   );
 };

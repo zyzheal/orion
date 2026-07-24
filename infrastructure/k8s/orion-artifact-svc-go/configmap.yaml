@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-artifact-svc-go-config
+  namespace: orion
+  labels:
+    app: orion-artifact-svc-go
+    app.kubernetes.io/part-of: orion-platform
+data:
+  environment: "development"
+  database_url: "postgres://orion:orion@postgres:5432/orion_orion_artifact_svc_go?sslmode=disable"
+  redis_addr: "redis:6379"
+  nats_addr: "nats://nats:4222"
+  nats_stream: "EVENTS"

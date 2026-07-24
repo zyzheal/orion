@@ -1,6 +1,6 @@
 PLATFORM=linux/amd64
 TAG=main
-REGISTRY=panda-wiki-admin
+REGISTRY=orion-knowledge-admin
 
 
 # 构建前端代码
@@ -17,5 +17,4 @@ image: build
 	  .
 
 save: image
-	docker save -o /tmp/panda-wiki-admin_frontend.tar panda-wiki-admin/frontend:main
-		
+	docker save -o /tmp/orion-knowledge-admin_frontend.tar orion-knowledge-admin/frontend:main

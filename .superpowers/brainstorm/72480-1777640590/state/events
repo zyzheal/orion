@@ -1,0 +1,3 @@
+{"type":"click","text":"Pipeline 引擎\n        P0: 未接入 Tekton/K8s，使用 setTimeout 模拟执行\n        P1: 无定时调度/Cron、无模板管理\n        P2: 版本控制薄弱、无测试覆盖","choice":"pipeline","id":null,"timestamp":1777640786136}
+{"type":"click","text":"构建服务\n        P0: 未接入 Docker/K8s，制品存储在内存 Map\n        P1: 日志未接入 ELK、无构建队列/限流\n        P2: 主服务无测试","choice":"build","id":null,"timestamp":1777640787169}
+{"type":"click","text":"部署服务\n        P0: 未接入 K8s、无流量管理、Rollback 不执行真实回滚\n        P1: 无健康检查、无审批门控\n        P2: 无测试目录、无完成通知","choice":"deploy","id":null,"timestamp":1777640788252}

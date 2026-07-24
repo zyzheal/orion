@@ -1,0 +1,60 @@
+services:
+  orion-audit-svc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orion-audit-svc
+    ports:
+      - "3027:3027"
+    environment:
+      - NODE_ENV=production
+      - PORT=3027
+      - DB_HOST=orion-audit-db
+      - DB_PORT=5432
+      - DB_NAME=orion_audit
+      - DB_USER=orion
+      - DB_PASSWORD=${DB_PASSWORD:-orion_password}
+      - DB_SSL=false
+      - AUDIT_CHAIN_GENESIS_HASH=${AUDIT_CHAIN_GENESIS_HASH:-0000000000000000000000000000000000000000000000000000000000000000}
+      - AUDIT_HASH_ALGORITHM=sha256
+      - API_SECRET=${API_SECRET:-change-me-in-production}
+      - JWT_SECRET=${JWT_SECRET:-change-me-jwt-secret}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - LOG_LEVEL=info
+      - LOG_PRETTY=false
+    depends_on:
+      orion-audit-db:
+        condition: service_healthy
+    networks:
+      - orion-network
+    restart: unless-stopped
+
+  orion-audit-db:
+    image: postgres:17-alpine
+    container_name: orion-audit-db
+    environment:
+      - POSTGRES_USER=orion
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-orion_password}
+      - POSTGRES_DB=orion_audit
+    ports:
+      - "5433:5432"
+    volumes:
+      - audit_db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orion -d orion_audit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - orion-network
+    restart: unless-stopped
+
+networks:
+  orion-network:
+    driver: bridge
+
+volumes:
+  audit_db_data:
+    driver: local

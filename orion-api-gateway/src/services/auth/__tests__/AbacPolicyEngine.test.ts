@@ -268,7 +268,11 @@ describe('AbacPolicyEngine', () => {
 
       // 第二次评估（应该从缓存读取）
       const result2 = engine.evaluate(context);
-      expect(result2).toEqual(result1);
+      // 比较关键属性，不比较 evaluationTime（缓存返回原始时间）
+      expect(result2.allowed).toBe(result1.allowed);
+      expect(result2.denied).toBe(result1.denied);
+      expect(result2.matchedPolicies).toEqual(result1.matchedPolicies);
+      expect(result2.matchedConditions).toEqual(result1.matchedConditions);
     });
 
     it('should invalidate cache on policy change', () => {
@@ -420,9 +424,9 @@ describe('AbacPolicyEngine', () => {
 
   describe('Time Range Checks', () => {
     it('should check working hours correctly', () => {
-      // 工作时间内 (假设 9-18)
+      // 工作时间内 (假设 9-18 UTC)
       const workHour = new Date();
-      workHour.setHours(10, 0, 0, 0);
+      workHour.setUTCHours(10, 0, 0, 0);
 
       const workContext: AbacContext = {
         user: { id: 'user1', role: 'developer' },
@@ -435,9 +439,9 @@ describe('AbacPolicyEngine', () => {
       const workResult = engine.evaluate(workContext);
       expect(workResult.denied).toBe(false);
 
-      // 非工作时间
+      // 非工作时间 (UTC 22:00)
       const offHour = new Date();
-      offHour.setHours(22, 0, 0, 0);
+      offHour.setUTCHours(22, 0, 0, 0);
 
       const offContext: AbacContext = {
         user: { id: 'user1', role: 'developer' },

@@ -1,0 +1,96 @@
+name: Infrastructure Validation
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/validate-infra.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/validate-infra.yml'
+  workflow_dispatch:
+
+jobs:
+  helm-lint:
+    name: Helm Lint (all charts)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Lint all charts
+        run: |
+          for chart in infrastructure/helm/*/; do
+            if [ -f "${chart}Chart.yaml" ]; then
+              echo "Linting ${chart}"
+              helm lint "${chart}"
+            fi
+          done
+
+  helm-template:
+    name: Helm Template (sample services)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - orion-pipeline-svc-go
+          - orion-auth-svc-go
+          - orion-audit-svc-go
+          - orion-notification-svc-go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Template render
+        run: |
+          helm template ${{ matrix.service }} infrastructure/helm/orion-service \
+            -f infrastructure/helm/charts/${{ matrix.service }}/values.yaml \
+            --namespace orion > /tmp/rendered.yaml
+          echo "Rendered successfully for ${{ matrix.service }}"
+
+  k8s-yamls-exist:
+    name: K8s Manifests Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify K8s manifests
+        run: |
+          count=$(find infrastructure/k8s/ -name "*.yaml" | wc -l)
+          echo "Found $count K8s manifest files"
+          if [ "$count" -lt 200 ]; then
+            echo "ERROR: Expected >= 200 K8s manifest files, found $count"
+            exit 1
+          fi
+          echo "K8s manifests check passed: $count files"
+
+  dockerfiles-exist:
+    name: Dockerfiles Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Dockerfiles
+        run: |
+          count=$(find orion-*-svc-go -name "Dockerfile" 2>/dev/null | wc -l)
+          echo "Found $count Dockerfiles"
+          if [ "$count" -lt 50 ]; then
+            echo "ERROR: Expected >= 50 Dockerfiles, found $count"
+            exit 1
+          fi
+          echo "Dockerfiles check passed: $count files"

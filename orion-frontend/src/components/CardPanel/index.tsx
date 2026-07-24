@@ -5,6 +5,20 @@
  */
 import React from 'react';
 import { Card } from 'antd';
+import { colors, spacing } from '@/tokens';
+
+// Module-level flag to ensure the deprecation warning is printed only once
+// across the entire lifetime of the application, regardless of how many
+// CardPanel instances are mounted.
+let cardPanelDeprecatedWarned = false;
+function warnDeprecation() {
+  if (import.meta.env.DEV && !cardPanelDeprecatedWarned) {
+    cardPanelDeprecatedWarned = true;
+    console.warn(
+      '[Orion] CardPanel is deprecated. Use Ant Design <Card> with ConfigProvider theme and className="orion-card" instead.'
+    );
+  }
+}
 
 // ============================================================================
 // Types
@@ -58,6 +72,11 @@ function CardPanel({
   collapsed: controlledCollapsed,
   onCollapse,
 }: CardPanelProps) {
+  // Emit deprecation warning once on first mount
+  React.useEffect(() => {
+    warnDeprecation();
+  }, []);
+
   const [internalCollapsed, setInternalCollapsed] = React.useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
@@ -71,12 +90,12 @@ function CardPanel({
   };
 
   const headerExtra = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
       {extra}
       {collapsible && (
         <span
           onClick={handleCollapse}
-          style={{ cursor: 'pointer', fontSize: 16, color: '#8c8c8c' }}
+          style={{ cursor: 'pointer', fontSize: 16, color: colors.neutral[500] }}
           role="button"
           aria-label={isCollapsed ? 'Expand' : 'Collapse'}
         >
@@ -102,7 +121,7 @@ function CardPanel({
       }}
       styles={{
         header: {
-          borderBottom: '1px solid var(--border-light, #f0f0f0)',
+          borderBottom: '1px solid var(--border-light, colors.neutral[200])',
           ...headerStyle,
         },
         body: {
@@ -110,7 +129,7 @@ function CardPanel({
           ...bodyStyle,
         },
       }}
-      className="orion-card-panel"
+      className="orion-card-panel orion-card"
       data-testid="orion-card-panel"
     >
       {!isCollapsed && children}

@@ -12,8 +12,8 @@ COPY . .
 ARG TARGETOS TARGETARCH VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static' -X github.com/chaitin/panda-wiki/telemetry.Version=${VERSION}" -o /build/panda-wiki-api pro/cmd/api_pro/main.go pro/cmd/api_pro/wire_gen.go \
-    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static' -X github.com/chaitin/panda-wiki/telemetry.Version=${VERSION}" -o /build/panda-wiki-migrate cmd/migrate/main.go cmd/migrate/wire_gen.go
+    GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static' -X github.com/orion-platform/orion-knowledge/telemetry.Version=${VERSION}" -o /build/orion-knowledge-api pro/cmd/api_pro/main.go pro/cmd/api_pro/wire_gen.go \
+    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static' -X github.com/orion-platform/orion-knowledge/telemetry.Version=${VERSION}" -o /build/orion-knowledge-migrate cmd/migrate/main.go cmd/migrate/wire_gen.go
 
 FROM alpine:3.21 AS api
 
@@ -25,8 +25,8 @@ RUN apk update \
 
 WORKDIR /app
 
-COPY --from=builder /build/panda-wiki-api /app/panda-wiki-api
-COPY --from=builder /build/panda-wiki-migrate /app/panda-wiki-migrate
+COPY --from=builder /build/orion-knowledge-api /app/orion-knowledge-api
+COPY --from=builder /build/orion-knowledge-migrate /app/orion-knowledge-migrate
 COPY --from=builder /src/store/pg/migration /app/migration
 
-CMD ["sh", "-c", "/app/panda-wiki-migrate && /app/panda-wiki-api"]
+CMD ["sh", "-c", "/app/orion-knowledge-migrate && /app/orion-knowledge-api"]

@@ -1,14 +1,15 @@
 /**
- * Deployment Detail Page (TASK-905)
+ * Deployment Detail Page (TASK-905) - FIXED P0-2
  * Deployment detail with info, stage progress, health checks, and rollback.
+ * Uses real API calls instead of mock data.
  *
  * Features:
- * - Deployment info
- * - Stage progress
- * - Health check status
- * - Rollback button
+ * - Deployment info from API
+ * - Stage progress from API
+ * - Health check status from API
+ * - Real rollback via API
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -21,19 +22,26 @@ import {
   Result,
   Row,
   Col,
+  Spin,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
   ArrowLeftOutlined,
   RollbackOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
-  SyncOutlined,
   QuestionCircleOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
-import { mockDeployments } from '@/pages/__mocks__/mockData';
+import {
+  getDeployment,
+  rollbackDeployment,
+  type Deployment,
+  type HealthCheckResult,
+} from '@/api/deployments';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -41,8 +49,10 @@ const { Title, Text } = Typography;
 
 // Environment display config
 const envConfig: Record<string, { color: string; label: string }> = {
+  prod: { color: 'red', label: '生产环境' },
   production: { color: 'red', label: '生产环境' },
   staging: { color: 'orange', label: '预发环境' },
+  dev: { color: 'blue', label: '开发环境' },
   development: { color: 'blue', label: '开发环境' },
   test: { color: 'default', label: '测试环境' },
 };
@@ -57,24 +67,92 @@ const strategyLabels: Record<string, string> = {
 
 // Health check status icon
 const healthCheckIcon: Record<string, React.ReactNode> = {
-  healthy: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-  unhealthy: <CloseCircleOutlined style={{ color: '#f5222d' }} />,
-  degraded: <QuestionCircleOutlined style={{ color: '#faad14' }} />,
-  unknown: <InfoCircleOutlined style={{ color: '#8c8c8c' }} />,
+  healthy: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
+  unhealthy: <CloseCircleOutlined style={{ color: colors.error[500] }} />,
+  degraded: <QuestionCircleOutlined style={{ color: colors.warning[500] }} />,
+  unknown: <InfoCircleOutlined style={{ color: colors.neutral[400] }} />,
 };
 
 const DeploymentDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [deployment, setDeployment] = useState<Deployment | null>(null);
+  const [loading, setLoading] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [rollbackModalVisible, setRollbackModalVisible] = useState(false);
 
-  // Find the deployment from mock data
-  const deployment = mockDeployments.find((d) => d.id === id) || mockDeployments[0];
+  // Load deployment from API
+  const loadDeployment = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const response = await getDeployment(id);
+      const data = response.data;
+      setDeployment(data as Deployment);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载部署详情失败：${error.message}`);
+      } else {
+        message.error('加载部署详情失败');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const env = envConfig[deployment.environment] || { color: 'default', label: deployment.environment };
+  useEffect(() => {
+    loadDeployment();
+  }, [id]);
 
-  // Format duration
+  // Handle rollback
+  const handleRollback = async () => {
+    if (!deployment) return;
+    setIsRollingBack(true);
+    setRollbackModalVisible(false);
+    try {
+      await rollbackDeployment(deployment.id);
+      message.success('回滚操作已触发，正在执行中...');
+      // Reload to get updated status
+      await loadDeployment();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`回滚操作失败：${error.message}`);
+      } else {
+        message.error('回滚操作失败');
+      }
+    } finally {
+      setIsRollingBack(false);
+    }
+  };
+
+  if (loading && !deployment) {
+    return (
+      <div style={{ padding: 48, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!deployment) {
+    return (
+      <Result
+        status="404"
+        title="部署不存在"
+        subTitle="未找到该部署记录"
+        extra={
+          <Button type="primary" onClick={() => navigate('/deployments')}>
+            返回列表
+          </Button>
+        }
+      />
+    );
+  }
+
+  const env = envConfig[deployment.environment] || {
+    color: 'default',
+    label: deployment.environment,
+  };
+
   const formatDuration = (seconds?: number) => {
     if (!seconds) return '-';
     const minutes = Math.floor(seconds / 60);
@@ -82,23 +160,11 @@ const DeploymentDetail: React.FC = () => {
     return minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`;
   };
 
-  // Stage status color
   const stageStatusColor: Record<string, string> = {
-    success: '#52c41a',
-    running: '#1890ff',
-    failed: '#f5222d',
-    pending: '#d9d9d9',
-  };
-
-  // Handle rollback
-  const handleRollback = () => {
-    setIsRollingBack(true);
-    setRollbackModalVisible(false);
-    // Simulate rollback
-    setTimeout(() => {
-      setIsRollingBack(false);
-      message.success('回滚操作已触发，正在执行中...');
-    }, 2000);
+    success: colors.success[500],
+    running: colors.primary[500],
+    failed: colors.error[500],
+    pending: colors.neutral[300],
   };
 
   const canRollback = deployment.status === 'success';
@@ -110,19 +176,16 @@ const DeploymentDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/deployments')}
-        >
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/deployments')}>
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             部署详情: {deployment.appName}
           </Title>
           <Text type="secondary">
@@ -130,7 +193,7 @@ const DeploymentDetail: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <StatusBadge status={deployment.status} size="medium" />
+          <StatusBadge status={(deployment.status as string) === 'success' ? 'success' : (deployment.status as string) === 'running' ? 'running' : (deployment.status as string) === 'failed' ? 'failed' : (deployment.status as string) === 'pending' ? 'pending' : (deployment.status as string) === 'cancelled' ? 'cancelled' : 'unknown'} size="medium" />
           {canRollback && (
             <Button
               danger
@@ -164,12 +227,7 @@ const DeploymentDetail: React.FC = () => {
 
       {/* Deployment info card */}
       <CardPanel>
-        <Descriptions
-          column={4}
-          size="small"
-          bordered
-          labelStyle={{ width: 120 }}
-        >
+        <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
           <Descriptions.Item label="应用名称">
             <Text strong>{deployment.appName}</Text>
           </Descriptions.Item>
@@ -186,16 +244,14 @@ const DeploymentDetail: React.FC = () => {
             <Text code>{deployment.triggeredBy}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
-            {dayjs(deployment.startTime).format('YYYY-MM-DD HH:mm:ss')}
+            {deployment.startTime ? dayjs(deployment.startTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="结束时间">
             {deployment.endTime
               ? dayjs(deployment.endTime).format('YYYY-MM-DD HH:mm:ss')
               : '进行中...'}
           </Descriptions.Item>
-          <Descriptions.Item label="耗时">
-            {formatDuration(deployment.duration)}
-          </Descriptions.Item>
+          <Descriptions.Item label="耗时">{formatDuration(deployment.duration)}</Descriptions.Item>
           {deployment.commit && (
             <Descriptions.Item label="提交 Hash">
               <Tag color="default">{deployment.commit}</Tag>
@@ -231,42 +287,43 @@ const DeploymentDetail: React.FC = () => {
         {/* Stage progress */}
         <Col xs={24} xl={14}>
           <CardPanel title="部署阶段">
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {deployment.stages?.map((stage, index) => (
-                <Card
-                  key={stage.name}
-                  size="small"
-                  style={{
-                    borderLeft: `4px solid ${stageStatusColor[stage.status] || '#d9d9d9'}`,
-                  }}
-                >
-                  <div
+            {deployment.stages && deployment.stages.length > 0 ? (
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {deployment.stages.map((stage, index) => (
+                  <Card
+                    key={stage.id || stage.name}
+                    size="small"
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      borderLeft: `4px solid ${stageStatusColor[stage.status] || colors.neutral[300]}`,
                     }}
                   >
-                    <Space>
-                      <Text strong style={{ fontSize: 14 }}>
-                        {index + 1}. {stage.name}
-                      </Text>
-                      {stage.status === 'running' && (
-                        <SyncOutlined spin style={{ color: '#1890ff' }} />
-                      )}
-                    </Space>
-                    <Space>
-                      {stage.details && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {stage.details}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Space>
+                        <Text strong style={{ fontSize: spacing[4] }}>
+                          {index + 1}. {stage.name}
                         </Text>
-                      )}
-                      <StatusBadge status={stage.status as any} size="small" />
-                    </Space>
-                  </div>
-                </Card>
-              ))}
-            </Space>
+                      </Space>
+                      <Space>
+                        {stage.details && (
+                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                            {stage.details}
+                          </Text>
+                        )}
+                        <StatusBadge status={stage.status === 'success' ? 'success' : stage.status === 'running' ? 'running' : stage.status === 'failed' ? 'failed' : stage.status === 'pending' ? 'pending' : stage.status === 'cancelled' ? 'cancelled' : 'unknown'} size="small" />
+                      </Space>
+                    </div>
+                  </Card>
+                ))}
+              </Space>
+            ) : (
+              <Text type="secondary">暂无阶段数据</Text>
+            )}
           </CardPanel>
         </Col>
 
@@ -275,33 +332,31 @@ const DeploymentDetail: React.FC = () => {
           <CardPanel title="健康检查">
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {deployment.healthChecks && deployment.healthChecks.length > 0 ? (
-                deployment.healthChecks.map((check) => (
+                deployment.healthChecks.map((check: HealthCheckResult) => (
                   <div
                     key={check.name}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 12,
+                      gap: spacing[3],
                       padding: '12px 16px',
                       background:
                         check.status === 'healthy'
                           ? 'rgba(82, 196, 26, 0.04)'
                           : check.status === 'unhealthy'
-                          ? 'rgba(245, 34, 45, 0.04)'
-                          : 'rgba(250, 173, 20, 0.04)',
+                            ? 'rgba(245, 34, 45, 0.04)'
+                            : 'rgba(250, 173, 20, 0.04)',
                       borderRadius: 6,
                     }}
                   >
-                    <span style={{ fontSize: 20 }}>
-                      {healthCheckIcon[check.status]}
-                    </span>
+                    <span style={{ fontSize: spacing[5] }}>{healthCheckIcon[check.status]}</span>
                     <div style={{ flex: 1 }}>
-                      <Text strong style={{ fontSize: 14 }}>
+                      <Text strong style={{ fontSize: spacing[4] }}>
                         {check.name}
                       </Text>
                       {check.message && (
                         <div>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
+                          <Text type="secondary" style={{ fontSize: spacing[3] }}>
                             {check.message}
                           </Text>
                         </div>
@@ -309,7 +364,9 @@ const DeploymentDetail: React.FC = () => {
                     </div>
                     {check.latency !== undefined && (
                       <Tag
-                        color={check.latency < 50 ? 'green' : check.latency < 200 ? 'orange' : 'red'}
+                        color={
+                          check.latency < 50 ? 'green' : check.latency < 200 ? 'orange' : 'red'
+                        }
                       >
                         {check.latency}ms
                       </Tag>

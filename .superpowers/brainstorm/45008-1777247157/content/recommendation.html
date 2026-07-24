@@ -1,0 +1,44 @@
+<h2>推荐方案：混合策略（推荐方案 C）</h2>
+<p class="subtitle">不是 A 或 B，而是折中 — 按语义归入现有分组，少量增加子菜单</p>
+
+<div style="background:#fffbe6;padding:16px;border-radius:8px;margin-bottom:16px;">
+  <h3 style="margin-top:0;">为什么推荐这个方案</h3>
+  <ul style="margin:0;">
+    <li>顶部导航已有 10 个主菜单，再加会过于拥挤</li>
+    <li>7 个页面中有 5 个可完美归入现有分组</li>
+    <li>仅需新增 2 个子菜单项（不增加主菜单）</li>
+  </ul>
+</div>
+
+<div class="cards">
+  <div class="card" data-choice="recommended-1">
+    <div class="card-image" style="background:#f6ffed;padding:12px;text-align:center;">
+      <div style="font-size:20px;">✅</div>
+      <div style="font-weight:600;color:#52c41a;">方案 C: 混合策略（推荐）</div>
+    </div>
+    <div class="card-body">
+      <table style="font-size:12px;width:100%;border-collapse:collapse;">
+        <tr style="border-bottom:1px solid #eee;"><td><b>页面</b></td><td><b>位置</b></td><td><b>类型</b></td></tr>
+        <tr><td>EventBus</td><td>运维中心 → 事件总线</td><td>新增子菜单</td></tr>
+        <tr><td>Sessions</td><td>治理 → 会话管理</td><td>新增子菜单</td></tr>
+        <tr><td>MetricsDashboard</td><td>运维中心 → 指标看板</td><td>新增子菜单</td></tr>
+        <tr><td>TestSelector</td><td>治理 → 测试管理</td><td>新增子菜单</td></tr>
+        <tr><td>Backup</td><td>治理 → 备份恢复</td><td>新增子菜单</td></tr>
+        <tr><td>PluginSPI</td><td>治理 → 插件框架</td><td>新增子菜单</td></tr>
+        <tr><td>AISecurity</td><td>AI 能力 → AI 安全</td><td>新增子菜单</td></tr>
+      </table>
+      <p style="font-size:12px;margin-top:8px;color:#888;">总计: 运维中心增加 3 项，治理增加 4 项，AI 能力增加 1 项</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="minimal">
+    <div class="card-image" style="background:#f5f5f5;padding:12px;text-align:center;">
+      <div style="font-size:20px;">📦</div>
+      <div style="font-weight:600;color:#999;">最简方案: 不增加菜单</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:12px;">页面只通过路由访问，不加入导航。适合低频访问的管理页面。</p>
+      <p style="font-size:12px;"><b>代价</b>: 用户不知道这些页面存在，发现成本高。</p>
+    </div>
+  </div>
+</div>

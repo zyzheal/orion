@@ -81,17 +81,13 @@ describe('PageLayout', () => {
   it('should call onCollapse when toggle is clicked', () => {
     const handleCollapse = vi.fn();
     render(
-      <PageLayout
-        sidebar={<div>Sidebar</div>}
-        collapsed={false}
-        onCollapse={handleCollapse}
-      >
+      <PageLayout sidebar={<div>Sidebar</div>} collapsed={false} onCollapse={handleCollapse}>
         <div>Content</div>
       </PageLayout>
     );
 
     // Find and click the toggle
-    const toggle = screen.getByRole('presentation');
+    const toggle = screen.getByTestId('collapse-toggle');
     toggle.click();
     expect(handleCollapse).toHaveBeenCalledWith(true);
   });

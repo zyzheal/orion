@@ -1,0 +1,158 @@
+{
+  "version": "3.0",
+  "name": "a3_flow",
+  "extends": "base",
+  "priority": 1,
+  "layer": "design",
+  "description": "流程细节设计检查项",
+  "checks": [
+    {
+      "id": "A3-01",
+      "category": "steps",
+      "level": "P1",
+      "rule": "步骤条/引导",
+      "description": "多步骤流程必须有步骤条或引导",
+      "detection": "ast",
+      "appliesTo": "多步骤流程"
+    },
+    {
+      "id": "A3-02",
+      "category": "steps",
+      "level": "P1",
+      "rule": "上一步/下一步状态保留",
+      "description": "多步骤流程中上一步/下一步状态必须保留",
+      "detection": "ast",
+      "appliesTo": "多步骤流程"
+    },
+    {
+      "id": "A3-03",
+      "category": "empty",
+      "level": "P0",
+      "rule": "数据为空处理",
+      "description": "列表数据为空时必须有处理逻辑",
+      "detection": "ast",
+      "appliesTo": "列表页"
+    },
+    {
+      "id": "A3-04",
+      "category": "truncation",
+      "level": "P1",
+      "rule": "数据超长截断",
+      "description": "超长文本必须有截断处理",
+      "detection": "ast",
+      "appliesTo": "详情页"
+    },
+    {
+      "id": "A3-05",
+      "category": "pagination",
+      "level": "P1",
+      "rule": "分页边界处理",
+      "description": "分页边界情况必须有处理逻辑",
+      "detection": "ast",
+      "appliesTo": "列表页"
+    },
+    {
+      "id": "A3-06",
+      "category": "format",
+      "level": "P1",
+      "rule": "超大数字/日期显示",
+      "description": "超大数字和日期必须有格式化显示",
+      "detection": "ast",
+      "appliesTo": "所有页"
+    },
+    {
+      "id": "A3-07",
+      "category": "batch",
+      "level": "P0",
+      "rule": "批量选择 UI",
+      "description": "列表页必须支持批量选择",
+      "detection": "ast",
+      "appliesTo": "列表页"
+    },
+    {
+      "id": "A3-08",
+      "category": "batch",
+      "level": "P1",
+      "rule": "批量进度提示",
+      "description": "批量操作必须有进度提示",
+      "detection": "ast",
+      "appliesTo": "批量操作"
+    },
+    {
+      "id": "A3-09",
+      "category": "batch",
+      "level": "P0",
+      "rule": "批量失败处理",
+      "description": "批量操作失败必须有处理逻辑",
+      "detection": "ast",
+      "appliesTo": "批量操作"
+    },
+    {
+      "id": "A3-10",
+      "category": "batch",
+      "level": "P1",
+      "rule": "批量取消功能",
+      "description": "长时间批量操作必须有取消功能",
+      "detection": "ast",
+      "appliesTo": "批量操作"
+    },
+    {
+      "id": "A3-11",
+      "category": "cron",
+      "level": "P0",
+      "rule": "执行周期定义",
+      "description": "定时任务必须有明确的执行周期定义",
+      "detection": "ast",
+      "appliesTo": "后端任务"
+    },
+    {
+      "id": "A3-12",
+      "category": "cron",
+      "level": "P0",
+      "rule": "并发控制",
+      "description": "定时任务必须有并发控制（避免重复执行）",
+      "detection": "ast",
+      "appliesTo": "后端任务"
+    },
+    {
+      "id": "A3-13",
+      "category": "cron",
+      "level": "P1",
+      "rule": "超时处理",
+      "description": "定时任务必须有超时处理",
+      "detection": "ast",
+      "appliesTo": "后端任务"
+    },
+    {
+      "id": "A3-14",
+      "category": "webhook",
+      "level": "P1",
+      "rule": "Webhook 定义",
+      "description": "集成点必须有明确的 Webhook 定义",
+      "detection": "ast",
+      "appliesTo": "集成点"
+    },
+    {
+      "id": "A3-15",
+      "category": "mq",
+      "level": "P1",
+      "rule": "消息队列契约",
+      "description": "异步通信必须有消息队列契约",
+      "detection": "ast",
+      "appliesTo": "异步通信"
+    },
+    {
+      "id": "A3-16",
+      "category": "confirm",
+      "level": "P0",
+      "rule": "危险操作二次确认",
+      "description": "删除、修改等危险操作必须有二次确认",
+      "detection": "ast",
+      "appliesTo": "删除/修改"
+    }
+  ],
+  "coveragePolicy": "ast",
+  "responsibleSkill": "design-constraint",
+  "coveragePolicyReason": "流程/列表/表单检测已 AST 化",
+  "noNewAST": "已覆盖，不再新增"
+}

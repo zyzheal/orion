@@ -1,0 +1,68 @@
+<h2>Orion 前端页面架构总览</h2>
+<p class="subtitle">绿色 = 已实现 | 橙色 = 待补充 | 灰色 = 规划中</p>
+
+<div class="cards">
+  <div class="card" data-choice="implemented">
+    <div class="card-image" style="background:#f6ffed;padding:16px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">✅</div>
+      <div style="font-weight:600;color:#52c41a;">已实现 ~57 页</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;margin-top:4px;">工作台、运维中心(流水线/部署/告警/成本/监控/诊断/自愈/灰度/变更智能)、工单、效能看板(4个子看板)、子系统(DBA/知识库/运维监控)、产品线、制品、二方库、项目、AI能力(6子页)、治理(10子页)、环境(6子页) 等</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="missing">
+    <div class="card-image" style="background:#fffbe6;padding:16px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">⚠️</div>
+      <div style="font-weight:600;color:#faad14;">待补充 7 页 (P1)</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;margin-top:4px;">
+        <b>EventBus</b> — 事件总线监控<br>
+        <b>Sessions</b> — 用户会话管理<br>
+        <b>MetricsDashboard</b> — 全局指标看板<br>
+        <b>TestSelector</b> — 测试用例管理<br>
+        <b>Backup</b> — 备份与恢复<br>
+        <b>PluginSPI</b> — 插件扩展点<br>
+        <b>AISecurity</b> — AI 安全策略
+      </p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="planned">
+    <div class="card-image" style="background:#f5f5f5;padding:16px;text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px;">📋</div>
+      <div style="font-weight:600;color:#999;">规划中 (P2+)</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;margin-top:4px;">CLI 集成、移动端适配、暗色模式深度优化、国际化 i18n、无障碍 a11y 等后续规划项</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>当前工作重点</h3>
+  <p class="subtitle">分支 <code>feat/frontend-gap-implementation</code></p>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>已完成</h4>
+      <ul>
+        <li>Design Token 迁移 (50+ 颜色替换)</li>
+        <li>消除 any 类型 (23+ 处)</li>
+        <li>表单 any 类型修复 (70+ 处)</li>
+        <li>Mock 数据警告横幅 (9 页)</li>
+        <li>P0 缺陷修复 (console.log/静默错误/内存泄漏)</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>待处理</h4>
+      <ul>
+        <li>创建 7 个缺失页面 (当前任务)</li>
+        <li>路由注册与菜单集成</li>
+        <li>后端 API 对接验证</li>
+        <li>预存在 TS 错误修复</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -3,17 +3,17 @@
    ======================================== */
 
 :root {
-  /* 主色 */
-  --color-primary-50: #e6f7ff;
-  --color-primary-100: #bae7ff;
-  --color-primary-200: #91d5ff;
-  --color-primary-300: #69c0ff;
-  --color-primary-400: #40a9ff;
-  --color-primary-500: #1890ff;
-  --color-primary-600: #0984e2;
-  --color-primary-700: #006dc2;
-  --color-primary-800: #005aa1;
-  --color-primary-900: #004780;
+  /* 主色 - 飞书蓝 */
+  --color-primary-50: #EBF0FB;
+  --color-primary-100: #D7E1F7;
+  --color-primary-200: #B3C5EE;
+  --color-primary-300: #8FA9E5;
+  --color-primary-400: #5B8DEF;
+  --color-primary-500: #3370E6;
+  --color-primary-600: #2B5DD6;
+  --color-primary-700: #1F4BB5;
+  --color-primary-800: #153A94;
+  --color-primary-900: #0C2873;
 
   /* 成功色 */
   --color-success-50: #f6ffed;
@@ -57,7 +57,7 @@
   --color-info-200: #91d5ff;
   --color-info-300: #69c0ff;
   --color-info-400: #40a9ff;
-  --color-info-500: #1890ff;
+  --color-info-500: #3a98f4;
   --color-info-600: #0984e2;
   --color-info-700: #006dc2;
   --color-info-800: #005aa1;
@@ -66,7 +66,7 @@
   /* 中性色 */
   --color-neutral-0: #ffffff;
   --color-neutral-50: #fafafa;
-  --color-neutral-100: #f5f5f5;
+  --color-neutral-100: #F5F5F7;
   --color-neutral-200: #f0f0f0;
   --color-neutral-300: #d9d9d9;
   --color-neutral-400: #bfbfbf;
@@ -76,12 +76,24 @@
   --color-neutral-800: #262626;
   --color-neutral-900: #1f1f1f;
   --color-neutral-950: #141414;
+
+  /* 紫色 */
+  --color-purple-50: #f9f0ff;
+  --color-purple-100: #efdbff;
+  --color-purple-200: #d3adf7;
+  --color-purple-300: #b37feb;
+  --color-purple-400: #9B7FFD;
+  --color-purple-500: #7C5CFC;
+  --color-purple-600: #6349E0;
+  --color-purple-700: #391085;
+  --color-purple-800: #22075e;
+  --color-purple-900: #110358;
 }
 
 /* 浅色主题变量 */
 [data-theme='light'] {
   --bg-primary: #ffffff;
-  --bg-secondary: #fafafa;
+  --bg-secondary: #F5F5F7;
   --bg-tertiary: #f5f5f5;
   --bg-elevated: #ffffff;
   --text-primary: #1f1f1f;
@@ -91,7 +103,8 @@
   --border-default: #d9d9d9;
   --border-light: #f0f0f0;
   --border-heavy: #bfbfbf;
-  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  --shadow-card:
+    0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* 暗黑主题变量 */
@@ -107,7 +120,8 @@
   --border-default: #434343;
   --border-light: #262626;
   --border-heavy: #595959;
-  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+  --shadow-card:
+    0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* 间距变量 */
@@ -136,20 +150,21 @@
 /* 圆角变量 */
 :root {
   --radius-none: 0;
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
-  --radius-xxl: 16px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-xxl: 20px;
   --radius-full: 9999px;
 }
 
 /* 字体变量 */
 :root {
-  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-    'Noto Color Emoji';
+  --font-family-base:
+    SF Pro Display, -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-family-code: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
 
   --font-size-xs: 10px;
@@ -168,9 +183,12 @@
 
   --line-height-none: 1;
   --line-height-tight: 1.25;
-  --line-height-normal: 1.5;
+  --line-height-normal: 1.57;
   --line-height-relaxed: 1.625;
   --line-height-loose: 2;
+
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
 }
 
 /* 动画变量 */
@@ -182,6 +200,15 @@
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Apple 风格扩散阴影 */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.10), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.12), 0 6px 12px rgba(0, 0, 0, 0.08);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* Z-index 变量 */
@@ -211,9 +238,10 @@ html,
 body,
 #root {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-    'Noto Color Emoji';
+  font-family:
+    SF Pro Display, -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 // 滚动条样式
@@ -271,7 +299,9 @@ body,
 .fade-enter-active {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 300ms, transform 300ms;
+  transition:
+    opacity 300ms,
+    transform 300ms;
 }
 
 .fade-exit {
@@ -282,5 +312,123 @@ body,
 .fade-exit-active {
   opacity: 0;
   transform: translateY(10px);
-  transition: opacity 300ms, transform 300ms;
+  transition:
+    opacity 300ms,
+    transform 300ms;
+}
+
+/* ============================================
+   Platform Visual Unification (2026-05-02)
+   ============================================ */
+
+/* Page background consistency */
+body {
+  background-color: #F5F5F7;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Section spacing standard */
+.page-section {
+  margin-bottom: 24px; /* spacing.lg */
+}
+
+.page-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Card hover effect (unified) */
+.orion-card {
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.orion-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+/* Button hover lift (unified) */
+.ant-btn:hover {
+  transform: translateY(-1px);
+}
+
+.ant-btn:active {
+  transform: translateY(0);
+}
+
+/* Dashboard header alignment */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.dashboard-header .subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Scrollbar styling (webkit only) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* ============================================
+   Accessibility: Focus Ring
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid var(--color-primary-500, #3370E6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Remove default focus outline for elements using focus-visible */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Button focus ring */
+.ant-btn:focus-visible {
+  outline: 2px solid var(--color-primary-500, #3370E6);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(51, 112, 230, 0.2);
+}
+
+/* Input focus ring */
+.ant-input:focus-visible,
+.ant-input-affix-wrapper:focus-within {
+  outline: 2px solid var(--color-primary-500, #3370E6);
+  outline-offset: -1px;
+}
+
+/* Card interactive focus */
+.orion-card:focus-visible,
+.ant-card:focus-within:focus-visible {
+  outline: 2px solid var(--color-primary-500, #3370E6);
+  outline-offset: 2px;
 }

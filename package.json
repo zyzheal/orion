@@ -1,0 +1,18 @@
+{
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.1",
+    "@types/pg": "^8.20.0",
+    "@types/uuid": "^10.0.0",
+    "jest": "^30.4.2",
+    "pg": "^8.20.0",
+    "ts-jest": "^29.4.11",
+    "typescript": "^6.0.3",
+    "zod": "^4.4.3"
+  },
+  "dependencies": {
+    "@zyzheal/ola-cc": "^0.4.10",
+    "tiktoken": "^1.0.22",
+    "uuid": "^14.0.0"
+  }
+}

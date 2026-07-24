@@ -1,0 +1,98 @@
+## Default values for orion-service
+## This chart deploys a single Orion Go microservice
+
+## Service identity
+nameOverride: ""
+fullnameOverride: ""
+
+## Number of replicas
+replicaCount: 2
+
+## Image configuration
+image:
+  repository: orion
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+## Container port
+service:
+  port: 8080
+  targetPort: http
+
+## Resource requests/limits
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+## Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+## Environment
+environment: "development"
+
+## Database
+database:
+  url: "postgres://orion:orion@postgres:5432/orion_{{ .Chart.Name }}?sslmode=disable"
+
+## Redis
+redis:
+  addr: "redis:6379"
+
+## NATS
+nats:
+  enabled: true
+  addr: "nats://nats:4222"
+  stream: "EVENTS"
+
+## JWT secret (loaded from orion-secrets)
+jwt:
+  secret: ""
+
+## Health checks (separated liveness and readiness)
+liveness:
+  path: /healthz
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+readiness:
+  path: /health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+## Rolling update configuration
+rollingUpdate:
+  maxSurge: 1
+  maxUnavailable: 0
+
+## Health check (deprecated, use liveness/readiness above)
+health:
+  path: /healthz
+
+## Service account
+serviceAccount:
+  create: true
+  annotations: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity
+affinity: {}

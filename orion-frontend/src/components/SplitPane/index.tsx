@@ -5,6 +5,7 @@
  * - Used for master-detail views, resizable sidebars
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { colors } from '@/tokens/colors';
 
 // ============================================================================
 // Types
@@ -54,7 +55,7 @@ function SplitPane({
   minFirstSize = 100,
   minSecondSize = 100,
   splitterSize = 6,
-  splitterColor = 'var(--border-default, #d9d9d9)',
+  splitterColor = 'var(--border-default, colors.neutral[300])',
   resizable = true,
   firstStyle,
   secondStyle,
@@ -121,13 +122,7 @@ function SplitPane({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [
-    resizable,
-    direction,
-    onSplitChange,
-    minFirstSize,
-    minSecondSize,
-  ]);
+  }, [resizable, direction, onSplitChange, minFirstSize, minSecondSize]);
 
   const isVertical = direction === 'vertical';
 
@@ -177,11 +172,7 @@ function SplitPane({
       </div>
 
       {/* Splitter */}
-      <div
-        style={splitterStyle}
-        onMouseDown={handleMouseDown}
-        data-testid="split-pane-splitter"
-      >
+      <div style={splitterStyle} onMouseDown={handleMouseDown} data-testid="split-pane-splitter">
         {/* Visual indicator */}
         {resizable && (
           <div
@@ -192,7 +183,7 @@ function SplitPane({
               transform: 'translate(-50%, -50%)',
               width: isVertical ? 20 : 4,
               height: isVertical ? 4 : 20,
-              background: 'var(--color-primary-400, #40a9ff)',
+              background: `var(--color-primary-400, ${colors.primary[400]})`,
               borderRadius: 2,
               opacity: 0.6,
             }}

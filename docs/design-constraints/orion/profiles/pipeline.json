@@ -1,0 +1,17 @@
+{
+  "version": "3.0",
+  "name": "pipeline",
+  "extends": ["base", "a1_data_structure", "a2_interaction", "a3_flow"],
+  "module": "pipeline",
+  "frontend_files": ["orion-frontend/src/pages/pipeline-svc/"],
+  "backend_files": ["orion-platform-service/src/services/pipeline/"],
+  "api_files": ["orion-frontend/src/api/pipeline.ts"],
+  "design_docs": [
+    "docs/superpowers/specs/2026-05-21-pipeline-module-upgrade-design.md"
+  ],
+  "overrides": {
+    "A2-12": {
+      "extra_paths": ["orion-frontend/src/pages/pipeline-svc/**/*.tsx"]
+    }
+  }
+}

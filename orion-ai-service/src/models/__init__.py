@@ -1,5 +1,7 @@
 """
-Pydantic 数据模型 - API 请求/响应模型
+Orion AI Service - 数据模型
+
+包含 API 请求/响应模型、AI 领域模型、Prompt 安全模型和网关模型。
 """
 
 from datetime import datetime, timezone
@@ -119,3 +121,125 @@ class AIAnalysisResult(BaseModel):
     result: Optional[Dict[str, Any]] = Field(default=None, description="分析结果")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = Field(default=None)
+
+
+# ==================== AI 领域模型 ====================
+
+
+from src.models.ai_models import (
+    AIAnalyzeResponse,
+    AIAnalysisType,
+    AIAnalyzeRequest,
+    AIDecisionRequest,
+    AIDecisionResponse,
+    AIDecisionStatus,
+    AIDiagnoseRequest,
+    AIDiagnoseResponse,
+    AIDiagnoseSeverity,
+    AIGenerateRequest,
+    AIGenerateResponse,
+    AIReviewApproveRequest,
+    AIReviewComment,
+    AIReviewRejectRequest,
+    AIReviewRequest,
+    AIReviewResponse,
+    AIReviewStatus,
+)
+
+# ==================== Prompt 安全模型 ====================
+
+
+from src.models.prompt_security_models import (
+    PromptAnalysis,
+    PromptSecurityConfig,
+    PromptThreat,
+    ThreatType,
+)
+
+# ==================== AI Gateway 模型 ====================
+
+
+from src.models.ai_gateway_models import (
+    AIGatewayConfig,
+    AIGatewayEvent,
+    AIGatewayEventType,
+    AIGatewayHealth,
+    AIRequest,
+    AIRequestContext,
+    AIRequestOptions,
+    AIResponse,
+    AIScenario,
+    AI_SCENARIO_PRIORITY,
+    CircuitBreakerState,
+    CircuitState,
+    DegradationConfig,
+    DegradationResult,
+    DegradationStrategy,
+)
+
+# ==================== Trace 模型 ====================
+
+
+from src.models.trace import LLMTraceRecord
+
+# ==================== Review 模型 ====================
+
+
+from src.models.review import ReviewFinding, ReviewResult, ReviewSeverity
+
+__all__ = [
+    # 基础模型
+    "HealthStatus",
+    "HealthCheckResponse",
+    "NatsConnectionStatus",
+    "AIServiceStatus",
+    "CloudEvent",
+    "PipelineRunCompletedEvent",
+    "CodePROpenedEvent",
+    "AIAnalysisResult",
+    # AI 领域模型
+    "AIAnalysisResponse",
+    "AIAnalysisType",
+    "AIAnalyzeRequest",
+    "AIDecisionRequest",
+    "AIDecisionResponse",
+    "AIDecisionStatus",
+    "AIDiagnoseRequest",
+    "AIDiagnoseResponse",
+    "AIDiagnoseSeverity",
+    "AIGenerateRequest",
+    "AIGenerateResponse",
+    "AIReviewApproveRequest",
+    "AIReviewComment",
+    "AIReviewRejectRequest",
+    "AIReviewRequest",
+    "AIReviewResponse",
+    "AIReviewStatus",
+    # Prompt 安全模型
+    "PromptAnalysis",
+    "PromptSecurityConfig",
+    "PromptThreat",
+    "ThreatType",
+    # AI Gateway 模型
+    "AIGatewayConfig",
+    "AIGatewayEvent",
+    "AIGatewayEventType",
+    "AIGatewayHealth",
+    "AIRequest",
+    "AIRequestContext",
+    "AIRequestOptions",
+    "AIResponse",
+    "AIScenario",
+    "AI_SCENARIO_PRIORITY",
+    "CircuitBreakerState",
+    "CircuitState",
+    "DegradationConfig",
+    "DegradationResult",
+    "DegradationStrategy",
+    # Trace 模型
+    "LLMTraceRecord",
+    # Review 模型
+    "ReviewFinding",
+    "ReviewResult",
+    "ReviewSeverity",
+]

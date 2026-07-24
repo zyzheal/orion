@@ -1,0 +1,101 @@
+import React, { useMemo } from 'react';
+import ReactECharts from 'echarts-for-react';
+import { useChartTheme } from './ChartProvider';
+
+export interface GaugeChartProps {
+  value: number;
+  title: string;
+  max?: number;
+  thresholds?: {
+    warning: number;
+    danger: number;
+  };
+  /**
+   * Controls threshold semantics:
+   * - 'ascend' (default): higher value = more dangerous (e.g., error rate, latency)
+   * - 'descend': higher value = safer (e.g., SLA compliance, success rate)
+   */
+  direction?: 'ascend' | 'descend';
+  size?: number;
+  unit?: string;
+}
+
+export const GaugeChart: React.FC<GaugeChartProps> = ({
+  value,
+  title,
+  max = 100,
+  thresholds,
+  direction = 'ascend',
+  size = 160,
+  unit = '%',
+}) => {
+  const theme = useChartTheme();
+  const safeMax = max > 0 ? max : 100;
+
+  const option = useMemo(() => {
+    const percentage = (value / safeMax) * 100;
+    let valueColor = theme.success;
+    if (thresholds) {
+      if (direction === 'ascend') {
+        // Higher value = more dangerous (e.g., error rate)
+        if (percentage >= thresholds.danger) {
+          valueColor = theme.error;
+        } else if (percentage >= thresholds.warning) {
+          valueColor = theme.warning;
+        }
+      } else {
+        // Higher value = safer (e.g., SLA compliance)
+        if (percentage <= thresholds.danger) {
+          valueColor = theme.error;
+        } else if (percentage <= thresholds.warning) {
+          valueColor = theme.warning;
+        }
+      }
+    }
+
+    return {
+      series: [
+        {
+          type: 'gauge' as const,
+          min: 0,
+          max: safeMax,
+          progress: {
+            show: true,
+            width: 12,
+            itemStyle: { color: valueColor },
+          },
+          axisLine: {
+            lineStyle: { width: 12, color: [[1, theme.borderColor]] },
+          },
+          axisTick: { show: false },
+          axisLabel: { show: false },
+          pointer: { show: false },
+          detail: {
+            valueAnimation: true,
+            formatter: `{value}${unit}`,
+            color: theme.textColor,
+            fontSize: 20,
+            fontWeight: 'bold',
+            offsetCenter: [0, '15%'],
+          },
+          data: [{ value, name: title }],
+          title: {
+            offsetCenter: [0, '60%'],
+            color: theme.textColor,
+            fontSize: 12,
+          },
+        },
+      ],
+    };
+  }, [value, title, safeMax, thresholds, direction, size, unit, theme]);
+
+  return (
+    <ReactECharts
+      option={option}
+      style={{ width: size, height: size }}
+      data-testid="gauge-chart"
+      notMerge={true}
+      lazyUpdate={true}
+    />
+  );
+};

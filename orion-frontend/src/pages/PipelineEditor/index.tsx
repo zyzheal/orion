@@ -2,22 +2,41 @@
  * Pipeline Editor Page - 可视化 Pipeline 编辑器
  * 支持拖拽式 Stage 编排、Stage 增删改、依赖配置、YAML 预览
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  Typography, Button, Space, Card, message, Modal, Form,
-  Input, Select, Divider, Tag, Tooltip, Alert, Drawer
+  Typography,
+  Button,
+  Space,
+  Card,
+  message,
+  Modal,
+  Form,
+  Input,
+  Divider,
+  Tag,
+  Alert,
+  Drawer,
 } from 'antd';
+import { colors, spacing } from '@/tokens';
 import {
-  PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined,
-  UndoOutlined, PlayCircleOutlined, DragOutlined, CodeOutlined,
-  ArrowLeftOutlined, CopyOutlined
+  PlusOutlined,
+  SaveOutlined,
+  UndoOutlined,
+  DragOutlined,
+  CodeOutlined,
+  ArrowLeftOutlined,
+  CopyOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import StageItem from './StageItem';
 import StageModal from './StageModal';
-import { mockPipelines } from '@/pages/__mocks__/mockData';
+import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
+import { DAGGraph, validateDAG } from '@/components/DAGGraph';
+import { ApartmentOutlined } from '@ant-design/icons';
+import { pipelineTemplates } from '@/api/pipeline-templates';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -29,7 +48,27 @@ export interface StageConfig {
   timeout?: number;
   retryCount?: number;
   dependsOn?: string[];
-  config: Record<string, any>;
+  config?: Record<string, unknown>;
+  cache?: CacheConfig;
+  artifacts?: ArtifactConfig;
+  position?: { x: number; y: number };
+  matrix?: {
+    enabled: boolean;
+    dimensions: Array<{ key: string; values: string[] }>;
+    exclusions: Array<{ match: Record<string, string>; reason?: string }>;
+  };
+}
+
+export interface CacheConfig {
+  enabled: boolean;
+  key: string;
+  paths: string[];
+  restoreKeys?: string[];
+}
+
+export interface ArtifactConfig {
+  upload?: string[];
+  expiry?: number;
 }
 
 interface PipelineForm {
@@ -45,11 +84,14 @@ const STAGE_TYPES = [
   { label: '部署 (Deploy)', value: 'deploy', icon: '🚀' },
   { label: '通知 (Notify)', value: 'notify', icon: '📢' },
   { label: '自定义 (Custom)', value: 'custom', icon: '⚙️' },
-];
+  { label: '多架构构建 (Buildx)', value: 'buildx', icon: '🏷️' },
+  { label: '容器运行 (Container)', value: 'container', icon: '📦' },];
 
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const templateId = searchParams.get('template');
   const [form] = Form.useForm();
 
   // Pipeline 基本信息
@@ -71,53 +113,214 @@ const PipelineEditor: React.FC = () => {
   const [yamlPreviewVisible, setYamlPreviewVisible] = useState(false);
   const [generatedYaml, setGeneratedYaml] = useState('');
 
+  // DAG 预览
+  const [dagPreviewVisible, setDagPreviewVisible] = useState(false);
+
   // 保存中状态
   const [saving, setSaving] = useState(false);
 
   // 加载现有 Pipeline（编辑模式）
   React.useEffect(() => {
     if (id) {
-      const pipeline = mockPipelines.find(p => p.id === id);
-      if (pipeline) {
-        setPipelineInfo({
-          name: pipeline.name,
-          version: pipeline.version || '1.0.0',
-          description: pipeline.description || '',
+      getPipeline(id)
+        .then((response) => {
+          const rawBody = response.data as { data?: unknown };
+          const pipeline = rawBody?.data ?? rawBody;
+          if (pipeline) {
+            const info = {
+              name: (pipeline as any).name,
+              version: String((pipeline as any).version || '1.0.0'),
+              description: (pipeline as any).description || '',
+            };
+            setPipelineInfo(info);
+            form.setFieldsValue(info);
+            // 从 spec.stages 加载 Stage，支持后端格式和前端格式
+            if ((pipeline as any).spec?.stages) {
+              const loadedStages: StageConfig[] = (pipeline as any).spec.stages.map(
+                (s: any, idx: number) => {
+                  // 后端格式: { name, runsOn, steps: [{ name, uses, with }], timeout, retries, ... }
+                  const stepType =
+                    s.steps?.[0]?.uses?.split('@')[0]?.replace('orion/', '') || s.type || 'custom';
+                  const stepConfig = s.steps?.[0]?.with || s.config || {};
+                  return {
+                    id: `stage-${idx}-${Date.now()}`,
+                    name: s.name,
+                    type: stepType,
+                    timeout: s.timeout,
+                    retryCount: s.retries ?? s.retryCount,
+                    dependsOn: s.dependsOn || [],
+                    config: stepConfig,
+                    cache: s.cache,
+                    artifacts: s.artifacts,
+                  };
+                }
+              );
+              setStages(loadedStages);
+            }
+          }
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Error) {
+            message.error(`加载 Pipeline 失败：${error.message}`);
+          } else {
+            message.error('加载 Pipeline 失败');
+          }
         });
-        // 从 spec.stages 加载 Stage
-        if (pipeline.spec?.stages) {
-          const loadedStages: StageConfig[] = pipeline.spec.stages.map((s: any, idx: number) => ({
-            id: `stage-${idx}-${Date.now()}`,
-            name: s.name,
-            type: s.type || 'custom',
-            timeout: s.timeout,
-            retryCount: s.retryCount,
-            dependsOn: s.dependsOn || [],
-            config: s.config || {},
-          }));
-          setStages(loadedStages);
-        }
-      }
     }
   }, [id]);
 
-  // 生成 YAML
-  const generateYaml = useCallback(() => {
-    const yaml = `metadata:
-  name: ${pipelineInfo.name}
-  version: ${pipelineInfo.version}
-  description: ${pipelineInfo.description || '""'}
+  // Load template stages (when creating from template)
+  React.useEffect(() => {
+    if (templateId && !id) {
+      const tpl = pipelineTemplates.find((t) => t.id === templateId);
+      if (tpl) {
+        setPipelineInfo({
+          name: tpl.name,
+          version: '1.0.0',
+          description: tpl.description,
+        });
+        const stages: StageConfig[] = tpl.stages.map((s, idx) => ({
+          id: `stage-${idx}-${Date.now()}`,
+          name: s.name,
+          type: s.type,
+          timeout: 300,
+          retryCount: 0,
+          dependsOn: [],
+          config: s.config || {},
+        }));
+        setStages(stages);
+      }
+    }
+  }, [templateId, id]);
 
-spec:
-  stages:
-${stages.map(stage => `    - name: ${stage.name}
-      type: ${stage.type}
-      timeout: ${stage.timeout || 300}
-      retryCount: ${stage.retryCount || 0}
-      dependsOn: ${stage.dependsOn?.length ? JSON.stringify(stage.dependsOn) : '[]'}
-      config:
-        ${JSON.stringify(stage.config, null, 8).split('\n').join('\n        ')}`).join('\n')}`;
-    return yaml;
+  // 生成 YAML (FIXED P0-8: aligned with backend PipelineStage schema)
+  const generateYaml = useCallback(() => {
+    const yamlLines: string[] = [
+      `apiVersion: v1`,
+      `kind: Pipeline`,
+      `metadata:`,
+      `  name: ${pipelineInfo.name}`,
+      `  version: ${pipelineInfo.version}`,
+      `  description: ${pipelineInfo.description || '""'}`,
+      ``,
+      `spec:`,
+      `  stages:`,
+    ];
+
+    for (const stage of stages) {
+      const stepUses = stage.config?.uses || `orion/${stage.type}@v1`;
+      const stepName = `${stage.name}-step`;
+
+      // Buildx 特殊配置
+      if (stage.type === 'buildx' && stage.config?.imageName) {
+        const stageLines = [
+          `    - name: ${stage.name}`,
+          `      type: buildx`,
+          `      timeout: ${stage.timeout || 300}`,
+          `      retries: ${stage.retryCount || 0}`,
+          `      config:`,
+          `        imageName: ${stage.config.imageName}`,
+          `        tag: ${stage.config.tag || 'latest'}`,
+          `        platforms: ${JSON.stringify(stage.config.platforms || ['linux/amd64'])}`,
+        ];
+        if (stage.config.dockerfilePath) {
+          stageLines.push(`        dockerfile: ${stage.config.dockerfilePath}`);
+        }
+        if (stage.config.push !== false) {
+          stageLines.push(`        push: true`);
+        }
+        if (stage.dependsOn?.length) {
+          stageLines.push(`      dependsOn: ${JSON.stringify(stage.dependsOn)}`);
+        }
+        yamlLines.push(...stageLines);
+        continue;
+      }
+
+      // Container 特殊配置
+      if (stage.type === 'container' && stage.config?.containerImage) {
+        const stageLines = [
+          `    - name: ${stage.name}`,
+          `      type: container`,
+          `      timeout: ${stage.timeout || 300}`,
+          `      retries: ${stage.retryCount || 0}`,
+          `      config:`,
+          `        image: ${stage.config.containerImage}`,
+        ];
+        if (stage.config.containerCommand) {
+          stageLines.push(`        command: ${stage.config.containerCommand}`);
+        }
+        if (stage.config.containerResources) {
+          stageLines.push(`        resources: ${JSON.stringify(stage.config.containerResources)}`);
+        }
+        if (stage.config.containerNetwork) {
+          stageLines.push(`        network: ${stage.config.containerNetwork}`);
+        }
+        if (stage.dependsOn?.length) {
+          stageLines.push(`      dependsOn: ${JSON.stringify(stage.dependsOn)}`);
+        }
+        yamlLines.push(...stageLines);
+        continue;
+      }
+
+      const stepWith =
+        stage.config && Object.keys(stage.config).length > 0
+          ? `\n        with: ${JSON.stringify(stage.config)}`
+          : '';
+
+      const stageLines = [
+        `    - name: ${stage.name}`,
+        `      runsOn: ubuntu-latest`,
+        `      timeout: ${stage.timeout || 300}`,
+        `      retries: ${stage.retryCount || 0}`,
+      ];
+
+      if (stage.dependsOn?.length) {
+        stageLines.push(`      dependsOn: ${JSON.stringify(stage.dependsOn)}`);
+      }
+
+      stageLines.push(`      steps:`);
+      stageLines.push(`        - name: ${stepName}`);
+      stageLines.push(`          uses: ${stepUses}${stepWith}`);
+
+      // 缓存配置
+      if (stage.cache?.enabled) {
+        stageLines.push(`      cache:`);
+        stageLines.push(`        enabled: true`);
+        stageLines.push(`        key: ${stage.cache.key}`);
+        stageLines.push(`        paths: ${JSON.stringify(stage.cache.paths)}`);
+        if (stage.cache.restoreKeys?.length) {
+          stageLines.push(`        restoreKeys: ${JSON.stringify(stage.cache.restoreKeys)}`);
+        }
+      }
+
+      // Artifact 配置
+      if (stage.artifacts?.upload?.length) {
+        stageLines.push(`      artifacts:`);
+        stageLines.push(`        upload: ${JSON.stringify(stage.artifacts.upload)}`);
+        if (stage.artifacts.expiry) {
+          stageLines.push(`        expiry: ${stage.artifacts.expiry}`);
+        }
+      }
+
+      // 矩阵构建配置
+      if (stage.matrix?.enabled && stage.matrix.dimensions?.length) {
+        stageLines.push(`      matrix:`);
+        const matrixEntries = stage.matrix.dimensions.map(
+          (d) => `        ${d.key}: ${JSON.stringify(d.values)}`
+        );
+        stageLines.push(...matrixEntries);
+        if (stage.matrix.exclusions?.length) {
+          stageLines.push(`        exclude:`);
+          stage.matrix.exclusions.forEach((rule) => {
+            stageLines.push(`          - ${JSON.stringify(rule.match)}`);
+          });
+        }
+      }
+
+      yamlLines.push(...stageLines);
+    }
+
+    return yamlLines.join('\n');
   }, [pipelineInfo, stages]);
 
   // 处理拖拽结束
@@ -140,46 +343,52 @@ ${stages.map(stage => `    - name: ${stage.name}
   }, []);
 
   // 保存 Stage
-  const handleSaveStage = useCallback((values: StageConfig) => {
-    if (editingIndex !== null && editingStage) {
-      // 编辑现有 Stage
-      const newStages = [...stages];
-      newStages[editingIndex] = values;
-      setStages(newStages);
-      message.success('阶段已更新');
-    } else {
-      // 添加新 Stage
-      setStages([...stages, values]);
-      message.success('阶段已添加');
-    }
-    setStageModalVisible(false);
-    setEditingStage(null);
-    setEditingIndex(null);
-  }, [stages, editingIndex, editingStage]);
+  const handleSaveStage = useCallback(
+    (values: StageConfig) => {
+      if (editingIndex !== null && editingStage) {
+        // 编辑现有 Stage
+        const newStages = [...stages];
+        newStages[editingIndex] = values;
+        setStages(newStages);
+        message.success('阶段已更新');
+      } else {
+        // 添加新 Stage
+        setStages([...stages, values]);
+        message.success('阶段已添加');
+      }
+      setStageModalVisible(false);
+      setEditingStage(null);
+      setEditingIndex(null);
+    },
+    [stages, editingIndex, editingStage]
+  );
 
   // 删除 Stage
-  const handleDeleteStage = useCallback((index: number) => {
-    const stage = stages[index];
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除阶段 "${stage.name}" 吗？`,
-      onOk: () => {
-        const newStages = stages.filter((_, i) => i !== index);
-        // 同时更新其他 Stage 的依赖关系
-        newStages.forEach(s => {
-          if (s.dependsOn?.includes(stage.name)) {
-            s.dependsOn = s.dependsOn.filter(d => d !== stage.name);
-          }
-        });
-        setStages(newStages);
-        message.success('阶段已删除');
-      },
-    });
-  }, [stages]);
+  const handleDeleteStage = useCallback(
+    (index: number) => {
+      const stage = stages[index];
+      Modal.confirm({
+        title: '确认删除',
+        content: `确定要删除阶段 "${stage.name}" 吗？`,
+        onOk: () => {
+          const newStages = stages.filter((_, i) => i !== index);
+          // 同时更新其他 Stage 的依赖关系
+          newStages.forEach((s) => {
+            if (s.dependsOn?.includes(stage.name)) {
+              s.dependsOn = s.dependsOn.filter((d) => d !== stage.name);
+            }
+          });
+          setStages(newStages);
+          message.success('阶段已删除');
+        },
+      });
+    },
+    [stages]
+  );
 
   // 验证 Stage 依赖
   const validateDependencies = useCallback((): boolean => {
-    const stageNames = new Set(stages.map(s => s.name));
+    const stageNames = new Set(stages.map((s) => s.name));
     for (const stage of stages) {
       if (stage.dependsOn) {
         for (const dep of stage.dependsOn) {
@@ -200,10 +409,12 @@ ${stages.map(stage => `    - name: ${stage.name}
 
   // 保存 Pipeline
   const handleSavePipeline = useCallback(async () => {
-    try {
-      await form.validateFields();
-    } catch (e) {
-      message.error('请填写完整的 Pipeline 信息');
+    if (!pipelineInfo.name.trim()) {
+      message.error('请输入 Pipeline 名称');
+      return;
+    }
+    if (!pipelineInfo.version.trim()) {
+      message.error('请输入版本号');
       return;
     }
 
@@ -220,23 +431,27 @@ ${stages.map(stage => `    - name: ${stage.name}
     try {
       const yaml = generateYaml();
 
-      // 模拟 API 调用
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 调用真实 API
+      if (id) {
+        await updatePipeline(id, { yamlDefinition: yaml });
+        message.success('Pipeline 已更新');
+      } else {
+        await createPipeline({
+          name: pipelineInfo.name,
+          version: pipelineInfo.version,
+          description: pipelineInfo.description,
+          yamlDefinition: yaml,
+        });
+        message.success('Pipeline 已创建');
+      }
 
-      // 实际使用时替换为真实 API 调用
-      // const response = id
-      //   ? await api.put(`/api/v1/pipelines/${id}`, { yamlDefinition: yaml })
-      //   : await api.post('/api/v1/pipelines', {
-      //       name: pipelineInfo.name,
-      //       version: pipelineInfo.version,
-      //       description: pipelineInfo.description,
-      //       yamlDefinition: yaml
-      //     });
-
-      message.success(id ? 'Pipeline 已更新' : 'Pipeline 已创建');
       navigate('/pipelines');
-    } catch (error) {
-      message.error('保存失败，请重试');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`保存失败：${error.message}`);
+      } else {
+        message.error('保存失败，请重试');
+      }
     } finally {
       setSaving(false);
     }
@@ -250,39 +465,47 @@ ${stages.map(stage => `    - name: ${stage.name}
   }, [generateYaml]);
 
   // 可用的依赖选项（当前 Stage 之前的所有 Stage）
-  const getAvailableDependencies = useCallback((currentIndex: number) => {
-    return stages
-      .filter((_, index) => index < currentIndex)
-      .map(s => ({ label: s.name, value: s.name }));
-  }, [stages]);
+  const getAvailableDependencies = useCallback(
+    (currentIndex: number) => {
+      return stages
+        .filter((_, index) => index < currentIndex)
+        .map((s) => ({ label: s.name, value: s.name }));
+    },
+    [stages]
+  );
 
   return (
-    <div style={{ padding: 0, maxWidth: 1200, margin: '0 auto' }}>
-      {/* 页面头部 */}
+    <div style={{ padding: 0 }}>
+      {/* 页面头部 - 与列表页 space-between 布局一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-        >
-          返回列表
-        </Button>
-        <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <EditOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {id ? '编辑 Pipeline' : '创建 Pipeline'}
           </Title>
-          <Text type="secondary">
-            可视化编排您的 CI/CD 流水线
-          </Text>
+          <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>
         </div>
         <Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+          >
+            返回列表
+          </Button>
+          <Button
+            icon={<ApartmentOutlined />}
+            onClick={() => setDagPreviewVisible(!dagPreviewVisible)}
+            disabled={stages.length === 0}
+          >
+            {dagPreviewVisible ? '隐藏 DAG' : '查看 DAG'}
+          </Button>
           <Button
             icon={<CodeOutlined />}
             onClick={handlePreviewYaml}
@@ -312,13 +535,9 @@ ${stages.map(stage => `    - name: ${stage.name}
         </Space>
       </div>
 
-      {/* Pipeline 基本信息 */}
-      <Card style={{ marginBottom: 24 }} title="基本信息">
-        <Form
-          form={form}
-          layout="inline"
-          requiredMark
-        >
+      {/* Pipeline 基本信息 - inline 表单布局 */}
+      <Card style={{ marginBottom: spacing.lg }} title="基本信息">
+        <Form form={form} layout="inline" requiredMark>
           <Form.Item
             label="名称"
             name="name"
@@ -328,7 +547,7 @@ ${stages.map(stage => `    - name: ${stage.name}
               placeholder="例如：build-deploy-pipeline"
               style={{ width: 250 }}
               value={pipelineInfo.name}
-              onChange={e => setPipelineInfo({ ...pipelineInfo, name: e.target.value })}
+              onChange={(e) => setPipelineInfo({ ...pipelineInfo, name: e.target.value })}
             />
           </Form.Item>
           <Form.Item
@@ -340,14 +559,14 @@ ${stages.map(stage => `    - name: ${stage.name}
               placeholder="例如：1.0.0"
               style={{ width: 120 }}
               value={pipelineInfo.version}
-              onChange={e => setPipelineInfo({ ...pipelineInfo, version: e.target.value })}
+              onChange={(e) => setPipelineInfo({ ...pipelineInfo, version: e.target.value })}
             />
           </Form.Item>
-          <Form.Item label="描述" style={{ flex: 1 }}>
+          <Form.Item label="描述">
             <Input
               placeholder="可选描述..."
               value={pipelineInfo.description}
-              onChange={e => setPipelineInfo({ ...pipelineInfo, description: e.target.value })}
+              onChange={(e) => setPipelineInfo({ ...pipelineInfo, description: e.target.value })}
               style={{ width: 300 }}
             />
           </Form.Item>
@@ -364,11 +583,7 @@ ${stages.map(stage => `    - name: ${stage.name}
           </Space>
         }
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => openStageModal()}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openStageModal()}>
             添加阶段
           </Button>
         }
@@ -382,10 +597,7 @@ ${stages.map(stage => `    - name: ${stage.name}
           />
         ) : (
           <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext
-              items={stages.map(s => s.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={stages.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               <Space direction="vertical" style={{ width: '100%' }} size={16}>
                 {stages.map((stage, index) => (
                   <StageItem
@@ -404,11 +616,33 @@ ${stages.map(stage => `    - name: ${stage.name}
         )}
       </Card>
 
+      {/* DAG 依赖关系可视化 */}
+      {dagPreviewVisible && stages.length > 0 && (
+        <Card style={{ marginTop: spacing.lg }} title="DAG 依赖关系">
+          <Alert
+            type={validateDAG(stages).valid ? 'success' : 'error'}
+            message={validateDAG(stages).valid ? '依赖关系有效，无循环依赖' : '依赖关系存在问题'}
+            description={
+              validateDAG(stages).valid
+                ? '拓扑结构正确，Pipeline 可以正常执行'
+                : validateDAG(stages).errors.join('; ')
+            }
+            showIcon
+            style={{ marginBottom: spacing.md }}
+          />
+          <DAGGraph stages={stages} height={350} showMiniMap={false} />
+        </Card>
+      )}
+
       {/* Stage 类型说明 */}
-      <Card style={{ marginTop: 24 }} title="阶段类型说明">
+      <Card style={{ marginTop: spacing.lg }} title="阶段类型说明">
         <Space wrap>
-          {STAGE_TYPES.map(type => (
-            <Tag key={type.value} color="default" style={{ fontSize: 13, padding: '4px 12px' }}>
+          {STAGE_TYPES.map((type) => (
+            <Tag
+              key={type.value}
+              color="default"
+              style={{ fontSize: spacing[3], padding: '4px 12px' }}
+            >
               {type.icon} {type.label}
             </Tag>
           ))}
@@ -429,7 +663,7 @@ ${stages.map(stage => `    - name: ${stage.name}
           availableDependencies={
             editingIndex !== null
               ? getAvailableDependencies(editingIndex)
-              : stages.map(s => ({ label: s.name, value: s.name }))
+              : stages.map((s) => ({ label: s.name, value: s.name }))
           }
           onSave={handleSaveStage}
           onCancel={() => {
@@ -466,7 +700,7 @@ ${stages.map(stage => `    - name: ${stage.name}
           value={generatedYaml}
           readOnly
           rows={30}
-          style={{ fontFamily: 'monospace', fontSize: 13, border: 'none' }}
+          style={{ fontFamily: 'monospace', fontSize: spacing[3], border: 'none' }}
         />
       </Drawer>
     </div>

@@ -7,7 +7,13 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error' | 'closed';
+export type ConnectionState =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'error'
+  | 'closed';
 
 export interface WebSocketStats {
   reconnectAttempts: number;
@@ -57,9 +63,10 @@ export const useWebSocketStore = create<WebSocketStore>()(
       set((state) => ({
         stats: {
           ...state.stats,
-          [key]: key === 'lastMessageTime' || key === 'lastPongTime'
-            ? Date.now()
-            : (state.stats[key] as number) + 1,
+          [key]:
+            key === 'lastMessageTime' || key === 'lastPongTime'
+              ? Date.now()
+              : (state.stats[key] as number) + 1,
         },
       }));
     },

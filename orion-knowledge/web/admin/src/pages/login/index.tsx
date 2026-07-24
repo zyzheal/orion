@@ -6,7 +6,7 @@ import Card from '@/components/Card';
 import { useURLSearchParams } from '@/hooks';
 import { Box, Button, IconButton, Stack, TextField } from '@mui/material';
 import { Icon, message } from '@ctzhian/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconZhanghao,
@@ -15,6 +15,12 @@ import {
   IconKejian,
   IconBukejian,
 } from '@orion-knowledge/icons';
+
+/**
+ * SSO 回调配置
+ * 登录成功后检测 redirect 参数，判断是否需要携带 token 回调
+ */
+const SSO_TOKEN_PARAM = 'sso_token';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -25,11 +31,32 @@ const Login = () => {
   const [see, setSee] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 子应用模式下不允许进入登录页，直接跳转回首页
+  useEffect(() => {
+    if ((window as any).__POWERED_BY_ORION__) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
   const submit = () => {
+    setLoading(true);
     postApiV1UserLogin({ account, password })
       .then(res => {
-        localStorage.setItem('panda_wiki_token', res.token!);
-        navigate(redirect);
+        localStorage.setItem('orion_knowledge_token', res.token!);
+
+        // 检测是否为 SSO 回调场景（redirect 中包含 sso_token 标记或来自外部重定向）
+        const redirectUrl = new URL(redirect, window.location.origin);
+        const isSSORedirect = redirectUrl.searchParams.get('sso_callback') === 'true';
+
+        if (isSSORedirect && redirectUrl.hostname === window.location.hostname) {
+          // SSO 回调场景：携带 token 参数回调到原始页面
+          redirectUrl.searchParams.set(SSO_TOKEN_PARAM, res.token!);
+          redirectUrl.searchParams.delete('sso_callback');
+          window.location.href = redirectUrl.toString();
+        } else {
+          // 普通登录：直接跳转
+          navigate(redirect);
+        }
         message.success('登录成功');
       })
       .finally(() => {

@@ -12,7 +12,7 @@ COPY . .
 ARG TARGETOS TARGETARCH
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static'" -o /build/panda-wiki-consumer pro/cmd/consumer_pro/main.go pro/cmd/consumer_pro/wire_gen.go
+    GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags "-s -w -extldflags '-static'" -o /build/orion-knowledge-consumer pro/cmd/consumer_pro/main.go pro/cmd/consumer_pro/wire_gen.go
 
 FROM alpine:3.21 AS consumer
 
@@ -23,7 +23,7 @@ RUN apk update \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /app
-COPY --from=builder /build/panda-wiki-consumer /app/panda-wiki-consumer
+COPY --from=builder /build/orion-knowledge-consumer /app/orion-knowledge-consumer
 COPY --from=builder /src/store/pg/migration /app/migration
 
-CMD ["./panda-wiki-consumer"]
+CMD ["./orion-knowledge-consumer"]

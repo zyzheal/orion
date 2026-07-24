@@ -1,0 +1,162 @@
+# FinOps 模块开发进度
+
+## 已完成 (Phase 4 P0) - Commit: abf2bcd7
+
+### 后端 (orion-platform-service)
+1. **API 路由**: `src/api/finops-v2-routes.ts` (新增)
+   - 注册在 `/api/v1/finops/*` 前缀下，30+ 端点
+   - 使用 PostgreSQL -backed FinOpsRepository + FinOpsService + FinOpsV2Controller
+   - 覆盖：成本追踪、成本概览、成本分解、预算 CRUD、预算告警、成本预测、优化建议 CRUD、报告、ROI 指标、健康检查
+   - 所有路由带 ACL 权限守卫
+
+2. **路由注册**: `src/api/routes.ts` (修改)
+   - 注册 finOpsV2Routes 到 `/v1/finops` 前缀
+
+### 前端 (orion-frontend)
+1. **类型定义**: `src/types/finops.ts` (新增)
+   - CostSummary, CostBreakdownItem, Budget, BudgetInput, BudgetStatus, BudgetForecast
+   - OptimizationRecommendation, RightSizingRecommendation, ROISummary, FinOpsMetrics
+
+2. **API 客户端**: `src/api/finops.ts` (重写)
+   - 20+ API 函数对齐 `/v1/finops/*` 后端路由
+   - 向后兼容导出（getCostSummary, getCostByService, getOptimizations, applyOptimization, getBudgetAlerts）
+   - 修复了 FinOpsDashboard 的 12 个历史类型错误
+
+3. **FinOps 页面**: `src/pages/finops/FinOpsPage.tsx` (新增)
+   - 4 个 Tab：成本总览 / 预算管理 / 成本预测 / 优化建议
+   - 使用 Design Token 体系
+   - 完整 CRUD 交互链：loading 状态、空状态引导、操作反馈、二次确认
+   - 零 TypeScript 错误
+
+### 类型检查结果
+- 新增代码：0 错误
+- 历史遗留错误（finops-svc/cost-operations/）：10 个（非本次修改引入）
+
+---
+
+# Serverless 模块开发进度
+
+## 已完成 (Phase 4 P0)
+
+### 后端 (orion-platform-service)
+1. **数据模型与服务**: `src/services/serverless/ServerlessService.ts`
+   - ServerlessFunction, ServerlessTrigger, ServerlessDeployment, ServerlessMetrics, ServerlessLog 接口
+   - 函数 CRUD (create/list/get/update/delete)
+   - 函数部署 (deployFunction)
+   - 函数调用 (invokeFunction)
+   - 触发器管理 (createTrigger/listTriggers/getTrigger/deleteTrigger)
+   - 日志聚合 (getFunctionLogs)
+   - 指标收集 (recordMetric/getFunctionMetrics/getAggregateMetrics)
+   - 自动扩缩容评估 (evaluateAutoScaling)
+
+2. **API 路由**: `src/api/serverless-routes.ts`
+   - POST /v1/serverless/functions - 创建函数
+   - GET /v1/serverless/functions - 函数列表
+   - GET /v1/serverless/functions/:id - 函数详情
+   - PUT /v1/serverless/functions/:id - 更新函数
+   - DELETE /v1/serverless/functions/:id - 删除函数
+   - POST /v1/serverless/functions/:id/deploy - 部署函数
+   - GET /v1/serverless/functions/:id/deployments - 部署历史
+   - POST /v1/serverless/functions/:id/invoke - 调用函数
+   - GET /v1/serverless/functions/:id/logs - 函数日志
+   - GET /v1/serverless/functions/:id/metrics - 函数指标
+   - GET /v1/serverless/metrics - 聚合指标
+   - POST /v1/serverless/triggers - 创建触发器
+   - GET /v1/serverless/triggers - 触发器列表
+   - GET /v1/serverless/triggers/:id - 触发器详情
+   - DELETE /v1/serverless/triggers/:id - 删除触发器
+   - GET /v1/serverless/autoscaling - 自动扩缩容建议
+
+3. **路由注册**: `src/api/routes.ts` - 已注册 serverlessRoutes
+
+### 前端 (orion-frontend)
+1. **API 客户端**: `src/api/serverless.ts`
+   - 完整 API 调用函数
+   - TypeScript 类型定义
+
+2. **类型定义**: `src/types/serverless.ts`
+   - 前端类型 re-export
+
+3. **页面**: `src/pages/serverless/ServerlessPage.tsx`
+   - 函数管理 Tab: 创建/编辑/删除/部署/调用/查看详情/查看日志
+   - 事件触发器 Tab: 创建/删除触发器，支持 HTTP/Cron/Event/Queue/Kafka/S3 类型
+   - 指标与扩缩容 Tab: 聚合指标卡片、自动扩缩容建议表格
+   - 使用 Design Token 系统
+   - 完整交互链 (loading/success/error/empty 状态)
+   - CRUD 操作完整
+
+4. **路由注册**: `src/router/routes.tsx` - 已注册 /serverless 路由
+
+## TypeScript 编译状态
+- 后端 (orion-platform-service): serverless 相关文件无新增 TS 错误
+- 前端 (orion-frontend): serverless 相关文件无新增 TS 错误
+
+## 文件清单
+| 文件 | 大小 | 状态 |
+|------|------|------|
+| orion-platform-service/src/services/serverless/ServerlessService.ts | 17.8 KB | 新增 |
+| orion-platform-service/src/api/serverless-routes.ts | 11.4 KB | 新增 |
+| orion-platform-service/src/api/routes.ts | 修改 | 已添加 import + 注册 |
+| orion-frontend/src/api/serverless.ts | 5.9 KB | 新增 |
+| orion-frontend/src/types/serverless.ts | 0.3 KB | 新增 |
+| orion-frontend/src/pages/serverless/ServerlessPage.tsx | 31.5 KB | 新增 |
+| orion-frontend/src/router/routes.tsx | 修改 | 已添加路由 |
+
+## 注意事项
+- 数据存储当前使用 Map() 内存存储，后续可迁移到 PostgreSQL Repository 模式
+- 函数调用和部署逻辑当前为模拟实现，后续可对接真实的 Knative/K8s 运行时
+
+---
+
+# 多云管理模块开发进度 (Phase 4 P1)
+
+## 已完成 (2026-05-26) - Commit: 1649df4c
+
+### 后端 (orion-platform-service)
+1. **API 路由**: `src/api/multi-cloud-routes.ts` (新增 - 419 行)
+   - 注册在 `/v1/multi-cloud` 前缀下，13 个 API 端点
+   - 使用 PostgreSQL-backed MultiCloudRepository + MultiCloudManagerService
+   - 覆盖：云账号 CRUD、资源清单、成本统计、跨云对比、优化建议、健康检查
+   - 所有路由带 ACL 权限守卫 (resource: 'multi-cloud', action: 'read'/'write')
+
+2. **路由注册**: `src/api/routes.ts` (修改)
+   - 导入并注册 multiCloudRoutes
+
+3. **数据层**: `src/repositories/MultiCloudRepository.ts` (已有 - PostgreSQL)
+   - CloudAccountEntity, CloudResourceEntity
+   - CRUD 操作: createCloudAccount, findAccountsByTenant, deleteCloudAccount
+
+4. **服务层**: `src/services/multi-cloud/MultiCloudManagerService.ts` (已有)
+   - addCloudAccount, listCloudAccounts, getProvider, removeCloudAccount
+   - getResourceInventory, getCloudStats, compareCloudCosts
+
+### 前端 (orion-frontend)
+1. **API 客户端**: `src/api/multi-cloud.ts` (修改)
+   - 完整的 TypeScript 接口定义 (CloudAccount, CloudResource, CostComparison 等)
+   - 15+ API 方法对齐后端路由
+
+2. **页面组件**: `src/pages/multi-cloud/MultiCloudPage.tsx` (已有)
+   - 云账号管理 Tab: 创建/编辑/删除/查看账号
+   - 资源清单 Tab: 资源列表、同步、详情查看
+
+3. **高级页面**: `src/pages/multi-cloud/MultiCloudAdvancedPage.tsx` (已有)
+   - 成本对比、优化建议、健康检查
+
+### 类型检查结果
+- 新增代码：0 错误
+- 历史遗留错误：0 (多云相关文件无 TS 错误)
+
+## 文件清单
+| 文件 | 大小 | 状态 |
+|------|------|------|
+| orion-platform-service/src/api/multi-cloud-routes.ts | 419 行 | 新增 |
+| orion-platform-service/src/api/routes.ts | +3 行 | 修改 |
+| orion-frontend/src/api/multi-cloud.ts | +195 行 | 修改 |
+| orion-platform-service/src/repositories/MultiCloudRepository.ts | 现有 | PostgreSQL 存储 |
+| orion-platform-service/src/services/multi-cloud/MultiCloudManagerService.ts | 现有 | 服务层 |
+| orion-frontend/src/pages/multi-cloud/MultiCloudPage.tsx | 现有 | UI 页面 |
+
+## 注意事项
+- 数据存储已使用 PostgreSQL Repository 模式
+- 所有 API 路径已对齐前端 (15+ 方法)
+- Design Token 已应用于所有组件

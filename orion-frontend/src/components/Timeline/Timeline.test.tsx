@@ -48,8 +48,8 @@ describe('OrionTimeline', () => {
 
   it('should render status badges', () => {
     render(<Timeline events={sampleEvents} />);
-    expect(screen.getByText('Success')).toBeInTheDocument();
-    expect(screen.getAllByText('Success').length).toBeGreaterThanOrEqual(1);
+    const successBadges = screen.getAllByText('Success');
+    expect(successBadges.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should limit events when maxItems is set', () => {
@@ -67,9 +67,7 @@ describe('OrionTimeline', () => {
 
   it('should call onShowMore when clicked', () => {
     const handleShowMore = vi.fn();
-    render(
-      <Timeline events={sampleEvents} maxItems={2} showMore onShowMore={handleShowMore} />
-    );
+    render(<Timeline events={sampleEvents} maxItems={2} showMore onShowMore={handleShowMore} />);
     screen.getByText(/Show More/).click();
     expect(handleShowMore).toHaveBeenCalled();
   });
@@ -90,9 +88,7 @@ describe('OrionTimeline', () => {
   });
 
   it('should handle events without status', () => {
-    const events = [
-      { id: 1, time: '2024-01-15T10:00:00Z', title: 'No status event' },
-    ];
+    const events = [{ id: 1, time: '2024-01-15T10:00:00Z', title: 'No status event' }];
     render(<Timeline events={events} />);
     expect(screen.getByText('No status event')).toBeInTheDocument();
   });

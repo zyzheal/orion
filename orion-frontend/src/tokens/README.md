@@ -50,49 +50,49 @@ import { lightTheme, darkTheme } from '@/tokens/theme';
 
 ### Colors (色彩系统)
 
-| 分类 | 说明 | 示例 |
-|------|------|------|
-| primary | 主色 | `colors.primary[500]` = `#1890ff` |
+| 分类    | 说明   | 示例                              |
+| ------- | ------ | --------------------------------- |
+| primary | 主色   | `colors.primary[500]` = `#1890ff` |
 | success | 成功色 | `colors.success[500]` = `#52c41a` |
 | warning | 警告色 | `colors.warning[500]` = `#faad14` |
-| error | 错误色 | `colors.error[500]` = `#f5222d` |
-| info | 信息色 | `colors.info[500]` = `#1890ff` |
+| error   | 错误色 | `colors.error[500]` = `#f5222d`   |
+| info    | 信息色 | `colors.info[500]` = `#1890ff`    |
 | neutral | 中性色 | `colors.neutral[500]` = `#8c8c8c` |
 
 ### Spacing (间距系统)
 
 基于 4px 网格系统：
 
-| Token | 值 | 使用场景 |
-|-------|-----|----------|
-| xs | 4px | 极小间距 |
-| sm | 8px | 小间距 |
-| md | 16px | 中间距 |
-| lg | 24px | 大间距 |
-| xl | 32px | 超大间距 |
-| xxl | 48px | 特大间距 |
+| Token | 值   | 使用场景 |
+| ----- | ---- | -------- |
+| xs    | 4px  | 极小间距 |
+| sm    | 8px  | 小间距   |
+| md    | 16px | 中间距   |
+| lg    | 24px | 大间距   |
+| xl    | 32px | 超大间距 |
+| xxl   | 48px | 特大间距 |
 
 ### Radius (圆角系统)
 
-| Token | 值 | 使用场景 |
-|-------|-----|----------|
-| none | 0 | 直角 |
-| xs | 2px | 极小圆角 |
-| sm | 4px | 小圆角 |
-| md | 6px | 中等圆角 |
-| lg | 8px | 大圆角 |
-| xl | 12px | 超大圆角 |
-| full | 9999px | 圆形 |
+| Token | 值     | 使用场景 |
+| ----- | ------ | -------- |
+| none  | 0      | 直角     |
+| xs    | 2px    | 极小圆角 |
+| sm    | 4px    | 小圆角   |
+| md    | 6px    | 中等圆角 |
+| lg    | 8px    | 大圆角   |
+| xl    | 12px   | 超大圆角 |
+| full  | 9999px | 圆形     |
 
 ### Typography (排版系统)
 
 ```typescript
 import { typography } from '@/tokens';
 
-typography.fontFamily.base;      // 基础字体
-typography.fontSize.md;          // 14px 正文
-typography.lineHeight.normal;    // 1.5 行高
-typography.fontWeight.medium;    // 500 字重
+typography.fontFamily.base; // 基础字体
+typography.fontSize.md; // 14px 正文
+typography.lineHeight.normal; // 1.5 行高
+typography.fontWeight.medium; // 500 字重
 ```
 
 ### Shadows (阴影系统)
@@ -100,9 +100,9 @@ typography.fontWeight.medium;    // 500 字重
 ```typescript
 import { shadows } from '@/tokens';
 
-shadows.sm;   // 小阴影
-shadows.md;   // 中等阴影
-shadows.lg;   // 大阴影
+shadows.sm; // 小阴影
+shadows.md; // 中等阴影
+shadows.lg; // 大阴影
 ```
 
 ### Z-Index (层级系统)
@@ -110,9 +110,9 @@ shadows.lg;   // 大阴影
 ```typescript
 import { zIndex } from '@/tokens';
 
-zIndex.dropdown;   // 1000 - 下拉菜单
-zIndex.modal;      // 1050 - 弹窗
-zIndex.toast;      // 1080 - 消息提示
+zIndex.dropdown; // 1000 - 下拉菜单
+zIndex.modal; // 1050 - 弹窗
+zIndex.toast; // 1080 - 消息提示
 ```
 
 ### Animation (动画系统)
@@ -120,8 +120,8 @@ zIndex.toast;      // 1080 - 消息提示
 ```typescript
 import { animation } from '@/tokens';
 
-animation.duration.fast;    // 200ms
-animation.easing.easeOut;   // cubic-bezier(0, 0, 0.2, 1)
+animation.duration.fast; // 200ms
+animation.easing.easeOut; // cubic-bezier(0, 0, 0.2, 1)
 ```
 
 ## WCAG 2.1 AA 对比度验证
@@ -143,11 +143,11 @@ import { semanticColors } from '@/tokens';
 function MyComponent() {
   const { theme } = useAppStore();
   const colors = semanticColors[theme];
-  
+
   return (
-    <div style={{ 
+    <div style={{
       backgroundColor: colors.bgPrimary,
-      color: colors.textPrimary 
+      color: colors.textPrimary
     }}>
       Content
     </div>

@@ -8,6 +8,7 @@ import React from 'react';
 import { Timeline as AntTimeline } from 'antd';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -64,19 +65,19 @@ function formatTime(time: string | Date): string {
 function getStatusColor(status?: StatusType): string {
   switch (status) {
     case 'success':
-      return '#52c41a';
+      return colors.success[500];
     case 'failed':
-      return '#f5222d';
+      return colors.error[500];
     case 'warning':
-      return '#faad14';
+      return colors.warning[500];
     case 'running':
-      return '#1890ff';
+      return colors.primary[500];
     case 'pending':
-      return '#d9d9d9';
+      return colors.neutral[300];
     case 'cancelled':
-      return '#8c8c8c';
+      return colors.neutral[500];
     default:
-      return '#d9d9d9';
+      return colors.neutral[300];
   }
 }
 
@@ -91,7 +92,7 @@ function OrionTimeline({
   showMore = true,
   onShowMore,
   pending = false,
-  pendingText = 'Pending...',
+  pendingText,
   mode = 'left',
 }: TimelineProps) {
   const displayEvents = maxItems ? events.slice(0, maxItems) : events;
@@ -115,7 +116,7 @@ function OrionTimeline({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: spacing.sm,
               marginBottom: 4,
               flexWrap: 'wrap',
             }}
@@ -124,7 +125,7 @@ function OrionTimeline({
               style={{
                 fontWeight: 500,
                 fontSize: 14,
-                color: 'var(--text-primary, #1f1f1f)',
+                color: 'var(--text-primary, colors.neutral[900])',
               }}
             >
               {event.title}
@@ -138,7 +139,7 @@ function OrionTimeline({
           <div
             style={{
               fontSize: 12,
-              color: 'var(--text-tertiary, #8c8c8c)',
+              color: 'var(--text-tertiary, colors.neutral[500])',
               marginBottom: event.description ? 4 : 0,
             }}
           >
@@ -150,7 +151,7 @@ function OrionTimeline({
             <div
               style={{
                 fontSize: 13,
-                color: 'var(--text-secondary, #434343)',
+                color: 'var(--text-secondary, colors.neutral[700])',
                 lineHeight: 1.5,
               }}
             >
@@ -167,7 +168,7 @@ function OrionTimeline({
       <AntTimeline
         mode={mode}
         reverse={reverse}
-        pending={pending}
+        pending={pending ? pendingText : false}
         pendingDot={
           <span
             style={{
@@ -175,26 +176,25 @@ function OrionTimeline({
               width: 10,
               height: 10,
               borderRadius: '50%',
-              background: '#1890ff',
+              background: colors.primary[500],
               animation: 'status-pulse 1.5s ease-in-out infinite',
             }}
           />
         }
-        pendingText={pendingText}
         items={items}
       />
 
       {hasMore && showMore && (
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
+        <div style={{ textAlign: 'center', marginTop: spacing.md }}>
           <a
             onClick={onShowMore}
             style={{
-              color: '#1890ff',
+              color: colors.primary[500],
               cursor: 'pointer',
               fontSize: 14,
             }}
           >
-            Show More ({events.length - maxItems} more)
+            Show More ({events.length - (maxItems ?? 0)} more)
           </a>
         </div>
       )}

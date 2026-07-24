@@ -1,0 +1,158 @@
+# ──────────────────────────────────────────────────────────
+# MinIO Deployment + Service + PVC
+# ──────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-knowledge-minio
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: minio
+spec:
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: api
+    - port: 9001
+      targetPort: 9001
+      name: console
+  selector:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: minio
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: orion-knowledge-minio-data
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-knowledge-minio
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+      app.kubernetes.io/component: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orion-knowledge
+        app.kubernetes.io/component: minio
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: minio
+          image: minio/minio:latest
+          args:
+            - server
+            - /data
+            - "--console-address"
+            - ":9001"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: MINIO_ROOT_PASSWORD
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+      volumes:
+        - name: minio-data
+          persistentVolumeClaim:
+            claimName: orion-knowledge-minio-data
+---
+# ── MinIO 初始化 Job (创建 bucket) ────────────────────────
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: orion-knowledge-minio-init
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: minio-init
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orion-knowledge
+        app.kubernetes.io/component: minio-init
+    spec:
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mc alias set myminio http://orion-knowledge-minio:9000 $(MINIO_ROOT_USER) $(MINIO_ROOT_PASSWORD)
+              mc mb --ignore-existing myminio/$(S3_BUCKET)
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: knowledge-secrets
+                  key: MINIO_ROOT_PASSWORD
+            - name: S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: knowledge-config
+                  key: S3_BUCKET
+      restartPolicy: OnFailure
+  backoffLimit: 3

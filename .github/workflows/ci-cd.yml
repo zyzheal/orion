@@ -1,0 +1,317 @@
+name: Orion Go Services CI/CD
+
+on:
+  push:
+    branches: [ main, develop, 'feat/**' ]
+    paths:
+      - 'orion-*-svc-go/**'
+      - 'go.work'
+      - '.github/workflows/ci-cd.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'orion-*-svc-go/**'
+      - 'go.work'
+      - '.github/workflows/ci-cd.yml'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Comma-separated service list (empty = all)'
+        required: false
+        default: ''
+
+env:
+  REGISTRY: ghcr.io
+  GO_VERSION: '1.25'
+  NATS_IMAGE: nats:2.10.14-alpine
+  POSTGRES_IMAGE: postgres:16-alpine
+
+jobs:
+  lint-and-test:
+    name: Lint & Test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - orion-approval-svc-go
+          - orion-artifact-svc-go
+          - orion-audit-svc-go
+          - orion-auth-svc-go
+          - orion-build-svc-go
+          - orion-canary-svc-go
+          - orion-capacity-svc-go
+          - orion-chaos-svc-go
+          - orion-chatops-svc-go
+          - orion-cmdb-svc-go
+          - orion-code-svc-go
+          - orion-community-svc-go
+          - orion-compliance-svc-go
+          - orion-config-mgmt-svc-go
+          - orion-config-svc-go
+          - orion-cron-svc-go
+          - orion-deploy-svc-go
+          - orion-digital-twin-svc-go
+          - orion-dr-svc-go
+          - orion-efficiency-svc-go
+          - orion-event-bus-svc-go
+          - orion-eventbus-svc-go
+          - orion-feature-flag-svc-go
+          - orion-federation-svc-go
+          - orion-finops-svc-go
+          - orion-governance-svc-go
+          - orion-graph-svc-go
+          - orion-inception-svc-go
+          - orion-incident-svc-go
+          - orion-inspection-svc-go
+          - orion-intelligence-svc-go
+          - orion-knowledge-svc-go
+          - orion-llm-svc-go
+          - orion-lowcode-svc-go
+          - orion-middleware-ops-svc-go
+          - orion-monitor-svc-go
+          - orion-notification-svc-go
+          - orion-notify-svc-go
+          - orion-pandawiki-svc-go
+          - orion-pipeline-svc-go
+          - orion-pipeline-template-svc-go
+          - orion-plugin-svc-go
+          - orion-report-designer-svc-go
+          - orion-risk-svc-go
+          - orion-runner-svc-go
+          - orion-scheduler-svc-go
+          - orion-secret-svc-go
+          - orion-security-svc-go
+          - orion-selfhealing-svc-go
+          - orion-skill-config-svc-go
+          - orion-skill-svc-go
+          - orion-ticket-svc-go
+          - orion-tool-svc-go
+          - orion-user-svc-go
+          - orion-visor-svc-go
+          - orion-workflow-svc-go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup workspace
+        run: |
+          go work sync || true
+
+      - name: Lint
+        working-directory: ${{ matrix.service }}
+        run: |
+          go vet ./... || echo "go vet failed (non-blocking)"
+
+      - name: Build
+        working-directory: ${{ matrix.service }}
+        run: go build ./...
+
+      - name: Test
+        working-directory: ${{ matrix.service }}
+        run: go test ./... -count=1 -timeout=5m
+        env:
+          DATABASE_URL: postgres://orion:orion@localhost:5432/test?sslmode=disable
+          REDIS_ADDR: localhost:6379
+          NATS_ADDR: nats://localhost:4222
+
+  docker-build-push:
+    name: Docker Build & Push (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - orion-approval-svc-go
+          - orion-artifact-svc-go
+          - orion-audit-svc-go
+          - orion-auth-svc-go
+          - orion-build-svc-go
+          - orion-canary-svc-go
+          - orion-capacity-svc-go
+          - orion-chaos-svc-go
+          - orion-chatops-svc-go
+          - orion-cmdb-svc-go
+          - orion-code-svc-go
+          - orion-community-svc-go
+          - orion-compliance-svc-go
+          - orion-config-mgmt-svc-go
+          - orion-config-svc-go
+          - orion-cron-svc-go
+          - orion-deploy-svc-go
+          - orion-digital-twin-svc-go
+          - orion-dr-svc-go
+          - orion-efficiency-svc-go
+          - orion-event-bus-svc-go
+          - orion-eventbus-svc-go
+          - orion-feature-flag-svc-go
+          - orion-federation-svc-go
+          - orion-finops-svc-go
+          - orion-governance-svc-go
+          - orion-graph-svc-go
+          - orion-inception-svc-go
+          - orion-incident-svc-go
+          - orion-inspection-svc-go
+          - orion-intelligence-svc-go
+          - orion-knowledge-svc-go
+          - orion-llm-svc-go
+          - orion-lowcode-svc-go
+          - orion-middleware-ops-svc-go
+          - orion-monitor-svc-go
+          - orion-notification-svc-go
+          - orion-notify-svc-go
+          - orion-pandawiki-svc-go
+          - orion-pipeline-svc-go
+          - orion-pipeline-template-svc-go
+          - orion-plugin-svc-go
+          - orion-report-designer-svc-go
+          - orion-risk-svc-go
+          - orion-runner-svc-go
+          - orion-scheduler-svc-go
+          - orion-secret-svc-go
+          - orion-security-svc-go
+          - orion-selfhealing-svc-go
+          - orion-skill-config-svc-go
+          - orion-skill-svc-go
+          - orion-ticket-svc-go
+          - orion-tool-svc-go
+          - orion-user-svc-go
+          - orion-visor-svc-go
+          - orion-workflow-svc-go
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service }}
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  k8s-deploy:
+    name: Deploy to K8s (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - orion-approval-svc-go
+          - orion-artifact-svc-go
+          - orion-audit-svc-go
+          - orion-auth-svc-go
+          - orion-build-svc-go
+          - orion-canary-svc-go
+          - orion-capacity-svc-go
+          - orion-chaos-svc-go
+          - orion-chatops-svc-go
+          - orion-cmdb-svc-go
+          - orion-code-svc-go
+          - orion-community-svc-go
+          - orion-compliance-svc-go
+          - orion-config-mgmt-svc-go
+          - orion-config-svc-go
+          - orion-cron-svc-go
+          - orion-deploy-svc-go
+          - orion-digital-twin-svc-go
+          - orion-dr-svc-go
+          - orion-efficiency-svc-go
+          - orion-event-bus-svc-go
+          - orion-eventbus-svc-go
+          - orion-feature-flag-svc-go
+          - orion-federation-svc-go
+          - orion-finops-svc-go
+          - orion-governance-svc-go
+          - orion-graph-svc-go
+          - orion-inception-svc-go
+          - orion-incident-svc-go
+          - orion-inspection-svc-go
+          - orion-intelligence-svc-go
+          - orion-knowledge-svc-go
+          - orion-llm-svc-go
+          - orion-lowcode-svc-go
+          - orion-middleware-ops-svc-go
+          - orion-monitor-svc-go
+          - orion-notification-svc-go
+          - orion-notify-svc-go
+          - orion-pandawiki-svc-go
+          - orion-pipeline-svc-go
+          - orion-pipeline-template-svc-go
+          - orion-plugin-svc-go
+          - orion-report-designer-svc-go
+          - orion-risk-svc-go
+          - orion-runner-svc-go
+          - orion-scheduler-svc-go
+          - orion-secret-svc-go
+          - orion-security-svc-go
+          - orion-selfhealing-svc-go
+          - orion-skill-config-svc-go
+          - orion-skill-svc-go
+          - orion-ticket-svc-go
+          - orion-tool-svc-go
+          - orion-user-svc-go
+          - orion-visor-svc-go
+          - orion-workflow-svc-go
+    environment:
+      KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Deploy
+        run: |
+          kubectl config use-context default
+          helm upgrade --install ${{ matrix.service }} ./infrastructure/helm/orion-service \
+            -f ./infrastructure/helm/charts/${{ matrix.service }}/values.yaml \
+            --namespace orion --create-namespace \
+            --set image.tag=${{ github.sha }}

@@ -1,0 +1,56 @@
+# Generic HPA Template for Orion Services
+# Copy this file to each service's k8s/ directory and customize the placeholders:
+#   SERVICE_NAME    - e.g., orion-pipeline-svc
+#   APP_LABEL       - e.g., orion-pipeline
+#   MIN_REPLICAS    - Minimum replicas (default: 2)
+#   MAX_REPLICAS    - Maximum replicas (default: 10)
+#   CPU_TARGET      - CPU utilization target % (default: 70)
+#   MEMORY_TARGET   - Memory utilization target % (default: 80)
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ${SERVICE_NAME}-hpa
+  namespace: orion
+  labels:
+    app: ${APP_LABEL}
+    component: ${SERVICE_NAME}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ${SERVICE_NAME}
+  minReplicas: ${MIN_REPLICAS:-2}
+  maxReplicas: ${MAX_REPLICAS:-10}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: ${CPU_TARGET:-70}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: ${MEMORY_TARGET:-80}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+        - type: Percent
+          value: 10
+          periodSeconds: 120

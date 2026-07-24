@@ -5,7 +5,9 @@
  * - Used for dashboard KPI displays
  */
 import React, { useMemo } from 'react';
-import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Tooltip } from 'antd';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -28,6 +30,8 @@ export interface MetricCardProps {
   trendPercent?: number;
   /** Icon or visual element */
   icon?: React.ReactNode;
+  /** Tooltip content for title */
+  tooltip?: string | React.ReactNode;
   /** Additional footer content */
   footer?: React.ReactNode;
   /** Loading state */
@@ -44,10 +48,7 @@ export interface MetricCardProps {
 // Helper: Calculate trend percentage
 // ============================================================================
 
-function calculateTrendPercent(
-  current: number | string,
-  previous: number | string
-): number {
+function calculateTrendPercent(current: number | string, previous: number | string): number {
   const curr = typeof current === 'string' ? parseFloat(current) : current;
   const prev = typeof previous === 'string' ? parseFloat(previous) : previous;
 
@@ -80,6 +81,7 @@ function MetricCard({
   previousValue,
   trendPercent,
   icon,
+  tooltip,
   footer,
   loading = false,
   size = 'medium',
@@ -106,9 +108,9 @@ function MetricCard({
   const sizeConfig = useMemo(() => {
     switch (size) {
       case 'small':
-        return { titleSize: 12, valueSize: 20, padding: 16 };
+        return { titleSize: 12, valueSize: 20, padding: spacing.md };
       case 'large':
-        return { titleSize: 16, valueSize: 36, padding: 24 };
+        return { titleSize: 16, valueSize: 36, padding: spacing.lg };
       default:
         return { titleSize: 14, valueSize: 28, padding: 20 };
     }
@@ -119,11 +121,11 @@ function MetricCard({
     if (color) return color;
     switch (computedTrend) {
       case 'up':
-        return '#52c41a';
+        return colors.success[500];
       case 'down':
-        return '#f5222d';
+        return colors.error[500];
       default:
-        return '#8c8c8c';
+        return colors.neutral[500];
     }
   }, [computedTrend, color]);
 
@@ -145,10 +147,10 @@ function MetricCard({
       data-testid="metric-card"
       onClick={onClick}
       style={{
-        background: 'var(--bg-elevated, #ffffff)',
+        background: 'var(--bg-elevated, colors.neutral[0])',
         borderRadius: 'var(--radius-lg, 8px)',
         padding: sizeConfig.padding,
-        border: '1px solid var(--border-light, #f0f0f0)',
+        border: '1px solid var(--border-light, colors.neutral[200])',
         boxShadow: 'var(--shadow-card, 0 1px 2px rgba(0,0,0,0.03))',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.2s ease',
@@ -185,8 +187,8 @@ function MetricCard({
             style={{
               width: 24,
               height: 24,
-              border: '3px solid #f0f0f0',
-              borderTopColor: '#1890ff',
+              border: '3px solid colors.neutral[200]',
+              borderTopColor: colors.primary[500],
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}
@@ -200,20 +202,28 @@ function MetricCard({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 12,
+          marginBottom: spacing[3],
         }}
       >
         <span
           style={{
             fontSize: sizeConfig.titleSize,
-            color: 'var(--text-secondary, #595959)',
+            color: 'var(--text-secondary, colors.neutral[600])',
             fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
           }}
           data-testid="metric-title"
         >
           {title}
+          {tooltip && (
+            <Tooltip title={tooltip} placement="top">
+              <InfoCircleOutlined style={{ fontSize: 12, color: 'var(--text-tertiary, colors.neutral[500])', cursor: 'help' }} />
+            </Tooltip>
+          )}
         </span>
-        {icon && <span style={{ color: color || '#1890ff' }}>{icon}</span>}
+        {icon && <span style={{ color: color || colors.primary[500] }}>{icon}</span>}
       </div>
 
       {/* Value row */}
@@ -222,14 +232,14 @@ function MetricCard({
           display: 'flex',
           alignItems: 'baseline',
           gap: 4,
-          marginBottom: 8,
+          marginBottom: spacing.sm,
         }}
       >
         <span
           style={{
             fontSize: sizeConfig.valueSize,
             fontWeight: 700,
-            color: 'var(--text-primary, #1f1f1f)',
+            color: 'var(--text-primary, colors.neutral[900])',
             lineHeight: 1.2,
           }}
           data-testid="metric-value"
@@ -240,7 +250,7 @@ function MetricCard({
           <span
             style={{
               fontSize: sizeConfig.titleSize,
-              color: 'var(--text-tertiary, #8c8c8c)',
+              color: 'var(--text-tertiary, colors.neutral[500])',
               fontWeight: 400,
             }}
             data-testid="metric-unit"
@@ -274,11 +284,11 @@ function MetricCard({
       {footer && (
         <div
           style={{
-            marginTop: 12,
+            marginTop: spacing[3],
             paddingTop: 12,
-            borderTop: '1px solid var(--border-light, #f0f0f0)',
+            borderTop: '1px solid var(--border-light, colors.neutral[200])',
             fontSize: 12,
-            color: 'var(--text-tertiary, #8c8c8c)',
+            color: 'var(--text-tertiary, colors.neutral[500])',
           }}
         >
           {footer}

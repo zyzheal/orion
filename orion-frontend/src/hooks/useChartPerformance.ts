@@ -61,7 +61,11 @@ function sampleTimeSeriesData(data: any[], maxPoints: number, sampleRate: number
 
   const targetSize = Math.max(Math.floor(data.length * sampleRate), maxPoints);
 
-  if (data[0]?.hasOwnProperty('value') || data[0]?.hasOwnProperty('y')) {
+  const firstItem = data[0];
+  if (
+    (firstItem && Object.prototype.hasOwnProperty.call(firstItem, 'value')) ||
+    (firstItem && Object.prototype.hasOwnProperty.call(firstItem, 'y'))
+  ) {
     // 对象数组格式
     return lttbSample(data, targetSize);
   }
@@ -78,12 +82,7 @@ export const useChartPerformance = (
   initialData: any[] = [],
   options: ChartPerformanceOptions = {}
 ): useChartPerformanceReturn => {
-  const {
-    sampleRate = 0.1,
-    maxPoints = 1000,
-    debounceMs = 150,
-    enabled = true,
-  } = options;
+  const { sampleRate = 0.1, maxPoints = 1000, debounceMs = 150, enabled = true } = options;
 
   const [chartData, setChartData] = useState<any[]>(initialData);
   const [sampledData, setSampledData] = useState<any[]>(initialData);

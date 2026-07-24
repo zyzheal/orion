@@ -3,75 +3,36 @@
  * Team-level metrics for engineering managers, including member performance table,
  * week-over-week comparison, and transfer analysis.
  *
- * Uses mock data initially; real API integration will be added later.
+ * P0-3 Fix: Removed mock data fallback. Now uses real API data with proper
+ * loading, error, and empty states. Mock data is kept only in test files.
  */
 import React, { useMemo } from 'react';
-import {
-  Row,
-  Col,
-  Statistic,
-  Tag,
-  Progress,
-  Table,
-  Typography,
-  Space,
-} from 'antd';
+import { Row, Col, Tag, Table, Typography, Space, Result } from 'antd';
+import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   MinusOutlined,
-  TeamOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
   SwapOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
-import { mockManagerDashboard } from '@/pages/__mocks__/mockBIData';
+import DataState from '@/components/DataState';
+import { useBiDashboard } from '@/hooks/useBiDashboard';
+import type { ManagerDashboardData } from '@/types/pages';
 import dayjs from 'dayjs';
+import { BarChart, GaugeChart, PieChart, StatCard } from '@/components/charts';
 
 const { Title, Text } = Typography;
 
 // Color constants
 const COLORS = {
-  success: '#52c41a',
-  warning: '#faad14',
-  error: '#ff4d4f',
-  info: '#1890ff',
-  purple: '#722ed1',
-};
-
-/**
- * Simple bar visualization
- */
-const SimpleBar: React.FC<{
-  value: number;
-  max: number;
-  color: string;
-  width?: number;
-}> = ({ value, max, color, width = 80 }) => {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
-  return (
-    <div
-      style={{
-        width,
-        height: 6,
-        backgroundColor: '#f0f0f0',
-        borderRadius: 3,
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          width: `${Math.min(percentage, 100)}%`,
-          height: '100%',
-          backgroundColor: color,
-          borderRadius: 3,
-          transition: 'width 0.3s ease',
-        }}
-      />
-    </div>
-  );
+  success: colors.success[500],
+  warning: colors.warning[500],
+  error: colors.error[400],
+  info: colors.primary[500],
+  purple: colors.purple[500],
 };
 
 /**
@@ -100,57 +61,66 @@ const gradeColor = (grade: string): string => {
     case 'D':
       return COLORS.error;
     default:
-      return '#8c8c8c';
+      return colors.neutral[400];
   }
 };
 
 /**
  * Trend icon and color
  */
-const TrendIndicator: React.FC<{ trend: 'improving' | 'stable' | 'declining' }> = ({
-  trend,
-}) => {
+const TrendIndicator: React.FC<{ trend: 'improving' | 'stable' | 'declining' }> = ({ trend }) => {
   if (trend === 'improving') {
     return <ArrowUpOutlined style={{ color: COLORS.success }} />;
   }
   if (trend === 'declining') {
     return <ArrowDownOutlined style={{ color: COLORS.error }} />;
   }
-  return <MinusOutlined style={{ color: '#8c8c8c' }} />;
+  return <MinusOutlined style={{ color: colors.neutral[400] }} />;
 };
 
 const ManagerDashboard: React.FC = () => {
-  const data = mockManagerDashboard;
+  const { data: apiData, loading, error } = useBiDashboard('manager');
 
-  // Week-over-week metrics
+  // Retry handler - reload page on error
+  const handleRetry = () => window.location.reload();
+
+  // Cast API data to expected type
+  const data = apiData as ManagerDashboardData | undefined;
+
+  // Week-over-week metrics (must be before early returns)
   const wowMetrics = useMemo(
-    () => [
-      {
-        label: '工单创建',
-        value: data.weekOverWeek.ticketsCreatedChange,
-        suffix: '%',
-      },
-      {
-        label: '已解决',
-        value: data.weekOverWeek.resolvedChange,
-        suffix: '%',
-      },
-      {
-        label: '平均解决时间',
-        value: data.weekOverWeek.avgResolutionTimeChange,
-        suffix: '%',
-      },
-      {
-        label: 'SLA合规率',
-        value: data.weekOverWeek.slaComplianceChange,
-        suffix: '%',
-      },
-    ],
+    () => {
+      if (!data?.weekOverWeek) {
+        return [];
+      }
+      return [
+        {
+          label: '工单创建',
+          value: data.weekOverWeek.ticketsCreatedChange,
+          suffix: '%',
+        },
+        {
+          label: '已解决',
+          value: data.weekOverWeek.resolvedChange,
+          suffix: '%',
+        },
+        {
+          label: '平均解决时间',
+          value: data.weekOverWeek.avgResolutionTimeChange,
+          suffix: '%',
+        },
+        {
+          label: 'SLA合规率',
+          value: data.weekOverWeek.slaComplianceChange,
+          suffix: '%',
+        },
+      ];
+    },
     [data]
   );
 
   // Member metrics table columns
-  const memberColumns: ColumnsType<(typeof data.memberMetrics)[0]> = [
+  const memberColumns: ColumnsType<NonNullable<typeof data>['memberMetrics'][number]> = [
     {
       title: '工程师',
       dataIndex: 'engineerName',
@@ -164,11 +134,12 @@ const ManagerDashboard: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             分配 <Text strong>{record.workload.totalAssigned}</Text>
           </Text>
-          <Text style={{ fontSize: 12 }}>
-            解决 <Text strong style={{ color: COLORS.success }}>
+          <Text style={{ fontSize: spacing[3] }}>
+            解决{' '}
+            <Text strong style={{ color: COLORS.success }}>
               {record.workload.totalResolved}
             </Text>
           </Text>
@@ -181,12 +152,10 @@ const ManagerDashboard: React.FC = () => {
       width: 120,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             平均 {msToHours(record.efficiency.avgResolutionTimeMs)}
           </Text>
-          <Text style={{ fontSize: 12 }}>
-            {record.efficiency.ticketsPerDay} 单/天
-          </Text>
+          <Text style={{ fontSize: spacing[3] }}>{record.efficiency.ticketsPerDay} 单/天</Text>
         </Space>
       ),
     },
@@ -196,16 +165,21 @@ const ManagerDashboard: React.FC = () => {
       width: 160,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             SLA{' '}
-            <Text strong style={{ color: record.quality.slaComplianceRate >= 0.9 ? COLORS.success : COLORS.error }}>
+            <Text
+              strong
+              style={{
+                color: record.quality.slaComplianceRate >= 0.9 ? COLORS.success : COLORS.error,
+              }}
+            >
               {(record.quality.slaComplianceRate * 100).toFixed(0)}%
             </Text>
           </Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             首次解决 {(record.quality.firstTimeResolveRate * 100).toFixed(0)}%
           </Text>
-          <Text style={{ fontSize: 12 }}>
+          <Text style={{ fontSize: spacing[3] }}>
             重开率{' '}
             <Text
               style={{
@@ -227,12 +201,6 @@ const ManagerDashboard: React.FC = () => {
       defaultSortOrder: 'descend',
       render: (score: number) => (
         <Space>
-          <SimpleBar
-            value={score}
-            max={100}
-            color={score >= 90 ? COLORS.success : score >= 70 ? COLORS.info : COLORS.error}
-            width={60}
-          />
           <Text strong>{score}</Text>
         </Space>
       ),
@@ -243,7 +211,10 @@ const ManagerDashboard: React.FC = () => {
       key: 'performanceGrade',
       width: 70,
       render: (grade: string) => (
-        <Tag color={gradeColor(grade)} style={{ fontWeight: 700, minWidth: 30, textAlign: 'center' }}>
+        <Tag
+          color={gradeColor(grade)}
+          style={{ fontWeight: 700, minWidth: 30, textAlign: 'center' }}
+        >
           {grade}
         </Tag>
       ),
@@ -258,7 +229,7 @@ const ManagerDashboard: React.FC = () => {
   ];
 
   // Transfer reasons table columns
-  const transferColumns: ColumnsType<(typeof data.transferAnalysis.topTransferReasons)[0]> = [
+  const transferColumns: ColumnsType<NonNullable<typeof data>['transferAnalysis']['topTransferReasons'][number]> = [
     {
       title: '转派原因',
       dataIndex: 'reason',
@@ -271,103 +242,95 @@ const ManagerDashboard: React.FC = () => {
       sorter: (a, b) => a.count - b.count,
       render: (count: number) => (
         <Space>
-          <SimpleBar value={count} max={data.transferAnalysis.topTransferReasons[0]?.count || 1} color={COLORS.warning} />
           <Text strong>{count}</Text>
         </Space>
       ),
     },
   ];
 
+  // Show empty state when no data available
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle="经理效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
+        />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
+
   return (
     <div style={{ padding: 0 }}>
-      {/* Page header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
-          经理看板
-        </Title>
-        <Text type="secondary">
-          团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}
-        </Text>
-      </div>
+      <DataState
+        loading={loading}
+        error={error}
+        empty={false}
+        loadingText="加载效能数据..."
+        retry={handleRetry}
+      >
+        {/* Page header */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            经理看板
+          </Title>
+          <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
+        </div>
 
       {/* Team Overview Cards */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="总工单数"
                 value={data.teamOverview.totalTickets}
                 suffix="个"
-                valueStyle={{ fontSize: 24, fontWeight: 600 }}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="已解决"
                 value={data.teamOverview.resolvedCount}
                 suffix="个"
-                valueStyle={{ fontSize: 24, fontWeight: 600, color: COLORS.success }}
-                prefix={<CheckCircleOutlined />}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="平均解决时间"
                 value={data.teamOverview.avgResolutionTimeHours}
                 suffix="h"
-                valueStyle={{ fontSize: 24, fontWeight: 600 }}
-                prefix={<ClockCircleOutlined />}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
-              <Statistic
+              <StatCard
                 title="SLA合规率"
                 value={data.teamOverview.slaComplianceRate}
                 suffix="%"
-                valueStyle={{
-                  fontSize: 24,
-                  fontWeight: 600,
-                  color: data.teamOverview.slaComplianceRate >= 90 ? COLORS.success : COLORS.error,
-                }}
-                prefix={<CheckCircleOutlined />}
               />
             </CardPanel>
           </Col>
           <Col xs={24} sm={12} lg={8} xl={8}>
             <CardPanel>
-              <Statistic
-                title="团队负载"
+              <GaugeChart
                 value={data.teamOverview.teamLoadPercentage}
-                suffix="%"
-                valueStyle={{
-                  fontSize: 24,
-                  fontWeight: 600,
-                  color:
-                    data.teamOverview.teamLoadPercentage > 85
-                      ? COLORS.error
-                      : data.teamOverview.teamLoadPercentage > 70
-                        ? COLORS.warning
-                        : COLORS.info,
-                }}
-              />
-              <Progress
-                percent={data.teamOverview.teamLoadPercentage}
-                size="small"
-                strokeColor={
-                  data.teamOverview.teamLoadPercentage > 85
-                    ? COLORS.error
-                    : COLORS.info
-                }
-                showInfo={false}
-                style={{ marginTop: 8 }}
+                title="团队负载"
+                max={100}
+                thresholds={{ warning: 70, danger: 90 }}
+                size={160}
+                unit="%"
               />
             </CardPanel>
           </Col>
@@ -375,65 +338,53 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Week-over-Week Comparison */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="环比变化（vs 上周）" extra={<Tag color="cyan">周环比</Tag>}>
           <Row gutter={[16, 16]}>
-            {wowMetrics.map((metric) => (
-              <Col xs={24} sm={12} lg={6} key={metric.label}>
-                <div
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: 8,
-                    backgroundColor: '#fafafa',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {metric.label}
-                    </Text>
-                    <div
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 600,
-                        color:
-                          metric.value > 0
-                            ? metric.label === '平均解决时间'
-                              ? COLORS.error
-                              : COLORS.success
-                            : metric.value < 0
-                              ? metric.label === '平均解决时间'
-                                ? COLORS.success
-                                : COLORS.error
-                              : '#8c8c8c',
-                      }}
-                    >
-                      {metric.value > 0 ? '+' : ''}
-                      {metric.value}
-                      {metric.suffix}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 24 }}>
-                    {metric.value > 0 ? (
-                      <ArrowUpOutlined style={{ color: COLORS.success }} />
-                    ) : metric.value < 0 ? (
-                      <ArrowDownOutlined style={{ color: COLORS.error }} />
-                    ) : (
-                      <MinusOutlined style={{ color: '#8c8c8c' }} />
-                    )}
-                  </div>
-                </div>
-              </Col>
-            ))}
+            {wowMetrics.map((metric) => {
+              const isGoodUp = !['平均解决时间'].includes(metric.label);
+              const trendDir = metric.value > 0 ? 'up' : metric.value < 0 ? 'down' : 'flat';
+              return (
+                <Col xs={24} sm={12} lg={6} key={metric.label}>
+                  <StatCard
+                    title={metric.label}
+                    value={`${metric.value > 0 ? '+' : ''}${metric.value}`}
+                    suffix={metric.suffix}
+                    trend={{
+                      value: Math.abs(metric.value),
+                      direction: trendDir,
+                      good: isGoodUp ? 'up' : 'down',
+                    }}
+                  />
+                </Col>
+              );
+            })}
           </Row>
         </CardPanel>
       </div>
 
+      {/* Team Performance Chart */}
+      <div style={{ marginBottom: spacing.lg }}>
+        <CardPanel
+          title="团队绩效分布"
+          extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
+        >
+          <BarChart
+            data={data.memberMetrics.map((m) => ({
+              label: m.engineerName,
+              value: m.workload.totalResolved,
+            }))}
+            height={280}
+          />
+        </CardPanel>
+      </div>
+
       {/* Member Metrics Table */}
-      <div style={{ marginBottom: 24 }}>
-        <CardPanel title="成员效能明细" extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}>
+      <div style={{ marginBottom: spacing.lg }}>
+        <CardPanel
+          title="成员效能明细"
+          extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
+        >
           <Table
             dataSource={data.memberMetrics}
             columns={memberColumns}
@@ -449,23 +400,12 @@ const ManagerDashboard: React.FC = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={14}>
           <CardPanel title="转派分析" extra={<SwapOutlined />}>
-            <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12}>
-                <Statistic
-                  title="总转派次数"
-                  value={data.transferAnalysis.totalTransfers}
-                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
-                />
-              </Col>
-              <Col xs={24} sm={12}>
-                <Statistic
-                  title="平均每工单转派"
-                  value={data.transferAnalysis.avgTransfersPerTicket}
-                  precision={2}
-                  valueStyle={{ fontSize: 28, fontWeight: 600 }}
-                />
-              </Col>
-            </Row>
+            <PieChart
+              title="转派原因分布"
+              data={data.transferAnalysis.topTransferReasons.map(r => ({ name: r.reason, value: r.count }))}
+              variant="donut"
+              height={200}
+            />
           </CardPanel>
         </Col>
         <Col xs={24} xl={10}>
@@ -480,6 +420,7 @@ const ManagerDashboard: React.FC = () => {
           </CardPanel>
         </Col>
       </Row>
+      </DataState>
     </div>
   );
 };

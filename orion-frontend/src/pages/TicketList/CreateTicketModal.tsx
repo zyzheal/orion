@@ -7,21 +7,10 @@
  * - Submit button with loading state
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  Select,
-  Radio,
-  Typography,
-  message,
-  Space,
-} from 'antd';
-import {
-  WarningOutlined,
-  FileSearchOutlined,
-} from '@ant-design/icons';
-import { mockTickets } from '@/pages/__mocks__/mockTicketData';
+import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
+import { WarningOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+import { createTicket, type TicketCategory } from '@/api/ticketing';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -54,13 +43,9 @@ export interface CreateTicketModalProps {
 const categoryOptions = [
   { label: '基础设施', value: 'infrastructure' },
   { label: '应用', value: 'application' },
-  { label: '数据库', value: 'database' },
-  { label: '网络', value: 'network' },
   { label: '安全', value: 'security' },
-  { label: '部署', value: 'deployment' },
-  { label: '流水线', value: 'pipeline' },
-  { label: '性能', value: 'performance' },
-  { label: '成本', value: 'cost' },
+  { label: '网络', value: 'network' },
+  { label: '数据库', value: 'database' },
   { label: '其他', value: 'other' },
 ];
 
@@ -72,10 +57,10 @@ const sourceOptions = [
 ];
 
 const priorityColors: Record<string, string> = {
-  critical: '#ff4d4f',
-  high: '#fa8c16',
-  medium: '#1890ff',
-  low: '#8c8c8c',
+  critical: colors.error[400],
+  high: colors.warning[600],
+  medium: colors.primary[500],
+  low: colors.neutral[500],
 };
 
 const priorityLabels: Record<string, string> = {
@@ -89,30 +74,35 @@ const priorityLabels: Record<string, string> = {
 // Duplicate detection
 // ============================================================================
 
+/**
+ * Simple duplicate detection based on title keywords.
+ * Checks against a small set of known recurring patterns.
+ * In production, this would query the backend for similar tickets.
+ */
+const KNOWN_TICKET_PATTERNS = [
+  'CPU', '数据库', 'API 网关', '磁盘空间', '部署',
+  '安全漏洞', '成本', '响应延迟', 'Redis',
+];
+
 function findPotentialDuplicates(title: string): string[] {
   if (title.length < 5) return [];
   const titleLower = title.toLowerCase();
-  const words = titleLower.split(/\s+/).filter((w) => w.length > 2);
-  if (words.length === 0) return [];
+  const warnings: string[] = [];
 
-  return mockTickets
-    .filter((t) => {
-      const existingLower = t.title.toLowerCase();
-      // Check if any word from new title appears in existing title
-      return words.some((w) => existingLower.includes(w));
-    })
-    .map((t) => `${t.id}: ${t.title}`);
+  for (const pattern of KNOWN_TICKET_PATTERNS) {
+    if (titleLower.includes(pattern.toLowerCase())) {
+      warnings.push(`标题包含常见模式"${pattern}"，建议先搜索类似工单`);
+    }
+  }
+
+  return warnings;
 }
 
 // ============================================================================
 // Component
 // ============================================================================
 
-const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
-  open,
-  onCancel,
-  onSuccess,
-}) => {
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, onSuccess }) => {
   const [form] = Form.useForm<CreateTicketFormValues>();
   const [submitting, setSubmitting] = useState(false);
   const [titleValue, setTitleValue] = useState('');
@@ -127,17 +117,27 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log('Create ticket:', values);
+      await createTicket({
+        title: values.title,
+        description: values.description,
+        category: values.category as TicketCategory,
+        priority: values.priority,
+        reporter: 'current-user', // TODO: get from auth context
+        source: values.source,
+        tags: values.tags?.reduce((acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }), {}),
+      });
       message.success('工单创建成功');
       form.resetFields();
       setTitleValue('');
       setSubmitting(false);
       onSuccess();
-    } catch {
+    } catch (error: unknown) {
       setSubmitting(false);
-      // Form validation error - no need to show additional message
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        message.error(`创建工单失败：${msg}`);
+      }
     }
   }, [form, onSuccess]);
 
@@ -193,25 +193,25 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         {potentialDuplicates.length > 0 && (
           <div
             style={{
-              background: '#fffbe6',
-              border: '1px solid #ffe58f',
+              background: colors.warning[50],
+              border: `1px solid ${colors.warning[200]}`,
               borderRadius: 8,
-              padding: 12,
-              marginBottom: 16,
+              padding: spacing[3],
+              marginBottom: spacing[4],
             }}
             data-testid="duplicate-preview"
           >
             <Space>
-              <WarningOutlined style={{ color: '#faad14' }} />
-              <Text strong style={{ color: '#ad8b00' }}>
+              <WarningOutlined style={{ color: colors.warning[500] }} />
+              <Text strong style={{ color: colors.warning[700] }}>
                 发现可能的重复工单
               </Text>
             </Space>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing[2] }}>
               {potentialDuplicates.map((dup, idx) => (
-                <div key={idx} style={{ marginBottom: 4 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <FileSearchOutlined /> {dup}
+                <div key={idx} style={{ marginBottom: spacing[1] }}>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    <WarningOutlined /> {dup}
                   </Text>
                 </div>
               ))}
@@ -220,7 +220,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         )}
 
         {/* Category and Priority row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
           <Form.Item
             label="工单分类"
             name="category"
@@ -238,10 +238,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
             name="priority"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Radio.Group
-              data-testid="create-ticket-priority"
-              style={{ display: 'flex', gap: 8 }}
-            >
+            <Radio.Group data-testid="create-ticket-priority" style={{ display: 'flex', gap: spacing.sm }}>
               {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
                 <Radio.Button
                   key={p}
@@ -289,11 +286,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
         </Form.Item>
 
         {/* Source */}
-        <Form.Item
-          label="来源"
-          name="source"
-          rules={[{ required: true, message: '请选择来源' }]}
-        >
+        <Form.Item label="来源" name="source" rules={[{ required: true, message: '请选择来源' }]}>
           <Select
             placeholder="请选择来源"
             options={sourceOptions}
@@ -314,11 +307,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
         {source === 'incident' && (
           <Form.Item label="关联事件 ID" name="incidentId">
-            <Input
-              placeholder="请输入事件 ID"
-              data-testid="create-ticket-incident-id"
-              allowClear
-            />
+            <Input placeholder="请输入事件 ID" data-testid="create-ticket-incident-id" allowClear />
           </Form.Item>
         )}
       </Form>

@@ -7,13 +7,15 @@
  * - Status filtering
  * - Detail link
  */
-import React, { useState, useMemo } from 'react';
-import { Typography, Button, Space, Tag } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Typography, Button, Space, Tag, message } from 'antd';
+import { colors, spacing } from '@/tokens';
+import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { mockDeployments } from '@/pages/__mocks__/mockData';
+import { PermissionActions } from '@/components/PermissionActions';
+import { getDeployments } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -22,15 +24,51 @@ dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
+interface DeploymentRecord {
+  id: string;
+  appName: string;
+  version: string;
+  environment: string;
+  strategy: string;
+  status: string;
+  triggeredBy: string;
+  duration?: number;
+  startTime: string;
+  commit?: string;
+}
+
 const DeploymentList: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
+  const [deployments, setDeployments] = useState<DeploymentRecord[]>([]);
+
+  // Load deployments from API
+  const loadDeployments = async () => {
+    setLoading(true);
+    try {
+      const response = await getDeployments();
+      const apiData = response.data;
+      setDeployments(Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || []);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`加载部署列表失败：${error.message}`);
+      } else {
+        message.error('加载部署列表失败，请稍后重试');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDeployments();
+  }, []);
 
   // Filter deployments based on search and filters
   const filteredDeployments = useMemo(() => {
-    return mockDeployments.filter((deployment) => {
+    return deployments.filter((deployment) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -39,7 +77,9 @@ const DeploymentList: React.FC = () => {
           deployment.version,
           deployment.triggeredBy,
           deployment.commit || '',
-        ].join(' ').toLowerCase();
+        ]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -102,7 +142,7 @@ const DeploymentList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<DeploymentRecord>[] = [
     {
       key: 'appName',
       title: '应用',
@@ -114,12 +154,12 @@ const DeploymentList: React.FC = () => {
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/deployments/${record.id}`)}
           >
             {record.appName}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
             {record.version}
           </Text>
         </Space>
@@ -149,7 +189,7 @@ const DeploymentList: React.FC = () => {
       dataIndex: 'strategy',
       width: 120,
       render: (value: unknown) => (
-        <Text style={{ fontSize: 13 }}>
+        <Text style={{ fontSize: spacing[3] }}>
           {strategyLabels[String(value)] || String(value)}
         </Text>
       ),
@@ -159,7 +199,7 @@ const DeploymentList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={value as StatusType} size="small" />,
     },
     {
       key: 'triggeredBy',
@@ -190,10 +230,8 @@ const DeploymentList: React.FC = () => {
       sortable: true,
       render: (value: unknown) => (
         <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: 13 }}>
-            {dayjs(String(value)).format('MM-DD HH:mm')}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 11 }}>
+          <Text style={{ fontSize: spacing[3] }}>{dayjs(String(value)).format('MM-DD HH:mm')}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[2] }}>
             {dayjs(String(value)).fromNow()}
           </Text>
         </Space>
@@ -204,27 +242,21 @@ const DeploymentList: React.FC = () => {
       title: '操作',
       width: 120,
       render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/deployments/${record.id}`)}
-          >
-            详情
-          </Button>
-          {record.status === 'success' && (
-            <Button type="link" size="small" danger>
-              回滚
-            </Button>
-          )}
-        </Space>
+        <PermissionActions
+          resource="deployment"
+          actions={[
+            { key: 'read', label: '详情', onClick: () => navigate(`/deployments/${record.id}`) },
+            ...(record.status === 'success'
+              ? [{ key: 'execute', label: '回滚', danger: true, confirm: true, confirmText: '确定要回滚此部署吗？' }]
+              : []),
+          ]}
+        />
       ),
     },
   ];
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1000);
+    loadDeployments();
   };
 
   return (
@@ -235,16 +267,15 @@ const DeploymentList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             部署管理
           </Title>
-          <Text type="secondary">
-            共 {filteredDeployments.length} 条部署记录
-          </Text>
+          <Text type="secondary">共 {filteredDeployments.length} 条部署记录</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
           刷新
@@ -252,7 +283,7 @@ const DeploymentList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

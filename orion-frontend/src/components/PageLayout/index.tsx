@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Layout as AntLayout } from 'antd';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -83,8 +84,8 @@ function PageLayout({
             padding: '0 24px',
             height: 64,
             lineHeight: '64px',
-            background: 'var(--bg-elevated, #ffffff)',
-            borderBottom: '1px solid var(--border-light, #f0f0f0)',
+            background: 'var(--bg-elevated, colors.neutral[0])',
+            borderBottom: '1px solid var(--border-light, colors.neutral[200])',
             display: 'flex',
             alignItems: 'center',
             position: 'sticky',
@@ -112,8 +113,8 @@ function PageLayout({
               position: 'sticky',
               top: 64,
               background: darkSidebar
-                ? 'var(--color-neutral-900, #1f1f1f)'
-                : 'var(--bg-elevated, #ffffff)',
+                ? 'var(--color-neutral-900, colors.neutral[900])'
+                : 'var(--bg-elevated, colors.neutral[0])',
             }}
           >
             {/* Collapse toggle */}
@@ -125,10 +126,11 @@ function PageLayout({
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: darkSidebar ? 'rgba(255,255,255,0.65)' : 'var(--text-secondary, #595959)',
-                  borderBottom: '1px solid var(--border-light, #f0f0f0)',
+                  color: darkSidebar ? 'rgba(255,255,255,0.65)' : 'var(--text-secondary, colors.neutral[600])',
+                  borderBottom: '1px solid var(--border-light, colors.neutral[200])',
                 }}
                 onClick={handleToggle}
+                data-testid="collapse-toggle"
               >
                 {isCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               </div>
@@ -142,18 +144,18 @@ function PageLayout({
         {/* Main content area */}
         <AntLayout.Content
           style={{
-            padding: 24,
+            padding: spacing.lg,
             minHeight: 'calc(100vh - 64px)',
-            background: 'var(--bg-secondary, #fafafa)',
+            background: 'var(--bg-secondary, colors.neutral[50])',
           }}
         >
           {/* Breadcrumb */}
           {breadcrumb && (
             <div
               style={{
-                marginBottom: 16,
+                marginBottom: spacing.md,
                 padding: '12px 16px',
-                background: 'var(--bg-elevated, #ffffff)',
+                background: 'var(--bg-elevated, colors.neutral[0])',
                 borderRadius: 'var(--radius-md, 6px)',
               }}
             >
@@ -164,9 +166,9 @@ function PageLayout({
           {/* Page content */}
           <div
             style={{
-              background: 'var(--bg-elevated, #ffffff)',
+              background: 'var(--bg-elevated, colors.neutral[0])',
               borderRadius: 'var(--radius-md, 6px)',
-              padding: 24,
+              padding: spacing.lg,
               minHeight: 'calc(100vh - 160px)',
               boxShadow: 'var(--shadow-card, 0 1px 2px rgba(0,0,0,0.03))',
             }}
@@ -178,9 +180,9 @@ function PageLayout({
           {footer && (
             <div
               style={{
-                marginTop: 16,
+                marginTop: spacing.md,
                 textAlign: 'center',
-                color: 'var(--text-tertiary, #8c8c8c)',
+                color: 'var(--text-tertiary, colors.neutral[500])',
                 fontSize: 12,
               }}
             >

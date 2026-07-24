@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-plugin-pdb
+  namespace: orion
+  labels:
+    app: orion-plugin
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orion-plugin

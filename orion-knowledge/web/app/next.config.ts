@@ -62,7 +62,7 @@ export default isDevelopment
 
       org: 'sentry',
 
-      project: 'pandawiki-app',
+      project: 'orion-knowledge-app',
       sentryUrl: '',
 
       // Only print logs for uploading source maps in CI

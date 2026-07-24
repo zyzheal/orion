@@ -21,11 +21,11 @@ export const spacing = {
   32: 128,
 
   // ============ 语义化间距 ============
-  xs: 4,   // 极小间距
-  sm: 8,   // 小间距
-  md: 16,  // 中间距
-  lg: 24,  // 大间距
-  xl: 32,  // 超大间距
+  xs: 4, // 极小间距
+  sm: 8, // 小间距
+  md: 16, // 中间距
+  lg: 24, // 大间距
+  xl: 32, // 超大间距
   xxl: 48, // 特大间距
 } as const;
 
@@ -102,3 +102,16 @@ export const componentSpacing = {
 } as const;
 
 export default spacing;
+
+/**
+ * CSS Variables 映射
+ */
+export const spacingCSSVariables: Record<string, string> = {};
+for (const [key, value] of Object.entries(spacing)) {
+  if (typeof value === 'number') {
+    spacingCSSVariables[`--spacing-${key}`] = `${value}px`;
+  }
+}
+for (const [key, value] of Object.entries(spacingRem)) {
+  spacingCSSVariables[`--spacing-${key}`] = value;
+}

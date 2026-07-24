@@ -1,0 +1,51 @@
+# ──────────────────────────────────────────────────────────
+# Pod 中断预算 (PDB)
+# ──────────────────────────────────────────────────────────
+
+# ── API PDB ──────────────────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-knowledge-api-pdb
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+      app.kubernetes.io/component: api
+---
+# ── App (Wiki) PDB ───────────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-knowledge-app-pdb
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+      app.kubernetes.io/component: app
+---
+# ── PostgreSQL PDB (仅 1 副本, 允许 0 可用以支持维护) ──────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-knowledge-pg-pdb
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: postgres
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orion-knowledge
+      app.kubernetes.io/component: postgres

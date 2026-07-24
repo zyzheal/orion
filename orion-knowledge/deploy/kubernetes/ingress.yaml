@@ -1,0 +1,84 @@
+# ──────────────────────────────────────────────────────────
+# Ingress 资源
+# 路由: /orion-knowledge/ → Admin UI
+#       /wiki/            → Wiki App
+#       /api/knowledge/   → API
+# ──────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: orion-knowledge-ingress
+  namespace: orion-knowledge
+  labels:
+    app.kubernetes.io/name: orion-knowledge
+    app.kubernetes.io/component: ingress
+  annotations:
+    # ── Nginx Ingress Controller 注解 ────────────────────
+    nginx.ingress.kubernetes.io/proxy-body-size: "1024m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # ── WebSocket / SSE 支持 ────────────────────────────
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+    # ── Gzip 压缩 ────────────────────────────────────────
+    nginx.ingress.kubernetes.io/enable-gzip: "true"
+    nginx.ingress.kubernetes.io/gzip-types: "text/plain application/javascript text/css application/json image/svg+xml"
+    # ── OAuth2 Proxy 集成 (可选, 取消注释启用) ────────────
+    # nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.orion-knowledge.svc.cluster.local/oauth2/auth"
+    # nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
+    # ── 外部 OIDC Issuer ─────────────────────────────────
+    # nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.orion-knowledge.svc.cluster.local/oauth2/auth"
+    # nginx.ingress.kubernetes.io/auth-signin: "https://$host/orion-knowledge/oauth2/start?rd=$escaped_request_uri"
+spec:
+  # 根据需要配置 TLS
+  # tls:
+  #   - hosts:
+  #       - knowledge.example.com
+  #     secretName: orion-knowledge-tls
+  ingressClassName: nginx
+  rules:
+    - host: ""  # 留空表示匹配任意主机, 按具体域名可修改
+      http:
+        paths:
+          # ── Wiki 用户端 ─────────────────────────────────
+          - path: /wiki/
+            pathType: Prefix
+            backend:
+              service:
+                name: orion-knowledge-app
+                port:
+                  number: 3000
+          # ── API 端点 ────────────────────────────────────
+          - path: /api/knowledge/
+            pathType: Prefix
+            backend:
+              service:
+                name: orion-knowledge-api
+                port:
+                  number: 8000
+          # ── MinIO Console (可选) ────────────────────────
+          - path: /knowledge/minio/
+            pathType: Prefix
+            backend:
+              service:
+                name: orion-knowledge-minio
+                port:
+                  number: 9001
+          # ── Admin 管理端 (默认兜底) ─────────────────────
+          - path: /orion-knowledge/
+            pathType: Prefix
+            backend:
+              service:
+                name: orion-knowledge-admin
+                port:
+                  number: 80
+          # ── 兜底规则: 所有其他知识相关请求 → Admin ────────
+          - path: /knowledge
+            pathType: Prefix
+            backend:
+              service:
+                name: orion-knowledge-admin
+                port:
+                  number: 80

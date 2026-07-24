@@ -4,6 +4,15 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { TenantMiddleware, TenantContext, TenantTier, DEFAULT_QUOTAS } from '../tenant';
+
+// Mock Redis module
+jest.mock('../../utils/redis', () => ({
+  redisClient: {
+    getClient: jest.fn(),
+    isConnected: jest.fn().mockReturnValue(true),
+  },
+}));
+
 import { redisClient } from '../../utils/redis';
 
 // Mock Redis
@@ -271,6 +280,7 @@ describe('TenantMiddleware', () => {
   });
 
   describe('辅助函数', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { getTenantId, getTenantContext, isTenantTier, hasQuota } = require('../tenant');
 
     beforeEach(() => {

@@ -2,7 +2,7 @@
  * Tests for AlertList page (TASK-905)
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AlertList from '@/pages/AlertList';
 
@@ -19,10 +19,10 @@ vi.mock('dayjs', async () => {
 });
 
 vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
-    default: actual.default || vi.fn(),
+    default: actual?.default || vi.fn(),
   };
 });
 
@@ -38,6 +38,42 @@ vi.mock('antd', async () => {
     },
   };
 });
+
+// Mock alerts API - mock data must be inside the factory since vi.mock is hoisted
+vi.mock('@/api/alerts', () => ({
+  getAlerts: vi.fn().mockResolvedValue({
+    data: {
+      items: [
+        {
+          id: 'alert-1',
+          severity: 'critical',
+          metric: 'error_rate',
+          value: 5.2,
+          threshold: 1.0,
+          status: 'active',
+          message: 'Error rate exceeds threshold',
+          source: 'prometheus',
+          firstTriggered: '2026-04-12T10:00:00Z',
+          lastUpdated: '2026-04-12T15:00:00Z',
+        },
+        {
+          id: 'alert-2',
+          severity: 'warning',
+          metric: 'response_time_p99',
+          value: 1200,
+          threshold: 500,
+          status: 'active',
+          message: 'P99 response time is high',
+          source: 'prometheus',
+          firstTriggered: '2026-04-12T11:00:00Z',
+          lastUpdated: '2026-04-12T15:00:00Z',
+        },
+      ],
+    },
+  }),
+  acknowledgeAlert: vi.fn().mockResolvedValue({}),
+  resolveAlert: vi.fn().mockResolvedValue({}),
+}));
 
 const renderWithRouter = (ui: React.ReactElement) => {
   return render(<BrowserRouter>{ui}</BrowserRouter>);
@@ -61,20 +97,26 @@ describe('AlertList', () => {
     expect(screen.getAllByText('状态')[0]).toBeInTheDocument();
   });
 
-  it('should display alert data', () => {
+  it('should display alert data', async () => {
     renderWithRouter(<AlertList />);
-    expect(screen.getByText('error_rate')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('error_rate')).toBeInTheDocument();
+    });
     expect(screen.getByText('response_time_p99')).toBeInTheDocument();
   });
 
-  it('should display active alert summary', () => {
+  it('should display active alert summary', async () => {
     renderWithRouter(<AlertList />);
-    expect(screen.getByText(/.*个严重告警/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/.*个严重告警/)).toBeInTheDocument();
+    });
   });
 
-  it('should display action buttons for active alerts', () => {
+  it('should display action buttons for active alerts', async () => {
     renderWithRouter(<AlertList />);
-    expect(screen.getAllByText('确认').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText('确认').length).toBeGreaterThan(0);
+    });
     expect(screen.getAllByText('解决').length).toBeGreaterThan(0);
   });
 });

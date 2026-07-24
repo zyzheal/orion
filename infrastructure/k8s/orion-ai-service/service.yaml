@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-ai-service
+  namespace: orion
+  labels:
+    app: orion-ai-service
+    app.kubernetes.io/name: orion-ai-service
+    app.kubernetes.io/part-of: orion-platform
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: orion-ai-service

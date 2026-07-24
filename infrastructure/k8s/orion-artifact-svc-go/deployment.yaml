@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-artifact-svc-go
+  namespace: orion
+  labels:
+    app: orion-artifact-svc-go
+    app.kubernetes.io/name: orion-artifact-svc-go
+    app.kubernetes.io/part-of: orion-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-artifact-svc-go
+  template:
+    metadata:
+      labels:
+        app: orion-artifact-svc-go
+        app.kubernetes.io/name: orion-artifact-svc-go
+        app.kubernetes.io/part-of: orion-platform
+    spec:
+      containers:
+      - name: orion-artifact-svc-go
+        image: orion/orion-artifact-svc-go:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SERVICE_NAME
+          value: orion-artifact-svc-go
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: orion-artifact-svc-go-config
+              key: environment
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: orion-artifact-svc-go-config
+              key: database_url
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: orion-artifact-svc-go-config
+              key: redis_addr
+        - name: JWT_SECRET
+          valueFrom:
+            secretRef:
+              name: orion-secrets
+              key: jwt-secret
+        - name: NATS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: orion-artifact-svc-go-config
+              key: nats_addr
+        - name: NATS_STREAM
+          valueFrom:
+            configMapKeyRef:
+              name: orion-artifact-svc-go-config
+              key: nats_stream
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10

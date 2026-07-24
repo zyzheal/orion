@@ -6,20 +6,20 @@
 export const typography = {
   // ============ 字体系列 ============
   fontFamily: {
-    base: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+    base: 'SF Pro Display, -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif',
     code: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace',
     cn: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif',
   },
 
   // ============ 字号系统 ============
   fontSize: {
-    xs: 10,     // 辅助文字
-    sm: 12,     // 次要文字
-    md: 14,     // 正文
-    lg: 16,     // 标题小字
-    xl: 20,     // 三级标题
-    xxl: 24,    // 二级标题
-    xxxl: 32,   // 一级标题
+    xs: 10, // 辅助文字
+    sm: 12, // 次要文字
+    md: 14, // 正文
+    lg: 16, // 标题小字
+    xl: 20, // 三级标题
+    xxl: 24, // 二级标题
+    xxxl: 32, // 一级标题
     display: 48, // 展示文字
   },
 
@@ -27,7 +27,7 @@ export const typography = {
   lineHeight: {
     none: 1,
     tight: 1.25,
-    normal: 1.5,
+    normal: 1.57,   // Apple style: was 1.5
     relaxed: 1.625,
     loose: 2,
     // 具体数值
@@ -72,27 +72,31 @@ export const typography = {
       fontSize: 32,
       lineHeight: 40,
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 0,
       marginBottom: 24,
     },
     h2: {
-      fontSize: 24,
-      lineHeight: 32,
+      fontSize: 28,     // was 24
+      lineHeight: 36,   // was 32
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 32,
       marginBottom: 16,
     },
     h3: {
-      fontSize: 20,
-      lineHeight: 28,
+      fontSize: 22,     // was 20
+      lineHeight: 30,   // was 28
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 24,
       marginBottom: 12,
     },
     h4: {
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 18,     // was 16
+      lineHeight: 26,   // was 24
       fontWeight: 600,
+      letterSpacing: '-0.025em',
       marginTop: 16,
       marginBottom: 8,
     },
@@ -168,3 +172,22 @@ export const textStyles = {
 } as const;
 
 export default typography;
+
+/**
+ * CSS Variables 映射
+ */
+export const typographyCSSVariables: Record<string, string> = {};
+for (const [key, value] of Object.entries(typography.fontFamily)) {
+  typographyCSSVariables[`--font-family-${key}`] = value;
+}
+for (const [key, value] of Object.entries(typography.fontSize)) {
+  if (typeof value === 'number') {
+    typographyCSSVariables[`--font-size-${key}`] = `${value}px`;
+  }
+}
+for (const [key, value] of Object.entries(typography.fontWeight)) {
+  typographyCSSVariables[`--font-weight-${key}`] = String(value);
+}
+for (const [key, value] of Object.entries(typography.letterSpacing)) {
+  typographyCSSVariables[`--letter-spacing-${key}`] = value;
+}

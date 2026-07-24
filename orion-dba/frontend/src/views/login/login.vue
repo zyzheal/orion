@@ -96,8 +96,15 @@
   };
 
   onMounted(async () => {
-    const { data } = await systemRegisterState();
-    is_register.value = data.payload.reg;
+    try {
+      const { data } = await systemRegisterState();
+      if (data?.payload?.reg !== undefined) {
+        is_register.value = data.payload.reg;
+      }
+    } catch (e) {
+      // 后端服务不可用时使用默认值
+      console.warn('[Login] 后端服务不可用，使用默认注册状态');
+    }
     EventBus.on('closeState', () => {
       is_open.value = false;
     });

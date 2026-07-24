@@ -26,49 +26,25 @@ describe('MetricCard', () => {
   });
 
   it('should show trend up indicator', () => {
-    render(
-      <MetricCard
-        title="Revenue"
-        value={5000}
-        previousValue={4000}
-      />
-    );
+    render(<MetricCard title="Revenue" value={5000} previousValue={4000} />);
     expect(screen.getByTestId('metric-trend')).toBeInTheDocument();
     expect(screen.getByTestId('metric-trend')).toHaveTextContent('+25%');
   });
 
   it('should show trend down indicator', () => {
-    render(
-      <MetricCard
-        title="Errors"
-        value={3}
-        previousValue={10}
-      />
-    );
+    render(<MetricCard title="Errors" value={3} previousValue={10} />);
     expect(screen.getByTestId('metric-trend')).toHaveTextContent('-70%');
   });
 
   it('should use explicit trendPercent', () => {
     render(
-      <MetricCard
-        title="Latency"
-        value={120}
-        trend="up"
-        trendPercent={15}
-        previousValue={100}
-      />
+      <MetricCard title="Latency" value={120} trend="up" trendPercent={15} previousValue={100} />
     );
     expect(screen.getByTestId('metric-trend')).toHaveTextContent('+15%');
   });
 
   it('should show stable trend when values are equal', () => {
-    render(
-      <MetricCard
-        title="Users"
-        value={100}
-        previousValue={100}
-      />
-    );
+    render(<MetricCard title="Users" value={100} previousValue={100} />);
     expect(screen.getByTestId('metric-trend')).toHaveTextContent('0%');
   });
 
@@ -78,20 +54,12 @@ describe('MetricCard', () => {
   });
 
   it('should render custom icon', () => {
-    render(
-      <MetricCard title="Storage" value={512} unit="GB" icon={<span>💾</span>} />
-    );
+    render(<MetricCard title="Storage" value={512} unit="GB" icon={<span>💾</span>} />);
     expect(screen.getByText('💾')).toBeInTheDocument();
   });
 
   it('should render footer content', () => {
-    render(
-      <MetricCard
-        title="API Calls"
-        value={10000}
-        footer="Last 24 hours"
-      />
-    );
+    render(<MetricCard title="API Calls" value={10000} footer="Last 24 hours" />);
     expect(screen.getByText('Last 24 hours')).toBeInTheDocument();
   });
 
@@ -108,9 +76,7 @@ describe('MetricCard', () => {
   });
 
   it('should support different sizes', () => {
-    const { rerender } = render(
-      <MetricCard title="Small" value={1} size="small" />
-    );
+    const { rerender } = render(<MetricCard title="Small" value={1} size="small" />);
     expect(screen.getByTestId('metric-card')).toBeInTheDocument();
 
     rerender(<MetricCard title="Large" value={1} size="large" />);

@@ -572,7 +572,8 @@ export class AbacPolicyEngine {
     const startHour = rangeConfig.startHour || 9;
     const endHour = rangeConfig.endHour || 18;
 
-    const hour = time.getHours();
+    // 使用 UTC 小时数以保持跨时区一致性
+    const hour = time.getUTCHours();
     return hour >= startHour && hour < endHour;
   }
 

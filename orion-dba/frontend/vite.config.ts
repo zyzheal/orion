@@ -1,36 +1,24 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import * as path from 'path';
+import federation from '@originjs/vite-plugin-federation';
 
 export default defineConfig(({ mode }) => {
   const isMicroFrontend = mode === 'micro-frontend';
   const isDev = mode === 'development';
+  const isMfBuild = process.env.VITE_MF_BUILD === 'true';
 
   return {
     // 微前端模式使用独立端口
     base: isMicroFrontend ? '/orion-dba/' : isDev ? '/' : '/front/',
 
     build: {
-      // 微前端模式：输出为 UMD 格式
+      // 微前端：关闭 CSS 代码分割
       ...(isMicroFrontend && {
-        lib: {
-          entry: path.resolve(__dirname, 'src/main.ts'),
-          name: 'OrionDbaApp',
-          fileName: () => 'orion-dba-app.js',
-          formats: ['umd'],
-        },
-        // 微前端：关闭 CSS 代码分割
         cssCodeSplit: false,
         // 微前端：生成 sourcemap 便于调试
         sourcemap: true,
-      }),
-
-      // 通用配置
-      minify: 'esbuild',
-
-      rollupOptions: {
-        // 微前端模式：配置外部依赖
-        ...(isMicroFrontend && {
+        rollupOptions: {
           external: ['vue', 'ant-design-vue'],
           output: {
             globals: {
@@ -38,16 +26,19 @@ export default defineConfig(({ mode }) => {
               'ant-design-vue': 'antd',
             },
           },
-        }),
-      },
+        },
+      }),
 
       // 输出目录
-      outDir: isMicroFrontend ? 'dist-mf' : 'dist',
+      outDir: isMfBuild ? 'dist-mf' : isMicroFrontend ? 'dist-mf' : 'dist',
+
+      // MF 模式必须使用 esnext
+      target: isMfBuild ? 'esnext' : undefined,
     },
 
     server: {
       // 微前端模式使用不同端口
-      port: isMicroFrontend ? 3001 : 3010,
+      port: isMicroFrontend ? 3030 : 3010,
       cors: true, // 微前端：允许跨域
       headers: {
         'Access-Control-Allow-Origin': '*', // wujie 需要
@@ -80,7 +71,24 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    plugins: [vue()],
+    plugins: [
+      vue(),
+      // Module Federation 配置（用于 Orion-MF 远程加载）
+      // 在 micro-frontend 模式下启用 federation 插件
+      ...(isMicroFrontend
+        ? [
+            federation({
+              name: 'orion_dba',
+              filename: 'remoteEntry.js',
+              exposes: {
+                './index': './src/main.ts',
+              },
+              // 默认无 shared：子应用打包自己的依赖，支持独立运行
+              // 如需共享主应用依赖（性能优化），在 SubAppStore 中设置 use_shared: true
+            }),
+          ]
+        : []),
+    ],
 
     resolve: {
       alias: {

@@ -6,16 +6,16 @@
 export const colors = {
   // ============ 主色系统 ============
   primary: {
-    50: '#e6f7ff',
-    100: '#bae7ff',
-    200: '#91d5ff',
-    300: '#69c0ff',
-    400: '#40a9ff',
-    500: '#1890ff', // 主色
-    600: '#0984e2',
-    700: '#006dc2',
-    800: '#005aa1',
-    900: '#004780',
+    50: '#EBF0FB',
+    100: '#D7E1F7',
+    200: '#B3C5EE',
+    300: '#8FA9E5',
+    400: '#5B8DEF',
+    500: '#3370E6',
+    600: '#2B5DD6',
+    700: '#1F4BB5',
+    800: '#153A94',
+    900: '#0C2873',
   },
 
   // ============ 功能色 ============
@@ -59,23 +59,53 @@ export const colors = {
   },
 
   info: {
-    50: '#e6f7ff',
-    100: '#bae7ff',
-    200: '#91d5ff',
-    300: '#69c0ff',
-    400: '#40a9ff',
-    500: '#1890ff', // 信息色
-    600: '#0984e2',
-    700: '#006dc2',
-    800: '#005aa1',
-    900: '#004780',
+    50: '#e8f4fd',
+    100: '#c6e2fc',
+    200: '#a3d0fa',
+    300: '#80bdf8',
+    400: '#5dabf6',
+    500: '#3a98f4', // 信息色 (区别于 primary 的偏青色)
+    600: '#2e7ac5',
+    700: '#235c95',
+    800: '#173e64',
+    900: '#0c1f33',
+  },
+
+  purple: {
+    50: '#f9f0ff',
+    100: '#efdbff',
+    200: '#d3adf7',
+    300: '#b37feb',
+    400: '#9B7FFD',
+    500: '#7C5CFC',
+    600: '#6349E0',
+    700: '#391085',
+    800: '#22075e',
+    900: '#110358',
+  },
+
+  // ============ 等级/勋章色 ============
+  tier: {
+    platinum: '#e5e4e2',
+    gold: '#FFD700',
+    silver: '#C0C0C0',
+    bronze: '#cd7f32',
+  },
+
+  // ============ 第三方品牌色 ============
+  brand: {
+    wecom: '#2BAE67',
+    dingtalk: '#0089FF',
+    feishu: '#3370FF',
+    wechat: '#07C160',
+    alipay: '#1677FF',
   },
 
   // ============ 中性色 ============
   neutral: {
     0: '#ffffff',
     50: '#fafafa',
-    100: '#f5f5f5',
+    100: '#F5F5F7',
     200: '#f0f0f0',
     300: '#d9d9d9',
     400: '#bfbfbf',
@@ -112,7 +142,7 @@ export const colors = {
   light: {
     bg: {
       primary: '#ffffff',
-      secondary: '#fafafa',
+      secondary: '#F5F5F7',
       tertiary: '#f5f5f5',
       elevated: '#ffffff',
     },
@@ -127,6 +157,24 @@ export const colors = {
       light: '#f0f0f0',
       heavy: '#bfbfbf',
     },
+  },
+
+  // ============ 云厂商品牌色 ============
+  cloud: {
+    aws: '#FF9900',
+    azure: '#0078D4',
+    gcp: '#4285F4',
+    alicloud: '#FF6A00',
+    tencent: '#006EFF',
+  },
+
+  // ============ 终端主题色 (One Dark) ============
+  terminal: {
+    green: '#6a9955',
+    yellow: '#d7ba7d',
+    blue: '#569cd6',
+    magenta: '#c586c0',
+    cyan: '#4dc9b0',
   },
 } as const;
 
@@ -239,6 +287,8 @@ export const semanticColors = {
     borderLight: colors.dark.border.light,
     borderHeavy: colors.dark.border.heavy,
   },
+  cloud: colors.cloud,
+  terminal: colors.terminal,
 } as const;
 
 export default colors;

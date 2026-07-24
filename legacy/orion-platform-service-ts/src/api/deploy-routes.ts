@@ -1,0 +1,161 @@
+/**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/deploy/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
+ * Smart Deploy API Routes
+ *
+ * Routes under /api/v1/deploy
+ * Handles deployment execution, history, metrics, and rollback
+ */
+
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { DatabasePool } from '../services/database';
+import { DeployController } from './controllers/DeployController';
+import { SmartDeployService } from '../services/smart-deploy/SmartDeployService';
+import { DeployReleaseNotesService } from '../services/deploy/DeployReleaseNotesService';
+import { DeployGitIntegrationService } from '../services/deploy/DeployGitIntegrationService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('deploy-routes');
+
+interface DeployRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function deployRoutes(
+  app: FastifyInstance,
+  options: DeployRoutesOptions
+): Promise<void> {
+  if (!options.database) {
+    logger.warn('[DeployRoutes] No database pool provided, routes will not be functional');
+    return;
+  }
+
+  // Initialize services
+  const smartDeployService = new SmartDeployService(options.database);
+  const releaseNotesService = new DeployReleaseNotesService(options.database);
+  const gitIntegrationService = new DeployGitIntegrationService(smartDeployService as any, options.database);
+
+  // Initialize controller
+  const controller = new DeployController(smartDeployService, releaseNotesService, gitIntegrationService);
+
+  // ==================== Deployment Execution ====================
+
+  app.post('/deploy', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.deploy(request, reply);
+  });
+
+  // ==================== Deployment Status ====================
+
+  app.get('/deploy/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getStatus(request, reply);
+  });
+
+  // ==================== Deployment History ====================
+
+  app.get('/deploy/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getHistory(request, reply);
+  });
+
+  app.get('/deploy/latest/:appName/:environment', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })],
+    schema: {
+      params: {
+        type: 'object',
+        required: ['appName', 'environment'],
+        properties: {
+          appName: { type: 'string', minLength: 1, maxLength: 100 },
+          environment: { type: 'string', enum: ['dev', 'staging', 'prod', 'development', 'production', 'pre-prod'] }
+        }
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getLatestDeployment(request, reply);
+  });
+
+  // ==================== Deployment Metrics ====================
+
+  app.get('/deploy/metrics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getMetrics(request, reply);
+  });
+
+  // ==================== Rollback ====================
+
+  app.post('/deploy/:id/rollback', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.rollback(request, reply);
+  });
+
+  app.get('/deploy/:id/rollbacks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getRollbackHistory(request, reply);
+  });
+
+  // ==================== Cancel ====================
+
+  app.post('/deploy/:id/cancel', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.cancel(request, reply);
+  });
+
+  // ==================== Audit Trail ====================
+
+  app.get('/deploy/:id/audit', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getAuditTrail(request, reply);
+  });
+
+  // ==================== Release Notes ====================
+
+  app.get('/deploy/:id/release-notes', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getReleaseNotes(request, reply);
+  });
+
+  app.post('/deploy/:id/release-notes/generate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.generateReleaseNotes(request, reply);
+  });
+
+  app.get('/deploy/release-notes/tenant/:tenantId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getReleaseNotesByTenant(request, reply);
+  });
+
+  // ==================== Git Integration ====================
+
+  app.post('/deploy/:id/git/link', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'write' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.linkGitCommit(request, reply);
+  });
+
+  app.get('/deploy/:id/git/changelog', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'deploy', action: 'read' })]
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getDeploymentChangelog(request, reply);
+  });
+
+  logger.info('[DeployRoutes] Registered all deployment routes');
+}

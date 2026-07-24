@@ -15,6 +15,7 @@ import (
 type QueryRecordsRequest struct {
 	DatasetID           string
 	Query               string
+	TopK                int
 	GroupIDs            []int
 	Tags                []string
 	SimilarityThreshold float64

@@ -1,48 +1,76 @@
 /**
- * Pipeline List Page (TASK-905)
+ * Pipeline List Page (TASK-905) - FIXED P0-1
  * Pipeline listing with filters/status, table view with pagination.
  *
  * Features:
- * - Table with pipeline data (name, status, branch, author, duration, triggered)
- * - SearchFilterBar for filtering by status/branch
+ * - Table with pipeline data (name, version, status, stage count, created/updated)
+ * - SearchFilterBar for filtering by status
  * - StatusBadge for pipeline states
  * - Pagination support
  */
-import React, { useState, useMemo } from 'react';
-import { Typography, Button, Space, Tag } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Typography, Button, Space, Tag, message, Modal } from 'antd';
+import { colors, spacing } from '@/tokens';
+import { PlusOutlined, ReloadOutlined, ApiOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { mockPipelines } from '@/pages/__mocks__/mockData';
+import { PermissionActions } from '@/components/PermissionActions';
+import { usePermissionActions } from '@/hooks/usePermissionActions';
+import { getPipelines, deletePipeline, type Pipeline } from '@/api/pipelines';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
-dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
 
 const PipelineList: React.FC = () => {
   const navigate = useNavigate();
+  const { canEdit } = usePermissionActions('pipeline');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+
+  // Load pipelines from API
+  const loadPipelines = async () => {
+    setLoading(true);
+    try {
+      const response = await getPipelines();
+      // Backend returns { data: [...], total: N } directly (no code/message wrapper)
+      const rawBody = response.data as { data?: Pipeline[]; items?: Pipeline[] };
+      const items = Array.isArray(rawBody?.data)
+        ? rawBody.data
+        : Array.isArray(rawBody?.items)
+          ? rawBody.items
+          : [];
+      setPipelines(items);
+    } catch (error: unknown) {
+      console.error('[PipelineList] Load error:', error);
+      if (error instanceof Error) {
+        message.error(`加载 Pipeline 列表失败：${error.message}`);
+      } else {
+        message.error('加载 Pipeline 列表失败，请稍后重试');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPipelines();
+  }, []);
 
   // Filter pipelines based on search and filters
   const filteredPipelines = useMemo(() => {
-    return mockPipelines.filter((pipeline) => {
+    const result = pipelines.filter((pipeline) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [
-          pipeline.name,
-          pipeline.branch,
-          pipeline.author,
-          pipeline.commit || '',
-        ].join(' ').toLowerCase();
+        const searchable = [pipeline.name, pipeline.version, pipeline.description || '']
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(query)) return false;
       }
 
@@ -52,15 +80,10 @@ const PipelineList: React.FC = () => {
         return false;
       }
 
-      // Branch filter
-      const branchFilter = filters.branch;
-      if (branchFilter && pipeline.branch !== branchFilter) {
-        return false;
-      }
-
       return true;
     });
-  }, [searchQuery, filters]);
+    return result;
+  }, [searchQuery, filters, pipelines]);
 
   // Filter definitions for SearchFilterBar
   const filterDefs: FilterDefinition[] = [
@@ -69,48 +92,34 @@ const PipelineList: React.FC = () => {
       label: '状态',
       options: [
         { label: '全部', value: 'all' },
-        { label: '运行中', value: 'running' },
-        { label: '成功', value: 'success' },
-        { label: '失败', value: 'failed' },
-        { label: '等待中', value: 'pending' },
-        { label: '警告', value: 'warning' },
-        { label: '已取消', value: 'cancelled' },
-      ],
-    },
-    {
-      key: 'branch',
-      label: '分支',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'main', value: 'main' },
-        { label: 'develop', value: 'develop' },
-        { label: 'feature/auth', value: 'feature/auth' },
-        { label: 'feature/new-ui', value: 'feature/new-ui' },
+        { label: '启用', value: 'active' },
+        { label: '停用', value: 'inactive' },
+        { label: '已删除', value: 'deleted' },
       ],
     },
   ];
 
   // Table column definitions
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<Pipeline>[] = [
     {
       key: 'name',
       title: 'Pipeline',
       dataIndex: 'name',
-      width: 200,
+      width: '30%',
       sortable: true,
       filterable: true,
-      render: (_value: unknown, record: any) => (
+      render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
-            style={{ cursor: 'pointer', color: '#1890ff' }}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/pipelines/${record.id}`)}
           >
             {record.name}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            #{record.runNumber}
-            {record.commit ? ` \u00b7 ${record.commit}` : ''}
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            v{record.version}
+            {record.description ? ` · ${record.description}` : ''}
           </Text>
         </Space>
       ),
@@ -119,66 +128,47 @@ const PipelineList: React.FC = () => {
       key: 'status',
       title: '状态',
       dataIndex: 'status',
-      width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
-    },
-    {
-      key: 'branch',
-      title: '分支',
-      dataIndex: 'branch',
-      width: 160,
-      render: (value: unknown) => (
-        <Tag color="blue" style={{ margin: 0 }}>
-          {String(value)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'author',
-      title: '触发人',
-      dataIndex: 'author',
-      width: 120,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'trigger',
-      title: '触发方式',
-      dataIndex: 'trigger',
-      width: 100,
+      width: '12%',
       render: (value: unknown) => {
-        const triggerMap: Record<string, { label: string; color: string }> = {
-          manual: { label: '手动', color: 'purple' },
-          push: { label: 'Push', color: 'green' },
-          schedule: { label: '定时', color: 'orange' },
-          api: { label: 'API', color: 'blue' },
+        const statusMap: Record<string, { color: string; label: string }> = {
+          active: { color: 'green', label: '启用' },
+          inactive: { color: 'default', label: '停用' },
+          deleted: { color: 'error', label: '已删除' },
         };
-        const config = triggerMap[String(value)] || { label: String(value), color: 'default' };
+        const config = statusMap[value as string] || { color: 'default', label: String(value) };
         return <Tag color={config.color}>{config.label}</Tag>;
       },
     },
     {
-      key: 'duration',
-      title: '耗时',
-      dataIndex: 'duration',
-      width: 100,
-      sortable: true,
-      render: (value: unknown) => {
-        if (!value) return <Text type="secondary">-</Text>;
-        const seconds = Number(value);
-        const dur = dayjs.duration(seconds, 'seconds');
-        const minutes = Math.floor(dur.asMinutes());
-        const secs = dur.seconds();
-        return <Text>{minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`}</Text>;
+      key: 'stages',
+      title: 'Stage 数量',
+      dataIndex: 'spec',
+      width: '12%',
+      render: (spec: any) => {
+        const count = spec?.stages?.length || 0;
+        return <Tag color="blue">{count} 个 Stage</Tag>;
       },
     },
     {
-      key: 'startTime',
-      title: '触发时间',
-      dataIndex: 'startTime',
-      width: 160,
+      key: 'createdAt',
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      width: '15%',
       sortable: true,
       render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
+          {dayjs(String(value)).fromNow()}
+        </Text>
+      ),
+    },
+    {
+      key: 'updatedAt',
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      width: '15%',
+      sortable: true,
+      render: (value: unknown) => (
+        <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
       ),
@@ -186,31 +176,58 @@ const PipelineList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 120,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            onClick={() => navigate(`/pipelines/${record.id}`)}
-          >
-            查看
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            disabled={record.status === 'running'}
-          >
-            重试
-          </Button>
-        </Space>
+      width: '16%',
+      render: (_: unknown, record) => (
+        <PermissionActions
+          resource="pipeline"
+          actions={[
+            { key: 'read', label: '查看', onClick: () => navigate(`/pipelines/${record.id}`) },
+            {
+              key: 'write',
+              label: '编辑',
+              onClick: () => navigate(`/pipelines/${record.id}/edit`),
+            },
+            {
+              key: 'execute',
+              label: '运行历史',
+              onClick: () => navigate(`/pipelines/${record.id}/runs`),
+            },
+            {
+              key: 'delete',
+              label: '删除',
+              danger: true,
+              confirm: true,
+              confirmText: '确定要删除此 Pipeline 吗？',
+              onClick: () => handleDelete(record.id),
+            },
+          ]}
+        />
       ),
     },
   ];
 
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1000);
+    loadPipelines();
+  };
+
+  const handleDelete = (id: string) => {
+    Modal.confirm({
+      title: '删除 Pipeline',
+      content: '确定要删除此 Pipeline 吗？此操作不可撤销。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deletePipeline(id);
+          message.success('Pipeline 已删除');
+          loadPipelines();
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error('Unknown error');
+          message.error(`删除失败：${err.message}`);
+        }
+      },
+    });
   };
 
   return (
@@ -221,34 +238,39 @@ const PipelineList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Pipeline 列表
           </Title>
-          <Text type="secondary">
-            共 {filteredPipelines.length} 个 Pipeline 运行记录
-          </Text>
+          <Text type="secondary">共 {filteredPipelines.length} 个 Pipeline</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
             刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/pipelines/new')}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/pipelines/new')}
+            disabled={!canEdit}
+            title={!canEdit ? '无操作权限' : undefined}
+          >
             创建 Pipeline
           </Button>
         </Space>
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
           filters={filterDefs}
-          searchPlaceholder="搜索 Pipeline 名称、分支、提交..."
+          searchPlaceholder="搜索 Pipeline 名称、版本、描述..."
         />
       </div>
 

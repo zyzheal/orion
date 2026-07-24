@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-finops-svc
+  namespace: orion
+  labels:
+    app: orion-finops-svc
+    version: v1
+    component: finops-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-finops-svc
+  template:
+    metadata:
+      labels:
+        app: orion-finops-svc
+        version: v1
+        component: finops-service
+    spec:
+      containers:
+        - name: finops-svc
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-finops-svc:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3009
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3009"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orion-finops-secrets
+                  key: DATABASE_URL
+            - name: DB_MAX_CONNECTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-finops-config
+                  key: DB_MAX_CONNECTIONS
+            - name: DB_SSL_REJECT_UNAUTHORIZED
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-finops-config
+                  key: DB_SSL_REJECT_UNAUTHORIZED
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-finops-config
+                  key: LOG_LEVEL
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-finops-config
+                  key: CORS_ORIGIN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3009
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3009
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always

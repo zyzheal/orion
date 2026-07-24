@@ -51,6 +51,47 @@
       if (favicon) favicon.href = (basename || '') + '/logo.png';
     })();
   </script>
+  <!-- wujie lifecycle hooks (non-module, self-contained) -->
+  <script>
+    (function() {
+      var mounted = false;
+      window.__WUJIE_MOUNT = function() {
+        if (mounted) return;
+        mounted = true;
+        console.log('[orion-knowledge] __WUJIE_MOUNT called');
+
+        // Ensure #root exists
+        var rootEl = document.getElementById('root');
+        if (!rootEl) {
+          rootEl = document.createElement('div');
+          rootEl.id = 'root';
+          document.body.appendChild(rootEl);
+        }
+
+        // Try to call window.mount if available
+        if (typeof window.mount === 'function') {
+          window.mount({});
+        } else {
+          console.log('[orion-knowledge] window.mount not ready, polling...');
+          var poll = setInterval(function() {
+            if (typeof window.mount === 'function') {
+              clearInterval(poll);
+              console.log('[orion-knowledge] window.mount now available, calling...');
+              window.mount({});
+            }
+          }, 100);
+          setTimeout(function() { clearInterval(poll); }, 5000);
+        }
+      };
+
+      window.__WUJIE_UNMOUNT = function() {
+        console.log('[orion-knowledge] __WUJIE_UNMOUNT called');
+        if (typeof window.unmount === 'function') {
+          window.unmount();
+        }
+      };
+    })();
+  </script>
 </head>
 
 <body>

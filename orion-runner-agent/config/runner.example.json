@@ -1,0 +1,9 @@
+{
+  "platformUrl": "http://localhost:3001",
+  "runnerName": "local-runner",
+  "labels": ["linux", "nodejs", "docker"],
+  "maxConcurrent": 5,
+  "port": 8080,
+  "heartbeatInterval": 30000,
+  "tenantId": "default"
+}

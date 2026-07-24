@@ -74,7 +74,7 @@ spec:
             - name: ORION_AI_AI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: orion-ai-secret
+                  name: orion-ai-secrets
                   key: api-key
                   optional: true
 

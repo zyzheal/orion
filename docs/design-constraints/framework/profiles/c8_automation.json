@@ -1,0 +1,54 @@
+{
+  "version": "3.0",
+  "name": "c8_automation",
+  "extends": "base",
+  "priority": 1,
+  "layer": "operations",
+  "description": "运维自动化检查项",
+  "checks": [
+    {
+      "id": "C8-01",
+      "category": "inspection",
+      "level": "P1",
+      "rule": "自动化巡检",
+      "description": "定时任务、健康检查应自动化",
+      "detection": "review"
+    },
+    {
+      "id": "C8-02",
+      "category": "selfhealing",
+      "level": "P1",
+      "rule": "自愈机制",
+      "description": "服务应支持自动重启/隔离/故障自愈",
+      "detection": "review"
+    },
+    {
+      "id": "C8-03",
+      "category": "scripts",
+      "level": "P1",
+      "rule": "运维脚本",
+      "description": "批量操作、应急操作应有脚本",
+      "detection": "review"
+    },
+    {
+      "id": "C8-04",
+      "category": "cicd",
+      "level": "P1",
+      "rule": "变更自动化",
+      "description": "CI/CD 流程应自动化",
+      "detection": "review"
+    },
+    {
+      "id": "C8-05",
+      "category": "selfcheck",
+      "level": "P1",
+      "rule": "故障自检",
+      "description": "服务启动和运行时应自检",
+      "detection": "review"
+    }
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "design-doc-reviewer",
+  "coveragePolicyReason": "自动化流程是 CI/CD 配置层面",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
+}

@@ -1,0 +1,207 @@
+<h2>Orion 缺失域完整规划（0 外部组件方案）</h2>
+<p class="subtitle">基于专家团评审：44% 覆盖率 → 100% 全量覆盖，61 个缺失模块分 12 个工作流</p>
+
+<div class="section">
+<h3>📊 当前状态</h3>
+<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px; border-left:4px solid #e94560;">
+    <h4 style="margin:0; color:#e94560;">已覆盖 48 模块</h4>
+    <p style="margin:4px 0 0; color:#aaa;">方案 C 当前覆盖</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px; border-left:4px solid #f39c12;">
+    <h4 style="margin:0; color:#f39c12;">缺失 61 模块</h4>
+    <p style="margin:4px 0 0; color:#aaa;">7 大功能域完全未规划</p>
+  </div>
+  <div style="background:#1a1a2e; padding:16px; border-radius:8px; border-left:4px solid #2ecc71;">
+    <h4 style="margin:0; color:#2ecc71;">前端页面 85+</h4>
+    <p style="margin:4px 0 0; color:#aaa;">仅 13 个(15%)有真实 API</p>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🔴 缺失域 1：AI/Agent 域（12 模块 — 平台核心）</h3>
+<div class="cards">
+  <div class="card" data-choice="ai-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端增强</h3>
+      <p><b>模块：</b>ai(18), agent(5), knowledge(6), skill(6)<br>
+      <b>工作：</b>Repository 迁移（12 文件）、AI 决策链路增强、Agent 生命周期管理、知识库 RAG 增强<br>
+      <b>工期：</b>2-3 周</p>
+    </div>
+  </div>
+  <div class="card" data-choice="ai-2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>前端对接</h3>
+      <p><b>已有页面：</b>AgentDashboard(7), AIReview(6), AICostDashboard(6), LLMTraceDashboard(5), AIDocManagement(5), SkillManagement(4), KnowledgeBase, AIGateway, AISecurity, AIReview, AIDecisionPage<br>
+      <b>状态：</b>全部 C 级（无真实 API）<br>
+      <b>工作：</b>20+ 页面 mock→真实 API 对接<br>
+      <b>工期：</b>3-4 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟠 缺失域 2：事件响应与工单协作（4 模块）</h3>
+<div class="cards">
+  <div class="card" data-choice="ops-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端增强</h3>
+      <p><b>模块：</b>ticketing(17), chatops(16), notification(6), escalation(3)<br>
+      <b>工作：</b>Repository 迁移（8 文件）、通知渠道实现（DingTalk/WeChat/Email/SMS）、工单 SLA 引擎、ChatOps 命令路由<br>
+      <b>工期：</b>2-3 周</p>
+    </div>
+  </div>
+  <div class="card" data-choice="ops-2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>前端对接</h3>
+      <p><b>已有页面：</b>ChatOps(5), TicketList(3), TicketDetail(2), Approvals, NotificationCenter, ConfirmationWorkbench(5)<br>
+      <b>状态：</b>Ticket 系列 B 级（部分 mock），其余 C 级<br>
+      <b>工作：</b>16+ 页面对接 + 实时 WebSocket（ChatOps）<br>
+      <b>工期：</b>2-3 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟡 缺失域 3：基础设施管理（8 模块）</h3>
+<div class="cards">
+  <div class="card" data-choice="infra-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端增强</h3>
+      <p><b>模块：</b>iac(7), multi-cloud(5), cmdb(6), code-repo(11), environment(10), federation(3), ephemeral-env(2), k8s-provisioner<br>
+      <b>工作：</b>Repository 迁移（10 文件）、多云资源抽象、CMDB 集成、IaC Terraform 执行器<br>
+      <b>工期：</b>2-3 周</p>
+    </div>
+  </div>
+  <div class="card" data-choice="infra-2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>前端对接</h3>
+      <p><b>已有页面：</b>IaCManagement(5), CodeMgmt(5), CMDB, Environments, EphemeralEnv(2), MultiCloudPage, FederationPage, DigitalTwin, DisasterRecovery<br>
+      <b>状态：</b>全部 C 级<br>
+      <b>工作：</b>30+ 子页面对接<br>
+      <b>工期：</b>3-4 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟡 缺失域 4：安全合规（4 模块）</h3>
+<div class="cards">
+  <div class="card" data-choice="sec-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端增强</h3>
+      <p><b>模块：</b>policy(7), privacy(5), ai-security, auth 增强<br>
+      <b>工作：</b>策略评估引擎、隐私合规检查、API Key 轮换<br>
+      <b>工期：</b>1-2 周</p>
+    </div>
+  </div>
+  <div class="card" data-choice="sec-2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>前端对接</h3>
+      <p><b>已有页面：</b>PolicyManagement, AISecurity, ApiKeyManagement, CompliancePage<br>
+      <b>状态：</b>全部 C 级<br>
+      <b>工作：</b>4 页面对接<br>
+      <b>工期：</b>1 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟡 缺失域 5：CI/CD 增强（5 模块）</h3>
+<div class="cards">
+  <div class="card" data-choice="cicd-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端增强</h3>
+      <p><b>模块：</b>canary-analysis(5), canary-traffic(8), smart-deploy(10), deployment-window, adaptive-pipeline<br>
+      <b>工作：</b>金丝雀分析引擎、智能部署策略、部署窗口校验<br>
+      <b>工期：</b>2 周</p>
+    </div>
+  </div>
+  <div class="card" data-choice="cicd-2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>前端对接</h3>
+      <p><b>已有页面：</b>CanaryAnalysis, CanaryTrafficPage, DeployPage, PipelineBudgetPage, PipelineTemplatePage, PipelineVersionPage<br>
+      <b>状态：</b>3 个未注册路由，3 个 C 级<br>
+      <b>工作：</b>6 页面完善 + 路由注册<br>
+      <b>工期：</b>1-2 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟢 缺失域 6：平台扩展（11 模块）</h3>
+<div class="cards">
+  <div class="card" data-choice="ext-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端 + 前端</h3>
+      <p><b>模块：</b>plugin(5), plugin-marketplace(6), plugin-spi(10), plugin-executor, plugin-manager, community, developer-portal, internal-library, product-line(已A), project(6), queue(6), sbom(10已A), scheduler(6), webhook(6), multi-modal-trigger<br>
+      <b>已有页面：</b>PluginManagement(6), PluginSPI(4), PluginMarketplacePage, CommunityPage, DeveloperPortalPage, InternalLibrary(4), ProductLine(A), SbomDashboard(A), CronManagement, WebhookManagement, TestSelector, TriggerPage<br>
+      <b>状态：</b>Plugin 系列 B/C 混合，其余 C 级<br>
+      <b>工作：</b>Repository 迁移（15 文件）+ 15 页面对接<br>
+      <b>工期：</b>2-3 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>🟢 缺失域 7：事件总线 + 其他（7 模块）</h3>
+<div class="cards">
+  <div class="card" data-choice="misc-1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>后端 + 前端</h3>
+      <p><b>模块：</b>event-bus(4), event-bus-service(1079行), change-intelligence(4), confirmation(4), consistency, output-validation, quality-gate, degradation(5), degradation-config, incident, data-pipeline(5), digital-twin(10), risk-assessment(9), risk-engine(6), performance(6)<br>
+      <b>已有页面：</b>EventBus(B), ChangeIntelligence, DigitalTwin, DisasterRecovery, DataPipelinePage, PerformancePage, OrchestrationPage, RiskDashboard, SupplyChainPage, ApiGovernancePage, QualityGatePage<br>
+      <b>工作：</b>Repository 迁移（12 文件）+ 12 页面对接<br>
+      <b>工期：</b>2-3 周</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>📋 全量工时汇总</h3>
+<table style="width:100%; border-collapse:collapse; font-size:14px;">
+  <tr style="border-bottom:1px solid #333;">
+    <th style="text-align:left; padding:8px;">工作流</th>
+    <th style="text-align:center; padding:8px;">后端</th>
+    <th style="text-align:center; padding:8px;">前端</th>
+    <th style="text-align:center; padding:8px;">总计</th>
+  </tr>
+  <tr style="border-bottom:1px solid #222;"><td>方案 C 当前范围</td><td style="text-align:center;">6-8周</td><td style="text-align:center;">8-13周</td><td style="text-align:center; color:#2ecc71;">14-21周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>AI/Agent 域</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">3-4周</td><td style="text-align:center;">3-4周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>事件响应与工单</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">3-4周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>基础设施管理</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">3-4周</td><td style="text-align:center;">4-5周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>安全合规</td><td style="text-align:center;">1-2周</td><td style="text-align:center;">1周</td><td style="text-align:center;">1-2周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>CI/CD 增强</td><td style="text-align:center;">2周</td><td style="text-align:center;">1-2周</td><td style="text-align:center;">2-3周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>平台扩展</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">3-4周</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td>事件总线 + 其他</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">2-3周</td><td style="text-align:center;">3-4周</td></tr>
+  <tr style="border-top:2px solid #e94560; font-weight:bold;"><td style="padding:12px 8px;">合计（可并行）</td><td style="text-align:center;">19-24周</td><td style="text-align:center;">22-30周</td><td style="text-align:center; color:#e94560; font-size:16px;">24-36周</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>🎯 分两期实施建议</h3>
+<div class="options" data-multiselect>
+  <div class="option" data-choice="phase1" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>第一期（18-24 周）— 核心价值</h3>
+      <p>方案 C 全量 + AI/Agent 域 + CI/CD 增强 + 安全合规 + 平台扩展（高频域）</p>
+    </div>
+  </div>
+  <div class="option" data-choice="phase2" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>第二期（12-16 周）— 完整覆盖</h3>
+      <p>事件响应工单 + 基础设施管理 + 事件总线 + 跨域编排</p>
+    </div>
+  </div>
+</div>
+</div>

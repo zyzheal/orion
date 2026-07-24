@@ -15,40 +15,30 @@ import type {
  * Fetch executive dashboard overview data
  */
 export function getExecutiveDashboard(params?: { days?: number }) {
-  return api.get<ExecutiveDashboardData>(
-    '/api/v1/ticketing/bi/dashboard/executive',
-    { params }
-  );
+  return api.get<ExecutiveDashboardData>('/api/v1/tickets/bi/dashboard/executive', { params });
 }
 
 /**
  * Fetch manager dashboard team data
  */
 export function getManagerDashboard(params?: { teamId?: string; days?: number }) {
-  return api.get<ManagerDashboardData>(
-    '/api/v1/ticketing/bi/dashboard/manager',
-    { params }
-  );
+  return api.get<ManagerDashboardData>('/api/v1/tickets/bi/dashboard/manager', { params });
 }
 
 /**
  * Fetch engineer personal dashboard data
  */
 export function getEngineerDashboard(engineerId: string, params?: { days?: number }) {
-  return api.get<EngineerDashboardData>(
-    `/api/v1/ticketing/bi/dashboard/engineer/${engineerId}`,
-    { params }
-  );
+  return api.get<EngineerDashboardData>(`/api/v1/tickets/bi/dashboard/engineer/${engineerId}`, {
+    params,
+  });
 }
 
 /**
  * Fetch efficiency score for an engineer
  */
-export function getEfficiencyScore(
-  engineerId: string,
-  params?: { start?: string; end?: string }
-) {
-  return api.get(`/api/v1/ticketing/bi/score/${engineerId}`, { params });
+export function getEfficiencyScore(engineerId: string, params?: { start?: string; end?: string }) {
+  return api.get(`/efficiency/score`, { params: { ...params, engineerId } });
 }
 
 /**
@@ -60,5 +50,5 @@ export function exportBIData(data: {
   start: string;
   end: string;
 }) {
-  return api.post('/api/v1/ticketing/bi/export', data);
+  return api.post('/efficiency/export', data);
 }

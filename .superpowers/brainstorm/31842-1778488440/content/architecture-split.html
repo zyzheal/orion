@@ -1,0 +1,120 @@
+<h2>Orion 微服务架构拆分方案</h2>
+<p class="subtitle">当前架构是"假拆分" — platform-service 膨胀成 940 文件的巨型单体，新服务全是 Stub</p>
+
+<div class="section">
+<h3>当前架构问题</h3>
+<div class="mockup">
+<div class="mockup-header">现状：单体膨胀 + 骨架未实现</div>
+<div class="mockup-body">
+<pre style="font-size:12px;line-height:1.6">
+┌─── orion-frontend (70+ pages, 95 API clients) ───┐
+│                    │                               │
+│           ┌────────▼────────┐                      │
+│           │  api-gateway     │  仅代理 2 个前缀       │
+│           │  (50 files)      │  新服务未接入          │
+│           └────────┬────────┘                      │
+│                    │                                │
+│     ┌──────────────▼──────────────────────┐        │
+│     │   orion-platform-service (巨型单体)  │        │
+│     │   940 source files, ~50K lines       │        │
+│     │   ┌─────────────────────────────┐    │        │
+│     │   │ Pipeline 域 (12 routes)     │    │        │
+│     │   │ Deploy 域 (3 routes)        │    │        │
+│     │   │ AI 域 (10 routes)           │    │        │
+│     │   │ 监控域 (10 routes)          │    │        │
+│     │   │ 安全域 (7 routes)           │    │        │
+│     │   │ 工单域 (6 routes)           │    │        │
+│     │   │ 协作域 (8 routes)           │    │        │
+│     │   │ 基础设施域 (8 routes)       │    │        │
+│     │   │ FinOps 域 (5 routes)        │    │        │
+│     │   │ 产品资产域 (14 routes)      │    │        │
+│     │   │ 高级特性域 (5 routes)       │    │        │
+│     │   │ 多租户域 (已存在 core)      │    │        │
+│     │   └─────────────────────────────┘    │        │
+│     └──────────────────────────────────────┘        │
+│                                                      │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐   │
+│  │Pipe │ │Dep  │ │Tick │ │Mon  │ │Agen │ │Intel│   │
+│  │Stub │ │Stub │ │Stub │ │Stub │ │Stub │ │Stub │   │
+│  └─────┘ └─────┘ └─────┘ └─────┘ └─────┘ └─────┘   │
+│                                                      │
+│  orion-knowledge-svc: 目录不存在                      │
+</pre>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>目标架构：按域拆分的真微服务</h3>
+<div class="mockup">
+<div class="mockup-header">目标：每个域独立服务 + 统一网关路由</div>
+<div class="mockup-body">
+<pre style="font-size:12px;line-height:1.6">
+┌─── orion-frontend (保持不变) ───┐
+│              │                   │
+│     ┌────────▼────────┐          │
+│     │  api-gateway     │  统一路由 │
+│     │  + 服务发现       │  + 认证   │
+│     │  /api/v1/pipeline→│
+│     │  /api/v1/deploy→  │
+│     │  /api/v1/ticket→  │
+│     │  /api/v1/monitor→ │
+│     │  /api/v1/agent→   │
+│     │  /api/v1/ai→      │
+│     └──┬──┬──┬──┬──┬──┬┘          │
+│        │  │  │  │  │  │            │
+│     ┌──▼──▼──▼──▼──▼──▼──┐        │
+│     │  独立微服务 (实现业务逻辑)   │
+│     │                     │        │
+│     │ pipeline-svc  (12)  │        │
+│     │ deploy-svc   (3)    │        │
+│     │ ticket-svc   (6)    │        │
+│     │ monitor-svc  (10)   │        │
+│     │ agent-svc   (5)     │        │
+│     │ ai-svc      (10)    │        │
+│     │ knowledge-svc (新)   │        │
+│     │ intelligence-svc (5)│        │
+│     └─────────────────────┘        │
+│                                    │
+│  platform-core: RBAC/Tenant/Config │
+│  (共享基础设施层, 被所有服务引用)     │
+└────────────────────────────────────┘
+</pre>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>拆分策略对比</h3>
+<p class="subtitle">选择一种拆分策略</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>方案 A：增量迁移（推荐）</h3>
+      <p><strong>步骤：</strong>先实现一个完整的服务（如 pipeline-svc），将 platform-service 中对应路由迁移过去，接入网关，验证通过后再迁移下一个域。</p>
+      <p><strong>优点：</strong>风险最小，每次只迁移一个域，可随时回滚</p>
+      <p><strong>缺点：</strong>周期较长，需要 6-8 轮迁移</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>方案 B：一次性大重构</h3>
+      <p><strong>步骤：</strong>一次性将 platform-service 的所有路由拆分到对应服务，同步更新网关路由和 docker-compose 编排。</p>
+      <p><strong>优点：</strong>一步到位，没有过渡期</p>
+      <p><strong>缺点：</strong>风险极高，调试困难，回滚成本高</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>方案 C：骨架先行 + 增量填充</h3>
+      <p><strong>步骤：</strong>先将所有 Stub 服务接入网关和 docker-compose，确保路由通，再逐个填充业务逻辑。</p>
+      <p><strong>优点：</strong>架构完整可见，前端可并行开发</p>
+      <p><strong>缺点：</strong>空服务返回 501 用户体验差，需要 feature flag</p>
+    </div>
+  </div>
+</div>
+</div>

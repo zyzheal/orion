@@ -1,17 +1,49 @@
 /**
  * Notification API Service
- * - Fetch, read, delete notifications
- * - Get notification stats and settings
+ * - Real backend API calls for notifications
+ * - Maps backend Notification schema to frontend Notification format
  */
 import { api } from './client';
-import {
-  mockNotifications,
-  mockNotificationStats,
-  type MockNotification,
-} from '@/pages/__mocks__/mockNotificationData';
 
-// In-memory store for mock state
-let notificationsState: MockNotification[] = [...mockNotifications];
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Frontend notification item (mapped from backend response) */
+export interface MockNotification {
+  id: string;
+  title: string;
+  content: string;
+  type:
+    | 'ticket_assigned'
+    | 'ticket_escalated'
+    | 'sla_warning'
+    | 'sla_breached'
+    | 'pipeline_completed'
+    | 'system_alert'
+    | 'comment_mention'
+    | 'transfer_request';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  read: boolean;
+  createdAt: string;
+  relatedId?: string;
+  sender: string;
+  actions?: Array<{ label: string; type: string }>;
+}
+
+export interface BackendNotification {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  channel: string;
+  status: string;
+  sent_at: string | null;
+  read_at: string | null;
+  created_at: string;
+}
 
 export interface NotificationListParams {
   page?: number;
@@ -42,93 +74,171 @@ export interface NotificationSettings {
   transferRequest: boolean;
 }
 
+// ============================================================================
+// Mapping: Backend -> Frontend
+// ============================================================================
+
+const typeToPriority: Record<string, 'critical' | 'high' | 'medium' | 'low'> = {
+  sla_breached: 'critical',
+  sla_warning: 'high',
+  ticket_escalated: 'high',
+  system_alert: 'high',
+  ticket_assigned: 'medium',
+  pipeline_completed: 'medium',
+  comment_mention: 'medium',
+  transfer_request: 'low',
+};
+
+const typeToSender: Record<string, string> = {
+  ticket_assigned: '工单系统',
+  ticket_escalated: '工单系统',
+  sla_warning: 'SLA 监控',
+  sla_breached: 'SLA 监控',
+  pipeline_completed: 'Pipeline 引擎',
+  system_alert: '系统监控',
+  comment_mention: '协作中心',
+  transfer_request: '工单系统',
+};
+
+function mapBackendToNotification(n: BackendNotification): MockNotification {
+  return {
+    id: n.id,
+    title: n.title,
+    content: n.message,
+    type: n.type as MockNotification['type'],
+    priority: typeToPriority[n.type] || 'medium',
+    read: n.status === 'read' || !!n.read_at,
+    createdAt: n.created_at,
+    relatedId: undefined,
+    sender: typeToSender[n.type] || '系统',
+    actions: [],
+  };
+}
+
+// ============================================================================
+// Real Backend API Calls
+// ============================================================================
+
 /**
- * 获取通知列表
+ * Get current user ID from localStorage (fallback for demo)
+ */
+function getCurrentUserId(): string {
+  return localStorage.getItem('user_id') || 'demo-user';
+}
+
+function getCurrentTenantId(): string {
+  return localStorage.getItem('tenant_id') || 'default';
+}
+
+/**
+ * 获取通知列表 - 从真实后端获取
  */
 export const getNotifications = async (
   params?: NotificationListParams
 ): Promise<{ data: MockNotification[]; total: number }> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  const userId = getCurrentUserId();
 
-  let filtered = [...notificationsState];
+  const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/api/v1/notifications/${userId}`, {
+    params: {
+      limit: params?.pageSize || 20,
+      page: params?.page || 1,
+    },
+  });
 
-  if (params) {
-    if (params.type) {
-      const typeMap: Record<string, string[]> = {
-        all: [],
-        unread: [],
-        tickets: ['ticket_assigned', 'ticket_escalated', 'transfer_request'],
-        system: ['system_alert', 'sla_warning', 'sla_breached', 'pipeline_completed'],
-        read: [],
-      };
-      const types = typeMap[params.type];
-      if (types && types.length > 0) {
-        filtered = filtered.filter((n) => types.includes(n.type));
-      }
-    }
-    if (params.read !== undefined) {
-      filtered = filtered.filter((n) => n.read === params.read);
-    }
-    if (params.priority) {
-      filtered = filtered.filter((n) => n.priority === params.priority);
+  // 拦截器已自动解包，response.data 直接是响应数据
+  const result = response.data;
+
+  // Backend returns { data: [...], total: N } or just [...]
+  const backendNotifications = (result as { data?: BackendNotification[] }).data ?? [];
+  let notifications: MockNotification[] = Array.isArray(backendNotifications)
+    ? backendNotifications.map(mapBackendToNotification)
+    : [];
+  let total = (result as { total?: number }).total ?? backendNotifications.length;
+
+  // Apply client-side filtering for tabs that backend doesn't support directly
+  if (params?.type) {
+    const typeMap: Record<string, string[]> = {
+      tickets: ['ticket_assigned', 'ticket_escalated', 'transfer_request'],
+      system: ['system_alert', 'sla_warning', 'sla_breached', 'pipeline_completed'],
+    };
+    const types = typeMap[params.type];
+    if (types?.length) {
+      notifications = notifications.filter((n) => types.includes(n.type));
     }
   }
 
-  // Sort by createdAt descending
-  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  if (params?.read !== undefined) {
+    notifications = notifications.filter((n) => n.read === params.read);
+  }
 
-  const page = params?.page || 1;
-  const pageSize = params?.pageSize || 20;
-  const start = (page - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
+  if (params?.priority) {
+    notifications = notifications.filter((n) => n.priority === params.priority);
+  }
 
-  return { data: paged, total: filtered.length };
+  // Sort by date descending
+  notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Backend already handles pagination - just return the data with total
+  return { data: notifications, total: total || notifications.length };
 };
 
 /**
  * 获取单个通知详情
  */
 export const getNotification = async (id: string): Promise<MockNotification> => {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const notification = notificationsState.find((n) => n.id === id);
-  if (!notification) {
-    throw new Error('Notification not found');
-  }
-  return notification;
+  const response = await api.get(`/api/v1/notifications/${id}`);
+  // 拦截器已自动解包，response.data 直接是 BackendNotification
+  return mapBackendToNotification(response.data as BackendNotification);
 };
 
 /**
  * 标记通知为已读
  */
 export const markAsRead = async (id: string): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  notificationsState = notificationsState.map((n) =>
-    n.id === id ? { ...n, read: true } : n
-  );
+  await api.put(`/api/v1/notifications/${id}/read`);
 };
 
 /**
  * 标记所有通知为已读
  */
 export const markAllAsRead = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  notificationsState = notificationsState.map((n) => ({ ...n, read: true }));
+  const userId = getCurrentUserId();
+  const response = await api.get(`/api/v1/notifications/${userId}`, { params: { limit: 100 } });
+  // 拦截器已自动解包，response.data 直接是 BackendNotification[]
+  const notifications: BackendNotification[] = response.data as BackendNotification[] | [];
+  // Mark each unread notification as read
+  for (const n of notifications) {
+    if (n.status !== 'read' && !n.read_at) {
+      await api.put(`/api/v1/notifications/${n.id}/read`);
+    }
+  }
 };
 
 /**
  * 删除通知
  */
 export const deleteNotification = async (id: string): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  notificationsState = notificationsState.filter((n) => n.id !== id);
+  // Backend doesn't have a delete endpoint yet, mark as read for now
+  await api.put(`/api/v1/notifications/${id}/read`);
 };
 
 /**
  * 获取通知统计
  */
 export const getNotificationStats = async (): Promise<NotificationStats> => {
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  const userId = getCurrentUserId();
+
+  const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/api/v1/notifications/${userId}/unread-count`);
+  // 拦截器已自动解包，response1.data 直接是响应数据
+  const data1 = response1.data as { data?: { unreadCount?: number } };
+  const unreadCount = Number(data1.data?.unreadCount) || 0;
+
+  // Fetch recent notifications for other stats
+  const response2 = await api.get<{ data?: BackendNotification[] }>(`/api/v1/notifications/${userId}`, { params: { limit: 100 } });
+  // 拦截器已自动解包，response2.data 直接是响应数据
+  const data2 = response2.data as { data?: BackendNotification[] };
+  const backendNotifications: BackendNotification[] = data2.data ?? [];
+  const notifications: MockNotification[] = backendNotifications.map(mapBackendToNotification);
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -136,10 +246,10 @@ export const getNotificationStats = async (): Promise<NotificationStats> => {
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
   return {
-    unread: notificationsState.filter((n) => !n.read).length,
-    critical: notificationsState.filter((n) => n.priority === 'critical' && !n.read).length,
-    today: notificationsState.filter((n) => new Date(n.createdAt) >= todayStart).length,
-    thisWeek: notificationsState.filter((n) => new Date(n.createdAt) >= weekStart).length,
+    unread: unreadCount,
+    critical: notifications.filter((n) => n.priority === 'critical' && !n.read).length,
+    today: notifications.filter((n) => new Date(n.createdAt) >= todayStart).length,
+    thisWeek: notifications.filter((n) => new Date(n.createdAt) >= weekStart).length,
   };
 };
 
@@ -147,19 +257,26 @@ export const getNotificationStats = async (): Promise<NotificationStats> => {
  * 获取通知设置
  */
 export const getNotificationSettings = async (): Promise<NotificationSettings> => {
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  const userId = getCurrentUserId();
+  const tenantId = getCurrentTenantId();
+  const response = await api.get(`/api/v1/notifications/settings/${userId}`, {
+    params: { tenantId },
+  });
+  // 拦截器已自动解包，response.data 直接是响应数据
+  const data = response.data as unknown as Record<string, unknown>;
+
   return {
-    emailEnabled: true,
-    soundEnabled: true,
-    desktopEnabled: false,
-    ticketAssigned: true,
-    ticketEscalated: true,
-    slaWarning: true,
-    slaBreached: true,
-    pipelineCompleted: true,
-    systemAlert: true,
-    commentMention: true,
-    transferRequest: true,
+    emailEnabled: Boolean(data?.email_enabled ?? true),
+    soundEnabled: Boolean(data?.sms_enabled ?? false),
+    desktopEnabled: Boolean(data?.webhook_enabled ?? false),
+    ticketAssigned: Boolean(data?.ticket_assigned ?? true),
+    ticketEscalated: Boolean(data?.ticket_escalated ?? true),
+    slaWarning: Boolean(data?.sla_warning ?? true),
+    slaBreached: Boolean(data?.sla_breached ?? true),
+    pipelineCompleted: Boolean(data?.pipeline_completed ?? true),
+    systemAlert: Boolean(data?.system_alert ?? true),
+    commentMention: Boolean(data?.comment_mention ?? true),
+    transferRequest: Boolean(data?.transfer_request ?? true),
   };
 };
 
@@ -169,7 +286,84 @@ export const getNotificationSettings = async (): Promise<NotificationSettings> =
 export const updateNotificationSettings = async (
   settings: Partial<NotificationSettings>
 ): Promise<NotificationSettings> => {
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  const current = await getNotificationSettings();
-  return { ...current, ...settings };
+  try {
+    const userId = getCurrentUserId();
+    const tenantId = getCurrentTenantId();
+
+    const backendMapping: Record<string, string> = {
+      emailEnabled: 'email_enabled',
+      soundEnabled: 'sms_enabled',
+      desktopEnabled: 'webhook_enabled',
+      ticketAssigned: 'ticket_assigned',
+      ticketEscalated: 'ticket_escalated',
+      slaWarning: 'sla_warning',
+      slaBreached: 'sla_breached',
+      pipelineCompleted: 'pipeline_completed',
+      systemAlert: 'system_alert',
+      commentMention: 'comment_mention',
+      transferRequest: 'transfer_request',
+    };
+
+    const backendUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(settings)) {
+      const backendKey = backendMapping[key];
+      if (backendKey) {
+        backendUpdates[backendKey] = value;
+      }
+    }
+
+    const response = await api.put(`/api/v1/notifications/settings/${userId}`, backendUpdates, {
+      params: { tenantId },
+    });
+    // 拦截器已自动解包，response.data 直接是响应数据
+    const data = response.data as unknown as Record<string, unknown>;
+
+    return {
+      emailEnabled: Boolean(data?.email_enabled ?? true),
+      soundEnabled: Boolean(data?.sms_enabled ?? false),
+      desktopEnabled: Boolean(data?.webhook_enabled ?? false),
+      ticketAssigned: Boolean(data?.ticket_assigned ?? true),
+      ticketEscalated: Boolean(data?.ticket_escalated ?? true),
+      slaWarning: Boolean(data?.sla_warning ?? true),
+      slaBreached: Boolean(data?.sla_breached ?? true),
+      pipelineCompleted: Boolean(data?.pipeline_completed ?? true),
+      systemAlert: Boolean(data?.system_alert ?? true),
+      commentMention: Boolean(data?.comment_mention ?? true),
+      transferRequest: Boolean(data?.transfer_request ?? true),
+    };
+  } catch (error) {
+    console.warn('Backend updateNotificationSettings failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * 广播通知给多个用户
+ * POST /api/v1/notifications/broadcast
+ */
+export interface BroadcastInput {
+  tenantId: string;
+  userIds: string[];
+  type: string;
+  title: string;
+  message: string;
+}
+
+export interface BroadcastResult {
+  sent: number;
+}
+
+export const broadcastNotification = async (input: BroadcastInput): Promise<BroadcastResult> => {
+  const response = await api.post('/api/v1/notifications/broadcast', {
+    tenant_id: input.tenantId,
+    user_ids: input.userIds,
+    type: input.type,
+    title: input.title,
+    message: input.message,
+  });
+  // 拦截器已自动解包，response.data 直接是响应数据
+  const data = response.data as unknown as Record<string, unknown>;
+  return {
+    sent: Number(data?.sent ?? 0),
+  };
 };

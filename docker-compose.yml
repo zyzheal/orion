@@ -1,0 +1,173 @@
+# Orion Platform - Docker Compose
+#
+# 一键启动完整 Orion 平台（含依赖）
+# 用法: docker compose up -d
+#
+# 服务启动顺序: PostgreSQL → Redis → Platform Service → API Gateway → Frontend
+# 健康检查: 每个服务都有 healthcheck，确保依赖就绪后再启动下游服务
+
+services:
+  # ==================== 数据层 ====================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: orion-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER:-orion}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-orion}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-orion}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - orion
+
+  redis:
+    image: redis:7-alpine
+    container_name: orion-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - orion
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: orion-nats
+    ports:
+      - "4222:4222"    # Client connection
+      - "8222:8222"    # HTTP monitoring
+      - "6222:6222"    # Route connection (clustering)
+    command: >
+      --jetstream
+      --store_dir /data/jetstream
+      --max_payload 1MB
+      --http_port 8222
+      --server_name orion-nats
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - orion
+
+  # ==================== 后端服务 ====================
+
+  platform-service:
+    build:
+      context: ./orion-platform-service
+      dockerfile: Dockerfile
+    container_name: orion-platform-service
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-orion}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-orion}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NATS_SERVERS: nats://nats:4222
+      EVENT_BUS_ENABLED: "true"
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - orion
+
+  api-gateway:
+    build:
+      context: ./orion-api-gateway
+      dockerfile: Dockerfile
+    container_name: orion-api-gateway
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PLATFORM_SERVICE_URL: http://platform-service:3001
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      platform-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - orion
+
+  # ==================== 前端 ====================
+
+  frontend:
+    build:
+      context: ./orion-frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: orion-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - orion
+
+# ==================== 存储卷 ====================
+
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:
+
+# ==================== 网络 ====================
+
+networks:
+  orion:
+    driver: bridge

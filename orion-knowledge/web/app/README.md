@@ -1,8 +1,8 @@
-# PandaWiki
+# Orion Knowledge
 
 ## 项目描述
 
-PandaWiki 是一个基于 Next.js 的 Wiki 知识库系统，支持文档管理、搜索和分类功能。
+Orion Knowledge 是一个基于 Next.js 的 Wiki 知识库系统，支持文档管理、搜索和分类功能。
 
 ## 技术栈
 
@@ -18,7 +18,7 @@ PandaWiki 是一个基于 Next.js 的 Wiki 知识库系统，支持文档管理�
 
 1. 克隆项目：
    ```bash
-   git clone https://github.com/your-repo/PandaWiki.git
+   git clone https://github.com/orion-knowledge/orion-knowledge.git
    ```
 2. 安装依赖：
    ```bash

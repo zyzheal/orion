@@ -1,0 +1,276 @@
+<h2>Orion 平台完整功能域架构</h2>
+<p class="subtitle">130+ 服务 · 95 路由 · 65 控制器 · 40 配置域 · 6 横切关注点</p>
+
+<div class="section">
+<h3>一、核心编排层 (Core Orchestration)</h3>
+<div class="mockup">
+<div class="mockup-header">高耦合 | 强依赖 | 不可禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>pipeline</b></td><td>PipelineService/RunService/TriggerService</td><td>/v1/pipeline</td><td>✓ 4</td><td>engine, saga, event-bus</td></tr>
+<tr><td><b>engine</b></td><td>PipelineEngine/StageExecutor/TaskRunner</td><td>(内置)</td><td>✗</td><td>无 (纯执行)</td></tr>
+<tr><td><b>saga</b></td><td>SagaCoordinator/TransactionLog/IdempotencyChecker</td><td>(内置)</td><td>✗</td><td>无 (纯编排)</td></tr>
+<tr><td><b>cross-domain-orchestration</b></td><td>CrossDomainOrchestrator/DomainConnector</td><td>/v1/orchestration</td><td>✓ 2</td><td>saga 全部, database</td></tr>
+<tr><td><b>multi-modal-trigger</b></td><td>UnifiedTriggerService/WebhookTrigger/ChatTrigger</td><td>/v1/triggers</td><td>✓</td><td>event-bus</td></tr>
+<tr><td><b>adaptive-pipeline</b></td><td>SelfAdaptivePipelineService</td><td>无路由</td><td>✓</td><td>无</td></tr>
+<tr><td><b>autonomous</b></td><td>AutonomousPipelineController</td><td>/v1/autonomous</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>二、构建 · 部署 · 制品 (Build/Deploy/Artifact)</h3>
+<div class="mockup">
+<div class="mockup-header">中耦合 | 可配置禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>build</b></td><td>BuildService/CacheService/LogService/BuilderImage/K8sBuildExecutor</td><td>/v1/build</td><td>✓ 4</td><td>无</td></tr>
+<tr><td><b>deploy</b></td><td>DeployService/ProgressiveDeploy/EmergencyDeploy/Window</td><td>/v1/deploy</td><td>✓ 2</td><td>artifact, pipeline</td></tr>
+<tr><td><b>smart-deploy</b></td><td>SmartDeployService/RollbackService/DeploymentHistory</td><td>(内置)</td><td>✓</td><td>无</td></tr>
+<tr><td><b>canary-analysis</b></td><td>CanaryAnalysisService</td><td>/v1/canary-analysis</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>canary-traffic</b></td><td>CanaryTrafficManagerService</td><td>/v1/canary</td><td>✓</td><td>无</td></tr>
+<tr><td><b>artifact</b></td><td>ArtifactService/RegistryService/PromotionService</td><td>/v1/artifacts</td><td>✓</td><td>无</td></tr>
+<tr><td><b>artifact-ops</b></td><td>ArtifactOperationService</td><td>/v1/artifact-ops</td><td>✓</td><td>artifact</td></tr>
+<tr><td><b>iac</b></td><td>IaCRepository/WorkspaceService/PlanService</td><td>/v1/iac</td><td>✓</td><td>无</td></tr>
+<tr><td><b>code-repo</b></td><td>GitLabAdapter/GerritAdapter/BranchPolicy</td><td>/v1/code-repo</td><td>✓ 4</td><td>无</td></tr>
+<tr><td><b>pipeline-template</b></td><td>PipelineTemplateService/Repository</td><td>/v1/pipeline-templates</td><td>✓</td><td>无</td></tr>
+<tr><td><b>pipeline-version</b></td><td>PipelineVersionService/Repository</td><td>/v1/pipelines</td><td>✓</td><td>无</td></tr>
+<tr><td><b>pipeline-budget</b></td><td>PipelineBudgetService/Repository</td><td>/v1/pipelines</td><td>✓</td><td>无</td></tr>
+<tr><td><b>deployment-window</b></td><td>DeploymentWindowService</td><td>无路由</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>三、可观测性 · 告警 · 运维 (Observability/Ops)</h3>
+<div class="mockup">
+<div class="mockup-header">中耦合 | 可配置禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>monitoring</b></td><td>MonitoringService/MetricCollector/AlertRuleEngine</td><td>/v1/monitoring</td><td>✓ 5</td><td>无</td></tr>
+<tr><td><b>alert</b></td><td>Deduplication/Correlation/RCA/Silence</td><td>/v1/alert</td><td>✓ 6</td><td>无</td></tr>
+<tr><td><b>escalation</b></td><td>EscalationConfigService/Scheduler</td><td>/v1/escalation</td><td>✓</td><td>ticketing</td></tr>
+<tr><td><b>notification</b></td><td>NotificationService/SettingsService</td><td>/v1/notifications</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>audit</b></td><td>AuditService/LogChain/ImmutableStorage</td><td>/v1/audit</td><td>✓ 3</td><td>无</td></tr>
+<tr><td><b>observability</b></td><td>ObservabilityController</td><td>/v1/observability</td><td>✓</td><td>无</td></tr>
+<tr><td><b>chaos-engineering</b></td><td>ChaosExperiment/FaultInjector/ResilienceScore</td><td>/v1/chaos</td><td>✓ 3</td><td>无</td></tr>
+<tr><td><b>backup</b></td><td>BackupService/Scheduler/Recovery/Verifier</td><td>/v1/backup</td><td>✓ 5</td><td>无</td></tr>
+<tr><td><b>disaster-recovery</b></td><td>DRPlanExecutor/DRStrategyManager</td><td>/v1/disaster-recovery</td><td>✓ 2</td><td>backup</td></tr>
+<tr><td><b>self-healing</b></td><td>SelfHealingService/Decision/Guardian/StrategyEngine</td><td>/v1/self-healing</td><td>✓</td><td>无</td></tr>
+<tr><td><b>diagnostic</b></td><td>DiagnosticEngine/DecisionTree/KnowledgeBase/AgentService</td><td>/v1/diagnostic</td><td>✓ 5</td><td>无</td></tr>
+<tr><td><b>ticketing</b></td><td>TicketingService/Dispatch/QueueManager/LoadBalancer/BiService</td><td>/v1/tickets</td><td>✓ 12</td><td>无</td></tr>
+<tr><td><b>consistency</b></td><td>ConsistencyMonitorService</td><td>无路由</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>四、AI · 决策 · 知识 (AI/Decision/Knowledge)</h3>
+<div class="mockup">
+<div class="mockup-header">低耦合 | 可配置禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>ai</b></td><td>AIGateway/MLInference/ProviderCircuitBreaker</td><td>/v1/ai-gateway</td><td>✓ 14</td><td>无</td></tr>
+<tr><td><b>ai-review</b></td><td>AIReviewService/DiffAnalyzer/ReviewAggregator/LLMClient</td><td>/v1/ai-review</td><td>✓ 6</td><td>无</td></tr>
+<tr><td><b>ai-security</b></td><td>AISecurityService</td><td>/v1/ai-security</td><td>✓</td><td>无</td></tr>
+<tr><td><b>llm-trace</b></td><td>LLMTraceService/TokenCounter/CostCalculator</td><td>/v1/llm</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>decision-explanation</b></td><td>DecisionExplanationService/Repository</td><td>/v1</td><td>✓</td><td>无</td></tr>
+<tr><td><b>knowledge</b></td><td>KnowledgeService/Repository</td><td>/v1/knowledge</td><td>✓</td><td>无</td></tr>
+<tr><td><b>skill</b></td><td>SkillService/Repository</td><td>/v1/skills</td><td>✓</td><td>无</td></tr>
+<tr><td><b>agent</b></td><td>AgentService/Repository</td><td>/v1/agent</td><td>✓</td><td>无</td></tr>
+<tr><td><b>agent-run-service</b></td><td>AgentRunService</td><td>无路由</td><td>✗</td><td>无</td></tr>
+<tr><td><b>agent-profile-service</b></td><td>AgentProfileService</td><td>无路由</td><td>✗</td><td>无</td></tr>
+<tr><td><b>model-version</b></td><td>ModelVersionService</td><td>无路由</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>五、治理 · 安全 · 合规 (Governance/Security/Compliance)</h3>
+<div class="mockup">
+<div class="mockup-header">中耦合 | 可配置禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>security</b></td><td>SecurityScanner/ComplianceFramework/SecurityAudit/SupplyChain</td><td>/v1/compliance</td><td>✓</td><td>privacy</td></tr>
+<tr><td><b>privacy</b></td><td>SecretSanitizer/PIISanitizer/TenantPrivacyPolicy</td><td>/v1/privacy</td><td>✓ 4</td><td>无</td></tr>
+<tr><td><b>sbom</b></td><td>SBOMGenerator/DocumentService/VulnerabilityService</td><td>/v1/sbom</td><td>✓</td><td>无</td></tr>
+<tr><td><b>policy</b></td><td>PolicyService/EvaluationService/OverrideService</td><td>/v1/policies</td><td>✓</td><td>无</td></tr>
+<tr><td><b>quality-gate</b></td><td>QualityGateEnhancementService</td><td>/v1/quality-gates</td><td>✓</td><td>无</td></tr>
+<tr><td><b>risk-assessment</b></td><td>RiskAssessmentService/RiskScoringEngine/HealthCheck</td><td>/v1/risk</td><td>✓ 4</td><td>无</td></tr>
+<tr><td><b>risk-engine</b></td><td>RiskAssessmentService/PageRankService</td><td>无路由</td><td>✓</td><td>无</td></tr>
+<tr><td><b>approval</b></td><td>ApprovalService/MultiLevelApproval/EmergencyApproval</td><td>/v1/approvals</td><td>✓</td><td>无</td></tr>
+<tr><td><b>api-governance</b></td><td>APISpecRegistryService/Repository</td><td>/v1/api-governance</td><td>✓</td><td>无</td></tr>
+<tr><td><b>confirmation</b></td><td>ConfirmationService</td><td>/v1/confirmations</td><td>✓</td><td>无</td></tr>
+<tr><td><b>output-validation</b></td><td>OutputValidatorService/ASTValidator/SecurityBoundaryValidator</td><td>无路由</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>六、成本 · 效能 · 组织 (Cost/Efficiency/Org)</h3>
+<div class="mockup">
+<div class="mockup-header">低耦合 | 可配置禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>cost</b></td><td>CostService/BudgetGuard/AnomalyDetection/Optimization</td><td>/v1/cost</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>cost-tracking</b></td><td>CostTrackingService</td><td>无独立路由</td><td>✓</td><td>无</td></tr>
+<tr><td><b>finops</b></td><td>FinOpsService/ROIAnalyzer/BudgetService/CostOptimizer</td><td>/v1/finops</td><td>✓ 9</td><td>无</td></tr>
+<tr><td><b>efficiency</b></td><td>DoraMetrics/EfficiencyReport/WeeklyReport</td><td>/v1/efficiency</td><td>✓ 5</td><td>无</td></tr>
+<tr><td><b>tenant</b></td><td>TenantService/IsolationService/RLSManager/QuotaService</td><td>/v1/tenant</td><td>✓ 6</td><td>全局影响</td></tr>
+<tr><td><b>user</b></td><td>UserService/Repository</td><td>/v1/users</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>role</b></td><td>RoleService/Repository</td><td>/v1/roles</td><td>✓</td><td>无</td></tr>
+<tr><td><b>session</b></td><td>SessionService/Repository</td><td>/v1/sessions</td><td>✓</td><td>无</td></tr>
+<tr><td><b>api-key</b></td><td>ApiKeyService/Repository</td><td>/v1/api-keys</td><td>✓</td><td>无</td></tr>
+<tr><td><b>project</b></td><td>ProjectService/Repository</td><td>/v1/projects</td><td>✓</td><td>无</td></tr>
+<tr><td><b>environment</b></td><td>EnvironmentService/Repository</td><td>/v1/environments</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>ephemeral-env</b></td><td>EphemeralEnvService/Repository</td><td>/v1/ephemeral-envs</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>product-line</b></td><td>ProductLineService</td><td>/v1/product-lines</td><td>✓</td><td>无</td></tr>
+<tr><td><b>internal-library</b></td><td>InternalLibraryService</td><td>/v1/internal-libraries</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>七、平台 · 基础设施 (Platform/Infrastructure)</h3>
+<div class="mockup">
+<div class="mockup-header">高耦合 | 核心基础设施</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>config</b></td><td>UnifiedConfigService (40 个配置域)</td><td>/v1/system-config</td><td>✗</td><td>全局 (所有服务可订阅)</td></tr>
+<tr><td><b>config-mgmt</b></td><td>ConfigService/ApprovalService/DiffService/GitOpsService</td><td>/v1/config-mgmt</td><td>✓ 4</td><td>无</td></tr>
+<tr><td><b>event-bus</b></td><td>EventBusService/JetStreamManager (NATS+fallback)</td><td>/v1/eventbus</td><td>✓</td><td>全局 (事件发布)</td></tr>
+<tr><td><b>queue</b></td><td>QueueService/Repository</td><td>/v1/queue</td><td>✓</td><td>无</td></tr>
+<tr><td><b>scheduler</b></td><td>CronSchedulerService/DistributedLockService/OnCallService</td><td>/v1/cron + /v1/oncall</td><td>✓</td><td>无</td></tr>
+<tr><td><b>cache-monitor</b></td><td>CacheMonitorService/CacheMetricsRepository</td><td>无路由</td><td>✓</td><td>无</td></tr>
+<tr><td><b>metrics</b></td><td>MetricsService/Repository</td><td>/v1/metrics</td><td>✓</td><td>无</td></tr>
+<tr><td><b>webhook</b></td><td>WebhookService/Repository</td><td>/v1/webhooks</td><td>✓</td><td>无</td></tr>
+<tr><td><b>database</b></td><td>DatabasePool (PostgreSQL via slonik)</td><td>无路由</td><td>✓ 3</td><td>全局</td></tr>
+<tr><td><b>cmdb</b></td><td>CmdbService/K8sReconciliationService</td><td>/v1/cmdb</td><td>✓ 3</td><td>无</td></tr>
+<tr><td><b>cmdb-integration-service</b></td><td>CmdbIntegrationService</td><td>无路由</td><td>✗</td><td>无</td></tr>
+<tr><td><b>degradation</b></td><td>AutoRecoveryService</td><td>/v1/degradation</td><td>✓</td><td>ai</td></tr>
+<tr><td><b>degradation-config</b></td><td>DegradationConfigService</td><td>/v1/degradation</td><td>✓</td><td>无</td></tr>
+<tr><td><b>change-intelligence</b></td><td>ChangeIntelligenceService</td><td>/v1/change-intelligence</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>八、扩展 · 生态 (Extension/Ecosystem)</h3>
+<div class="mockup">
+<div class="mockup-header">低耦合 | 可配置禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">服务</th><th style="text-align:left;padding:4px;">主类</th><th style="text-align:left;padding:4px;">路由</th><th style="text-align:left;padding:4px;">测试</th><th style="text-align:left;padding:4px;">依赖</th></tr>
+<tr><td><b>plugin</b></td><td>PluginSandbox/ResourceManager/AuditLogger</td><td>/v1/plugins</td><td>✓</td><td>无</td></tr>
+<tr><td><b>plugin-spi</b></td><td>PluginService/PluginRegistry/PluginLifecycleManager</td><td>/v1/plugins-spi</td><td>✓</td><td>无</td></tr>
+<tr><td><b>plugin-marketplace</b></td><td>PluginMarketplaceService</td><td>/v1/plugins/marketplace</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>chatops</b></td><td>CommandService/ExecutionService</td><td>/v1/chatops</td><td>✓</td><td>无</td></tr>
+<tr><td><b>digital-twin</b></td><td>ProductionSnapshot/TrafficRecording/TrafficReplay</td><td>/v1/digital-twins</td><td>✓</td><td>无</td></tr>
+<tr><td><b>federation</b></td><td>FederationService/ClusterHealthMonitor</td><td>/v1/federation</td><td>✓</td><td>无</td></tr>
+<tr><td><b>multi-cloud</b></td><td>MultiCloudManager/ResourceAbstractionLayer</td><td>/v1/multi-cloud</td><td>✓</td><td>无</td></tr>
+<tr><td><b>data-pipeline</b></td><td>DataPipelineService/DataQualityService</td><td>/v1/data-pipelines</td><td>✓ 2</td><td>无</td></tr>
+<tr><td><b>performance</b></td><td>PerformanceBaselineService/PerformanceProfileService</td><td>/v1/performance</td><td>✓</td><td>无</td></tr>
+<tr><td><b>community</b></td><td>CommunityService/CommunityPluginService/CommunityAdvanced</td><td>/v1/community</td><td>✓</td><td>无</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>九、横切关注点 (Cross-Cutting Concerns)</h3>
+<div class="mockup">
+<div class="mockup-header">全局影响 | 不可禁用</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">关注点</th><th style="text-align:left;padding:4px;">实现位置</th><th style="text-align:left;padding:4px;">实现方式</th><th style="text-align:left;padding:4px;">当前状态</th></tr>
+<tr><td><b>认证 (Auth)</b></td><td>middleware/authMiddleware.ts</td><td>JWT onRequest 钩子</td><td>✓ 工作</td></tr>
+<tr><td><b>授权 (RBAC)</b></td><td>middleware/roleGuard.ts</td><td>registerWithRoleGuard 路由级</td><td>✓ 工作</td></tr>
+<tr><td><b>租户隔离</b></td><td>services/tenant/ (四层)</td><td>API/Service/Data/RLS</td><td>⚠ 部分装饰性</td></tr>
+<tr><td><b>事件总线</b></td><td>services/event-bus-service.ts</td><td>NATS JetStream + PG fallback</td><td>⚠ NATS 未接通</td></tr>
+<tr><td><b>数据库</b></td><td>services/database.ts</td><td>PostgreSQL via slonik</td><td>✓ 30+ 服务迁移</td></tr>
+<tr><td><b>审计链</b></td><td>services/audit/AuditLogChain</td><td>哈希链式存储</td><td>✓ 工作</td></tr>
+<tr><td><b>降级</b></td><td>services/degradation/</td><td>AI Provider 自动恢复</td><td>✓ 工作</td></tr>
+<tr><td><b>隐私</b></td><td>services/privacy/</td><td>Secret + PII 脱敏</td><td>✓ 工作</td></tr>
+</table>
+</div>
+</div>
+
+<div class="section">
+<h3>十、配置域清单 (40 个 SystemConfig 域)</h3>
+<table style="width:100%;border-collapse:collapse;font-size:12px;">
+<tr>
+<td style="width:25%;vertical-align:top;">
+<b>基础设施 (4)</b>
+<ul>
+<li>app</li><li>database</li><li>redis</li><li>nats</li>
+</ul>
+</td>
+<td style="width:25%;vertical-align:top;">
+<b>运维 (8)</b>
+<ul>
+<li>escalation</li><li>alert</li><li>selfHealing</li><li>ticketing</li><li>monitoring</li><li>notification</li><li>audit</li><li>disasterRecovery</li>
+</ul>
+</td>
+<td style="width:25%;vertical-align:top;">
+<b>业务 (8)</b>
+<ul>
+<li>pipeline</li><li>deploy</li><li>build</li><li>artifact</li><li>canary</li><li>chaos</li><li>backup</li><li>incident</li>
+</ul>
+</td>
+<td style="width:25%;vertical-align:top;">
+<b>治理 (8)</b>
+<ul>
+<li>scheduler</li><li>observability</li><li>finops</li><li>securityScanning</li><li>compliance</li><li>aiDecision</li><li>pipelineTemplate</li><li>approval</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td style="width:25%;vertical-align:top;">
+<b>扩展 (8)</b>
+<ul>
+<li>resilience</li><li>digitalTwin</li><li>environment</li><li>plugin</li><li>cache</li><li>queue</li><li>eventBus</li><li>rbac</li>
+</ul>
+</td>
+<td style="width:25%;vertical-align:top;">
+<b>其他 (4)</b>
+<ul>
+<li>apiGateway</li><li>featureFlag</li><li>tenant</li><li>security</li>
+</ul>
+</td>
+</tr>
+</table>
+</div>
+
+<div class="section">
+<h3>十一、高耦合服务依赖图</h3>
+<div class="mockup">
+<div class="mockup-header">实际跨服务导入关系 (5 处)</div>
+<div style="font-size:13px;">
+<p><b>CrossDomainOrchestrator</b> → saga/* (全部), database<br/>
+<b>EscalationScheduler</b> → ticketing/TicketingRepository<br/>
+<b>BuildxBuilderService</b> → artifact/ArtifactRegistryService<br/>
+<b>SecurityScannerService</b> → privacy/SecretSanitizer<br/>
+<b>TenantIsolationService</b> → 全局 (四层隔离)<br/>
+<b>EventBusService</b> → 全局 (事件发布)<br/>
+<b>UnifiedConfigService</b> → 全局 (配置订阅)</p>
+<p><b>关键发现</b>：除上述 5 处外，大部分服务只导入 ../../repositories/ 和 ../../models/，没有直接导入其他服务目录。<b>整体耦合度为 低-中。</b></p>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>十二、无路由/可选模块 (10)</h3>
+<div class="mockup">
+<div class="mockup-header">可作为配置化启用的候选模块</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+<tr><th style="text-align:left;padding:4px;">模块</th><th style="text-align:left;padding:4px;">功能</th><th style="text-align:left;padding:4px;">建议</th></tr>
+<tr><td>adaptive-pipeline</td><td>自适应 Pipeline 调度</td><td>可配置启用</td></tr>
+<tr><td>consistency</td><td>一致性监控</td><td>可配置启用</td></tr>
+<tr><td>deployment-window</td><td>部署窗口校验</td><td>可配置启用</td></tr>
+<tr><td>output-validation</td><td>AST/安全边界验证</td><td>可配置启用</td></tr>
+<tr><td>cost-tracking</td><td>成本追踪 (无独立路由)</td><td>合并到 finops</td></tr>
+<tr><td>risk-engine</td><td>风险引擎 (无独立路由)</td><td>合并到 risk-assessment</td></tr>
+<tr><td>model-version</td><td>模型版本管理</td><td>可配置启用</td></tr>
+<tr><td>agent-run-service</td><td>Agent 运行服务</td><td>可配置启用</td></tr>
+<tr><td>agent-profile-service</td><td>Agent 配置服务</td><td>可配置启用</td></tr>
+<tr><td>cmdb-integration-service</td><td>CMDB 集成</td><td>可配置启用</td></tr>
+</table>
+</div>
+</div>
