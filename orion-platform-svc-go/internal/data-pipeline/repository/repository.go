@@ -83,7 +83,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 	if err != nil {
 		return nil, err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	if err != nil {
 		return err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status stri
 	if err != nil {
 		return nil, err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (r *Repository) CancelRun(ctx context.Context, tenantID, id string) (*model
 	if err != nil {
 		return nil, err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return nil, err
 	}

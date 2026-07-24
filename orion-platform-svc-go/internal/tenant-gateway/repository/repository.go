@@ -185,7 +185,7 @@ func (r *Repository) CreateQuota(ctx context.Context, tenantID, tenantKey string
 	if err != nil {
 		return fmt.Errorf("tenant-gateway create quota: %w", err)
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("tenant-gateway create quota rows affected: %w", err)
 	}

@@ -3,6 +3,8 @@ package main
 import (
 	ff_handler "orion/platform-svc-go/internal/feature-flag/handler"
 
+	gs_handler "orion/platform-svc-go/internal/global-search/handler"
+
 	role_handler "orion/platform-svc-go/internal/role/handler"
 
 	ag_handler "orion/platform-svc-go/internal/api-governance/handler"
@@ -131,27 +133,27 @@ import (
 
 	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
 
-	notification_handler "orion/platform-svc-go/internal/notification/handler"
+	notification_handler "orion/platform-svc-go/internal/notification/notification/handler"
 
-	notification_policy_handler "orion/platform-svc-go/internal/notification-policy/handler"
+	notification_policy_handler "orion/platform-svc-go/internal/notification/notification-policy/handler"
 
-	notification_template_handler "orion/platform-svc-go/internal/notification-template/handler"
+	notification_template_handler "orion/platform-svc-go/internal/notification/notification-template/handler"
 
-	scheduled_notification_handler "orion/platform-svc-go/internal/scheduled-notification/handler"
+	scheduled_notification_handler "orion/platform-svc-go/internal/notification/scheduled-notification/handler"
 
 	webhook_handler "orion/platform-svc-go/internal/webhook/handler"
 
-	dd_handler "orion/platform-svc-go/internal/do-not-disturb/handler"
+	dd_handler "orion/platform-svc-go/internal/notification/do-not-disturb/handler"
 
-	chan_handler "orion/platform-svc-go/internal/channel/handler"
+	chan_handler "orion/platform-svc-go/internal/notification/channel/handler"
 
-	workflow_handler "orion/platform-svc-go/internal/workflow/handler"
+	workflow_handler "orion/platform-svc-go/internal/workflow/workflow/handler"
 
-	workflow_trigger_handler "orion/platform-svc-go/internal/workflow-trigger/handler"
+	workflow_trigger_handler "orion/platform-svc-go/internal/workflow/workflow-trigger/handler"
 
-	workflow_task_handler "orion/platform-svc-go/internal/workflow-task/handler"
+	workflow_task_handler "orion/platform-svc-go/internal/workflow/workflow-task/handler"
 
-	workflow_dep_handler "orion/platform-svc-go/internal/workflow-dependency/handler"
+	workflow_dep_handler "orion/platform-svc-go/internal/workflow/workflow-dependency/handler"
 
 	workflow_webhook_handler "orion/platform-svc-go/internal/workflow-webhook/handler"
 
@@ -228,9 +230,84 @@ import (
 
 	apiConsumption_handler "orion/platform-svc-go/internal/api-consumption/handler"
 
+	// ---- GraphViz module ----
+	graphviz_handler "orion/platform-svc-go/internal/graphviz/handler"
+	graphviz_repo    "orion/platform-svc-go/internal/graphviz/repository"
+	graphviz_service "orion/platform-svc-go/internal/graphviz/service"
+	graphviz_templates "orion/platform-svc-go/internal/graphviz/templates"
+
 	contract_handler "orion/platform-svc-go/internal/contract/handler"
 
 	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
+
+	// ---- Blueprint CI-CD merge: ci-cd subdomain handlers ----
+	ciArtReg_handler "orion/platform-svc-go/internal/ci-cd/artifact-registry/handler"
+	ciArtReg_repo "orion/platform-svc-go/internal/ci-cd/artifact-registry/repository"
+	ciArtReg_service "orion/platform-svc-go/internal/ci-cd/artifact-registry/service"
+	ciArtVer_handler "orion/platform-svc-go/internal/ci-cd/artifact-version/handler"
+	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
+	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
+	ciBuild_repo "orion/platform-svc-go/internal/ci-cd/build/repository"
+	ciBuild_service "orion/platform-svc-go/internal/ci-cd/build/service"
+	ciCanary_handler "orion/platform-svc-go/internal/ci-cd/canary/handler"
+	ciCanary_repo "orion/platform-svc-go/internal/ci-cd/canary/repository"
+	ciCanary_service "orion/platform-svc-go/internal/ci-cd/canary/service"
+	ciDeploy_handler "orion/platform-svc-go/internal/ci-cd/deploy/handler"
+	ciDeploy_repo "orion/platform-svc-go/internal/ci-cd/deploy/repository"
+	ciDeploy_service "orion/platform-svc-go/internal/ci-cd/deploy/service"
+	ciPipeline_handler "orion/platform-svc-go/internal/ci-cd/pipeline/handler"
+	ciPipeline_repo "orion/platform-svc-go/internal/ci-cd/pipeline/repository"
+	ciPipeline_service "orion/platform-svc-go/internal/ci-cd/pipeline/service"
+	ciPTmpl_handler "orion/platform-svc-go/internal/ci-cd/pipeline-template/handler"
+	ciPTmpl_repo "orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
+	ciPTmpl_service "orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
+	ciRunner_handler "orion/platform-svc-go/internal/ci-cd/runner/handler"
+	ciRunner_repo "orion/platform-svc-go/internal/ci-cd/runner/repository"
+	ciRunner_service "orion/platform-svc-go/internal/ci-cd/runner/service"
+
+	// ---- Blueprint InfraOps merge: infrastructure subdomain handlers ----
+	infraCap_handler "orion/platform-svc-go/internal/infrastructure/capacity/handler"
+	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
+	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
+	infraDr_handler "orion/platform-svc-go/internal/infrastructure/dr/handler"
+	infraDr_repo "orion/platform-svc-go/internal/infrastructure/dr/repository"
+	infraDr_service "orion/platform-svc-go/internal/infrastructure/dr/service"
+	infraEE_handler "orion/platform-svc-go/internal/infrastructure/ephemeral-env/handler"
+	infraEE_repo "orion/platform-svc-go/internal/infrastructure/ephemeral-env/repository"
+	infraEE_service "orion/platform-svc-go/internal/infrastructure/ephemeral-env/service"
+	infraMW_handler "orion/platform-svc-go/internal/infrastructure/middleware-ops/handler"
+	infraMW_repo "orion/platform-svc-go/internal/infrastructure/middleware-ops/repository"
+	infraMW_service "orion/platform-svc-go/internal/infrastructure/middleware-ops/service"
+	infraBackup_handler "orion/platform-svc-go/internal/infrastructure/backup/handler"
+	infraBackup_repo "orion/platform-svc-go/internal/infrastructure/backup/repository"
+	infraBackup_service "orion/platform-svc-go/internal/infrastructure/backup/service"
+	infraChaos_handler "orion/platform-svc-go/internal/infrastructure/chaos/handler"
+	infraChaos_repo "orion/platform-svc-go/internal/infrastructure/chaos/repository"
+	infraChaos_service "orion/platform-svc-go/internal/infrastructure/chaos/service"
+	infraDba_handler "orion/platform-svc-go/internal/infrastructure/dba/handler"
+	infraDba_repo "orion/platform-svc-go/internal/infrastructure/dba/repository"
+	infraDba_service "orion/platform-svc-go/internal/infrastructure/dba/service"
+	infraDegradation_handler "orion/platform-svc-go/internal/infrastructure/degradation/handler"
+	infraDegradation_repo "orion/platform-svc-go/internal/infrastructure/degradation/repository"
+	infraDegradation_service "orion/platform-svc-go/internal/infrastructure/degradation/service"
+	infraDTwin_handler "orion/platform-svc-go/internal/infrastructure/digital-twin/handler"
+	infraDTwin_repo "orion/platform-svc-go/internal/infrastructure/digital-twin/repository"
+	infraDTwin_service "orion/platform-svc-go/internal/infrastructure/digital-twin/service"
+	infraIac_handler "orion/platform-svc-go/internal/infrastructure/iac/handler"
+	infraIac_repo "orion/platform-svc-go/internal/infrastructure/iac/repository"
+	infraIac_service "orion/platform-svc-go/internal/infrastructure/iac/service"
+	infraMWn_handler "orion/platform-svc-go/internal/infrastructure/maintenance-window/handler"
+	infraMWn_repo "orion/platform-svc-go/internal/infrastructure/maintenance-window/repository"
+	infraMWn_service "orion/platform-svc-go/internal/infrastructure/maintenance-window/service"
+	infraMulti_handler "orion/platform-svc-go/internal/infrastructure/multicloud/handler"
+	infraMulti_repo "orion/platform-svc-go/internal/infrastructure/multicloud/repository"
+	infraMulti_service "orion/platform-svc-go/internal/infrastructure/multicloud/service"
+	infraOCI_handler "orion/platform-svc-go/internal/infrastructure/oci-registry/handler"
+	infraOCI_repo "orion/platform-svc-go/internal/infrastructure/oci-registry/repository"
+	infraOCI_service "orion/platform-svc-go/internal/infrastructure/oci-registry/service"
+	infraServerless_handler "orion/platform-svc-go/internal/infrastructure/serverless/handler"
+	infraServerless_repo "orion/platform-svc-go/internal/infrastructure/serverless/repository"
+	infraServerless_service "orion/platform-svc-go/internal/infrastructure/serverless/service"
 
 	// ---- Batch 1: registered modules ----
 	aiAgents_handler "orion/platform-svc-go/internal/ai-agents/handler"
@@ -359,6 +436,7 @@ import (
 // Package-level handler variables — initialized in initWiring(), consumed in setupRouter().
 var (
 	ffH                 *ff_handler.Handler
+	gsH                 *gs_handler.Handler // Global search service
 	roleH               *role_handler.Handler
 	agH                 *ag_handler.Handler
 	artifactH           *artifact_handler.Handler
@@ -481,6 +559,9 @@ var (
 	dataQualityH        *dataQuality_handler.Handler
 	dataPipelineH       *dataPipeline_handler.Handler
 	apiConsumptionH     *apiConsumption_handler.Handler
+
+	// ---- GraphViz module ----
+	graphvizH           *graphviz_handler.Handler
 	contractH           *contract_handler.Handler
 	peH                 *pe_handler.Handler
 	aiAgentsH           *aiAgents_handler.Handler
@@ -546,6 +627,32 @@ var (
 	sbomH               *sbom_handler.Handler
 	loggingH            *logging_handler.Handler
 	selfhealingH        *sh_handler.Handler
+
+	// ---- Blueprint CI-CD merge handlers ----
+	ciArtRegH    *ciArtReg_handler.ArtifactRegistryHandler
+	ciArtVerH    *ciArtVer_handler.ArtifactVersionHandler
+	ciBuildH     *ciBuild_handler.Handler
+	ciCanaryH    *ciCanary_handler.Handler
+	ciDeployH    *ciDeploy_handler.Handler
+	ciPipelineH  *ciPipeline_handler.Handler
+	ciPTmplH     *ciPTmpl_handler.Handler
+	ciRunnerH    *ciRunner_handler.Handler
+
+	// ---- Blueprint InfraOps merge handlers ----
+	infraCapH *infraCap_handler.Handler
+	infraDrH  *infraDr_handler.Handler
+	infraEEH  *infraEE_handler.Handler
+	infraMWH  *infraMW_handler.Handler
+	infraBackupH  *infraBackup_handler.Handler
+	infraChaosH   *infraChaos_handler.Handler
+	infraDbaH     *infraDba_handler.Handler
+	infraDegH     *infraDegradation_handler.Handler
+	infraDTwinH   *infraDTwin_handler.Handler
+	infraIacH     *infraIac_handler.Handler
+	infraMWnH     *infraMWn_handler.Handler
+	infraMultiH   *infraMulti_handler.Handler
+	infraOCIH     *infraOCI_handler.Handler
+	infraServerlessH *infraServerless_handler.Handler
 )
 
 func initWiring(infra *infrastructure, logger *zap.Logger) {
@@ -729,5 +836,113 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	sbomRepo := sbom_repo.NewRepository(infra.db.DB)
 	sbomSvc := sbom_service.NewService(sbomRepo)
 	sbomH = sbom_handler.NewHandler(sbomSvc)
+
+	// ---- Blueprint CI-CD merge: wire subdomain handlers ----
+	// artifact-registry: repo -> service -> handler
+	ciArtRegRepo := ciArtReg_repo.NewArtifactRegistryRepository(infra.db.DB)
+	ciArtRegSvc := ciArtReg_service.NewArtifactRegistryService(ciArtRegRepo, infra.logger)
+	ciArtRegH = ciArtReg_handler.NewArtifactRegistryHandler(ciArtRegSvc)
+
+	// artifact-version: service -> handler (map-based, logger only)
+	ciArtVerSvc := ciArtVer_service.NewArtifactVersionService(infra.logger)
+	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
+
+	// build: repo -> service -> handler (requires db + logger)
+	ciBuildH = ciBuild_handler.New(infra.db.DB, infra.logger)
+
+	// canary: repo -> service -> handler
+	ciCanaryRepo := ciCanary_repo.NewRepository(infra.db.DB)
+	ciCanarySvc := ciCanary_service.NewCanaryService(ciCanaryRepo, infra.logger)
+	ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
+
+	// deploy: repo -> service -> handler (requires db + logger)
+	ciDeployH = ciDeploy_handler.New(infra.db.DB, infra.logger)
+
+	// pipeline: repo -> service -> handler
+	ciPipelineRepo := ciPipeline_repo.NewRepository(infra.db.DB)
+	ciPipelineSvc := ciPipeline_service.NewPipelineService(ciPipelineRepo, infra.logger)
+	ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
+
+	// pipeline-template: repo -> service -> handler
+	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
+	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo, infra.logger)
+	ciPTmplH = ciPTmpl_handler.NewHandler(ciPTmplSvc)
+
+	// runner: repo -> service -> handler
+	ciRunnerRepo := ciRunner_repo.NewRepository(infra.db.DB)
+	ciRunnerSvc := ciRunner_service.NewService(ciRunnerRepo, infra.logger)
+	ciRunnerH = ciRunner_handler.NewHandler(ciRunnerSvc)
+
+	// ---- Blueprint InfraOps merge: wire infrastructure subdomain handlers ----
+	// capacity: repo -> service -> handler
+	infraCapRepo := infraCap_repo.NewRepository(infra.db.DB)
+	infraCapSvc := infraCap_service.NewService(infraCapRepo, infra.logger)
+	infraCapH = infraCap_handler.NewHandler(infraCapSvc)
+
+	// dr: repo -> service -> handler
+	infraDrRepo := infraDr_repo.NewRepository(infra.db.DB)
+	infraDrSvc := infraDr_service.NewService(infraDrRepo, infra.logger)
+	infraDrH = infraDr_handler.NewHandler(infraDrSvc)
+
+	// ephemeral-env: repo -> service -> handler
+	infraEERepo := infraEE_repo.NewRepository(infra.db.DB)
+	infraEESvc := infraEE_service.NewService(infraEERepo, infra.logger)
+	infraEEH = infraEE_handler.NewHandler(infraEESvc)
+
+	// middleware-ops: repo -> service -> handler
+	infraMWRepo := infraMW_repo.NewRepository(infra.db.DB)
+	infraMWSvc := infraMW_service.NewService(infraMWRepo, infra.logger)
+	infraMWH = infraMW_handler.NewHandler(infraMWSvc)
+
+	// backup: repo -> 2 services (BackupService + RecoveryService) -> handler
+	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)
+	infraBackupSvc := infraBackup_service.NewBackupService(infraBackupRepo, infra.logger)
+	infraRecoverySvc := infraBackup_service.NewRecoveryService(infraBackupRepo, infra.logger)
+	infraBackupH = infraBackup_handler.New(infraBackupSvc, infraRecoverySvc, infra.logger)
+
+	// chaos: repo -> service -> handler
+	infraChaosRepo := infraChaos_repo.NewChaosRepository(infra.db.DB)
+	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
+	infraChaosH = infraChaos_handler.NewHandler(infraChaosSvc)
+
+	// dba: repo -> service -> handler
+	infraDbaRepo := infraDba_repo.NewRepository(infra.db.DB)
+	infraDbaSvc := infraDba_service.NewService(infraDbaRepo)
+	infraDbaH = infraDba_handler.NewHandler(infraDbaSvc)
+
+	// degradation: repo -> service -> handler
+	infraDegRepo := infraDegradation_repo.NewRepository(infra.db.DB)
+	infraDegSvc := infraDegradation_service.NewService(infraDegRepo)
+	infraDegH = infraDegradation_handler.NewHandler(infraDegSvc)
+
+	// digital-twin: repo -> service -> handler
+	infraDTwinRepo := infraDTwin_repo.NewRepository(infra.db.DB)
+	infraDTwinSvc := infraDTwin_service.NewService(infraDTwinRepo)
+	infraDTwinH = infraDTwin_handler.NewHandler(infraDTwinSvc)
+
+	// iac: repo -> service -> handler
+	infraIacRepo := infraIac_repo.NewRepository(infra.db.DB)
+	infraIacSvc := infraIac_service.NewService(infraIacRepo)
+	infraIacH = infraIac_handler.NewHandler(infraIacSvc)
+
+	// maintenance-window: repo -> service -> handler
+	infraMWnRepo := infraMWn_repo.NewRepository(infra.db.DB)
+	infraMWnSvc := infraMWn_service.NewService(infraMWnRepo)
+	infraMWnH = infraMWn_handler.NewHandler(infraMWnSvc)
+
+	// multicloud: repo -> service -> handler
+	infraMultiRepo := infraMulti_repo.NewRepository(infra.db.DB)
+	infraMultiSvc := infraMulti_service.NewService(infraMultiRepo)
+	infraMultiH = infraMulti_handler.NewHandler(infraMultiSvc)
+
+	// oci-registry: repo -> service -> handler
+	infraOCIRepo := infraOCI_repo.NewRepository(infra.db.DB)
+	infraOCISvc := infraOCI_service.NewService(infraOCIRepo)
+	infraOCIH = infraOCI_handler.NewHandler(infraOCISvc)
+
+	// serverless: repo -> service -> handler
+	infraServerlessRepo := infraServerless_repo.NewRepository(infra.db.DB)
+	infraServerlessSvc := infraServerless_service.NewService(infraServerlessRepo)
+	infraServerlessH = infraServerless_handler.NewHandler(infraServerlessSvc)
 
 }

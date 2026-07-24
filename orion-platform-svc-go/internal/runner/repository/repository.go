@@ -363,25 +363,28 @@ func (r *Repository) ListJobsByAgent(ctx context.Context, agentID string, offset
 // MarkRunning transitions a job to running status with started_at.
 // Translated from TS JobRepository.markRunning().
 func (r *Repository) MarkRunning(ctx context.Context, id string) (*models.RunnerJob, error) {
-	return r.setJobStatus(ctx, id, string(models.JobStatusRunning), nil, nil, nil, nil, nil, nil, nil, time.Now().UTC(), nil)
+	now := time.Now().UTC()
+	return r.setJobStatus(ctx, id, string(models.JobStatusRunning), nil, nil, nil, nil, nil, nil, &now, nil)
 }
 
 // MarkComplete transitions a job to completed status with full result.
 // Translated from TS JobRepository.markComplete().
 func (r *Repository) MarkComplete(ctx context.Context, id string, result models.JSONB, stdout, stderr *string, exitCode, durationMs *int) (*models.RunnerJob, error) {
-	return r.setJobStatus(ctx, id, string(models.JobStatusCompleted), &result, stdout, stderr, exitCode, durationMs, nil, nil, nil, time.Now().UTC())
+	now := time.Now().UTC()
+	return r.setJobStatus(ctx, id, string(models.JobStatusCompleted), &result, stdout, stderr, exitCode, durationMs, nil, nil, &now)
 }
 
 // MarkFailed transitions a job to failed status with error info.
 // Translated from TS JobRepository.markFailed().
 func (r *Repository) MarkFailed(ctx context.Context, id string, errMsg string, stderr *string, durationMs *int) (*models.RunnerJob, error) {
-	return r.setJobStatus(ctx, id, string(models.JobStatusFailed), nil, nil, stderr, nil, durationMs, &errMsg, nil, nil, time.Now().UTC())
+	now := time.Now().UTC()
+	return r.setJobStatus(ctx, id, string(models.JobStatusFailed), nil, nil, stderr, nil, durationMs, &errMsg, nil, &now)
 }
 
 // MarkCancelled transitions a job to cancelled status.
 // Translated from TS JobRepository.markCancelled().
 func (r *Repository) MarkCancelled(ctx context.Context, id string) (*models.RunnerJob, error) {
-	return r.setJobStatus(ctx, id, string(models.JobStatusCancelled), nil, nil, nil, nil, nil, nil, nil, nil, time.Now().UTC())
+	return r.setJobStatus(ctx, id, string(models.JobStatusCancelled), nil, nil, nil, nil, nil, nil, nil, nil)
 }
 
 // setJobStatus is a shared helper that builds a dynamic UPDATE for status transitions.
@@ -540,7 +543,8 @@ func (r *Repository) PurgeExpiredHeartbeats(ctx context.Context, retention time.
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	n, _ := res.RowsAffected()
+	return n
 }
 
 // ===========================================================================

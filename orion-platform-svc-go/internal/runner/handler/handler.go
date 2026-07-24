@@ -19,7 +19,6 @@ package handler
 
 import (
 	"context"
-	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"

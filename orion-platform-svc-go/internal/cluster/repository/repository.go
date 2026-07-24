@@ -92,7 +92,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	if err != nil {
 		return err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	if err != nil {
 		return err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return err
 	}

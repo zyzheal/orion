@@ -79,7 +79,7 @@ func (r *Repository) RemoveTicket(ctx context.Context, tenantID, sprintID, ticke
 	if err != nil {
 		return err
 	}
-	rows, err := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if err != nil {
 		return err
 	}

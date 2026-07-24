@@ -1,208 +1,73 @@
 package models
 
-import "time"
+import (
+	"time"
 
-// IncidentType defines the type of self-healing incident.
-type IncidentType string
-
-const (
-	IncidentTypeHighCPU        IncidentType = "high_cpu"
-	IncidentTypeHighMemory     IncidentType = "high_memory"
-	IncidentTypeHighErrorRate  IncidentType = "high_error_rate"
-	IncidentTypeHighLatency    IncidentType = "high_latency"
-	IncidentTypePodCrash       IncidentType = "pod_crash"
-	IncidentTypeNodeFailure    IncidentType = "node_failure"
-	IncidentTypeServiceDown    IncidentType = "service_down"
-	IncidentTypeDeployFailure  IncidentType = "deployment_failure"
-	IncidentTypeDiskFull       IncidentType = "disk_full"
-	IncidentTypeNetworkTimeout IncidentType = "network_timeout"
-	IncidentTypeCustom         IncidentType = "custom"
+	"github.com/google/uuid"
 )
 
-// IncidentSeverity defines the severity level of an incident.
-type IncidentSeverity string
-
-const (
-	IncidentSeverityCritical IncidentSeverity = "critical"
-	IncidentSeverityWarning  IncidentSeverity = "warning"
-	IncidentSeverityInfo     IncidentSeverity = "info"
-)
-
-// IncidentStatus defines the lifecycle status of an incident.
-type IncidentStatus string
-
-const (
-	IncidentStatusNew             IncidentStatus = "new"
-	IncidentStatusEvaluating      IncidentStatus = "evaluating"
-	IncidentStatusHealing         IncidentStatus = "healing"
-	IncidentStatusHealed          IncidentStatus = "healed"
-	IncidentStatusFailed          IncidentStatus = "failed"
-	IncidentStatusEscalated       IncidentStatus = "escalated"
-	IncidentStatusPendingApproval IncidentStatus = "pending_approval"
-	IncidentStatusCancelled       IncidentStatus = "cancelled"
-)
-
-// RiskLevel defines the risk level of an approval request.
-type RiskLevel string
-
-const (
-	RiskLevelLow      RiskLevel = "low"
-	RiskLevelMedium   RiskLevel = "medium"
-	RiskLevelHigh     RiskLevel = "high"
-	RiskLevelCritical RiskLevel = "critical"
-)
-
-// HealingActionType defines the type of healing action.
-type HealingActionType string
-
-const (
-	HealingActionTypeRestart  HealingActionType = "restart"
-	HealingActionTypeScale    HealingActionType = "scale"
-	HealingActionTypeFailover HealingActionType = "failover"
-	HealingActionTypeRollback HealingActionType = "rollback"
-)
-
-// HealingStrategy is a configured healing strategy.
-type HealingStrategy struct {
-	ID              string    `json:"id" db:"id"`
-	Name            string    `json:"name" db:"name"`
-	TriggerType     string    `json:"triggerType" db:"trigger_type"`
-	Actions         string    `json:"actions" db:"actions"`       // JSONB
-	Conditions      string    `json:"conditions" db:"conditions"` // JSONB
-	Confidence      int64     `json:"confidence" db:"confidence"`
-	Enabled         bool      `json:"enabled" db:"enabled"`
-	Description     string    `json:"description" db:"description"`
-	Environments    string    `json:"environments" db:"environments"` // JSONB
-	MaxRetries      int64     `json:"maxRetries" db:"max_retries"`
-	RetryCooldownMs int64     `json:"retryCooldownMs" db:"retry_cooldown_ms"`
-	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
-}
-
-// HealingAction is a single action within a strategy.
+// HealingAction represents a self-healing action.
 type HealingAction struct {
-	Type        HealingActionType `json:"type"`
-	Params      map[string]any    `json:"params"`
-	Timeout     *int64            `json:"timeout,omitempty"`
-	Rollback    *bool             `json:"rollback,omitempty"`
-	Description string            `json:"description,omitempty"`
+	ID          uuid.UUID `json:"id"`
+	TenantID    uuid.UUID `json:"tenant_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	ActionType  string    `json:"action_type"`
+	Target      string    `json:"target"`
+	Command     string    `json:"command"`
+	IsEnabled   bool      `json:"is_enabled"`
+	RetryCount  int       `json:"retry_count"`
+	RetryDelay  int       `json:"retry_delay"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// HealingIncident is a healing incident record.
-type HealingIncident struct {
-	ID                string           `json:"id" db:"id"`
-	TenantID          string           `json:"tenantId" db:"tenant_id"`
-	AlertID           string           `json:"alertId" db:"alert_id"`
-	Type              IncidentType     `json:"type" db:"type"`
-	Severity          IncidentSeverity `json:"severity" db:"severity"`
-	AppName           string           `json:"appName" db:"app_name"`
-	Environment       string           `json:"environment" db:"environment"`
-	StrategyID        string           `json:"strategyId" db:"strategy_id"`
-	StrategyName      string           `json:"strategyName" db:"strategy_name"`
-	Actions           string           `json:"actions" db:"actions"` // JSONB
-	Status            IncidentStatus   `json:"status" db:"status"`
-	Attempts          int64            `json:"attempts" db:"attempts"`
-	ApprovalStatus    string           `json:"approvalStatus" db:"approval_status"`
-	ApprovalRequestID string           `json:"approvalRequestId" db:"approval_request_id"`
-	Result            string           `json:"result" db:"result"` // JSONB
-	Error             string           `json:"error" db:"error"`
-	Tags              string           `json:"tags" db:"tags"` // JSONB
-	CreatedAt         time.Time        `json:"createdAt" db:"created_at"`
-	StartedAt         time.Time        `json:"startedAt" db:"started_at"`
-	CompletedAt       *time.Time       `json:"completedAt" db:"completed_at"`
+// HealingTrigger represents a trigger condition for self-healing.
+type HealingTrigger struct {
+	ID           uuid.UUID  `json:"id"`
+	TenantID     uuid.UUID  `json:"tenant_id"`
+	ActionID     uuid.UUID  `json:"action_id"`
+	Condition    string     `json:"condition"`
+	Threshold    float64    `json:"threshold"`
+	EvaluationSec int      `json:"evaluation_sec"`
+	IsEnabled    bool       `json:"is_enabled"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
-// ApprovalRequest is an approval request record.
-type ApprovalRequest struct {
-	ID                 string     `json:"id" db:"id"`
-	IncidentID         string     `json:"incidentId" db:"incident_id"`
-	Title              string     `json:"title" db:"title"`
-	Description        string     `json:"description" db:"description"`
-	RiskLevel          RiskLevel  `json:"riskLevel" db:"risk_level"`
-	RecommendedActions string     `json:"recommendedActions" db:"recommended_actions"` // JSONB
-	Status             string     `json:"status" db:"status"`
-	RequestedBy        string     `json:"requestedBy" db:"requested_by"`
-	ApprovedBy         string     `json:"approvedBy" db:"approved_by"`
-	ApprovalReason     string     `json:"approvalReason" db:"approval_reason"`
-	RequestedAt        time.Time  `json:"requestedAt" db:"requested_at"`
-	RespondedAt        *time.Time `json:"respondedAt" db:"responded_at"`
-	ExpiresAt          *time.Time `json:"expiresAt" db:"expires_at"`
+// HealingHistory represents the execution history of a healing action.
+type HealingHistory struct {
+	ID          uuid.UUID  `json:"id"`
+	TenantID    uuid.UUID  `json:"tenant_id"`
+	ActionID    uuid.UUID  `json:"action_id"`
+	TriggerID   *uuid.UUID `json:"trigger_id,omitempty"`
+	Status      string     `json:"status"`
+	Result      string     `json:"result"`
+	Attempt     int        `json:"attempt"`
+	TriggeredBy string     `json:"triggered_by"`
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at"`
 }
 
-// CreateIncidentRequest is the body for manually creating an incident.
-type CreateIncidentRequest struct {
-	Type        IncidentType      `json:"type" binding:"required"`
-	Severity    IncidentSeverity  `json:"severity" binding:"required"`
-	AppName     string            `json:"appName" binding:"required"`
-	Environment string            `json:"environment" binding:"required"`
-	AlertID     string            `json:"alertId"`
-	Tags        map[string]string `json:"tags"`
+// CreateHealingActionRequest for creating a healing action.
+type CreateHealingActionRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	ActionType  string `json:"action_type" binding:"required,oneof=restart deploy rollback scale notify run_script"`
+	Target      string `json:"target" binding:"required"`
+	Command     string `json:"command"`
+	IsEnabled   *bool  `json:"is_enabled"`
+	RetryCount  int    `json:"retry_count"`
+	RetryDelay  int    `json:"retry_delay"`
 }
 
-// RegisterStrategyRequest is the body for registering a custom strategy.
-type RegisterStrategyRequest struct {
-	ID           string          `json:"id" binding:"required"`
-	Name         string          `json:"name" binding:"required"`
-	TriggerType  string          `json:"triggerType" binding:"required"`
-	Actions      []HealingAction `json:"actions" binding:"required"`
-	Confidence   int64           `json:"confidence"`
-	Enabled      bool            `json:"enabled"`
-	Description  string          `json:"description"`
-	Conditions   string          `json:"conditions"`
-	Environments string          `json:"environments"`
-	MaxRetries   int64           `json:"maxRetries"`
+// HealingActionResponse wraps healing action query results.
+type HealingActionResponse struct {
+	Total int64          `json:"total"`
+	Data  []HealingAction `json:"data"`
 }
 
-// ToggleStrategyRequest is the body for toggling a strategy.
-type ToggleStrategyRequest struct {
-	Enabled bool `json:"enabled" binding:"required"`
-}
-
-// RespondApprovalRequest is the body for responding to an approval.
-type RespondApprovalRequest struct {
-	Approved    bool   `json:"approved" binding:"required"`
-	RespondedBy string `json:"respondedBy" binding:"required"`
-	Reason      string `json:"reason"`
-}
-
-// HistoryQuery is the query parameters for listing history.
-type HistoryQuery struct {
-	AppName     string `json:"appName"`
-	Environment string `json:"environment"`
-	Type        string `json:"type"`
-	Status      string `json:"status"`
-	Severity    string `json:"severity"`
-	Page        int    `json:"page"`
-	Limit       int    `json:"limit"`
-}
-
-// EffectivenessQuery is the query parameters for effectiveness.
-type EffectivenessQuery struct {
-	AppName     string `json:"appName"`
-	Environment string `json:"environment"`
-}
-
-// HealingEffectiveness holds effectiveness metrics.
-type HealingEffectiveness struct {
-	TotalIncidents       int             `json:"totalIncidents"`
-	HealedIncidents      int             `json:"healedIncidents"`
-	FailedIncidents      int             `json:"failedIncidents"`
-	EscalatedIncidents   int             `json:"escalatedIncidents"`
-	SuccessRate          float64         `json:"successRate"`
-	AverageDurationMs    float64         `json:"averageDurationMs"`
-	MedianDurationMs     float64         `json:"medianDurationMs"`
-	AverageEffectiveness float64         `json:"averageEffectiveness"`
-	RecurredIncidents    int             `json:"recurredIncidents"`
-	RecurrenceRate       float64         `json:"recurrenceRate"`
-	ByIncidentType       map[string]Stat `json:"byIncidentType"`
-	ByStrategy           map[string]Stat `json:"byStrategy"`
-	ByEnvironment        map[string]Stat `json:"byEnvironment"`
-	ByActionType         map[string]Stat `json:"byActionType"`
-}
-
-// Stat is a breakdown statistic.
-type Stat struct {
-	Total   int     `json:"total"`
-	Success int     `json:"success"`
-	Rate    float64 `json:"rate"`
+// HealingHistoryResponse wraps healing history query results.
+type HealingHistoryResponse struct {
+	Total int64            `json:"total"`
+	Data  []HealingHistory `json:"data"`
 }

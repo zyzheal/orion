@@ -237,5 +237,6 @@ func (r *Repository) DeleteByTime(ctx context.Context, tenantID string, before t
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	n, _ := res.RowsAffected()
+	return n, nil
 }

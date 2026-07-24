@@ -6,7 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/workflow-webhook/models"
 	"orion/platform-svc-go/internal/workflow-webhook/service"
-	workflow_service "orion/platform-svc-go/internal/workflow/service"
+	workflow_service "orion/platform-svc-go/internal/workflow/workflow/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"

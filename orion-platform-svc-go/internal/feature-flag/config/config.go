@@ -20,6 +20,7 @@ type Config struct {
 	NATSStream           string
 	OTELExporterEndpoint string
 	OTELInsecure         bool
+	ESURL                string // Elasticsearch URL for global search
 }
 
 func Load() *Config {
@@ -43,6 +44,7 @@ func Load() *Config {
 		NATSStream:           getEnv("NATS_STREAM", "EVENTS"),
 		OTELExporterEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 		OTELInsecure:         getEnvBool("OTEL_EXPORTER_OTLP_INSECURE", true),
+		ESURL:                getEnv("ES_URL", "http://localhost:9200"),
 	}
 }
 

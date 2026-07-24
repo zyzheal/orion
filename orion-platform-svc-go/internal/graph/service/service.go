@@ -168,7 +168,7 @@ func (s *Service) DeleteRelationship(ctx context.Context, tenantID, id string) e
 // FindShortestPath finds the shortest path between two nodes.
 // Uses BFS over relationships.
 func (s *Service) FindShortestPath(ctx context.Context, tenantID string, req models.FindPathRequest) ([]models.GraphPath, error) {
-	startNode, err := s.GetNode(ctx, tenantID, req.StartID)
+	_, err := s.GetNode(ctx, tenantID, req.StartID)
 	if err != nil {
 		return nil, fmt.Errorf("start node not found: %w", err)
 	}

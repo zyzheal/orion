@@ -2,350 +2,180 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/oncall/models"
-
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/oncall/models"
+	"go.uber.org/zap"
 )
 
-// Repository handles database access for on-call data.
-type Repository struct {
-	db *sqlx.DB
+type OnCallRepository struct {
+	db     *DB
+	logger *zap.Logger
 }
 
-// NewRepository creates a new oncall repository.
-func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+func NewOnCallRepository(db *DB, logger *zap.Logger) *OnCallRepository {
+	return &OnCallRepository{db: db, logger: logger}
 }
 
-// --- Schedule CRUD ---
+// CreateSchedule creates a new on-call schedule.
+func (r *OnCallRepository) CreateSchedule(ctx context.Context, tenantID uuid.UUID, req *models.CreateScheduleRequest) (*models.Schedule, error) {
+	now := time.Now()
+	isPrimary := false
+	if req.IsPrimary != nil {
+		isPrimary = *req.IsPrimary
+	}
+	id := uuid.New()
 
-func (r *Repository) CreateSchedule(ctx context.Context, s *models.Schedule) error {
-	s.ID = uuid.New().String()
-	now := time.Now().UTC()
-	s.CreatedAt = now
-	s.UpdatedAt = now
-	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO oncall_schedules (id, tenant_id, name, timezone, rotation_type, start_date, end_date, status, created_at, updated_at)
-		 VALUES (:id, :tenantId, :name, :timezone, :rotationType, :startDate, :endDate, :status, :createdAt, :updatedAt)`,
-		s)
-	return err
+	query := `INSERT INTO oncall_schedules (id, tenant_id, name, description, is_primary, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`
+	if _, err := r.db.Pool().Exec(ctx, query, id, tenantID, req.Name, req.Description, isPrimary, now, now); err != nil {
+		return nil, fmt.Errorf("create schedule: %w", err)
+	}
+
+	schedule := &models.Schedule{
+		ID:          id,
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Description: req.Description,
+		IsPrimary:   isPrimary,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	return schedule, nil
 }
 
-func (r *Repository) GetSchedule(ctx context.Context, tenantID, id string) (*models.Schedule, error) {
-	var s models.Schedule
-	err := r.db.GetContext(ctx, &s,
-		`SELECT * FROM oncall_schedules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+// QuerySchedules returns paginated schedules.
+func (r *OnCallRepository) QuerySchedules(ctx context.Context, tenantID uuid.UUID, limit, offset int) (models.ScheduleResponse, error) {
+	var resp models.ScheduleResponse
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	countQuery := `SELECT COUNT(*) FROM oncall_schedules WHERE tenant_id = $1`
+	query := `SELECT id, tenant_id, name, description, is_primary, created_at, updated_at FROM oncall_schedules WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+
+	if err := r.db.Pool().QueryRow(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
+		return resp, fmt.Errorf("count schedules: %w", err)
+	}
+
+	rows, err := r.db.Pool().Query(ctx, query, tenantID, limit, offset)
 	if err != nil {
-		return nil, err
+		return resp, fmt.Errorf("query schedules: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s models.Schedule
+		if err := rows.Scan(&s.ID, &s.TenantID, &s.Name, &s.Description, &s.IsPrimary, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return resp, fmt.Errorf("scan schedule: %w", err)
+		}
+		resp.Data = append(resp.Data, s)
+	}
+	return resp, nil
+}
+
+// GetSchedule returns a schedule by ID.
+func (r *OnCallRepository) GetSchedule(ctx context.Context, tenantID, id uuid.UUID) (*models.Schedule, error) {
+	var s models.Schedule
+	query := `SELECT id, tenant_id, name, description, is_primary, created_at, updated_at FROM oncall_schedules WHERE id = $1 AND tenant_id = $2`
+	if err := r.db.Pool().QueryRow(ctx, query, id, tenantID).Scan(
+		&s.ID, &s.TenantID, &s.Name, &s.Description, &s.IsPrimary, &s.CreatedAt, &s.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("schedule not found: %s", id)
+		}
+		return nil, fmt.Errorf("get schedule: %w", err)
 	}
 	return &s, nil
 }
 
-func (r *Repository) ListSchedules(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error) {
-	where := "WHERE tenant_id = $1"
-	args := []interface{}{tenantID}
-	argIdx := 2
+// AddRotation adds a rotation to a schedule.
+func (r *OnCallRepository) AddRotation(ctx context.Context, scheduleID uuid.UUID, req *models.AddRotationRequest) (*models.Rotation, error) {
+	now := time.Now()
+	id := uuid.New()
 
-	if status != nil && *status != "" {
-		where += fmt.Sprintf(" AND status = $%d", argIdx)
-		args = append(args, *status)
-		argIdx++
+	query := `INSERT INTO oncall_rotations (id, schedule_id, user_id, user_name, is_active, start_date, end_date, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
+	if _, err := r.db.Pool().Exec(ctx, query, id, scheduleID, req.UserID, req.UserName, true, req.StartDate, req.EndDate, now); err != nil {
+		return nil, fmt.Errorf("add rotation: %w", err)
 	}
 
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM oncall_schedules %s`, where)
-	var total int
-	err := r.db.GetContext(ctx, &total, countQuery, args...)
-	if err != nil {
-		return nil, 0, err
+	rotation := &models.Rotation{
+		ID:         id,
+		ScheduleID: scheduleID,
+		UserID:     req.UserID,
+		UserName:   req.UserName,
+		IsActive:   true,
+		StartDate:  req.StartDate,
+		EndDate:    req.EndDate,
+		CreatedAt:  now,
 	}
-
-	var items []models.Schedule
-	selectQuery := fmt.Sprintf(`SELECT * FROM oncall_schedules %s ORDER BY created_at DESC`, where)
-	err = r.db.SelectContext(ctx, &items, selectQuery, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	return items, total, nil
+	return rotation, nil
 }
 
-func (r *Repository) UpdateSchedule(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Schedule, error) {
-	updates["updated_at"] = time.Now().UTC()
-	setClauses := []string{}
-	args := []interface{}{}
-	i := 1
-	for key, val := range updates {
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, i))
-		args = append(args, val)
-		i++
+// GetCurrentOnCall returns the current on-call person for a schedule.
+func (r *OnCallRepository) GetCurrentOnCall(ctx context.Context, scheduleID uuid.UUID) (*models.CurrentOnCallResponse, error) {
+	var resp models.CurrentOnCallResponse
+	query := `
+		SELECT r.id, s.name, r.user_id, r.user_name, r.start_date, r.end_date, 1
+		FROM oncall_rotations r
+		JOIN oncall_schedules s ON r.schedule_id = s.id
+		WHERE r.schedule_id = $1 AND r.is_active = true AND NOW() BETWEEN r.start_date AND r.end_date
+		ORDER BY r.start_date DESC
+		LIMIT 1`
+
+	if err := r.db.Pool().QueryRow(ctx, query, scheduleID).Scan(
+		&resp.ScheduleID, &resp.ScheduleName, &resp.UserID, &resp.UserName, &resp.StartDate, &resp.EndDate, &resp.Level,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("no active on-call rotation found for schedule %s", scheduleID)
+		}
+		return nil, fmt.Errorf("get current on-call: %w", err)
 	}
-	args = append(args, id, tenantID)
-	query := fmt.Sprintf(`UPDATE oncall_schedules SET %s WHERE id=$%d AND tenant_id=$%d`, strings.Join(setClauses, ", "), i, i+1)
-	_, err := r.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	return r.GetSchedule(ctx, tenantID, id)
+	return &resp, nil
 }
 
-func (r *Repository) DeleteSchedule(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM oncall_schedules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return false, err
+// QueryRotations returns rotations for a schedule.
+func (r *OnCallRepository) QueryRotations(ctx context.Context, scheduleID uuid.UUID, limit, offset int) ([]models.Rotation, int64, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
 	}
-	n, _ := result.RowsAffected()
-	return n > 0, nil
+
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM oncall_rotations WHERE schedule_id = $1`
+	if err := r.db.Pool().QueryRow(ctx, countQuery, scheduleID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count rotations: %w", err)
+	}
+
+	query := `SELECT id, schedule_id, user_id, user_name, is_active, start_date, end_date, created_at FROM oncall_rotations WHERE schedule_id = $1 ORDER BY start_date DESC LIMIT $2 OFFSET $3`
+	rows, err := r.db.Pool().Query(ctx, query, scheduleID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query rotations: %w", err)
+	}
+	defer rows.Close()
+
+	var rotations []models.Rotation
+	for rows.Next() {
+		var r models.Rotation
+		if err := rows.Scan(&r.ID, &r.ScheduleID, &r.UserID, &r.UserName, &r.IsActive, &r.StartDate, &r.EndDate, &r.CreatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan rotation: %w", err)
+		}
+		rotations = append(rotations, r)
+	}
+	return rotations, total, nil
 }
 
-// --- Assignment CRUD ---
-
-func (r *Repository) CreateAssignment(ctx context.Context, tenantID string, a *models.Assignment) error {
-	a.ID = uuid.New().String()
-	a.CreatedAt = time.Now().UTC()
-	// Validate schedule belongs to tenant
-	var exists bool
-	err := r.db.GetContext(ctx, &exists,
-		`SELECT EXISTS(SELECT 1 FROM oncall_schedules WHERE id=$1 AND tenant_id=$2)`, a.ScheduleID, tenantID)
+// DeleteSchedule removes a schedule.
+func (r *OnCallRepository) DeleteSchedule(ctx context.Context, tenantID, id uuid.UUID) error {
+	result, err := r.db.Pool().Exec(ctx, `DELETE FROM oncall_schedules WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete schedule: %w", err)
 	}
-	if !exists {
-		return ErrScheduleNotFound
+	rows := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("schedule not found: %s", id)
 	}
-	_, err = r.db.NamedExecContext(ctx,
-		`INSERT INTO oncall_assignments (id, schedule_id, assignee_id, assignee_name, role, start_time, end_time, created_at)
-		 VALUES (:id, :scheduleId, :assigneeId, :assigneeName, :role, :startTime, :endTime, :createdAt)`,
-		a)
-	return err
-}
-
-func (r *Repository) GetAssignment(ctx context.Context, tenantID, id string) (*models.Assignment, error) {
-	var a models.Assignment
-	err := r.db.GetContext(ctx, &a,
-		`SELECT a.* FROM oncall_assignments a
-		 INNER JOIN oncall_schedules s ON s.id = a.schedule_id
-		 WHERE a.id=$1 AND s.tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	return &a, nil
-}
-
-func (r *Repository) ListAssignments(ctx context.Context, tenantID string, scheduleID *string) ([]models.Assignment, int, error) {
-	where := "INNER JOIN oncall_schedules s ON s.id = a.schedule_id WHERE s.tenant_id = $1"
-	args := []interface{}{tenantID}
-	argIdx := 2
-
-	if scheduleID != nil && *scheduleID != "" {
-		where += fmt.Sprintf(" AND a.schedule_id = $%d", argIdx)
-		args = append(args, *scheduleID)
-		argIdx++
-	}
-
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM oncall_assignments a %s`, where)
-	var total int
-	err := r.db.GetContext(ctx, &total, countQuery, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var items []models.Assignment
-	selectQuery := fmt.Sprintf(`SELECT a.* FROM oncall_assignments a %s ORDER BY a.start_time DESC`, where)
-	err = r.db.SelectContext(ctx, &items, selectQuery, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	return items, total, nil
-}
-
-func (r *Repository) UpdateAssignment(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Assignment, error) {
-	// Ensure assignment belongs to tenant's schedule
-	_ , err := r.GetAssignment(ctx, tenantID, id)
-	if err != nil {
-		return nil, err
-	}
-	setClauses := []string{}
-	assignArgs := []interface{}{}
-	i := 1
-	for key, val := range updates {
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, i))
-		assignArgs = append(assignArgs, val)
-		i++
-	}
-	assignArgs = append(assignArgs, id, tenantID)
-	query := fmt.Sprintf(`UPDATE oncall_assignments a SET %s
-		 FROM oncall_schedules s WHERE s.id = a.schedule_id AND a.id=$%d AND s.tenant_id=$%d`,
-		strings.Join(setClauses, ", "), i, i+1)
-	_, err = r.db.ExecContext(ctx, query, assignArgs...)
-	if err != nil {
-		return nil, err
-	}
-	return r.GetAssignment(ctx, tenantID, id)
-}
-
-func (r *Repository) DeleteAssignment(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM oncall_assignments a
-		 USING oncall_schedules s WHERE s.id = a.schedule_id AND a.id=$1 AND s.tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return false, err
-	}
-	n, _ := result.RowsAffected()
-	return n > 0, nil
-}
-
-// --- Override CRUD ---
-
-func (r *Repository) CreateOverride(ctx context.Context, tenantID string, o *models.Override) error {
-	o.ID = uuid.New().String()
-	o.CreatedAt = time.Now().UTC()
-	// Validate schedule belongs to tenant
-	var exists bool
-	err := r.db.GetContext(ctx, &exists,
-		`SELECT EXISTS(SELECT 1 FROM oncall_schedules WHERE id=$1 AND tenant_id=$2)`, o.ScheduleID, tenantID)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return ErrScheduleNotFound
-	}
-	_, err = r.db.NamedExecContext(ctx,
-		`INSERT INTO oncall_overrides (id, schedule_id, assignee_id, assignee_name, reason, start_time, end_time, created_at)
-		 VALUES (:id, :scheduleId, :assigneeId, :assigneeName, :reason, :startTime, :endTime, :createdAt)`,
-		o)
-	return err
-}
-
-func (r *Repository) GetOverride(ctx context.Context, tenantID, id string) (*models.Override, error) {
-	var o models.Override
-	err := r.db.GetContext(ctx, &o,
-		`SELECT o.* FROM oncall_overrides o
-		 INNER JOIN oncall_schedules s ON s.id = o.schedule_id
-		 WHERE o.id=$1 AND s.tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	return &o, nil
-}
-
-func (r *Repository) ListOverrides(ctx context.Context, tenantID string, scheduleID *string) ([]models.Override, int, error) {
-	where := "INNER JOIN oncall_schedules s ON s.id = o.schedule_id WHERE s.tenant_id = $1"
-	args := []interface{}{tenantID}
-	argIdx := 2
-
-	if scheduleID != nil && *scheduleID != "" {
-		where += fmt.Sprintf(" AND o.schedule_id = $%d", argIdx)
-		args = append(args, *scheduleID)
-		argIdx++
-	}
-
-	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM oncall_overrides o %s`, where)
-	var total int
-	dbErr := r.db.GetContext(ctx, &total, countQuery, args...)
-	if dbErr != nil {
-		return nil, 0, dbErr
-	}
-
-	var items []models.Override
-	selectQuery := fmt.Sprintf(`SELECT o.* FROM oncall_overrides o %s ORDER BY o.start_time DESC`, where)
-	err := r.db.SelectContext(ctx, &items, selectQuery, args...)
-	if err != nil {
-		return nil, 0, err
-	}
-	return items, total, nil
-}
-
-func (r *Repository) UpdateOverride(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Override, error) {
-	// Ensure override belongs to tenant's schedule
-	_ , err := r.GetOverride(ctx, tenantID, id)
-	if err != nil {
-		return nil, err
-	}
-	setClauses := []string{}
-	assignArgs := []interface{}{}
-	i := 1
-	for key, val := range updates {
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, i))
-		assignArgs = append(assignArgs, val)
-		i++
-	}
-	assignArgs = append(assignArgs, id, tenantID)
-	query := fmt.Sprintf(`UPDATE oncall_overrides o SET %s
-		 FROM oncall_schedules s WHERE s.id = o.schedule_id AND o.id=$%d AND s.tenant_id=$%d`,
-		strings.Join(setClauses, ", "), i, i+1)
-	_, err = r.db.ExecContext(ctx, query, assignArgs...)
-	if err != nil {
-		return nil, err
-	}
-	return r.GetOverride(ctx, tenantID, id)
-}
-
-func (r *Repository) DeleteOverride(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM oncall_overrides o
-		 USING oncall_schedules s WHERE s.id = o.schedule_id AND o.id=$1 AND s.tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return false, err
-	}
-	n, _ := result.RowsAffected()
-	return n > 0, nil
-}
-
-// --- On-Call Now ---
-
-// GetScheduleAssignments retrieves active assignments for a schedule at a given time.
-func (r *Repository) GetScheduleAssignments(ctx context.Context, tenantID, scheduleID string, now time.Time) ([]models.Assignment, error) {
-	var items []models.Assignment
-	err := r.db.SelectContext(ctx, &items,
-		`SELECT a.* FROM oncall_assignments a
-		 INNER JOIN oncall_schedules s ON s.id = a.schedule_id
-		 WHERE a.schedule_id = $1
-		   AND s.tenant_id = $2
-		   AND a.start_time <= $3
-		   AND a.end_time >= $3
-		   AND s.status = 'active'
-		 ORDER BY a.start_time`, scheduleID, tenantID, now)
-	if err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-// GetActiveOverrides retrieves active overrides for a schedule at a given time.
-func (r *Repository) GetActiveOverrides(ctx context.Context, tenantID, scheduleID string, now time.Time) ([]models.Override, error) {
-	var items []models.Override
-	err := r.db.SelectContext(ctx, &items,
-		`SELECT o.* FROM oncall_overrides o
-		 INNER JOIN oncall_schedules s ON s.id = o.schedule_id
-		 WHERE o.schedule_id = $1
-		   AND s.tenant_id = $2
-		   AND o.start_time <= $3
-		   AND o.end_time >= $3
-		 ORDER BY o.start_time`, scheduleID, tenantID, now)
-	if err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-// --- Errors ---
-
-var (
-	ErrScheduleNotFound   = errors.New("schedule not found")
-	ErrAssignmentNotFound = errors.New("assignment not found")
-	ErrOverrideNotFound   = errors.New("override not found")
-)
-
-func IsNotFound(err error) bool {
-	return errors.Is(err, ErrScheduleNotFound) || errors.Is(err, ErrAssignmentNotFound) || errors.Is(err, ErrOverrideNotFound)
-}
-
-func ErrScheduleNotFoundID(id string) error {
-	return fmt.Errorf("schedule %q not found: %w", id, ErrScheduleNotFound)
+	return nil
 }

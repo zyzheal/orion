@@ -150,7 +150,8 @@ func (r *Repository) batchUpdateHelper(tx *sqlx.Tx, id string, tenantID string, 
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 // BatchCreateCIs inserts multiple CIs in one transaction.

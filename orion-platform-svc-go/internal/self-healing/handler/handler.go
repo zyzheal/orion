@@ -1,299 +1,176 @@
 package handler
 
 import (
+	"net/http"
 	"strconv"
 
-	"orion/go-common/pkg/auth"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/self-healing/models"
 	"orion/platform-svc-go/internal/self-healing/service"
-
-	"orion/platform-svc-go/internal/middleware"
-
-	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 )
 
-type Handler struct {
-	svc *service.Service
+type SelfHealingHandler struct {
+	svc *service.SelfHealingService
 }
 
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+func NewSelfHealingHandler(svc *service.SelfHealingService) *SelfHealingHandler {
+	return &SelfHealingHandler{svc: svc}
 }
 
-// RegisterRoutes registers the self-healing endpoints.
-func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	r := rg.Group("/self-healing")
-
-	// Incidents
-	r.POST("/incidents",
-		auth.RequirePermission("self-healing", "write"),
-		h.CreateIncident)
-	r.GET("/incidents/:id",
-		auth.RequirePermission("self-healing", "read"),
-		h.GetIncident)
-
-	// History
-	r.GET("/history",
-		auth.RequirePermission("self-healing", "read"),
-		h.ListHistory)
-
-	// Effectiveness
-	r.GET("/effectiveness",
-		auth.RequirePermission("self-healing", "read"),
-		h.GetEffectiveness)
-
-	// Strategies
-	r.GET("/strategies",
-		auth.RequirePermission("self-healing", "read"),
-		h.ListStrategies)
-	r.GET("/strategies/:id",
-		auth.RequirePermission("self-healing", "read"),
-		h.GetStrategy)
-	r.POST("/strategies/:id/toggle",
-		auth.RequirePermission("self-healing", "write"),
-		h.ToggleStrategy)
-	r.POST("/strategies",
-		auth.RequirePermission("self-healing", "write"),
-		h.RegisterStrategy)
-
-	// Approvals
-	r.GET("/approvals",
-		auth.RequirePermission("self-healing", "read"),
-		h.ListApprovals)
-	r.GET("/approvals/:id",
-		auth.RequirePermission("self-healing", "read"),
-		h.GetApproval)
-	r.POST("/approvals/:id/respond",
-		auth.RequirePermission("self-healing", "approve"),
-		h.RespondApproval)
+func (h *SelfHealingHandler) GetTenantID(c *gin.Context) uuid.UUID {
+	tenantID, _ := uuid.Parse(c.GetString("tenantId"))
+	return tenantID
 }
 
-// === Incidents ===
+// RegisterRoutes registers self-healing routes.
+func (h *SelfHealingHandler) RegisterRoutes(rg *gin.RouterGroup) {
+	actions := rg.Group("/selfhealing/actions")
 
-func (h *Handler) CreateIncident(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateIncident")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	ctx = middleware.TimeoutContext(c)
+	actions.GET("", auth.RequirePermission("monitor", "read"), h.ListActions)
+	actions.POST("", auth.RequirePermission("monitor", "write"), h.CreateAction)
+	actions.GET("/:id", auth.RequirePermission("monitor", "read"), h.GetAction)
+	actions.PUT("/:id", auth.RequirePermission("monitor", "write"), h.UpdateAction)
+	actions.DELETE("/:id", auth.RequirePermission("monitor", "delete"), h.DeleteAction)
+	actions.POST("/:id/execute", auth.RequirePermission("monitor", "execute"), h.ExecuteAction)
 
-	var req models.CreateIncidentRequest
+	rg.GET("/selfhealing/history", auth.RequirePermission("monitor", "read"), h.ListHistory)
+}
+
+// ListActions returns paginated healing actions.
+func (h *SelfHealingHandler) ListActions(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	resp, err := h.svc.QueryHealingActions(c.Request.Context(), tenantID, limit, offset)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.Respond(c, http.StatusOK, gin.H{
+		"total": resp.Total,
+		"data":  resp.Data,
+	})
+}
+
+// CreateAction creates a new healing action.
+func (h *SelfHealingHandler) CreateAction(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	var req models.CreateHealingActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
-	incident, err := h.svc.CreateIncident(ctx, tenantID, req)
-	if err != nil {
-		middleware.RespondBadRequest(c, err.Error())
-		return
-	}
-	middleware.RespondCreated(c, incident)
-}
-
-func (h *Handler) GetIncident(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIncident")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	ctx = middleware.TimeoutContext(c)
-
-	incident, err := h.svc.GetIncident(ctx, tenantID, c.Param("id"))
-	if err != nil {
-		middleware.RespondNotFound(c, "incident not found")
-		return
-	}
-	middleware.RespondSuccess(c, incident)
-}
-
-// === History ===
-
-func (h *Handler) ListHistory(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistory")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	ctx = middleware.TimeoutContext(c)
-
-	q := models.HistoryQuery{
-		AppName:     c.Query("appName"),
-		Environment: c.Query("environment"),
-		Type:        c.Query("type"),
-		Status:      c.Query("status"),
-		Severity:    c.Query("severity"),
-	}
-	if p := c.Query("page"); p != "" {
-		q.Page, _ = strconv.Atoi(p)
-	}
-	if l := c.Query("limit"); l != "" {
-		q.Limit, _ = strconv.Atoi(l)
-	}
-	if q.Page <= 0 {
-		q.Page = 1
-	}
-	if q.Limit <= 0 || q.Limit > 100 {
-		q.Limit = 20
-	}
-
-	incidents, total, err := h.svc.ListHistory(ctx, tenantID, q)
+	action, err := h.svc.CreateHealingAction(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{
-		"data":  incidents,
-		"total": total,
-	})
+	middleware.RespondCreated(c, action)
 }
 
-// === Effectiveness ===
-
-func (h *Handler) GetEffectiveness(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEffectiveness")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	ctx = middleware.TimeoutContext(c)
-
-	q := models.EffectivenessQuery{
-		AppName:     c.Query("appName"),
-		Environment: c.Query("environment"),
-	}
-
-	eff, err := h.svc.GetEffectiveness(ctx, tenantID, q)
+// GetAction returns a healing action by ID.
+func (h *SelfHealingHandler) GetAction(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		middleware.RespondBadRequest(c, "invalid id format")
 		return
 	}
-	middleware.RespondSuccess(c, eff)
-}
 
-// === Strategies ===
-
-func (h *Handler) ListStrategies(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListStrategies")
-	defer span.End()
-	ctx = middleware.TimeoutContext(c)
-
-	strategies, err := h.svc.ListStrategies(ctx)
+	action, err := h.svc.GetHealingAction(c.Request.Context(), tenantID, id)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{
-		"data":  strategies,
-		"total": len(strategies),
-	})
+	middleware.Respond(c, http.StatusOK, action)
 }
 
-func (h *Handler) GetStrategy(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStrategy")
-	defer span.End()
-	ctx = middleware.TimeoutContext(c)
-
-	strategy, err := h.svc.GetStrategy(ctx, c.Param("id"))
+// UpdateAction updates a healing action.
+func (h *SelfHealingHandler) UpdateAction(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		middleware.RespondNotFound(c, "strategy not found")
+		middleware.RespondBadRequest(c, "invalid id format")
 		return
 	}
-	middleware.RespondSuccess(c, strategy)
-}
 
-func (h *Handler) ToggleStrategy(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleStrategy")
-	defer span.End()
-	ctx = middleware.TimeoutContext(c)
-
-	var req models.ToggleStrategyRequest
+	var req struct {
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+		Command     *string `json:"command"`
+		IsEnabled   *bool   `json:"is_enabled"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
-	err := h.svc.ToggleStrategy(ctx, c.Param("id"), req.Enabled)
+	action, err := h.svc.UpdateHealingAction(c.Request.Context(), tenantID, id, req.Name, req.Description, req.Command, req.IsEnabled)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{
-		"id":      c.Param("id"),
-		"enabled": req.Enabled,
-	})
+	middleware.Respond(c, http.StatusOK, action)
 }
 
-func (h *Handler) RegisterStrategy(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterStrategy")
-	defer span.End()
-	ctx = middleware.TimeoutContext(c)
-
-	var req models.RegisterStrategyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+// DeleteAction removes a healing action.
+func (h *SelfHealingHandler) DeleteAction(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		middleware.RespondBadRequest(c, "invalid id format")
 		return
 	}
 
-	strategy, err := h.svc.RegisterStrategy(ctx, req)
+	if err := h.svc.DeleteHealingAction(c.Request.Context(), tenantID, id); err != nil {
+		middleware.RespondNotFound(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusNoContent, nil)
+}
+
+// ExecuteAction triggers execution of a healing action.
+func (h *SelfHealingHandler) ExecuteAction(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		middleware.RespondBadRequest(c, "invalid id format")
+		return
+	}
+
+	triggeredBy := c.GetString("userId")
+	if triggeredBy == "" {
+		triggeredBy = "manual"
+	}
+
+	history, err := h.svc.ExecuteAction(c.Request.Context(), tenantID, id, triggeredBy)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondCreated(c, strategy)
+	middleware.Respond(c, http.StatusAccepted, history)
 }
 
-// === Approvals ===
-
-func (h *Handler) ListApprovals(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListApprovals")
-	defer span.End()
-	ctx = middleware.TimeoutContext(c)
+// ListHistory returns paginated healing history.
+func (h *SelfHealingHandler) ListHistory(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	actionID, _ := uuid.Parse(c.Query("action_id"))
 	status := c.Query("status")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	approvals, err := h.svc.ListApprovals(ctx, status)
+	resp, err := h.svc.QueryHealingHistory(c.Request.Context(), tenantID, actionID, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{
-		"data":  approvals,
-		"total": len(approvals),
-	})
-}
-
-func (h *Handler) GetApproval(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApproval")
-	defer span.End()
-	ctx = middleware.TimeoutContext(c)
-
-	approval, err := h.svc.GetApproval(ctx, c.Param("id"))
-	if err != nil {
-		middleware.RespondNotFound(c, "approval request not found")
-		return
-	}
-	middleware.RespondSuccess(c, approval)
-}
-
-func (h *Handler) RespondApproval(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RespondApproval")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	ctx = middleware.TimeoutContext(c)
-
-	var req models.RespondApprovalRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.RespondBadRequest(c, err.Error())
-		return
-	}
-
-	incident, err := h.svc.RespondApproval(ctx, tenantID, c.Param("id"), req)
-	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
-		return
-	}
-	message := "Healing execution started"
-	if !req.Approved {
-		message = "Approval rejected"
-	}
-	middleware.RespondSuccess(c, gin.H{
-		"incidentId":     incident.ID,
-		"status":         incident.Status,
-		"approvalStatus": incident.ApprovalStatus,
-		"message":        message,
+	middleware.Respond(c, http.StatusOK, gin.H{
+		"total": resp.Total,
+		"data":  resp.Data,
 	})
 }

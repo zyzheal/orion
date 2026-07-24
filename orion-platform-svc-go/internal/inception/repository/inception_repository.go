@@ -459,7 +459,8 @@ func (r *Repository) PurgeExpiredReports(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+	n, _ := res.RowsAffected()
+	return n, nil
 }
 
 // ---------------------------------------------------------------------------

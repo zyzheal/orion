@@ -1,128 +1,72 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // Schedule represents an on-call schedule.
 type Schedule struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenantId" db:"tenant_id"`
-	Name        string    `json:"name" db:"name"`
-	Timezone    string    `json:"timezone" db:"timezone"`
-	RotationType string   `json:"rotationType" db:"rotation_type"`
-	StartDate   *time.Time `json:"startDate" db:"start_date"`
-	EndDate     *time.Time `json:"endDate" db:"end_date"`
-	Status      string    `json:"status" db:"status"`
-	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	TenantID    uuid.UUID `json:"tenant_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	IsPrimary   bool      `json:"is_primary"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// CreateScheduleRequest is the body for creating a schedule.
+// Rotation represents a rotation entry within a schedule.
+type Rotation struct {
+	ID         uuid.UUID `json:"id"`
+	ScheduleID uuid.UUID `json:"schedule_id"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	IsActive   bool      `json:"is_active"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// EscalationPath defines the order of escalation.
+type EscalationPath struct {
+	ID          uuid.UUID `json:"id"`
+	ScheduleID  uuid.UUID `json:"schedule_id"`
+	Level       int       `json:"level"`
+	UserID      string    `json:"user_id"`
+	UserName    string    `json:"user_name"`
+	IsCurrent   bool      `json:"is_current"`
+}
+
+// CreateScheduleRequest for creating a schedule.
 type CreateScheduleRequest struct {
-	Name        string   `json:"name" binding:"required"`
-	Timezone    string   `json:"timezone"`
-	RotationType string  `json:"rotationType"`
-	StartDate   *string  `json:"startDate"`
-	EndDate     *string  `json:"endDate"`
-	Status      string   `json:"status"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	IsPrimary   *bool  `json:"is_primary"`
 }
 
-// UpdateScheduleRequest is the body for updating a schedule.
-type UpdateScheduleRequest struct {
-	Name        *string  `json:"name"`
-	Timezone    *string  `json:"timezone"`
-	RotationType *string `json:"rotationType"`
-	StartDate   *string  `json:"startDate"`
-	EndDate     *string  `json:"endDate"`
-	Status      *string  `json:"status"`
+// AddRotationRequest for adding a rotation to a schedule.
+type AddRotationRequest struct {
+	UserID    string    `json:"user_id" binding:"required"`
+	UserName  string    `json:"user_name" binding:"required"`
+	StartDate time.Time `json:"start_date" binding:"required"`
+	EndDate   time.Time `json:"end_date" binding:"required"`
 }
 
-// Assignment represents an on-call assignment within a schedule.
-type Assignment struct {
-	ID          string    `json:"id" db:"id"`
-	ScheduleID  string    `json:"scheduleId" db:"schedule_id"`
-	AssigneeID  string    `json:"assigneeId" db:"assignee_id"`
-	AssigneeName string   `json:"assigneeName" db:"assignee_name"`
-	Role        string    `json:"role" db:"role"`
-	StartTime   time.Time `json:"startTime" db:"start_time"`
-	EndTime     time.Time `json:"endTime" db:"end_time"`
-	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+// ScheduleResponse wraps schedule query results.
+type ScheduleResponse struct {
+	Total int64      `json:"total"`
+	Data  []Schedule `json:"data"`
 }
 
-// CreateAssignmentRequest is the body for creating an assignment.
-type CreateAssignmentRequest struct {
-	ScheduleID   string `json:"scheduleId" binding:"required"`
-	AssigneeID   string `json:"assigneeId" binding:"required"`
-	AssigneeName string `json:"assigneeName" binding:"required"`
-	Role         string `json:"role"`
-	StartTime    string `json:"startTime" binding:"required"`
-	EndTime      string `json:"endTime" binding:"required"`
-}
-
-// UpdateAssignmentRequest is the body for updating an assignment.
-type UpdateAssignmentRequest struct {
-	AssigneeID   *string `json:"assigneeId"`
-	AssigneeName *string `json:"assigneeName"`
-	Role         *string `json:"role"`
-	StartTime    *string `json:"startTime"`
-	EndTime      *string `json:"endTime"`
-}
-
-// Override represents a temporary substitution for an on-call assignment.
-type Override struct {
-	ID          string    `json:"id" db:"id"`
-	ScheduleID  string    `json:"scheduleId" db:"schedule_id"`
-	AssigneeID  string    `json:"assigneeId" db:"assignee_id"`
-	AssigneeName string   `json:"assigneeName" db:"assignee_name"`
-	Reason      *string   `json:"reason" db:"reason"`
-	StartTime   time.Time `json:"startTime" db:"start_time"`
-	EndTime     time.Time `json:"endTime" db:"end_time"`
-	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
-}
-
-// CreateOverrideRequest is the body for creating an override.
-type CreateOverrideRequest struct {
-	ScheduleID   string `json:"scheduleId" binding:"required"`
-	AssigneeID   string `json:"assigneeId" binding:"required"`
-	AssigneeName string `json:"assigneeName" binding:"required"`
-	Reason       *string `json:"reason"`
-	StartTime    string `json:"startTime" binding:"required"`
-	EndTime      string `json:"endTime" binding:"required"`
-}
-
-// UpdateOverrideRequest is the body for updating an override.
-type UpdateOverrideRequest struct {
-	AssigneeID   *string `json:"assigneeId"`
-	AssigneeName *string `json:"assigneeName"`
-	Reason       *string `json:"reason"`
-	StartTime    *string `json:"startTime"`
-	EndTime      *string `json:"endTime"`
-}
-
-// CurrentOnCallResult is the result of a "who is on-call now" query.
-type CurrentOnCallResult struct {
-	ScheduleID string    `json:"scheduleId"`
-	AssigneeID string    `json:"assigneeId"`
-	AssigneeName string   `json:"assigneeName"`
-	Role       string    `json:"role"`
-	StartTime  time.Time `json:"startTime"`
-	EndTime    time.Time `json:"endTime"`
-}
-
-// ListSchedulesResponse wraps the list of schedules.
-type ListSchedulesResponse struct {
-	Schedules []Schedule `json:"schedules"`
-	Total     int        `json:"total"`
-}
-
-// ListAssignmentsResponse wraps the list of assignments.
-type ListAssignmentsResponse struct {
-	Assignments []Assignment `json:"assignments"`
-	Total       int          `json:"total"`
-	ScheduleID  string       `json:"scheduleId"`
-}
-
-// ListOverridesResponse wraps the list of overrides.
-type ListOverridesResponse struct {
-	Overrides []Override `json:"overrides"`
-	Total     int        `json:"total"`
+// CurrentOnCallResponse shows who is currently on-call.
+type CurrentOnCallResponse struct {
+	ScheduleID uuid.UUID `json:"schedule_id"`
+	ScheduleName string   `json:"schedule_name"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+	Level      int       `json:"level"`
 }
