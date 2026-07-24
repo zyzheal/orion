@@ -2455,16 +2455,22 @@ TS 服务 → 按 Orion 4 层架构重写为 Go
 
 ### 12.4 迁移优先级与 NeatLogic 功能对标
 
-| 迁移优先级 | Orion 蓝图 | NeatLogic 对标模块 | 关键功能 | 迁移难度 |
-|-----------|-----------|-------------------|---------|---------|
-| **P0** | orion-pipeline-svc | autoexec + deploy | 自动化执行引擎、流水线编排 | 🔴 极高 |
-| **P0** | orion-monitor-svc | alert (30+ 表) | 告警管理、熔断器、ES 集成 | 🔴 高 |
-| **P1** | orion-chatops-svc | — (NeatLogic 无直接对标) | 聊天运维、命令路由 | 🟡 中 |
-| **P1** | orion-code-svc | codehub (25+ 表) | 代码仓库、构建管理 | 🟡 中 |
-| **P1** | orion-ai-svc | neatlogic-ai | RAG 检索、Agent 执行 | 🟡 中 |
-| **P1** | orion-security-svc | — (分散在各模块) | 安全扫描、供应链安全 | 🟢 低 |
-| **P2** | orion-audit-svc | — (审计日志框架层) | 审计日志、合规检查 | 🟢 低 |
-| **P2** | 其他 18 个小服务 | 对应模块 | CRUD 操作 | 🟢 低 |
+> **数据校准**: 以下 TS 源文件数为不含 `dist/` 的实际值。
+
+| 迁移优先级 | Orion 蓝图 | TS 源文件 | NeatLogic 对标模块 | 关键功能 | 迁移难度 |
+|-----------|-----------|----------|-------------------|---------|---------|
+| **P0** | orion-pipeline-svc | 117 | autoexec + deploy | 自动化执行引擎、流水线编排 | 🔴 极高 |
+| **P0** | orion-monitor-svc | 39 | alert (30+ 表) | 告警管理、熔断器、ES 集成 | 🔴 高 |
+| **P1** | orion-chatops-svc | 81 | — (NeatLogic 无直接对标) | 聊天运维、命令路由 | 🟡 中 |
+| **P1** | orion-code-svc | 52 | codehub (25+ 表) | 代码仓库、构建管理 | 🟡 中 |
+| **P1** | orion-ai-svc | 76 | neatlogic-ai | RAG 检索、Agent 执行 | 🟡 中 |
+| **P1** | orion-security-svc | 43 | — (分散在各模块) | 安全扫描、供应链安全 | 🟢 低 |
+| **P1** | orion-community-svc | 17 | — | 社区/评价/徽章 | 🟢 低 |
+| **P1** | orion-visor-svc | 11 | — | 堡垒机/主机管理 | 🟢 低 |
+| **P1** | orion-pandawiki-svc | 10 | — | Wiki 知识库 | 🟢 低 |
+| **P2** | orion-audit-svc | 15 | — (审计日志框架层) | 审计日志、合规检查 | 🟢 低 |
+| **P2** | 其他 20 个小服务 | 7-27 | 对应模块 | CRUD 操作 | 🟢 低 |
+| **⚪** | orion-db | 4 | 基础设施 | SQL Schema + Docker, 非微服务 | ⚪ 跳过 |
 
 ### 12.5 验收标准（对应 NeatLogic 质量要求）
 
@@ -2487,16 +2493,17 @@ TS 服务 → 按 Orion 4 层架构重写为 Go
 | 2.1 | Monitor TS→Go 补全 | 1.2 | 4 天 | Agent-2 |
 | 2.2 | AI TS→Go 补全 | 1.2 | 3 天 | Agent-3 |
 | 2.3 | Security TS→Go 补全 | 1.2 | 2 天 | Agent-5 |
-| 2.4 | 12 个纯 TS 新建 Go 服务 | 1.3 | 3 天 | Agent-7 |
+| 2.4 | 14 个纯 TS 新建 Go 服务 | 1.3 | 3 天 | Agent-7 |
 | 3.1 | Pipeline Phase 2+3 | 1.2, 2.1 | 3 天 | Agent-1 |
-| 3.2 | 6 个小服务新建 Go | 2.4 | 1 天 | Agent-8 |
+| 3.2 | 7 个小服务新建 Go | 2.4 | 1 天 | Agent-9 |
 | 4.0 | 全量验证 + 归档 | 全部 | 1 天 | 全体 |
 
 ### 12.7 跟踪与度量
 
 | 指标 | 当前值 | 目标值 | 度量方式 |
 |------|-------|-------|---------|
-| Go 蓝图数量 | 28 | 55 | `blueprints/*-go/` 目录计数 |
+| Go 蓝图数量 | 28 | 56 | `blueprints/*-go/` 目录计数 |
 | TS 蓝图数量 | 32 | 0 | `blueprints/*-svc/` (无 `-go` 后缀) 目录计数 |
 | 多语言占比 | Go 44% / TS 50% | Go 93% / Python 5% / Rust 2% | 语言文件占比 |
-| 迁移完成率 | 0% | 100% | `TRACKER.md` 状态 (🟢/🟡/🔴)
+| 迁移完成率 | 5% | 100% | `TRACKER.md` 状态 (🟢/🟡/🔴) |
+| 已归档配对 | 5 | 12 | 双实现配对中已标记 ARCHIVED.md 的数量 |

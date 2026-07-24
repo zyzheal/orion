@@ -203,11 +203,14 @@ Phase 5: P2 全文搜索统一 (4-6 人天)
 
 ### 6.2 现状分析
 
+> **数据校准说明**: TS 文件数为源文件数（不含 `dist/` 编译产物）。此前统计 pipeline 351 文件、monitor 105 文件均含 dist/，校准后分别为 117 和 39。
+
 | 分类 | 数量 | 文件规模 | 状态 |
 |------|------|---------|------|
 | 纯 Go 蓝图 | 32 个 | 7-115 Go 文件 | ✅ 无需迁移 |
-| 双实现重叠 (Go/TS 配对) | 12 对 | Go 715 文件 / TS 808 文件 | 🟡 需补全 Go 功能后归档 TS |
-| 纯 TS 蓝图 | 20 个 | 7-81 TS 文件 | 🔴 需新建 Go 服务 |
+| 双实现重叠 (Go/TS 配对) | 12 对 | Go 715 文件 / TS 源文件 508 | 🟡 5 对已归档, 7 对待补全 |
+| 纯 TS 蓝图 | 22 个 | 7-81 TS 源文件 | 🔴 需新建 Go 服务 |
+| 基础设施 | 1 个 (orion-db) | 4 TS 源文件 + SQL/Docker | ⚪ 非微服务, 跳过 |
 | Python 独立服务 | 3 个 | 9-14 Python 文件 | ⚪ 保留 |
 | Rust 独立服务 | 1 个 | 8 Rust 文件 | ⚪ 保留 |
 
@@ -246,16 +249,18 @@ Wave 1 (2026-07-24, 3 Agent 并行, 1-2 天)
 │   └── 产出: 4 层架构 + go.mod + Dockerfile + MIGRATION.md
 
 Wave 2 (Wave 1 完成后, 4 Agent 并行, 3-4 天)
-├── Agent-2: orion-monitor-svc TS→Go (105→20 Go 补全)
+├── Agent-2: orion-monitor-svc TS→Go (39→20 Go 补全)
 ├── Agent-3: orion-ai-svc TS→Go (76→56 Go 补全)
-├── Agent-5: orion-security-svc TS→Go (43→62 Go 补全)
-├── Agent-7: 12 个纯 TS 服务新建 Go 脚手架
-│   ├── risk, deploy, plugin, dr, artifact, digital-twin
-│   └── federation, efficiency, approval, skill, cmdb, selfhealing
+├── Agent-5: orion-security-svc TS→Go (43→62 Go 补全, 功能对等可归档)
+├── Agent-7: 14 个纯 TS 服务新建 Go 脚手架
+│   ├── 双现补全: community, visor, pandawiki (Go 路由不足, 需补全)
+│   ├── 新建 Go: risk, deploy, plugin, dr, artifact, digital-twin
+│   └── 新建 Go: federation, efficiency, approval, dba, knowledge
+├── Agent-8: 4 个新建 Go 服务 (chatops/code/audit/agent) Repository 补全
 
 Wave 3 (Wave 2 完成后, 2 Agent 并行, 1-2 天)
 ├── Agent-1 续: Pipeline Phase 2+3 (15+5 个缺失域)
-├── Agent-8: 6 个小服务 (graph, inception, runner, cmdb, selfhealing, skill)
+├── Agent-9: 7 个小服务 (graph, inception, runner, cmdb, selfhealing, skill, platform-core)
 └── 全量 TS 归档 + 验证
 ```
 
