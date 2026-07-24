@@ -4,140 +4,98 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
-	"github.com/google/uuid"
-
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/skill/models"
+	"orion/platform-svc-go/internal/skill/repository"
+
+	_ "github.com/lib/pq"
 )
 
+// Service provides business logic for the skill module.
+// It delegates all data persistence to RepositoryInterface.
 type Service struct {
-	mu sync.RWMutex
-
-	skills        map[string]*models.Skill
-	versions      map[string][]*models.SkillVersion
-	ratings       map[string][]int
-	instances     map[string]*models.SkillInstance
-	executions    map[string]*models.SkillExecution
-	reviews       map[string]*models.SkillReview
-	auditLogs     []*models.SkillAuditLog
-	auditLogIDSeq int
+	repo repository.RepositoryInterface
 }
 
-func NewService() *Service {
-	return &Service{
-		skills:     make(map[string]*models.Skill),
-		versions:   make(map[string][]*models.SkillVersion),
-		ratings:    make(map[string][]int),
-		instances:  make(map[string]*models.SkillInstance),
-		executions: make(map[string]*models.SkillExecution),
-		reviews:    make(map[string]*models.SkillReview),
-	}
+// NewService creates a new Service backed by the given repository.
+func NewService(repo repository.RepositoryInterface) *Service {
+	return &Service{repo: repo}
 }
 
 // ==================== Skill CRUD ====================
 
 func (s *Service) ListSkills(ctx context.Context, tenantID string, category, status string, page, limit int) ([]models.Skill, int64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []models.Skill
-	for _, skill := range s.skills {
-		if tenantID != "" && skill.TenantID != tenantID {
-			continue
-		}
-		if category != "" && skill.Category != category {
-			_ = skill.Category
-			continue
-		}
-		if status != "" && skill.Status != status {
-			continue
-		}
-		result = append(result, *skill)
+	skills, err := s.repo.ListSkills(ctx, tenantID, category, status)
+	if err != nil {
+		return nil, 0
 	}
-	return result, int64(len(result))
+	return skills, int64(len(skills))
 }
 
 func (s *Service) GetSkill(ctx context.Context, tenantID, id string) (*models.Skill, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	skill, ok := s.skills[id]
-	if !ok {
-		return nil, ErrSkillNotFound
-	}
-	if tenantID != "" && skill.TenantID != tenantID {
-		return nil, ErrSkillNotFound
+	skill, err := s.repo.GetSkill(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, sentinel.NotFound) {
+			return nil, ErrSkillNotFound
+		}
+		return nil, err
 	}
 	return skill, nil
 }
 
 func (s *Service) CreateSkill(ctx context.Context, tenantID string, req models.CreateSkillRequest) (*models.Skill, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	id := uuid.New().String()
-	now := time.Now().UTC()
 	skill := &models.Skill{
-		ID:           id,
-		TenantID:     tenantID,
-		Name:         req.Name,
-		Description:  req.Description,
-		Category:     req.Category,
-		Status:       "draft",
-		InstallCount: 0,
-		AvgRating:    0,
-		RatingCount:  0,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		Name:        req.Name,
+		Description: req.Description,
+		Category:    req.Category,
 	}
-	s.skills[id] = skill
-	s.appendAuditLog(skill, "create", tenantID, "")
+	err := s.repo.CreateSkill(ctx, tenantID, skill)
+	if err != nil {
+		return nil, err
+	}
 	return skill, nil
 }
 
 func (s *Service) UpdateSkill(ctx context.Context, tenantID, id string, req models.UpdateSkillRequest) (*models.Skill, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	skill, ok := s.skills[id]
-	if !ok {
-		return nil, ErrSkillNotFound
-	}
-	if tenantID != "" && skill.TenantID != tenantID {
-		return nil, ErrSkillNotFound
-	}
+	updates := make(map[string]interface{})
 	if req.Name != nil {
-		skill.Name = *req.Name
+		updates["name"] = *req.Name
 	}
 	if req.Description != nil {
-		skill.Description = *req.Description
+		updates["description"] = *req.Description
 	}
 	if req.Category != nil {
-		skill.Category = *req.Category
+		updates["category"] = *req.Category
 	}
-	skill.UpdatedAt = time.Now().UTC()
-	s.appendAuditLog(skill, "update", tenantID, "")
+
+	err := s.repo.UpdateSkill(ctx, tenantID, id, updates)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, ErrSkillNotFound
+		}
+		return nil, err
+	}
+
+	skill, err := s.repo.GetSkill(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
 	return skill, nil
 }
 
 func (s *Service) DeleteSkill(ctx context.Context, tenantID, id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	skill, ok := s.skills[id]
-	if !ok {
-		return ErrSkillNotFound
+	err := s.repo.DeleteSkill(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return ErrSkillNotFound
+		}
+		return err
 	}
-	if tenantID != "" && skill.TenantID != tenantID {
-		return ErrSkillNotFound
-	}
-	skill.Status = "archived"
-	skill.UpdatedAt = time.Now().UTC()
-	s.appendAuditLog(skill, "delete", tenantID, "")
 	return nil
 }
 
@@ -148,51 +106,41 @@ func (s *Service) ListVersions(ctx context.Context, tenantID, skillID string) ([
 	if err != nil {
 		return nil, err
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	ptrVersions := s.versions[skillID]
-	versions := make([]models.SkillVersion, len(ptrVersions))
-	for i, v := range ptrVersions {
-		versions[i] = *v
-	}
-	return versions, nil
+	versions, err := s.repo.ListVersions(ctx, skillID)
+	return versions, err
 }
 
 func (s *Service) AddVersion(ctx context.Context, tenantID, skillID string, req models.AddVersionRequest) (*models.SkillVersion, error) {
-	skill, err := s.GetSkill(ctx, tenantID, skillID)
+	_, err := s.GetSkill(ctx, tenantID, skillID)
 	if err != nil {
 		return nil, err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// Check duplicate version
-	for _, v := range s.versions[skillID] {
-		if v.Version == req.Version {
-			return nil, ErrDuplicateVersion
-		}
+	exists, err := s.repo.VersionExists(ctx, skillID, req.Version)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrDuplicateVersion
 	}
 
-	id := uuid.New().String()
-	now := time.Now().UTC()
 	version := &models.SkillVersion{
-		ID:        id,
-		SkillID:   skillID,
-		Version:   req.Version,
-		Changes:   req.Changes,
-		CreatedAt: now,
+		SkillID: skillID,
+		Version: req.Version,
+		Changes: req.Changes,
 	}
-	s.versions[skillID] = append(s.versions[skillID], version)
-	s.appendAuditLog(skill, "version", tenantID, req.Version)
+	err = s.repo.CreateVersion(ctx, version)
+	if err != nil {
+		return nil, err
+	}
 	return version, nil
 }
 
 // ==================== Rating ====================
 
 func (s *Service) RateSkill(ctx context.Context, tenantID, skillID, userID string, req models.RateSkillRequest) (*models.Skill, error) {
-	skill, err := s.GetSkill(ctx, tenantID, skillID)
+	_, err := s.GetSkill(ctx, tenantID, skillID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,67 +148,38 @@ func (s *Service) RateSkill(ctx context.Context, tenantID, skillID, userID strin
 		return nil, errors.New("rating must be between 1 and 5")
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.ratings[skillID] = append(s.ratings[skillID], req.Rating)
-	ratingList := s.ratings[skillID]
-	total := 0
-	for _, r := range ratingList {
-		total += r
-	}
-	skill.AvgRating = float64(total) / float64(len(ratingList))
-	skill.RatingCount = len(ratingList)
-	skill.UpdatedAt = time.Now().UTC()
-	s.appendAuditLog(skill, "rate", tenantID, fmt.Sprintf("%d by %s", req.Rating, userID))
-	return skill, nil
-}
-
-func (s *Service) GetRatingStats(ctx context.Context, tenantID, skillID string) (*map[string]any, error) {
-	skill, err := s.GetSkill(ctx, tenantID, skillID)
+	err = s.repo.RateSkill(ctx, skillID, req.Rating)
 	if err != nil {
 		return nil, err
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	// skill is already loaded via GetSkill
-	ratingList := s.ratings[skillID]
-	stats := make(map[string]int)
-	for _, r := range ratingList {
-		stats[fmt.Sprintf("%d", r)]++
+
+	// Reload the updated skill
+	skill, err := s.repo.GetSkill(ctx, tenantID, skillID)
+	return skill, err
+}
+
+func (s *Service) GetRatingStats(ctx context.Context, tenantID, skillID string) (*map[string]any, error) {
+	_, err := s.GetSkill(ctx, tenantID, skillID)
+	if err != nil {
+		return nil, err
 	}
-	result := make(map[string]any)
-	result["avg_rating"] = skill.AvgRating
-	result["rating_count"] = skill.RatingCount
-	result["distribution"] = stats
-	return &result, nil
+	stats, err := s.repo.GetRatingStats(ctx, skillID)
+	return stats, err
 }
 
 // ==================== Skill instances ====================
 
 func (s *Service) ListInstances(ctx context.Context, tenantID string) ([]models.SkillInstance, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []models.SkillInstance
-	for _, inst := range s.instances {
-		if inst.TenantID == tenantID {
-			result = append(result, *inst)
-		}
-	}
-	return result, nil
+	return s.repo.ListInstances(ctx, tenantID)
 }
 
 func (s *Service) GetInstance(ctx context.Context, tenantID, id string) (*models.SkillInstance, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	inst, ok := s.instances[id]
-	if !ok {
-		return nil, ErrInstanceNotFound
-	}
-	if inst.TenantID != tenantID {
-		return nil, ErrInstanceNotFound
+	inst, err := s.repo.GetInstance(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, sentinel.NotFound) {
+			return nil, ErrInstanceNotFound
+		}
+		return nil, err
 	}
 	return inst, nil
 }
@@ -271,77 +190,63 @@ func (s *Service) CreateInstance(ctx context.Context, tenantID, skillID string, 
 		return nil, err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	id := uuid.New().String()
-	now := time.Now().UTC()
 	inst := &models.SkillInstance{
-		ID:           id,
 		SkillID:      skillID,
 		TenantID:     tenantID,
 		InstanceName: req.InstanceName,
 		Config:       req.Config,
-		Status:       "active",
-		CreatedAt:    now,
-		UpdatedAt:    now,
 	}
-	s.instances[id] = inst
+	err = s.repo.CreateInstance(ctx, inst)
+	if err != nil {
+		return nil, err
+	}
 
 	// Increment install count
-	if skill, ok := s.skills[skillID]; ok {
-		skill.InstallCount++
-		skill.UpdatedAt = now
-	}
-	s.appendAuditLog(&models.Skill{ID: skillID, TenantID: tenantID}, "install", tenantID, id)
+	_ = s.repo.UpdateInstallCount(ctx, skillID, 1)
+
 	return inst, nil
 }
 
 func (s *Service) UpdateInstance(ctx context.Context, tenantID, id string, req models.UpdateInstanceRequest) (*models.SkillInstance, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	inst, ok := s.instances[id]
-	if !ok {
-		return nil, ErrInstanceNotFound
-	}
-	if inst.TenantID != tenantID {
-		return nil, ErrInstanceNotFound
-	}
+	updates := make(map[string]interface{})
 	if req.InstanceName != nil {
-		inst.InstanceName = *req.InstanceName
+		updates["instance_name"] = *req.InstanceName
 	}
 	if req.Config != nil {
-		inst.Config = *req.Config
+		updates["config"] = *req.Config
 	}
 	if req.Status != nil {
-		inst.Status = *req.Status
+		updates["status"] = *req.Status
 	}
-	inst.UpdatedAt = time.Now().UTC()
-	s.appendAuditLog(&models.Skill{ID: inst.SkillID, TenantID: tenantID}, "update_instance", tenantID, id)
-	return inst, nil
+	if len(updates) == 0 {
+		return s.GetInstance(ctx, tenantID, id)
+	}
+
+	err := s.repo.UpdateInstance(ctx, tenantID, id, updates)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, ErrInstanceNotFound
+		}
+		return nil, err
+	}
+
+	return s.GetInstance(ctx, tenantID, id)
 }
 
 func (s *Service) DeleteInstance(ctx context.Context, tenantID, id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	inst, err := s.GetInstance(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
 
-	inst, ok := s.instances[id]
-	if !ok {
-		return ErrInstanceNotFound
+	err = s.repo.DeleteInstance(ctx, tenantID, id)
+	if err != nil {
+		return err
 	}
-	if inst.TenantID != tenantID {
-		return ErrInstanceNotFound
-	}
-	delete(s.instances, id)
 
 	// Decrement install count
-	if skill, ok := s.skills[inst.SkillID]; ok {
-		if skill.InstallCount > 0 {
-			skill.InstallCount--
-		}
-	}
-	s.appendAuditLog(&models.Skill{ID: inst.SkillID, TenantID: tenantID}, "uninstall", tenantID, id)
+	_ = s.repo.UpdateInstallCount(ctx, inst.SkillID, -1)
+
 	return nil
 }
 
@@ -353,38 +258,20 @@ func (s *Service) ExecuteSkill(ctx context.Context, tenantID, skillID, userID st
 		return nil, err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	id := uuid.New().String()
-	now := time.Now().UTC()
 	execution := &models.SkillExecution{
-		ID:         id,
 		SkillID:    skillID,
 		TenantID:   tenantID,
 		UserID:     userID,
 		Status:     "completed",
 		DurationMs: 120,
-		CreatedAt:  now,
 	}
-	s.executions[id] = execution
-	s.appendAuditLog(&models.Skill{ID: skillID, TenantID: tenantID}, "execute", tenantID, userID)
-	return execution, nil
+	err = s.repo.CreateExecution(ctx, execution)
+	return execution, err
 }
 
 func (s *Service) ListExecutions(ctx context.Context, tenantID, skillID string, page, limit int) ([]models.SkillExecution, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []models.SkillExecution
-	for _, exec := range s.executions {
-		if exec.TenantID == tenantID && (skillID == "" || exec.SkillID == skillID) {
-			result = append(result, *exec)
-		}
-	}
-	_ = page
-	_ = limit
-	return result, nil
+	executions, err := s.repo.ListExecutions(ctx, tenantID, skillID)
+	return executions, err
 }
 
 // ==================== Review workflow ====================
@@ -394,13 +281,8 @@ func (s *Service) GetReview(ctx context.Context, tenantID, skillID string) (*mod
 	if err != nil {
 		return nil, err
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	review := s.reviews[skillID]
-	if review == nil {
-		return nil, nil
-	}
-	return review, nil
+	review, err := s.repo.GetReview(ctx, skillID)
+	return review, err
 }
 
 func (s *Service) ReviewAction(ctx context.Context, tenantID, skillID, userID, action string, req models.ReviewActionRequest) (*models.SkillReview, error) {
@@ -409,18 +291,19 @@ func (s *Service) ReviewAction(ctx context.Context, tenantID, skillID, userID, a
 		return nil, err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	now := time.Now().UTC()
-	review := s.reviews[skillID]
+
 	switch action {
 	case "submit":
+		review, err := s.repo.GetReview(ctx, skillID)
+		if err != nil {
+			return nil, err
+		}
 		if review != nil && review.Status == "submitted" {
 			return nil, ErrAlreadySubmitted
 		}
-		review = &models.SkillReview{
-			ID:          uuid.New().String(),
+
+		newReview := &models.SkillReview{
 			SkillID:     skillID,
 			TenantID:    tenantID,
 			Status:      "submitted",
@@ -428,111 +311,158 @@ func (s *Service) ReviewAction(ctx context.Context, tenantID, skillID, userID, a
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
-		s.reviews[skillID] = review
-		skill.Status = "submitted"
+		err = s.repo.CreateReview(ctx, newReview)
+		if err != nil {
+			return nil, err
+		}
+
+		// Update skill status
+		_ = s.repo.UpdateSkill(ctx, tenantID, skillID, map[string]interface{}{
+			"status":     "submitted",
+			"updated_at": now,
+		})
+
+		s.appendAuditLog(ctx, skill, "review_submit", userID, "")
+		return newReview, nil
+
 	case "approve":
+		review, err := s.repo.GetReview(ctx, skillID)
+		if err != nil {
+			return nil, err
+		}
 		if review == nil || review.Status != "submitted" {
 			return nil, ErrNotSubmitted
 		}
+
+		err = s.repo.UpdateReview(ctx, tenantID, skillID, map[string]interface{}{
+			"status":       "approved",
+			"reviewed_by":  userID,
+			"review_note":  req.Note,
+			"updated_at":   now,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// Update skill status
+		_ = s.repo.UpdateSkill(ctx, tenantID, skillID, map[string]interface{}{
+			"status":     "approved",
+			"updated_at": now,
+		})
+
 		review.Status = "approved"
 		review.ReviewedBy = userID
 		review.ReviewNote = req.Note
 		review.UpdatedAt = now
-		s.reviews[skillID] = review
-		skill.Status = "approved"
+
+		s.appendAuditLog(ctx, skill, "review_approve", userID, req.Note)
+		return review, nil
+
 	case "reject":
+		review, err := s.repo.GetReview(ctx, skillID)
+		if err != nil {
+			return nil, err
+		}
 		if review == nil || review.Status != "submitted" {
 			return nil, ErrNotSubmitted
 		}
+
+		err = s.repo.UpdateReview(ctx, tenantID, skillID, map[string]interface{}{
+			"status":       "rejected",
+			"reviewed_by":  userID,
+			"review_note":  req.Note,
+			"updated_at":   now,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// Update skill status back to draft
+		_ = s.repo.UpdateSkill(ctx, tenantID, skillID, map[string]interface{}{
+			"status":     "draft",
+			"updated_at": now,
+		})
+
 		review.Status = "rejected"
 		review.ReviewedBy = userID
 		review.ReviewNote = req.Note
 		review.UpdatedAt = now
-		s.reviews[skillID] = review
-		skill.Status = "draft"
+
+		s.appendAuditLog(ctx, skill, "review_reject", userID, req.Note)
+		return review, nil
+
 	case "archive":
-		skill.Status = "archived"
+		review, err := s.repo.GetReview(ctx, skillID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Update skill status
+		_ = s.repo.UpdateSkill(ctx, tenantID, skillID, map[string]interface{}{
+			"status":     "archived",
+			"updated_at": now,
+		})
+
+		// Update review status if exists
 		if review != nil {
+			_ = s.repo.UpdateReview(ctx, tenantID, skillID, map[string]interface{}{
+				"status":     "archived",
+				"updated_at": now,
+			})
 			review.Status = "archived"
 			review.UpdatedAt = now
+		} else {
+			review = &models.SkillReview{
+				SkillID:   skillID,
+				TenantID:  tenantID,
+				Status:    "archived",
+				ReviewedBy: userID,
+				CreatedAt: now,
+				UpdatedAt: now,
+			}
 		}
+
+		s.appendAuditLog(ctx, skill, "review_archive", userID, "")
+		return review, nil
+
 	default:
 		return nil, errors.New("invalid review action: " + action)
 	}
-	skill.UpdatedAt = now
-	s.appendAuditLog(skill, "review_"+action, tenantID, req.Note)
-	return review, nil
 }
 
 func (s *Service) ListReviews(ctx context.Context, tenantID string, status string) ([]models.SkillReview, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []models.SkillReview
-	for _, review := range s.reviews {
-		if review.TenantID == tenantID {
-			if status == "" || review.Status == status {
-				result = append(result, *review)
-			}
-		}
-	}
-	return result, nil
+	return s.repo.ListReviews(ctx, tenantID, status)
 }
 
 // ==================== Audit log ====================
 
 func (s *Service) ListAuditLogs(ctx context.Context, tenantID, skillID string, page, limit int) ([]models.SkillAuditLog, int64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []models.SkillAuditLog
-	for _, log := range s.auditLogs {
-		if log.TenantID == tenantID && (skillID == "" || log.SkillID == skillID) {
-			result = append(result, *log)
-		}
+	logs, err := s.repo.ListAuditLogs(ctx, tenantID, skillID)
+	if err != nil {
+		return nil, 0
 	}
-	return result, int64(len(result))
+	return logs, int64(len(logs))
 }
 
 // ==================== Stats ====================
 
 func (s *Service) GetStats(ctx context.Context, tenantID string) (*map[string]any, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	total := 0
-	byStatus := make(map[string]int)
-	byCategory := make(map[string]int)
-	totalInstalls := 0
-	for _, skill := range s.skills {
-		if skill.TenantID == tenantID {
-			total++
-			byStatus[skill.Status]++
-			byCategory[skill.Category]++
-			totalInstalls += skill.InstallCount
-		}
-	}
-
-	result := make(map[string]any)
-	result["total_skills"] = total
-	result["total_installs"] = totalInstalls
-	result["by_status"] = byStatus
-	result["by_category"] = byCategory
-	return &result, nil
+	return s.repo.GetStats(ctx, tenantID)
 }
 
 // ==================== Helpers ====================
 
-func (s *Service) appendAuditLog(skill *models.Skill, action, tenantID, userID string) {
-	s.auditLogIDSeq++
-	s.auditLogs = append(s.auditLogs, &models.SkillAuditLog{
-		ID:        s.auditLogIDSeq,
+// appendAuditLog appends an audit log entry via the repository.
+func (s *Service) appendAuditLog(ctx context.Context, skill *models.Skill, action, userID, details string) {
+	log := &models.SkillAuditLog{
 		SkillID:   skill.ID,
-		TenantID:  tenantID,
+		TenantID:  skill.TenantID,
 		Action:    action,
 		UserID:    userID,
 		CreatedAt: time.Now().UTC(),
-	})
+		Details:   fmt.Sprintf("%s", details),
+	}
+	_ = s.repo.CreateAuditLog(ctx, log)
 }
 
 // Errors

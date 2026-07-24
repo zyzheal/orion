@@ -70,7 +70,7 @@ func (c *NATSClient) Connect(ctx context.Context) error {
 		opts = append(opts, nats.UserInfo(c.config.User, c.config.Password))
 	}
 	if c.config.NKey != "" {
-		nkey, err := nats.NkeyOptionFromSeed([]byte(c.config.NKey))
+		nkey, err := nats.NkeyOptionFromSeed(c.config.NKey)
 		if err != nil {
 			return fmt.Errorf("nats nkey parse: %w", err)
 		}
@@ -166,7 +166,7 @@ func (c *NATSClient) PublishJetStream(ctx context.Context, stream, subject strin
 		return fmt.Errorf("nats not connected (status: %s)", c.status)
 	}
 
-	_, err := c.js.Publish(ctx, subject, data)
+	_, err := c.js.Publish(subject, data, nats.Context(ctx))
 	if err != nil {
 		return fmt.Errorf("nats jetstream publish to %s/%s: %w", stream, subject, err)
 	}
@@ -241,10 +241,11 @@ func NewNATSSubscriber(natsClient *NATSClient, subject, stream string, logger *z
 
 // Start begins consuming from the subject.
 func (s *NATSSubscriber) Start(ctx context.Context) error {
-	return s.natsClient.Subscribe(s.subject, func(data []byte) error {
+	_, err := s.natsClient.Subscribe(s.subject, func(data []byte) error {
 		s.logger.Debug("received message", zap.String("subject", s.subject))
 		return nil
 	})
+	return err
 }
 
 // Close stops the subscriber.

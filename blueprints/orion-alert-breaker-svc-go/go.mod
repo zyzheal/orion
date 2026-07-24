@@ -10,3 +10,6 @@ require (
 	orion/go-common v0.0.0
 )
 
+
+replace orion/go-common => ../../orion-go-common
+

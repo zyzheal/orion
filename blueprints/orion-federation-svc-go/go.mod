@@ -10,3 +10,6 @@ require (
 	go.uber.org/zap v1.28.0
 	orion/go-common v0.0.0
 )
+
+replace orion/go-common => ../../orion-go-common
+

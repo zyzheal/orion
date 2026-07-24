@@ -5,7 +5,6 @@
 package messaging
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"

@@ -442,6 +442,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if self_serviceH != nil {
     self_serviceH.RegisterRoutes(api)
   }
+  if selfhealingH != nil {
+    selfhealingH.RegisterRoutes(api)
+  }
   if serverlessH != nil {
     serverlessH.RegisterRoutes(api)
   }

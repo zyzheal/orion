@@ -46,6 +46,10 @@ import (
 	cmdb_handler "orion/platform-svc-go/internal/cmdb/handler"
 	monitoring_handler "orion/platform-svc-go/internal/monitoring/handler"
 
+	graph_handler "orion/platform-svc-go/internal/graph/handler"
+	graph_repo "orion/platform-svc-go/internal/graph/repository"
+	graph_service "orion/platform-svc-go/internal/graph/service"
+
 	artifactops_handler "orion/platform-svc-go/internal/artifact-ops/handler"
 
 	config_handler "orion/platform-svc-go/internal/config/handler"
@@ -335,6 +339,8 @@ import (
 	aiInference_handler "orion/platform-svc-go/internal/ai-inference/handler"
 	aiInference_service "orion/platform-svc-go/internal/ai-inference/service"
 
+	sh_handler "orion/platform-svc-go/internal/self-healing/handler"
+
 	// ---- P0-20: Network Management Module ----
 	network_handler "orion/platform-svc-go/internal/network/handler"
 	network_repo "orion/platform-svc-go/internal/network/repository"
@@ -386,6 +392,7 @@ var (
 	alertH              *alert_handler.Handler
 	cmdbH               *cmdb_handler.Handler
 	monitoringH         *monitoring_handler.Handler
+	graphH              *graph_handler.Handler
 	artifactopsH        *artifactops_handler.Handler
 	configH             *config_handler.Handler
 	approvalH           *approval_handler.Handler
@@ -538,6 +545,7 @@ var (
 	resilienceScoreH    *resilience_score_handler.Handler
 	sbomH               *sbom_handler.Handler
 	loggingH            *logging_handler.Handler
+	selfhealingH        *sh_handler.Handler
 )
 
 func initWiring(infra *infrastructure, logger *zap.Logger) {
