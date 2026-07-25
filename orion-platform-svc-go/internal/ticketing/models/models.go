@@ -87,14 +87,18 @@ type WorkflowHistoryEntry struct {
 // --- Assignment Rules ---
 
 type AssignmentRule struct {
-	ID        int       `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	Name      string    `json:"name" db:"name"`
-	Conditions string   `json:"conditions" db:"conditions"`
-	Action    string    `json:"action" db:"action"`
-	TargetID  string    `json:"target_id" db:"target_id"`
-	Enabled   bool      `json:"enabled" db:"enabled"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         int        `json:"id" db:"id"`
+	TenantID   string     `json:"tenant_id" db:"tenant_id"`
+	Name       string     `json:"name" db:"name"`
+	Categories []string   `json:"categories" db:"categories"`
+	Priorities []string   `json:"priorities" db:"priorities"`
+	Assignee   string     `json:"assignee" db:"assignee"`
+	Order      int        `json:"order" db:"order"`
+	Conditions string     `json:"conditions" db:"conditions"`
+	Action     string     `json:"action" db:"action"`
+	TargetID   string     `json:"target_id" db:"target_id"`
+	Enabled    bool       `json:"enabled" db:"enabled"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
 }
 
 type CreateAssignmentRuleRequest struct {
@@ -107,12 +111,17 @@ type CreateAssignmentRuleRequest struct {
 // --- Relations ---
 
 type TicketRelation struct {
-	ID        int       `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	TicketID  string    `json:"ticket_id" db:"ticket_id"`
-	RelatedID string    `json:"related_id" db:"related_id"`
-	Type      string    `json:"type" db:"type"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID              int     `json:"id" db:"id"`
+	TenantID        string  `json:"tenant_id" db:"tenant_id"`
+	TicketID        string  `json:"ticket_id" db:"ticket_id"`
+	RelatedID       string  `json:"related_id" db:"related_id"`
+	RelatedTicketID string  `json:"related_ticket_id" db:"related_ticket_id"`
+	Type            string  `json:"type" db:"type"`
+	RelationType    string  `json:"relation_type" db:"relation_type"`
+	CreatedBy       string  `json:"created_by" db:"created_by"`
+	Description     string  `json:"description" db:"description"`
+	Confidence      float64 `json:"confidence" db:"confidence"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
 type CreateRelationRequest struct {
@@ -127,13 +136,16 @@ type CorrelateRequest struct {
 // --- SLA ---
 
 type SLATarget struct {
-	ID        int       `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	Priority  string    `json:"priority" db:"priority"`
-	ResponseH int       `json:"response_hours" db:"response_hours"`
-	ResolveH  int       `json:"resolve_hours" db:"resolve_hours"`
-	Enabled   bool      `json:"enabled" db:"enabled"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID                   int     `json:"id" db:"id"`
+	TenantID             string  `json:"tenant_id" db:"tenant_id"`
+	Name                 string  `json:"name" db:"name"`
+	Priority             string  `json:"priority" db:"priority"`
+	ResponseH            int     `json:"response_hours" db:"response_hours"`
+	ResolveH             int     `json:"resolve_hours" db:"resolve_hours"`
+	Enabled              bool    `json:"enabled" db:"enabled"`
+	CreatedAt            time.Time `json:"created_at" db:"created_at"`
+	TargetResponseTimeMs int64   `json:"target_response_time_ms" db:"target_response_time_ms"`
+	TargetResolutionTimeMs int64 `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
 }
 
 type CreateSLATargetRequest struct {
@@ -154,9 +166,21 @@ type TicketSLAStatus struct {
 // --- Reports ---
 
 type SLAComplianceReport struct {
-	Total       int     `json:"total"`
-	Compliant   int     `json:"compliant"`
-	Breached    int     `json:"breached"`
+	Total           int                     `json:"total"`
+	Compliant       int                     `json:"compliant"`
+	Breached        int                     `json:"breached"`
+	ComplianceRate  float64                 `json:"compliance_rate"`
+	TotalTickets    int                     `json:"total_tickets"`
+	BreachedCount   int                     `json:"breached_count"`
+	AvgResponseMs   float64                 `json:"avg_response_ms"`
+	AvgResolutionMs float64                 `json:"avg_resolution_ms"`
+	ByPriority      map[string]SLAPriorityStats `json:"by_priority"`
+}
+
+// SLAPriorityStats holds SLA compliance stats for a single priority level.
+type SLAPriorityStats struct {
+	Total          int     `json:"total"`
+	Breached       int     `json:"breached"`
 	ComplianceRate float64 `json:"compliance_rate"`
 }
 
@@ -441,15 +465,19 @@ type TimeTrend struct {
 // --- SLA Policies ---
 
 type SLAPolicy struct {
-	ID        int       `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	Name      string    `json:"name" db:"name"`
-	Priority  string    `json:"priority" db:"priority"`
-	ResponseH int       `json:"response_hours" db:"response_hours"`
-	ResolveH  int       `json:"resolve_hours" db:"resolve_hours"`
-	Active    bool      `json:"active" db:"active"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID                     int     `json:"id" db:"id"`
+	TenantID               string  `json:"tenant_id" db:"tenant_id"`
+	Name                   string  `json:"name" db:"name"`
+	Description            string  `json:"description" db:"description"`
+	Priority               string  `json:"priority" db:"priority"`
+	ResponseH              int     `json:"response_hours" db:"response_hours"`
+	ResolveH               int     `json:"resolve_hours" db:"resolve_hours"`
+	Active                 bool    `json:"active" db:"active"`
+	Enabled                bool    `json:"enabled" db:"enabled"`
+	CreatedAt              time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at" db:"updated_at"`
+	TargetResponseTimeMs   int64   `json:"target_response_time_ms" db:"target_response_time_ms"`
+	TargetResolutionTimeMs int64   `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
 }
 
 type CreateSLAPolicyRequest struct {
@@ -516,4 +544,142 @@ type ExecuteRuleResult struct {
 	RuleID    int `json:"rule_id"`
 	Executed  bool `json:"executed"`
 	Message   string `json:"message"`
+}
+
+// --- Types required by repository interfaces ---
+
+// TicketComment represents a comment on a ticket.
+type TicketComment struct {
+	ID        int       `json:"id" db:"id"`
+	TicketID  string    `json:"ticket_id" db:"ticket_id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	Content   string    `json:"content" db:"content"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// TicketStatistics holds aggregate statistics for tickets.
+type TicketStatistics struct {
+	Total        int            `json:"total"`
+	Open         int            `json:"open"`
+	InProgress   int            `json:"in_progress"`
+	Resolved     int            `json:"resolved"`
+	Closed       int            `json:"closed"`
+	ByPriority   map[string]int `json:"by_priority"`
+	ByCategory   map[string]int `json:"by_category"`
+}
+
+// TrendPoint is a single data point in a trend chart.
+type TrendPoint struct {
+	Label string `json:"label"`
+	Value int    `json:"value"`
+}
+
+// ListQuery is the pagination/query model used by the extended ticket repo.
+type ListQuery struct {
+	Status   *string `json:"status"`
+	Priority *string `json:"priority"`
+	Assignee *string `json:"assignee"`
+	Search   *string `json:"search"`
+	Limit    int     `json:"limit"`
+	Offset   int     `json:"offset"`
+}
+
+// SLARecord represents an SLA tracking record.
+type SLARecord struct {
+	ID                   int        `json:"id" db:"id"`
+	TicketID             string     `json:"ticket_id" db:"ticket_id"`
+	SLATargetID          int        `json:"sla_target_id" db:"sla_target_id"`
+	Priority             string     `json:"priority" db:"priority"`
+	ResponseDue          time.Time  `json:"response_due" db:"response_due"`
+	ResponseDeadlineAt   *time.Time `json:"response_deadline_at" db:"response_deadline_at"`
+	ResolveDue           time.Time  `json:"resolve_due" db:"resolve_due"`
+	ResolutionDeadlineAt *time.Time `json:"resolution_deadline_at" db:"resolution_deadline_at"`
+	ResponseOK           bool       `json:"response_ok" db:"response_ok"`
+	ResolutionOK         bool       `json:"resolution_ok" db:"resolution_ok"`
+	Breached             bool       `json:"breached" db:"breached"`
+	BreachType           string     `json:"breach_type" db:"breach_type"`
+	RespondedAt          *time.Time `json:"responded_at" db:"responded_at"`
+	ResolvedAt           *time.Time `json:"resolved_at" db:"resolved_at"`
+	Paused               bool       `json:"paused" db:"paused"`
+	PausedAt             *time.Time `json:"paused_at" db:"paused_at"`
+	PausedReason         string     `json:"paused_reason" db:"paused_reason"`
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// DispatchRecord represents a dispatch event.
+type DispatchRecord struct {
+	ID           int       `json:"id" db:"id"`
+	EngineerID   string    `json:"engineer_id" db:"engineer_id"`
+	TicketID     string    `json:"ticket_id" db:"ticket_id"`
+	DispatchedAt time.Time `json:"dispatched_at" db:"dispatched_at"`
+	Method       string    `json:"method" db:"method"` // auto, manual
+}
+
+// DispatchRecordStatus represents queue status.
+type DispatchQueueStatus struct {
+	Pending  int `json:"pending"`
+	Assigned int `json:"assigned"`
+	Total    int `json:"total"`
+}
+
+// DispatchEngineer represents an engineer registered for dispatch.
+type DispatchQueueEntry struct {
+	TicketID  string  `json:"ticket_id"`
+	Priority  string  `json:"priority"`
+	Engineer  *string `json:"engineer,omitempty"`
+	DispatchedAt *time.Time `json:"dispatched_at"`
+}
+
+// WorkflowHistory represents a single workflow transition (legacy name used by repo).
+type WorkflowHistory struct {
+	ID        int       `json:"id" db:"id"`
+	TicketID  string    `json:"ticket_id" db:"ticket_id"`
+	Action    string    `json:"action" db:"action"`
+	FromState string    `json:"from_state" db:"from_state"`
+	ToState   string    `json:"to_state" db:"to_state"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	Comment   string    `json:"comment" db:"comment"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// SuspendRecord represents a suspension record (legacy name used by repo).
+type SuspendRecord struct {
+	ID        int       `json:"id" db:"id"`
+	EngineerID string   `json:"engineer_id" db:"engineer_id"`
+	Type      string    `json:"type" db:"type"`
+	Status    string    `json:"status" db:"status"`
+	StartAt   time.Time `json:"start_at" db:"start_at"`
+	EndAt     *time.Time `json:"end_at" db:"end_at"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// SLAComplianceDetail holds detailed compliance stats for an SLA policy over a period.
+type SLAComplianceDetail struct {
+	PolicyID       string    `json:"policy_id"`
+	PolicyName     string    `json:"policy_name"`
+	PeriodStart    time.Time `json:"period_start"`
+	PeriodEnd      time.Time `json:"period_end"`
+	TotalTickets   int       `json:"total_tickets"`
+	BreachedCount  int       `json:"breached_count"`
+	ComplianceRate float64   `json:"compliance_rate"`
+}
+
+// AutomationRuleExecution logs a rule execution.
+type AutomationRuleExecution struct {
+	ID        int       `json:"id" db:"id"`
+	RuleID    int       `json:"rule_id" db:"rule_id"`
+	TriggeredAt time.Time `json:"triggered_at" db:"triggered_at"`
+	Result    string    `json:"result" db:"result"` // success, failure, skipped
+	Detail    string    `json:"detail" db:"detail"`
+}
+
+// TransferRecord represents a ticket transfer event (legacy name used by repo).
+type TransferRecord struct {
+	ID         int       `json:"id" db:"id"`
+	TicketID   string    `json:"ticket_id" db:"ticket_id"`
+	FromUserID string    `json:"from_user_id" db:"from_user_id"`
+	ToUserID   string    `json:"to_user_id" db:"to_user_id"`
+	Reason     string    `json:"reason" db:"reason"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }

@@ -71,3 +71,65 @@ type HealingHistoryResponse struct {
 	Total int64            `json:"total"`
 	Data  []HealingHistory `json:"data"`
 }
+
+// HealingStrategy represents a named collection of healing actions for an incident.
+type HealingStrategy struct {
+	ID          uuid.UUID `json:"id"`
+	TenantID    uuid.UUID `json:"tenant_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Enabled     bool      `json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// HealingIncident represents an active self-healing incident.
+type HealingIncident struct {
+	ID          uuid.UUID  `json:"id"`
+	TenantID    uuid.UUID  `json:"tenant_id"`
+	StrategyID  uuid.UUID  `json:"strategy_id"`
+	Trigger     string     `json:"trigger"`
+	Status      string     `json:"status"`
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// HistoryQuery filters for healing incident list queries.
+type HistoryQuery struct {
+	Status  *string    `json:"status"`
+	From    *time.Time `json:"from"`
+	To      *time.Time `json:"to"`
+	Limit   int        `json:"limit"`
+	Offset  int        `json:"offset"`
+}
+
+// EffectivenessQuery filters for healing effectiveness queries.
+type EffectivenessQuery struct {
+	StrategyID *uuid.UUID `json:"strategy_id"`
+	From       *time.Time `json:"from"`
+	To         *time.Time `json:"to"`
+}
+
+// CreateIncidentRequest is the request payload for creating a healing incident.
+type CreateIncidentRequest struct {
+	StrategyID uuid.UUID `json:"strategy_id" binding:"required"`
+	Trigger    string    `json:"trigger" binding:"required"`
+}
+
+// ApprovalRequest represents a manual approval step for a healing action.
+type ApprovalRequest struct {
+	ID          uuid.UUID  `json:"id"`
+	IncidentID  uuid.UUID  `json:"incident_id"`
+	Title       string     `json:"title"`
+	Status      string     `json:"status"` // pending, approved, rejected, expired
+	RiskLevel   string     `json:"risk_level"`
+	ExpiresAt   *time.Time `json:"expires_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// RespondApprovalRequest is the request payload for responding to an approval request.
+type RespondApprovalRequest struct {
+	Approved bool   `json:"approved"`
+	Comment  string `json:"comment"`
+}

@@ -99,7 +99,7 @@ func (r *SelfHealingRepository) GetHealingAction(ctx context.Context, tenantID, 
 
 // UpdateHealingAction updates a healing action.
 func (r *SelfHealingRepository) UpdateHealingAction(ctx context.Context, tenantID, id uuid.UUID, name, description, command *string, isEnabled *bool) (*models.HealingAction, error) {
-	now := time.Time{}
+	_ = time.Time{} // unused; reserved for future audit timestamp
 	action, err := r.GetHealingAction(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
@@ -249,4 +249,16 @@ func (r *SelfHealingRepository) DeleteHealingAction(ctx context.Context, tenantI
 		return fmt.Errorf("healing action not found: %s", id)
 	}
 	return nil
+}
+
+// joinStrings joins a slice of strings with a separator.
+func joinStrings(strs []string, sep string) string {
+	result := ""
+	for i, s := range strs {
+		if i > 0 {
+			result += sep
+		}
+		result += s
+	}
+	return result
 }

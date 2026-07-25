@@ -140,7 +140,7 @@ func (r *Repository) ListAgents(ctx context.Context, tenantID, status string, of
 }
 
 // UpdateAgent updates an agent's mutable fields using dynamic SET clause.
-func (r *Repository) UpdateAgent(ctx context.Context, id string, labels *models.JSONArray, maxConcurrent *int, status, metadata *models.JSONB) error {
+func (r *Repository) UpdateAgent(ctx context.Context, id string, labels *models.JSONArray, maxConcurrent *int, status *string, metadata *models.JSONB) error {
 	setClauses := []string{}
 	args := []interface{}{}
 	argIdx := 1

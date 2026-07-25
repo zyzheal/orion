@@ -86,7 +86,10 @@ func (s *Service) RegisterAgent(ctx context.Context, tenantID string, req *model
 		metadata[k] = v
 	}
 
-	labels := models.JSONArray(req.Labels)
+	labels := make(models.JSONArray, len(req.Labels))
+	for i, l := range req.Labels {
+		labels[i] = l
+	}
 	if labels == nil {
 		labels = models.JSONArray{"linux", "nodejs"}
 	}
@@ -181,7 +184,10 @@ func (s *Service) UpdateAgent(ctx context.Context, tenantID, agentID string, req
 
 	var labels *models.JSONArray
 	if req.Labels != nil {
-		l := models.JSONArray(*req.Labels)
+		l := make(models.JSONArray, len(*req.Labels))
+		for i, v := range *req.Labels {
+			l[i] = v
+		}
 		labels = &l
 	}
 
