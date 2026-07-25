@@ -113,6 +113,9 @@ func (r *IndexerRegistry) Search(ctx context.Context, req *models.SearchRequest)
 	close(resultsCh)
 
 	if searchErr != nil {
+		// Drain channel to avoid goroutine leak
+		for range resultsCh {
+		}
 		return nil, searchErr
 	}
 

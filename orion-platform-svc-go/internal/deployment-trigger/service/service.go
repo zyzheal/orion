@@ -123,13 +123,13 @@ func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.Tri
 	}
 
 	// best-effort status update on trigger (do not fail the trigger)
-	now := time.Now().UTC()
 	_, _ = s.repo.Update(ctx, tenantID, id, &models.UpdateTriggerRequest{
 		Status: ptr(models.TriggerStatusTriggered),
 	})
 
 	// No pipeline runner or no target — record failure so the gap is visible.
 	if s.pipeline == nil || trg.TargetPipeline == "" {
+		now := time.Now().UTC()
 		reason := "no pipeline runner configured"
 		if s.pipeline == nil {
 			reason = "no pipeline runner configured"
@@ -153,6 +153,7 @@ func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.Tri
 	// Trigger the target pipeline.
 	pipelineRunID, _, runErr := s.pipeline.StartRun(ctx, tenantID, trg.TargetPipeline)
 	if runErr != nil {
+		now := time.Now().UTC()
 		ex := &models.TriggerExecution{
 			TriggerID:     trg.ID,
 			TenantID:      tenantID,
@@ -168,6 +169,7 @@ func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.Tri
 	}
 
 	// Pipeline started successfully.
+	now := time.Now().UTC()
 	ex := &models.TriggerExecution{
 		TriggerID:     trg.ID,
 		TenantID:      tenantID,

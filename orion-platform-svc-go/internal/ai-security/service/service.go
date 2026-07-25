@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/ai-security/models"
 )
 
@@ -149,7 +148,7 @@ func (s *Service) GetAuditLog(ctx context.Context, tenantID string) ([]models.Au
 }
 
 // BlockAccess blocks access for a given target.
-func (s *Service) BlockAccess(ctx context.Context, tenantID, target string) (gin.H, error) {
+func (s *Service) BlockAccess(ctx context.Context, tenantID, target string) (*models.BlockRecord, error) {
 	now := time.Now()
 	expiresAt := now.Add(24 * time.Hour)
 	block := &models.BlockRecord{
@@ -165,12 +164,7 @@ func (s *Service) BlockAccess(ctx context.Context, tenantID, target string) (gin
 	if err := s.repo.CreateBlock(ctx, tenantID, block); err != nil {
 		return nil, err
 	}
-	return gin.H{
-		"id":        block.ID,
-		"target":    target,
-		"expiresAt": expiresAt,
-		"message":   "access blocked successfully",
-	}, nil
+	return block, nil
 }
 
 // GetRiskScore calculates a risk score for a resource based on active blocks and audit logs.
