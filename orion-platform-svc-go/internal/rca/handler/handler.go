@@ -55,7 +55,7 @@ func (h *RCAHandler) Analyze(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusAccepted, analysis)
+	c.JSON(http.StatusAccepted, gin.H{"data": analysis})
 }
 
 // ListHistory returns paginated analysis history.
@@ -70,10 +70,7 @@ func (h *RCAHandler) ListHistory(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
-		"total": resp.Total,
-		"data":  resp.Data,
-	})
+	middleware.RespondPaginated(c, resp.Data, offset, limit, int(resp.Total))
 }
 
 // GetAnalysis returns an analysis by ID.
@@ -90,7 +87,7 @@ func (h *RCAHandler) GetAnalysis(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, analysis)
+	middleware.RespondSuccess(c, analysis)
 }
 
 // GetTimeline returns the timeline for an incident.
@@ -103,7 +100,7 @@ func (h *RCAHandler) GetTimeline(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"incidentId": incidentID,
 		"timeline":   timeline,
 	})
@@ -119,7 +116,7 @@ func (h *RCAHandler) GetFixes(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"rootCauseId": rootCauseID,
 		"fixes":       fixes,
 	})

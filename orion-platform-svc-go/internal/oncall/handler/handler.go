@@ -51,10 +51,7 @@ func (h *OnCallHandler) ListSchedules(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
-		"total": resp.Total,
-		"data":  resp.Data,
-	})
+	middleware.RespondPaginated(c, resp.Data, offset, limit, int(resp.Total))
 }
 
 // CreateSchedule creates a new schedule.
@@ -88,7 +85,7 @@ func (h *OnCallHandler) GetSchedule(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 // DeleteSchedule removes a schedule.
@@ -120,7 +117,7 @@ func (h *OnCallHandler) GetCurrentOnCall(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // ListRotations returns rotations for a schedule.
@@ -138,10 +135,7 @@ func (h *OnCallHandler) ListRotations(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
-		"total": total,
-		"data":  rotations,
-	})
+	middleware.RespondPaginated(c, rotations, offset, limit, int(total))
 }
 
 // AddRotation adds a rotation to a schedule.

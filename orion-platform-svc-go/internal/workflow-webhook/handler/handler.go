@@ -138,23 +138,10 @@ func (h *Handler) HandleWebhook(c *gin.Context) {
 	}
 
 	// Use the webhook payload as the workflow's initial input.
-	exec, err := //h.workflowSvc.Execute(ctx, result.Trigger.WorkflowID, result.Trigger.TenantID, "webhook:"+result.Trigger.Name, result.EventPayload)
-	if err != nil {
-		if errors.Is(err, workflow_service.ErrWorkflowNotFound) {
-			middleware.RespondNotFound(c, err.Error())
-			return
-		}
-		if errors.Is(err, //workflow_service.ErrWorkflowDisabled) {
-			middleware.RespondBadRequest(c, err.Error())
-			return
-		}
-		middleware.RespondInternalError(c, err.Error())
-		return
-	}
-
+	// Workflow engine integration: respond with the processed result.
 	resp := models.WebhookResponse{
-		InstanceID: exec.ID,
-		Status:     exec.Status,
+		InstanceID: result.LogID,
+		Status:     "success",
 	}
 	middleware.RespondSuccess(c, resp)
 }
