@@ -50,7 +50,7 @@ func (h *SelfHealingHandler) ListActions(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"total": resp.Total,
 		"data":  resp.Data,
 	})
@@ -87,7 +87,7 @@ func (h *SelfHealingHandler) GetAction(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, action)
+	middleware.RespondSuccess(c, action)
 }
 
 // UpdateAction updates a healing action.
@@ -115,7 +115,7 @@ func (h *SelfHealingHandler) UpdateAction(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, action)
+	middleware.RespondSuccess(c, action)
 }
 
 // DeleteAction removes a healing action.
@@ -153,7 +153,7 @@ func (h *SelfHealingHandler) ExecuteAction(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusAccepted, history)
+	middleware.RespondSuccess(c, history)
 }
 
 // ListHistory returns paginated healing history.
@@ -169,7 +169,7 @@ func (h *SelfHealingHandler) ListHistory(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"total": resp.Total,
 		"data":  resp.Data,
 	})

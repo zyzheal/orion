@@ -100,13 +100,21 @@ func (s *TicketService) List(ctx context.Context, tenantID string, q models.List
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "TicketService.List")
 	defer span.End()
 
-	if q.Page <= 0 {
-		q.Page = 1
+	limit := q.Limit
+	if limit <= 0 {
+		limit = 20
 	}
-	if q.PageSize <= 0 {
-		q.PageSize = 20
+	offset := q.Offset
+	if offset < 0 {
+		offset = 0
 	}
-	return s.repo.List(ctx, tenantID, q)
+	q.Limit = limit
+	q.Offset = offset
+	tickets, err := s.repo.List(ctx, tenantID, q)
+	if err != nil {
+		return nil, 0, err
+	}
+	return tickets, len(tickets), nil
 }
 
 func (s *TicketService) Update(ctx context.Context, ticket *models.Ticket) error {

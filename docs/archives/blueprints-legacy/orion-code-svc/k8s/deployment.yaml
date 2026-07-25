@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-code-svc
+  namespace: orion
+  labels:
+    app: orion-code-svc
+    component: code-management
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-code-svc
+  template:
+    metadata:
+      labels:
+        app: orion-code-svc
+        component: code-management
+        tier: backend
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: orion-code-svc
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "node-type"
+        operator: "Equal"
+        value: "general"
+        effect: "NoSchedule"
+      containers:
+      - name: orion-code-svc
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      securityContext:
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        image: orion-code-svc:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3010
+          name: http
+        env:
+        - name: PORT
+          value: "3010"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: orion-code-secrets
+              key: database-url
+              optional: true
+        - name: NATS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: orion-code-svc-config
+              key: nats-url
+              optional: true
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: orion-code-svc-config
+              key: log-level
+              optional: true
+        - name: CORS_ORIGIN
+          valueFrom:
+            configMapKeyRef:
+              name: orion-code-svc-config
+              key: cors-origin
+              optional: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3010
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3010
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always

@@ -9,11 +9,14 @@ type Ticket struct {
 	TenantID     string            `json:"tenant_id" db:"tenant_id"`
 	Title        string            `json:"title" db:"title"`
 	Description  string            `json:"description" db:"description"`
+	Type         string            `json:"type" db:"type"`
 	Status       string            `json:"status" db:"status"`
 	Priority     string            `json:"priority" db:"priority"`
 	Category     string            `json:"category" db:"category"`
 	AssigneeID   *string           `json:"assignee_id,omitempty" db:"assignee_id"`
+	AssignedTo   string            `json:"assigned_to,omitempty" db:"assigned_to"`
 	ReporterID   string            `json:"reporter_id" db:"reporter_id"`
+	CreatedBy    string            `json:"created_by,omitempty" db:"created_by"`
 	Source       string            `json:"source" db:"source"`
 	SourceID     *string           `json:"source_id,omitempty" db:"source_id"`
 	Metadata     map[string]any    `json:"metadata,omitempty"`
@@ -26,6 +29,7 @@ type Ticket struct {
 type CreateTicketRequest struct {
 	Title       string                 `json:"title" binding:"required"`
 	Description string                 `json:"description"`
+	Type        string                 `json:"type"`
 	Priority    string                 `json:"priority"`
 	Category    string                 `json:"category"`
 	Source      string                 `json:"source"`
@@ -643,14 +647,19 @@ type DispatchQueueEntry struct {
 
 // WorkflowHistory represents a single workflow transition (legacy name used by repo).
 type WorkflowHistory struct {
-	ID        int       `json:"id" db:"id"`
-	TicketID  string    `json:"ticket_id" db:"ticket_id"`
-	Action    string    `json:"action" db:"action"`
-	FromState string    `json:"from_state" db:"from_state"`
-	ToState   string    `json:"to_state" db:"to_state"`
-	UserID    string    `json:"user_id" db:"user_id"`
-	Comment   string    `json:"comment" db:"comment"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID          int       `json:"id" db:"id"`
+	TicketID    string    `json:"ticket_id" db:"ticket_id"`
+	Action      string    `json:"action" db:"action"`
+	FromState   string    `json:"from_state" db:"from_state"`
+	ToState     string    `json:"to_state" db:"to_state"`
+	UserID      string    `json:"user_id" db:"user_id"`
+	Comment     string    `json:"comment" db:"comment"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	// Aliases used by repository insert query (from_status/to_status/performed_by/reason)
+	FromStatus  string `json:"-" db:"from_status"`
+	ToStatus    string `json:"-" db:"to_status"`
+	PerformedBy string `json:"-" db:"performed_by"`
+	Reason      string `json:"-" db:"reason"`
 }
 
 // SuspendRecord represents a suspension record (legacy name used by repo).
@@ -696,10 +705,12 @@ type AutomationRuleExecution struct {
 
 // TransferRecord represents a ticket transfer event (legacy name used by repo).
 type TransferRecord struct {
-	ID         int       `json:"id" db:"id"`
-	TicketID   string    `json:"ticket_id" db:"ticket_id"`
-	FromUserID string    `json:"from_user_id" db:"from_user_id"`
-	ToUserID   string    `json:"to_user_id" db:"to_user_id"`
-	Reason     string    `json:"reason" db:"reason"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	ID             string    `json:"id" db:"id"`
+	TicketID       string    `json:"ticket_id" db:"ticket_id"`
+	FromEngineerID string    `json:"from_engineer_id" db:"from_engineer_id"`
+	ToEngineerID   string    `json:"to_engineer_id" db:"to_engineer_id"`
+	InitiatedBy    string    `json:"initiated_by" db:"initiated_by"`
+	Reason         string    `json:"reason" db:"reason"`
+	HoldDurationMs int64     `json:"hold_duration_ms" db:"hold_duration_ms"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 }

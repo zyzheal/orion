@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  federation-svc:
+    build: .
+    ports:
+      - "3017:3017"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://orion:orion123@postgres:5432/federation_db
+    depends_on:
+      - postgres
+    networks:
+      - orion-network
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=federation_db
+      - POSTGRES_USER=orion
+      - POSTGRES_PASSWORD=orion123
+    ports:
+      - "5432:5432"
+    volumes:
+      - federation-svc-data:/var/lib/postgresql/data
+    networks:
+      - orion-network
+
+networks:
+  orion-network:
+    driver: bridge
+
+volumes:
+  federation-svc-data:

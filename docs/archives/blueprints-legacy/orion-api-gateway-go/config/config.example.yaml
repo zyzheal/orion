@@ -1,0 +1,17 @@
+service_name: orion-api-gateway
+environment: development
+http_addr: ":3000"
+jwt_secret: "change-me"
+redis_url: "redis://localhost:6379/0"
+otel_endpoint: ""
+rate_limit_rps: 100
+allowed_origins:
+  - "*"
+csp_enabled: true
+csp_directives: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+upstreams:
+  /v1/platform: "http://localhost:3001/api/v1"
+  /v1/auth: "http://localhost:3002/api/v1"
+  /v1/tenant: "http://localhost:3003/api/v1"
+  /v1/user: "http://localhost:3004/api/v1"
+  /v1/pipeline: "http://localhost:3005/api/v1"

@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-deploy-svc
+  namespace: orion
+  labels:
+    app: orion-deploy
+    version: v1
+    component: deploy-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-deploy
+  template:
+    metadata:
+      labels:
+        app: orion-deploy
+        version: v1
+        component: deploy-service
+    spec:
+      containers:
+        - name: deploy
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-deploy-svc:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3003
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3003"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orion-deploy-secrets
+                  key: database-url
+                  optional: true
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-deploy-config
+                  key: redis-url
+                  optional: true
+            - name: NATS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-deploy-config
+                  key: nats-url
+                  optional: true
+            - name: PLATFORM_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-deploy-config
+                  key: platform-service-url
+                  optional: true
+            - name: LOG_LEVEL
+              value: "info"
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-deploy-config
+                  key: cors-origin
+                  optional: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: orion-deploy
+                topologyKey: kubernetes.io/hostname
+      tolerations:
+        - key: "node-type"
+          operator: "Equal"
+          value: "general"
+          effect: "NoSchedule"
