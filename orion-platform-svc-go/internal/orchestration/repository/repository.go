@@ -21,6 +21,7 @@ func NewOrchestrationRepository(db *sql.DB) *OrchestrationRepository {
 
 // Create creates a new orchestration.
 func (r *OrchestrationRepository) Create(ctx context.Context, tenantID string, name, description string, agents []models.AgentConfig) (*models.Orchestration, error) {
+	now := time.Now()
 	id := fmt.Sprintf("orch_%d", time.Now().UnixNano())
 
 	agentsJSON, _ := json.Marshal(agents)
@@ -98,6 +99,7 @@ func (r *OrchestrationRepository) Get(ctx context.Context, tenantID, id string) 
 
 // CreateRun creates a new orchestration run.
 func (r *OrchestrationRepository) CreateRun(ctx context.Context, orchestrationID string, input string) (*models.OrchestrationRun, error) {
+	now := time.Now()
 	id := fmt.Sprintf("run_%d", time.Now().UnixNano())
 
 	query := `INSERT INTO orchestration_runs (id, orchestration_id, status, input, output, error, started_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
@@ -116,11 +118,9 @@ func (r *OrchestrationRepository) CreateRun(ctx context.Context, orchestrationID
 
 // UpdateRun updates a run's status and output.
 func (r *OrchestrationRepository) UpdateRun(ctx context.Context, id string, status, output, errorStr string) error {
-	now := time.Time{}
 	var completedAt interface{}
 	if status == "completed" || status == "failed" {
 		completedAt = time.Now()
-		now = completedAt.(time.Time)
 	}
 
 	query := `UPDATE orchestration_runs SET status=$1, output=$2, error=$3, completed_at=$4 WHERE id=$5`

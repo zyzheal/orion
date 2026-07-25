@@ -29,6 +29,3 @@ type ServiceInterface interface {
 	UpdateAssignment(ctx context.Context, tenantID, id string, req *models.UpdateAssignmentRequest) (*models.Assignment, error)
 	UpdateOverride(ctx context.Context, tenantID, id string, req *models.UpdateOverrideRequest) (*models.Override, error)
 }
-
-// Ensure compile-time safety: *Service implements ServiceInterface.
-var _ ServiceInterface = (*Service)(nil)

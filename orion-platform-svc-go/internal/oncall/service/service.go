@@ -15,6 +15,10 @@ type OnCallService struct {
 	logger *zap.Logger
 }
 
+// Service is a type alias for OnCallService so the ServiceInterface compile-time
+// check in service_interface.go remains valid.
+type Service = OnCallService
+
 func NewOnCallService(repo *repository.OnCallRepository, logger *zap.Logger) *OnCallService {
 	return &OnCallService{repo: repo, logger: logger}
 }

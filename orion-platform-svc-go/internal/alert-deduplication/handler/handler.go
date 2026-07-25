@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/alert-deduplication/service"
-	"orion/platform-svc-go/internal/middleware"
-	"orion/go-common/pkg/auth"
 	"github.com/google/uuid"
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/alert-deduplication/service"
 )
 
 type AlertDeduplicationHandler struct {
@@ -34,7 +34,7 @@ func (h *AlertDeduplicationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // Stats returns deduplication statistics.
 func (h *AlertDeduplicationHandler) Stats(c *gin.Context) {
 	stats := h.svc.Stats()
-	errors.WriteSuccess(c, http.StatusOK, stats)
+	errors.WriteSuccess(c, stats)
 }
 
 // Configure updates deduplication configuration.
@@ -46,7 +46,7 @@ func (h *AlertDeduplicationHandler) Configure(c *gin.Context) {
 		FieldMask string `json:"field_mask"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.WriteSuccessBadRequest(c, err.Error())
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -61,26 +61,26 @@ func (h *AlertDeduplicationHandler) Configure(c *gin.Context) {
 	}
 
 	h.svc.Configure(tenantID, *isEnabled, windowSec, req.FieldMask)
-	errors.WriteSuccess(c, http.StatusOK, gin.H{"message": "configuration updated"})
+	errors.WriteSuccess(c, gin.H{"message": "configuration updated"})
 }
 
 // Check checks if an alert is a duplicate.
 func (h *AlertDeduplicationHandler) Check(c *gin.Context) {
 	var req map[string]string
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.WriteSuccessBadRequest(c, err.Error())
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	record, isDuplicate := h.svc.CheckDuplicate(c.Request.Context(), req)
 	if isDuplicate {
-		errors.WriteSuccess(c, http.StatusOK, gin.H{
+		errors.WriteSuccess(c, gin.H{
 			"is_duplicate": true,
 			"record":       record,
 		})
 		return
 	}
-	errors.WriteSuccess(c, http.StatusOK, gin.H{
+	errors.WriteSuccess(c, gin.H{
 		"is_duplicate": false,
 		"record":       record,
 	})

@@ -70,3 +70,96 @@ type CurrentOnCallResponse struct {
 	EndDate    time.Time `json:"end_date"`
 	Level      int       `json:"level"`
 }
+
+// ---------------------------------------------------------------------------
+// Assignment — explicit assignment of a user to a schedule slot
+// ---------------------------------------------------------------------------
+
+// Assignment represents an on-call assignment.
+type Assignment struct {
+	ID         uuid.UUID `json:"id"`
+	ScheduleID uuid.UUID `json:"schedule_id"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// CreateAssignmentRequest for creating an assignment.
+type CreateAssignmentRequest struct {
+	UserID    string    `json:"user_id" binding:"required"`
+	UserName  string    `json:"user_name" binding:"required"`
+	ScheduleID uuid.UUID `json:"schedule_id" binding:"required"`
+	StartDate time.Time `json:"start_date" binding:"required"`
+	EndDate   time.Time `json:"end_date" binding:"required"`
+}
+
+// UpdateAssignmentRequest for partially updating an assignment.
+type UpdateAssignmentRequest struct {
+	UserID    *string   `json:"user_id"`
+	UserName  *string   `json:"user_name"`
+	StartDate *time.Time `json:"start_date"`
+	EndDate   *time.Time `json:"end_date"`
+}
+
+// ---------------------------------------------------------------------------
+// Override — temporary override for an on-call schedule
+// ---------------------------------------------------------------------------
+
+// Override represents a temporary on-call override.
+type Override struct {
+	ID         uuid.UUID `json:"id"`
+	ScheduleID uuid.UUID `json:"schedule_id"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	Reason     string    `json:"reason"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// CreateOverrideRequest for creating an override.
+type CreateOverrideRequest struct {
+	UserID    string    `json:"user_id" binding:"required"`
+	UserName  string    `json:"user_name" binding:"required"`
+	ScheduleID uuid.UUID `json:"schedule_id" binding:"required"`
+	Reason    string    `json:"reason"`
+	StartDate time.Time `json:"start_date" binding:"required"`
+	EndDate   time.Time `json:"end_date" binding:"required"`
+}
+
+// UpdateOverrideRequest for partially updating an override.
+type UpdateOverrideRequest struct {
+	UserID    *string    `json:"user_id"`
+	UserName  *string    `json:"user_name"`
+	Reason    *string    `json:"reason"`
+	StartDate *time.Time `json:"start_date"`
+	EndDate   *time.Time `json:"end_date"`
+}
+
+// ---------------------------------------------------------------------------
+// Schedule update
+// ---------------------------------------------------------------------------
+
+// UpdateScheduleRequest for partially updating a schedule.
+type UpdateScheduleRequest struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	IsPrimary   *bool   `json:"is_primary"`
+}
+
+// ---------------------------------------------------------------------------
+// Get on-call now result
+// ---------------------------------------------------------------------------
+
+// CurrentOnCallResult returns who is currently on-call for a schedule.
+type CurrentOnCallResult struct {
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	IsOverride bool      `json:"is_override"`
+	StartDate  time.Time `json:"start_date"`
+	EndDate    time.Time `json:"end_date"`
+}

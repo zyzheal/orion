@@ -68,7 +68,7 @@ func (s *AutoRecoveryService) ExecuteRule(ctx context.Context, tenantID string, 
 	}
 
 	// Create recovery action
-	action, err := s.repo createAction(ctx, rule.ID, tenantID, rule.Action, rule.Target)
+	action, err := s.repo.CreateAction(ctx, rule.ID, tenantID, rule.Action, rule.Target)
 	if err != nil {
 		s.logger.Error("failed to create recovery action",
 			zap.String("ruleId", rule.ID),

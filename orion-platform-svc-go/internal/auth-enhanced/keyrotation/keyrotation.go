@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"orion/platform-svc-go/internal/auth-enhanced/models"
 	"orion/platform-svc-go/internal/auth-enhanced/repository"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -128,24 +127,24 @@ func (s *KeyRotationService) Initialize() error {
 // ---- Public API ----
 
 // Generate creates a new JWT key and stores its metadata in the database.
-func (s *KeyRotationService) Generate() (*model.JwtKey, error) {
+func (s *KeyRotationService) Generate() (*repository.JwtKey, error) {
 	return s.generateWith(RotationTypeManual)
 }
 
 // Rotate generates a new key, activates it, and marks the current key as expiring.
 // The overlap period allows tokens signed with the old key to remain valid.
-func (s *KeyRotationService) Rotate() (*model.JwtKey, error) {
+func (s *KeyRotationService) Rotate() (*repository.JwtKey, error) {
 	return s.rotateWith(RotationTypeManual)
 }
 
 // EmergencyRotate immediately rotates to a new key, expiring the previous key
 // without overlap (marks previous key as expired instantly).
-func (s *KeyRotationService) EmergencyRotate() (*model.JwtKey, error) {
+func (s *KeyRotationService) EmergencyRotate() (*repository.JwtKey, error) {
 	return s.rotateWith(RotationTypeEmergency)
 }
 
 // GetActiveKey returns the active key metadata.
-func (s *KeyRotationService) GetActiveKey() (*model.JwtKey, error) {
+func (s *KeyRotationService) GetActiveKey() (*repository.JwtKey, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.current == nil {
@@ -155,7 +154,7 @@ func (s *KeyRotationService) GetActiveKey() (*model.JwtKey, error) {
 }
 
 // ListKeys returns all keys ordered by creation time descending.
-func (s *KeyRotationService) ListKeys() ([]model.JwtKey, error) {
+func (s *KeyRotationService) ListKeys() ([]repository.JwtKey, error) {
 	return s.repo.List(s.currentCtx())
 }
 
@@ -208,7 +207,7 @@ func (s *KeyRotationService) VerifyToken(tokenString string, defaultSecret strin
 
 // ---- Internal helpers ----
 
-func (s *KeyRotationService) generateWith(rotationType string) (*model.JwtKey, error) {
+func (s *KeyRotationService) generateWith(rotationType string) (*repository.JwtKey, error) {
 	keyBytes, err := generateRandomBytes(32) // 256-bit
 	if err != nil {
 		return nil, err
@@ -218,7 +217,7 @@ func (s *KeyRotationService) generateWith(rotationType string) (*model.JwtKey, e
 
 	keyID := fmt.Sprintf("jwt_key_%d_%s", time.Now().UnixNano(), hex.EncodeToString(keyBytes[:8]))
 
-	key := &model.JwtKey{
+	key := &repository.JwtKey{
 		KeyID:        keyID,
 		KeyHash:      hex.EncodeToString(keyHash[:]),
 		KeyStrength:  s.keyStrength,
@@ -240,7 +239,7 @@ func (s *KeyRotationService) generateWith(rotationType string) (*model.JwtKey, e
 	return key, nil
 }
 
-func (s *KeyRotationService) rotateWith(rotationType string) (*model.JwtKey, error) {
+func (s *KeyRotationService) rotateWith(rotationType string) (*repository.JwtKey, error) {
 	newKey, err := s.generateWith(rotationType)
 	if err != nil {
 		return nil, err
@@ -279,7 +278,7 @@ func (s *KeyRotationService) Activate(keyID string) error {
 
 	if prevID != "" {
 		expiry := now.Add(time.Duration(s.overlapDays) * 24 * time.Hour)
-		prevKey := &model.JwtKey{
+		prevKey := &repository.JwtKey{
 			KeyID:     prevID,
 			Status:    StatusExpiring,
 			ExpiresAt: &expiry,
@@ -300,7 +299,7 @@ func (s *KeyRotationService) Activate(keyID string) error {
 	// Activate new key
 	activatedAt := now
 	expiresAt := now.Add(time.Duration(s.rotationIntervalDays) * 24 * time.Hour)
-	newKey := &model.JwtKey{
+	newKey := &repository.JwtKey{
 		KeyID:       keyID,
 		Status:      StatusActive,
 		ActivatedAt: &activatedAt,
@@ -324,8 +323,8 @@ func (s *KeyRotationService) Activate(keyID string) error {
 	return nil
 }
 
-func (s *KeyRotationService) keyFromRecord(r *KeyRecord) *model.JwtKey {
-	return &model.JwtKey{
+func (s *KeyRotationService) keyFromRecord(r *KeyRecord) *repository.JwtKey {
+	return &repository.JwtKey{
 		KeyID:     r.KeyID,
 		KeyHash:   r.KeyHash,
 		Status:    StatusActive,

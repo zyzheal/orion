@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/tool/models"
 	"orion/platform-svc-go/internal/tool/service"
 )
@@ -306,6 +307,29 @@ func (h *ToolHandler) MarketSearch(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, gin.H{"data": tools, "total": total})
+}
+
+
+// ---- local response helpers (wrap middleware package) ----
+
+func respondSuccess(c *gin.Context, data any) {
+	middleware.RespondSuccess(c, data)
+}
+
+func respondCreated(c *gin.Context, data any) {
+	middleware.RespondCreated(c, data)
+}
+
+func respondBadRequest(c *gin.Context, message string) {
+	middleware.RespondBadRequest(c, message)
+}
+
+func respondNotFound(c *gin.Context, message string) {
+	middleware.RespondNotFound(c, message)
+}
+
+func respondInternalError(c *gin.Context, message string) {
+	middleware.RespondInternalError(c, message)
 }
 
 // RegisterRoutes registers all tool routes on the given gin group.

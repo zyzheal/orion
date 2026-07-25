@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/alert-correlation/models"
 	"orion/platform-svc-go/internal/alert-correlation/service"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/auth"
 )
 

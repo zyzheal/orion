@@ -48,7 +48,7 @@ func (h *AlertSilenceHandler) List(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"total": resp.Total,
 		"data":  resp.Data,
 	})
@@ -86,7 +86,7 @@ func (h *AlertSilenceHandler) Get(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, silence)
+	c.JSON(http.StatusOK, silence)
 }
 
 // Delete removes a silence.
@@ -127,5 +127,5 @@ func (h *AlertSilenceHandler) Extend(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.Respond(c, http.StatusOK, silence)
+	c.JSON(http.StatusOK, silence)
 }

@@ -80,7 +80,6 @@ func (r *RCARespository) UpdateAnalysis(ctx context.Context, id uuid.UUID, statu
 	var completedAt interface{}
 	if status == "completed" || status == "failed" {
 		completedAt = time.Now()
-		now = completedAt.(time.Time)
 	}
 
 	rootCausesJSON, err := json.Marshal(rootCauses)

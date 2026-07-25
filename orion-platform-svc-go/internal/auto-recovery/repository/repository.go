@@ -99,7 +99,7 @@ func (r *AutoRecoveryRepository) GetRule(ctx context.Context, tenantID, id strin
 // CreateAction records a recovery action.
 func (r *AutoRecoveryRepository) CreateAction(ctx context.Context, ruleID, tenantID, action, target string) (*models.RecoveryAction, error) {
 	id := fmt.Sprintf("action_%d", time.Now().UnixNano())
-tnow := time.Now()
+	now := time.Now()
 	query := `INSERT INTO recovery_actions (id, rule_id, tenant_id, action, target, status, result, retry_count, created_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
 	if _, err := r.DB.ExecContext(ctx, query, id, ruleID, tenantID, action, target, "pending", "", 0, now, nil); err != nil {
 		return nil, fmt.Errorf("create recovery action: %w", err)
@@ -118,11 +118,9 @@ tnow := time.Now()
 
 // UpdateAction updates a recovery action.
 func (r *AutoRecoveryRepository) UpdateAction(ctx context.Context, id string, status, result string, retryCount int) error {
-	now := time.Time{}
 	var completedAt interface{}
 	if status == "succeeded" || status == "failed" {
 		completedAt = time.Now()
-		now = completedAt.(time.Time)
 	}
 
 	query := `UPDATE recovery_actions SET status=$1, result=$2, retry_count=$3, completed_at=$4 WHERE id=$5`

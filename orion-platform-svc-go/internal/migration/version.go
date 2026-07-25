@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"

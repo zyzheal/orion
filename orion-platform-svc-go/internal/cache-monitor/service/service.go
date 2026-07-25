@@ -41,21 +41,21 @@ func NewCacheMonitorService(logger *zap.Logger) *CacheMonitorService {
 
 // RegisterCache registers a new cache for monitoring.
 func (s *CacheMonitorService) RegisterCache(cfg *models.CacheConfig) {
-	if _, ok := s.config[Name]; ok {
-		s.logger.Warn("cache already registered", zap.String("name", Name))
+	if _, ok := s.config[cfg.Name]; ok {
+		s.logger.Warn("cache already registered", zap.String("name", cfg.Name))
 		return
 	}
 
-	s.config[Name] = cfg
-	s.caches[Name] = &models.CacheMetrics{
-		Name:   Name,
-		Type:   Type,
+	s.config[cfg.Name] = cfg
+	s.caches[cfg.Name] = &models.CacheMetrics{
+		Name:   cfg.Name,
+		Type:   cfg.Type,
 		Status: "unknown",
 	}
 
 	s.logger.Info("cache registered for monitoring",
-		zap.String("name", Name),
-		zap.String("type", Type),
+		zap.String("name", cfg.Name),
+		zap.String("type", cfg.Type),
 	)
 }
 
@@ -63,11 +63,7 @@ func (s *CacheMonitorService) RegisterCache(cfg *models.CacheConfig) {
 func (s *CacheMonitorService) CollectMetrics(ctx context.Context) map[string]*models.CacheMetrics {
 	now := time.Now()
 
-	for name, cfg := range s.config {
-		if !IsEnabled {
-			continue
-		}
-
+	for name := range s.config {
 		s.caches[name].LastCollectedAt = now
 		s.caches[name].Status = "healthy"
 
@@ -102,7 +98,7 @@ func (s *CacheMonitorService) GetMetrics(name string) (*models.CacheMetrics, boo
 func (s *CacheMonitorService) GetHealth() []models.CacheHealthCheckResult {
 	var results []models.CacheHealthCheckResult
 
-	for name, cfg := range s.config {
+	for name := range s.config {
 		metrics := s.caches[name]
 		healthy := metrics.Status == "healthy"
 		message := "healthy"
@@ -125,7 +121,7 @@ func (s *CacheMonitorService) GetHealth() []models.CacheHealthCheckResult {
 // EnableCache enables a cache for monitoring.
 func (s *CacheMonitorService) EnableCache(name string) {
 	if cfg, ok := s.config[name]; ok {
-		IsEnabled = true
+		cfg.IsEnabled = true
 		s.logger.Info("cache enabled", zap.String("name", name))
 	}
 }
@@ -133,7 +129,7 @@ func (s *CacheMonitorService) EnableCache(name string) {
 // DisableCache disables a cache for monitoring.
 func (s *CacheMonitorService) DisableCache(name string) {
 	if cfg, ok := s.config[name]; ok {
-		IsEnabled = false
+		cfg.IsEnabled = false
 		s.logger.Info("cache disabled", zap.String("name", name))
 	}
 }

@@ -26,4 +26,4 @@ type ServiceInterface interface {
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.
-var _ ServiceInterface = (*Service)(nil)
+var _ ServiceInterface = (*SelfHealingService)(nil)
