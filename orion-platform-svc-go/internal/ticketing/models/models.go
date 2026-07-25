@@ -155,12 +155,22 @@ type CreateSLATargetRequest struct {
 }
 
 type TicketSLAStatus struct {
-	TicketID     string  `json:"ticket_id"`
-	ResponseDue  string  `json:"response_due"`
-	ResolutionDue string `json:"resolution_due"`
-	ResponseOK   bool    `json:"response_ok"`
-	ResolutionOK bool    `json:"resolution_ok"`
-	Breached     bool    `json:"breached"`
+	TicketID               string     `json:"ticket_id"`
+	ResponseDue            string     `json:"response_due"`
+	ResolutionDue          string     `json:"resolution_due"`
+	ResponseOK             bool       `json:"response_ok"`
+	ResolutionOK           bool       `json:"resolution_ok"`
+	Breached               bool       `json:"breached"`
+	PolicyID               string     `json:"policy_id"`
+	Status                 string     `json:"status"`
+	Priority               string     `json:"priority"`
+	TargetResponseTimeMs   int64      `json:"target_response_time_ms"`
+	TargetResolutionTimeMs int64      `json:"target_resolution_time_ms"`
+	ResponseDeadlineAt     time.Time  `json:"response_deadline_at"`
+	ResolutionDeadlineAt   time.Time  `json:"resolution_deadline_at"`
+	BreachType             string     `json:"breach_type"`
+	RespondedAt            *time.Time `json:"responded_at"`
+	ResolvedAt             *time.Time `json:"resolved_at"`
 }
 
 // --- Reports ---
@@ -465,7 +475,7 @@ type TimeTrend struct {
 // --- SLA Policies ---
 
 type SLAPolicy struct {
-	ID                     int     `json:"id" db:"id"`
+	ID                     string  `json:"id" db:"id"`
 	TenantID               string  `json:"tenant_id" db:"tenant_id"`
 	Name                   string  `json:"name" db:"name"`
 	Description            string  `json:"description" db:"description"`

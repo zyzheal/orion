@@ -78,3 +78,48 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM process-step WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }
+
+// GetStep is an alias for GetByID, matching the service-layer signature.
+func (r *Repository) GetStep(ctx context.Context, tenantID, id string) (*models.ProcessStep, error) {
+	return r.GetByID(ctx, tenantID, id)
+}
+
+// ListSteps is an alias for List.
+func (r *Repository) ListSteps(ctx context.Context, tenantID string) ([]models.ProcessStep, error) {
+	return r.List(ctx, tenantID)
+}
+
+// ListStepsByProcess lists steps filtered by process ID. (Stub: no process_id column yet.)
+func (r *Repository) ListStepsByProcess(ctx context.Context, tenantID, processID string) ([]models.ProcessStep, error) {
+	return r.List(ctx, tenantID)
+}
+
+// UpdateStep is an alias for Update.
+func (r *Repository) UpdateStep(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ProcessStep, error) {
+	return r.Update(ctx, tenantID, id, updates)
+}
+
+// CreateEvent records a lifecycle event for a step. (Stub: no backing table yet.)
+func (r *Repository) CreateEvent(ctx context.Context, event *models.ProcessStepEvent) error {
+	return nil
+}
+
+// ListEventsByStep returns lifecycle events for a step. (Stub: no backing table yet.)
+func (r *Repository) ListEventsByStep(ctx context.Context, stepID string) ([]models.ProcessStepEvent, error) {
+	return []models.ProcessStepEvent{}, nil
+}
+
+// CreateExecution records a step execution. (Stub: no backing table yet.)
+func (r *Repository) CreateExecution(ctx context.Context, exec *models.ProcessStepExecution) error {
+	return nil
+}
+
+// UpdateExecution updates a step execution record. (Stub: no backing table yet.)
+func (r *Repository) UpdateExecution(ctx context.Context, id string, updates map[string]interface{}) (int64, error) {
+	return 0, nil
+}
+
+// ListExecutionsByStep returns executions for a step. (Stub: no backing table yet.)
+func (r *Repository) ListExecutionsByStep(ctx context.Context, stepID string) ([]models.ProcessStepExecution, error) {
+	return []models.ProcessStepExecution{}, nil
+}
