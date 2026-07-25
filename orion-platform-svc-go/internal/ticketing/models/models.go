@@ -655,13 +655,23 @@ type WorkflowHistory struct {
 
 // SuspendRecord represents a suspension record (legacy name used by repo).
 type SuspendRecord struct {
-	ID        int       `json:"id" db:"id"`
-	EngineerID string   `json:"engineer_id" db:"engineer_id"`
-	Type      string    `json:"type" db:"type"`
-	Status    string    `json:"status" db:"status"`
-	StartAt   time.Time `json:"start_at" db:"start_at"`
-	EndAt     *time.Time `json:"end_at" db:"end_at"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID                   string     `json:"id" db:"id"`
+	EngineerID           string     `json:"engineer_id" db:"engineer_id"`
+	Type                 string     `json:"type" db:"type"`
+	Status               string     `json:"status" db:"status"`
+	Reason               string     `json:"reason" db:"reason"`
+	StartTime            time.Time  `json:"start_time" db:"start_time"`
+	EndTime              *time.Time `json:"end_time" db:"end_time"`
+	BackupEngineerID     string     `json:"backup_engineer_id" db:"backup_engineer_id"`
+	AutoReassignPending  bool       `json:"auto_reassign_pending" db:"auto_reassign_pending"`
+	PauseSLAForPending   bool       `json:"pause_sla_for_pending" db:"pause_sla_for_pending"`
+	Notes                string     `json:"notes" db:"notes"`
+	CreatedBy            string     `json:"created_by" db:"created_by"`
+	ActivatedAt          *time.Time `json:"activated_at" db:"activated_at"`
+	EndedAt              *time.Time `json:"ended_at" db:"ended_at"`
+	CancelledAt          *time.Time `json:"cancelled_at" db:"cancelled_at"`
+	UpdatedAt            *time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
 }
 
 // SLAComplianceDetail holds detailed compliance stats for an SLA policy over a period.
