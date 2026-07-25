@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -33,7 +32,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 //
 // Used by the service layer to record creation and later progress/termination.
 func (r *Repository) UpsertJob(ctx context.Context, job *models.Job) error {
-	return r.db.NamedExecContext(ctx, `
+	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO import_export_jobs
 		  (id, tenant_id, user_id, data_type, operation, status, format, source_name,
 		   output_name, error_count, success_count, total_count, progress, progress_msg,
@@ -54,6 +53,7 @@ func (r *Repository) UpsertJob(ctx context.Context, job *models.Job) error {
 		    updated_at  = EXCLUDED.updated_at,
 		    finished_at = EXCLUDED.finished_at
 	`, job)
+	return err
 }
 
 // GetJob retrieves a single job by ID, scoped to the caller's tenant.
@@ -67,17 +67,7 @@ func (r *Repository) GetJob(ctx context.Context, tenantID, id string) (*models.J
 		}
 		return nil, err
 	}
-	// Deserialize JSONB metadata (sqlx may have left it raw).
-	if job.Metadata == nil {
-		var raw map[string]any
-		if b, ok := job.Metadata.(map[string]interface{}); ok {
-			job.Metadata = b
-		} else if b, ok := job.Metadata.([]byte); ok && len(b) > 0 {
-			if err := json.Unmarshal(b, &raw); err == nil {
-				job.Metadata = raw
-			}
-		}
-	}
+	// Metadata is already deserialized by sqlx into map[string]any.
 	return job, nil
 }
 
