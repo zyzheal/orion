@@ -167,7 +167,7 @@ func (p *Processor) recordInitial(jobID, tenantID, userID, dataType,
 // setJobStatus updates the job row and pushes a progress notification.
 func (p *Processor) setJobStatus(jobID, status string, progress float64, msg string) {
 	p.mu.RLock()
-	job, ok := p.repo.GetJob(context.Background(), jobID, jobID) // best-effort
+	job, _ := p.repo.GetJob(context.Background(), jobID, jobID) // best-effort
 	p.mu.RUnlock()
 	_ = job // TODO: read current job for delta update
 

@@ -33,7 +33,7 @@ func (h *CacheMonitorHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // GetMetrics returns all cache metrics.
 func (h *CacheMonitorHandler) GetMetrics(c *gin.Context) {
 	metrics := h.svc.CollectMetrics(c.Request.Context())
-	middleware.Respond(c, http.StatusOK, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 // GetCacheMetrics returns metrics for a specific cache.
@@ -44,13 +44,13 @@ func (h *CacheMonitorHandler) GetCacheMetrics(c *gin.Context) {
 		middleware.RespondNotFound(c, "cache not found: "+name)
 		return
 	}
-	middleware.Respond(c, http.StatusOK, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 // GetHealth returns health status for all caches.
 func (h *CacheMonitorHandler) GetHealth(c *gin.Context) {
 	health := h.svc.GetHealth()
-	middleware.Respond(c, http.StatusOK, health)
+	middleware.RespondSuccess(c, health)
 }
 
 // RegisterCache registers a new cache for monitoring.
@@ -72,14 +72,14 @@ func (h *CacheMonitorHandler) RegisterCache(c *gin.Context) {
 func (h *CacheMonitorHandler) EnableCache(c *gin.Context) {
 	name := c.Param("name")
 	h.svc.EnableCache(name)
-	middleware.Respond(c, http.StatusOK, gin.H{"message": "cache enabled", "name": name})
+	middleware.RespondSuccess(c, gin.H{"message": "cache enabled", "name": name})
 }
 
 // DisableCache disables a cache for monitoring.
 func (h *CacheMonitorHandler) DisableCache(c *gin.Context) {
 	name := c.Param("name")
 	h.svc.DisableCache(name)
-	middleware.Respond(c, http.StatusOK, gin.H{"message": "cache disabled", "name": name})
+	middleware.RespondSuccess(c, gin.H{"message": "cache disabled", "name": name})
 }
 
 // UnregisterCache removes a cache from monitoring.

@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 // EnsureVersionTables creates both version tracking tables if they don't exist.
 func EnsureVersionTables(execer interface{
-	Exec(query string, args ...interface{}) (database/sql.Result, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
 }) error {
 	for _, ddl := range []string{LegacyVersionTableDDL, VersionTableDDL} {
 		if _, err := execer.Exec(ddl); err != nil {
