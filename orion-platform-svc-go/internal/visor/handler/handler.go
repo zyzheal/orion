@@ -466,7 +466,7 @@ func (h *Handler) GetMetricSummary(c *gin.Context) {
 func (h *Handler) DetectAnomalies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metricName := c.Param("name")
-	(windowMs, _ := strconv.ParseInt(c.DefaultQuery("window_ms", "3600000"), 10, 64))
+	windowMs, _ := strconv.ParseInt(c.DefaultQuery("window_ms", "3600000"), 10, 64)
 	threshold, _ := strconv.ParseFloat(c.DefaultQuery("threshold", "2.5"), 64)
 
 	anomalies, err := h.svc.DetectAnomalies(c.Request.Context(), tenantID, metricName, windowMs, threshold)

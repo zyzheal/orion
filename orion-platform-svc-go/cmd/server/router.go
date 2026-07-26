@@ -571,6 +571,43 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if aiInferenceH != nil {
     aiInferenceH.RegisterRoutes(api)
   }
+  // ---- AI modules (internal/ai/) ----
+  if ai_llmH != nil {
+    ai_llmH.RegisterRoutes(api)
+  }
+  if ai_aiagentH != nil {
+    ai_aiagentH.RegisterRoutes(api)
+  }
+  if ai_aicostH != nil {
+    ai_aicostH.RegisterRoutes(api)
+  }
+  if ai_aigatewayH != nil {
+    ai_aigatewayH.RegisterRoutes(api)
+  }
+  if ai_aireviewH != nil {
+    ai_aireviewH.RegisterRoutes(api)
+  }
+  if ai_aisecurityH != nil {
+    ai_aisecurityH.RegisterRoutes(api)
+  }
+  if ai_knowledgeH != nil {
+    ai_knowledgeH.RegisterRoutes(api)
+  }
+  if ai_orchestrationH != nil {
+    ai_orchestrationH.RegisterRoutes(api)
+  }
+  if ai_autorecoveryH != nil {
+    ai_autorecoveryH.RegisterRoutes(api)
+  }
+  if ai_skillH != nil {
+    ai_skillH.RegisterRoutes(api)
+  }
+  if ai_intelligenceH != nil {
+    ai_intelligenceH.RegisterRoutes(api)
+  }
+  if ai_llmtraceH != nil {
+    ai_llmtraceH.RegisterRoutes(api)
+  }
   if networkH != nil {
     networkH.RegisterRoutes(api)
   }

@@ -6,15 +6,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
 	"orion/platform-svc-go/internal/ai/llm-trace/models"
 )
 
 type LLMTraceRepository struct {
-	DB *sql.DB
+	db *sqlx.DB
 }
 
-func NewLLMTraceRepository(db *sql.DB) *LLMTraceRepository {
-	return &LLMTraceRepository{DB: db}
+func NewLLMTraceRepository(db *sqlx.DB) *LLMTraceRepository {
+	return &LLMTraceRepository{db: db}
 }
 
 // Create inserts a new trace.
@@ -23,7 +25,7 @@ func (r *LLMTraceRepository) Create(ctx context.Context, tenantID string, req *m
 	id := fmt.Sprintf("trace_%d", time.Now().UnixNano())
 
 	query := `INSERT INTO llm_traces (id, tenant_id, model, provider, prompt_tokens, completion_tokens, total_tokens, cost, latency_ms, status, error, trace_id, input, output, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`
-	if _, err := r.DB.ExecContext(ctx, query, id, tenantID, req.Model, req.Provider, req.PromptTokens, req.CompletionTokens, req.TotalTokens, req.Cost, req.LatencyMs, req.Status, req.Error, req.TraceID, req.Input, req.Output, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, req.Model, req.Provider, req.PromptTokens, req.CompletionTokens, req.TotalTokens, req.Cost, req.LatencyMs, req.Status, req.Error, req.TraceID, req.Input, req.Output, now); err != nil {
 		return nil, fmt.Errorf("create llm trace: %w", err)
 	}
 
@@ -101,11 +103,11 @@ func (r *LLMTraceRepository) Query(ctx context.Context, tenantID string, model, 
 		whereClause, argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
-	if err := r.DB.QueryRowContext(ctx, countQuery, countArgs...).Scan(&resp.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&resp.Total); err != nil {
 		return resp, fmt.Errorf("count llm traces: %w", err)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return resp, fmt.Errorf("query llm traces: %w", err)
 	}
@@ -152,7 +154,7 @@ func (r *LLMTraceRepository) GetCostSummary(ctx context.Context, tenantID string
 	totalQuery := fmt.Sprintf(`
 		SELECT COALESCE(SUM(cost), 0), COALESCE(SUM(total_tokens), 0), COALESCE(SUM(prompt_tokens), 0), COALESCE(SUM(completion_tokens), 0), COUNT(*)
 		FROM llm_traces WHERE %s`, whereClause)
-	if err := r.DB.QueryRowContext(ctx, totalQuery, args...).Scan(&summary.TotalCost, &summary.TotalTokens, &summary.PromptTokens, &summary.CompletionTokens, &summary.CallCount); err != nil {
+	if err := r.db.QueryRowContext(ctx, totalQuery, args...).Scan(&summary.TotalCost, &summary.TotalTokens, &summary.PromptTokens, &summary.CompletionTokens, &summary.CallCount); err != nil {
 		return nil, fmt.Errorf("get cost summary totals: %w", err)
 	}
 
@@ -161,7 +163,7 @@ func (r *LLMTraceRepository) GetCostSummary(ctx context.Context, tenantID string
 		SELECT model, COALESCE(SUM(cost), 0), COUNT(*), COALESCE(SUM(total_tokens), 0)
 		FROM llm_traces WHERE %s
 		GROUP BY model ORDER BY SUM(cost) DESC`, whereClause)
-	modelRows, err := r.DB.QueryContext(ctx, modelQuery, args...)
+	modelRows, err := r.db.QueryContext(ctx, modelQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get cost by model: %w", err)
 	}
@@ -180,7 +182,7 @@ func (r *LLMTraceRepository) GetCostSummary(ctx context.Context, tenantID string
 		SELECT provider, COALESCE(SUM(cost), 0), COUNT(*), COALESCE(SUM(total_tokens), 0)
 		FROM llm_traces WHERE %s
 		GROUP BY provider ORDER BY SUM(cost) DESC`, whereClause)
-	providerRows, err := r.DB.QueryContext(ctx, providerQuery, args...)
+	providerRows, err := r.db.QueryContext(ctx, providerQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get cost by provider: %w", err)
 	}
@@ -199,7 +201,7 @@ func (r *LLMTraceRepository) GetCostSummary(ctx context.Context, tenantID string
 
 // GetByTraceID returns traces for a specific trace ID.
 func (r *LLMTraceRepository) GetByTraceID(ctx context.Context, tenantID, traceID string) ([]models.LLMTrace, error) {
-	rows, err := r.DB.QueryContext(ctx,
+	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, tenant_id, model, provider, prompt_tokens, completion_tokens, total_tokens, cost, latency_ms, status, error, trace_id, input, output, created_at
 		 FROM llm_traces WHERE tenant_id = $1 AND trace_id = $2 ORDER BY created_at ASC`, tenantID, traceID)
 	if err != nil {
@@ -225,7 +227,7 @@ func (r *LLMTraceRepository) GetByTraceID(ctx context.Context, tenantID, traceID
 // Delete removes traces older than retention period.
 func (r *LLMTraceRepository) DeleteOldTraces(ctx context.Context, tenantID string, days int) (int64, error) {
 	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
-	result, err := r.DB.ExecContext(ctx, `DELETE FROM llm_traces WHERE tenant_id = $1 AND created_at < $2`, tenantID, cutoff)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM llm_traces WHERE tenant_id = $1 AND created_at < $2`, tenantID, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("delete old traces: %w", err)
 	}

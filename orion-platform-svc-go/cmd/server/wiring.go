@@ -415,6 +415,20 @@ import (
 	"os"
 
 	"go.uber.org/zap"
+
+	// ---- AI module handler imports (internal/ai/) ----
+	ai_llm_handler "orion/platform-svc-go/internal/ai/llm/handler"
+	ai_aiagent_handler "orion/platform-svc-go/internal/ai/aiagent/handler"
+	ai_aicost_handler "orion/platform-svc-go/internal/ai/aicost/handler"
+	ai_aigateway_handler "orion/platform-svc-go/internal/ai/aigateway/handler"
+	ai_aireview_handler "orion/platform-svc-go/internal/ai/aireview/handler"
+	ai_aisecurity_handler "orion/platform-svc-go/internal/ai/aisecurity/handler"
+	ai_knowledge_handler "orion/platform-svc-go/internal/ai/knowledge/handler"
+	ai_orchestration_handler "orion/platform-svc-go/internal/ai/orchestration/handler"
+	ai_autorecovery_handler "orion/platform-svc-go/internal/ai/auto-recovery/handler"
+	ai_skill_handler "orion/platform-svc-go/internal/ai/skill/handler"
+	ai_intelligence_handler "orion/platform-svc-go/internal/ai/intelligence/handler"
+	ai_llmtrace_handler "orion/platform-svc-go/internal/ai/llm-trace/handler"
 )
 
 // Package-level handler variables — initialized in initWiring(), consumed in setupRouter().
@@ -638,6 +652,20 @@ var (
 	infraMultiH   *infraMulti_handler.Handler
 	infraOCIH     *infraOCI_handler.Handler
 	infraServerlessH *infraServerless_handler.Handler
+
+	// ---- AI module handlers (internal/ai/) ----
+	ai_llmH           *ai_llm_handler.Handler
+	ai_aiagentH       *ai_aiagent_handler.Handler
+	ai_aicostH        *ai_aicost_handler.Handler
+	ai_aigatewayH     *ai_aigateway_handler.Handler
+	ai_aireviewH      *ai_aireview_handler.Handler
+	ai_aisecurityH    *ai_aisecurity_handler.Handler
+	ai_knowledgeH     *ai_knowledge_handler.KnowledgeHandler
+	ai_orchestrationH *ai_orchestration_handler.OrchestrationHandler
+	ai_autorecoveryH  *ai_autorecovery_handler.AutoRecoveryHandler
+	ai_skillH         *ai_skill_handler.Handler
+	ai_intelligenceH  *ai_intelligence_handler.Handler
+	ai_llmtraceH      *ai_llmtrace_handler.LLMTraceHandler
 )
 
 func initWiring(infra *infrastructure, logger *zap.Logger) {
@@ -919,5 +947,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	infraServerlessRepo := infraServerless_repo.NewRepository(infra.db.DB)
 	infraServerlessSvc := infraServerless_service.NewService(infraServerlessRepo)
 	infraServerlessH = infraServerless_handler.NewHandler(infraServerlessSvc)
+
+	// ---- AI modules (internal/ai/) ----
+	wireAIModules(db, logger)
 
 }
