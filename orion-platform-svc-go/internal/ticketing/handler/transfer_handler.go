@@ -28,7 +28,8 @@ func (h *TransferHandler) ManualTransfer(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.ManualTransfer(c.Request.Context(), ticketID, tenantID, req.ToEngineerID, req.InitiatedBy, req.Reason)
+	initiatedBy := GetUserID(c)
+	record, err := h.svc.ManualTransfer(c.Request.Context(), ticketID, tenantID, req.ToUserID, initiatedBy, req.Reason)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/import-export/formatters"
 	"orion/platform-svc-go/internal/import-export/interfaces"
 	"orion/platform-svc-go/internal/import-export/models"
+	userModels "orion/platform-svc-go/internal/user/models"
 	"orion/platform-svc-go/internal/user/service"
 
 	"github.com/google/uuid"
@@ -159,12 +159,14 @@ func (h *UserHandler) validateRows(rows []map[string]interface{}, opts *models.I
 }
 
 func (h *UserHandler) createUser(ctx context.Context, tenantID string, row map[string]interface{}) error {
-	_ = tenantID
-	req := service.CreateUserRequest{}
-	if err := json.Unmarshal(formatToJSON([]map[string]interface{}{row}), &req); err != nil {
-		return err
+	req := userModels.CreateUserRequest{
+		Username: getString(row, "username"),
+		Email:    getString(row, "email"),
+		Password: getString(row, "password"),
+		FullName: getString(row, "displayName"),
+		Role:     getString(row, "role"),
 	}
-	_, err := h.userSvc.CreateUser(ctx, req)
+	_, err := h.userSvc.Create(ctx, tenantID, getString(row, "creatorID"), &req)
 	return err
 }
 

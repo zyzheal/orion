@@ -27,7 +27,8 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 		return
 	}
 
-	ticket, history, err := h.svc.TransitionStatus(c.Request.Context(), id, tenantID, req.ToStatus, req.PerformedBy, req.Reason)
+	performedBy := GetUserID(c)
+	ticket, history, err := h.svc.TransitionStatus(c.Request.Context(), id, tenantID, req.Status, performedBy, req.Comment)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return

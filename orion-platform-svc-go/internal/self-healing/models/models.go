@@ -133,3 +133,19 @@ type RespondApprovalRequest struct {
 	Approved bool   `json:"approved"`
 	Comment  string `json:"comment"`
 }
+
+// HealingEffectiveness aggregates execution metrics for a healing strategy.
+type HealingEffectiveness struct {
+	StrategyID         uuid.UUID `json:"strategy_id"`
+	TotalIncidents     int64     `json:"total_incidents"`
+	ResolvedIncidents  int64     `json:"resolved_incidents"`
+	ResolutionRate     float64   `json:"resolution_rate"`
+	AvgResolutionSecs  int64     `json:"avg_resolution_secs"`
+}
+
+// RegisterStrategyRequest is the request payload for registering a new healing strategy.
+type RegisterStrategyRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	Enabled     bool   `json:"enabled"`
+}

@@ -9,13 +9,32 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/auth-enhanced/models"
-	"orion/platform-svc-go/internal/auth-enhanced/repository"
 	"orion/go-common/pkg/database"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+// User is the local Orion user representation used by the WeChat SSO service.
+// Defined here since the auth-enhanced models package does not expose a User type.
+type User struct {
+	ID           string
+	TenantID     string
+	Username     string
+	Email        string
+	Status       string
+	PasswordHash string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+// authRepository defines the user-read/write operations needed by the WeChat
+// SSO service. It replaces the non-existent repository.AuthRepository type.
+type authRepository interface {
+	FindUserByID(ctx context.Context, userID string) (*User, error)
+	CreateUser(ctx context.Context, u *User) error
+	UpdateUser(ctx context.Context, u *User) error
+}
 
 // ErrWechatNotEnabled is returned when WeChat Work SSO is not configured.
 var ErrWechatNotEnabled = errors.New("wechat work SSO is not enabled")
@@ -27,14 +46,14 @@ var ErrUserNotFound = errors.New("user not found")
 type Service struct {
 	client   *Client
 	repo     *WechatRepository
-	authRepo *repository.AuthRepository
+	authRepo authRepository
 
 	log  *zap.Logger
 	cfg  *Config
 }
 
 // NewService creates a WeChat Work SSO service.
-func NewService(cfg *Config, db *database.DB, log *zap.Logger, authRepo *repository.AuthRepository) *Service {
+func NewService(cfg *Config, db *database.DB, log *zap.Logger, authRepo authRepository) *Service {
 	return &Service{
 		client:   NewClient(cfg),
 		repo:     NewWechatRepository(db),
@@ -69,7 +88,7 @@ func (s *Service) generateState() string {
 
 // HandleCallback exchanges an authorization code for a user profile and links
 // the WeChat Work identity to a local Orion user.
-func (s *Service) HandleCallback(ctx context.Context, code, tenantID string) (*model.User, error) {
+func (s *Service) HandleCallback(ctx context.Context, code, tenantID string) (*User, error) {
 	if !s.IsEnabled() {
 		return nil, ErrWechatNotEnabled
 	}
@@ -195,27 +214,27 @@ func (s *Service) ListAccounts(ctx context.Context, tenantID string) ([]WeChatWo
 }
 
 // GetUser retrieves a user by ID (internal helper).
-func (s *Service) GetUser(ctx context.Context, id string) (*model.User, error) {
+func (s *Service) GetUser(ctx context.Context, id string) (*User, error) {
 	return s.getUserByID(ctx, id)
 }
 
 // --- internal helpers ---
 
-func (s *Service) getUserByID(ctx context.Context, userID string) (*model.User, error) {
+func (s *Service) getUserByID(ctx context.Context, userID string) (*User, error) {
 	if s.authRepo == nil {
 		return nil, ErrUserNotFound
 	}
 	return s.authRepo.FindUserByID(ctx, userID)
 }
 
-func (s *Service) createUser(ctx context.Context, u *model.User) error {
+func (s *Service) createUser(ctx context.Context, u *User) error {
 	if s.authRepo == nil {
 		return ErrUserNotFound
 	}
 	return s.authRepo.CreateUser(ctx, u)
 }
 
-func (s *Service) findUserByEmail(ctx context.Context, tenantID, email string) (*model.User, error) {
+func (s *Service) findUserByEmail(ctx context.Context, tenantID, email string) (*User, error) {
 	if s.authRepo == nil {
 		return nil, nil
 	}
@@ -236,14 +255,14 @@ func (s *Service) updateUserIfLinked(ctx context.Context, acct *WeChatWorkAccoun
 	_ = s.authRepo.UpdateUser(ctx, user)
 }
 
-func (s *Service) buildLocalUser(profile *UserProfile, tenantID string) *model.User {
-	uuid := uuid.New().String()
+func (s *Service) buildLocalUser(profile *UserProfile, tenantID string) *User {
+	id := uuid.New().String()
 	email := profile.Email
 	if email == "" {
 		email = fmt.Sprintf("%s@wechat.work", profile.UserID)
 	}
-	return &model.User{
-		ID:           uuid,
+	return &User{
+		ID:           id,
 		TenantID:     tenantID,
 		Username:     profile.UserID,
 		Email:        email,

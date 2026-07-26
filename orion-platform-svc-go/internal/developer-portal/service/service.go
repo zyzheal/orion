@@ -34,7 +34,7 @@ type RepositoryInterface interface {
 	GetCategories(ctx context.Context, tenantID string) ([]models.CategoryInfo, error)
 	GetDocumentByID(ctx context.Context, tenantID, id string) (*models.PortalDocument, error)
 	GetDocumentStats(ctx context.Context, tenantID string) (*models.DocumentStats, error)
-	GetDocumentVersions(ctx context.Context, documentID string) ([]models.DocumentVersion, error)
+	GetDocumentVersions(ctx context.Context, tenantID, documentID string) ([]models.DocumentVersion, error)
 	GetMockRuleByID(ctx context.Context, tenantID, id string) (*models.MockRule, error)
 	GetMockRuleStats(ctx context.Context, tenantID string) (*models.MockRuleStats, error)
 	GetPlaygroundRequestByID(ctx context.Context, tenantID, id string) (*models.PlaygroundRequest, error)
@@ -227,7 +227,7 @@ func (s *Service) GetDocumentVersions(c context.Context, tenantID, id string) ([
 	if err != nil {
 		return nil, errors.New("document not found")
 	}
-	return s.repo.GetDocumentVersions(c, id)
+	return s.repo.GetDocumentVersions(c, tenantID, id)
 }
 
 // ---------- Review Workflow ----------

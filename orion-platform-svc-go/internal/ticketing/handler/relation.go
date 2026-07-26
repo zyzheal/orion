@@ -28,8 +28,8 @@ func (h *RelationHandler) AddRelation(c *gin.Context) {
 	}
 
 	rel, err := h.svc.AddRelation(c.Request.Context(),
-		ticketID, req.RelatedTicketID, req.RelationType,
-		req.CreatedBy, req.Description, req.Confidence)
+		ticketID, req.RelatedID, req.Type,
+		GetUserID(c), "", 0.0)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return

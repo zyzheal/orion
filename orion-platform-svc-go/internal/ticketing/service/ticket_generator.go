@@ -56,7 +56,7 @@ func (s *TicketGeneratorService) FromAlert(ctx context.Context, tenantID string,
 		Description: description,
 		Type:        "alert",
 		Priority:    priority,
-		Status:      models.StatusOpen,
+		Status:      "open",
 		CreatedBy:   createdBy,
 	}
 
@@ -101,7 +101,7 @@ func (s *TicketGeneratorService) FromIncident(ctx context.Context, tenantID stri
 		Description: description,
 		Type:        "incident",
 		Priority:    priority,
-		Status:      models.StatusOpen,
+		Status:      "open",
 		CreatedBy:   createdBy,
 	}
 

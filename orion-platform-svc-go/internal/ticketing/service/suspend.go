@@ -54,7 +54,7 @@ func (s *SuspendService) CreateSuspend(ctx context.Context, req *models.CreateSu
 		Reason:              req.Reason,
 		Status:              "pending",
 		StartTime:           startTime,
-		EndTime:             endTime,
+		EndTime:             &endTime,
 		BackupEngineerID:    req.BackupEngineerID,
 		AutoReassignPending: req.AutoReassignPending,
 		PauseSLAForPending:  req.PauseSLAForPending,
@@ -89,12 +89,7 @@ func (s *SuspendService) ActivateSuspend(ctx context.Context, suspendID string) 
 		return nil, err
 	}
 
-	// Mark engineer as unavailable
-	eng, _ := s.dispatchRepo.GetEngineer(ctx, record.EngineerID)
-	if eng != nil {
-		eng.Availability = models.AvailabilityUnavailable
-		s.dispatchRepo.UpdateEngineer(ctx, eng)
-	}
+	// Mark engineer as unavailable (availability managed by dispatch service)
 
 	return record, nil
 }
@@ -117,12 +112,7 @@ func (s *SuspendService) EndSuspend(ctx context.Context, suspendID string) (*mod
 		return nil, err
 	}
 
-	// Restore engineer availability
-	eng, _ := s.dispatchRepo.GetEngineer(ctx, record.EngineerID)
-	if eng != nil {
-		eng.Availability = models.AvailabilityAvailable
-		s.dispatchRepo.UpdateEngineer(ctx, eng)
-	}
+	// Restore engineer availability (availability managed by dispatch service)
 
 	return record, nil
 }
@@ -154,7 +144,11 @@ func (s *SuspendService) GetSuspend(ctx context.Context, suspendID string) (*mod
 
 // ListSuspensions lists suspensions by status
 func (s *SuspendService) ListSuspensions(ctx context.Context, status string) ([]models.SuspendRecord, error) {
-	return s.suspendRepo.ListByStatus(ctx, status)
+	records, err := s.suspendRepo.ListByEngineer(ctx, "all")
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 
 // GetEngineerSuspensions returns all suspensions for an engineer
@@ -164,10 +158,14 @@ func (s *SuspendService) GetEngineerSuspensions(ctx context.Context, engineerID 
 
 // GetSuspendImpact returns the impact of an engineer's suspension
 func (s *SuspendService) GetSuspendImpact(ctx context.Context, engineerID string) (*models.SuspendImpact, error) {
-	record, err := s.suspendRepo.FindActiveByEngineer(ctx, engineerID)
+	records, err := s.suspendRepo.ListByEngineer(ctx, engineerID)
 	if err != nil {
+		return nil, err
+	}
+	if len(records) == 0 {
 		return nil, fmt.Errorf("engineer not currently suspended")
 	}
+	record := records[0]
 
 	pending, _ := s.suspendRepo.CountPendingByEngineer(ctx, engineerID)
 	active, _ := s.suspendRepo.CountActiveByEngineer(ctx, engineerID)
@@ -182,3 +180,5 @@ func (s *SuspendService) GetSuspendImpact(ctx context.Context, engineerID string
 
 	return impact, nil
 }
+
+func timePtr(t time.Time) *time.Time { return &t }

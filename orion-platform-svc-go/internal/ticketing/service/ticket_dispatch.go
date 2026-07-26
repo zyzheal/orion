@@ -232,8 +232,16 @@ func (s *Service) GetLoadBalanceReport(ctx context.Context, tenantID string) (*m
 	if minLoad == math.MaxInt32 {
 		minLoad = 0
 	}
+	engineerLoads := make([]models.EngineerLoad, 0, len(engineers))
+	for _, e := range engineers {
+		engineerLoads = append(engineerLoads, models.EngineerLoad{
+			Name:        e.Name,
+			CurrentLoad: e.CurrentLoad,
+			MaxCapacity: e.MaxCapacity,
+		})
+	}
 	return &models.LoadBalanceReport{
-		Engineers: names,
+		Engineers: engineerLoads,
 		Loads:     loads,
 		AvgLoad:   avg,
 		MaxLoad:   maxLoad,

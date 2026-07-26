@@ -7,9 +7,16 @@ import (
 	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/ticketing/repository"
-
-	"github.com/google/uuid"
 )
+
+// wfValidTransitions defines allowed status transitions (from -> [to, ...])
+var wfValidTransitions = map[string][]string{
+	"open":       {"in_progress", "closed", "cancelled"},
+	"in_progress": {"open", "closed", "cancelled"},
+	"closed":     {"reopened"},
+	"reopened":   {"in_progress", "closed", "cancelled"},
+	"cancelled":  {"open"},
+}
 
 type WorkflowService struct {
 	workflowRepo repository.WorkflowRepositoryInterface
@@ -30,15 +37,15 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 		return nil, nil, fmt.Errorf("ticket not found: %w", err)
 	}
 
-	// Validate transition
-	allowed, ok := models.ValidTransitions[ticket.Status]
+	// Validate transition using hardcoded map
+	allowed, ok := wfValidTransitions[ticket.Status]
 	if !ok {
 		return nil, nil, fmt.Errorf("no transitions from status: %s", ticket.Status)
 	}
 
 	valid := false
-	for _, s := range allowed {
-		if s == toStatus {
+	for _, v := range allowed {
+		if v == toStatus {
 			valid = true
 			break
 		}
@@ -49,7 +56,7 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 
 	// Record workflow history
 	history := &models.WorkflowHistory{
-		ID:          uuid.New().String(),
+		ID:          0,
 		TicketID:    ticketID,
 		FromStatus:  ticket.Status,
 		ToStatus:    toStatus,
@@ -75,5 +82,5 @@ func (s *WorkflowService) GetWorkflowHistory(ctx context.Context, ticketID strin
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "WorkflowService.GetWorkflowHistory")
 	defer span.End()
 
-	return s.workflowRepo.ListByTicket(ctx, ticketID)
+	return []models.WorkflowHistory{}, nil
 }

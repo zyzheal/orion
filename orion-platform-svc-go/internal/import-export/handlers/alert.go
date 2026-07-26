@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/import-export/formatters"
 	"orion/platform-svc-go/internal/import-export/interfaces"
 	"orion/platform-svc-go/internal/import-export/models"
+	alertModels "orion/platform-svc-go/internal/alert/models"
 	"orion/platform-svc-go/internal/alert/service"
 
 	"github.com/google/uuid"
@@ -149,7 +150,7 @@ func (h *AlertHandler) validateRows(rows []map[string]interface{}, opts *models.
 }
 
 func (h *AlertHandler) ingestAlert(ctx context.Context, tenantID string, row map[string]interface{}) error {
-	req := service.IngestRequest{}
+	req := alertModels.IngestRequest{}
 	if err := json.Unmarshal(formatToJSON([]map[string]interface{}{row}), &req); err != nil {
 		return err
 	}

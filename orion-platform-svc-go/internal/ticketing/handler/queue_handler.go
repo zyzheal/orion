@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/service"
 )
 
@@ -40,11 +39,7 @@ func (h *QueueHandler) GetSLAQueueEntries(c *gin.Context) {
 
 // GetSLAAlerts GET /api/v1/tickets/dispatch/queue/sla-alerts
 func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
-	var alertType *models.SLAAlertType
-	if t := c.Query("type"); t != "" {
-		at := models.SLAAlertType(t)
-		alertType = &at
-	}
+	alertType := c.Query("type")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	if limit == 0 {
 		limit = 50

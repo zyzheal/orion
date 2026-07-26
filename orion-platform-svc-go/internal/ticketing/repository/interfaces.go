@@ -154,6 +154,10 @@ type SuspendRepositoryInterface interface {
 	// Extended methods used by service layer
 	GetByID(ctx context.Context, id string) (*models.SuspendRecord, error)
 	CountPendingByEngineer(ctx context.Context, engineerID string) (int, error)
+	CountActiveByEngineer(ctx context.Context, engineerID string) (int, error)
+	Create(ctx context.Context, rec *models.SuspendRecord) error
+	Update(ctx context.Context, rec *models.SuspendRecord) error
+	ListByEngineer(ctx context.Context, engineerID string) ([]models.SuspendRecord, error)
 }
 
 // RelationRepositoryInterface defines the interface for relation operations.

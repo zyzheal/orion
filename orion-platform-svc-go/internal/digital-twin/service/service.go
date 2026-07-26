@@ -20,11 +20,11 @@ type RepositoryInterface interface {
 	CreateTrafficRecord(ctx context.Context, in models.CreateTrafficRecordInput) (*models.TrafficRecord, error)
 	CreateTwin(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error)
 	FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
-	FindReplaySessionById(ctx context.Context, id string) (*models.ReplaySession, error)
-	FindReplaySessionsByTwinID(ctx context.Context, twinID string) ([]models.ReplaySession, error)
-	FindTrafficRecordsByTwinID(ctx context.Context, twinID string) ([]models.TrafficRecord, error)
+	FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error)
+	FindReplaySessionsByTwinID(ctx context.Context, tenantID string, twinID string) ([]models.ReplaySession, error)
+	FindTrafficRecordsByTwinID(ctx context.Context, tenantID string, twinID string) ([]models.TrafficRecord, error)
 	FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
-	UpdateReplaySession(ctx context.Context, id, status string) (*models.ReplaySession, error)
+	UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error)
 }
 
 type SimulationState struct {
@@ -180,7 +180,7 @@ func (s *Service) StartRecording(twinID, name string) *models.RecordingSession {
 
 // ListRecordingSessions returns recording sessions for a twin.
 func (s *Service) ListRecordingSessions(ctx context.Context, twinID string) ([]RecordingSessionSummary, error) {
-	records, err := s.repo.FindTrafficRecordsByTwinID(ctx, twinID)
+	records, err := s.repo.FindTrafficRecordsByTwinID(ctx, "", twinID)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func (s *Service) StartReplay(ctx context.Context, twinID string, req models.Cre
 }
 
 func (s *Service) ListReplaySessions(ctx context.Context, twinID string) ([]ReplaySessionSummary, error) {
-	sessions, err := s.repo.FindReplaySessionsByTwinID(ctx, twinID)
+	sessions, err := s.repo.FindReplaySessionsByTwinID(ctx, "", twinID)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (s *Service) ListReplaySessions(ctx context.Context, twinID string) ([]Repl
 }
 
 func (s *Service) GetReplayStatus(ctx context.Context, replayID string) (*ReplayStatusDetail, error) {
-	session, err := s.repo.FindReplaySessionById(ctx, replayID)
+	session, err := s.repo.FindReplaySessionById(ctx, "", replayID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +304,8 @@ func (s *Service) GetReplayStatus(ctx context.Context, replayID string) (*Replay
 	}, nil
 }
 
-func (s *Service) CancelReplay(ctx context.Context, replayID string) (*ReplaySessionSummary, error) {
-	updated, err := s.repo.UpdateReplaySession(ctx, replayID, "cancelled")
+func (s *Service) CancelReplay(ctx context.Context, tenantID, replayID string) (*ReplaySessionSummary, error) {
+	updated, err := s.repo.UpdateReplaySession(ctx, tenantID, replayID, "cancelled")
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func (s *Service) CancelReplay(ctx context.Context, replayID string) (*ReplaySes
 }
 
 func (s *Service) GetReplayReport(ctx context.Context, replayID string) (*ReplayReport, error) {
-	session, err := s.repo.FindReplaySessionById(ctx, replayID)
+	session, err := s.repo.FindReplaySessionById(ctx, "", replayID)
 	if err != nil {
 		return nil, err
 	}

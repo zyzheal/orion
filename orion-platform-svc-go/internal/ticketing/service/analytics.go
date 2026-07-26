@@ -163,7 +163,7 @@ func (s *AnalyticsService) GetEfficiencyScore(ctx context.Context, engineerID st
 
 	// Compute score from components
 	components := map[string]float64{
-		"resolution_speed": eng.AvgResolutionMs,
+		"resolution_speed": float64(eng.AvgResolutionMs),
 		"sla_compliance":   eng.SLACompliance,
 		"success_rate":     eng.SuccessRate,
 	}
@@ -282,8 +282,8 @@ func (s *AnalyticsService) TransferTicket(ctx context.Context, ticketID, tenantI
 	}
 
 	fromEngineerID := ""
-	if ticket.AssignedTo != nil {
-		fromEngineerID = *ticket.AssignedTo
+	if ticket.AssignedTo != "" {
+		fromEngineerID = ticket.AssignedTo
 	}
 
 	// Create transfer record

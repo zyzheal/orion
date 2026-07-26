@@ -367,8 +367,9 @@ func (h *Handler) GetReplayStatus(c *gin.Context) {
 func (h *Handler) CancelReplay(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelReplay")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	replayID := c.Param("replayId")
-	result, err := h.svc.CancelReplay(ctx, replayID)
+	result, err := h.svc.CancelReplay(ctx, tenantID, replayID)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "replay session not found")

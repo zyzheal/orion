@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/service"
 )
@@ -144,18 +143,20 @@ func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
 
 // AddDispatchRule POST /api/v1/tickets/dispatch/rules
 func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
-	var req models.CreateDispatchRuleRequest
+	tenantID := c.GetString("tenant_id")
+	var req models.AddDispatchRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
 	rule := &models.DispatchRule{
-		ID:         uuid.New().String(),
+		TenantID:   tenantID,
 		Name:       req.Name,
-		Condition:  req.Condition,
-		EngineerID: req.EngineerID,
-		Priority:   req.Priority,
+		Conditions: req.Conditions,
+		Strategy:   req.Strategy,
+		Weight:     req.Weight,
+		Enabled:    true,
 	}
 
 	if err := h.svc.AddRule(c.Request.Context(), rule); err != nil {

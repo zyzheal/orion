@@ -97,7 +97,14 @@ func (h *AutomationRuleHandler) DeleteRule(c *gin.Context) {
 func (h *AutomationRuleHandler) ExecuteRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
-	var req models.ExecuteRuleRequest
+	var req struct {
+		TicketID    string           `json:"ticket_id"`
+		TriggeredBy string           `json:"triggered_by"`
+		TicketData  map[string]any   `json:"ticket_data"`
+	}
+	if req.TicketData == nil {
+		req.TicketData = map[string]any{}
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return

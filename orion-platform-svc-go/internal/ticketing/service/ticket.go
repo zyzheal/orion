@@ -46,13 +46,13 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 	defer span.End()
 
 	ticket := &models.Ticket{
-		ID:          uuid.New().String(),
+		ID: uuid.New().String(),
 		TenantID:    tenantID,
 		Title:       req.Title,
 		Description: req.Description,
 		Type:        req.Type,
 		Priority:    req.Priority,
-		Status:      models.StatusOpen,
+		Status:      "open",
 		CreatedBy:   createdBy,
 	}
 
@@ -63,10 +63,9 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 	// Record workflow entry for initial status
 	if s.workflow != nil {
 		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
-			ID:         uuid.New().String(),
-			TicketID:   ticket.ID,
+						TicketID:   ticket.ID,
 			FromStatus: "",
-			ToStatus:   models.StatusOpen,
+			ToStatus:   "open",
 			PerformedBy: createdBy,
 		})
 	}
@@ -110,11 +109,11 @@ func (s *TicketService) List(ctx context.Context, tenantID string, q models.List
 	}
 	q.Limit = limit
 	q.Offset = offset
-	tickets, err := s.repo.List(ctx, tenantID, q)
+	tickets, total, err := s.repo.List(ctx, tenantID, q)
 	if err != nil {
 		return nil, 0, err
 	}
-	return tickets, len(tickets), nil
+	return tickets, total, nil
 }
 
 func (s *TicketService) Update(ctx context.Context, ticket *models.Ticket) error {
@@ -134,7 +133,7 @@ func (s *TicketService) Resolve(ctx context.Context, id, tenantID, performedBy s
 	defer span.End()
 
 	if s.workflow != nil {
-		_, _, err := s.workflow.TransitionStatus(ctx, id, tenantID, models.StatusResolved, performedBy, "")
+		_, _, err := s.workflow.TransitionStatus(ctx, id, tenantID, "resolved", performedBy, "")
 		return err
 	}
 	return s.repo.UpdateStatus(ctx, id, tenantID, "resolved")
@@ -179,11 +178,10 @@ func (s *TicketService) AddComment(ctx context.Context, ticketID, tenantID strin
 	}
 
 	comment := &models.TicketComment{
-		ID:         uuid.New().String(),
-		TicketID:   ticketID,
-		Author:     req.Author,
-		Content:    req.Content,
-		IsInternal: req.IsInternal,
+		ID:       0,
+		TicketID: ticketID,
+		UserID:   req.TicketID,
+		Content:  req.Text,
 	}
 
 	if err := s.comment.Create(ctx, comment); err != nil {
@@ -230,8 +228,7 @@ func (s *TicketService) Escalate(ctx context.Context, ticketID, tenantID, escala
 	// Record in workflow
 	if s.workflow != nil {
 		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
-			ID:          uuid.New().String(),
-			TicketID:    ticketID,
+						TicketID:    ticketID,
 			FromStatus:  ticket.Status,
 			ToStatus:    ticket.Status,
 			PerformedBy: escalatedBy,
@@ -245,7 +242,7 @@ func (s *TicketService) Escalate(ctx context.Context, ticketID, tenantID, escala
 // Close closes a ticket
 func (s *TicketService) Close(ctx context.Context, ticketID, tenantID, performedBy, reason string) (*models.Ticket, error) {
 	if s.workflow != nil {
-		ticket, _, err := s.workflow.TransitionStatus(ctx, ticketID, tenantID, models.StatusClosed, performedBy, reason)
+		ticket, _, err := s.workflow.TransitionStatus(ctx, ticketID, tenantID, "closed", performedBy, reason)
 		return ticket, err
 	}
 

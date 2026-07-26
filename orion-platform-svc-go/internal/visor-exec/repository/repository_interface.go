@@ -33,10 +33,10 @@ type RepositoryInterface interface {
 	UpdateCronJobLastRun(ctx context.Context, id string, lastRunAt time.Time) error
 	CreateCronJobLog(ctx context.Context, log *models.CronJobLog) error
 	ListCronJobLogsByJobID(ctx context.Context, jobID string, page, pageSize int) ([]models.CronJobLog, error)
-	CountCronJobLogsByJobID(ctx context.Context, jobID string) (int, error)
+	CountCronJobLogsByJobID(ctx context.Context, tenantID, jobID string) (int, error)
 	CreateUploadTask(ctx context.Context, task *models.UploadTask) error
 	ListUploadTasks(ctx context.Context) ([]models.UploadTask, error)
-	CountUploadTasks(ctx context.Context) (int, error)
+	CountUploadTasks(ctx context.Context, tenantID string) (int, error)
 	GetUploadTaskByID(ctx context.Context, id string) (*models.UploadTask, error)
 	UpdateUploadTask(ctx context.Context, id string, updates map[string]interface{}) error
 }

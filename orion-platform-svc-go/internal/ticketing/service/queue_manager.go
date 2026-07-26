@@ -86,7 +86,7 @@ func (qm *QueueManager) GetSLAAlerts(ctx context.Context, alertType string, limi
 		percent := math.Min(elapsed.Hours()/24.0*100, 100)
 
 		alert := models.QueueAlert{
-			Type:      models.SLAAlertType(""),
+			Type:      "warning",
 			Message:   fmt.Sprintf("Ticket %s: %.0f%% elapsed", entry.TicketID, percent),
 			CreatedAt: now,
 		}

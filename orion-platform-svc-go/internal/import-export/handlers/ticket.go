@@ -9,10 +9,24 @@ import (
 	"orion/platform-svc-go/internal/import-export/formatters"
 	"orion/platform-svc-go/internal/import-export/interfaces"
 	"orion/platform-svc-go/internal/import-export/models"
+	ticketingmodels "orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/service"
 
 	"github.com/google/uuid"
 )
+
+func (h *TicketHandler) importInsertTicket(ctx context.Context, tenantID string, row map[string]interface{}) error {
+	req := ticketingmodels.CreateTicketRequest{
+		Title:       getString(row, "title"),
+		Description: getString(row, "description"),
+		Type:        getString(row, "type"),
+		Priority:    getString(row, "priority"),
+		Category:    getString(row, "category"),
+		Source:      "import-export",
+	}
+	_, err := h.ticketingSvc.CreateTicket(ctx, tenantID, req, getString(row, "created_by"))
+	return err
+}
 
 // TicketHandler is the import/export handler for the ticket data type.
 //
@@ -157,12 +171,15 @@ func (h *TicketHandler) validateRows(rows []map[string]interface{}, opts *models
 }
 
 func (h *TicketHandler) insertTicket(ctx context.Context, tenantID string, row map[string]interface{}) error {
-	_ = h.ticketingSvc
-	// NOTE: The ticketing service uses a different signature; wire the real
-	// CreateTicket call once the module is stable.  Here we simulate success.
-	_, err := h.ticketingSvc.CreateTicket(ctx, tenantID, service.CreateTicketRequest{
-		Title: getString(row, "title"),
-	})
+	req := ticketingmodels.CreateTicketRequest{
+		Title:      getString(row, "title"),
+		Description: getString(row, "description"),
+		Type:       getString(row, "type"),
+		Priority:   getString(row, "priority"),
+		Category:   getString(row, "category"),
+		Source:     "import-export",
+	}
+	_, err := h.ticketingSvc.CreateTicket(ctx, tenantID, req, getString(row, "created_by"))
 	return err
 }
 
@@ -189,7 +206,7 @@ func (h *TicketHandler) Export(ctx context.Context, filter map[string]interface{
 	}
 	opts.Format = strings.ToLower(format)
 
-	tenantID := opts.TenantID
+	_ = opts.TenantID
 	// TODO: query real tickets via ticketing service.
 	var tickets []map[string]interface{}
 	// Placeholder; replace with real service call.

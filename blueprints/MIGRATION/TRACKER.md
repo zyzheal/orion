@@ -182,3 +182,24 @@ tool, workflow-webhook, workflow
 | Go 蓝图归档 | 13 个大型域 + 37 个小域 |
 | 构建干净率 | 91.5% (238/260) |
 | NeatLogic 功能开发 | 6 个新功能 |
+
+---
+
+## 蓝图归档完成 (2026-07-26)
+
+| 类型 | 数量 | 状态 |
+|------|------|------|
+| TS 蓝图 (orion-*-svc) | 36 个 | ✅ 已归档 (.archived) |
+| Go 蓝图 (orion-*-svc-go) | 37 个 | ✅ 已归档 (.archived) |
+| Python 蓝图 (orion-*-py) | 2 个 | ✅ 已归档 (.archived) |
+| Rust 蓝图 (orion-*-rust) | 1 个 | ✅ 已归档 (.archived) |
+| 其他 (cmdb-service, db, platform-core) | 3 个 | ✅ 已归档 (.archived) |
+| **总计** | **79 个** | **✅ 100% 已归档** |
+
+### 未归档项
+- `orion-api-gateway-go` — 保留中（非业务域蓝图，属于网关配置）
+
+### 归档说明
+- 所有蓝图目录已重命名为 `.archived` 后缀
+- 代码已迁移至 `orion-platform-svc-go/internal/` (292 个包)
+- 归档目录保持只读，不删除以保留历史参考

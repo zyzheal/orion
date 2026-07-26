@@ -8,16 +8,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/oncall/models"
 	"go.uber.org/zap"
 )
 
 type OnCallRepository struct {
-	db     *DB
+	db     *sqlx.DB
 	logger *zap.Logger
 }
 
-func NewOnCallRepository(db *DB, logger *zap.Logger) *OnCallRepository {
+func NewOnCallRepository(db *sqlx.DB, logger *zap.Logger) *OnCallRepository {
 	return &OnCallRepository{db: db, logger: logger}
 }
 
@@ -31,7 +32,7 @@ func (r *OnCallRepository) CreateSchedule(ctx context.Context, tenantID uuid.UUI
 	id := uuid.New()
 
 	query := `INSERT INTO oncall_schedules (id, tenant_id, name, description, is_primary, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`
-	if _, err := r.db.Pool().Exec(ctx, query, id, tenantID, req.Name, req.Description, isPrimary, now, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, req.Name, req.Description, isPrimary, now, now); err != nil {
 		return nil, fmt.Errorf("create schedule: %w", err)
 	}
 
@@ -57,11 +58,13 @@ func (r *OnCallRepository) QuerySchedules(ctx context.Context, tenantID uuid.UUI
 	countQuery := `SELECT COUNT(*) FROM oncall_schedules WHERE tenant_id = $1`
 	query := `SELECT id, tenant_id, name, description, is_primary, created_at, updated_at FROM oncall_schedules WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
-	if err := r.db.Pool().QueryRow(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
+	var total int64
+	if err := r.db.GetContext(ctx, &total, countQuery, tenantID); err != nil {
 		return resp, fmt.Errorf("count schedules: %w", err)
 	}
+	resp.Total = total
 
-	rows, err := r.db.Pool().Query(ctx, query, tenantID, limit, offset)
+	rows, err := r.db.QueryxContext(ctx, query, tenantID, limit, offset)
 	if err != nil {
 		return resp, fmt.Errorf("query schedules: %w", err)
 	}
@@ -81,9 +84,7 @@ func (r *OnCallRepository) QuerySchedules(ctx context.Context, tenantID uuid.UUI
 func (r *OnCallRepository) GetSchedule(ctx context.Context, tenantID, id uuid.UUID) (*models.Schedule, error) {
 	var s models.Schedule
 	query := `SELECT id, tenant_id, name, description, is_primary, created_at, updated_at FROM oncall_schedules WHERE id = $1 AND tenant_id = $2`
-	if err := r.db.Pool().QueryRow(ctx, query, id, tenantID).Scan(
-		&s.ID, &s.TenantID, &s.Name, &s.Description, &s.IsPrimary, &s.CreatedAt, &s.UpdatedAt,
-	); err != nil {
+	if err := r.db.GetContext(ctx, &s, query, id, tenantID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("schedule not found: %s", id)
 		}
@@ -98,7 +99,7 @@ func (r *OnCallRepository) AddRotation(ctx context.Context, scheduleID uuid.UUID
 	id := uuid.New()
 
 	query := `INSERT INTO oncall_rotations (id, schedule_id, user_id, user_name, is_active, start_date, end_date, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-	if _, err := r.db.Pool().Exec(ctx, query, id, scheduleID, req.UserID, req.UserName, true, req.StartDate, req.EndDate, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, scheduleID, req.UserID, req.UserName, true, req.StartDate, req.EndDate, now); err != nil {
 		return nil, fmt.Errorf("add rotation: %w", err)
 	}
 
@@ -126,9 +127,7 @@ func (r *OnCallRepository) GetCurrentOnCall(ctx context.Context, scheduleID uuid
 		ORDER BY r.start_date DESC
 		LIMIT 1`
 
-	if err := r.db.Pool().QueryRow(ctx, query, scheduleID).Scan(
-		&resp.ScheduleID, &resp.ScheduleName, &resp.UserID, &resp.UserName, &resp.StartDate, &resp.EndDate, &resp.Level,
-	); err != nil {
+	if err := r.db.GetContext(ctx, &resp, query, scheduleID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("no active on-call rotation found for schedule %s", scheduleID)
 		}
@@ -145,12 +144,12 @@ func (r *OnCallRepository) QueryRotations(ctx context.Context, scheduleID uuid.U
 
 	var total int64
 	countQuery := `SELECT COUNT(*) FROM oncall_rotations WHERE schedule_id = $1`
-	if err := r.db.Pool().QueryRow(ctx, countQuery, scheduleID).Scan(&total); err != nil {
+	if err := r.db.GetContext(ctx, &total, countQuery, scheduleID); err != nil {
 		return nil, 0, fmt.Errorf("count rotations: %w", err)
 	}
 
 	query := `SELECT id, schedule_id, user_id, user_name, is_active, start_date, end_date, created_at FROM oncall_rotations WHERE schedule_id = $1 ORDER BY start_date DESC LIMIT $2 OFFSET $3`
-	rows, err := r.db.Pool().Query(ctx, query, scheduleID, limit, offset)
+	rows, err := r.db.QueryxContext(ctx, query, scheduleID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query rotations: %w", err)
 	}
@@ -169,11 +168,11 @@ func (r *OnCallRepository) QueryRotations(ctx context.Context, scheduleID uuid.U
 
 // DeleteSchedule removes a schedule.
 func (r *OnCallRepository) DeleteSchedule(ctx context.Context, tenantID, id uuid.UUID) error {
-	result, err := r.db.Pool().Exec(ctx, `DELETE FROM oncall_schedules WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM oncall_schedules WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete schedule: %w", err)
 	}
-	rows := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if rows == 0 {
 		return fmt.Errorf("schedule not found: %s", id)
 	}

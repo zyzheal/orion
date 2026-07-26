@@ -119,16 +119,16 @@ func (s *AnalyticsEnhanced) GetBottleneckAnalysis(ctx context.Context, tenantID 
 
 	// Check for queue backlog
 	queueStatus, _ := s.dispatchRepo.GetQueueStatus(ctx)
-	if queueStatus != nil && queueStatus.PendingCount > 10 {
+	if queueStatus != nil && queueStatus.Pending > 10 {
 		severity := "medium"
-		if queueStatus.PendingCount > 25 {
+		if queueStatus.Pending > 25 {
 			severity = "high"
 		}
 		analysis.Bottlenecks = append(analysis.Bottlenecks, models.Bottleneck{
 			Type:        "queue_backlog",
 			Severity:    severity,
-			Description: fmt.Sprintf("Dispatch queue has %d pending tickets", queueStatus.PendingCount),
-			Count:       queueStatus.PendingCount,
+			Description: fmt.Sprintf("Dispatch queue has %d pending tickets", queueStatus.Pending),
+			Count:       queueStatus.Pending,
 		})
 	}
 
@@ -152,7 +152,7 @@ func (s *AnalyticsEnhanced) GetBottleneckAnalysis(ctx context.Context, tenantID 
 		analysis.Recommendations = append(analysis.Recommendations,
 			"Review SLA breach tickets for immediate escalation")
 	}
-	if queueStatus != nil && queueStatus.PendingCount > 10 {
+	if queueStatus != nil && queueStatus.Pending > 10 {
 		analysis.Recommendations = append(analysis.Recommendations,
 			"Clear dispatch queue backlog by registering more engineers or adjusting capacity")
 	}

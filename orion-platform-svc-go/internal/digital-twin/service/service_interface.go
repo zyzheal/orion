@@ -12,7 +12,7 @@ import (
 
 // ServiceInterface defines the interface for the digital-twin service.
 type ServiceInterface interface {
-	CancelReplay(ctx context.Context, replayID string) (*ReplaySessionSummary, error)
+	CancelReplay(ctx context.Context, tenantID, replayID string) (*ReplaySessionSummary, error)
 	CreateSandbox(ctx context.Context, tenantID string, req models.CreateSandboxRequest) (*models.Sandbox, error)
 	CreateSnapshot(ctx context.Context, twinID, name string) (*models.Snapshot, error)
 	CreateTwin(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error)

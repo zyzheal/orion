@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"mime/multipart"
 	"strconv"
 
 	"orion/go-common/pkg/auth"

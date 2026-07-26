@@ -42,7 +42,7 @@ func (h *TicketHandler) ListTickets(c *gin.Context) {
 		return
 	}
 
-	respondSuccess(c, gin.H{"tickets": tickets, "total": total, "page": q.Page})
+	respondSuccess(c, gin.H{"tickets": tickets, "total": total, "offset": q.Offset})
 }
 
 // GetTicket GET /api/v1/tickets/:id
@@ -147,12 +147,12 @@ func (h *TicketHandler) AssignTicket(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Assign(c.Request.Context(), id, tenantID, req.AssignedTo); err != nil {
+	if err := h.svc.Assign(c.Request.Context(), id, tenantID, req.AssigneeID); err != nil {
 		respondInternalError(c, "failed to assign ticket")
 		return
 	}
 
-	respondSuccess(c, gin.H{"message": "ticket assigned", "assigned_to": req.AssignedTo})
+	respondSuccess(c, gin.H{"message": "ticket assigned", "assignee_id": req.AssigneeID})
 }
 
 // ResolveTicket POST /api/v1/tickets/:id/resolve

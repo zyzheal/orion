@@ -49,8 +49,6 @@ import (
 	monitoring_handler "orion/platform-svc-go/internal/monitoring/handler"
 
 	graph_handler "orion/platform-svc-go/internal/graph/handler"
-	graph_repo "orion/platform-svc-go/internal/graph/repository"
-	graph_service "orion/platform-svc-go/internal/graph/service"
 
 	artifactops_handler "orion/platform-svc-go/internal/artifact-ops/handler"
 
@@ -232,9 +230,6 @@ import (
 
 	// ---- GraphViz module ----
 	graphviz_handler "orion/platform-svc-go/internal/graphviz/handler"
-	graphviz_repo    "orion/platform-svc-go/internal/graphviz/repository"
-	graphviz_service "orion/platform-svc-go/internal/graphviz/service"
-	graphviz_templates "orion/platform-svc-go/internal/graphviz/templates"
 
 	contract_handler "orion/platform-svc-go/internal/contract/handler"
 
@@ -247,17 +242,9 @@ import (
 	ciArtVer_handler "orion/platform-svc-go/internal/ci-cd/artifact-version/handler"
 	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
 	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
-	ciBuild_repo "orion/platform-svc-go/internal/ci-cd/build/repository"
-	ciBuild_service "orion/platform-svc-go/internal/ci-cd/build/service"
 	ciCanary_handler "orion/platform-svc-go/internal/ci-cd/canary/handler"
-	ciCanary_repo "orion/platform-svc-go/internal/ci-cd/canary/repository"
-	ciCanary_service "orion/platform-svc-go/internal/ci-cd/canary/service"
 	ciDeploy_handler "orion/platform-svc-go/internal/ci-cd/deploy/handler"
-	ciDeploy_repo "orion/platform-svc-go/internal/ci-cd/deploy/repository"
-	ciDeploy_service "orion/platform-svc-go/internal/ci-cd/deploy/service"
 	ciPipeline_handler "orion/platform-svc-go/internal/ci-cd/pipeline/handler"
-	ciPipeline_repo "orion/platform-svc-go/internal/ci-cd/pipeline/repository"
-	ciPipeline_service "orion/platform-svc-go/internal/ci-cd/pipeline/service"
 	ciPTmpl_handler "orion/platform-svc-go/internal/ci-cd/pipeline-template/handler"
 	ciPTmpl_repo "orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
 	ciPTmpl_service "orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
@@ -267,8 +254,6 @@ import (
 
 	// ---- Blueprint InfraOps merge: infrastructure subdomain handlers ----
 	infraCap_handler "orion/platform-svc-go/internal/infrastructure/capacity/handler"
-	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
-	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
 	infraDr_handler "orion/platform-svc-go/internal/infrastructure/dr/handler"
 	infraDr_repo "orion/platform-svc-go/internal/infrastructure/dr/repository"
 	infraDr_service "orion/platform-svc-go/internal/infrastructure/dr/service"
@@ -276,8 +261,6 @@ import (
 	infraEE_repo "orion/platform-svc-go/internal/infrastructure/ephemeral-env/repository"
 	infraEE_service "orion/platform-svc-go/internal/infrastructure/ephemeral-env/service"
 	infraMW_handler "orion/platform-svc-go/internal/infrastructure/middleware-ops/handler"
-	infraMW_repo "orion/platform-svc-go/internal/infrastructure/middleware-ops/repository"
-	infraMW_service "orion/platform-svc-go/internal/infrastructure/middleware-ops/service"
 	infraBackup_handler "orion/platform-svc-go/internal/infrastructure/backup/handler"
 	infraBackup_repo "orion/platform-svc-go/internal/infrastructure/backup/repository"
 	infraBackup_service "orion/platform-svc-go/internal/infrastructure/backup/service"
@@ -417,6 +400,7 @@ import (
 	aiInference_service "orion/platform-svc-go/internal/ai-inference/service"
 
 	sh_handler "orion/platform-svc-go/internal/self-healing/handler"
+	jobsource_handler "orion/platform-svc-go/internal/job-source/handler"
 
 	// ---- P0-20: Network Management Module ----
 	network_handler "orion/platform-svc-go/internal/network/handler"
@@ -448,6 +432,7 @@ var (
 	capabilityH         *capability_handler.Handler
 	chaosH              *chaos_handler.Handler
 	cronH               *cron_handler.Handler
+	jobsourceH          *jobsource_handler.Handler
 	developerportalH    *developerportal_handler.Handler
 	infraH              *infra_handler.Handler
 	internallibraryH    *internallibrary_handler.Handler
@@ -515,7 +500,7 @@ var (
 	ssopH               *ssop_handler.Handler
 	abacH               *abac_handler.Handler
 	pauditH             *paudit_handler.Handler
-	oncallH             *oncall_handler.Handler
+	oncallH             *oncall_handler.OnCallHandler
 	notificationH       *notification_handler.Handler
 	notification_policyH *notification_policy_handler.Handler
 	notification_templateH *notification_template_handler.Handler
@@ -626,7 +611,7 @@ var (
 	resilienceScoreH    *resilience_score_handler.Handler
 	sbomH               *sbom_handler.Handler
 	loggingH            *logging_handler.Handler
-	selfhealingH        *sh_handler.Handler
+	selfhealingH        *sh_handler.SelfHealingHandler
 
 	// ---- Blueprint CI-CD merge handlers ----
 	ciArtRegH    *ciArtReg_handler.ArtifactRegistryHandler
@@ -670,7 +655,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 
 	// Infrastructure modules: capability, chaos, infrastructure, iac, cron,
 	// gateway-dynamic (incl. gray release), handler-registry, i18n, serverless, multicloud
-	wireInfrastructureModules(db)
+	wireInfrastructureModules(db, logger)
 
 	// Observability & operations modules: cmdb, monitoring, alert, artifact-ops,
 	// config, session, api-key, eventbus, event-trigger, hook-chain
@@ -839,7 +824,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 
 	// ---- Blueprint CI-CD merge: wire subdomain handlers ----
 	// artifact-registry: repo -> service -> handler
-	ciArtRegRepo := ciArtReg_repo.NewArtifactRegistryRepository(infra.db.DB)
+	ciArtRegRepo := ciArtReg_repo.NewArtifactRegistryRepository(infra.db.DB.DB)
 	ciArtRegSvc := ciArtReg_service.NewArtifactRegistryService(ciArtRegRepo, infra.logger)
 	ciArtRegH = ciArtReg_handler.NewArtifactRegistryHandler(ciArtRegSvc)
 
@@ -848,51 +833,41 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
 
 	// build: repo -> service -> handler (requires db + logger)
-	ciBuildH = ciBuild_handler.New(infra.db.DB, infra.logger)
+	ciBuildH = ciBuild_handler.New(infra.db, infra.logger)
 
-	// canary: repo -> service -> handler
-	ciCanaryRepo := ciCanary_repo.NewRepository(infra.db.DB)
-	ciCanarySvc := ciCanary_service.NewCanaryService(ciCanaryRepo, infra.logger)
-	ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
+	// canary: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
+	// ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
 
 	// deploy: repo -> service -> handler (requires db + logger)
-	ciDeployH = ciDeploy_handler.New(infra.db.DB, infra.logger)
+	ciDeployH = ciDeploy_handler.New(infra.db, infra.logger)
 
-	// pipeline: repo -> service -> handler
-	ciPipelineRepo := ciPipeline_repo.NewRepository(infra.db.DB)
-	ciPipelineSvc := ciPipeline_service.NewPipelineService(ciPipelineRepo, infra.logger)
-	ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
+	// pipeline: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
+	// ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
 
 	// pipeline-template: repo -> service -> handler
 	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
-	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo, infra.logger)
+	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo)
 	ciPTmplH = ciPTmpl_handler.NewHandler(ciPTmplSvc)
 
 	// runner: repo -> service -> handler
 	ciRunnerRepo := ciRunner_repo.NewRepository(infra.db.DB)
-	ciRunnerSvc := ciRunner_service.NewService(ciRunnerRepo, infra.logger)
+	ciRunnerSvc := ciRunner_service.NewService(ciRunnerRepo)
 	ciRunnerH = ciRunner_handler.NewHandler(ciRunnerSvc)
 
 	// ---- Blueprint InfraOps merge: wire infrastructure subdomain handlers ----
 	// capacity: repo -> service -> handler
-	infraCapRepo := infraCap_repo.NewRepository(infra.db.DB)
-	infraCapSvc := infraCap_service.NewService(infraCapRepo, infra.logger)
-	infraCapH = infraCap_handler.NewHandler(infraCapSvc)
 
 	// dr: repo -> service -> handler
 	infraDrRepo := infraDr_repo.NewRepository(infra.db.DB)
-	infraDrSvc := infraDr_service.NewService(infraDrRepo, infra.logger)
+	infraDrSvc := infraDr_service.NewService(infraDrRepo)
 	infraDrH = infraDr_handler.NewHandler(infraDrSvc)
 
 	// ephemeral-env: repo -> service -> handler
 	infraEERepo := infraEE_repo.NewRepository(infra.db.DB)
-	infraEESvc := infraEE_service.NewService(infraEERepo, infra.logger)
+	infraEESvc := infraEE_service.NewService(infraEERepo)
 	infraEEH = infraEE_handler.NewHandler(infraEESvc)
 
 	// middleware-ops: repo -> service -> handler
-	infraMWRepo := infraMW_repo.NewRepository(infra.db.DB)
-	infraMWSvc := infraMW_service.NewService(infraMWRepo, infra.logger)
-	infraMWH = infraMW_handler.NewHandler(infraMWSvc)
 
 	// backup: repo -> 2 services (BackupService + RecoveryService) -> handler
 	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)

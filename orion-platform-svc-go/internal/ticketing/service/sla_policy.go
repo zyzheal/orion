@@ -63,14 +63,14 @@ func (s *SLAPolicyService) Update(ctx context.Context, tenantID, id string, req 
 		return nil, err
 	}
 
-	if req.Name != "" {
-		existing.Name = req.Name
+	if req.Name != nil && *req.Name != "" {
+		existing.Name = *req.Name
 	}
-	if req.Description != "" {
-		existing.Description = req.Description
+	if req.Description != nil && *req.Description != "" {
+		existing.Description = *req.Description
 	}
-	if req.Priority != "" {
-		existing.Priority = req.Priority
+	if req.Priority != nil && *req.Priority != "" {
+		existing.Priority = *req.Priority
 	}
 	if req.TargetResponseTimeMs != nil {
 		existing.TargetResponseTimeMs = *req.TargetResponseTimeMs
