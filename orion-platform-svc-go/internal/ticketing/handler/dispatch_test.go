@@ -54,10 +54,10 @@ func TestHandler_RegisterEngineer(t *testing.T) {
 	r, _ := newTestDispatchHandler()
 
 	body, _ := json.Marshal(map[string]any{
-		"id":         "eng-1",
+		"user_id":     "eng-1",
 		"name":       "Alice",
 		"expertise":  []string{"backend"},
-		"max_capacity": 10,
+		"max_tickets": 10,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/dispatch/engineers", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -73,8 +73,8 @@ func TestHandler_RegisterEngineer(t *testing.T) {
 func TestHandler_ListEngineers(t *testing.T) {
 	r, repo := newTestDispatchHandler()
 	repo.Engineers = []models.EngineerProfile{
-		{ID: "eng-1", Name: "Alice"},
-		{ID: "eng-2", Name: "Bob"},
+		{EngineerID: "eng-1"},
+		{EngineerID: "eng-2"},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/dispatch/engineers", nil)
@@ -88,7 +88,7 @@ func TestHandler_ListEngineers(t *testing.T) {
 
 func TestHandler_GetEngineer(t *testing.T) {
 	r, repo := newTestDispatchHandler()
-	repo.Engineers = []models.EngineerProfile{{ID: "eng-1", Name: "Alice"}}
+	repo.Engineers = []models.EngineerProfile{{EngineerID: "eng-1"}}
 
 	req := httptest.NewRequest(http.MethodGet, "/dispatch/engineers/eng-1", nil)
 	w := httptest.NewRecorder()
@@ -114,7 +114,7 @@ func TestHandler_GetEngineer_NotFound(t *testing.T) {
 func TestHandler_ManualDispatch(t *testing.T) {
 	_, repo := newTestDispatchHandler()
 	repo.Engineers = []models.EngineerProfile{
-		{ID: "eng-1", Name: "Alice", MaxCapacity: 10, Availability: "available"},
+		{EngineerID: "eng-1", MaxCapacity: 10},
 	}
 
 	// Need to also set up the ticket
@@ -158,9 +158,9 @@ func TestHandler_AddDispatchRule(t *testing.T) {
 
 	body, _ := json.Marshal(map[string]any{
 		"name":       "Backend Rule",
-		"condition":  "type == 'backend'",
-		"engineer_id": "eng-1",
-		"priority":   10,
+		"conditions": "type == 'backend'",
+		"strategy":   "skill_match",
+		"weight":     10,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/dispatch/rules", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -187,7 +187,7 @@ func TestHandler_GetDispatchRules(t *testing.T) {
 
 func TestHandler_RemoveDispatchRule(t *testing.T) {
 	r, repo := newTestDispatchHandler()
-	repo.Rules = []models.DispatchRule{{ID: "rule-1", Name: "Test"}}
+	repo.Rules = []models.DispatchRule{{ID: 1, Name: "Test"}}
 
 	req := httptest.NewRequest(http.MethodDelete, "/dispatch/rules/rule-1", nil)
 	w := httptest.NewRecorder()

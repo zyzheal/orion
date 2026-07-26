@@ -39,8 +39,8 @@ func TestHandler_AddSLATarget(t *testing.T) {
 	body, _ := json.Marshal(map[string]any{
 		"name":                      "High Priority SLA",
 		"priority":                  "high",
-		"target_response_time_ms":   3600000,
-		"target_resolution_time_ms": 86400000,
+		"response_hours":    1,
+		"resolve_hours":     24,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/sla/targets", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -56,7 +56,7 @@ func TestHandler_AddSLATarget(t *testing.T) {
 func TestHandler_GetTicketSLA(t *testing.T) {
 	slaRepo := testutil.NewMockSLARepository()
 	ticketRepo := testutil.NewMockTicketRepository()
-	slaRepo.Records = []models.SLARecord{{ID: "r1", TicketID: "t1"}}
+	slaRepo.Records = []models.SLARecord{{ID: 1, TicketID: "t1"}}
 	svc := service.NewSLAService(slaRepo, ticketRepo)
 	r := setupSLARouter(svc)
 
