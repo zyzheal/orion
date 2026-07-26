@@ -5,6 +5,8 @@ import (
 	"strconv"
 )
 
+// TODO(refactor): This config package is duplicated across ai/llm, ai/intelligence, etc.
+// Consider extracting to a shared ai/config package.
 type Config struct {
 	Port        int
 	DBHost      string

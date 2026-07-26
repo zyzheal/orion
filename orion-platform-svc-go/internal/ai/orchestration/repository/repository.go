@@ -8,15 +8,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
 	"orion/platform-svc-go/internal/ai/orchestration/models"
 )
 
 type OrchestrationRepository struct {
-	DB *sql.DB
+	db *sqlx.DB
 }
 
-func NewOrchestrationRepository(db *sql.DB) *OrchestrationRepository {
-	return &OrchestrationRepository{DB: db}
+func NewOrchestrationRepository(db *sqlx.DB) *OrchestrationRepository {
+	return &OrchestrationRepository{db: db}
 }
 
 // Create creates a new orchestration.
@@ -27,7 +29,7 @@ func (r *OrchestrationRepository) Create(ctx context.Context, tenantID string, n
 	agentsJSON, _ := json.Marshal(agents)
 
 	query := `INSERT INTO orchestrations (id, tenant_id, name, description, agents, status, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-	if _, err := r.DB.ExecContext(ctx, query, id, tenantID, name, description, string(agentsJSON), "active", now, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, name, description, string(agentsJSON), "active", now, now); err != nil {
 		return nil, fmt.Errorf("create orchestration: %w", err)
 	}
 
@@ -53,11 +55,11 @@ func (r *OrchestrationRepository) Query(ctx context.Context, tenantID string, li
 	countQuery := `SELECT COUNT(*) FROM orchestrations WHERE tenant_id = $1`
 	query := `SELECT id, tenant_id, name, description, agents, status, created_at, updated_at FROM orchestrations WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
-	if err := r.DB.QueryRowContext(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
 		return resp, fmt.Errorf("count orchestrations: %w", err)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, tenantID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, tenantID, limit, offset)
 	if err != nil {
 		return resp, fmt.Errorf("query orchestrations: %w", err)
 	}
@@ -83,7 +85,7 @@ func (r *OrchestrationRepository) Get(ctx context.Context, tenantID, id string) 
 	var agentsJSON sql.NullString
 
 	query := `SELECT id, tenant_id, name, description, agents, status, created_at, updated_at FROM orchestrations WHERE id = $1 AND tenant_id = $2`
-	if err := r.DB.QueryRowContext(ctx, query, id, tenantID).Scan(
+	if err := r.db.QueryRowContext(ctx, query, id, tenantID).Scan(
 		&o.ID, &o.TenantID, &o.Name, &o.Description, &agentsJSON, &o.Status, &o.CreatedAt, &o.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -103,7 +105,7 @@ func (r *OrchestrationRepository) CreateRun(ctx context.Context, orchestrationID
 	id := fmt.Sprintf("run_%d", time.Now().UnixNano())
 
 	query := `INSERT INTO orchestration_runs (id, orchestration_id, status, input, output, error, started_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-	if _, err := r.DB.ExecContext(ctx, query, id, orchestrationID, "running", input, "", "", now, nil); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, orchestrationID, "running", input, "", "", now, nil); err != nil {
 		return nil, fmt.Errorf("create orchestration run: %w", err)
 	}
 
@@ -124,7 +126,7 @@ func (r *OrchestrationRepository) UpdateRun(ctx context.Context, id string, stat
 	}
 
 	query := `UPDATE orchestration_runs SET status=$1, output=$2, error=$3, completed_at=$4 WHERE id=$5`
-	_, err := r.DB.ExecContext(ctx, query, status, output, errorStr, completedAt, id)
+	_, err := r.db.ExecContext(ctx, query, status, output, errorStr, completedAt, id)
 	return err
 }
 
@@ -136,12 +138,12 @@ func (r *OrchestrationRepository) QueryRuns(ctx context.Context, orchestrationID
 
 	var total int64
 	countQuery := `SELECT COUNT(*) FROM orchestration_runs WHERE orchestration_id = $1`
-	if err := r.DB.QueryRowContext(ctx, countQuery, orchestrationID).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, orchestrationID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count runs: %w", err)
 	}
 
 	query := `SELECT id, orchestration_id, status, input, output, error, started_at, completed_at FROM orchestration_runs WHERE orchestration_id = $1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`
-	rows, err := r.DB.QueryContext(ctx, query, orchestrationID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, orchestrationID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query runs: %w", err)
 	}
@@ -168,7 +170,7 @@ func (r *OrchestrationRepository) GetRun(ctx context.Context, id string) (*model
 	var completedAt sql.NullTime
 
 	query := `SELECT id, orchestration_id, status, input, output, error, started_at, completed_at FROM orchestration_runs WHERE id = $1`
-	if err := r.DB.QueryRowContext(ctx, query, id).Scan(
+	if err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&run.ID, &run.OrchestrationID, &run.Status, &run.Input, &run.Output, &run.Error, &run.StartedAt, &completedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -184,7 +186,7 @@ func (r *OrchestrationRepository) GetRun(ctx context.Context, id string) (*model
 
 // Delete removes an orchestration.
 func (r *OrchestrationRepository) Delete(ctx context.Context, tenantID, id string) error {
-	result, err := r.DB.ExecContext(ctx, `DELETE FROM orchestrations WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM orchestrations WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete orchestration: %w", err)
 	}

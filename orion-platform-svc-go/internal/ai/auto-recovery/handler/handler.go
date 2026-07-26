@@ -19,7 +19,7 @@ func NewAutoRecoveryHandler(svc *service.AutoRecoveryService) *AutoRecoveryHandl
 }
 
 func (h *AutoRecoveryHandler) GetTenantID(c *gin.Context) string {
-	return c.GetString("tenantId")
+	return c.GetString("tenant_id")
 }
 
 // RegisterRoutes registers auto-recovery routes.
@@ -43,10 +43,10 @@ func (h *AutoRecoveryHandler) ListRules(c *gin.Context) {
 
 	resp, err := h.svc.QueryRules(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	respondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // CreateRule creates a new rule.
@@ -54,16 +54,16 @@ func (h *AutoRecoveryHandler) CreateRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	rule, err := h.svc.CreateRule(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": rule})
+	respondCreated(c, rule)
 }
 
 // GetRule returns a single rule.
@@ -73,10 +73,10 @@ func (h *AutoRecoveryHandler) GetRule(c *gin.Context) {
 
 	rule, err := h.svc.GetRule(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": rule})
+	respondSuccess(c, rule)
 }
 
 // DeleteRule removes a rule.
@@ -85,10 +85,10 @@ func (h *AutoRecoveryHandler) DeleteRule(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteRule(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 // ExecuteRule triggers rule execution.
@@ -105,10 +105,10 @@ func (h *AutoRecoveryHandler) ExecuteRule(c *gin.Context) {
 
 	action, err := h.svc.ExecuteRule(c.Request.Context(), tenantID, ruleID, req.Metrics)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"action": action}})
+	respondSuccess(c, gin.H{"action": action})
 }
 
 // ListActions returns paginated actions.
@@ -121,8 +121,8 @@ func (h *AutoRecoveryHandler) ListActions(c *gin.Context) {
 
 	resp, err := h.svc.QueryActions(c.Request.Context(), tenantID, ruleID, status, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	respondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }

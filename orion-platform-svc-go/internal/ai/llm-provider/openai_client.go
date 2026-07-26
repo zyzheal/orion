@@ -292,12 +292,9 @@ func newSSEChan(body io.ReadCloser) <-chan string {
 	lines := make(chan string)
 	go func() {
 		defer close(lines)
-		buf := bytes.NewBuffer(nil)
 		scanner := bufio.NewScanner(body)
 		for scanner.Scan() {
-			buf.WriteString(scanner.Text() + "\n")
-			lines <- buf.String()
-			buf.Reset()
+			lines <- scanner.Text()
 		}
 	}()
 	return lines

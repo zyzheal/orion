@@ -58,7 +58,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		return
 	}
 
-	respondSuccess(c, gin.H{"data": history, "meta": gin.H{"total": len(history)}})
+	respondSuccess(c, gin.H{"data": history, "total": len(history)})
 }
 
 // GetSummary handles GET /ai/cost/summary
@@ -85,5 +85,5 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	alerts := h.svc.GenerateAlerts(tenantID)
 
-	respondSuccess(c, gin.H{"data": alerts, "meta": gin.H{"total": len(alerts)}})
+	respondSuccess(c, gin.H{"data": alerts, "total": len(alerts)})
 }

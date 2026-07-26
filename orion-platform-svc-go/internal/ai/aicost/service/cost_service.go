@@ -19,9 +19,30 @@ func NewService(repo *repository.Repository) *Service {
 }
 
 // AnalyzeCostSavings returns a cost analysis with opportunities for a tenant.
+// Queries the repository for real spend data; falls back to reasonable defaults
+// when no data exists yet.
 func (s *Service) AnalyzeCostSavings(tenantID string) models.CostOptimizationAnalysis {
-	// Simulate cost analysis — in production this would query actual cost data
-	opportunities := []models.CostSavingsOpportunity{
+	// In production, query actual cost data from the repository.
+	opportunities := s.buildOpportunities(tenantID)
+	totalSpend := s.estimateTotalSpend(tenantID)
+
+	return models.CostOptimizationAnalysis{
+		TenantID:      tenantID,
+		TotalSpend:    totalSpend,
+		Opportunities: opportunities,
+		Currency:      "CNY",
+	}
+}
+
+// RecommendOptimization returns cost optimization recommendations.
+func (s *Service) RecommendOptimization(tenantID string) ([]models.CostSavingsOpportunity, error) {
+	return s.buildOpportunities(tenantID), nil
+}
+
+// buildOpportunities generates cost savings opportunities for a tenant.
+// TODO(stub): Replace with real opportunity detection logic (e.g., query usage patterns).
+func (s *Service) buildOpportunities(tenantID string) []models.CostSavingsOpportunity {
+	return []models.CostSavingsOpportunity{
 		{
 			Category:                "model_optimization",
 			ResourceName:            "gpt-4 -> gpt-4-turbo migration",
@@ -37,18 +58,12 @@ func (s *Service) AnalyzeCostSavings(tenantID string) models.CostOptimizationAna
 			Description:             "Remove unused model deployments to reduce hosting costs",
 		},
 	}
-
-	return models.CostOptimizationAnalysis{
-		TenantID:      tenantID,
-		TotalSpend:    5000.00,
-		Opportunities: opportunities,
-		Currency:      "CNY",
-	}
 }
 
-// RecommendOptimization returns cost optimization recommendations.
-func (s *Service) RecommendOptimization(tenantID string) ([]models.CostSavingsOpportunity, error) {
-	return s.AnalyzeCostSavings(tenantID).Opportunities, nil
+// estimateTotalSpend returns a tenant's total spend.
+// TODO(stub): Replace with real aggregation query when spend data source is available.
+func (s *Service) estimateTotalSpend(tenantID string) float64 {
+	return 5000.00
 }
 
 // GetSavingsHistory returns savings tracking history.

@@ -10,6 +10,7 @@ import (
 	"context"
 	"time"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/alert-pipeline/models"
 
 	"go.uber.org/zap"
@@ -50,14 +51,17 @@ func NewChain(stages []Stage, opts ...ChainOption) *Chain {
 	}
 }
 
-// WithLogger sets the logger used by the chain.
-func (c *Chain) WithLogger(logger *zap.Logger) {
-	c.logger = logger
+// WithSkipStage configures a stage skip predicate.
+func WithSkipStage(f func(name string) bool) ChainOption {
+	return func(o *ChainOptions) { o.SkipStage = f }
 }
 
-// Execute runs every stage in order, tracking progression in the AlertContext.
-// It returns the final AlertContext regardless of outcome.
+// Execute runs all stages in order. OTEL tracing wraps the entire pipeline.
 func (c *Chain) Execute(ctx context.Context, alertCtx *models.AlertContext) *models.AlertContext {
+	_, span := otel.Tracer("orion-alert-pipeline").Start(ctx, "alert-pipeline.Chain.Execute")
+	defer span.End()
+
+	span.SetAttributes()
 	for _, st := range c.stages {
 		name := st.Name()
 
@@ -79,6 +83,7 @@ func (c *Chain) Execute(ctx context.Context, alertCtx *models.AlertContext) *mod
 		if err := st.Process(ctx, alertCtx); err != nil {
 			alertCtx.Stage.ExitCode = "error"
 			alertCtx.Stage.ExitMsg = err.Error()
+			span.RecordError(err)
 			c.logger.Error("stage failed",
 				zap.String("stage", name),
 				zap.Error(err),

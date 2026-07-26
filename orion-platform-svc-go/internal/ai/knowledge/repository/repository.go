@@ -8,15 +8,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
 	"orion/platform-svc-go/internal/ai/knowledge/models"
 )
 
 type KnowledgeRepository struct {
-	DB *sql.DB
+	db *sqlx.DB
 }
 
-func NewKnowledgeRepository(db *sql.DB) *KnowledgeRepository {
-	return &KnowledgeRepository{DB: db}
+func NewKnowledgeRepository(db *sqlx.DB) *KnowledgeRepository {
+	return &KnowledgeRepository{db: db}
 }
 
 // CreateBase creates a new knowledge base.
@@ -29,7 +31,7 @@ func (r *KnowledgeRepository) CreateBase(ctx context.Context, tenantID string, r
 	}
 
 	query := `INSERT INTO knowledge_bases (id, tenant_id, name, description, is_enabled, embedding_model, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-	if _, err := r.DB.ExecContext(ctx, query, id, tenantID, req.Name, req.Description, true, embeddingModel, now, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, req.Name, req.Description, true, embeddingModel, now, now); err != nil {
 		return nil, fmt.Errorf("create knowledge base: %w", err)
 	}
 
@@ -55,11 +57,11 @@ func (r *KnowledgeRepository) QueryBases(ctx context.Context, tenantID string, l
 	countQuery := `SELECT COUNT(*) FROM knowledge_bases WHERE tenant_id = $1`
 	query := `SELECT id, tenant_id, name, description, is_enabled, embedding_model, created_at, updated_at FROM knowledge_bases WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
-	if err := r.DB.QueryRowContext(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
 		return resp, fmt.Errorf("count knowledge bases: %w", err)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, tenantID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, tenantID, limit, offset)
 	if err != nil {
 		return resp, fmt.Errorf("query knowledge bases: %w", err)
 	}
@@ -79,7 +81,7 @@ func (r *KnowledgeRepository) QueryBases(ctx context.Context, tenantID string, l
 func (r *KnowledgeRepository) GetBase(ctx context.Context, tenantID, id string) (*models.KnowledgeBase, error) {
 	var b models.KnowledgeBase
 	query := `SELECT id, tenant_id, name, description, is_enabled, embedding_model, created_at, updated_at FROM knowledge_bases WHERE id = $1 AND tenant_id = $2`
-	if err := r.DB.QueryRowContext(ctx, query, id, tenantID).Scan(
+	if err := r.db.QueryRowContext(ctx, query, id, tenantID).Scan(
 		&b.ID, &b.TenantID, &b.Name, &b.Description, &b.IsEnabled, &b.EmbeddingModel, &b.CreatedAt, &b.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -98,7 +100,7 @@ func (r *KnowledgeRepository) AddDocument(ctx context.Context, baseID string, ti
 	metadataJSON, _ := json.Marshal(metadata)
 
 	query := `INSERT INTO knowledge_documents (id, base_id, title, content, embedding, metadata, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-	if _, err := r.DB.ExecContext(ctx, query, id, baseID, title, content, "[]", string(metadataJSON), "indexed", now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, baseID, title, content, "[]", string(metadataJSON), "indexed", now); err != nil {
 		return nil, fmt.Errorf("add document: %w", err)
 	}
 
@@ -123,11 +125,11 @@ func (r *KnowledgeRepository) QueryDocuments(ctx context.Context, baseID string,
 	countQuery := `SELECT COUNT(*) FROM knowledge_documents WHERE base_id = $1`
 	query := `SELECT id, base_id, title, content, embedding, metadata, status, created_at FROM knowledge_documents WHERE base_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
-	if err := r.DB.QueryRowContext(ctx, countQuery, baseID).Scan(&resp.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, baseID).Scan(&resp.Total); err != nil {
 		return resp, fmt.Errorf("count documents: %w", err)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, baseID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, baseID, limit, offset)
 	if err != nil {
 		return resp, fmt.Errorf("query documents: %w", err)
 	}
@@ -149,7 +151,7 @@ func (r *KnowledgeRepository) QueryDocuments(ctx context.Context, baseID string,
 
 // DeleteDocument removes a document.
 func (r *KnowledgeRepository) DeleteDocument(ctx context.Context, id string) error {
-	result, err := r.DB.ExecContext(ctx, `DELETE FROM knowledge_documents WHERE id = $1`, id)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM knowledge_documents WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete document: %w", err)
 	}
@@ -162,7 +164,7 @@ func (r *KnowledgeRepository) DeleteDocument(ctx context.Context, id string) err
 
 // DeleteBase removes a knowledge base.
 func (r *KnowledgeRepository) DeleteBase(ctx context.Context, tenantID, id string) error {
-	result, err := r.DB.ExecContext(ctx, `DELETE FROM knowledge_bases WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM knowledge_bases WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete knowledge base: %w", err)
 	}
@@ -174,6 +176,8 @@ func (r *KnowledgeRepository) DeleteBase(ctx context.Context, tenantID, id strin
 }
 
 // SearchDocuments performs semantic search using vector similarity.
+// Requires PostgreSQL pg_trgm extension: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+// The similarity() function is used for text-based fallback when vector search is unavailable.
 func (r *KnowledgeRepository) SearchDocuments(ctx context.Context, baseID string, query string, topK int, filters string, scoreThresh float64) ([]models.SearchResult, error) {
 	if topK <= 0 {
 		topK = 5
@@ -206,7 +210,7 @@ func (r *KnowledgeRepository) SearchDocuments(ctx context.Context, baseID string
 		whereClause, argIdx, argIdx, argIdx+1)
 	args = append(args, query, topK)
 
-	rows, err := r.DB.QueryContext(ctx, queryStr, args...)
+	rows, err := r.db.QueryContext(ctx, queryStr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search documents: %w", err)
 	}

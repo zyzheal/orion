@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"orion/platform-svc-go/internal/ai/aiagent/models"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -12,6 +13,7 @@ import (
 type Repository struct {
 	db *sqlx.DB
 	// In-memory agent registry (mirrors TS agentRegistry pattern)
+	mu     sync.RWMutex
 	agents map[string]*models.Agent
 }
 
@@ -25,15 +27,21 @@ func NewRepository(db *sqlx.DB) *Repository {
 // ---------- Agent Registry (in-memory) ----------
 
 func (r *Repository) RegisterAgent(agent *models.Agent) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.agents[agent.ID] = agent
 }
 
 func (r *Repository) GetAgent(id string) (*models.Agent, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	a, ok := r.agents[id]
 	return a, ok
 }
 
 func (r *Repository) ListAgents() []*models.Agent {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	result := make([]*models.Agent, 0, len(r.agents))
 	for _, a := range r.agents {
 		result = append(result, a)

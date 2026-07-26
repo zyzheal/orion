@@ -133,22 +133,29 @@ func (s *AutoRecoveryService) executeAction(action, target string) (string, erro
 }
 
 func (s *AutoRecoveryService) evaluateCondition(trigger, condition string, metrics map[string]float64) bool {
-	// Parse simple condition: metric > value
-	if !strings.Contains(condition, ">") && !strings.Contains(condition, "<") {
+	// Parse condition: "metric operator value" (e.g. "error_rate > 0.5")
+	// Supported operators: >, <, >=, <=, ==, !=
+	operators := []string{">=", "<=", "==", "!=", ">", "<"}
+	var operator string
+	var operatorIdx int
+	for _, op := range operators {
+		if idx := strings.Index(condition, op); idx > 0 {
+			operator = op
+			operatorIdx = idx
+			break
+		}
+	}
+	if operator == "" {
+		if s.logger != nil {
+			s.logger.Warn("no supported operator found in condition",
+				zap.String("condition", condition),
+			)
+		}
 		return false
 	}
 
-	parts := strings.Split(condition, " ")
-	if len(parts) != 3 {
-		s.logger.Warn("invalid condition format",
-			zap.String("condition", condition),
-		)
-		return false
-	}
-
-	metric := parts[0]
-	operator := parts[1]
-	valueStr := parts[2]
+	metric := strings.TrimSpace(condition[:operatorIdx])
+	valueStr := strings.TrimSpace(condition[operatorIdx+len(operator):])
 
 	var value float64
 	_, _ = fmt.Sscanf(valueStr, "%f", &value)
@@ -158,10 +165,22 @@ func (s *AutoRecoveryService) evaluateCondition(trigger, condition string, metri
 		return false
 	}
 
-	if operator == ">" {
+	switch operator {
+	case ">":
 		return metricValue > value
+	case "<":
+		return metricValue < value
+	case ">=":
+		return metricValue >= value
+	case "<=":
+		return metricValue <= value
+	case "==":
+		return metricValue == value
+	case "!=":
+		return metricValue != value
+	default:
+		return false
 	}
-	return metricValue < value
 }
 
 // QueryActions returns paginated actions.

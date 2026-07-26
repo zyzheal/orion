@@ -116,7 +116,7 @@ func (h *Handler) ListTraces(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, map[string]any{"data": traces})
+	respondSuccess(c, gin.H{"data": traces})
 }
 
 // ListTracesByScenario handles GET /traces/scenario/:scenarioId.
@@ -129,7 +129,7 @@ func (h *Handler) ListTracesByScenario(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, map[string]any{"data": traces})
+	respondSuccess(c, gin.H{"data": traces})
 }
 
 // ClearTraces handles DELETE /traces — removes all traces.
@@ -138,7 +138,7 @@ func (h *Handler) ClearTraces(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, map[string]any{"message": "all traces cleared"})
+	respondSuccess(c, gin.H{"message": "all traces cleared"})
 }
 
 // GetDailyStats handles GET /traces/stats/daily — aggregated daily stats.
@@ -167,7 +167,7 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 // GetAllPricing handles GET /pricing — returns all model pricings.
 func (h *Handler) GetAllPricing(c *gin.Context) {
 	pricing := h.svc.GetAllPricing(c.Request.Context())
-	respondSuccess(c, map[string]any{"data": pricing})
+	respondSuccess(c, gin.H{"data": pricing})
 }
 
 // GetPricingForModel handles GET /pricing/:modelId — returns pricing for one model.
@@ -208,13 +208,13 @@ func (h *Handler) DeleteCustomPricing(c *gin.Context) {
 		respondNotFound(c, "no custom pricing found for model")
 		return
 	}
-	respondSuccess(c, map[string]any{"message": "pricing deleted"})
+	respondSuccess(c, gin.H{"message": "pricing deleted"})
 }
 
 // GetAvailableModels handles GET /pricing/models — lists all models with pricing.
 func (h *Handler) GetAvailableModels(c *gin.Context) {
 	models := h.svc.GetAvailableModels(c.Request.Context())
-	respondSuccess(c, map[string]any{"data": models})
+	respondSuccess(c, gin.H{"data": models})
 }
 
 // CalculateSavings handles POST /pricing/savings — compares two models.
@@ -238,7 +238,7 @@ func (h *Handler) EstimateMonthlyCost(c *gin.Context) {
 	dailyTokens, _ := strconv.ParseInt(c.DefaultQuery("daily_tokens", "0"), 10, 64)
 
 	cost := h.svc.EstimateMonthlyCost(c.Request.Context(), modelID, dailyTokens)
-	respondSuccess(c, map[string]any{
+	respondSuccess(c, gin.H{
 		"model_id":     modelID,
 		"daily_tokens": dailyTokens,
 		"monthly_cost": cost,

@@ -19,7 +19,7 @@ func NewOrchestrationHandler(svc *service.OrchestrationService) *OrchestrationHa
 }
 
 func (h *OrchestrationHandler) GetTenantID(c *gin.Context) string {
-	return c.GetString("tenantId")
+	return c.GetString("tenant_id")
 }
 
 // RegisterRoutes registers orchestration routes.
@@ -46,10 +46,10 @@ func (h *OrchestrationHandler) List(c *gin.Context) {
 
 	resp, err := h.svc.Query(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	respondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // Create creates a new orchestration.
@@ -61,16 +61,16 @@ func (h *OrchestrationHandler) Create(c *gin.Context) {
 		Agents      []models.AgentConfig  `json:"agents" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	orch, err := h.svc.Create(c.Request.Context(), tenantID, req.Name, req.Description, req.Agents)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": orch})
+	respondCreated(c, orch)
 }
 
 // Get returns a single orchestration.
@@ -80,22 +80,22 @@ func (h *OrchestrationHandler) Get(c *gin.Context) {
 
 	orch, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": orch})
+	respondSuccess(c, orch)
 }
 
 // Delete removes an orchestration.
 func (h *OrchestrationHandler) Delete(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
-	 id := c.Param("id")
+	id := c.Param("id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 // Run executes an orchestration.
@@ -103,16 +103,16 @@ func (h *OrchestrationHandler) Run(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.RunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.Run(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"code": 0, "data": gin.H{"run": run}})
+	respondAccepted(c, gin.H{"run": run})
 }
 
 // ListRuns returns paginated runs.
@@ -123,10 +123,10 @@ func (h *OrchestrationHandler) ListRuns(c *gin.Context) {
 
 	runs, total, err := h.svc.QueryRuns(c.Request.Context(), orchID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": total, "data": runs})
+	respondSuccess(c, gin.H{"total": total, "data": runs})
 }
 
 // GetRun returns a single run.
@@ -135,8 +135,8 @@ func (h *OrchestrationHandler) GetRun(c *gin.Context) {
 
 	run, err := h.svc.GetRun(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": run})
+	respondSuccess(c, run)
 }

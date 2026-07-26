@@ -7,15 +7,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+
 	"orion/platform-svc-go/internal/ai/auto-recovery/models"
 )
 
 type AutoRecoveryRepository struct {
-	DB *sql.DB
+	db *sqlx.DB
 }
 
-func NewAutoRecoveryRepository(db *sql.DB) *AutoRecoveryRepository {
-	return &AutoRecoveryRepository{DB: db}
+func NewAutoRecoveryRepository(db *sqlx.DB) *AutoRecoveryRepository {
+	return &AutoRecoveryRepository{db: db}
 }
 
 // CreateRule creates a new auto-recovery rule.
@@ -32,7 +34,7 @@ func (r *AutoRecoveryRepository) CreateRule(ctx context.Context, tenantID string
 	}
 
 	query := `INSERT INTO auto_recovery_rules (id, tenant_id, name, description, trigger, condition, action, target, is_enabled, max_retries, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`
-	if _, err := r.DB.ExecContext(ctx, query, id, tenantID, req.Name, req.Description, req.Trigger, req.Condition, req.Action, req.Target, isEnabled, maxRetries, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, req.Name, req.Description, req.Trigger, req.Condition, req.Action, req.Target, isEnabled, maxRetries, now); err != nil {
 		return nil, fmt.Errorf("create auto-recovery rule: %w", err)
 	}
 
@@ -61,11 +63,11 @@ func (r *AutoRecoveryRepository) QueryRules(ctx context.Context, tenantID string
 	countQuery := `SELECT COUNT(*) FROM auto_recovery_rules WHERE tenant_id = $1`
 	query := `SELECT id, tenant_id, name, description, trigger, condition, action, target, is_enabled, max_retries, created_at FROM auto_recovery_rules WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
-	if err := r.DB.QueryRowContext(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, tenantID).Scan(&resp.Total); err != nil {
 		return resp, fmt.Errorf("count auto-recovery rules: %w", err)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, tenantID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, tenantID, limit, offset)
 	if err != nil {
 		return resp, fmt.Errorf("query auto-recovery rules: %w", err)
 	}
@@ -85,7 +87,7 @@ func (r *AutoRecoveryRepository) QueryRules(ctx context.Context, tenantID string
 func (r *AutoRecoveryRepository) GetRule(ctx context.Context, tenantID, id string) (*models.AutoRecoveryRule, error) {
 	var rule models.AutoRecoveryRule
 	query := `SELECT id, tenant_id, name, description, trigger, condition, action, target, is_enabled, max_retries, created_at FROM auto_recovery_rules WHERE id = $1 AND tenant_id = $2`
-	if err := r.DB.QueryRowContext(ctx, query, id, tenantID).Scan(
+	if err := r.db.QueryRowContext(ctx, query, id, tenantID).Scan(
 		&rule.ID, &rule.TenantID, &rule.Name, &rule.Description, &rule.Trigger, &rule.Condition, &rule.Action, &rule.Target, &rule.IsEnabled, &rule.MaxRetries, &rule.CreatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -102,7 +104,7 @@ func (r *AutoRecoveryRepository) CreateAction(ctx context.Context, ruleID, tenan
 	now := time.Now()
 
 	query := `INSERT INTO recovery_actions (id, rule_id, tenant_id, action, target, status, result, retry_count, created_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	if _, err := r.DB.ExecContext(ctx, query, id, ruleID, tenantID, action, target, "pending", "", 0, now, nil); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, ruleID, tenantID, action, target, "pending", "", 0, now, nil); err != nil {
 		return nil, fmt.Errorf("create recovery action: %w", err)
 	}
 
@@ -125,7 +127,7 @@ func (r *AutoRecoveryRepository) UpdateAction(ctx context.Context, id string, st
 	}
 
 	query := `UPDATE recovery_actions SET status=$1, result=$2, retry_count=$3, completed_at=$4 WHERE id=$5`
-	_, err := r.DB.ExecContext(ctx, query, status, result, retryCount, completedAt, id)
+	_, err := r.db.ExecContext(ctx, query, status, result, retryCount, completedAt, id)
 	return err
 }
 
@@ -164,11 +166,11 @@ func (r *AutoRecoveryRepository) QueryActions(ctx context.Context, tenantID stri
 		whereClause, argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
-	if err := r.DB.QueryRowContext(ctx, countQuery, countArgs...).Scan(&resp.Total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&resp.Total); err != nil {
 		return resp, fmt.Errorf("count recovery actions: %w", err)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return resp, fmt.Errorf("query recovery actions: %w", err)
 	}
@@ -190,7 +192,7 @@ func (r *AutoRecoveryRepository) QueryActions(ctx context.Context, tenantID stri
 
 // DeleteRule removes a rule.
 func (r *AutoRecoveryRepository) DeleteRule(ctx context.Context, tenantID, id string) error {
-	result, err := r.DB.ExecContext(ctx, `DELETE FROM auto_recovery_rules WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.db.ExecContext(ctx, `DELETE FROM auto_recovery_rules WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return fmt.Errorf("delete rule: %w", err)
 	}

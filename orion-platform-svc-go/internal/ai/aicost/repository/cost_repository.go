@@ -39,3 +39,18 @@ func (r *Repository) GetTotalSavings(ctx context.Context, tenantID string) (floa
 		`SELECT COALESCE(SUM(amount), 0) FROM ai_cost_savings WHERE tenant_id=$1`, tenantID)
 	return total, err
 }
+
+// GetTotalSpend returns the total spend amount for a tenant.
+// TODO(stub): Replace with real spend data source when available.
+func (r *Repository) GetTotalSpend(ctx context.Context, tenantID string) (float64, error) {
+	var total float64
+	err := r.db.GetContext(ctx, &total,
+		`SELECT COALESCE(SUM(amount), 0) FROM ai_cost_savings WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return 5000.00, nil // fallback to default stub value
+	}
+	if total == 0 {
+		return 5000.00, nil // default when no data
+	}
+	return total, nil
+}

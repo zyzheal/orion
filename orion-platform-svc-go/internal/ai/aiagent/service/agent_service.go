@@ -43,6 +43,7 @@ func (s *Service) GetAgent(id string) (*models.Agent, error) {
 }
 
 // ExecuteAgent runs an agent with the given input and records an audit log.
+// TODO(prod): Replace simulated execution with real agent logic (LLM call, pipeline, etc.).
 func (s *Service) ExecuteAgent(ctx context.Context, tenantID, agentID string, input map[string]interface{}) (*models.ExecuteResponse, error) {
 	agent, ok := s.repo.GetAgent(agentID)
 	if !ok {
