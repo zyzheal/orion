@@ -2024,6 +2024,24 @@ export const routes: AppRoute[] = [
     protected: true,
   },
 
+  // Automation 自动化作业
+  {
+    path: "/automation",
+    element: React.lazy(() => import("@/pages/Automation")),
+    protected: true,
+  },
+  // RDM 研发管理
+  {
+    path: "/rdm",
+    element: React.lazy(() => import("@/pages/RDM")),
+    protected: true,
+  },
+  // FormDesigner 表单引擎
+  {
+    path: "/form-designer",
+    element: React.lazy(() => import("@/pages/FormDesigner")),
+    protected: true,
+  },
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
   // 通过 :subAppKey 通配符加载任意已配置的子应用
   // 白名单验证在组件内部完成（SubAppRouteDynamic）
