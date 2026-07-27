@@ -169,10 +169,43 @@ func (s *Service) Discover(ctx context.Context, tenantID string) *models.Discove
 }
 
 // getDiscoveryConfigs returns the database connection configs to introspect.
-// TODO: wire a real configuration source (e.g. a connection-store repository)
-// so tenants can register databases for catalog discovery.
+// It reads configured connections from the data-catalog entries where dataType
+// is set to "connection" — these are entries registered by the user to specify
+// a target database for catalog discovery.
 func (s *Service) getDiscoveryConfigs(ctx context.Context, tenantID string) ([]models.DiscoveryConfig, error) {
-	return nil, nil
+	entries, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list catalog entries: %w", err)
+	}
+	configs := make([]models.DiscoveryConfig, 0)
+	for _, e := range entries {
+		if e.DataType != "connection" {
+			continue
+		}
+		dsn := e.ColumnName // reuse column_name field as DSN for connection entries
+		if dsn == "" {
+			continue
+		}
+		dialect := models.ConnectionTypePostgreSQL
+		if e.DataFormat != "" {
+			dialect = models.ConnectionType(e.DataFormat)
+		}
+		cfg := models.DiscoveryConfig{
+			Dialect:    dialect,
+			Name:       e.Name,
+			DSN:        dsn,
+			SchemaName: e.SchemaVersion,
+			TimeoutSec: 10,
+		}
+		// If the owner field looks like an integer, treat it as a timeout override.
+		var ts int
+		fmt.Sscanf(e.Owner, "%d", &ts)
+		if ts > 0 {
+			cfg.TimeoutSec = ts
+		}
+		configs = append(configs, cfg)
+	}
+	return configs, nil
 }
 
 // --- Errors ---

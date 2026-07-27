@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/crossover/dispatcher"
@@ -55,6 +56,7 @@ type CrossoverService struct {
 	callRouter    *router.CallRouter
 	asyncDispatch *dispatcher.CallDispatcher
 	asyncBatch    *dispatcher.BatchDispatcher
+	handlerRegistry *router.HandlerRegistry
 
 	// default timeout for sync calls
 	defaultTimeout time.Duration
@@ -79,8 +81,9 @@ func NewCrossoverService(repo RepositoryInterface, opts ...ServiceOption) *Cross
 	s := &CrossoverService{
 		repo:          repo,
 		opRegistry:    opRegistry,
-		callRouter:    router.NewCallRouter(handlerRegistry, opRegistry),
-		asyncDispatch: asyncDispatch,
+		callRouter:      router.NewCallRouter(handlerRegistry, opRegistry),
+		handlerRegistry: handlerRegistry,
+		asyncDispatch:   asyncDispatch,
 		asyncBatch:    dispatcher.NewBatchDispatcher(asyncDispatch),
 		defaultTimeout: 10 * time.Second,
 	}
@@ -102,6 +105,7 @@ func NewCrossoverServiceWithRegistry(
 		repo:          repo,
 		opRegistry:    opRegistry,
 		callRouter:    callRouter,
+		handlerRegistry: handlerRegistry,
 		asyncDispatch: dispatcher.NewCallDispatcher(),
 		asyncBatch:    dispatcher.NewBatchDispatcher(dispatcher.NewCallDispatcher()),
 		defaultTimeout: 10 * time.Second,
@@ -305,16 +309,56 @@ func (s *CrossoverService) Stats(ctx context.Context, tenantID string) (*models.
 }
 
 // ModuleInfo returns information about a registered module.
+// If no handler is registered for the module, the service tries to derive
+// info from the operation registry by listing all operations for that module.
 func (s *CrossoverService) ModuleInfo(moduleName string) *models.ModuleInfo {
-	// TODO: integrate with actual module registry
-	return nil
+	if moduleName == "" {
+		return nil
+	}
+	// Derive module info from registered operations
+	ops, err := s.opRegistry.ListByModule(context.Background(), "", moduleName)
+	if err != nil {
+		// Fall back to checking the handler registry directly
+		ops = nil
+	}
+	info := &models.ModuleInfo{
+		Name: moduleName,
+	}
+	// Collect distinct operation names from the registry
+	seen := make(map[string]bool)
+	for _, op := range ops {
+		if seen[op.Name] {
+			continue
+		}
+		seen[op.Name] = true
+		info.Operations = append(info.Operations, op.Name)
+	}
+	// Also check the handler registry for any registered handlers on this module
+	handlerKeys := s.callRouter.ListHandlers()
+	for _, key := range handlerKeys {
+		if !strings.HasPrefix(key, moduleName+".") {
+			continue
+		}
+		opName := strings.TrimPrefix(key, moduleName+".")
+		if !seen[opName] {
+			seen[opName] = true
+			info.Operations = append(info.Operations, opName)
+		}
+	}
+	return info
 }
 
-// RegisterHandler registers a handler function for a module.operation.
+// RegisterHandler registers a handler function for a module.operation pair.
 func (s *CrossoverService) RegisterHandler(module, operation string, fn router.HandlerFunc) {
-	s.callRouter.ListHandlers() // trigger any lazy init
-	// The callRouter uses its internal handlerRegistry
-	// TODO: expose handler registration on callRouter
+	if module == "" || operation == "" || fn == nil {
+		return
+	}
+	if s.handlerRegistry != nil {
+		s.handlerRegistry.Register(module, operation, fn)
+		return
+	}
+	// Fallback: try to register on the callRouter's internal registry
+	s.callRouter.RegisterHandler(module, operation, fn)
 }
 
 // Cleanup cleans up finished async jobs older than maxAge.

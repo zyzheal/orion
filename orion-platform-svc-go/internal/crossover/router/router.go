@@ -248,3 +248,13 @@ func (r *CallRouter) ListHandlers() []string {
 	}
 	return keys
 }
+
+// RegisterHandler registers a handler for a module.operation pair.
+func (r *CallRouter) RegisterHandler(module, operation string, fn HandlerFunc) {
+	r.handlerRegistry.Register(module, operation, fn)
+}
+
+// UnregisterHandler removes a handler for a module.operation pair.
+func (r *CallRouter) UnregisterHandler(module, operation string) {
+	r.handlerRegistry.Unregister(module, operation)
+}
