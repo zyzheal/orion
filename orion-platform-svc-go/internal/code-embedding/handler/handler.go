@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/code-embedding/models"
 	"orion/platform-svc-go/internal/code-embedding/service"
-	"orion/go-common/pkg/auth"
 )
 
 type CodeEmbeddingHandler struct {
@@ -33,16 +31,16 @@ func (h *CodeEmbeddingHandler) Embed(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.EmbedRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Embed(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "embedded", "data": resp.Embedding})
+	respondCreated(c, gin.H{"code": 0, "message": "embedded", "data": resp.Embedding})
 }
 
 // Search searches for similar code.
@@ -50,14 +48,14 @@ func (h *CodeEmbeddingHandler) Search(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Search(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+	respondSuccess(c, gin.H{"code": 0, "data": resp})
 }
