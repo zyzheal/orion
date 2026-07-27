@@ -145,7 +145,9 @@ func (a *WebhookAdapter) Initialize(_ context.Context, raw map[string]string) er
 	for k, v := range raw {
 		a.config.Raw[k] = v
 	}
-	if a.config.WebhookPath == "" {
+	if p, ok := raw["path"]; ok && p != "" {
+		a.config.WebhookPath = p
+	} else if a.config.WebhookPath == "" {
 		a.config.WebhookPath = "/hooks"
 	}
 	// webhook_secret is optional; validated at dispatch time

@@ -161,6 +161,9 @@ func (c *Connector) PoolSize() int {
 
 // Close closes the underlying data source.
 func (c *Connector) Close() error {
+	if c.ds == nil {
+		return nil
+	}
 	return c.ds.Close()
 }
 

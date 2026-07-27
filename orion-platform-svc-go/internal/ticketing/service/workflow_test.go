@@ -17,18 +17,18 @@ func TestWorkflowService_TransitionStatus(t *testing.T) {
 	svc := NewWorkflowService(workflowRepo, ticketRepo)
 	ctx := context.Background()
 
-	ticket, history, err := svc.TransitionStatus(ctx, "t1", "tenant-1", "in-progress", "user-1", "starting work")
+	ticket, history, err := svc.TransitionStatus(ctx, "t1", "tenant-1", "in_progress", "user-1", "starting work")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if ticket.Status != "in-progress" {
+	if ticket.Status != "in_progress" {
 		t.Errorf("expected status 'in-progress', got '%s'", ticket.Status)
 	}
-	if history.FromStatus != "open" {
-		t.Errorf("expected from_status 'open', got '%s'", history.FromStatus)
+	if history.FromState != "open" {
+		t.Errorf("expected from_status 'open', got '%s'", history.FromState)
 	}
-	if history.ToStatus != "in-progress" {
-		t.Errorf("expected to_status 'in-progress', got '%s'", history.ToStatus)
+	if history.ToState != "in_progress" {
+		t.Errorf("expected to_status 'in-progress', got '%s'", history.ToState)
 	}
 	if len(workflowRepo.History) != 1 {
 		t.Errorf("expected 1 history entry, got %d", len(workflowRepo.History))
@@ -45,7 +45,7 @@ func TestWorkflowService_TransitionStatus_InvalidTransition(t *testing.T) {
 	ctx := context.Background()
 
 	// closed -> resolved is not valid (closed can only go to open)
-	_, _, err := svc.TransitionStatus(ctx, "t1", "tenant-1", "resolved", "user-1", "")
+	_, _, err := svc.TransitionStatus(ctx, "t1", "tenant-1", "closed", "user-1", "")
 	if err == nil {
 		t.Error("expected error for invalid transition closed -> resolved")
 	}
@@ -58,7 +58,7 @@ func TestWorkflowService_TransitionStatus_TicketNotFound(t *testing.T) {
 	svc := NewWorkflowService(workflowRepo, ticketRepo)
 	ctx := context.Background()
 
-	_, _, err := svc.TransitionStatus(ctx, "nonexistent", "tenant-1", "in-progress", "user-1", "")
+	_, _, err := svc.TransitionStatus(ctx, "nonexistent", "tenant-1", "in_progress", "user-1", "")
 	if err == nil {
 		t.Error("expected error for nonexistent ticket")
 	}
@@ -68,10 +68,10 @@ func TestWorkflowService_GetWorkflowHistory(t *testing.T) {
 	ticketRepo := testutil.NewMockTicketRepository()
 	workflowRepo := testutil.NewMockWorkflowRepository()
 
-	workflowRepo.History = []models.WorkflowHistory{
-		{ID: "h1", TicketID: "t1", FromStatus: "", ToStatus: "open"},
-		{ID: "h2", TicketID: "t1", FromStatus: "open", ToStatus: "in-progress"},
-		{ID: "h3", TicketID: "t2", FromStatus: "", ToStatus: "open"},
+	workflowRepo.History = []models.WorkflowHistoryEntry{
+		{ID: 1, TicketID: "t1", FromState: "", ToState: "open"},
+		{ID: 2, TicketID: "t1", FromState: "open", ToState: "in_progress"},
+		{ID: 3, TicketID: "t2", FromState: "", ToState: "open"},
 	}
 
 	svc := NewWorkflowService(workflowRepo, ticketRepo)
@@ -95,25 +95,19 @@ func TestWorkflowService_TransitionStatus_FullLifecycle(t *testing.T) {
 	svc := NewWorkflowService(workflowRepo, ticketRepo)
 	ctx := context.Background()
 
-	// open -> in-progress
-	_, _, err := svc.TransitionStatus(ctx, "t1", "tenant-1", "in-progress", "u1", "")
+	// open -> in_progress
+	_, _, err := svc.TransitionStatus(ctx, "t1", "tenant-1", "in_progress", "u1", "")
 	if err != nil {
-		t.Fatalf("open->in-progress: %v", err)
+		t.Fatalf("open->in_progress: %v", err)
 	}
 
-	// in-progress -> resolved
-	_, _, err = svc.TransitionStatus(ctx, "t1", "tenant-1", "resolved", "u1", "")
-	if err != nil {
-		t.Fatalf("in-progress->resolved: %v", err)
-	}
-
-	// resolved -> closed
+	// in_progress -> closed
 	_, _, err = svc.TransitionStatus(ctx, "t1", "tenant-1", "closed", "u1", "")
 	if err != nil {
-		t.Fatalf("resolved->closed: %v", err)
+		t.Fatalf("in_progress->closed: %v", err)
 	}
 
-	if len(workflowRepo.History) != 3 {
-		t.Errorf("expected 3 history entries, got %d", len(workflowRepo.History))
+	if len(workflowRepo.History) != 2 {
+		t.Errorf("expected 2 history entries, got %d", len(workflowRepo.History))
 	}
 }

@@ -454,6 +454,7 @@ func TestEvaluateExpression_InvalidOperator(t *testing.T) {
 
 	expr := &models.ConditionExpression{
 		Field:    "name",
+		Enabled:  true,
 		Operator: "invalidOp",
 		Value:    "test",
 	}

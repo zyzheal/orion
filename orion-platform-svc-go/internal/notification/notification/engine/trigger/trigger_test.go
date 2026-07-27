@@ -369,7 +369,6 @@ func TestTriggerBuilder_BuildScheduled(t *testing.T) {
 		t.Errorf("expected TriggerScheduled, got %v", tt.Type())
 	}
 	tt.Stop()
-	_ = cfg // unused
 }
 
 func TestTriggerBuilder_BuildManual(t *testing.T) {

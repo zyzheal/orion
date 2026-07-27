@@ -397,7 +397,7 @@ func (e *ChainExecutor) ExecuteChain(ctx context.Context, chainID string, payloa
 		}
 
 		// Dispatch to downstream
-		payload.SourceID = link.DownstreamID
+		payload.Source = link.DownstreamID
 		if err := e.dispatcher.Dispatch(ctx, payload); err != nil {
 			e.logger.Error("chain execution failed at link",
 				zap.String("chain_id", chainID),

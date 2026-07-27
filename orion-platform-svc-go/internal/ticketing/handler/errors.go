@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,8 +13,13 @@ import (
 func respondError(c *gin.Context, status int, err error) {
 	msg := err.Error()
 	// Only leak validation/binding errors (client input issues)
-	if status == 400 {
+	if status == http.StatusBadRequest {
 		respondBadRequest(c, msg)
+		return
+	}
+	// For not-found errors, return the requested status
+	if status == http.StatusNotFound {
+		respondNotFound(c, msg)
 		return
 	}
 	// For known business errors, return them

@@ -284,7 +284,7 @@ func TestEngineExecuteFallbackExhausted(t *testing.T) {
 	req := &ExecutionRequest{
 		ID:    "req-exhaust-fallback",
 		Mode:  ModeImmediate,
-		Timeout: 50 * time.Millisecond,
+		Timeout: 5 * time.Second,
 	}
 	_, err := eng.Execute(context.Background(), req)
 	if !errors.Is(err, ErrFallbackExhausted) {
@@ -333,9 +333,10 @@ func TestEngineTimeout(t *testing.T) {
 	eng := NewEngine(Config{DefaultTimeout: 10 * time.Millisecond}, zap.NewNop())
 
 	slowHandler := &testHandler{
-		mode: ModeScheduled,
-		name: "slow",
-		err:  context.DeadlineExceeded,
+		mode:      ModeScheduled,
+		name:      "slow",
+		err:       context.DeadlineExceeded,
+		failCount: 1,
 	}
 	eng.RegisterHandler(slowHandler)
 

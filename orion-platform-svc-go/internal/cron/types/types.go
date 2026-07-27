@@ -316,3 +316,17 @@ func NewHandler(fn JobHandlerFunc) *Handler {
 func (h *Handler) Execute(ctx context.Context) (string, error) {
 	return h.fn(ctx)
 }
+
+// ParseError represents an error that occurred during cron expression parsing.
+type ParseError struct {
+	Expr  string
+	Cause error
+}
+
+func (e *ParseError) Error() string {
+	return "failed to parse cron expression " + e.Expr + ": " + e.Cause.Error()
+}
+
+func (e *ParseError) Unwrap() error {
+	return e.Cause
+}

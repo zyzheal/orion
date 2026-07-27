@@ -225,6 +225,7 @@ func NewListOptions(page, pageSize int) ListOptions {
 	}
 	if pageSize > 100 {
 		// cap at 100
+		pageSize = 100
 	}
 	return ListOptions{
 		Offset: (page - 1) * pageSize,

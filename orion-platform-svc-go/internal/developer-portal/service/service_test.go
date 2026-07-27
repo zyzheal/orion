@@ -141,7 +141,7 @@ func (m *mockDPRepo) CreateDocumentVersion(_ context.Context, v *models.Document
 	return nil
 }
 
-func (m *mockDPRepo) GetDocumentVersions(_ context.Context, documentID string) ([]models.DocumentVersion, error) {
+func (m *mockDPRepo) GetDocumentVersions(_ context.Context, tenantID, documentID string) ([]models.DocumentVersion, error) {
 	return nil, nil
 }
 

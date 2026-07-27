@@ -54,8 +54,7 @@ func TestHandler_TransitionStatus(t *testing.T) {
 	repo.Tickets["t1"] = &models.Ticket{ID: "t1", TenantID: "tenant-1", Status: "open"}
 
 	body, _ := json.Marshal(map[string]string{
-		"to_status":    "in-progress",
-		"performed_by": "user-1",
+		"status": "in_progress",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/tickets/t1/transition", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -73,8 +72,7 @@ func TestHandler_TransitionStatus_Invalid(t *testing.T) {
 	repo.Tickets["t1"] = &models.Ticket{ID: "t1", TenantID: "tenant-1", Status: "closed"}
 
 	body, _ := json.Marshal(map[string]string{
-		"to_status":    "resolved",
-		"performed_by": "user-1",
+		"status": "resolved",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/tickets/t1/transition", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -120,7 +118,7 @@ func TestHandler_EscalateTicket(t *testing.T) {
 
 func TestHandler_CloseTicket(t *testing.T) {
 	r, repo := newTestWorkflowHandler()
-	repo.Tickets["t1"] = &models.Ticket{ID: "t1", TenantID: "tenant-1", Status: "resolved"}
+	repo.Tickets["t1"] = &models.Ticket{ID: "t1", TenantID: "tenant-1", Status: "open"}
 
 	body, _ := json.Marshal(map[string]string{
 		"performed_by": "user-1",

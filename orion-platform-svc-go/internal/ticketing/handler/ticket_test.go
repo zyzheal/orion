@@ -126,8 +126,9 @@ func TestHandler_ListTickets(t *testing.T) {
 
 	var resp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp["total"].(float64) != 2 {
-		t.Errorf("expected total 2, got %v", resp["total"])
+	data := resp["data"].(map[string]any)
+	if data["total"].(float64) != 2 {
+		t.Errorf("expected total 2, got %v", data["total"])
 	}
 }
 
@@ -153,7 +154,7 @@ func TestHandler_AssignTicket(t *testing.T) {
 
 	repo.Tickets["t1"] = &models.Ticket{ID: "t1", TenantID: "tenant-1", Status: "open"}
 
-	body, _ := json.Marshal(map[string]string{"assigned_to": "engineer-1"})
+	body, _ := json.Marshal(map[string]string{"assignee_id": "engineer-1"})
 	req := httptest.NewRequest(http.MethodPost, "/tickets/t1/assign", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -171,8 +172,8 @@ func TestHandler_CreateComment(t *testing.T) {
 	repo.Tickets["t1"] = &models.Ticket{ID: "t1", TenantID: "tenant-1"}
 
 	body, _ := json.Marshal(map[string]string{
-		"author":  "user-1",
-		"content": "Hello",
+		"ticket_id": "t1",
+		"text":      "Hello",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/tickets/t1/comments", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -215,8 +216,9 @@ func TestHandler_Count(t *testing.T) {
 
 	var resp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp["count"].(float64) != 2 {
-		t.Errorf("expected count 2, got %v", resp["count"])
+	data := resp["data"].(map[string]any)
+	if data["count"].(float64) != 2 {
+		t.Errorf("expected count 2, got %v", data["count"])
 	}
 }
 

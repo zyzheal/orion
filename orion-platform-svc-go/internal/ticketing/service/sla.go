@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
@@ -38,6 +39,7 @@ func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priori
 // GetTicketSLA returns the SLA record for a ticket
 func (s *SLAService) GetTicketSLA(ctx context.Context, ticketID string) (*models.SLARecord, error) {
 	tracking, err := s.slaRepo.GetSLATracking(ctx, ticketID, ticketID)
+	if tracking == nil { return nil, errors.New("sla record not found") }
 	if err != nil {
 		return nil, err
 	}

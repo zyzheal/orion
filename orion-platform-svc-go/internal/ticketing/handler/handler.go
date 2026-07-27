@@ -262,7 +262,10 @@ func (h *Handler) ListTickets(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, items)
+	middleware.RespondSuccess(c, gin.H{
+		"total": len(items),
+		"items": items,
+	})
 }
 
 // ==================== Workflow ====================

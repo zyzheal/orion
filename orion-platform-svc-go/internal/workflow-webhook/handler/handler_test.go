@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"orion/platform-svc-go/internal/workflow-webhook/service"
-	workflow_service "orion/platform-svc-go/internal/workflow/service"
+	workflow_service "orion/platform-svc-go/internal/workflow/workflow/service"
 
 	"github.com/gin-gonic/gin"
 )

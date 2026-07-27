@@ -553,12 +553,20 @@ func TestSourcePipeline_FilterOut(t *testing.T) {
 func TestSourcePipeline_SetCallback(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	pipeline := NewSourcePipeline("test-callback", logger)
+	pipeline.AddStage(PipelineStage{
+		Name:    "stage-1",
+		Adapter: &testAdapter{name: "cb-test", typ: models.TypeManual},
+	})
 	var called bool
 	pipeline.SetCallback(func(ctx context.Context, payload EventPayload) error {
 		called = true
 		return nil
 	})
 
+	_, err := pipeline.Process(context.Background(), EventPayload{Source: "cb-test", Data: map[string]interface{}{"key": "val"}})
+	if err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
 	if !called {
 		t.Error("expected callback to be set")
 	}

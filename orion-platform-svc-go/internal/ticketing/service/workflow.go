@@ -58,8 +58,12 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 	history := &models.WorkflowHistory{
 		ID:          0,
 		TicketID:    ticketID,
+		FromState:   ticket.Status,
+		ToState:     toStatus,
 		FromStatus:  ticket.Status,
 		ToStatus:    toStatus,
+		UserID:      performedBy,
+		Comment:     reason,
 		PerformedBy: performedBy,
 		Reason:      reason,
 	}
@@ -82,5 +86,22 @@ func (s *WorkflowService) GetWorkflowHistory(ctx context.Context, ticketID strin
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "WorkflowService.GetWorkflowHistory")
 	defer span.End()
 
-	return []models.WorkflowHistory{}, nil
+	entries, err := s.workflowRepo.GetWorkflowHistory(ctx, "", ticketID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get workflow history: %w", err)
+	}
+	// Convert WorkflowHistoryEntry to WorkflowHistory
+	out := make([]models.WorkflowHistory, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, models.WorkflowHistory{
+			ID:          e.ID,
+			TicketID:    e.TicketID,
+			FromStatus:  e.FromState,
+			ToStatus:    e.ToState,
+			PerformedBy: e.UserID,
+			Reason:      e.Comment,
+			CreatedAt:   e.CreatedAt,
+		})
+	}
+	return out, nil
 }

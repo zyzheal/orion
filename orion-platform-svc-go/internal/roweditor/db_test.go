@@ -101,21 +101,25 @@ func (m *mockDB) GetContext(ctx context.Context, dest any, query string, args ..
 		return err
 	}
 
-	// dest is *Row (a *map[string]any)
-	ptr, ok := dest.(*Row)
-	if !ok {
-		ptr, ok = dest.(*map[string]any)
-		if !ok {
-			return errors.New("mock: dest must be *Row or *map[string]any")
-		}
-	}
-
+	// dest can be Row, *Row, or *map[string]any
 	rowID := args[0].(string)
-	if r, ok := m.rows[rowID]; ok {
-		*ptr = r
-		return nil
+	r, found := m.rows[rowID]
+	if !found {
+		return sql.ErrNoRows
 	}
-	return sql.ErrNoRows
+	switch d := dest.(type) {
+	case Row:
+		for k, v := range r {
+			d[k] = v
+		}
+	case *Row:
+		*d = r
+	case *map[string]any:
+		*d = r
+	default:
+		return errors.New("mock: dest must be Row, *Row or *map[string]any")
+	}
+	return nil
 }
 
 func (m *mockDB) SelectContext(ctx context.Context, dest any, query string, args ...any) error {
@@ -147,9 +151,9 @@ func (m *mockDB) NamedExecContext(ctx context.Context, query string, arg any) (s
 		return nil, err
 	}
 
+	m.rowsAffected = 1
 	// For INSERT: parse the struct/map and create a row.
 	if m.autoVersion {
-		// Ensure version field exists.
 		if argMap, ok := arg.(map[string]any); ok {
 			if _, ok := argMap["version"]; !ok {
 				argMap["version"] = 1
@@ -158,13 +162,12 @@ func (m *mockDB) NamedExecContext(ctx context.Context, query string, arg any) (s
 	}
 	// Store the inserted row for later reads.
 	if row, ok := arg.(map[string]any); ok {
-		pk := row["id"].(string)
-		m.rows[pk] = row
-		m.rowsAffected = 1
-		return &mockResult{}, nil
+		pk, _ := row["id"]
+		if pkStr, ok := pk.(string); ok {
+			m.rows[pkStr] = row
+		}
 	}
-	m.rowsAffected = 1
-	return &mockResult{}, nil
+	return &mockResult{rowsAffected: m.rowsAffected}, nil
 }
 
 func (m *mockDB) BeginTxx(ctx context.Context, cfg *sql.TxOptions) (*sqlx.Tx, error) {

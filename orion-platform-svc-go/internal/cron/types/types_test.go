@@ -39,9 +39,9 @@ func TestRetryPolicyShouldRetry(t *testing.T) {
 	}
 
 	// retryable-errors filter
-	filtered := RetryPolicy{MaxAttempts: 3, RetryableErrors: []string{"timeout"}}
+	filtered := RetryPolicy{MaxAttempts: 3, RetryableErrors: []string{"deadline"}}
 	if !filtered.ShouldRetry(0, context.DeadlineExceeded) {
-		t.Errorf("expected filtered retry for timeout")
+		t.Errorf("expected filtered retry for deadline")
 	}
 	if filtered.ShouldRetry(0, context.Canceled) {
 		t.Errorf("expected no retry for cancellation")

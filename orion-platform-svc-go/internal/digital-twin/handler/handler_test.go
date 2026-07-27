@@ -58,7 +58,7 @@ func (m *mockDigitalTwinRepo) CreateTrafficRecord(ctx context.Context, in models
 	if m.dbErr != nil { return nil, m.dbErr }
 	return &models.TrafficRecord{ID: "rec-" + in.TwinID, TwinID: in.TwinID, Type: in.Type, StartedAt: in.StartedAt}, nil
 }
-func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, twinID string) ([]models.TrafficRecord, error) {
+func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error) {
 	if m.recordsByTwinFn != nil { return m.recordsByTwinFn(ctx, twinID) }
 	if m.dbErr != nil { return nil, m.dbErr }
 	return nil, nil
@@ -68,17 +68,17 @@ func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models
 	if m.dbErr != nil { return nil, m.dbErr }
 	return &models.ReplaySession{ID: "replay-" + in.TwinID, Status: in.Status, StartedAt: in.StartedAt}, nil
 }
-func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, twinID string) ([]models.ReplaySession, error) {
+func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.ReplaySession, error) {
 	if m.replaysByTwinFn != nil { return m.replaysByTwinFn(ctx, twinID) }
 	if m.dbErr != nil { return nil, m.dbErr }
 	return nil, nil
 }
-func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, id string) (*models.ReplaySession, error) {
+func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error) {
 	if m.replayByIdFn != nil { return m.replayByIdFn(ctx, id) }
 	if m.dbErr != nil { return nil, m.dbErr }
 	return &models.ReplaySession{ID: id, Status: "running"}, nil
 }
-func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, id, status string) (*models.ReplaySession, error) {
+func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error) {
 	if m.updateReplayFn != nil { return m.updateReplayFn(ctx, id, status) }
 	if m.dbErr != nil { return nil, m.dbErr }
 	return &models.ReplaySession{ID: id, Status: status}, nil

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"orion/platform-svc-go/internal/auto-exec/interfaces"
 	"orion/platform-svc-go/internal/auto-exec/models"
 )
 

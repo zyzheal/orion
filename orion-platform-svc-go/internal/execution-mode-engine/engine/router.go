@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -79,6 +80,19 @@ func (r *routerImpl) RegisteredModes() []Mode {
 		out = append(out, m)
 	}
 	return out
+}
+
+// RecordResult updates the statistics for a handler after execution.
+func (r *routerImpl) RecordResult(name string, success bool, now time.Time) {
+	if s, ok := r.stats[name]; ok {
+		s.TotalCalls++
+		if success {
+			s.SuccessCalls++
+		} else {
+			s.FailedCalls++
+		}
+		s.LastExecuted = now
+	}
 }
 
 // Stats returns a copy of the current handler statistics.

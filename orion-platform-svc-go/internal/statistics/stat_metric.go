@@ -76,7 +76,7 @@ func (w AggregationWindow) String() string {
 	case Window24h:
 		return "24h"
 	default:
-		return fmt.Sprintf("%ds", w.Duration().Seconds())
+		return fmt.Sprintf("%ds", int64(w))
 	}
 }
 

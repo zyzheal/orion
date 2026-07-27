@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sync"
 	"testing"
-	"time"
 )
 
 // mockDataSource is a test implementation of DataSource.

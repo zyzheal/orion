@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // Create inserts a new row into the target table and returns the persisted row.
@@ -393,7 +394,7 @@ func (e *RowEditor) buildInsertColumnArgs(row Row) (keys, vals string, args map[
 		args[k] = v
 	}
 
-	return keys, vals, args
+	return strings.Join(columnKeys, ", "), strings.Join(valPlaceholders, ", "), args
 }
 
 func (e *RowEditor) isReadOnly(column string) bool {

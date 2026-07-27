@@ -267,10 +267,12 @@ func (e *Engine) executeWithRetry(ctx context.Context, req *ExecutionRequest, ha
 				zap.String("handler", handler.Name()),
 				zap.Int("attempt", attempt+1),
 			)
+			e.router.RecordResult(handler.Name(), true, time.Now())
 			return result, nil
 		}
 		lastErr = err
 		lastResult = result
+		e.router.RecordResult(handler.Name(), false, time.Now())
 		if attempt < retryMax {
 			e.logger.Warn("execution-mode-engine: handler attempt failed, retrying",
 				zap.String("request_id", req.ID),
@@ -338,10 +340,12 @@ func (e *Engine) executeWithFallback(ctx context.Context, req *ExecutionRequest)
 				zap.String("request_id", req.ID),
 				zap.String("fallback_mode", fallbackMode.String()),
 			)
+			e.router.RecordResult(handler.Name(), true, time.Now())
 			return result, nil
 		}
 		lastErr = err
 		lastResult = result
+		e.router.RecordResult(handler.Name(), false, time.Now())
 
 		// Brief delay before the next fallback attempt.
 		if fallbackReq.Timeout > 0 || e.cfg.FallbackDelay > 0 {

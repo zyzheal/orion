@@ -102,7 +102,7 @@ func (m *mockDigitalTwinRepo) CreateTrafficRecord(ctx context.Context, in models
 	return record, nil
 }
 
-func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, twinID string) ([]models.TrafficRecord, error) {
+func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -127,7 +127,7 @@ func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models
 	return session, nil
 }
 
-func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, twinID string) ([]models.ReplaySession, error) {
+func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.ReplaySession, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -140,7 +140,7 @@ func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, tw
 	return result, nil
 }
 
-func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, id string) (*models.ReplaySession, error) {
+func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -151,7 +151,7 @@ func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, id stri
 	return s, nil
 }
 
-func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, id, status string) (*models.ReplaySession, error) {
+func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -554,7 +554,7 @@ func TestCancelReplay_Success(t *testing.T) {
 	ctx := context.Background()
 
 	s, _ := m.CreateReplaySession(ctx, models.CreateReplaySessionInput{TwinID: "twin-1", Status: "running", StartedAt: time.Now().UTC()})
-	summary, err := svc.CancelReplay(ctx, s.ID)
+	summary, err := svc.CancelReplay(ctx, "tenant-1", s.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -568,7 +568,7 @@ func TestCancelReplay_NotFound(t *testing.T) {
 	svc := NewService(m)
 	ctx := context.Background()
 
-	summary, err := svc.CancelReplay(ctx, "nonexistent")
+	summary, err := svc.CancelReplay(ctx, "tenant-1", "nonexistent")
 	if err == nil {
 		t.Fatal("expected error")
 	}
