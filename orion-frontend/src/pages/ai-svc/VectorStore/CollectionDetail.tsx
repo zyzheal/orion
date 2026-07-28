@@ -43,10 +43,10 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
             <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 0, fontSize: 13 }}>
               {val}
             </Paragraph>
-            {record.metadata && record.metadata.source && (
+            {record.metadata && (record.metadata.source as ReactNode) && (
               <Text type="secondary" style={{ fontSize: 11 }}>
-                来源: <code>{record.metadata.source}</code>
-                {record.metadata.category && ` | 分类: ${record.metadata.category}`}
+                来源: <code>{record.metadata.source as ReactNode}</code>
+                {record.metadata.category && ` | 分类: ${record.metadata.category as ReactNode}`}
               </Text>
             )}
           </div>

@@ -27,6 +27,9 @@ export interface PageEntry {
     action: 'read' | 'write' | 'manage';
   };
 
+  /** Permission (legacy alias for requiredPermission) */
+  permission?: { resource: string; action: string };
+
   /** Skip main Layout wrapper (for fullscreen/sub-app pages) */
   hideLayout?: boolean;
 
@@ -41,6 +44,15 @@ export interface PageEntry {
 
   /** Menu module key for auto-generated menus */
   menu?: string;
+
+  /** Menu key (legacy) */
+  menuKey?: string;
+
+  /** Menu label (legacy) */
+  menuLabel?: string;
+
+  /** Menu icon (legacy) */
+  menuIcon?: string;
 
   /** Index route (renders at parent path) */
   index?: boolean;
@@ -59,6 +71,9 @@ export interface PageEntry {
 
   /** Display sort order */
   sortOrder?: number;
+
+  /** Page status */
+  status?: string;
 }
 
 /**
@@ -71,7 +86,7 @@ export interface PageRegistry {
   meta?: {
     version: string;
     lastUpdated: string;
-    source: 'local' | 'remote';
+    source: 'local' | 'remote' | 'merged';
   };
 }
 

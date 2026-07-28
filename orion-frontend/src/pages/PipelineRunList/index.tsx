@@ -74,18 +74,13 @@ const PipelineRunList: React.FC = () => {
 
   // Load pipeline runs from API
   const loadRuns = useCallback(async () => {
-    console.log('[PipelineRunList] loadRuns called, pipelineId:', pipelineId);
+
     setLoading(true);
     try {
       const response = await getAllPipelineRuns({
         limit: 200,
         ...(pipelineId ? { pipelineId } : {}),  // 如果有 pipelineId，传给后端过滤
       });
-
-      console.log('[PipelineRunList] Response object:', response);
-      console.log('[PipelineRunList] response.data:', response.data);
-      console.log('[PipelineRunList] response.data type:', typeof response.data);
-      console.log('[PipelineRunList] response.data:', response.data);
 
       // 后端返回格式：{ data: [...], total }
       // Axios 响应拦截器保持原样，不解包
@@ -96,23 +91,22 @@ const PipelineRunList: React.FC = () => {
       if (raw && typeof raw === 'object') {
         // 情况1：{ data: [...], total } - 标准格式
         if (Array.isArray(raw.data)) {
-          console.log('[PipelineRunList] Found data array with', raw.data.length, 'items');
+
           items = raw.data;
         }
         // 情况2：直接被当作数组（不应该发生，但作为后备）
         else if (Array.isArray(raw)) {
-          console.log('[PipelineRunList] Raw is array with', raw.length, 'items');
+
           items = raw;
         } else {
-          console.log('[PipelineRunList] raw.data is not array, raw keys:', Object.keys(raw));
+
         }
       } else {
-        console.log('[PipelineRunList] raw is not object:', typeof raw);
+
       }
 
-      console.log('[PipelineRunList] Final items count:', items.length);
       if (items.length > 0) {
-        console.log('[PipelineRunList] First item:', items[0]);
+
       }
 
       // 注意：不再在前端过滤，因为已经通过 API 参数传给后端过滤了
@@ -124,7 +118,6 @@ const PipelineRunList: React.FC = () => {
         }
       }
 
-      console.log('[PipelineRunList] About to setRuns with', items.length, 'items');
       setRuns(items);
     } catch (error: unknown) {
       console.error('[PipelineRunList] Error:', error);

@@ -48,6 +48,7 @@ import {
   type CloudAccount,
   type CloudResource,
   type ResourceStatistics,
+  type CostComparison,
 } from '@/api/multi-cloud';
 import { colors, spacing } from '@/tokens';
 
@@ -255,7 +256,7 @@ const MultiCloudPage: React.FC = () => {
       dataIndex: 'account_name',
       key: 'account_name',
       width: 160,
-      render: (v: string, record: CloudAccount) => v || record.name || '-',
+      render: (v: string, record: CloudAccount) => v || record.account_name || '-',
     },
     {
       title: '云厂商',

@@ -10,6 +10,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import type { AppRoute } from './routes';
+import type { RegistrySource } from './page-registry-types';
 import type { PageEntry, PageRegistry } from './page-registry-types';
 
 /**
@@ -35,8 +36,7 @@ function pageEntryToRoute(entry: PageEntry): AppRoute {
       element: <Navigate to={entry.redirectTo} replace />,
       protected: entry.protected ?? false,
       hideLayout: entry.hideLayout ?? true,
-      hidden: entry.hidden ?? true,
-    };
+    } as AppRoute & { hidden: boolean };
   }
 
   // Resolve element (string path → lazy import, or use function directly)
@@ -44,12 +44,11 @@ function pageEntryToRoute(entry: PageEntry): AppRoute {
 
   const route: AppRoute = {
     path: entry.path,
-    element: resolvedElement,
+    element: React.lazy(resolvedElement),
     protected: entry.protected ?? true,
     requiredPermission: entry.requiredPermission,
     hideLayout: entry.hideLayout ?? false,
     index: entry.index,
-    hidden: entry.hidden ?? false,
   };
 
   // Recursively process children
@@ -75,9 +74,8 @@ export function generateRoutes(registry: PageRegistry): AppRoute[] {
   if (!routes.some((r) => r.path === '*')) {
     routes.push({
       path: '*',
-      element: () => import('@/pages/NotFound'),
+      element: React.lazy(() => import('@/pages/NotFound')),
       protected: false,
-      hidden: true,
     });
   }
 

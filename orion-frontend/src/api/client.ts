@@ -3,9 +3,17 @@ import { message } from 'antd';
 import type { ApiResponse } from './types';
 import { useAuthStore } from '@/stores/authStore';
 
+// ---- 统一配置 ----
+
+/** API 基础路径：所有 API 文件使用相对路径（如 /projects），
+ *  client.ts 自动拼接 /api/v1 前缀。
+ *  硬编码 /api/v1/xxx 的旧文件需迁移到相对路径。
+ */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
 // 创建 Axios 实例
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -49,26 +57,25 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
-// 响应拦截器 — 带自动 Token 刷新和 ApiResponse 自动解包
+// 响应拦截器 — 统一响应格式解包 + 自动 Token 刷新
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
-    // 自动解包 ApiResponse 格式
-    // ApiResponse<T> = { code?, message?, data?: T, success?, meta? }
-    // 解包后 response.data 直接是 T
-    const rawData = response.data;
-    if (rawData && typeof rawData === 'object') {
-      // 新格式: { success: true, data: T, meta? }
-      if (rawData.success === true && rawData.data !== undefined) {
-        response.data = rawData.data as unknown as typeof response.data;
+    const wrapped = response.data as Record<string, unknown> | undefined;
+    // 统一格式: { success: true, data: T, meta?, requestId?, timestamp }
+    // 如果 success 为 true，自动解包 data 字段，让调用方直接拿到 T
+    if (wrapped && typeof wrapped === 'object' && 'success' in wrapped) {
+      if (wrapped.success === true && wrapped.data !== undefined) {
+        response.data = wrapped.data as unknown as typeof response.data;
       }
-      // 旧格式: { code: 200, message: 'OK', data: T }
-      else if (rawData.code === 200 && rawData.data !== undefined) {
-        response.data = rawData.data as unknown as typeof response.data;
-      }
-      // 直接返回 data 字段的格式: { data: T }
-      else if (rawData.data !== undefined && rawData.success === undefined && rawData.code === undefined) {
-        response.data = rawData.data as unknown as typeof response.data;
-      }
+      // 如果 success 为 false，不解包，保留原始错误信息供调用方处理
+    }
+    // 兼容旧格式: { code: 200, message: 'OK', data: T } — 过渡期支持
+    else if (wrapped && typeof wrapped === 'object' && 'code' in wrapped && wrapped.code === 200 && wrapped.data !== undefined) {
+      response.data = wrapped.data as unknown as typeof response.data;
+    }
+    // 兼容直接返回 data 字段的格式: { data: T } — 过渡期支持
+    else if (wrapped && typeof wrapped === 'object' && 'data' in wrapped && !('success' in wrapped) && !('code' in wrapped)) {
+      response.data = wrapped.data as unknown as typeof response.data;
     }
     return response;
   },
@@ -146,25 +153,57 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // 其他错误处理
+    // 统一错误处理 — 所有后端错误都走 ResponseEnvelope 格式
     if (error.response) {
-      const { status, data } = error.response as AxiosResponse & { data?: Record<string, unknown> };
+      const { status, data } = error.response as AxiosResponse & { data?: ApiResponse };
+      if (status === 401) {
+        // 401 已在上面处理，这里只处理其他场景
+        return Promise.reject(error);
+      }
+
+      // 统一错误格式: { success: false, error: string, code: string, details, requestId }
+      const errMsg = data?.error || '请求失败';
+      const errCode = data?.code || `ERR_${status}`;
+      const requestId = data?.requestId || '';
+
       if (status === 403) {
-        // 后端 RequireAuthorization 返回 { code: 403, message, detail, source }
-        const detail = data?.detail as string | undefined;
-        const source = data?.source as string | undefined;
-        const reason = detail || '没有权限访问该资源';
-        const label = source === 'abac' ? '访问策略拒绝' :
-                      source === 'relationship' ? '项目权限不足' :
-                      source === 'rbac' ? '角色权限不足' : '权限不足';
+        // 权限错误 — 从 details 中提取更具体的信息
+        const details = data?.details as Record<string, string> | undefined;
+        const source = details?.source || 'unknown';
+        const reason = details?.reason || errMsg;
+        const label =
+          source === 'abac' ? 'ABAC 策略拒绝' :
+          source === 'rbac' ? '角色权限不足' :
+          source === 'relationship' ? '项目权限不足' : '权限不足';
         message.error(`${label}：${reason}`);
+        if (requestId) console.warn(`[403] requestId=${requestId}`);
+      } else if (status === 404) {
+        console.warn(`[404] ${errCode}: ${errMsg}${requestId ? ` (requestId=${requestId})` : ''}`);
+      } else if (status >= 500) {
+        console.error(`[500] ${errCode}: ${errMsg}${requestId ? ` (requestId=${requestId})` : ''}`);
+        if (status === 502 || status === 503) {
+          message.error('服务暂不可用，请稍后重试');
+        } else {
+          message.error('服务器内部错误，请联系管理员');
+        }
+      } else if (status === 400 || status === 422) {
+        // 参数校验错误
+        const details = data?.details as Record<string, string[]> | undefined;
+        if (details) {
+          const firstError = Object.values(details).flat()[0];
+          message.error(firstError || errMsg);
+        } else {
+          message.error(errMsg);
+        }
+      } else if (status === 409) {
+        message.error(`操作冲突：${errMsg}`);
+      } else if (status === 429) {
+        message.error('请求过于频繁，请稍后重试');
       }
-      if (status === 404) {
-        console.error('404 Not Found: 资源不存在');
-      }
-      if (status >= 500) {
-        console.error('500 Server Error: 服务器错误');
-      }
+    } else if (error.request) {
+      // 网络错误（无响应）
+      console.error('[Network] 请求未收到响应:', error.message);
+      message.error('网络连接失败，请检查网络');
     }
 
     return Promise.reject(error);

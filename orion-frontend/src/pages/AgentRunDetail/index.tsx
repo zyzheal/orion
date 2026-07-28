@@ -505,11 +505,7 @@ const AgentRunDetail: React.FC = () => {
           {run.result.prUrl && (
             <Alert
               message="PR 已创建"
-              description={
-                <a href={run.result.prUrl as string} target="_blank" rel="noopener noreferrer">
-                  {run.result.prUrl}
-                </a>
-              }
+              description={(run.result.prUrl as string)}
               type="success"
               showIcon
               style={{ marginBottom: spacing[3] }}

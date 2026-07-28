@@ -5,6 +5,7 @@ import { colors, spacing } from '@/tokens';
  * Collection management, document upload, similarity search, and collection details
  */
 import React, { useState, useEffect, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import {
   Typography,
   Button,
@@ -88,12 +89,12 @@ const metricLabelMap: Record<string, string> = {
 const VectorStorePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [collections, setCollections] = useState<VectorCollection[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, _setSearchQuery] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<VectorCollection | null>(null);
   const [collectionDocs, setCollectionDocs] = useState<VectorDocument[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
+  const [, setDocsLoading] = useState(false);
   const [stats, setStats] = useState<VectorStats | null>(null);
 
   // Search tab state
@@ -181,7 +182,7 @@ const VectorStorePage: React.FC = () => {
     }
   };
 
-  const handleUpdateCollection = async (
+  const handleUpdateCollection_ = async (
     name: string,
     data: { displayName?: string; description?: string; dimensions?: number; indexType?: string; distanceMetric?: string }
   ) => {
@@ -429,13 +430,13 @@ const VectorStorePage: React.FC = () => {
                 ellipsis: true,
                 render: (val: string, record: VectorDocument) => (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Text ellipsis={{ rows: 2 }} style={{ fontSize: 13 }}>
+                    <Text ellipsis={{ rows: 2 as any }} style={{ fontSize: 13 }}>
                       {val}
                     </Text>
                     {record.metadata?.source && (
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        来源: <code>{record.metadata.source}</code>
-                        {record.metadata.category && ` | 分类: ${record.metadata.category}`}
+                        来源: <code>{record.metadata.source as ReactNode}</code>
+                        {record.metadata.category && ` | 分类: ${record.metadata.category as ReactNode}`}
                       </Text>
                     )}
                   </div>
@@ -632,10 +633,10 @@ const VectorStorePage: React.FC = () => {
                       </Tag>
                       <Text type="secondary" style={{ fontSize: 11 }}>
                         {hit.collection}
-                        {hit.metadata?.source && ` | ${hit.metadata.source}`}
+                        {hit.metadata?.source && ` | ${hit.metadata.source as string}`}
                       </Text>
                     </div>
-                    <Text ellipsis={{ rows: 3 }} style={{ fontSize: 12, display: 'block' }}>
+                    <Text ellipsis={{ rows: 3 as any }} style={{ fontSize: 12, display: 'block' }}>
                       {hit.content}
                     </Text>
                   </Card>

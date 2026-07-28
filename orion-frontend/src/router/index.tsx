@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-ro
 import { routes, type AppRoute } from './routes';
 import { generateRoutes } from './route-generator';
 import { listPageRegistry } from '@/api/page-registry';
+import type { PageRegistry } from './page-registry-types';
 import { Layout } from '@/components/Layout';
 import { Loading } from '@/components/Loading';
 import { useAuthStore } from '@/stores/authStore';
@@ -210,10 +211,6 @@ const AppRoutes: React.FC = () => {
     async function loadPageRegistry() {
       setRegistryLoading(true);
       setRegistryError(false);
-
-import type { PageRegistry } from './page-registry-types';
-
-// ...
 
       try {
         const result = await listPageRegistry({ enabled: true });

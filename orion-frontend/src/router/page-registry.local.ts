@@ -34,7 +34,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== Public Pages ==========
   {
     path: '/',
-    component: '@/pages/RootRedirect',
+    element: '@/pages/RootRedirect',
     protected: false,
     hideLayout: true,
     sortOrder: 0,
@@ -43,7 +43,7 @@ export const pageRegistryLocal: PageEntry[] = [
   },
   {
     path: '/login',
-    component: '@/pages/Login',
+    element: '@/pages/Login',
     protected: false,
     hideLayout: true,
     sortOrder: 1,
@@ -54,7 +54,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== Main Application Routes ==========
   {
     path: '/subapps',
-    component: '@/pages/SubApps',
+    element: '@/pages/SubApps',
     protected: true,
     hideLayout: false,
     menuKey: 'subapp',
@@ -66,7 +66,7 @@ export const pageRegistryLocal: PageEntry[] = [
   },
   {
     path: '/dashboard',
-    component: '@/pages/DashboardNew',
+    element: '@/pages/DashboardNew',
     protected: true,
     hideLayout: false,
     menuKey: 'dashboard',
@@ -78,7 +78,7 @@ export const pageRegistryLocal: PageEntry[] = [
   },
   {
     path: '/console',
-    component: '@/pages/Console',
+    element: '@/pages/Console',
     protected: true,
     permission: { resource: '*', action: 'manage' },
     hideLayout: false,
@@ -93,7 +93,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== Sub-Application Routes (Micro-Frontend) ==========
   {
     path: '/dba',
-    component: '@/components/SubAppRouteDynamic',
+    element: '@/components/SubAppRouteDynamic',
     protected: true,
     hideLayout: true,
     microApp: true,
@@ -107,7 +107,7 @@ export const pageRegistryLocal: PageEntry[] = [
   },
   {
     path: '/knowledge',
-    component: '@/components/SubAppRouteDynamic',
+    element: '@/components/SubAppRouteDynamic',
     protected: true,
     hideLayout: true,
     microApp: true,
@@ -121,7 +121,7 @@ export const pageRegistryLocal: PageEntry[] = [
   },
   {
     path: '/visor',
-    component: '@/components/SubAppRouteDynamic',
+    element: '@/components/SubAppRouteDynamic',
     protected: true,
     hideLayout: true,
     microApp: true,
@@ -137,7 +137,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== Delivery Module (Pilot) ==========
   {
     path: '/pipelines',
-    component: '@/pages/pipeline-svc/PipelineList',
+    element: '@/pages/pipeline-svc/PipelineList',
     protected: true,
     permission: { resource: 'pipeline', action: 'read' },
     hideLayout: false,
@@ -152,7 +152,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== AI Module (Pilot) ==========
   {
     path: '/ai',
-    component: '@/pages/ai-svc/AIDashboard',
+    element: '@/pages/ai-svc/AIDashboard',
     protected: true,
     hideLayout: false,
     menuKey: 'ai',
@@ -166,7 +166,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== 404 ==========
   {
     path: '*',
-    component: '@/pages/NotFound',
+    element: '@/pages/NotFound',
     protected: false,
     hideLayout: true,
     sortOrder: 999,

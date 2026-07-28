@@ -84,12 +84,11 @@ const SubAppRouteMF: React.FC = () => {
       setError(null);
 
       try {
-        console.log(`[SubAppRouteMF] Loading ${appKey} from: ${mfConfig.remoteEntry}`);
 
         // 检查是否已加载（支持 keepAlive 场景）
         const existingInstance = getSubApp(appKey);
         if (existingInstance && containerRef.current) {
-          console.log(`[SubAppRouteMF] Reusing existing instance for ${appKey}`);
+
           instanceRef.current = existingInstance;
 
           // 如果存在且有 root 元素，直接挂载
@@ -111,8 +110,6 @@ const SubAppRouteMF: React.FC = () => {
         });
 
         if (cancelled) return;
-
-        console.log(`[SubAppRouteMF] ${appKey} loaded successfully:`, instance);
 
         // 将子应用根元素添加到容器
         if (containerRef.current && instance.root) {

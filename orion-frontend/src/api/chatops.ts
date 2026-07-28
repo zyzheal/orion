@@ -390,7 +390,7 @@ export function connectSSE(options: SSEConnectionOptions): void {
 
     // ARCH-005: 后端恢复健康且有连接问题时立即重试
     if (health.healthy && !sseState?.eventSource && (sseState?.attempt ?? 0) > 0) {
-      console.log('[SSE] Backend recovered, attempting immediate reconnect');
+
       sseState!.attempt = 0; // 重置重试计数
       doConnect();
     }
@@ -401,7 +401,7 @@ export function connectSSE(options: SSEConnectionOptions): void {
 
     // ARCH-005: 后端处于 fallback 模式时降低重连频率
     if (sseState!.backendFallback) {
-      console.log('[SSE] Backend in fallback mode, reducing reconnect frequency');
+
     }
 
     try {
@@ -437,8 +437,8 @@ export function connectSSE(options: SSEConnectionOptions): void {
       // ARCH-005: 监听后端发送的 shutdown 事件
       es.addEventListener('shutdown', (event: MessageEvent) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('[SSE] Server shutdown:', data.reason);
+          const _data = JSON.parse(event.data);
+
           // 后端主动关闭时等待健康检查触发重连
         } catch {
           // 忽略解析错误

@@ -1,13 +1,40 @@
-// API 类型定义
-// 支持两种响应格式：
-// 1. 新格式: { success: boolean, data: T, meta?: {...} }
-// 2. 旧格式: { code: number, message: string, data: T }
+// =============================================================================
+// Orion API 统一类型定义
+// 后端统一响应格式: { success: boolean, data?: T, error?: string, code?: string,
+//                       details?: Record<string,any>, requestId?: string, timestamp: string }
+// =============================================================================
+
+/** 统一后端响应信封 */
 export interface ApiResponse<T = unknown> {
-  code?: number;
-  message?: string;
+  success: boolean;
   data?: T;
-  success?: boolean;
-  meta?: Record<string, unknown>;
+  error?: string;
+  code?: string;
+  details?: Record<string, unknown>;
+  requestId?: string;
+  timestamp: string;
+}
+
+/** 分页元数据 */
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 分页响应 */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
+/** 统一错误 */
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  requestId?: string;
+  timestamp: string;
 }
 
 export interface LoginRequest {

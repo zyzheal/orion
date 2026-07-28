@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Button, Space, Tag, message, Table, Modal, Form, Input, Select, Empty, Card, Descriptions, Tooltip, Popconfirm, Divider,
+  Button, Space, Tag, message, Table, Modal, Form, Input, Select, Empty, Card, Descriptions, Tooltip, Popconfirm, Typography,
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, EyeOutlined, RollbackOutlined, HistoryOutlined, SaveOutlined,
@@ -21,6 +21,7 @@ import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Option } = Select;
+const { Title, Text } = Typography;
 
 // ==================== Types ====================
 
@@ -38,12 +39,10 @@ const FlowVersionsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [versionLoading, setVersionLoading] = useState(false);
 
-  // Modal states
   const [createVisible, setCreateVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<LowcodeWorkflowVersion | null>(null);
 
-  // Create form
   const [createForm] = Form.useForm();
 
   // ==================== Load flows ====================
@@ -71,10 +70,8 @@ const FlowVersionsPage: React.FC = () => {
     setVersionLoading(true);
     try {
       const res = await lowcodeApi.listWorkflowVersions(flowId, { limit: 50, offset: 0 });
-      if (res.data) {
-        setVersions(res.data.versions || []);
-        setTotalVersions(res.data.total || 0);
-      }
+      setVersions(res.versions || []);
+      setTotalVersions(res.total || 0);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '加载版本历史失败';
       message.error(msg);
@@ -238,8 +235,8 @@ const FlowVersionsPage: React.FC = () => {
             <Descriptions.Item label="流程名称">{selectedFlow.name}</Descriptions.Item>
             <Descriptions.Item label="当前版本">{selectedFlow.version}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={selectedFlow.enabled ? 'green' : 'orange'}>
-                {selectedFlow.enabled ? '已启用' : '已禁用'}
+              <Tag color={selectedFlow.status === 'published' ? 'green' : 'orange'}>
+                {selectedFlow.status === 'published' ? '已启用' : '已禁用'}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="创建人">{selectedFlow.createdBy || 'system'}</Descriptions.Item>
@@ -250,7 +247,6 @@ const FlowVersionsPage: React.FC = () => {
         )}
       </Card>
 
-      {/* Version list */}
       <Card
         title={
           <Space>
@@ -307,7 +303,6 @@ const FlowVersionsPage: React.FC = () => {
         )}
       </Card>
 
-      {/* Create Version Modal */}
       <Modal
         title="创建版本快照"
         open={createVisible}
@@ -335,7 +330,6 @@ const FlowVersionsPage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Version Detail Modal */}
       <Modal
         title={`版本详情: ${selectedVersion?.version}`}
         open={detailVisible}

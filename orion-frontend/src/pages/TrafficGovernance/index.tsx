@@ -22,29 +22,22 @@ import {
   Select,
   Statistic,
   Progress,
-  Empty,
   Popconfirm,
   Row,
   Col,
+  Typography,
+  Tooltip,
 } from 'antd';
 import {
   GatewayOutlined,
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
-  PromoteOutlined,
+  RocketOutlined,
   RollbackOutlined,
-  SplitNumberOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius } from '@/tokens';
-import {
-  listCanaryDeployments,
-  createCanaryDeployment,
-  configureTrafficSplit,
-  promoteCanary,
-  rollbackCanary,
-  type CanaryDeployment,
-} from '@/api/canary-traffic';
+import canaryTrafficApi, { type CanaryDeployment } from '@/api/canary-traffic';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -59,7 +52,7 @@ interface TrafficRule {
   baselineVersion: string;
   canaryWeight: number;
   baselineWeight: number;
-  status: 'active' | 'paused' | 'completed' | 'rolled_back';
+  status: 'active' | 'promoted' | 'completed' | 'rolled_back';
   createdAt: string;
   updatedAt: string;
 }
@@ -86,8 +79,8 @@ const TrafficGovernance: React.FC = () => {
   const loadTrafficRules = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listCanaryDeployments();
-      const rules: TrafficRule[] = data.map((d) => ({
+      const data = await canaryTrafficApi.listCanaryDeployments();
+      const rules: TrafficRule[] = data.map((d: CanaryDeployment) => ({
         id: d.id,
         serviceName: d.serviceName,
         environment: d.environment,
@@ -148,14 +141,13 @@ const TrafficGovernance: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (editingRule) {
-        // Update traffic split
-        await configureTrafficSplit(editingRule.id, {
+        await canaryTrafficApi.configureTrafficSplit(editingRule.id, {
           canaryWeight: values.canaryWeight,
           baselineWeight: values.baselineWeight,
         });
         message.success('流量规则已更新');
       } else {
-        await createCanaryDeployment({
+        await canaryTrafficApi.createCanaryDeployment({
           serviceName: values.serviceName,
           environment: values.environment,
           canaryVersion: values.canaryVersion,
@@ -178,7 +170,7 @@ const TrafficGovernance: React.FC = () => {
 
   const handlePromote = async (record: TrafficRule) => {
     try {
-      await promoteCanary(record.id);
+      await canaryTrafficApi.promoteCanary(record.id);
       message.success(`Canary 部署 ${record.canaryVersion} 已全量发布`);
       loadTrafficRules();
     } catch (err) {
@@ -188,7 +180,7 @@ const TrafficGovernance: React.FC = () => {
 
   const handleRollback = async (record: TrafficRule) => {
     try {
-      await rollbackCanary(record.id);
+      await canaryTrafficApi.rollbackCanary(record.id);
       message.success(`已回滚到基线版本 ${record.baselineVersion}`);
       loadTrafficRules();
     } catch (err) {
@@ -196,10 +188,8 @@ const TrafficGovernance: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (_id: string) => {
     message.info('删除功能需调用 DELETE /api/v1/canary/deployments/:id');
-    // Actual implementation:
-    // await api.delete(`/api/v1/canary/deployments/${id}`);
     loadTrafficRules();
   };
 
@@ -263,13 +253,13 @@ const TrafficGovernance: React.FC = () => {
       render: (status: string) => {
         const colorMap: Record<string, string> = {
           active: 'green',
-          paused: 'orange',
+          promoted: 'orange',
           completed: 'blue',
           rolled_back: 'red',
         };
         const labelMap: Record<string, string> = {
           active: '进行中',
-          paused: '已暂停',
+          promoted: '已发布',
           completed: '已完成',
           rolled_back: '已回滚',
         };
@@ -291,7 +281,7 @@ const TrafficGovernance: React.FC = () => {
             <Button
               size="small"
               type="primary"
-              icon={<PromoteOutlined />}
+              icon={<RocketOutlined />}
               onClick={() => handlePromote(record)}
               disabled={record.status !== 'active'}
             >
@@ -311,7 +301,7 @@ const TrafficGovernance: React.FC = () => {
           <Tooltip title="编辑流量权重">
             <Button
               size="small"
-              icon={<SplitNumberOutlined />}
+              icon={<ApartmentOutlined />}
               onClick={() => handleEdit(record)}
             >
               权重

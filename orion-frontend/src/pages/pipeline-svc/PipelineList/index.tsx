@@ -35,7 +35,6 @@ const PipelineList: React.FC = () => {
   const [runModalVisible, setRunModalVisible] = useState(false);
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [runBranch, setRunBranch] = useState('main');
-  const [runVariables, setRunVariables] = useState<Record<string, string>>({});
   const [variablesText, setVariablesText] = useState('{}');
   const [running, setRunning] = useState(false);
 

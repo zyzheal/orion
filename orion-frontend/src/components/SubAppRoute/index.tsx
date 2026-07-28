@@ -42,14 +42,11 @@ const SubAppRoute: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    console.log(`[SubAppRoute] Starting ${appKey} with url: ${appConfig.url}`);
-    console.log(`[SubAppRoute] Container: ${appConfig.container}, keepAlive: ${appConfig.keepAlive}`);
-
     // 确保容器 ID 正确
     const containerId = appConfig.container.replace('#', '');
     if (containerRef.current) {
       containerRef.current.id = containerId;
-      console.log(`[SubAppRoute] Container element set: ${containerId}`);
+
     }
 
     // 注入全局状态并传递给子应用
@@ -57,7 +54,6 @@ const SubAppRoute: React.FC = () => {
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = (appConfig as { api_domain?: string })?.api_domain || appKey;
     (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
-    console.log(`[SubAppRoute] Set __SUBAPP_API_BASE__ = /api/v1/${apiDomain}`);
 
     // 定义 getApiBase 函数（用于传递给子应用）
     const apiBase = `/api/v1/${apiDomain}`;
@@ -69,7 +65,7 @@ const SubAppRoute: React.FC = () => {
     });
 
     // 使用 Orion-MF 启动子应用，传入 basename 确保子应用路由前缀正确
-    console.log(`[SubAppRoute] Calling startSubApp for ${appKey}`);
+
     startSubApp(appKey, {
       url: appConfig.url,
       container: appConfig.container,
@@ -84,7 +80,7 @@ const SubAppRoute: React.FC = () => {
     })
       .then(() => {
         if (!cancelled) {
-          console.log(`[SubAppRoute] ${appKey} started successfully`);
+
           setError(null);
         }
       })

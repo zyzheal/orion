@@ -26,7 +26,7 @@ import {
   SwapOutlined,
   ApiOutlined,
 } from '@ant-design/icons';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { StatusType } from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
 import { DAGGraph } from '@/components/DAGGraph';
 import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
@@ -80,11 +80,6 @@ interface APIFlattenedResponse {
   stages: StageDetail[];
 }
 
-interface RetryStageResponse {
-  id?: string;
-  run?: { id?: string };
-}
-
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
@@ -122,11 +117,14 @@ const PipelineDetail: React.FC = () => {
         const apiData = wrapperData?.data ?? wrapperData;
         if (apiData && (apiData instanceof Object) && ('run' in apiData || 'stages' in apiData)) {
           const run = (apiData as APIFlattenedResponse).run || apiData;
-          const flattened = {
-            ...run,
-            branch: (run as PipelineDetailModel).context?.branch || (run as PipelineDetailModel).branch || 'main',
-            commit: (run as PipelineDetailModel).context?.commitSha || (run as PipelineDetailModel).commit || '-',
-            version: (run as PipelineDetailModel).context?.version || (run as PipelineDetailModel).pipelineVersion,
+          const flattened: PipelineDetailModel = {
+            id: (run as PipelineDetailModel).id || '',
+            name: (run as PipelineDetailModel).name || '',
+            runNumber: (run as PipelineDetailModel).runNumber || 0,
+            status: (run as PipelineDetailModel).status || '',
+            branch: (run as PipelineDetailModel).context?.branch as string || (run as PipelineDetailModel).branch || 'main',
+            commit: (run as PipelineDetailModel).context?.commitSha as string || (run as PipelineDetailModel).commit || '-',
+            version: (run as PipelineDetailModel).context?.version as string || (run as PipelineDetailModel).pipelineVersion,
             stages: (apiData as APIFlattenedResponse).stages || [],
           };
           setPipeline(flattened);
@@ -172,11 +170,14 @@ const PipelineDetail: React.FC = () => {
       const apiData = wrapperData?.data ?? wrapperData;
       if (apiData && (apiData instanceof Object) && ('run' in apiData || 'stages' in apiData)) {
         const run = (apiData as APIFlattenedResponse).run || apiData;
-        const flattened = {
-          ...run,
-          branch: (run as PipelineDetailModel).context?.branch || (run as PipelineDetailModel).branch || 'main',
-          commit: (run as PipelineDetailModel).context?.commitSha || (run as PipelineDetailModel).commit || '-',
-          version: (run as PipelineDetailModel).context?.version || (run as PipelineDetailModel).pipelineVersion,
+        const flattened: PipelineDetailModel = {
+          id: (run as PipelineDetailModel).id || '',
+          name: (run as PipelineDetailModel).name || '',
+          runNumber: (run as PipelineDetailModel).runNumber || 0,
+          status: (run as PipelineDetailModel).status || '',
+          branch: (run as PipelineDetailModel).context?.branch as string || (run as PipelineDetailModel).branch || 'main',
+          commit: (run as PipelineDetailModel).context?.commitSha as string || (run as PipelineDetailModel).commit || '-',
+          version: (run as PipelineDetailModel).context?.version as string || (run as PipelineDetailModel).pipelineVersion,
           stages: (apiData as APIFlattenedResponse).stages || [],
         };
         setPipeline(flattened);
@@ -213,13 +214,17 @@ const PipelineDetail: React.FC = () => {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
             const reloaded = reloadResp.data as { run?: unknown; stages?: unknown };
-            const run = reloaded?.run as { id?: string; context?: { branch?: string; commitSha?: string }; branch?: string; commit?: string; pipelineVersion?: string };
-            setPipeline({
-              ...run,
-              branch: run.context?.branch || run.branch || 'main',
-              commit: run.context?.commitSha || run.commit || '-',
-              stages: reloaded?.stages as unknown[],
-            });
+            const run = reloaded?.run as PipelineDetailModel;
+            const updated: PipelineDetailModel = {
+              id: run?.id || '',
+              name: run?.name || '',
+              runNumber: run?.runNumber || 0,
+              status: run?.status || '',
+              branch: run?.context?.branch as string || run?.branch || 'main',
+              commit: run?.context?.commitSha as string || run?.commit || '-',
+              stages: reloaded?.stages as StageDetail[],
+            };
+            setPipeline(updated);
           }
         } catch (error: unknown) {
           if (error instanceof Error) {
@@ -267,6 +272,13 @@ const PipelineDetail: React.FC = () => {
       </div>
     );
   }
+  if (!pipeline) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Empty description="暂无数据" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 0 }}>
@@ -303,13 +315,13 @@ const PipelineDetail: React.FC = () => {
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <Space>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
+            {pipeline && <StatusBadge status={pipeline.status as StatusType} size="medium" />}
             <Button
               type="primary"
               icon={<ReloadOutlined />}
               loading={isRerunning}
               onClick={handleRerun}
-              disabled={!pipeline || pipeline.status === 'running' || loading}
+              disabled={!pipeline || pipeline.status as StatusType === 'running' || loading}
             >
               {isRerunning ? '触发中...' : '重新运行'}
             </Button>
@@ -321,7 +333,7 @@ const PipelineDetail: React.FC = () => {
       <CardPanel>
         <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
           <Descriptions.Item label="状态">
-            <StatusBadge status={pipeline.status} size="small" />
+            <StatusBadge status={pipeline.status as StatusType} size="small" />
           </Descriptions.Item>
           <Descriptions.Item label="分支">
             <Tag color="blue">{pipeline.branch}</Tag>
@@ -330,7 +342,7 @@ const PipelineDetail: React.FC = () => {
             <Text code>{pipeline.author}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="触发方式">
-            <Tag>{triggerLabel[pipeline.trigger] || pipeline.trigger}</Tag>
+            <Tag>{triggerLabel[pipeline.trigger || ''] || pipeline.trigger}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
             <Space>
@@ -467,7 +479,7 @@ const PipelineDetail: React.FC = () => {
                       style={{ marginBottom: spacing.sm }}
                       title={
                         <Space>
-                          <StatusBadge status={stage.status} size="small" />
+                          <StatusBadge status={stage.status as StatusType} size="small" />
                           <Text strong>
                             {index + 1}. {stage.name}
                           </Text>
@@ -481,7 +493,7 @@ const PipelineDetail: React.FC = () => {
                             </Text>
                           )}
                           {/* Per-stage retry button: only show for failed/completed runs */}
-                          {(pipeline.status === 'failed' || pipeline.status === 'success') && (
+                          {(pipeline.status as StatusType === 'failed' || pipeline.status as StatusType === 'success') && (
                             <Button
                               type="link"
                               size="small"
@@ -510,7 +522,7 @@ const PipelineDetail: React.FC = () => {
                                 fontSize: spacing[3],
                               }}
                             >
-                              <StatusBadge status={step.status} size="small" variant="subtle" />
+                              <StatusBadge status={step.status as StatusType} size="small" variant="subtle" />
                               <Text>{step.name}</Text>
                               {step.duration && (
                                 <Text
@@ -594,7 +606,7 @@ const PipelineDetail: React.FC = () => {
                 </div>
               ))}
               {/* Cursor indicator */}
-              {pipeline.status === 'running' && (
+              {pipeline.status as StatusType === 'running' && (
                 <span
                   style={{
                     display: 'inline-block',
@@ -635,8 +647,8 @@ const PipelineDetail: React.FC = () => {
                 }))}
                 height={400}
                 showMiniMap={true}
-                onNodeClick={(nodeId, data) => {
-                  console.log('Clicked node:', nodeId, data);
+                onNodeClick={() => {
+
                 }}
               />
             ) : (

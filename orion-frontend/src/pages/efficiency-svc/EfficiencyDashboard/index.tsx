@@ -22,7 +22,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import MetricCard from '@/components/MetricCard';
 import { TrendLineChart, BarChart } from '@/components/charts';
-import type { TrendDataPoint, BarDataItem } from '@/components/charts';
+import type { TrendDataPoint } from '@/components/charts';
 import {
   getDoraMetrics,
   getDoraBenchmarks,
@@ -30,6 +30,7 @@ import {
   getClickHouseStatus,
   getTeams,
   getTeamComparison,
+  getDORTrends,
 } from '@/api/efficiency';
 import type { TeamInfo, TeamMetrics } from '@/api/efficiency';
 import { DORA_TOOLTIPS, STORAGE_KEYS, ONBOARDING_STEPS, DORA_LEVELS } from '@/constants/dora-guidance';
@@ -149,7 +150,6 @@ const EfficiencyDashboard: React.FC = () => {
       // Map historical trends API response to chart format
       const trendResult = trendsRes.data as { trends?: Array<{ week: string; deploymentFrequency: number; leadTime: number; mttr: number; changeFailureRate: number }> } | undefined;
       if (trendResult?.trends && trendResult.trends.length > 0) {
-        const weeks = trendResult.trends.map((t) => t.week);
         setTrends([
           trendResult.trends.map((t) => ({ period: t.week, value: t.deploymentFrequency, label: '部署频率' })),
           trendResult.trends.map((t) => ({ period: t.week, value: t.leadTime, label: '交付周期(h)' })),
@@ -550,7 +550,10 @@ const EfficiencyDashboard: React.FC = () => {
           <Card title="部署频率分布">
             <BarChart
               title="各团队部署次数"
-              data={teamComparison}
+              data={teamComparison.map((t) => ({
+                label: t.teamName || t.teamId,
+                value: t.metrics?.deploymentFrequency || 0,
+              }))}
               height={200}
               loading={comparisonLoading}
             />

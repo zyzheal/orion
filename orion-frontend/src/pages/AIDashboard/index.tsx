@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Col, Row, Typography, Space, Tag, Statistic, Spin } from 'antd';
+import { Card, Col, Row, Typography, Space, Tag, Statistic, Spin, Alert } from 'antd';
 import {
   DashboardOutlined,
   RobotOutlined,
@@ -10,11 +10,16 @@ import {
   CloseCircleOutlined,
   WarningOutlined,
   ThunderboltOutlined,
+  DollarOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getAllHealth, AIGatewayHealth } from '@/api/ai-gateway';
-import { colors } from '@/tokens/colors';
-import { spacing } from '@/tokens';
+import { aiAgentApi } from '@/api/ai-agents';
+import { listModels } from '@/api/ai-decision';
+import { getDashboardData } from '@/api/ai-cost';
+import { getSecurityStats } from '@/api/ai-security';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -32,13 +37,31 @@ const STATE_ICONS: Record<string, React.ReactNode> = {
   HALF_OPEN: <WarningOutlined style={{ color: colors.warning[500] }} />,
 };
 
+interface AggregateStats {
+  agentCount: number;
+  modelCount: number;
+  todayCost: number;
+  complianceScore: number;
+}
+
 export default function AIDashboard() {
   const navigate = useNavigate();
   const [healthData, setHealthData] = useState<AIGatewayHealth[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Aggregated stats from 4 parallel API calls
+  const [aggregateStats, setAggregateStats] = useState<AggregateStats>({
+    agentCount: 0,
+    modelCount: 0,
+    todayCost: 0,
+    complianceScore: 0,
+  });
+  const [aggregateLoading, setAggregateLoading] = useState(true);
+  const [aggregateError, setAggregateError] = useState<string | null>(null);
+
   useEffect(() => {
     loadHealth();
+    loadAggregateStats();
   }, []);
 
   const loadHealth = async () => {
@@ -50,6 +73,33 @@ export default function AIDashboard() {
       // Silently fail — health data is optional
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAggregateStats = async () => {
+    try {
+      const [agentsRes, modelsRes, costRes, securityRes] = await Promise.all([
+        aiAgentApi.getList(),
+        listModels({ status: 'active' }),
+        getDashboardData(),
+        getSecurityStats(),
+      ]);
+
+      const agents = (agentsRes as any)?.data || agentsRes || [];
+      const models = (modelsRes as any)?.data?.models || (modelsRes as any)?.models || [];
+      const cost = (costRes as any)?.data || costRes;
+      const security = (securityRes as any)?.data || securityRes;
+
+      setAggregateStats({
+        agentCount: Array.isArray(agents) ? agents.length : 0,
+        modelCount: Array.isArray(models) ? models.length : 0,
+        todayCost: Number(cost?.todayCost) || 0,
+        complianceScore: Number(security?.complianceScore) || 0,
+      });
+    } catch {
+      setAggregateError('聚合数据加载失败，请稍后重试');
+    } finally {
+      setAggregateLoading(false);
     }
   };
 
@@ -69,7 +119,7 @@ export default function AIDashboard() {
         AI 驱动的研发效能提升，让工具链更智能
       </Text>
 
-      {/* Stats Row */}
+      {/* Health Stats Row */}
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={8}>
           <Card size="small">
@@ -101,6 +151,66 @@ export default function AIDashboard() {
           </Card>
         </Col>
       </Row>
+
+      {/* Aggregate Stats Row — 4 个 AI 域聚合数据 */}
+      {aggregateError ? (
+        <Alert
+          message="聚合数据加载异常"
+          description={aggregateError}
+          type="warning"
+          showIcon
+          style={{ marginBottom: spacing.lg }}
+          action={
+            <a onClick={loadAggregateStats}>重试</a>
+          }
+        />
+      ) : (
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
+          <Col xs={24} sm={6}>
+            <Card size="small" loading={aggregateLoading}>
+              <Statistic
+                title="AI Agents 在线"
+                value={aggregateStats.agentCount}
+                prefix={<RobotOutlined style={{ color: colors.primary[500] }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card size="small" loading={aggregateLoading}>
+              <Statistic
+                title="模型数量"
+                value={aggregateStats.modelCount}
+                prefix={<CodeOutlined style={{ color: colors.purple[500] }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card size="small" loading={aggregateLoading}>
+              <Statistic
+                title="今日成本"
+                value={aggregateStats.todayCost}
+                prefix={<DollarOutlined style={{ color: colors.success[500] }} />}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card size="small" loading={aggregateLoading}>
+              <Statistic
+                title="合规评分"
+                suffix="%"
+                valueStyle={{
+                  color: aggregateStats.complianceScore < 60 ? colors.error[500] : colors.success[500],
+                }}
+                prefix={
+                  aggregateStats.complianceScore < 60
+                    ? <CloseCircleOutlined style={{ color: colors.error[500] }} />
+                    : <SafetyOutlined style={{ color: colors.success[500] }} />
+                }
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       {/* Category Cards */}
       <Row gutter={[16, 16]}>

@@ -25,7 +25,7 @@ const tryLoadOrionMF = async () => {
     // @ts-ignore - 动态导入
     const mod = await import('@orion-mf/core');
     mfLoadSubApp = mod.loadSubApp;
-    console.log('[TestMF] Loaded from @orion-mf/core');
+
   } catch (e1) {
     console.warn('[TestMF] Failed to load from @orion-mf/core:', e1);
     // 降级方案：在开发环境手动挂载到 window 以供测试
@@ -109,7 +109,6 @@ const TestMFLoader: React.FC = () => {
     ]);
 
     try {
-      console.log(`[TestMF] Loading ${appKey} with remoteEntry: ${getRemoteEntry(app)}`);
 
       const instance = await mfLoadSubApp!({
         key: app.key,
@@ -120,8 +119,6 @@ const TestMFLoader: React.FC = () => {
         // 启用错误边界
         errorBoundary: true,
       });
-
-      console.log(`[TestMF] ${appKey} loaded successfully:`, instance);
 
       // 挂载到容器
       if (containerRef.current) {

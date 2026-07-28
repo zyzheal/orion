@@ -331,7 +331,6 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
 
       // 计算退避延迟
       const delay = calculateBackoff(reconnectAttemptsRef.current);
-      console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`);
 
       reconnectTimeoutRef.current = setTimeout(() => {
         reconnectAttemptsRef.current++;
@@ -369,7 +368,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       wsRef.current = new WebSocket(wsUrl, protocols);
 
       wsRef.current.onopen = () => {
-        console.log('[WS] WebSocket connected');
+
         reconnectAttemptsRef.current = 0;
         resetReconnectAttempts();
         setConnectionState('connected');
@@ -388,7 +387,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
         handleError(event as CloseEvent | ErrorEvent);
       };
       wsRef.current.onclose = (event) => {
-        console.log('[WS] WebSocket closed:', event.code, event.reason);
+
         handleDisconnect(event.code !== 1000); // 非正常关闭触发重连
       };
     } catch (error) {
@@ -501,7 +500,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   useEffect(() => {
     const checkAndRefreshToken = async () => {
       if (isTokenExpiring() && connectionState === 'connected') {
-        console.log('[WS] Token expiring soon, refreshing...');
+
         await refreshAuthToken();
       }
     };

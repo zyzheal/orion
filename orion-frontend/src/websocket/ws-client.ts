@@ -99,7 +99,7 @@ export class OrionWebSocketClient {
    */
   connect(): void {
     if (this.state === 'connecting' || this.state === 'connected') {
-      console.log('[WS] Already connecting or connected');
+
       return;
     }
 
@@ -174,14 +174,12 @@ export class OrionWebSocketClient {
     // 发送队列中的消息
     this.flushMessageQueue();
 
-    console.log('[WS] Connected to server');
   }
 
   /**
    * 处理连接关闭
    */
-  private handleClose(event: CloseEvent): void {
-    console.log('[WS] Connection closed:', event.code, event.reason);
+  private handleClose(_event: CloseEvent): void {
 
     // 清除定时器
     this.clearTimers();
@@ -264,7 +262,7 @@ export class OrionWebSocketClient {
     } else {
       // 将消息加入队列
       this.messageQueue.push(message);
-      console.log('[WS] Message queued (not connected)');
+
       return false;
     }
   }
@@ -297,10 +295,6 @@ export class OrionWebSocketClient {
     const jitter = Math.random() * 1000; // 0-1 秒的随机抖动
     const delay = Math.min(exponentialDelay + jitter, this.config.maxReconnectDelay);
 
-    console.log(
-      `[WS] Scheduling reconnect in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`
-    );
-
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
@@ -320,7 +314,6 @@ export class OrionWebSocketClient {
       }
     }, this.config.heartbeatInterval);
 
-    console.log('[WS] Heartbeat started');
   }
 
   /**
@@ -361,7 +354,7 @@ export class OrionWebSocketClient {
     this.state = state;
 
     if (oldState !== state) {
-      console.log(`[WS] State changed: ${oldState} -> ${state}`);
+
       this.config.onStateChange?.(state);
     }
   }

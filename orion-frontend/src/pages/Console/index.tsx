@@ -38,7 +38,7 @@ import {
   HeartOutlined,
   ApartmentOutlined,
   CloudUploadOutlined,
-  SplitNumberOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius } from '@/tokens';
 import { getInstalledPlugins } from '@/api/plugins';

@@ -218,10 +218,10 @@ const NotificationCenter: React.FC = () => {
         type: typeParam,
         read: readParam,
       });
-      console.log('[NotificationCenter] Fetched:', { dataLength: data.length, totalCount, currentPage, pageSize });
+
       setNotifications(data);
       setTotal(totalCount || data.length);
-      console.log('[NotificationCenter] State:', { total: totalCount || data.length, pageSize });
+
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`获取通知列表失败：${error.message}`);

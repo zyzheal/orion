@@ -37,7 +37,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import { capabilityApi, type Capability as ApiCapability } from '@/api/capability';
-import { listUsers, type User as ApiUser } from '@/api/user';
+import { userApi, type UserProfile } from '@/api/user';
 
 const { Text } = Typography;
 const {} = Collapse;
@@ -127,13 +127,13 @@ const UserCapabilityMapping: React.FC = () => {
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
-      const resp = await listUsers({ page: 1, limit: 100 });
+      const resp = await userApi.listUsers({ page: 1, limit: 100 });
       const apiUsers = (resp.data as any)?.data || [];
       setUsers(
-        apiUsers.map((u: ApiUser) => ({
+        apiUsers.map((u: UserProfile) => ({
           id: u.id,
           username: u.username,
-          name: u.name || u.username,
+          name: u.username,
           email: u.email || '',
           roles: u.role ? [u.role] : [],
           roleNames: u.role ? [u.role] : [],

@@ -64,7 +64,7 @@ const SubAppRouteDynamic: React.FC = () => {
     if (key) {
       try {
         await destroySubApp(key);
-        console.log(`[SubAppRouteDynamic] ${key} destroyed`);
+
       } catch (err) {
         console.warn(`[SubAppRouteDynamic] Failed to destroy ${key}:`, err);
       }
@@ -102,8 +102,6 @@ const SubAppRouteDynamic: React.FC = () => {
     setError(null);
     setIsFromCache(false);
 
-    console.log(`[SubAppRouteDynamic] Loading ${subAppKey} from: ${appConfig.remoteEntry}`);
-
     // 提前设置子应用的 basename 和 poweredBy 标志
     const basePath = `/${subAppKey}`;
     (window as unknown as { __BASENAME__?: string }).__BASENAME__ = basePath;
@@ -124,7 +122,6 @@ const SubAppRouteDynamic: React.FC = () => {
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = appConfig?.api_domain || subAppKey;
     (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
-    console.log(`[SubAppRouteDynamic] Set __SUBAPP_API_BASE__ = /api/v1/${apiDomain}`);
 
     // 确保容器 ID 正确
     const containerId = `mf-${subAppKey}`;
@@ -142,7 +139,7 @@ const SubAppRouteDynamic: React.FC = () => {
         // 检查是否已加载（支持 keepAlive 场景）
         const existingInstance = getSubApp(subAppKey);
         if (existingInstance && containerRef.current) {
-          console.log(`[SubAppRouteDynamic] Reusing existing instance for ${subAppKey}`);
+
           instanceRef.current = existingInstance;
           setIsFromCache(true);
           setLoadProgress(100);
@@ -163,7 +160,7 @@ const SubAppRouteDynamic: React.FC = () => {
         setLoadProgress(30);
         setLoadStage('正在加载子应用...');
         const basePath = `/${subAppKey}`;
-        console.log(`[SubAppRouteDynamic] Calling loadSubApp with basename: ${basePath}`);
+
         const instance = await loadSubApp({
           key: subAppKey,
           name: appConfig.name,
@@ -180,8 +177,6 @@ const SubAppRouteDynamic: React.FC = () => {
 
         setLoadProgress(70);
         setLoadStage('初始化沙箱...');
-
-        console.log(`[SubAppRouteDynamic] ${subAppKey} loaded successfully`);
 
         setLoadProgress(90);
         setLoadStage('挂载组件...');
@@ -246,7 +241,7 @@ const SubAppRouteDynamic: React.FC = () => {
     const unsubscribe = orionBus.on('orionAuth', (payload) => {
       const auth = payload.data;
       if (auth?.token && subAppKey) {
-        console.log(`[SubAppRouteDynamic] Received auth update for ${subAppKey}`);
+
         window.$orion = {
           token: auth.token,
           tenantId: auth.tenantId || localStorage.getItem('tenant_id') || '',
@@ -260,7 +255,7 @@ const SubAppRouteDynamic: React.FC = () => {
     // 监听主应用退出登录
     const unsubscribeLogout = orionBus.on('orionLogout', () => {
       if (subAppKey) {
-        console.log(`[SubAppRouteDynamic] Received logout for ${subAppKey}`);
+
         (window as unknown as { $orion?: undefined }).$orion = undefined;
         window.dispatchEvent(new CustomEvent('orion-logout'));
       }

@@ -265,7 +265,7 @@ export const useSubAppStore = create<SubAppStore>()(
       }),
       migrate: (_persistedState: any, _version: number) => {
         // 强制清除缓存，触发重新获取
-        console.log('[SubAppStore] Migrating - clearing cache');
+
         return {};
       },
     }

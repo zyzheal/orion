@@ -41,7 +41,7 @@ export function prefetchSubAppRemoteEntry(
 
     script.onload = () => {
       prefetchedApps.add(appKey);
-      console.log(`[SubAppPreload] ${appKey} remoteEntry prefetched from ${remoteEntryUrl}`);
+
       // 清理 script 标签，避免 DOM 污染
       script.remove();
       resolve();

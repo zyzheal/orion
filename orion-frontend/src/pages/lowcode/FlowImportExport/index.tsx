@@ -10,8 +10,8 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  Button, Space, Tag, message, Modal, Input, Select,
-  Empty, Card, Upload, Divider, Statistic, Row, Col, Alert, Descriptions,
+  Button, Space, message, Modal, Input, Select,
+  Card, Upload, Divider, Statistic, Row, Col, Alert, Descriptions,
 } from 'antd';
 import { Typography } from 'antd';
 import {
@@ -104,11 +104,11 @@ const FlowImportExportPage: React.FC = () => {
 
   // ==================== Export ====================
 
-  const handleExport = async (flow: LowcodeFlow, fullVersion: boolean = true) => {
+  const handleExport = async (flow: LowcodeFlow) => {
     setExporting(true);
     try {
       const res = await lowcodeApi.exportWorkflow(flow.id);
-      const data = res.data as unknown as ExportFormat;
+      const data = res as unknown as ExportFormat;
       setExportData(data);
       setSelectedFlow(flow);
       setExportModalVisible(true);
@@ -144,7 +144,7 @@ const FlowImportExportPage: React.FC = () => {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
-          const json = JSON.parse(content) as ExportFormat & { name?: string; nodes?: unknown[]; edges?: unknown[] };
+          const json = JSON.parse(content) as ExportFormat & { name?: string; description?: string; version?: string; nodes?: unknown[]; edges?: unknown[] };
           setImportPreview({
             name: json.name || json.definition?.name || '未知流程',
             description: json.description || json.definition?.description,
@@ -231,7 +231,7 @@ const FlowImportExportPage: React.FC = () => {
     setImportResult(null);
   };
 
-  const handleImportDrop = (e: React.DragEvent) => {
+  const handleImportDrop = (_e: React.DragEvent) => {
     // Let antd Dragger handle this
   };
 
@@ -314,7 +314,7 @@ const FlowImportExportPage: React.FC = () => {
                 block
                 loading={exporting}
                 disabled={!selectedFlow}
-                onClick={() => selectedFlow && handleExport(selectedFlow, true)}
+                onClick={() => selectedFlow && handleExport(selectedFlow)}
               >
                 导出完整版（含版本历史）
               </Button>

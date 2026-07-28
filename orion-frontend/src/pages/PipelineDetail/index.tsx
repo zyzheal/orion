@@ -76,6 +76,9 @@ export interface PipelineStep {
   name: string;
   status: string;
   duration?: number;
+  durationMs?: number | string;
+  stageId?: string;
+  stageName?: string;
   logs?: string[];
 }
 
@@ -84,7 +87,8 @@ export interface PipelineStage {
   name: string;
   status: string;
   type?: string;
-  duration?: number;
+  duration?: number | string;
+  durationMs?: number | string;
   steps?: PipelineStep[];
   logs?: string[];
   startTime?: string;
@@ -245,6 +249,13 @@ function extractList<T = unknown>(response: unknown): T[] {
   return [];
 }
 
+/** Helper type for casting the backend run detail payload */
+type RunDetailPayload = Record<string, unknown> & {
+  run?: Record<string, unknown>;
+  stages?: unknown[];
+  tasks?: unknown[];
+};
+
 const PipelineDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -279,7 +290,7 @@ const PipelineDetail: React.FC = () => {
       let runsCount = 0;
       try {
         const runsRes = await getPipelineRuns(pid);
-        const runsData = extractList(runsRes);
+        const runsData = extractList<PipelineRunSummary>(runsRes);
         runsCount = runsData.length;
 
         if (runsData.length > 0) {
@@ -290,11 +301,10 @@ const PipelineDetail: React.FC = () => {
           // Axios wraps: response.data = { code, message, data: { run, stages, tasks } }
           try {
             const runDetailRes = await getPipelineRunDetail(latestRun.id);
-            const runDetail = extractData(runDetailRes);
+            const runDetail = extractData<RunDetailPayload>(runDetailRes);
 
-            const rawStagesArr = (runDetail as Record<string, unknown>)?.stages as unknown as PipelineStage[] || [];
-            const rawTasks = (runDetail as Record<string, unknown>)?.tasks as unknown as PipelineStep[] || [];
-            const runInfo = (runDetail as Record<string, unknown>)?.run as Record<string, unknown> || {};
+            const rawStagesArr = (runDetail as RunDetailPayload)?.stages as unknown as PipelineStage[] || [];
+            const rawTasks = (runDetail as RunDetailPayload)?.tasks as unknown as PipelineStep[] || [];
 
             // Fallback: if stages are empty, try the dedicated stages endpoint
             let stagesToProcess = rawStagesArr;
@@ -312,20 +322,17 @@ const PipelineDetail: React.FC = () => {
             // Merge tasks into stages as steps
             runStages = stagesToProcess.map((stage: PipelineStage) => {
               const stageTasks = rawTasks.filter((t: PipelineStep) => t.stageId === stage.id || t.stageName === stage.name);
-              const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
+              const durationSec = stage.durationMs ? parseInt(String(stage.durationMs), 10) / 1000 : undefined;
               return {
                 ...stage,
                 duration: durationSec,
                 steps: stageTasks.map((t: PipelineStep) => ({
                   ...t,
-                  duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
+                  duration: t.durationMs ? parseInt(String(t.durationMs), 10) / 1000 : undefined,
                 })),
                 logs: stageTasks.flatMap((t: PipelineStep) => t.logs || []),
               };
             });
-
-            // Merge run detail into latestRun
-            latestRun = { ...latestRun, ...runInfo, stages: runStages };
           } catch (err) {
             console.error('[PipelineDetail] Failed to get run detail:', err);
           }
@@ -335,17 +342,17 @@ const PipelineDetail: React.FC = () => {
       }
 
       setPipeline({
-        ...pipelineData,
+        ...pipelineData as Omit<PipelineDisplay, 'runNumber' | 'branch' | 'status' | 'trigger' | 'stages'>,
         // Merge latest run data for display
         status: latestRun?.status || 'pending',
         runNumber: runsCount || 1,
-        branch: latestRun?.branch || 'main',
-        commit: latestRun?.commit,
-        author: latestRun?.author || '-',
-        trigger: latestRun?.trigger || latestRun?.triggerType || 'manual',
-        startTime: latestRun?.startTime || latestRun?.startedAt,
-        endTime: latestRun?.endTime || latestRun?.completedAt,
-        duration: latestRun?.duration,
+        branch: (latestRun as PipelineRunSummary & { branch?: string })?.branch || 'main',
+        commit: (latestRun as PipelineRunSummary & { commit?: string })?.commit,
+        author: (latestRun as PipelineRunSummary & { author?: string })?.author || latestRun?.triggerBy || '-',
+        trigger: (latestRun as PipelineRunSummary & { trigger?: string })?.trigger || latestRun?.triggerType || 'manual',
+        startTime: (latestRun as PipelineRunSummary & { startTime?: string })?.startTime || latestRun?.startedAt,
+        endTime: (latestRun as PipelineRunSummary & { endTime?: string })?.endTime || latestRun?.completedAt,
+        duration: (latestRun as PipelineRunSummary & { duration?: number | string })?.duration ?? latestRun?.durationMs,
         stages: runStages,
       });
     } catch (error: unknown) {
@@ -394,14 +401,17 @@ const PipelineDetail: React.FC = () => {
       message.success('Pipeline 重新运行成功');
       // Reload pipeline runs
       const runsRes = await getPipelineRuns(id!);
-      const runsData = extractList(runsRes);
+      const runsData = extractList<PipelineRunSummary>(runsRes);
       const latestRun = runsData[0] || null;
-      setPipeline((prev: PipelineDisplay) => ({
-        ...prev,
-        status: latestRun?.status || 'running',
-        runNumber: latestRun?.runNumber || prev.runNumber + 1,
-        stages: latestRun?.stages || [],
-      }));
+      setPipeline((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: latestRun?.status || 'running',
+          runNumber: (latestRun as PipelineRunSummary & { runNumber?: number })?.runNumber ?? prev.runNumber + 1,
+          stages: [],
+        };
+      });
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
@@ -417,13 +427,15 @@ const PipelineDetail: React.FC = () => {
   const handleReloadPipeline = async () => {
     try {
       const runsRes = await getPipelineRuns(id!);
-      const runsData = extractList(runsRes);
+      const runsData = extractList<PipelineRunSummary>(runsRes);
       const latestRun = runsData[0] || null;
-      setPipeline((prev: PipelineDisplay) => ({
-        ...prev,
-        status: latestRun?.status || prev.status,
-        stages: latestRun?.stages || prev.stages,
-      }));
+      setPipeline((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: latestRun?.status || prev.status,
+        };
+      });
     } catch {
       // Silent reload failure — the error detail component handles its own retry
     }
@@ -435,8 +447,8 @@ const PipelineDetail: React.FC = () => {
     setRunsLoading(true);
     try {
       const response = await getPipelineRuns(id, { pageSize: 50 });
-      const data = extractList(response);
-      setRuns(data as PipelineRunSummary[]);
+      const data = extractList<PipelineRunSummary>(response);
+      setRuns(data);
     } catch (error) {
       console.error('Failed to load runs:', error);
     } finally {
@@ -503,7 +515,7 @@ const PipelineDetail: React.FC = () => {
   }
 
   // Error state
-  if (apiError && !pipeline) {
+  if (apiError || !pipeline) {
     return (
       <div style={{ padding: 0 }}>
         <Result
@@ -540,7 +552,7 @@ const PipelineDetail: React.FC = () => {
             <Tag color="default" style={{ fontSize: 12 }}>
               #{pipeline.runNumber}
             </Tag>
-            {pipeline && <StatusBadge status={pipeline.status} size="small" />}
+            {pipeline && <StatusBadge status={pipeline.status as StatusType} size="small" />}
             <Text type="secondary" style={{ fontSize: 13 }}>
               分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
             </Text>
@@ -580,7 +592,7 @@ const PipelineDetail: React.FC = () => {
       <Card style={{ marginBottom: spacing.lg }}>
         <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
           <Descriptions.Item label="状态">
-            <StatusBadge status={pipeline.status} size="small" />
+            <StatusBadge status={pipeline.status as StatusType} size="small" />
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
             <Space>
@@ -688,7 +700,7 @@ const PipelineDetail: React.FC = () => {
                       </Text>
                       {stage.duration && (
                         <Text type="secondary" style={{ fontSize: spacing[2] }}>
-                          {formatDuration(stage.duration)}
+                          {formatDuration(stage.duration as number)}
                         </Text>
                       )}
                     </div>
@@ -722,7 +734,7 @@ const PipelineDetail: React.FC = () => {
                       style={{ marginBottom: spacing.sm }}
                       title={
                         <Space>
-                          <StatusBadge status={stage.status} size="small" />
+                          <StatusBadge status={stage.status as StatusType} size="small" />
                           <Text strong>
                             {index + 1}. {stage.name}
                           </Text>
@@ -732,7 +744,7 @@ const PipelineDetail: React.FC = () => {
                         <Space>
                           {stage.duration && (
                             <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                              耗时: {formatDuration(stage.duration)}
+                              耗时: {formatDuration(stage.duration as number)}
                             </Text>
                           )}
                           {/* Per-stage retry button: only show for failed/completed runs */}
@@ -765,14 +777,14 @@ const PipelineDetail: React.FC = () => {
                                 fontSize: spacing[3],
                               }}
                             >
-                              <StatusBadge status={step.status} size="small" variant="subtle" />
+                              <StatusBadge status={step.status as StatusType} size="small" variant="subtle" />
                               <Text>{step.name}</Text>
                               {step.duration && (
                                 <Text
                                   type="secondary"
                                   style={{ fontSize: spacing[2], marginLeft: 'auto' }}
                                 >
-                                  {formatDuration(step.duration)}
+                                  {formatDuration(step.duration as number)}
                                 </Text>
                               )}
                             </div>
@@ -824,7 +836,7 @@ const PipelineDetail: React.FC = () => {
                     }}
                   >
                     [{dayjs(stage.startTime || pipeline.startTime).format('HH:mm:ss')}] === Stage:{' '}
-                    {stage.name} ===
+                        {stage.name} ===
                   </div>
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
@@ -890,8 +902,8 @@ const PipelineDetail: React.FC = () => {
                 }))}
                 height={400}
                 showMiniMap={true}
-                onNodeClick={(nodeId, data) => {
-                  console.log('Clicked node:', nodeId, data);
+                onNodeClick={(_: string, __: unknown) => {
+
                 }}
               />
             ) : (

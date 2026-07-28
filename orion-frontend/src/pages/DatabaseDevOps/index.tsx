@@ -8,7 +8,7 @@
  * 4. Schema 变更管理 - 变更版本控制和审批流程
  * 5. 健康检查 - 数据库连接池、锁、死锁监控
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Col,
@@ -26,13 +26,11 @@ import {
   Modal,
   message,
   Tooltip,
-  Progress,
   Descriptions,
   Alert,
   Empty,
   Badge,
   Divider,
-  Spin,
 } from 'antd';
 import {
   DatabaseOutlined,
@@ -54,7 +52,6 @@ import {
   PlayCircleOutlined,
   RollbackOutlined,
   EyeOutlined,
-  EditOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { componentRadius } from '@/tokens/radius';
@@ -66,8 +63,6 @@ import {
   updateAuditRule,
   getSlowQueryStats,
   getSlowQueryTopN,
-  getSlowQueryTrend,
-  getSlowQueryDistribution,
   detectSensitiveData,
   maskSensitiveData,
   scanDatabaseSensitiveData,
@@ -96,7 +91,6 @@ import type {
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 
 // ==================== 状态配置 ====================
 
@@ -135,7 +129,6 @@ const healthStatusConfig: Record<string, { color: string; icon: React.ReactNode 
 
 const DatabaseDevOpsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('sql-audit');
-  const [loading, setLoading] = useState(false);
 
   return (
     <div style={{ padding: 0 }}>

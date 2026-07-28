@@ -42,7 +42,7 @@ export const initMicroFrontend = (): void => {
   // Phase 3.8.4: 监听服务端广播的登出事件，触发本地会话清理
   const channel = getDefaultChannel();
   channel.on('auth:logout', () => {
-    console.log('[OrionMF] Received server logout event, clearing local session');
+
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
@@ -132,12 +132,6 @@ export const injectAuthState = (): void => {
 
   // 通过 Orion-MF EventBus Channel 通知子应用
   (getDefaultChannel() as any).emit('orionAuth', authState);
-
-  console.log('[OrionMF] Auth state injected:', {
-    hasToken: !!token,
-    tenantId,
-    userId: authState.user.id,
-  });
 };
 
 /**

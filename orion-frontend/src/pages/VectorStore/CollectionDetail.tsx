@@ -11,7 +11,7 @@ import { DeleteOutlined, EditOutlined, SaveOutlined, CloseOutlined } from '@ant-
 import type { VectorCollection, VectorDocument } from '@/api/vector-store';
 import dayjs from 'dayjs';
 import { statusColorMap, indexTypeLabelMap, metricLabelMap } from './utils';
-import { spacing, colors } from '@/tokens';
+import { spacing } from '@/tokens';
 
 const { Paragraph, Text } = Typography;
 

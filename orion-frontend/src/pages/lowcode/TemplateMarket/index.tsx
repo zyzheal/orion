@@ -16,7 +16,6 @@ import {
 import {
   AppstoreOutlined, EyeOutlined, PlusOutlined, SearchOutlined, ThunderboltOutlined, ExportOutlined,
 } from '@ant-design/icons';
-import { Title, Text } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { lowcodeApi, type LowcodeTemplate, type LowcodeFlow } from '@/api/lowcode';
 import dayjs from 'dayjs';
@@ -231,9 +230,9 @@ const TemplateMarketPage: React.FC = () => {
         }
         description={
           <div>
-            <Text type="secondary" ellipsis={{ rows: 2 }} style={{ display: 'block', marginBottom: 4 }}>
+            <Typography.Text type="secondary" ellipsis={{ rows: 2 }} style={{ display: 'block', marginBottom: 4 }}>
               {template.description || '无描述'}
-            </Text>
+            </Typography.Text>
             <Space size="small">
               {template.tags?.map((tag) => (
                 <Tag key={tag} style={{ fontSize: 11 }}>{tag}</Tag>
@@ -260,10 +259,10 @@ const TemplateMarketPage: React.FC = () => {
   return (
     <div style={{ padding: spacing.lg }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-        <Title level={2} style={{ marginBottom: 0 }}>
+        <h2 style={{ marginBottom: 0, fontWeight: 600, color: colors.neutral[900] }}>
           <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           模板市场
-        </Title>
+        </h2>
         <Button icon={<ExportOutlined />} onClick={handleOpenPublish}>
           发布为模板
         </Button>
@@ -293,9 +292,9 @@ const TemplateMarketPage: React.FC = () => {
                   <Option key={cat} value={cat}>{cat}</Option>
                 ))}
               </Select>
-              <Text type="secondary">
+              <Typography.Text type="secondary">
                 共 {total} 个模板
-              </Text>
+              </Typography.Text>
             </Space>
           </Col>
         </Row>

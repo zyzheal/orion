@@ -55,7 +55,7 @@ const AIReviewDetail: React.FC = () => {
       // Load real issues/comments from API
       try {
         const commentsRes = await getReviewComments(reviewId);
-        setIssues(commentsRes.data || []);
+        setIssues((commentsRes.data || []) as unknown as AIReviewResult['comments']);
       } catch {
         // If comments endpoint fails, use empty array (backward compatible)
         setIssues([]);

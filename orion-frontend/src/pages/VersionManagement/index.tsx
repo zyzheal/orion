@@ -17,40 +17,31 @@ import {
   Tag,
   message,
   Modal,
-  Form,
-  Input,
-  Select,
-  DatePicker,
   Empty,
   Tooltip,
   Popconfirm,
+  Typography,
+  Spin,
 } from 'antd';
 import {
   CloudUploadOutlined,
   RollbackOutlined,
   TagOutlined,
-  CompareOutlined,
+  DiffOutlined,
   DeleteOutlined,
   PlusOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius } from '@/tokens';
-import {
-  listPipelineVersions,
-  getPipelineVersion,
-  rollbackPipelineVersion,
-  setPipelineBaseline,
-  type PipelineVersion,
-} from '@/api/pipeline-versions';
+import pipelineVersionsApi, { type PipelineVersion } from '@/api/pipeline-versions';
 import {
   getArtifactVersions,
   getVersionDiff,
-  getDeploymentHistory,
   type ArtifactVersion,
+  type VersionDiff,
 } from '@/api/artifactVersions';
 
 const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
 
 type TabKey = 'pipeline' | 'artifact' | 'deploy';
 
@@ -63,7 +54,7 @@ const VersionManagement: React.FC = () => {
   const [artifactVersions, setArtifactVersions] = useState<ArtifactVersion[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [compareModalVisible, setCompareModalVisible] = useState(false);
-  const [diffResult, setDiffResult] = useState<string | null>(null);
+  const [diffResult, setDiffResult] = useState<VersionDiff | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
 
   // ==================== Data Loading ====================
@@ -71,8 +62,8 @@ const VersionManagement: React.FC = () => {
   const loadPipelineVersions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listPipelineVersions();
-      setPipelineVersions(data);
+      const versions = await pipelineVersionsApi.list('');
+      setPipelineVersions(versions as unknown as PipelineVersion[]);
     } catch (err) {
       message.error('加载 Pipeline 版本失败');
     } finally {
@@ -83,8 +74,8 @@ const VersionManagement: React.FC = () => {
   const loadArtifactVersions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getArtifactVersions();
-      setArtifactVersions(data);
+      const res = await getArtifactVersions();
+      setArtifactVersions(res.data.versions);
     } catch (err) {
       message.error('加载制品版本失败');
     } finally {
@@ -101,7 +92,7 @@ const VersionManagement: React.FC = () => {
 
   const handleRollback = async (record: PipelineVersion) => {
     try {
-      await rollbackPipelineVersion(record.id);
+      await pipelineVersionsApi.rollback(record.pipeline_id, record.id);
       message.success(`版本 ${record.version} 已回滚`);
       loadPipelineVersions();
     } catch (err) {
@@ -111,7 +102,7 @@ const VersionManagement: React.FC = () => {
 
   const handleSetBaseline = async (record: PipelineVersion) => {
     try {
-      await setPipelineBaseline(record.id);
+      await pipelineVersionsApi.setBaseline(record.pipeline_id, record.id, true);
       message.success(`版本 ${record.version} 已设为基线`);
       loadPipelineVersions();
     } catch (err) {
@@ -127,8 +118,8 @@ const VersionManagement: React.FC = () => {
     setDiffLoading(true);
     try {
       const [v1, v2] = selectedRowKeys as string[];
-      const result = await getVersionDiff(v1, v2);
-      setDiffResult(result);
+      const result = await getVersionDiff('', v1, v2);
+      setDiffResult(result.data);
       setCompareModalVisible(true);
     } catch (err) {
       message.error('版本对比失败');
@@ -219,7 +210,7 @@ const VersionManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: ArtifactVersion) => (
+      render: (_: unknown, _record: ArtifactVersion) => (
         <Space size="small">
           <Tooltip title="查看部署历史">
             <Button size="small" icon={<ExportOutlined />}>
@@ -264,7 +255,7 @@ const VersionManagement: React.FC = () => {
                 新建版本
               </Button>
               <Button
-                icon={<CompareOutlined />}
+                icon={<DiffOutlined />}
                 onClick={handleCompare}
                 disabled={selectedRowKeys.length !== 2}
               >
@@ -399,7 +390,7 @@ const VersionManagement: React.FC = () => {
               overflow: 'auto',
             }}
           >
-            {diffResult}
+            {JSON.stringify(diffResult, null, 2)}
           </pre>
         ) : (
           <Empty description="无对比结果" />

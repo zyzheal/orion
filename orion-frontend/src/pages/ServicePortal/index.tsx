@@ -110,10 +110,10 @@ const SERVICE_STATUS_CONFIG: Record<string, { color: string; label: string }> = 
 // Helper: Render dynamic form fields based on service form_schema
 // ============================================================================
 
-function renderDynamicFields(schema: Record<string, unknown>, form: Form.FormInstance) {
+function renderDynamicFields(schema: unknown): React.ReactNode {
   if (!schema || typeof schema !== 'object') return null;
 
-  const fields = schema.fields || schema;
+  const fields = (schema as { fields?: unknown }).fields || schema;
   if (!Array.isArray(fields)) return null;
 
   return fields.map((field: any) => {
@@ -186,7 +186,8 @@ function renderDynamicFields(schema: Record<string, unknown>, form: Form.FormIns
 // ============================================================================
 
 const ServicePortal: React.FC = () => {
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
+  void _navigate;
 
   // ---- Catalog State ----
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -296,8 +297,8 @@ const ServicePortal: React.FC = () => {
       setRequestModalOpen(false);
       loadTickets();
     } catch (err: unknown) {
-      if (err.errorFields) return;
-      message.error(`提交失败: ${err.message || '未知错误'}`);
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
+      message.error(`提交失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);
     }
@@ -321,7 +322,7 @@ const ServicePortal: React.FC = () => {
         setSelectedTicket(null);
       }
     } catch (err: unknown) {
-      message.error(`取消失败: ${err.message || '未知错误'}`);
+      message.error(`取消失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);
     }
@@ -335,7 +336,7 @@ const ServicePortal: React.FC = () => {
     () => tickets.filter((t) => t.status === 'pending').length,
     [tickets]
   );
-  const inProgressCount = useMemo(
+  const _inProgressCount = useMemo(
     () => tickets.filter((t) => t.status === 'in_progress').length,
     [tickets]
   );
@@ -805,7 +806,7 @@ const ServicePortal: React.FC = () => {
 
   const renderRequestModal = () => {
     const dynamicFields = selectedService?.form_schema
-      ? renderDynamicFields(selectedService.form_schema, requestForm)
+      ? renderDynamicFields(selectedService.form_schema)
       : null;
 
     return (

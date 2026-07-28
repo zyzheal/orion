@@ -7,10 +7,18 @@
  */
 
 import React, { useEffect } from 'react';
-import { Modal, Form, Input, Select, Switch, InputNumber, Button, Space, message } from 'antd';
-import { colors, spacing, componentRadius } from '@/tokens';
-import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
-import type { PipelineParameter } from '@/api/pipelines';
+import { Modal, Form, Input, Select, Switch, InputNumber, Space, message } from 'antd';
+import { spacing, componentRadius } from '@/tokens';
+
+interface PipelineParameter {
+  name: string;
+  type: string;
+  defaultValue?: string;
+  required?: boolean;
+  description?: string;
+  validationRegex?: string;
+  options?: string[];
+}
 
 const { TextArea } = Input;
 
