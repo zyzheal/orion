@@ -427,7 +427,9 @@ import (
 	"go.uber.org/zap"
 
 	// NATS subscribers for incident + self-healing domains
+	incident_models "orion/platform-svc-go/internal/incident/models"
 	incident_nats "orion/platform-svc-go/internal/incident/nats"
+	incident_service "orion/platform-svc-go/internal/incident/service"
 	sh_nats "orion/platform-svc-go/internal/self-healing/nats"
 
 	// ---- AI module handler imports (internal/ai/) ----
@@ -447,6 +449,9 @@ import (
 	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
 	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
 	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
+
+	"encoding/json"
+	"fmt"
 )
 
 // Package-level handler variables — initialized in initWiring(), consumed in setupRouter().
@@ -1022,7 +1027,7 @@ func wireNatsSubscribers(logger *zap.Logger) {
 	// --- Incident NATS Subscriber ---
 	// incidentSvc is wired via wireCICDModules and exported as package-level global.
 	if incidentSvc != nil {
-		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &incidentNatsHandler{})
+		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &incidentNatsHandler{svc: incidentSvc})
 		if err != nil {
 			logger.Warn("incident NATS subscriber init failed (event-driven disabled)", zap.Error(err))
 		} else {
@@ -1068,10 +1073,152 @@ func (h *selfHealingNatsHandler) HandleSelfHealingEvent(ctx context.Context, eve
 	return nil
 }
 
-// incidentNatsHandler is a no-op EventHandler for the incident NATS subscriber.
-// Keeps the NATS subject consumed while full incident event processing is pending.
-type incidentNatsHandler struct{}
+// incidentNatsHandler processes incident events received via NATS JetStream.
+// It dispatches based on event.Type: created → Create, status_changed/resolved/escalated → UpdateStatus,
+// with a timeline event appended for each operation.
+type incidentNatsHandler struct {
+	svc *incident_service.Service
+}
 
 func (h *incidentNatsHandler) HandleIncidentEvent(ctx context.Context, event *incident_nats.EventBusEvent) error {
-	return nil
+	if h.svc == nil {
+		return nil
+	}
+
+	// Parse the payload into the create request / update request.
+	// The payload schema follows models.Incident fields.
+	var payload map[string]interface{}
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return err
+	}
+
+	tenantID := "default"
+	if tid, ok := payload["tenant_id"]; ok {
+		if s, ok := tid.(string); ok {
+			tenantID = s
+		}
+	}
+
+	switch event.Type {
+	case "incident.created":
+		req := incident_models.CreateIncidentRequest{
+			Title:             getString(payload, "title"),
+			Description:       getString(payload, "description"),
+			Type:              getString(payload, "type"),
+			Severity:          getString(payload, "severity"),
+			Impact:            getString(payload, "impact"),
+			Urgency:           getString(payload, "urgency"),
+			Service:           getString(payload, "service"),
+			Environment:       getString(payload, "environment"),
+			ErrorMessage:      getString(payload, "error_message"),
+			DetectedBy:        getString(payload, "detected_by"),
+			AssignedTeam:      getString(payload, "assigned_team"),
+			AffectedServices:  getStringSlice(payload, "affected_services"),
+			Tags:              getStringSlice(payload, "tags"),
+			DeploymentID:      getString(payload, "deployment_id"),
+			PipelineRunID:     getString(payload, "pipeline_run_id"),
+			CommitSha:         getString(payload, "commit_sha"),
+		}
+		incident, err := h.svc.Create(ctx, tenantID, req)
+		if err != nil {
+			return err
+		}
+		// Append a creation timeline event.
+		_, err = h.svc.AddTimelineEvent(ctx, tenantID, incident.ID, incident_models.AddTimelineEventRequest{
+			EventType: "created",
+			Content:   fmt.Sprintf("Incident created via event bus (event=%s, type=%s)", event.ID, req.Type),
+			ActorID:   "nats",
+			Metadata: map[string]interface{}{
+				"source": event.Source,
+			},
+		})
+		return err
+
+	case "incident.status_changed", "incident.resolved":
+		incidentID := getString(payload, "id")
+		if incidentID == "" {
+			return nil // skip — no incident id to update
+		}
+		newStatus := getString(payload, "status")
+		if newStatus == "" {
+			if event.Type == "incident.resolved" {
+				newStatus = "resolved"
+			}
+		}
+		actorID := getString(payload, "actor_id")
+		reason := getString(payload, "reason")
+		_, err := h.svc.UpdateStatus(ctx, tenantID, incidentID, newStatus, actorID, reason)
+		if err != nil {
+			return err
+		}
+		_, err = h.svc.AddTimelineEvent(ctx, tenantID, incidentID, incident_models.AddTimelineEventRequest{
+			EventType: event.Type,
+			Content:   fmt.Sprintf("Status changed to %s (event=%s)", newStatus, event.ID),
+			ActorID:   actorID,
+		})
+		return err
+
+	case "incident.escalated":
+		incidentID := getString(payload, "id")
+		if incidentID == "" {
+			return nil
+		}
+		escLevel := getInt(payload, "escalation_level")
+		escBy := getString(payload, "escalated_by")
+		escReason := getString(payload, "reason")
+		escReq := incident_models.EscalateRequest{
+			ToLevel:     escLevel,
+			Reason:      escReason,
+			EscalatedBy: escBy,
+		}
+		err := h.svc.Escalate(ctx, tenantID, incidentID, escReq)
+		if err != nil {
+			return err
+		}
+		_, err = h.svc.AddTimelineEvent(ctx, tenantID, incidentID, incident_models.AddTimelineEventRequest{
+			EventType: "escalated",
+			Content:   fmt.Sprintf("Escalated to level %d by %s (reason=%s)", escLevel, escBy, escReason),
+			ActorID:   escBy,
+			Metadata: map[string]interface{}{
+				"event_id": event.ID,
+			},
+		})
+		return err
+
+	default:
+		return nil // ignore unknown event types
+	}
+}
+
+func getString(m map[string]interface{}, key string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func getStringSlice(m map[string]interface{}, key string) []string {
+	var out []string
+	switch v := m[key].(type) {
+	case []interface{}:
+		for _, e := range v {
+			if s, ok := e.(string); ok {
+				out = append(out, s)
+			}
+		}
+	case []string:
+		out = v
+	}
+	return out
+}
+
+func getInt(m map[string]interface{}, key string) int {
+	if v, ok := m[key]; ok {
+		if n, ok := v.(float64); ok {
+			return int(n)
+		}
+	}
+	return 0
 }
