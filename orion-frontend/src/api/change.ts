@@ -1,7 +1,7 @@
 /**
  * Change Management API Service
  *
- * Aligned with backend /api/changes/* routes (change-routes.ts)
+ * Aligned with backend /api/v1/changes/* routes (change-routes.ts)
  * Covers: change requests CRUD, RFC, CAB meetings, timeline, statistics
  */
 import { api } from './client';
@@ -105,12 +105,12 @@ export const getChangeRequests = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: ChangeRequest[]; total: number }> => {
-  const response = await api.get<{ data: ChangeRequest[]; total: number }>('/api/changes/requests', { params });
+  const response = await api.get<{ data: ChangeRequest[]; total: number }>('/api/v1/changes/requests', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getChangeRequest = async (id: string): Promise<ChangeRequest> => {
-  const response = await api.get<{ data: ChangeRequest }>(`/api/changes/requests/${id}`);
+  const response = await api.get<{ data: ChangeRequest }>(`/api/v1/changes/requests/${id}`);
   return response.data.data;
 };
 
@@ -129,28 +129,28 @@ export const createChangeRequest = async (data: {
   assigned_to?: string;
   affected_services?: string[];
 }): Promise<ChangeRequest> => {
-  const response = await api.post<{ data: ChangeRequest }>('/api/changes/requests', data);
+  const response = await api.post<{ data: ChangeRequest }>('/api/v1/changes/requests', data);
   return response.data.data;
 };
 
 export const updateChangeRequest = async (id: string, data: Partial<ChangeRequest>): Promise<ChangeRequest> => {
-  const response = await api.put<{ data: ChangeRequest }>(`/api/changes/requests/${id}`, data);
+  const response = await api.put<{ data: ChangeRequest }>(`/api/v1/changes/requests/${id}`, data);
   return response.data.data;
 };
 
 export const deleteChangeRequest = async (id: string): Promise<void> => {
-  await api.delete(`/api/changes/requests/${id}`);
+  await api.delete(`/api/v1/changes/requests/${id}`);
 };
 
 export const updateChangeRequestStatus = async (id: string, status: string, reason?: string): Promise<ChangeRequest> => {
-  const response = await api.patch<{ data: ChangeRequest }>(`/api/changes/requests/${id}/status`, { status, reason });
+  const response = await api.patch<{ data: ChangeRequest }>(`/api/v1/changes/requests/${id}/status`, { status, reason });
   return response.data.data;
 };
 
 // ==================== Timeline ====================
 
 export const getChangeTimeline = async (changeRequestId: string): Promise<ChangeTimelineEvent[]> => {
-  const response = await api.get<{ data: ChangeTimelineEvent[] }>(`/api/changes/requests/${changeRequestId}/timeline`);
+  const response = await api.get<{ data: ChangeTimelineEvent[] }>(`/api/v1/changes/requests/${changeRequestId}/timeline`);
   return response.data.data;
 };
 
@@ -159,7 +159,7 @@ export const addChangeTimelineEvent = async (changeRequestId: string, data: {
   description: string;
   metadata?: Record<string, unknown>;
 }): Promise<ChangeTimelineEvent> => {
-  const response = await api.post<{ data: ChangeTimelineEvent }>(`/api/changes/requests/${changeRequestId}/timeline`, data);
+  const response = await api.post<{ data: ChangeTimelineEvent }>(`/api/v1/changes/requests/${changeRequestId}/timeline`, data);
   return response.data.data;
 };
 
@@ -170,12 +170,12 @@ export const getRFCs = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: RFC[]; total: number }> => {
-  const response = await api.get<{ data: RFC[]; total: number }>('/api/changes/rfcs', { params });
+  const response = await api.get<{ data: RFC[]; total: number }>('/api/v1/changes/rfcs', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getRFC = async (id: string): Promise<RFC> => {
-  const response = await api.get<{ data: RFC }>(`/api/changes/rfcs/${id}`);
+  const response = await api.get<{ data: RFC }>(`/api/v1/changes/rfcs/${id}`);
   return response.data.data;
 };
 
@@ -187,12 +187,12 @@ export const createRFC = async (data: {
   communication_plan?: string;
   backout_plan?: string;
 }): Promise<RFC> => {
-  const response = await api.post<{ data: RFC }>('/api/changes/rfcs', data);
+  const response = await api.post<{ data: RFC }>('/api/v1/changes/rfcs', data);
   return response.data.data;
 };
 
 export const updateRFC = async (id: string, data: Partial<RFC>): Promise<RFC> => {
-  const response = await api.put<{ data: RFC }>(`/api/changes/rfcs/${id}`, data);
+  const response = await api.put<{ data: RFC }>(`/api/v1/changes/rfcs/${id}`, data);
   return response.data.data;
 };
 
@@ -203,12 +203,12 @@ export const getCABMeetings = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: CABMeeting[]; total: number }> => {
-  const response = await api.get<{ data: CABMeeting[]; total: number }>('/api/changes/cab', { params });
+  const response = await api.get<{ data: CABMeeting[]; total: number }>('/api/v1/changes/cab', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getCABMeeting = async (id: string): Promise<CABMeeting> => {
-  const response = await api.get<{ data: CABMeeting }>(`/api/changes/cab/${id}`);
+  const response = await api.get<{ data: CABMeeting }>(`/api/v1/changes/cab/${id}`);
   return response.data.data;
 };
 
@@ -219,12 +219,12 @@ export const createCABMeeting = async (data: {
   location?: string;
   attendees?: string[];
 }): Promise<CABMeeting> => {
-  const response = await api.post<{ data: CABMeeting }>('/api/changes/cab', data);
+  const response = await api.post<{ data: CABMeeting }>('/api/v1/changes/cab', data);
   return response.data.data;
 };
 
 export const updateCABMeeting = async (id: string, data: Partial<CABMeeting>): Promise<CABMeeting> => {
-  const response = await api.put<{ data: CABMeeting }>(`/api/changes/cab/${id}`, data);
+  const response = await api.put<{ data: CABMeeting }>(`/api/v1/changes/cab/${id}`, data);
   return response.data.data;
 };
 
@@ -233,13 +233,13 @@ export const addCABDecision = async (meetingId: string, decision: {
   decision: 'approved' | 'rejected' | 'deferred';
   notes?: string;
 }): Promise<CABMeeting> => {
-  const response = await api.post<{ data: CABMeeting }>(`/api/changes/cab/${meetingId}/decisions`, decision);
+  const response = await api.post<{ data: CABMeeting }>(`/api/v1/changes/cab/${meetingId}/decisions`, decision);
   return response.data.data;
 };
 
 // ==================== Statistics ====================
 
 export const getChangeStats = async (): Promise<ChangeStats> => {
-  const response = await api.get<{ data: ChangeStats }>('/api/changes/stats');
+  const response = await api.get<{ data: ChangeStats }>('/api/v1/changes/stats');
   return response.data.data;
 };

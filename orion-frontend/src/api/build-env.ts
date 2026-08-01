@@ -148,173 +148,173 @@ export interface ArtifactInput {
 // ---- Builder Images ----
 
 export function createBuilderImage(data: BuilderImageInput) {
-  return api.post('/api/build-images', data);
+  return api.post('/api/v1/build-images', data);
 }
 
 export function getBuilderImages(params?: BuilderImageListParams) {
-  return api.get('/api/build-images', { params });
+  return api.get('/api/v1/build-images', { params });
 }
 
 export function getBuilderImagePresets() {
-  return api.get('/api/build-images/presets');
+  return api.get('/api/v1/build-images/presets');
 }
 
 export function getBuilderImagesAvailable() {
-  return api.get('/api/build-images/available');
+  return api.get('/api/v1/build-images/available');
 }
 
 export function getBuilderImagesByType(type: string) {
-  return api.get(`/api/build-images/type/${type}`);
+  return api.get(`/api/v1/build-images/type/${type}`);
 }
 
 export function getBuilderImage(id: string) {
-  return api.get(`/api/build-images/${id}`);
+  return api.get(`/api/v1/build-images/${id}`);
 }
 
 export function updateBuilderImage(id: string, data: UpdateBuilderImageInput) {
-  return api.put(`/api/build-images/${id}`, data);
+  return api.put(`/api/v1/build-images/${id}`, data);
 }
 
 export function deleteBuilderImage(id: string) {
-  return api.delete(`/api/build-images/${id}`);
+  return api.delete(`/api/v1/build-images/${id}`);
 }
 
 export function deprecateBuilderImage(id: string) {
-  return api.post(`/api/build-images/${id}/deprecate`);
+  return api.post(`/api/v1/build-images/${id}/deprecate`);
 }
 
 export function restoreBuilderImage(id: string) {
-  return api.post(`/api/build-images/${id}/restore`);
+  return api.post(`/api/v1/build-images/${id}/restore`);
 }
 
 // ---- Build Cache Configs ----
 
 export function getBuildCacheConfigs() {
-  return api.get('/api/build-cache/configs');
+  return api.get('/api/v1/build-cache/configs');
 }
 
 export function createBuildCacheConfig(data: BuildCacheConfigInput) {
-  return api.post('/api/build-cache/configs', data);
+  return api.post('/api/v1/build-cache/configs', data);
 }
 
 export function getBuildCacheConfig(id: string) {
-  return api.get(`/api/build-cache/configs/${id}`);
+  return api.get(`/api/v1/build-cache/configs/${id}`);
 }
 
 export function updateBuildCacheConfig(id: string, data: Partial<BuildCacheConfigInput>) {
-  return api.put(`/api/build-cache/configs/${id}`, data);
+  return api.put(`/api/v1/build-cache/configs/${id}`, data);
 }
 
 export function deleteBuildCacheConfig(id: string) {
-  return api.delete(`/api/build-cache/configs/${id}`);
+  return api.delete(`/api/v1/build-cache/configs/${id}`);
 }
 
 // ---- Build Cache Operations ----
 
 export function getBuildCacheEffective() {
-  return api.get('/api/build-cache/effective');
+  return api.get('/api/v1/build-cache/effective');
 }
 
 export function getBuildCacheEnabled() {
-  return api.get('/api/build-cache/enabled');
+  return api.get('/api/v1/build-cache/enabled');
 }
 
 export function getBuildCacheEntries() {
-  return api.get('/api/build-cache/entries');
+  return api.get('/api/v1/build-cache/entries');
 }
 
 export function createBuildCacheEntry(data: BuildCacheEntryInput) {
-  return api.post('/api/build-cache/entries', data);
+  return api.post('/api/v1/build-cache/entries', data);
 }
 
 export function deleteBuildCacheEntry(id: string) {
-  return api.delete(`/api/build-cache/entries/${id}`);
+  return api.delete(`/api/v1/build-cache/entries/${id}`);
 }
 
 // ---- Build Cache Cleanup ----
 
 export function cleanupExpiredCache() {
-  return api.post('/api/build-cache/cleanup/expired');
+  return api.post('/api/v1/build-cache/cleanup/expired');
 }
 
 export function cleanupLRUCache(configId: string) {
-  return api.post(`/api/build-cache/cleanup/lru/${configId}`);
+  return api.post(`/api/v1/build-cache/cleanup/lru/${configId}`);
 }
 
 export function clearCacheConfig(configId: string) {
-  return api.post(`/api/build-cache/cleanup/clear/${configId}`);
+  return api.post(`/api/v1/build-cache/cleanup/clear/${configId}`);
 }
 
 // ---- Build Pods ----
 
 export function getBuildPods(params?: BuildPodListParams) {
-  return api.get('/api/build-pods', { params });
+  return api.get('/api/v1/build-pods', { params });
 }
 
 export function createBuildPod(data: BuildPodInput) {
-  return api.post('/api/build-pods', data);
+  return api.post('/api/v1/build-pods', data);
 }
 
 export function getBuildPod(id: string) {
-  return api.get(`/api/build-pods/${id}`);
+  return api.get(`/api/v1/build-pods/${id}`);
 }
 
 export function getBuildPodLogs(id: string) {
-  return api.get(`/api/build-pods/${id}/logs`);
+  return api.get(`/api/v1/build-pods/${id}/logs`);
 }
 
 export function cleanupBuildPod(id: string) {
-  return api.post(`/api/build-pods/${id}/cleanup`);
+  return api.post(`/api/v1/build-pods/${id}/cleanup`);
 }
 
 export function cancelBuildPod(id: string) {
-  return api.post(`/api/build-pods/${id}/cancel`);
+  return api.post(`/api/v1/build-pods/${id}/cancel`);
 }
 
 // ---- Build Logs ----
 
 export function getBuildLogs(params?: BuildLogListParams) {
-  return api.get('/api/build-logs', { params });
+  return api.get('/api/v1/build-logs', { params });
 }
 
 export function getBuildLog(id: string) {
-  return api.get(`/api/build-logs/${id}`);
+  return api.get(`/api/v1/build-logs/${id}`);
 }
 
 export function getBuildLogText(id: string) {
-  return api.get(`/api/build-logs/${id}/text`);
+  return api.get(`/api/v1/build-logs/${id}/text`);
 }
 
 export function getBuildLogStreamUrl(id: string) {
-  return `/api/build-logs/${id}/stream`;
+  return `/api/v1/build-logs/${id}/stream`;
 }
 
 export function completeBuildLog(id: string) {
-  return api.post(`/api/build-logs/${id}/complete`);
+  return api.post(`/api/v1/build-logs/${id}/complete`);
 }
 
 // ---- Artifacts ----
 
 export function getArtifacts(params?: ArtifactListParams) {
-  return api.get('/api/artifacts', { params });
+  return api.get('/api/v1/artifacts', { params });
 }
 
 export function createArtifact(data: ArtifactInput) {
-  return api.post('/api/artifacts', data);
+  return api.post('/api/v1/artifacts', data);
 }
 
 export function getArtifact(id: string) {
-  return api.get(`/api/artifacts/${id}`);
+  return api.get(`/api/v1/artifacts/${id}`);
 }
 
 export function downloadArtifact(id: string) {
-  return api.get(`/api/artifacts/${id}/download`, { responseType: 'blob' });
+  return api.get(`/api/v1/artifacts/${id}/download`, { responseType: 'blob' });
 }
 
 export function deleteArtifact(id: string) {
-  return api.delete(`/api/artifacts/${id}`);
+  return api.delete(`/api/v1/artifacts/${id}`);
 }
 
 export function cleanupExpiredArtifacts() {
-  return api.post('/api/artifacts/cleanup/expired');
+  return api.post('/api/v1/artifacts/cleanup/expired');
 }

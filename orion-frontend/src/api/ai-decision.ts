@@ -96,17 +96,17 @@ export interface ExplainRequest {
 // ---- Decision Explanation API ----
 
 export function explainDecision(data: ExplainRequest) {
-  return api.post<DecisionExplanation>('/api/ai-decisions/explain', data);
+  return api.post<DecisionExplanation>('/api/v1/ai-decisions/explain', data);
 }
 
 export function getFeatureImportance(decisionId: string, features?: string) {
-  return api.get<FeatureImportance>(`/api/ai-decisions/${decisionId}/feature-importance`, {
+  return api.get<FeatureImportance>(`/api/v1/ai-decisions/${decisionId}/feature-importance`, {
     params: { features },
   });
 }
 
 export function getConfidenceExplanation(level: string, score?: number) {
-  return api.get<ConfidenceExplanation>(`/api/ai-decisions/confidence/${level}`, {
+  return api.get<ConfidenceExplanation>(`/api/v1/ai-decisions/confidence/${level}`, {
     params: { score },
   });
 }
@@ -114,11 +114,11 @@ export function getConfidenceExplanation(level: string, score?: number) {
 // ---- Model Version API ----
 
 export function listModels(params?: { status?: string; framework?: string; name?: string }) {
-  return api.get<{ models: ModelVersion[] }>('/api/ai-models', { params });
+  return api.get<{ models: ModelVersion[] }>('/api/v1/ai-models', { params });
 }
 
 export function getModel(modelId: string) {
-  return api.get<ModelVersion>(`/api/ai-models/${modelId}`);
+  return api.get<ModelVersion>(`/api/v1/ai-models/${modelId}`);
 }
 
 export function registerModel(data: {
@@ -127,29 +127,29 @@ export function registerModel(data: {
   framework: string;
   metrics?: { accuracy?: number; precision?: number; recall?: number; f1Score?: number };
 }) {
-  return api.post<ModelVersion>('/api/ai-models', data);
+  return api.post<ModelVersion>('/api/v1/ai-models', data);
 }
 
 export function activateModel(modelId: string) {
-  return api.post(`/api/ai-models/${modelId}/activate`);
+  return api.post(`/api/v1/ai-models/${modelId}/activate`);
 }
 
 export function deprecateModel(modelId: string) {
-  return api.post(`/api/ai-models/${modelId}/deprecate`);
+  return api.post(`/api/v1/ai-models/${modelId}/deprecate`);
 }
 
 export function getModelVersions(modelName: string, includeDeprecated?: boolean) {
-  return api.get<{ versions: ModelVersion[] }>(`/api/ai-models/${modelName}/versions`, {
+  return api.get<{ versions: ModelVersion[] }>(`/api/v1/ai-models/${modelName}/versions`, {
     params: { include_deprecated: includeDeprecated },
   });
 }
 
 export function getABTestResults(modelName: string) {
-  return api.get<ABTestResult>(`/api/ai-models/${modelName}/ab-test`);
+  return api.get<ABTestResult>(`/api/v1/ai-models/${modelName}/ab-test`);
 }
 
 export function getModelPerformance(modelName: string) {
-  return api.get<ModelPerformance>(`/api/ai-models/${modelName}/performance`);
+  return api.get<ModelPerformance>(`/api/v1/ai-models/${modelName}/performance`);
 }
 
 // ---- Explanation History API ----
@@ -167,15 +167,15 @@ export interface ExplanationWithRules extends DecisionExplanation {
 }
 
 export function getExplanationById(decisionId: string) {
-  return api.get<ExplanationWithRules>(`/api/ai-decisions/explanations/${decisionId}`);
+  return api.get<ExplanationWithRules>(`/api/v1/ai-decisions/explanations/${decisionId}`);
 }
 
 export function getExplanationHistory(params?: { limit?: number; decisionType?: string }) {
-  return api.get<ExplanationWithRules[]>('/api/ai-decisions/explanations/history', { params });
+  return api.get<ExplanationWithRules[]>('/api/v1/ai-decisions/explanations/history', { params });
 }
 
 // ---- Model Rollback API ----
 
 export function rollbackModel(modelId: string, targetVersion?: string) {
-  return api.post(`/api/ai-models/${modelId}/rollback`, { targetVersion });
+  return api.post(`/api/v1/ai-models/${modelId}/rollback`, { targetVersion });
 }

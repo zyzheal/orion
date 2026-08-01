@@ -14,7 +14,7 @@
  */
 import { api } from './client';
 
-const BASE = '/api/ops-tools';
+const BASE = '/api/v1/ops-tools';
 
 // ==================== 类型定义 ====================
 

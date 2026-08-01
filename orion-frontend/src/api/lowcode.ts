@@ -96,29 +96,29 @@ interface ExecuteFlowUnwrapped {
 export const lowcodeApi = {
   /**
    * 列出所有流程
-   * GET /api/lowcode/flows
+   * GET /api/v1/lowcode/flows
    * 返回 { flows: LowcodeFlow[] }
    */
   listFlows: async (): Promise<{ flows: LowcodeFlow[] }> => {
-    const response = await api.get<ListFlowsUnwrapped>('/api/lowcode/flows');
+    const response = await api.get<ListFlowsUnwrapped>('/api/v1/lowcode/flows');
     return { flows: response.data.data || [] };
   },
 
   /**
    * 获取流程详情
-   * GET /api/lowcode/flows/:id
+   * GET /api/v1/lowcode/flows/:id
    */
   getFlow: async (id: string): Promise<LowcodeFlow> => {
-    const response = await api.get<{ data: LowcodeFlow }>(`/api/lowcode/flows/${id}`);
+    const response = await api.get<{ data: LowcodeFlow }>(`/api/v1/lowcode/flows/${id}`);
     return response.data.data;
   },
 
   /**
    * 创建流程
-   * POST /api/lowcode/flows
+   * POST /api/v1/lowcode/flows
    */
   createFlow: async (data: { name: string; description?: string; type?: string }): Promise<LowcodeFlow> => {
-    const response = await api.post<{ data: LowcodeFlow }>('/api/lowcode/flows', {
+    const response = await api.post<{ data: LowcodeFlow }>('/api/v1/lowcode/flows', {
       name: data.name,
       description: data.description || '',
       version: '1.0.0',
@@ -130,37 +130,37 @@ export const lowcodeApi = {
 
   /**
    * 更新流程
-   * PUT /api/lowcode/flows/:id
+   * PUT /api/v1/lowcode/flows/:id
    */
   updateFlow: async (id: string, data: Record<string, unknown>): Promise<LowcodeFlow> => {
-    const response = await api.put<{ data: LowcodeFlow }>(`/api/lowcode/flows/${id}`, data);
+    const response = await api.put<{ data: LowcodeFlow }>(`/api/v1/lowcode/flows/${id}`, data);
     return response.data.data;
   },
 
   /**
    * 删除流程
-   * DELETE /api/lowcode/flows/:id
+   * DELETE /api/v1/lowcode/flows/:id
    */
   deleteFlow: async (id: string): Promise<void> => {
-    await api.delete(`/api/lowcode/flows/${id}`);
+    await api.delete(`/api/v1/lowcode/flows/${id}`);
   },
 
   /**
    * 发布流程
-   * POST /api/lowcode/flows/:id/publish
+   * POST /api/v1/lowcode/flows/:id/publish
    */
   publishFlow: async (id: string): Promise<LowcodeFlow> => {
-    const response = await api.post<{ data: LowcodeFlow }>(`/api/lowcode/flows/${id}/publish`);
+    const response = await api.post<{ data: LowcodeFlow }>(`/api/v1/lowcode/flows/${id}/publish`);
     return response.data.data;
   },
 
   /**
    * 执行流程
-   * POST /api/lowcode/flows/:id/execute
+   * POST /api/v1/lowcode/flows/:id/execute
    * 返回执行结果摘要
    */
   executeFlow: async (id: string, input: Record<string, unknown> = {}): Promise<{ result: Record<string, unknown> }> => {
-    const response = await api.post<ExecuteFlowUnwrapped>(`/api/lowcode/flows/${id}/execute`, { input });
+    const response = await api.post<ExecuteFlowUnwrapped>(`/api/v1/lowcode/flows/${id}/execute`, { input });
     const instance = response.data.data;
     return {
       result: {
@@ -173,36 +173,36 @@ export const lowcodeApi = {
 
   /**
    * 创建版本快照
-   * POST /api/lowcode/workflows/:id/versions
+   * POST /api/v1/lowcode/workflows/:id/versions
    */
   createWorkflowVersion: async (workflowId: string, data?: { changeLog?: string; snapshot?: Record<string, unknown> }): Promise<LowcodeWorkflowVersion> => {
-    const response = await api.post<{ data: LowcodeWorkflowVersion }>(`/api/lowcode/workflows/${workflowId}/versions`, data);
+    const response = await api.post<{ data: LowcodeWorkflowVersion }>(`/api/v1/lowcode/workflows/${workflowId}/versions`, data);
     return response.data.data;
   },
 
   /**
    * 列出版本历史
-   * GET /api/lowcode/workflows/:id/versions
+   * GET /api/v1/lowcode/workflows/:id/versions
    * 返回 { versions: LowcodeWorkflowVersion[], total: number }
    */
   listWorkflowVersions: async (workflowId: string, params?: { limit?: number; offset?: number }): Promise<{ versions: LowcodeWorkflowVersion[]; total: number }> => {
-    const response = await api.get<{ data: { versions: LowcodeWorkflowVersion[]; total: number; limit: number; offset: number } }>(`/api/lowcode/workflows/${workflowId}/versions`, { params });
-    const unwrapped = response.data as unknown as { versions: LowcodeWorkflowVersion[]; total: number };
+    const response = await api.get<{ data: { versions: LowcodeWorkflowVersion[]; total: number; limit: number; offset: number } }>(`/api/v1/lowcode/workflows/${workflowId}/versions`, { params });
+    const unwrapped = response.data;
     return { versions: unwrapped.versions || [], total: unwrapped.total || 0 };
   },
 
   /**
    * 导出流程
-   * POST /api/lowcode/workflows/:id/export
+   * POST /api/v1/lowcode/workflows/:id/export
    */
   exportWorkflow: async (id: string): Promise<ExportWorkflowResponse> => {
-    const response = await api.post<{ data: ExportWorkflowResponse }>(`/api/lowcode/workflows/${id}/export`);
+    const response = await api.post<{ data: ExportWorkflowResponse }>(`/api/v1/lowcode/workflows/${id}/export`);
     return response.data.data;
   },
 
   /**
    * 导入流程
-   * POST /api/lowcode/workflows/import
+   * POST /api/v1/lowcode/workflows/import
    */
   importWorkflow: async (data: {
     name: string;
@@ -214,23 +214,23 @@ export const lowcodeApi = {
       edges: Array<Record<string, unknown>>;
     };
   }): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post<{ success: boolean; message: string; data: LowcodeFlow }>('/api/lowcode/workflows/import', data);
+    const response = await api.post<{ success: boolean; message: string; data: LowcodeFlow }>('/api/v1/lowcode/workflows/import', data);
     return { success: response.data.success, message: response.data.message };
   },
 
   /**
    * 列出模板
-   * GET /api/lowcode/templates
+   * GET /api/v1/lowcode/templates
    * 返回模板数组（interceptor 已解包 success.data）
    */
   listTemplates: async (): Promise<LowcodeTemplate[]> => {
-    const response = await api.get<LowcodeTemplate[]>('/api/lowcode/templates');
+    const response = await api.get<LowcodeTemplate[]>('/api/v1/lowcode/templates');
     return response.data || [];
   },
 
   /**
    * 创建模板
-   * POST /api/lowcode/templates
+   * POST /api/v1/lowcode/templates
    */
   createTemplate: async (data: {
     name: string;
@@ -243,16 +243,16 @@ export const lowcodeApi = {
     };
     tags?: string[];
   }): Promise<LowcodeTemplate> => {
-    const response = await api.post<{ data: LowcodeTemplate }>('/api/lowcode/templates', data);
+    const response = await api.post<{ data: LowcodeTemplate }>('/api/v1/lowcode/templates', data);
     return response.data.data;
   },
 
   /**
    * 应用模板创建流程
-   * POST /api/lowcode/templates/:id/apply
+   * POST /api/v1/lowcode/templates/:id/apply
    */
   applyTemplate: async (templateId: string, data: { workflowName: string; description?: string; variables?: Record<string, string> }): Promise<LowcodeFlow> => {
-    const response = await api.post<{ data: LowcodeFlow; message: string }>(`/api/lowcode/templates/${templateId}/apply`, data);
+    const response = await api.post<{ data: LowcodeFlow; message: string }>(`/api/v1/lowcode/templates/${templateId}/apply`, data);
     return response.data.data;
   },
 };
@@ -260,47 +260,47 @@ export const lowcodeApi = {
 // ==================== Named exports (backward compatibility) ====================
 
 export function listFlows(params?: { limit?: number; offset?: number; search?: string; enabled?: boolean }) {
-  return api.get('/api/lowcode/flows', { params });
+  return api.get('/api/v1/lowcode/flows', { params });
 }
 
 export function getFlow(id: string) {
-  return api.get(`/api/lowcode/flows/${id}`);
+  return api.get(`/api/v1/lowcode/flows/${id}`);
 }
 
 export function createFlow(data: CreateFlowInput) {
-  return api.post('/api/lowcode/flows', data);
+  return api.post('/api/v1/lowcode/flows', data);
 }
 
 export function updateFlow(id: string, data: UpdateFlowInput) {
-  return api.put(`/api/lowcode/flows/${id}`, data);
+  return api.put(`/api/v1/lowcode/flows/${id}`, data);
 }
 
 export function deleteFlow(id: string) {
-  return api.delete(`/api/lowcode/flows/${id}`);
+  return api.delete(`/api/v1/lowcode/flows/${id}`);
 }
 
 export function publishFlow(id: string) {
-  return api.post(`/api/lowcode/flows/${id}/publish`);
+  return api.post(`/api/v1/lowcode/flows/${id}/publish`);
 }
 
 // ==================== Execution ====================
 
 export function executeFlow(id: string, input?: Record<string, unknown>, triggeredBy?: string) {
-  return api.post(`/api/lowcode/flows/${id}/execute`, { input, triggeredBy });
+  return api.post(`/api/v1/lowcode/flows/${id}/execute`, { input, triggeredBy });
 }
 
 export function getFlowExecution(executionId: string) {
-  return api.get(`/api/lowcode/executions/${executionId}`);
+  return api.get(`/api/v1/lowcode/executions/${executionId}`);
 }
 
 // ==================== Versions ====================
 
 export function createWorkflowVersion(workflowId: string, data?: { changeLog?: string; snapshot?: Record<string, unknown> }) {
-  return api.post(`/api/lowcode/workflows/${workflowId}/versions`, data);
+  return api.post(`/api/v1/lowcode/workflows/${workflowId}/versions`, data);
 }
 
 export function listWorkflowVersions(workflowId: string, params?: { limit?: number; offset?: number }) {
-  return api.get(`/api/lowcode/workflows/${workflowId}/versions`, { params });
+  return api.get(`/api/v1/lowcode/workflows/${workflowId}/versions`, { params });
 }
 
 // ==================== Import/Export ====================
@@ -319,7 +319,7 @@ export interface ExportWorkflowResponse {
 }
 
 export function exportWorkflow(id: string) {
-  return api.post<ExportWorkflowResponse>(`/api/lowcode/workflows/${id}/export`);
+  return api.post<ExportWorkflowResponse>(`/api/v1/lowcode/workflows/${id}/export`);
 }
 
 export function importWorkflow(data: {
@@ -332,13 +332,13 @@ export function importWorkflow(data: {
     edges: Array<Record<string, unknown>>;
   };
 }) {
-  return api.post('/api/lowcode/workflows/import', data);
+  return api.post('/api/v1/lowcode/workflows/import', data);
 }
 
 // ==================== Templates ====================
 
 export function listTemplates() {
-  return api.get('/api/lowcode/templates');
+  return api.get('/api/v1/lowcode/templates');
 }
 
 export function createTemplate(data: {
@@ -352,9 +352,9 @@ export function createTemplate(data: {
   };
   tags?: string[];
 }) {
-  return api.post('/api/lowcode/templates', data);
+  return api.post('/api/v1/lowcode/templates', data);
 }
 
 export function applyTemplate(templateId: string, data: { workflowName: string; description?: string; variables?: Record<string, string> }) {
-  return api.post(`/api/lowcode/templates/${templateId}/apply`, data);
+  return api.post(`/api/v1/lowcode/templates/${templateId}/apply`, data);
 }

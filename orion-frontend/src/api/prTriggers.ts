@@ -59,49 +59,49 @@ export interface PRCheckStatus {
  * List PR trigger rules for a pipeline
  */
 export function getPRTriggerRules(pipelineId: string) {
-  return api.get<PRTriggerRule[]>(`/api/pipelines/${pipelineId}/pr-triggers`);
+  return api.get<PRTriggerRule[]>(`/api/v1/pipelines/${pipelineId}/pr-triggers`);
 }
 
 /**
  * Create a PR trigger rule
  */
 export function createPRTrigger(pipelineId: string, rule: Omit<PRTriggerRule, 'id' | 'createdAt' | 'updatedAt'>) {
-  return api.post<PRTriggerRule>(`/api/pipelines/${pipelineId}/pr-triggers`, rule);
+  return api.post<PRTriggerRule>(`/api/v1/pipelines/${pipelineId}/pr-triggers`, rule);
 }
 
 /**
  * Update a PR trigger rule
  */
 export function updatePRTrigger(pipelineId: string, ruleId: string, rule: Partial<PRTriggerRule>) {
-  return api.put<PRTriggerRule>(`/api/pipelines/${pipelineId}/pr-triggers/${ruleId}`, rule);
+  return api.put<PRTriggerRule>(`/api/v1/pipelines/${pipelineId}/pr-triggers/${ruleId}`, rule);
 }
 
 /**
  * Delete a PR trigger rule
  */
 export function deletePRTrigger(pipelineId: string, ruleId: string) {
-  return api.delete(`/api/pipelines/${pipelineId}/pr-triggers/${ruleId}`);
+  return api.delete(`/api/v1/pipelines/${pipelineId}/pr-triggers/${ruleId}`);
 }
 
 /**
  * Toggle PR trigger enabled state
  */
 export function togglePRTrigger(pipelineId: string, ruleId: string, enabled: boolean) {
-  return api.patch(`/api/pipelines/${pipelineId}/pr-triggers/${ruleId}`, { enabled });
+  return api.patch(`/api/v1/pipelines/${pipelineId}/pr-triggers/${ruleId}`, { enabled });
 }
 
 /**
  * Receive GitHub PR webhook
  */
 export function handleGitHubPR(payload: PRWebhookPayload) {
-  return api.post('/api/scm/webhooks/pull-request', payload);
+  return api.post('/api/v1/scm/webhooks/pull-request', payload);
 }
 
 /**
  * Receive GitLab MR webhook
  */
 export function handleGitLabMR(payload: PRWebhookPayload) {
-  return api.post('/api/scm/webhooks/merge-request', payload);
+  return api.post('/api/v1/scm/webhooks/merge-request', payload);
 }
 
 /**
@@ -113,7 +113,7 @@ export function updatePRCheckStatus(params: {
   sha: string;
   check: PRCheckStatus;
 }) {
-  return api.post('/api/scm/pull-requests/check-status', params);
+  return api.post('/api/v1/scm/pull-requests/check-status', params);
 }
 
 /**
@@ -125,12 +125,12 @@ export function postPRComment(params: {
   prNumber: number;
   comment: string;
 }) {
-  return api.post('/api/scm/pull-requests/comment', params);
+  return api.post('/api/v1/scm/pull-requests/comment', params);
 }
 
 /**
  * Get PR check status summary
  */
 export function getPRCheckStatus(repository: string, prNumber: number) {
-  return api.get(`/api/scm/pull-requests/${repository}/${prNumber}/checks`);
+  return api.get(`/api/v1/scm/pull-requests/${repository}/${prNumber}/checks`);
 }

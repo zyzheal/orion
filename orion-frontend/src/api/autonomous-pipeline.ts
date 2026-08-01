@@ -83,17 +83,17 @@ export function classifyError(data: {
   errorMessage: string;
   errorCode?: string;
 }) {
-  return api.post<ErrorClassification>('/api/autonomous/classify-error', data);
+  return api.post<ErrorClassification>('/api/v1/autonomous/classify-error', data);
 }
 
 export function getErrorStats(params?: { pipelineId?: string; days?: number }) {
-  return api.get<ErrorStats>('/api/autonomous/error-stats', { params });
+  return api.get<ErrorStats>('/api/v1/autonomous/error-stats', { params });
 }
 
 // ---- Adaptive Timeout API ----
 
 export function getTimeoutForStage(stageName: string) {
-  return api.get<TimeoutConfig>(`/api/autonomous/timeout/${stageName}`);
+  return api.get<TimeoutConfig>(`/api/v1/autonomous/timeout/${stageName}`);
 }
 
 export function recordExecution(data: {
@@ -102,17 +102,17 @@ export function recordExecution(data: {
   durationMs: number;
   status: 'success' | 'failure' | 'timeout';
 }) {
-  return api.post<ExecutionRecord>('/api/autonomous/record-execution', data);
+  return api.post<ExecutionRecord>('/api/v1/autonomous/record-execution', data);
 }
 
 // ---- Auto Retry API ----
 
 export function getRetryStats(pipelineId: string) {
-  return api.get<RetryStats>(`/api/autonomous/retry-stats/${pipelineId}`);
+  return api.get<RetryStats>(`/api/v1/autonomous/retry-stats/${pipelineId}`);
 }
 
 export function configureRetry(data: RetryConfig) {
-  return api.post<RetryConfig>('/api/autonomous/configure-retry', data);
+  return api.post<RetryConfig>('/api/v1/autonomous/configure-retry', data);
 }
 
 // ---- Self-Healing API ----
@@ -144,9 +144,9 @@ export function recommendSelfHealing(data: {
     classification: ErrorClassification;
     recommendations: SelfHealingRecommendation[];
     autoRetryable: boolean;
-  }>('/api/autonomous/self-healing/recommend', data);
+  }>('/api/v1/autonomous/self-healing/recommend', data);
 }
 
 export function getSelfHealingActions(params?: { errorType?: string; stageName?: string }) {
-  return api.get<{ actions: SelfHealingAction[]; total: number }>('/api/autonomous/self-healing/actions', { params });
+  return api.get<{ actions: SelfHealingAction[]; total: number }>('/api/v1/autonomous/self-healing/actions', { params });
 }

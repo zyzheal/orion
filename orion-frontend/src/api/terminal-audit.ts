@@ -58,7 +58,7 @@ export interface FileLogListParams {
 // ============================================================================
 
 export const getConnectLogs = async (params?: ConnectLogListParams) => {
-  const response = await apiClient.get('/api/cmdb/terminal-audit/connect-logs', { params });
+  const response = await apiClient.get('/api/v1/cmdb/terminal-audit/connect-logs', { params });
   return response.data as {
     success: boolean;
     data: TerminalConnectLog[];
@@ -69,7 +69,7 @@ export const getConnectLogs = async (params?: ConnectLogListParams) => {
 };
 
 export const getConnectLog = async (id: string) => {
-  const response = await apiClient.get(`/api/cmdb/terminal-audit/connect-logs/${id}`);
+  const response = await apiClient.get(`/api/v1/cmdb/terminal-audit/connect-logs/${id}`);
   return response.data as { success: boolean; data: TerminalConnectLog };
 };
 
@@ -78,7 +78,7 @@ export const getConnectLog = async (id: string) => {
 // ============================================================================
 
 export const getFileLogs = async (params?: FileLogListParams) => {
-  const response = await apiClient.get('/api/cmdb/terminal-audit/file-logs', { params });
+  const response = await apiClient.get('/api/v1/cmdb/terminal-audit/file-logs', { params });
   return response.data as {
     success: boolean;
     data: TerminalFileLog[];
@@ -89,7 +89,7 @@ export const getFileLogs = async (params?: FileLogListParams) => {
 };
 
 export const getFileLog = async (id: string) => {
-  const response = await apiClient.get(`/api/cmdb/terminal-audit/file-logs/${id}`);
+  const response = await apiClient.get(`/api/v1/cmdb/terminal-audit/file-logs/${id}`);
   return response.data as { success: boolean; data: TerminalFileLog };
 };
 
@@ -98,6 +98,6 @@ export const getFileLog = async (id: string) => {
 // ============================================================================
 
 export const getTerminalAuditStats = async () => {
-  const response = await apiClient.get('/api/cmdb/terminal-audit/stats');
+  const response = await apiClient.get('/api/v1/cmdb/terminal-audit/stats');
   return response.data as { success: boolean; data: TerminalAuditStats };
 };

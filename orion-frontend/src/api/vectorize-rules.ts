@@ -31,21 +31,21 @@ export interface CreateVectorizeRuleInput {
 }
 
 export function listVectorizeRules() {
-  return api.get<{ data: VectorizeRule[] }>('/api/vectorize-rules');
+  return api.get<{ data: VectorizeRule[] }>('/api/v1/vectorize-rules');
 }
 
 export function createVectorizeRule(data: CreateVectorizeRuleInput) {
-  return api.post<{ data: VectorizeRule }>('/api/vectorize-rules', data);
+  return api.post<{ data: VectorizeRule }>('/api/v1/vectorize-rules', data);
 }
 
 export function updateVectorizeRule(id: string, data: Partial<VectorizeRule>) {
-  return api.put<{ data: VectorizeRule }>(`/api/vectorize-rules/${id}`, data);
+  return api.put<{ data: VectorizeRule }>(`/api/v1/vectorize-rules/${id}`, data);
 }
 
 export function deleteVectorizeRule(id: string) {
-  return api.delete(`/api/vectorize-rules/${id}`);
+  return api.delete(`/api/v1/vectorize-rules/${id}`);
 }
 
 export function toggleVectorizeRule(id: string, enabled: boolean) {
-  return api.patch<{ data: VectorizeRule }>(`/api/vectorize-rules/${id}/toggle`, { enabled });
+  return api.patch<{ data: VectorizeRule }>(`/api/v1/vectorize-rules/${id}/toggle`, { enabled });
 }

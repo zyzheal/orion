@@ -73,45 +73,45 @@ export interface EnvironmentWithLock extends Environment {
 // ---- CRUD ----
 
 export function getEnvironments(params?: { projectId?: string }) {
-  return api.get<Environment[]>('/api/environments', { params });
+  return api.get<Environment[]>('/api/v1/environments', { params });
 }
 
 export function getEnvironment(id: string) {
-  return api.get<Environment>(`/api/environments/${id}`);
+  return api.get<Environment>(`/api/v1/environments/${id}`);
 }
 
 export function createEnvironment(data: CreateEnvironmentInput) {
-  return api.post<Environment>('/api/environments', data);
+  return api.post<Environment>('/api/v1/environments', data);
 }
 
 export function updateEnvironment(id: string, data: UpdateEnvironmentInput) {
-  return api.put<Environment>(`/api/environments/${id}`, data);
+  return api.put<Environment>(`/api/v1/environments/${id}`, data);
 }
 
 export function deleteEnvironment(id: string) {
-  return api.delete(`/api/environments/${id}`);
+  return api.delete(`/api/v1/environments/${id}`);
 }
 
 // ---- Status ----
 
 export function updateEnvironmentStatus(id: string, data: UpdateStatusInput) {
-  return api.post<Environment>(`/api/environments/${id}/status`, data);
+  return api.post<Environment>(`/api/v1/environments/${id}/status`, data);
 }
 
 // ---- Lock ----
 
 export function lockEnvironment(id: string, data: LockEnvironmentInput) {
-  return api.post<EnvironmentLockInfo>(`/api/environments/${id}/lock`, data);
+  return api.post<EnvironmentLockInfo>(`/api/v1/environments/${id}/lock`, data);
 }
 
 export function unlockEnvironment(id: string) {
-  return api.post<EnvironmentLockInfo>(`/api/environments/${id}/unlock`);
+  return api.post<EnvironmentLockInfo>(`/api/v1/environments/${id}/unlock`);
 }
 
 export function getEnvironmentLockStatus(id: string) {
-  return api.get<EnvironmentLockInfo>(`/api/environments/${id}/lock-status`);
+  return api.get<EnvironmentLockInfo>(`/api/v1/environments/${id}/lock-status`);
 }
 
 export function checkDeploymentAllowed(id: string) {
-  return api.get<{ allowed: boolean; reason?: string }>(`/api/environments/${id}/deployment-allowed`);
+  return api.get<{ allowed: boolean; reason?: string }>(`/api/v1/environments/${id}/deployment-allowed`);
 }

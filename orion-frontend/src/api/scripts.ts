@@ -35,7 +35,7 @@ export interface ScriptConfig {
  * Scan script for security issues (dry-run)
  */
 export function scanScript(config: ScriptConfig) {
-  return api.post<ScriptScanResult>('/api/script/scan', { config });
+  return api.post<ScriptScanResult>('/api/v1/script/scan', { config });
 }
 
 /**
@@ -48,7 +48,7 @@ export function executeScript(
   config: ScriptConfig,
   options?: { workspace?: Record<string, unknown>; env?: Record<string, unknown>; timeout?: number }
 ) {
-  return api.post<ScriptExecutionResult>('/api/script/execute', {
+  return api.post<ScriptExecutionResult>('/api/v1/script/execute', {
     taskId,
     pipelineRunId,
     stageId,

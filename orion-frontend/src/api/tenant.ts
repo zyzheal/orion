@@ -64,26 +64,26 @@ export interface PoolStatus {
 // ==================== Tenant Context ====================
 
 export function getTenantContext() {
-  return api.get<{ context: TenantInfo | null }>('/api/tenant/context');
+  return api.get<{ context: TenantInfo | null }>('/api/v1/tenant/context');
 }
 
 // ==================== Tenant Quota ====================
 
 export function getTenantQuota(tenantId?: number) {
-  return api.get<TenantQuota>('/api/tenant/quota', {
+  return api.get<TenantQuota>('/api/v1/tenant/quota', {
     headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
   });
 }
 
 export function updateTenantQuota(quota: Partial<TenantQuota>, tenantId?: number) {
-  return api.put<TenantQuota>('/api/tenant/quota', quota, {
+  return api.put<TenantQuota>('/api/v1/tenant/quota', quota, {
     headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
   });
 }
 
 export function checkTenantQuota(resourceType: string, amount: number, tenantId?: number) {
   return api.post<QuotaCheckResult>(
-    '/api/tenant/quota/check',
+    '/api/v1/tenant/quota/check',
     { resourceType, amount },
     {
       headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
@@ -94,23 +94,23 @@ export function checkTenantQuota(resourceType: string, amount: number, tenantId?
 // ==================== Namespace Pool ====================
 
 export function getNamespacePoolStatus() {
-  return api.get<PoolStatus>('/api/tenant/namespace/pool');
+  return api.get<PoolStatus>('/api/v1/tenant/namespace/pool');
 }
 
 export function allocateNamespace(tenantId: string, namespaceType?: 'build' | 'deploy' | 'test') {
-  return api.post<NamespaceAllocationResult>('/api/tenant/namespace/allocate', {
+  return api.post<NamespaceAllocationResult>('/api/v1/tenant/namespace/allocate', {
     tenantId,
     namespaceType,
   });
 }
 
 export function releaseNamespace(namespaceName: string) {
-  return api.post<{ released: boolean }>('/api/tenant/namespace/release', { namespaceName });
+  return api.post<{ released: boolean }>('/api/v1/tenant/namespace/release', { namespaceName });
 }
 
 export function getTenantNamespaces(tenantId: string) {
   return api.get<{ namespaces: NamespacePoolEntry[]; count: number }>(
-    `/api/tenant/namespace/${tenantId}`
+    `/api/v1/tenant/namespace/${tenantId}`
   );
 }
 
@@ -118,7 +118,7 @@ export function getTenantNamespaces(tenantId: string) {
 
 export function getMiddlewareConfig() {
   return api.get<{ config: { enabled: boolean; headerName: string; jwtTenantClaim: string } }>(
-    '/api/tenant/middleware/config'
+    '/api/v1/tenant/middleware/config'
   );
 }
 
@@ -127,7 +127,7 @@ export function updateMiddlewareConfig(config: {
   headerName?: string;
   jwtTenantClaim?: string;
 }) {
-  return api.put('/api/tenant/middleware/config', config);
+  return api.put('/api/v1/tenant/middleware/config', config);
 }
 
 // ==================== Tenant CRUD ====================
@@ -171,23 +171,23 @@ export interface PaginatedTenants {
 export function listTenants(page = 1, limit = 20, status?: string) {
   const params: Record<string, string> = { page: String(page), limit: String(limit) };
   if (status) params.status = status;
-  return api.get<PaginatedTenants>('/api/tenant', { params });
+  return api.get<PaginatedTenants>('/api/v1/tenant', { params });
 }
 
 export function getTenant(id: string) {
-  return api.get<TenantEntity>(`/api/tenant/${id}`);
+  return api.get<TenantEntity>(`/api/v1/tenant/${id}`);
 }
 
 export function createTenant(input: CreateTenantRequest) {
-  return api.post<TenantEntity & { allocatedNamespaces?: NamespacePoolEntry[]; message?: string }>('/api/tenant', input);
+  return api.post<TenantEntity & { allocatedNamespaces?: NamespacePoolEntry[]; message?: string }>('/api/v1/tenant', input);
 }
 
 export function updateTenant(id: string, input: Partial<CreateTenantRequest>) {
-  return api.put<TenantEntity>(`/api/tenant/${id}`, input);
+  return api.put<TenantEntity>(`/api/v1/tenant/${id}`, input);
 }
 
 export function deleteTenant(id: string) {
-  return api.delete(`/api/tenant/${id}`);
+  return api.delete(`/api/v1/tenant/${id}`);
 }
 
 // ==================== Usage Statistics ====================
@@ -224,14 +224,14 @@ export interface NamespaceUsageDetail {
 }
 
 export function getTenantUsage(tenantId?: number) {
-  return api.get<TenantUsage>('/api/tenant/usage', {
+  return api.get<TenantUsage>('/api/v1/tenant/usage', {
     headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
   });
 }
 
 export function getNamespaceUsageDetail(tenantId: string) {
   return api.get<{ namespaces: NamespaceUsageDetail[]; total: number }>(
-    `/api/tenant/namespace/${tenantId}/usage`
+    `/api/v1/tenant/namespace/${tenantId}/usage`
   );
 }
 
@@ -244,7 +244,7 @@ export function getTenantStats(tenantId?: number) {
       quotaUsage: Record<string, unknown>;
       namespaceCount: number;
     };
-  }>('/api/tenant/count', {
+  }>('/api/v1/tenant/count', {
     params: tenantId ? { status: undefined } : {},
     headers: tenantId ? { 'x-tenant-id': tenantId.toString() } : {},
   });
@@ -273,12 +273,12 @@ export interface CreateInviteRequest {
 }
 
 export function inviteUser(tenantId: string, data: CreateInviteRequest) {
-  return api.post<TenantInvite>(`/api/tenant/${tenantId}/invite`, data);
+  return api.post<TenantInvite>(`/api/v1/tenant/${tenantId}/invite`, data);
 }
 
 export function acceptInvite(code: string) {
   return api.post<{ success: boolean; tenant: TenantEntity; role: string; message: string }>(
-    `/api/tenant/invite/${code}/accept`
+    `/api/v1/tenant/invite/${code}/accept`
   );
 }
 
@@ -297,11 +297,11 @@ export interface TenantUser {
 }
 
 export function getUsersByTenant(tenantId: string) {
-  return api.get<{ users: TenantUser[]; total: number }>(`/api/tenant/${tenantId}/users`);
+  return api.get<{ users: TenantUser[]; total: number }>(`/api/v1/tenant/${tenantId}/users`);
 }
 
 export function removeUserFromTenant(tenantId: string, userId: string) {
-  return api.delete(`/api/tenant/${tenantId}/users/${userId}`);
+  return api.delete(`/api/v1/tenant/${tenantId}/users/${userId}`);
 }
 
 // ==================== Tenant Alerts ====================
@@ -319,7 +319,7 @@ export interface TenantAlert {
 }
 
 export function getTenantAlerts(tenantId?: string, params?: { page?: number; limit?: number; resourceType?: string; status?: string }) {
-  return api.get<{ alerts: TenantAlert[]; total: number; page: number; limit: number }>('/api/tenant/alerts', {
+  return api.get<{ alerts: TenantAlert[]; total: number; page: number; limit: number }>('/api/v1/tenant/alerts', {
     params,
     headers: tenantId ? { 'x-tenant-id': tenantId } : {},
   });
@@ -332,7 +332,7 @@ export function getAlertStats(tenantId?: string) {
       byResourceType: Record<string, number>;
       activeAlerts: TenantAlert[];
     };
-  }>('/api/tenant/alerts/stats', {
+  }>('/api/v1/tenant/alerts/stats', {
     headers: tenantId ? { 'x-tenant-id': tenantId } : {},
   });
 }
@@ -346,5 +346,5 @@ export function getCurrentTenant() {
     namespaceCount: number;
     namespaceLimit: number;
     activeAlertCount: number;
-  }>('/api/tenant/current');
+  }>('/api/v1/tenant/current');
 }

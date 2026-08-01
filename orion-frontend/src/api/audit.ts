@@ -85,13 +85,13 @@ export interface AuditLogFilters {
 // ==================== Audit Log CRUD ====================
 
 export function getAuditLogs(filters?: AuditLogFilters) {
-  return api.get<{ entries: AuditLogEntry[]; total: number }>('/api/audit/logs', {
+  return api.get<{ entries: AuditLogEntry[]; total: number }>('/api/v1/audit/logs', {
     params: filters,
   });
 }
 
 export function getAuditLog(id: string) {
-  return api.get<AuditLogEntry>(`/api/audit/logs/${id}`);
+  return api.get<AuditLogEntry>(`/api/v1/audit/logs/${id}`);
 }
 
 export function createAuditLog(data: {
@@ -102,18 +102,18 @@ export function createAuditLog(data: {
   resourceType?: string;
   resourceId?: string;
 }) {
-  return api.post<AuditLogEntry>('/api/audit/logs', data);
+  return api.post<AuditLogEntry>('/api/v1/audit/logs', data);
 }
 
 export function verifyAuditLog(id: string) {
-  return api.get<{ entry: AuditLogEntry; isValid: boolean }>(`/api/audit/logs/${id}/verify`);
+  return api.get<{ entry: AuditLogEntry; isValid: boolean }>(`/api/v1/audit/logs/${id}/verify`);
 }
 
 // ==================== Chain Verification ====================
 
 export function verifyChain(params?: { fromSequence?: number; toSequence?: number }) {
   return api.post<{ result: ChainVerificationResult; verifiedAt: string }>(
-    '/api/audit/verify',
+    '/api/v1/audit/verify',
     params
   );
 }
@@ -121,33 +121,33 @@ export function verifyChain(params?: { fromSequence?: number; toSequence?: numbe
 // ==================== Chain Info ====================
 
 export function getChainInfo() {
-  return api.get<ChainInfo>('/api/audit/chain/info');
+  return api.get<ChainInfo>('/api/v1/audit/chain/info');
 }
 
 export function getChainGenesis() {
-  return api.get<{ genesisHash: string }>('/api/audit/chain/genesis');
+  return api.get<{ genesisHash: string }>('/api/v1/audit/chain/genesis');
 }
 
 export function getChainLatest() {
-  return api.get<AuditLogEntry>('/api/audit/chain/latest');
+  return api.get<AuditLogEntry>('/api/v1/audit/chain/latest');
 }
 
 // ==================== Storage Management ====================
 
 export function getStorageStats() {
-  return api.get<StorageStats>('/api/audit/storage/stats');
+  return api.get<StorageStats>('/api/v1/audit/storage/stats');
 }
 
 export function flushStorage() {
-  return api.post<{ status: string }>('/api/audit/storage/flush');
+  return api.post<{ status: string }>('/api/v1/audit/storage/flush');
 }
 
 // ==================== Reports ====================
 
 export function generateReport() {
-  return api.post<{ report: IntegrityReport }>('/api/audit/report/generate');
+  return api.post<{ report: IntegrityReport }>('/api/v1/audit/report/generate');
 }
 
 export function getReports() {
-  return api.get<{ reports: IntegrityReport[] }>('/api/audit/reports');
+  return api.get<{ reports: IntegrityReport[] }>('/api/v1/audit/reports');
 }

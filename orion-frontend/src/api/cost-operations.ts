@@ -83,7 +83,7 @@ export interface BudgetGateResult {
 // ---- Cost Overview API ----
 
 export function getCostOverview(params?: { projectId?: string; period?: string }) {
-  return api.get<CostOverview>('/api/cost-operations/overview', { params });
+  return api.get<CostOverview>('/api/v1/cost-operations/overview', { params });
 }
 
 export function getCostTrend(params?: {
@@ -91,11 +91,11 @@ export function getCostTrend(params?: {
   serviceName?: string;
   granularity?: 'daily' | 'weekly' | 'monthly';
 }) {
-  return api.get<{ trends: CostTrendPoint[] }>('/api/cost-operations/trend', { params });
+  return api.get<{ trends: CostTrendPoint[] }>('/api/v1/cost-operations/trend', { params });
 }
 
 export function getCostByService(params?: { period?: string }) {
-  return api.get<{ services: CostByService[] }>('/api/cost-operations/by-service', { params });
+  return api.get<{ services: CostByService[] }>('/api/v1/cost-operations/by-service', { params });
 }
 
 // ---- Anomaly Detection API ----
@@ -105,7 +105,7 @@ export function getCostAnomalies(params?: {
   severity?: string;
   serviceName?: string;
 }) {
-  return api.get<{ anomalies: CostAnomaly[] }>('/api/cost-operations/anomalies', { params });
+  return api.get<{ anomalies: CostAnomaly[] }>('/api/v1/cost-operations/anomalies', { params });
 }
 
 // ---- Optimization API ----
@@ -116,23 +116,23 @@ export function getOptimizationSuggestions(params?: {
   minSavings?: number;
 }) {
   return api.get<{ suggestions: OptimizationSuggestion[] }>(
-    '/api/cost-operations/optimizations',
+    '/api/v1/cost-operations/optimizations',
     { params }
   );
 }
 
 export function applyOptimization(suggestionId: string) {
-  return api.post(`/api/cost-operations/optimizations/${suggestionId}/apply`);
+  return api.post(`/api/v1/cost-operations/optimizations/${suggestionId}/apply`);
 }
 
 export function rejectOptimization(suggestionId: string) {
-  return api.post(`/api/cost-operations/optimizations/${suggestionId}/reject`);
+  return api.post(`/api/v1/cost-operations/optimizations/${suggestionId}/reject`);
 }
 
 // ---- Budget API ----
 
 export function getBudgets(params?: { projectId?: string }) {
-  return api.get<{ budgets: BudgetConfig[] }>('/api/cost-operations/budgets', { params });
+  return api.get<{ budgets: BudgetConfig[] }>('/api/v1/cost-operations/budgets', { params });
 }
 
 export function createBudget(data: {
@@ -142,19 +142,19 @@ export function createBudget(data: {
   services: string[];
   alerts: BudgetAlertConfig[];
 }) {
-  return api.post<BudgetConfig>('/api/cost-operations/budgets', data);
+  return api.post<BudgetConfig>('/api/v1/cost-operations/budgets', data);
 }
 
 export function updateBudget(budgetId: string, data: Partial<typeof createBudget.arguments>) {
-  return api.put<BudgetConfig>(`/api/cost-operations/budgets/${budgetId}`, data);
+  return api.put<BudgetConfig>(`/api/v1/cost-operations/budgets/${budgetId}`, data);
 }
 
 export function deleteBudget(budgetId: string) {
-  return api.delete(`/api/cost-operations/budgets/${budgetId}`);
+  return api.delete(`/api/v1/cost-operations/budgets/${budgetId}`);
 }
 
 export function checkBudgetGate(pipelineId: string, estimatedCost: number) {
-  return api.post<BudgetGateResult>('/api/cost-operations/budget-gate/check', {
+  return api.post<BudgetGateResult>('/api/v1/cost-operations/budget-gate/check', {
     pipelineId,
     estimatedCost,
   });
@@ -196,19 +196,19 @@ export interface EvaluationResult {
 
 export function getBudgetGuards(params?: { tenantId?: string }) {
   return api.get<{ success: boolean; data: BudgetGuard[] }>(
-    '/api/cost-operations/budget-guards',
+    '/api/v1/cost-operations/budget-guards',
     { params },
   );
 }
 
 export function createBudgetGuard(data: BudgetGuardInput) {
-  return api.post<{ success: boolean; data: BudgetGuard }>('/api/cost-operations/budget-guards', data);
+  return api.post<{ success: boolean; data: BudgetGuard }>('/api/v1/cost-operations/budget-guards', data);
 }
 
 export function evaluateBudgetGuard(pipelineId: string, estimatedCost: number, options?: {
   tenantId?: string; projectId?: string; environment?: string;
 }) {
-  return api.post<{ success: boolean; data: EvaluationResult }>('/api/cost-operations/evaluate', {
+  return api.post<{ success: boolean; data: EvaluationResult }>('/api/v1/cost-operations/evaluate', {
     pipelineId, estimatedCost, ...options,
   });
 }
@@ -225,7 +225,7 @@ export interface CostForecastResult {
 
 export function getCostForecast(params?: { days?: number; tenantId?: string }) {
   return api.get<{ success: boolean; data: CostForecastResult }>(
-    '/api/cost-operations/forecast',
+    '/api/v1/cost-operations/forecast',
     { params },
   );
 }

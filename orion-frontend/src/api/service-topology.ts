@@ -1,7 +1,7 @@
 /**
  * Service Topology API Client
  *
- * Maps to /api/service-topology endpoints.
+ * Maps to /api/v1/service-topology endpoints.
  */
 
 import apiClient from './client';
@@ -41,15 +41,15 @@ export interface ServiceDependencies {
 
 export const serviceTopologyApi = {
   getTopology() {
-    return apiClient.get<TopologyGraph>('/api/service-topology/topology');
+    return apiClient.get<TopologyGraph>('/api/v1/service-topology/topology');
   },
 
   getServiceTopology(serviceId: string) {
-    return apiClient.get<TopologyGraph>(`/api/service-topology/topology/${encodeURIComponent(serviceId)}`);
+    return apiClient.get<TopologyGraph>(`/api/v1/service-topology/topology/${encodeURIComponent(serviceId)}`);
   },
 
   getServiceDependencies(serviceId: string) {
-    return apiClient.get<ServiceDependencies>(`/api/service-topology/dependencies/${encodeURIComponent(serviceId)}`);
+    return apiClient.get<ServiceDependencies>(`/api/v1/service-topology/dependencies/${encodeURIComponent(serviceId)}`);
   },
 };
 

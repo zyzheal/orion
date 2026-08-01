@@ -2,7 +2,7 @@
  * Report & Dashboard API Client
  *
  * 仪表盘、报表、模板、定时报表、权限和分享链接 API
- * 后端前缀: /api/report-dashboard
+ * 后端前缀: /api/v1/report-dashboard
  */
 
 import apiClient from './client';

@@ -191,53 +191,53 @@ export interface ArtifactListParams {
 // ---- CRUD ----
 
 export function getArtifacts(params?: ArtifactListParams) {
-  return api.get<Artifact[]>('/api/artifacts', { params });
+  return api.get<Artifact[]>('/api/v1/artifacts', { params });
 }
 
 export function getArtifact(id: string) {
-  return api.get<Artifact>(`/api/artifacts/${id}`);
+  return api.get<Artifact>(`/api/v1/artifacts/${id}`);
 }
 
 export function createArtifact(data: CreateArtifactInput) {
-  return api.post<Artifact>('/api/artifacts', data);
+  return api.post<Artifact>('/api/v1/artifacts', data);
 }
 
 export function updateArtifact(id: string, data: UpdateArtifactInput) {
-  return api.put<Artifact>(`/api/artifacts/${id}`, data);
+  return api.put<Artifact>(`/api/v1/artifacts/${id}`, data);
 }
 
 export function deleteArtifact(id: string) {
-  return api.delete(`/api/artifacts/${id}`);
+  return api.delete(`/api/v1/artifacts/${id}`);
 }
 
 // ---- Search ----
 
 export function searchArtifacts(query: string, params?: { type?: string; namespace?: string }) {
-  return api.get<Artifact[]>('/api/artifacts/search', { params: { q: query, ...params } });
+  return api.get<Artifact[]>('/api/v1/artifacts/search', { params: { q: query, ...params } });
 }
 
 // ---- Tags ----
 
 export function getArtifactTags(id: string) {
-  return api.get<Tag[]>(`/api/artifacts/${id}/tags`);
+  return api.get<Tag[]>(`/api/v1/artifacts/${id}/tags`);
 }
 
 export function addArtifactTags(id: string, tags: string[]) {
-  return api.post<Tag[]>(`/api/artifacts/${id}/tags`, { tags });
+  return api.post<Tag[]>(`/api/v1/artifacts/${id}/tags`, { tags });
 }
 
 export function removeArtifactTags(id: string, tags: string[]) {
-  return api.delete(`/api/artifacts/${id}/tags`, { data: { tags } });
+  return api.delete(`/api/v1/artifacts/${id}/tags`, { data: { tags } });
 }
 
 // ---- Download ----
 
 export function downloadArtifact(id: string) {
-  return api.get<{ url: string }>(`/api/artifacts/${id}/download`);
+  return api.get<{ url: string }>(`/api/v1/artifacts/${id}/download`);
 }
 
 export function getDownloadHistory(id: string) {
-  return api.get<DownloadRecord[]>(`/api/artifacts/${id}/downloads`);
+  return api.get<DownloadRecord[]>(`/api/v1/artifacts/${id}/downloads`);
 }
 
 // ---- Promotion ----
@@ -246,37 +246,37 @@ export function promoteArtifact(
   id: string,
   data: { promotedBy: string; approvedBy?: string; reason?: string }
 ) {
-  return api.post<PromotionRecord>(`/api/artifacts/${id}/promote`, data);
+  return api.post<PromotionRecord>(`/api/v1/artifacts/${id}/promote`, data);
 }
 
 export function getCurrentStage(id: string) {
-  return api.get<{ stage: ArtifactStage }>(`/api/artifacts/${id}/stage`);
+  return api.get<{ stage: ArtifactStage }>(`/api/v1/artifacts/${id}/stage`);
 }
 
 export function getPromotionHistory(id: string) {
-  return api.get<PromotionRecord[]>(`/api/artifacts/${id}/history`);
+  return api.get<PromotionRecord[]>(`/api/v1/artifacts/${id}/history`);
 }
 
 // ---- Lifecycle ----
 
 export function deprecateArtifact(id: string) {
-  return api.post(`/api/artifacts/${id}/deprecate`);
+  return api.post(`/api/v1/artifacts/${id}/deprecate`);
 }
 
 export function quarantineArtifact(id: string) {
-  return api.post(`/api/artifacts/${id}/quarantine`);
+  return api.post(`/api/v1/artifacts/${id}/quarantine`);
 }
 
 // ---- Stats ----
 
 export function getArtifactStats() {
-  return api.get<ArtifactStats>('/api/artifacts/stats');
+  return api.get<ArtifactStats>('/api/v1/artifacts/stats');
 }
 
 export function getArtifactTypeStats() {
-  return api.get<ArtifactTypeStats>('/api/artifacts/types');
+  return api.get<ArtifactTypeStats>('/api/v1/artifacts/types');
 }
 
 export function getNamespaces() {
-  return api.get<string[]>('/api/artifacts/namespaces');
+  return api.get<string[]>('/api/v1/artifacts/namespaces');
 }

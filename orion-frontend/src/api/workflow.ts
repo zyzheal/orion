@@ -2,7 +2,7 @@
  * Workflow API Service
  * 低代码工作流设计器 API 客户端
  *
- * Backend routes: /api/workflows
+ * Backend routes: /api/v1/workflows
  */
 import { api } from './client';
 
@@ -84,7 +84,7 @@ export async function getWorkflowList(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.offset) query.set('offset', String(params.offset));
   const qs = query.toString();
-  const response = await api.get<WorkflowDefinition[]>(`/api/workflows${qs ? `?${qs}` : ''}`);
+  const response = await api.get<WorkflowDefinition[]>(`/api/v1/workflows${qs ? `?${qs}` : ''}`);
   // 拦截器已自动解包，response.data 直接是响应数据
   return (response.data as { data?: WorkflowDefinition[] }).data ?? [];
 }
@@ -93,7 +93,7 @@ export async function getWorkflowList(params?: {
  * 获取单个工作流定义
  */
 export async function getWorkflow(id: string): Promise<WorkflowDefinition> {
-  const response = await api.get<WorkflowDefinition>(`/api/workflows/${id}`);
+  const response = await api.get<WorkflowDefinition>(`/api/v1/workflows/${id}`);
   // 拦截器已自动解包，response.data 直接是响应数据
   return response.data as WorkflowDefinition;
 }
@@ -113,7 +113,7 @@ export async function createWorkflow(data: {
   }>;
   triggers?: string[];
 }): Promise<WorkflowDefinition> {
-  const response = await api.post<WorkflowDefinition>('/api/workflows', data);
+  const response = await api.post<WorkflowDefinition>('/api/v1/workflows', data);
   // 拦截器已自动解包，response.data 直接是响应数据
   return response.data as WorkflowDefinition;
 }
@@ -131,7 +131,7 @@ export async function updateWorkflow(
     enabled: boolean;
   }>
 ): Promise<WorkflowDefinition> {
-  const response = await api.put<WorkflowDefinition>(`/api/workflows/${id}`, data);
+  const response = await api.put<WorkflowDefinition>(`/api/v1/workflows/${id}`, data);
   // 拦截器已自动解包，response.data 直接是响应数据
   return response.data as WorkflowDefinition;
 }
@@ -140,7 +140,7 @@ export async function updateWorkflow(
  * 删除工作流
  */
 export async function deleteWorkflow(id: string): Promise<void> {
-  await api.delete(`/api/workflows/${id}`);
+  await api.delete(`/api/v1/workflows/${id}`);
 }
 
 /**
@@ -153,7 +153,7 @@ export async function executeWorkflow(
     initialInput?: Record<string, unknown>;
   }
 ): Promise<WorkflowExecution> {
-  const response = await api.post<WorkflowExecution>(`/api/workflows/${id}/execute`, {
+  const response = await api.post<WorkflowExecution>(`/api/v1/workflows/${id}/execute`, {
     triggeredBy: input?.triggeredBy || 'system',
     initialInput: input?.initialInput || {},
   });
@@ -165,7 +165,7 @@ export async function executeWorkflow(
  * 获取执行历史
  */
 export async function getExecutionHistory(id: string): Promise<WorkflowExecution[]> {
-  const response = await api.get<WorkflowExecution[]>(`/api/workflows/${id}/executions`);
+  const response = await api.get<WorkflowExecution[]>(`/api/v1/workflows/${id}/executions`);
   // 拦截器已自动解包，response.data 直接是响应数据
   return (response.data as { data?: WorkflowExecution[] }).data ?? [];
 }
@@ -174,7 +174,7 @@ export async function getExecutionHistory(id: string): Promise<WorkflowExecution
  * 获取执行详情
  */
 export async function getExecutionDetail(executionId: string): Promise<WorkflowExecution> {
-  const response = await api.get<WorkflowExecution>(`/api/workflows/executions/${executionId}`);
+  const response = await api.get<WorkflowExecution>(`/api/v1/workflows/executions/${executionId}`);
   // 拦截器已自动解包，response.data 直接是响应数据
   return response.data as WorkflowExecution;
 }
@@ -183,7 +183,7 @@ export async function getExecutionDetail(executionId: string): Promise<WorkflowE
  * 暂停工作流
  */
 export async function suspendWorkflow(id: string): Promise<WorkflowDefinition> {
-  const response = await api.post<WorkflowDefinition>(`/api/workflows/${id}/pause`);
+  const response = await api.post<WorkflowDefinition>(`/api/v1/workflows/${id}/pause`);
   // 拦截器已自动解包，response.data 直接是响应数据
   return response.data as WorkflowDefinition;
 }
@@ -192,7 +192,7 @@ export async function suspendWorkflow(id: string): Promise<WorkflowDefinition> {
  * 恢复工作流
  */
 export async function resumeWorkflow(id: string): Promise<WorkflowDefinition> {
-  const response = await api.post<WorkflowDefinition>(`/api/workflows/${id}/resume`);
+  const response = await api.post<WorkflowDefinition>(`/api/v1/workflows/${id}/resume`);
   // 拦截器已自动解包，response.data 直接是响应数据
   return response.data as WorkflowDefinition;
 }

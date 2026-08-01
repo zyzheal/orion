@@ -1,7 +1,7 @@
 /**
  * Approval Flow Management API Client
  *
- * 后端 API 前缀: /api/approvals
+ * 后端 API 前缀: /api/v1/approvals
  * 覆盖: 审批流程配置、审批记录、审批模板、超时管理
  *
  * 后端路由: orion-platform-service/src/api/approval-routes.ts
@@ -180,69 +180,69 @@ export interface ApprovalTemplateListResponse {
 
 /**
  * 获取审批流程列表
- * GET /api/approvals/flows
+ * GET /api/v1/approvals/flows
  */
 export function getApprovalFlows(params?: {
   capabilityId?: string;
   environment?: string;
   riskLevel?: number;
 }) {
-  return api.get<ApprovalFlowConfig[]>('/api/approvals/flows', { params });
+  return api.get<ApprovalFlowConfig[]>('/api/v1/approvals/flows', { params });
 }
 
 /**
  * 获取单个审批流程
- * GET /api/approvals/flows/:id
+ * GET /api/v1/approvals/flows/:id
  */
 export function getApprovalFlow(id: string) {
-  return api.get<ApprovalFlowConfig>(`/api/approvals/flows/${id}`);
+  return api.get<ApprovalFlowConfig>(`/api/v1/approvals/flows/${id}`);
 }
 
 /**
  * 创建审批流程
- * POST /api/approvals/flows
+ * POST /api/v1/approvals/flows
  */
 export function createApprovalFlow(data: CreateApprovalFlowInput) {
-  return api.post<ApprovalFlowConfig>('/api/approvals/flows', data);
+  return api.post<ApprovalFlowConfig>('/api/v1/approvals/flows', data);
 }
 
 /**
  * 更新审批流程
- * PUT /api/approvals/flows/:id
+ * PUT /api/v1/approvals/flows/:id
  */
 export function updateApprovalFlow(id: string, data: UpdateApprovalFlowInput) {
-  return api.put<ApprovalFlowConfig>(`/api/approvals/flows/${id}`, data);
+  return api.put<ApprovalFlowConfig>(`/api/v1/approvals/flows/${id}`, data);
 }
 
 /**
  * 删除审批流程
- * DELETE /api/approvals/flows/:id
+ * DELETE /api/v1/approvals/flows/:id
  */
 export function deleteApprovalFlow(id: string) {
-  return api.delete(`/api/approvals/flows/${id}`);
+  return api.delete(`/api/v1/approvals/flows/${id}`);
 }
 
 // ---- 审批记录 ----
 
 /**
  * 获取所有待审批
- * GET /api/approvals
+ * GET /api/v1/approvals
  */
 export function getApprovals() {
-  return api.get<ApprovalListResponse>('/api/approvals');
+  return api.get<ApprovalListResponse>('/api/v1/approvals');
 }
 
 /**
  * 获取单个审批详情
- * GET /api/approvals/requests/:id
+ * GET /api/v1/approvals/requests/:id
  */
 export function getApproval(id: string) {
-  return api.get<ApprovalChainInfo>(`/api/approvals/requests/${id}`);
+  return api.get<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}`);
 }
 
 /**
  * 提交审批请求
- * POST /api/approvals/requests
+ * POST /api/v1/approvals/requests
  */
 export function submitApprovalRequest(data: {
   title: string;
@@ -254,67 +254,67 @@ export function submitApprovalRequest(data: {
   mode?: ApprovalMode;
   metadata?: Record<string, unknown>;
 }) {
-  return api.post<ApprovalChainInfo>('/api/approvals/requests', data);
+  return api.post<ApprovalChainInfo>('/api/v1/approvals/requests', data);
 }
 
 /**
  * 审批操作 (通用)
- * POST /api/approvals/requests/:id/review
+ * POST /api/v1/approvals/requests/:id/review
  */
 export function reviewApproval(
   id: string,
   data: { reviewerId: string; action: 'approve' | 'reject'; comment?: string }
 ) {
-  return api.post<ApprovalChainInfo>(`/api/approvals/requests/${id}/review`, data);
+  return api.post<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}/review`, data);
 }
 
 /**
  * 审批通过
- * POST /api/approvals/requests/:id/approve
+ * POST /api/v1/approvals/requests/:id/approve
  */
 export function approveRequest(id: string, data: { reviewerId: string; comment?: string }) {
-  return api.post<ApprovalChainInfo>(`/api/approvals/requests/${id}/approve`, data);
+  return api.post<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}/approve`, data);
 }
 
 /**
  * 审批拒绝
- * POST /api/approvals/requests/:id/reject
+ * POST /api/v1/approvals/requests/:id/reject
  */
 export function rejectRequest(id: string, data: { reviewerId: string; comment?: string }) {
-  return api.post<ApprovalChainInfo>(`/api/approvals/requests/${id}/reject`, data);
+  return api.post<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}/reject`, data);
 }
 
 /**
  * 获取审批历史
- * GET /api/approvals/requests/:id/history
+ * GET /api/v1/approvals/requests/:id/history
  */
 export function getApprovalHistory(id: string) {
   return api.get<{ requestId: string; title: string; status: string; totalLevels: number; history: ApprovalStepDetail[] }>(
-    `/api/approvals/requests/${id}/history`
+    `/api/v1/approvals/requests/${id}/history`
   );
 }
 
 /**
  * 获取待审批列表 (按用户)
- * GET /api/approvals/pending
+ * GET /api/v1/approvals/pending
  */
 export function getPendingApprovals(params?: { userId?: string; tenantId?: string }) {
-  return api.get<ApprovalChainInfo[]>('/api/approvals/pending', { params });
+  return api.get<ApprovalChainInfo[]>('/api/v1/approvals/pending', { params });
 }
 
 // ---- 审批模板 ----
 
 /**
  * 获取审批模板列表
- * GET /api/approvals/templates
+ * GET /api/v1/approvals/templates
  */
 export function getApprovalTemplates(params?: { tenantId?: string }) {
-  return api.get<ApprovalTemplate[]>('/api/approvals/templates', { params });
+  return api.get<ApprovalTemplate[]>('/api/v1/approvals/templates', { params });
 }
 
 /**
  * 创建审批模板
- * POST /api/approvals/templates
+ * POST /api/v1/approvals/templates
  */
 export function createApprovalTemplate(data: {
   name: string;
@@ -325,51 +325,51 @@ export function createApprovalTemplate(data: {
   isDefault?: boolean;
   tenantId?: string;
 }) {
-  return api.post<ApprovalTemplate>('/api/approvals/templates', data);
+  return api.post<ApprovalTemplate>('/api/v1/approvals/templates', data);
 }
 
 // ---- 超时配置 ----
 
 /**
  * 获取超时配置列表
- * GET /api/approvals/timeout-configs
+ * GET /api/v1/approvals/timeout-configs
  */
 export function getTimeoutConfigs(params?: { resourceType?: string }) {
-  return api.get<ApprovalTimeoutConfig[]>('/api/approvals/timeout-configs', { params });
+  return api.get<ApprovalTimeoutConfig[]>('/api/v1/approvals/timeout-configs', { params });
 }
 
 /**
  * 创建超时配置
- * POST /api/approvals/timeout-configs
+ * POST /api/v1/approvals/timeout-configs
  */
 export function createTimeoutConfig(data: Omit<ApprovalTimeoutConfig, 'id' | 'createdAt' | 'updatedAt'>) {
-  return api.post<ApprovalTimeoutConfig>('/api/approvals/timeout-configs', data);
+  return api.post<ApprovalTimeoutConfig>('/api/v1/approvals/timeout-configs', data);
 }
 
 /**
  * 更新超时配置
- * PUT /api/approvals/timeout-configs/:id
+ * PUT /api/v1/approvals/timeout-configs/:id
  */
 export function updateTimeoutConfig(
   id: string,
   data: Partial<Omit<ApprovalTimeoutConfig, 'id' | 'createdAt' | 'updatedAt'>>
 ) {
-  return api.put<ApprovalTimeoutConfig>(`/api/approvals/timeout-configs/${id}`, data);
+  return api.put<ApprovalTimeoutConfig>(`/api/v1/approvals/timeout-configs/${id}`, data);
 }
 
 /**
  * 删除超时配置
- * DELETE /api/approvals/timeout-configs/:id
+ * DELETE /api/v1/approvals/timeout-configs/:id
  */
 export function deleteTimeoutConfig(id: string) {
-  return api.delete(`/api/approvals/timeout-configs/${id}`);
+  return api.delete(`/api/v1/approvals/timeout-configs/${id}`);
 }
 
 // ---- 紧急审批 ----
 
 /**
  * 紧急审批
- * POST /api/approvals/emergency
+ * POST /api/v1/approvals/emergency
  */
 export function requestEmergencyApproval(data: {
   title: string;
@@ -382,14 +382,14 @@ export function requestEmergencyApproval(data: {
   approverIds: string[];
   metadata?: Record<string, unknown>;
 }) {
-  return api.post<ApprovalChainInfo>('/api/approvals/emergency', data);
+  return api.post<ApprovalChainInfo>('/api/v1/approvals/emergency', data);
 }
 
 // ---- Agent 分析 ----
 
 /**
  * Agent 自动分析
- * POST /api/approvals/agent/analyze
+ * POST /api/v1/approvals/agent/analyze
  */
 export function agentAnalyze(data: {
   requestId?: string;
@@ -397,5 +397,5 @@ export function agentAnalyze(data: {
   resourceId?: string;
   context?: Record<string, unknown>;
 }) {
-  return api.post('/api/approvals/agent/analyze', data);
+  return api.post('/api/v1/approvals/agent/analyze', data);
 }

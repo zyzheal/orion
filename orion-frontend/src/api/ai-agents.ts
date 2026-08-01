@@ -1,7 +1,7 @@
 /**
  * AI Agent 管理 API Client
  *
- * 后端 API 前缀: /api/ai-agents
+ * 后端 API 前缀: /api/v1/ai-agents
  * 路由文件: orion-platform-service/src/api/ai-agent-routes.ts
  */
 
@@ -44,16 +44,16 @@ export interface AgentExecutionResult {
 
 export const aiAgentApi = {
   // 获取 Agent 列表
-  getList: () => api.get<AgentInfo[]>('/api/ai-agents/list'),
+  getList: () => api.get<AgentInfo[]>('/api/v1/ai-agents/list'),
 
   // 获取 Agent 详情
-  getById: (id: string) => api.get<AgentInfo>(`/api/ai-agents/${id}`),
+  getById: (id: string) => api.get<AgentInfo>(`/api/v1/ai-agents/${id}`),
 
   // 获取 Agent 审计日志
   getAuditLogs: (id: string, limit = 100) =>
-    api.get<AuditLogEntry[]>(`/api/ai-agents/${id}/audit-logs`, { params: { limit } }),
+    api.get<AuditLogEntry[]>(`/api/v1/ai-agents/${id}/audit-logs`, { params: { limit } }),
 
   // 执行 Agent
   execute: (id: string, input: Record<string, unknown>) =>
-    api.post<AgentExecutionResult>(`/api/ai-agents/${id}/execute`, input),
+    api.post<AgentExecutionResult>(`/api/v1/ai-agents/${id}/execute`, input),
 };

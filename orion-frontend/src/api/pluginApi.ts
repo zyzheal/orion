@@ -73,14 +73,14 @@ export interface DiagnoseContext {
  * Get built-in plugins
  */
 export function getBuiltInPlugins() {
-  return api.get<ApiResponse>('/api/plugins-spi');
+  return api.get<ApiResponse>('/api/v1/plugins-spi');
 }
 
 /**
  * Search marketplace for plugins
  */
 export function searchMarketplace(query: string) {
-  return api.get<ApiResponse>(`/api/plugins/marketplace`, {
+  return api.get<ApiResponse>(`/api/v1/plugins/marketplace`, {
     params: { query },
   });
 }
@@ -89,14 +89,14 @@ export function searchMarketplace(query: string) {
  * Get enhanced plugin details
  */
 export function getEnhancedPlugin(pluginId: string) {
-  return api.get<ApiResponse>(`/api/plugins-enhanced/${pluginId}`);
+  return api.get<ApiResponse>(`/api/v1/plugins-enhanced/${pluginId}`);
 }
 
 /**
  * Install a plugin from marketplace
  */
 export function installPlugin(pluginId: string, version: string) {
-  return api.post<ApiResponse>(`/api/plugins/marketplace/${pluginId}/install`, {
+  return api.post<ApiResponse>(`/api/v1/plugins/marketplace/${pluginId}/install`, {
     version,
   });
 }
@@ -105,7 +105,7 @@ export function installPlugin(pluginId: string, version: string) {
  * Uninstall a plugin
  */
 export function uninstallPlugin(pluginId: string) {
-  return api.delete<ApiResponse>(`/api/plugins-enhanced/${pluginId}`);
+  return api.delete<ApiResponse>(`/api/v1/plugins-enhanced/${pluginId}`);
 }
 
 /**
@@ -113,7 +113,7 @@ export function uninstallPlugin(pluginId: string) {
  */
 export function getPluginAuditLogs(limit = 50) {
   return api.get<ApiResponse<{ logs: PluginAuditLog[] }>>(
-    `/api/plugins-enhanced/audit`,
+    `/api/v1/plugins-enhanced/audit`,
     { params: { limit } }
   );
 }
@@ -126,35 +126,35 @@ export function getPluginAuditLogs(limit = 50) {
  * Scan code
  */
 export function scanCode(config: ScanConfig) {
-  return api.post<ApiResponse>('/api/scripts/scan', { config });
+  return api.post<ApiResponse>('/api/v1/scripts/scan', { config });
 }
 
 /**
  * Dry run a script
  */
 export function dryRun(req: DryRunRequest) {
-  return api.post<ApiResponse>('/api/scripts/dry-run', req);
+  return api.post<ApiResponse>('/api/v1/scripts/dry-run', req);
 }
 
 /**
  * Request approval
  */
 export function requestApproval(params: ApprovalParams) {
-  return api.post<ApiResponse>('/api/scripts/approval', params);
+  return api.post<ApiResponse>('/api/v1/scripts/approval', params);
 }
 
 /**
  * Get approval status
  */
 export function getApprovalStatus(approvalId: string) {
-  return api.get<ApiResponse<ApprovalStatus>>(`/api/scripts/approval/${approvalId}`);
+  return api.get<ApiResponse<ApprovalStatus>>(`/api/v1/scripts/approval/${approvalId}`);
 }
 
 /**
  * AI generate script
  */
 export function aiGenerate(prompt: string) {
-  return api.post<ApiResponse>('/api/scripts/ai-generate', { prompt });
+  return api.post<ApiResponse>('/api/v1/scripts/ai-generate', { prompt });
 }
 
 // ============================================================================
@@ -166,7 +166,7 @@ export function aiGenerate(prompt: string) {
  */
 export function getTimeline(runId: string) {
   return api.get<ApiResponse<TimelineData>>(
-    `/api/plugins-enhanced/${runId}/timeline`
+    `/api/v1/plugins-enhanced/${runId}/timeline`
   );
 }
 
@@ -174,5 +174,5 @@ export function getTimeline(runId: string) {
  * AI diagnose
  */
 export function aiDiagnose(context: DiagnoseContext) {
-  return api.post<ApiResponse>('/api/plugins-enhanced/ai-diagnose', { context });
+  return api.post<ApiResponse>('/api/v1/plugins-enhanced/ai-diagnose', { context });
 }

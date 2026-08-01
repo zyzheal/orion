@@ -29,17 +29,17 @@ export interface ApiKeyStats {
 }
 
 export async function getApiKeys() {
-  return api.get<ApiKey[]>('/api/api-keys');
+  return api.get<ApiKey[]>('/api/v1/api-keys');
 }
 
 export async function createApiKey(input: ApiKeyInput) {
-  return api.post<ApiKey>('/api/api-keys', input);
+  return api.post<ApiKey>('/api/v1/api-keys', input);
 }
 
 export async function revokeApiKey(id: string) {
-  return api.delete<void>(`/api/api-keys/${id}`);
+  return api.delete<void>(`/api/v1/api-keys/${id}`);
 }
 
 export async function getApiKeyStats() {
-  return api.get<ApiKeyStats>('/api/api-keys/stats');
+  return api.get<ApiKeyStats>('/api/v1/api-keys/stats');
 }

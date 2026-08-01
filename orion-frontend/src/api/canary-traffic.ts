@@ -30,32 +30,32 @@ export const canaryTrafficApi = {
     baselineVersion: string;
     initialTrafficSplit?: { canary: number; baseline: number };
   }) => {
-    const response = await apiClient.post('/api/canary/deployments', data);
+    const response = await apiClient.post('/api/v1/canary/deployments', data);
     return response.data as CanaryDeployment;
   },
 
   listCanaryDeployments: async (params?: { serviceName?: string; status?: string }) => {
-    const response = await apiClient.get('/api/canary/deployments', { params });
+    const response = await apiClient.get('/api/v1/canary/deployments', { params });
     return response.data as CanaryDeployment[];
   },
 
   getCanaryDeployment: async (id: string) => {
-    const response = await apiClient.get(`/api/canary/deployments/${id}`);
+    const response = await apiClient.get(`/api/v1/canary/deployments/${id}`);
     return response.data as CanaryDeployment;
   },
 
   configureTrafficSplit: async (id: string, data: TrafficSplitConfig) => {
-    const response = await apiClient.put(`/api/canary/deployments/${id}/traffic`, data);
+    const response = await apiClient.put(`/api/v1/canary/deployments/${id}/traffic`, data);
     return response.data as CanaryDeployment;
   },
 
   promoteCanary: async (id: string, data?: { reason?: string }) => {
-    const response = await apiClient.post(`/api/canary/deployments/${id}/promote`, data);
+    const response = await apiClient.post(`/api/v1/canary/deployments/${id}/promote`, data);
     return response.data;
   },
 
   rollbackCanary: async (id: string, data?: { reason?: string }) => {
-    const response = await apiClient.post(`/api/canary/deployments/${id}/rollback`, data);
+    const response = await apiClient.post(`/api/v1/canary/deployments/${id}/rollback`, data);
     return response.data;
   },
 };

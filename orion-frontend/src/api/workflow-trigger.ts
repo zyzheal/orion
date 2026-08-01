@@ -2,7 +2,7 @@
  * Workflow Trigger API Service
  * 工作流触发器 API 客户端
  *
- * Backend routes: /api/workflow-triggers
+ * Backend routes: /api/v1/workflow-triggers
  */
 import { api } from './client';
 
@@ -86,7 +86,7 @@ export async function getTriggers(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
   if (params?.offset) query.set('offset', String(params.offset));
 
-  const response = await api.get(`/api/workflow-triggers${query.toString() ? `?${query}` : ''}`);
+  const response = await api.get(`/api/v1/workflow-triggers${query.toString() ? `?${query}` : ''}`);
   return response.data as unknown as TriggerListResponse;
 }
 
@@ -94,7 +94,7 @@ export async function getTriggers(params?: {
  * 获取单个触发器
  */
 export async function getTrigger(id: string): Promise<WorkflowTrigger> {
-  const response = await api.get(`/api/workflow-triggers/${id}`);
+  const response = await api.get(`/api/v1/workflow-triggers/${id}`);
   return (response.data as unknown as TriggerResponse).data;
 }
 
@@ -102,7 +102,7 @@ export async function getTrigger(id: string): Promise<WorkflowTrigger> {
  * 创建触发器
  */
 export async function createTrigger(data: CreateWorkflowTriggerInput): Promise<WorkflowTrigger> {
-  const response = await api.post(`/api/workflow-triggers`, data);
+  const response = await api.post(`/api/v1/workflow-triggers`, data);
   return (response.data as unknown as TriggerResponse).data;
 }
 
@@ -110,7 +110,7 @@ export async function createTrigger(data: CreateWorkflowTriggerInput): Promise<W
  * 更新触发器
  */
 export async function updateTrigger(id: string, data: UpdateWorkflowTriggerInput): Promise<WorkflowTrigger> {
-  const response = await api.put(`/api/workflow-triggers/${id}`, data);
+  const response = await api.put(`/api/v1/workflow-triggers/${id}`, data);
   return (response.data as unknown as TriggerResponse).data;
 }
 
@@ -118,14 +118,14 @@ export async function updateTrigger(id: string, data: UpdateWorkflowTriggerInput
  * 删除触发器
  */
 export async function deleteTrigger(id: string): Promise<void> {
-  await api.delete(`/api/workflow-triggers/${id}`);
+  await api.delete(`/api/v1/workflow-triggers/${id}`);
 }
 
 /**
  * 启用触发器
  */
 export async function enableTrigger(id: string): Promise<WorkflowTrigger> {
-  const response = await api.post(`/api/workflow-triggers/${id}/enable`);
+  const response = await api.post(`/api/v1/workflow-triggers/${id}/enable`);
   return (response.data as unknown as TriggerResponse).data;
 }
 
@@ -133,6 +133,6 @@ export async function enableTrigger(id: string): Promise<WorkflowTrigger> {
  * 禁用触发器
  */
 export async function disableTrigger(id: string): Promise<WorkflowTrigger> {
-  const response = await api.post(`/api/workflow-triggers/${id}/disable`);
+  const response = await api.post(`/api/v1/workflow-triggers/${id}/disable`);
   return (response.data as unknown as TriggerResponse).data;
 }

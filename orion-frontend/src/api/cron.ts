@@ -29,29 +29,29 @@ export interface CronJobInput {
 }
 
 export async function getCronJobs() {
-  return api.get<CronJob[]>('/api/cron/jobs');
+  return api.get<CronJob[]>('/api/v1/cron/jobs');
 }
 
 export async function getCronJob(id: string) {
-  return api.get<CronJob>(`/api/cron/jobs/${id}`);
+  return api.get<CronJob>(`/api/v1/cron/jobs/${id}`);
 }
 
 export async function createCronJob(input: CronJobInput) {
-  return api.post<CronJob>('/api/cron/jobs', input);
+  return api.post<CronJob>('/api/v1/cron/jobs', input);
 }
 
 export async function updateCronJob(id: string, input: Partial<CronJobInput>) {
-  return api.put<CronJob>(`/api/cron/jobs/${id}`, input);
+  return api.put<CronJob>(`/api/v1/cron/jobs/${id}`, input);
 }
 
 export async function deleteCronJob(id: string) {
-  return api.delete<void>(`/api/cron/jobs/${id}`);
+  return api.delete<void>(`/api/v1/cron/jobs/${id}`);
 }
 
 export async function executeCronJob(id: string) {
-  return api.post<void>(`/api/cron/jobs/${id}/execute`);
+  return api.post<void>(`/api/v1/cron/jobs/${id}/execute`);
 }
 
 export async function getCronStatus() {
-  return api.get<{ running: number; total: number; enabled: number }>('/api/cron/status');
+  return api.get<{ running: number; total: number; enabled: number }>('/api/v1/cron/status');
 }

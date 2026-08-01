@@ -1,6 +1,6 @@
 /**
  * ABAC Policy API
- * 对接后端 /api/abac-policies 端点
+ * 对接后端 /api/v1/abac-policies 端点
  */
 
 import { api } from './client';

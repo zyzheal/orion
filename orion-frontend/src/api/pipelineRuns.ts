@@ -33,53 +33,53 @@ export interface GetAllPipelineRunsParams {
 
 /**
  * Get all pipeline runs (across all pipelines)
- * Maps to GET /api/pipeline-runs
+ * Maps to GET /api/v1/pipeline-runs
  */
 export function getAllPipelineRuns(params?: GetAllPipelineRunsParams) {
-  return api.get<PipelineRunListResponse>('/api/pipeline-runs', { params });
+  return api.get<PipelineRunListResponse>('/api/v1/pipeline-runs', { params });
 }
 
 /**
  * Retry a pipeline run
- * Maps to POST /api/pipeline-runs/:id/retry
+ * Maps to POST /api/v1/pipeline-runs/:id/retry
  */
 export function retryPipelineRun(
   runId: string,
   options?: { fromStage?: string; onlyFailed?: boolean }
 ) {
-  return api.post(`/api/pipeline-runs/${runId}/retry`, null, { params: options });
+  return api.post(`/api/v1/pipeline-runs/${runId}/retry`, null, { params: options });
 }
 
 /**
  * Cancel a pipeline run
- * Maps to POST /api/pipeline-runs/:id/cancel
+ * Maps to POST /api/v1/pipeline-runs/:id/cancel
  */
 export function cancelPipelineRun(runId: string) {
-  return api.post(`/api/pipeline-runs/${runId}/cancel`);
+  return api.post(`/api/v1/pipeline-runs/${runId}/cancel`);
 }
 
 /**
  * Get pipeline run detail with stages and tasks
- * Maps to GET /api/pipeline-runs/:id
+ * Maps to GET /api/v1/pipeline-runs/:id
  */
 export function getPipelineRunDetail(runId: string) {
-  return api.get(`/api/pipeline-runs/${runId}`);
+  return api.get(`/api/v1/pipeline-runs/${runId}`);
 }
 
 /**
  * Retry a pipeline run from a specific stage (retry-from-stage)
- * Maps to POST /api/pipeline-runs/:id/retry?fromStage=stageId
+ * Maps to POST /api/v1/pipeline-runs/:id/retry?fromStage=stageId
  */
 export function retryFromStage(runId: string, stageId: string) {
-  return api.post(`/api/pipeline-runs/${runId}/retry`, null, {
+  return api.post(`/api/v1/pipeline-runs/${runId}/retry`, null, {
     params: { fromStage: stageId },
   });
 }
 
 /**
  * Get stages for a pipeline run
- * Maps to GET /api/pipeline-runs/:id/stages
+ * Maps to GET /api/v1/pipeline-runs/:id/stages
  */
 export function getPipelineRunStages(runId: string) {
-  return api.get(`/api/pipeline-runs/${runId}/stages`);
+  return api.get(`/api/v1/pipeline-runs/${runId}/stages`);
 }

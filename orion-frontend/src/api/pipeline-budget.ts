@@ -53,24 +53,24 @@ export interface BudgetEstimate {
 
 export const pipelineBudgetApi = {
   get: async (pipelineId: string) => {
-    const response = await apiClient.get(`/api/pipelines/${pipelineId}/budget`);
+    const response = await apiClient.get(`/api/v1/pipelines/${pipelineId}/budget`);
     return response.data as BudgetConfig;
   },
 
   set: async (pipelineId: string, config: BudgetConfig) => {
-    const response = await apiClient.put(`/api/pipelines/${pipelineId}/budget`, config);
+    const response = await apiClient.put(`/api/v1/pipelines/${pipelineId}/budget`, config);
     return response.data;
   },
 
   estimate: async (pipelineId: string, triggerType?: string) => {
-    const response = await apiClient.get(`/api/pipelines/${pipelineId}/budget/estimate`, {
+    const response = await apiClient.get(`/api/v1/pipelines/${pipelineId}/budget/estimate`, {
       params: { triggerType },
     });
     return response.data as BudgetEstimate;
   },
 
   getUsage: async (pipelineId: string, runId: string) => {
-    const response = await apiClient.get(`/api/pipelines/${pipelineId}/runs/${runId}/budget-usage`);
+    const response = await apiClient.get(`/api/v1/pipelines/${pipelineId}/runs/${runId}/budget-usage`);
     return response.data as BudgetUsage;
   },
 };

@@ -45,43 +45,43 @@ export interface SearchResult {
 // ---- Spaces ----
 
 export function listSpaces() {
-  return api.get<WikiSpace[]>('/api/knowledge/spaces');
+  return api.get<WikiSpace[]>('/api/v1/knowledge/spaces');
 }
 
 export function createSpace(data: CreateSpaceInput) {
-  return api.post('/api/knowledge/spaces', data);
+  return api.post('/api/v1/knowledge/spaces', data);
 }
 
 export function getSpace(id: string) {
-  return api.get(`/api/knowledge/spaces/${id}`);
+  return api.get(`/api/v1/knowledge/spaces/${id}`);
 }
 
 export function deleteSpace(id: string) {
-  return api.delete(`/api/knowledge/spaces/${id}`);
+  return api.delete(`/api/v1/knowledge/spaces/${id}`);
 }
 
 // ---- Documents ----
 
 export function listDocuments(spaceId: string) {
-  return api.get<WikiDocument[]>(`/api/knowledge/spaces/${spaceId}/documents`);
+  return api.get<WikiDocument[]>(`/api/v1/knowledge/spaces/${spaceId}/documents`);
 }
 
 export function createDocument(spaceId: string, data: CreateDocumentInput) {
-  return api.post(`/api/knowledge/spaces/${spaceId}/documents`, data);
+  return api.post(`/api/v1/knowledge/spaces/${spaceId}/documents`, data);
 }
 
 export function getDocument(spaceId: string, docId: string) {
-  return api.get(`/api/knowledge/spaces/${spaceId}/documents/${docId}`);
+  return api.get(`/api/v1/knowledge/spaces/${spaceId}/documents/${docId}`);
 }
 
 export function deleteDocument(spaceId: string, docId: string) {
-  return api.delete(`/api/knowledge/spaces/${spaceId}/documents/${docId}`);
+  return api.delete(`/api/v1/knowledge/spaces/${spaceId}/documents/${docId}`);
 }
 
 // ---- Search ----
 
 export function searchDocuments(query: string, spaceId?: string) {
-  return api.get<SearchResult[]>('/api/knowledge/search', {
+  return api.get<SearchResult[]>('/api/v1/knowledge/search', {
     params: { q: query, spaceId },
   });
 }

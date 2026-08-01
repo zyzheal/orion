@@ -55,11 +55,11 @@ export interface DLQEvent {
 }
 
 export async function getEventBusStatus() {
-  return api.get<EventBusStatus>('/api/eventbus/status');
+  return api.get<EventBusStatus>('/api/v1/eventbus/status');
 }
 
 export async function connectEventBus() {
-  return api.post<void>('/api/eventbus/connect');
+  return api.post<void>('/api/v1/eventbus/connect');
 }
 
 export async function publishEvent(
@@ -68,7 +68,7 @@ export async function publishEvent(
   tenantId?: string,
   publishedBy?: string
 ) {
-  return api.post<void>('/api/eventbus/publish', { subject, data, tenantId, publishedBy });
+  return api.post<void>('/api/v1/eventbus/publish', { subject, data, tenantId, publishedBy });
 }
 
 export async function getEvents(options?: { eventType?: string; status?: string; limit?: number }) {
@@ -77,29 +77,29 @@ export async function getEvents(options?: { eventType?: string; status?: string;
   if (options?.status) params.append('status', options.status);
   if (options?.limit) params.append('limit', String(options.limit));
   const qs = params.toString();
-  return api.get<EventBusEvent[]>(`/api/eventbus/events${qs ? '?' + qs : ''}`);
+  return api.get<EventBusEvent[]>(`/api/v1/eventbus/events${qs ? '?' + qs : ''}`);
 }
 
 export async function getSubscriptions(tenantId?: string) {
   const qs = tenantId ? `?tenantId=${tenantId}` : '';
-  return api.get<EventBusSubscription[]>(`/api/eventbus/subscriptions${qs}`);
+  return api.get<EventBusSubscription[]>(`/api/v1/eventbus/subscriptions${qs}`);
 }
 
 export async function getStats() {
-  return api.get<{ stats: Record<string, number> }>('/api/eventbus/stats');
+  return api.get<{ stats: Record<string, number> }>('/api/v1/eventbus/stats');
 }
 
 export async function getJetStreamMetrics() {
-  return api.get<JetStreamMetrics>('/api/eventbus/jetstream/metrics');
+  return api.get<JetStreamMetrics>('/api/v1/eventbus/jetstream/metrics');
 }
 
 export async function getStreamConsumers(streamName: string) {
   return api.get<{ stream: string; consumers: Array<{ name: string; pending: number }> }>(
-    `/api/eventbus/jetstream/streams/${streamName}/consumers`
+    `/api/v1/eventbus/jetstream/streams/${streamName}/consumers`
   );
 }
 
 export async function getDLQEvents(limit?: number) {
   const qs = limit ? `?limit=${limit}` : '';
-  return api.get<DLQEvent>(`/api/eventbus/dlq${qs}`);
+  return api.get<DLQEvent>(`/api/v1/eventbus/dlq${qs}`);
 }

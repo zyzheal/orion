@@ -134,23 +134,23 @@ export const getSpaces = async (params?: {
   page?: number;
   perPage?: number;
 }) => {
-  return api.get<Space[]>('/api/knowledge/spaces', { params });
+  return api.get<Space[]>('/api/v1/knowledge/api/v1/spaces', { params });
 };
 
 export const getSpace = async (id: string) => {
-  return api.get<Space>(`/api/knowledge/spaces/${id}`);
+  return api.get<Space>(`/api/v1/knowledge/api/v1/spaces/${id}`);
 };
 
 export const createSpace = async (input: SpaceInput) => {
-  return api.post<Space>('/api/knowledge/spaces', input);
+  return api.post<Space>('/api/v1/knowledge/api/v1/spaces', input);
 };
 
 export const updateSpace = async (id: string, input: Partial<SpaceInput>) => {
-  return api.put<Space>(`/api/knowledge/spaces/${id}`, input);
+  return api.put<Space>(`/api/v1/knowledge/api/v1/spaces/${id}`, input);
 };
 
 export const deleteSpace = async (id: string) => {
-  return api.delete(`/api/knowledge/spaces/${id}`);
+  return api.delete(`/api/v1/knowledge/api/v1/spaces/${id}`);
 };
 
 // ============================================================================
@@ -166,27 +166,27 @@ export const getDocs = async (params?: {
   search?: string;
   perPage?: number;
 }) => {
-  return api.get<Document[]>('/api/knowledge/docs', { params });
+  return api.get<Document[]>('/api/v1/knowledge/api/v1/docs', { params });
 };
 
 export const getDoc = async (id: string) => {
-  return api.get<Document>(`/api/knowledge/docs/${id}`);
+  return api.get<Document>(`/api/v1/knowledge/api/v1/docs/${id}`);
 };
 
 export const createDoc = async (input: DocInput | DocumentInput) => {
-  return api.post<Document>('/api/knowledge/docs', input);
+  return api.post<Document>('/api/v1/knowledge/api/v1/docs', input);
 };
 
 export const updateDoc = async (id: string, input: Partial<DocInput> | UpdateDocumentInput) => {
-  return api.put<Document>(`/api/knowledge/docs/${id}`, input);
+  return api.put<Document>(`/api/v1/knowledge/api/v1/docs/${id}`, input);
 };
 
 export const deleteDoc = async (id: string) => {
-  return api.delete(`/api/knowledge/docs/${id}`);
+  return api.delete(`/api/v1/knowledge/api/v1/docs/${id}`);
 };
 
 export const getDocVersions = async (id: string) => {
-  return api.get(`/api/knowledge/docs/${id}/versions`);
+  return api.get(`/api/v1/knowledge/api/v1/docs/${id}/versions`);
 };
 
 // ============================================================================
@@ -194,11 +194,11 @@ export const getDocVersions = async (id: string) => {
 // ============================================================================
 
 export const ragRetrieve = async (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<RagRetrieveResponse>('/api/knowledge/rag/retrieve', data);
+  return api.post<RagRetrieveResponse>('/api/v1/knowledge/api/v1/rag/retrieve', data);
 };
 
 export const ragQuery = async (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<RAGResponse>('/api/knowledge/rag/query', data);
+  return api.post<RAGResponse>('/api/v1/knowledge/api/v1/rag/query', data);
 };
 
 // ============================================================================
@@ -206,5 +206,5 @@ export const ragQuery = async (data: { query: string; spaceId?: string; topK?: n
 // ============================================================================
 
 export const getKnowledgeGraph = async (params?: { spaceId?: string }) => {
-  return api.get('/api/knowledge/graph', { params });
+  return api.get('/api/v1/knowledge/api/v1/graph', { params });
 };

@@ -103,59 +103,59 @@ export interface CostSummaryParams {
 // ---- Budgets ----
 
 export function getBudgets(params?: BudgetListParams) {
-  return api.get('/api/ai-cost/budgets', { params });
+  return api.get('/api/v1/ai-cost/budgets', { params });
 }
 
 export function getBudget(id: string) {
-  return api.get(`/api/ai-cost/budgets/${id}`);
+  return api.get(`/api/v1/ai-cost/budgets/${id}`);
 }
 
 export function createBudget(data: BudgetInput) {
-  return api.post('/api/ai-cost/budgets', data);
+  return api.post('/api/v1/ai-cost/budgets', data);
 }
 
 export function updateBudget(id: string, data: UpdateBudgetInput) {
-  return api.put(`/api/ai-cost/budgets/${id}`, data);
+  return api.put(`/api/v1/ai-cost/budgets/${id}`, data);
 }
 
 export function restoreBudget(id: string) {
-  return api.post(`/api/ai-cost/budgets/${id}/restore`);
+  return api.post(`/api/v1/ai-cost/budgets/${id}/restore`);
 }
 
 export function deleteBudget(id: string) {
-  return api.delete(`/api/ai-cost/budgets/${id}`);
+  return api.delete(`/api/v1/ai-cost/budgets/${id}`);
 }
 
 // ---- Costs ----
 
 export function getCosts(params?: CostListParams) {
-  return api.get('/api/ai-cost/costs', { params });
+  return api.get('/api/v1/ai-cost/costs', { params });
 }
 
 export function getCostSummary(params?: CostSummaryParams) {
-  return api.get('/api/ai-cost/costs/summary', { params });
+  return api.get('/api/v1/ai-cost/costs/summary', { params });
 }
 
 // ---- Dashboard ----
 
 export function getDashboardData() {
-  return api.get('/api/ai-cost/dashboard');
+  return api.get('/api/v1/ai-cost/dashboard');
 }
 
 // ---- Alerts ----
 
 export function getAlerts() {
-  return api.get('/api/ai-cost/alerts');
+  return api.get('/api/v1/ai-cost/alerts');
 }
 
 // ---- Model Pricing ----
 
 export function getModelPricing() {
-  return api.get('/api/ai-cost/pricing');
+  return api.get('/api/v1/ai-cost/pricing');
 }
 
 // ---- ROI ----
 
 export function getROIReport(params?: { period?: string }) {
-  return api.get('/api/ai-cost/roi', { params });
+  return api.get('/api/v1/ai-cost/roi', { params });
 }
