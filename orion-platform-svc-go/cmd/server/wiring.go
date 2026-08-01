@@ -246,8 +246,13 @@ import (
 	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
 	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
 	ciCanary_handler "orion/platform-svc-go/internal/ci-cd/canary/handler"
+	ciCanary_repo "orion/platform-svc-go/internal/ci-cd/canary/repository"
+	ciCanary_service "orion/platform-svc-go/internal/ci-cd/canary/service"
 	ciDeploy_handler "orion/platform-svc-go/internal/ci-cd/deploy/handler"
 	ciPipeline_handler "orion/platform-svc-go/internal/ci-cd/pipeline/handler"
+	ciPipeline_repo "orion/platform-svc-go/internal/ci-cd/pipeline/repository"
+	ciPipeline_service "orion/platform-svc-go/internal/ci-cd/pipeline/service"
+	ciPipeline_engine "orion/platform-svc-go/internal/ci-cd/pipeline/engine"
 	ciPTmpl_handler "orion/platform-svc-go/internal/ci-cd/pipeline-template/handler"
 	ciPTmpl_repo "orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
 	ciPTmpl_service "orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
@@ -889,14 +894,36 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// build: repo -> service -> handler (requires db + logger)
 	ciBuildH = ciBuild_handler.New(infra.db, infra.logger)
 
-	// canary: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
-	// ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
+	// canary: repo -> service -> handler
+	ciCanaryRepo := ciCanary_repo.NewCanaryRepository(infra.db.DB)
+	ciCanaryRunRepo := ciCanary_repo.NewCanaryAnalysisRunRepository(infra.db.DB)
+	ciCanaryMetricRepo := ciCanary_repo.NewCanaryMetricResultRepository(infra.db.DB)
+	ciCanaryMLRepo := ciCanary_repo.NewCanaryMLResultRepository(infra.db.DB)
+	ciCanaryConfigRepo := ciCanary_repo.NewCanaryAnalysisConfigRepository(infra.db.DB)
+	ciCanaryDecisionRepo := ciCanary_repo.NewCanaryDecisionRepository(infra.db.DB)
+	ciCanaryRetrainRepo := ciCanary_repo.NewCanaryRetrainJobRepository(infra.db.DB)
+	ciCanaryTrafficRepo := ciCanary_repo.NewTrafficConfigRepository(infra.db.DB)
+	ciCanaryHistoryRepo := ciCanary_repo.NewTrafficHistoryRepository(infra.db.DB)
+	ciCanarySvc := ciCanary_service.NewCanaryService(ciCanaryRepo, ciCanaryRunRepo, ciCanaryMetricRepo, ciCanaryMLRepo, ciCanaryConfigRepo, ciCanaryDecisionRepo, ciCanaryRetrainRepo, ciCanaryTrafficRepo, ciCanaryHistoryRepo)
+	ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
 
 	// deploy: repo -> service -> handler (requires db + logger)
 	ciDeployH = ciDeploy_handler.New(infra.db, infra.logger)
 
-	// pipeline: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
-	// ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
+	// pipeline: repo -> service -> handler
+	ciPipelineRepo := ciPipeline_repo.NewPipelineRepository(infra.db.DB)
+	ciPipelineRunRepo := ciPipeline_repo.NewRunRepository(infra.db.DB)
+	ciPipelineStageRepo := ciPipeline_repo.NewStageRepository(infra.db.DB)
+	ciPipelineTaskRepo := ciPipeline_repo.NewTaskRepository(infra.db.DB)
+	ciPipelineEngine := ciPipeline_engine.NewPipelineEngine(ciPipeline_engine.EngineDeps{
+		PipelineRepo: ciPipelineRepo,
+		RunRepo:      ciPipelineRunRepo,
+		StageRepo:    ciPipelineStageRepo,
+		TaskRepo:     ciPipelineTaskRepo,
+		Logger:       infra.logger,
+	})
+	ciPipelineSvc := ciPipeline_service.NewPipelineService(ciPipelineRepo, ciPipelineRunRepo, ciPipelineStageRepo, ciPipelineTaskRepo, ciPipelineEngine)
+	ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
 
 	// pipeline-template: repo -> service -> handler
 	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
