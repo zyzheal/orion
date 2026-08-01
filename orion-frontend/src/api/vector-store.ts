@@ -70,39 +70,39 @@ export interface CreateCollectionInput {
 // ---- Documents ----
 
 export function addDocument(data: AddDocumentInput) {
-  return api.post<{ id: string }>('/api/v1/vector-store/documents', data);
+  return api.post<{ id: string }>('/api/vector-store/documents', data);
 }
 
 export function deleteDocument(id: string) {
-  return api.delete(`/api/v1/vector-store/documents/${id}`);
+  return api.delete(`/api/vector-store/documents/${id}`);
 }
 
 // ---- Search ----
 
 export function searchVectors(data: SearchInput) {
-  return api.post<SearchHit[]>('/api/v1/vector-store/search', data);
+  return api.post<SearchHit[]>('/api/vector-store/search', data);
 }
 
 // ---- Collections ----
 
 export function getCollections() {
-  return api.get<VectorCollection[]>('/api/v1/vector-store/collections');
+  return api.get<VectorCollection[]>('/api/vector-store/collections');
 }
 
 export function createCollection(data: CreateCollectionInput) {
-  return api.post<VectorCollection>('/api/v1/vector-store/collections', data);
+  return api.post<VectorCollection>('/api/vector-store/collections', data);
 }
 
 export function deleteCollection(name: string) {
-  return api.delete(`/api/v1/vector-store/collections/${name}`);
+  return api.delete(`/api/vector-store/collections/${name}`);
 }
 
 export function getCollectionDocuments(name: string) {
-  return api.get<VectorDocument[]>(`/api/v1/vector-store/collections/${name}/documents`);
+  return api.get<VectorDocument[]>(`/api/vector-store/collections/${name}/documents`);
 }
 
 // ---- Stats ----
 
 export function getVectorStats() {
-  return api.get<VectorStats>('/api/v1/vector-store/stats');
+  return api.get<VectorStats>('/api/vector-store/stats');
 }

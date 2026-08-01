@@ -87,29 +87,29 @@ export const apmApi = {
     limit?: number;
     since?: string;
   }) => {
-    const response = await apiClient.get('/api/v1/apm/traces', { params });
+    const response = await apiClient.get('/api/apm/traces', { params });
     return response.data as TraceSummary[];
   },
 
   getTrace: async (traceId: string) => {
-    const response = await apiClient.get(`/api/v1/apm/traces/${traceId}`);
+    const response = await apiClient.get(`/api/apm/traces/${traceId}`);
     return response.data as TraceDetail;
   },
 
   getTraceSummary: async (traceId: string) => {
-    const response = await apiClient.get(`/api/v1/apm/traces/${traceId}/summary`);
+    const response = await apiClient.get(`/api/apm/traces/${traceId}/summary`);
     return response.data as TraceSummary;
   },
 
   getSlowTraces: async (thresholdMs?: number, limit?: number) => {
-    const response = await apiClient.get('/api/v1/apm/traces/slow', {
+    const response = await apiClient.get('/api/apm/traces/slow', {
       params: { thresholdMs, limit },
     });
     return response.data as TraceSummary[];
   },
 
   listServices: async () => {
-    const response = await apiClient.get('/api/v1/apm/services');
+    const response = await apiClient.get('/api/apm/services');
     return response.data as ServiceInfo[];
   },
 
@@ -119,12 +119,12 @@ export const apmApi = {
     since?: string;
     tenantId?: string;
   }) => {
-    const response = await apiClient.get('/api/v1/apm/slow-queries', { params });
+    const response = await apiClient.get('/api/apm/slow-queries', { params });
     return response.data as SlowQuery[];
   },
 
   getQueryPatternStats: async (since?: string) => {
-    const response = await apiClient.get('/api/v1/apm/slow-queries/patterns', {
+    const response = await apiClient.get('/api/apm/slow-queries/patterns', {
       params: { since },
     });
     return response.data as QueryPatternStats[];
@@ -132,7 +132,7 @@ export const apmApi = {
 
   // Service Topology
   getServiceTopology: async () => {
-    const response = await apiClient.get('/api/v1/apm/services/topology');
+    const response = await apiClient.get('/api/apm/services/topology');
     return response.data as { data?: ServiceDependency[] };
   },
 };

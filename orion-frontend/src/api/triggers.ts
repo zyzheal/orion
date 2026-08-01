@@ -54,47 +54,47 @@ export const triggersApi = {
     target: { pipelineId?: string; action?: string };
     config: Record<string, unknown>;
   }) => {
-    const response = await apiClient.post('/api/v1/triggers', data);
+    const response = await apiClient.post('/api/triggers', data);
     return response.data as Trigger;
   },
 
   listTriggers: async (params?: { type?: string; status?: string }) => {
-    const response = await apiClient.get('/api/v1/triggers', { params });
+    const response = await apiClient.get('/api/triggers', { params });
     return response.data as Trigger[];
   },
 
   evaluateTrigger: async (triggerId: string) => {
-    const response = await apiClient.post(`/api/v1/triggers/${triggerId}/evaluate`);
+    const response = await apiClient.post(`/api/triggers/${triggerId}/evaluate`);
     return response.data;
   },
 
   executePipeline: async (triggerId: string, data?: { params?: Record<string, unknown> }) => {
-    const response = await apiClient.post(`/api/v1/triggers/${triggerId}/execute`, data);
+    const response = await apiClient.post(`/api/triggers/${triggerId}/execute`, data);
     return response.data as TriggerResult;
   },
 
   registerWebhook: async (data: { url: string; secret?: string; events: string[] }) => {
-    const response = await apiClient.post('/api/v1/triggers/webhook', data);
+    const response = await apiClient.post('/api/triggers/webhook', data);
     return response.data as WebhookRegistration;
   },
 
   processWebhookEvent: async (data: { webhookId: string; event: Record<string, unknown> }) => {
-    const response = await apiClient.post('/api/v1/triggers/webhook/process', data);
+    const response = await apiClient.post('/api/triggers/webhook/process', data);
     return response.data;
   },
 
   getWebhookHistory: async (params?: { webhookId?: string }) => {
-    const response = await apiClient.get('/api/v1/triggers/webhook/history', { params });
+    const response = await apiClient.get('/api/triggers/webhook/history', { params });
     return response.data as WebhookEvent[];
   },
 
   executeFromChat: async (data: { channelId: string; command: string; params?: Record<string, unknown> }) => {
-    const response = await apiClient.post('/api/v1/triggers/chat', data);
+    const response = await apiClient.post('/api/triggers/chat', data);
     return response.data as TriggerResult;
   },
 
   getTriggerStats: async () => {
-    const response = await apiClient.get('/api/v1/triggers/stats');
+    const response = await apiClient.get('/api/triggers/stats');
     return response.data as TriggerStats;
   },
 };

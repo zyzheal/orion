@@ -55,7 +55,7 @@ export interface TestNotificationResult {
  * Get all IM notification rules
  */
 export async function getIMNotificationRules(): Promise<IMNotificationRule[]> {
-  const response = await api.get<IMNotificationRule[]>('/api/v1/notifications/im-rules');
+  const response = await api.get<IMNotificationRule[]>('/api/notifications/im-rules');
   // 拦截器已自动解包，response.data 直接是 IMNotificationRule[]
   return response.data ?? [];
 }
@@ -66,7 +66,7 @@ export async function getIMNotificationRules(): Promise<IMNotificationRule[]> {
 export async function createIMNotificationRule(
   input: IMNotificationRuleInput
 ): Promise<IMNotificationRule> {
-  const response = await api.post<IMNotificationRule>('/api/v1/notifications/im-rules', input);
+  const response = await api.post<IMNotificationRule>('/api/notifications/im-rules', input);
   // 拦截器已自动解包，response.data 直接是 IMNotificationRule
   return response.data ?? ({} as IMNotificationRule);
 }
@@ -79,7 +79,7 @@ export async function updateIMNotificationRule(
   input: Partial<IMNotificationRuleInput>
 ): Promise<IMNotificationRule> {
   const response = await api.put<IMNotificationRule>(
-    `/api/v1/notifications/im-rules/${id}`,
+    `/api/notifications/im-rules/${id}`,
     input
   );
   // 拦截器已自动解包，response.data 直接是 IMNotificationRule
@@ -90,7 +90,7 @@ export async function updateIMNotificationRule(
  * Delete an IM notification rule
  */
 export async function deleteIMNotificationRule(id: string): Promise<void> {
-  await api.delete<void>(`/api/v1/notifications/im-rules/${id}`);
+  await api.delete<void>(`/api/notifications/im-rules/${id}`);
 }
 
 /**
@@ -101,7 +101,7 @@ export async function toggleIMNotificationRule(
   enabled: boolean
 ): Promise<IMNotificationRule> {
   const response = await api.put<IMNotificationRule>(
-    `/api/v1/notifications/im-rules/${id}/toggle`,
+    `/api/notifications/im-rules/${id}/toggle`,
     { enabled }
   );
   // 拦截器已自动解包，response.data 直接是 IMNotificationRule
@@ -115,7 +115,7 @@ export async function testIMNotificationRule(
   id: string
 ): Promise<TestNotificationResult> {
   const response = await api.post<TestNotificationResult>(
-    `/api/v1/notifications/im-rules/${id}/test`
+    `/api/notifications/im-rules/${id}/test`
   );
   // 拦截器已自动解包，response.data 直接是 TestNotificationResult
   return response.data ?? {

@@ -188,7 +188,7 @@ export const multiCloudApi = {
    * 获取云账号列表
    */
   listCloudAccounts: async (params?: { provider?: string; status?: string }) => {
-    const response = await apiClient.get('/api/v1/multi-cloud/providers', { params });
+    const response = await apiClient.get('/api/multi-cloud/providers', { params });
     return response.data as { success: boolean; data: CloudAccount[] };
   },
 
@@ -196,7 +196,7 @@ export const multiCloudApi = {
    * 获取云账号详情
    */
   getCloudAccount: async (id: string) => {
-    const response = await apiClient.get(`/api/v1/multi-cloud/providers/${id}`);
+    const response = await apiClient.get(`/api/multi-cloud/providers/${id}`);
     return response.data as { success: boolean; data: CloudAccount };
   },
 
@@ -210,7 +210,7 @@ export const multiCloudApi = {
     credentials_ref: string;
     metadata?: Record<string, unknown>;
   }) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/providers', data);
+    const response = await apiClient.post('/api/multi-cloud/providers', data);
     return response.data as { success: boolean; data: CloudAccount };
   },
 
@@ -223,7 +223,7 @@ export const multiCloudApi = {
     monthly_budget: number;
     tags: Record<string, unknown>;
   }>) => {
-    const response = await apiClient.put(`/api/v1/multi-cloud/providers/${id}`, data);
+    const response = await apiClient.put(`/api/multi-cloud/providers/${id}`, data);
     return response.data as { success: boolean; message: string; id: string };
   },
 
@@ -231,7 +231,7 @@ export const multiCloudApi = {
    * 删除云账号
    */
   deleteCloudAccount: async (id: string) => {
-    const response = await apiClient.delete(`/api/v1/multi-cloud/providers/${id}`);
+    const response = await apiClient.delete(`/api/multi-cloud/providers/${id}`);
     return response.data as { success: boolean; message: string };
   },
 
@@ -243,7 +243,7 @@ export const multiCloudApi = {
    * 获取资源列表
    */
   listCloudResources: async (params?: { accountId?: string; type?: string; region?: string }) => {
-    const response = await apiClient.get('/api/v1/multi-cloud/resources', { params });
+    const response = await apiClient.get('/api/multi-cloud/resources', { params });
     return response.data as { success: boolean; data: CloudResource[] };
   },
 
@@ -251,7 +251,7 @@ export const multiCloudApi = {
    * 获取资源详情
    */
   getCloudResource: async (provider: string, id: string) => {
-    const response = await apiClient.get(`/api/v1/multi-cloud/resources/${provider}/${id}`);
+    const response = await apiClient.get(`/api/multi-cloud/resources/${provider}/${id}`);
     return response.data as { success: boolean; data: CloudResource };
   },
 
@@ -259,7 +259,7 @@ export const multiCloudApi = {
    * 同步资源
    */
   syncResources: async (data?: { accountId?: string; provider?: string }) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/resources/sync', data);
+    const response = await apiClient.post('/api/multi-cloud/resources/sync', data);
     return response.data as { success: boolean; message: string; syncId: string };
   },
 
@@ -271,7 +271,7 @@ export const multiCloudApi = {
    * 获取成本统计
    */
   getCostStats: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/costs');
+    const response = await apiClient.get('/api/multi-cloud/costs');
     return response.data as { success: boolean; data: any };
   },
 
@@ -279,7 +279,7 @@ export const multiCloudApi = {
    * 获取单云成本
    */
   getCostByProvider: async (provider: string) => {
-    const response = await apiClient.get(`/api/v1/multi-cloud/costs/${provider}`);
+    const response = await apiClient.get(`/api/multi-cloud/costs/${provider}`);
     return response.data as { success: boolean; data: any };
   },
 
@@ -292,7 +292,7 @@ export const multiCloudApi = {
     storage_gb?: number;
     bandwidth_gb_month?: number;
   }) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/costs/compare', data);
+    const response = await apiClient.post('/api/multi-cloud/costs/compare', data);
     return response.data as { success: boolean; data: CostComparison[] };
   },
 
@@ -300,7 +300,7 @@ export const multiCloudApi = {
    * 优化建议
    */
   getRecommendations: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/recommendations');
+    const response = await apiClient.get('/api/multi-cloud/recommendations');
     return response.data as { success: boolean; data: OptimizationRecommendation[] };
   },
 
@@ -308,7 +308,7 @@ export const multiCloudApi = {
    * 健康检查
    */
   getHealth: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/health');
+    const response = await apiClient.get('/api/multi-cloud/health');
     return response.data as { success: boolean; data: ResourceHealth };
   },
 
@@ -316,7 +316,7 @@ export const multiCloudApi = {
    * 云提供商信息
    */
   getCloudProviderInfo: async (provider: string) => {
-    const response = await apiClient.get(`/api/v1/multi-cloud/providers/${provider}`);
+    const response = await apiClient.get(`/api/multi-cloud/providers/${provider}`);
     return response.data as { success: boolean; data: CloudProviderInfo };
   },
 
@@ -324,7 +324,7 @@ export const multiCloudApi = {
    * 资源统计概览
    */
   getResourceStatistics: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/statistics');
+    const response = await apiClient.get('/api/multi-cloud/statistics');
     return response.data as { success: boolean; data: ResourceStatistics };
   },
 
@@ -332,7 +332,7 @@ export const multiCloudApi = {
    * 触发资源同步
    */
   syncAccountResources: async (accountId: string) => {
-    const response = await apiClient.post(`/api/v1/multi-cloud/sync/${accountId}`);
+    const response = await apiClient.post(`/api/multi-cloud/sync/${accountId}`);
     return response.data as { success: boolean; data: ResourceSyncJob };
   },
 
@@ -340,7 +340,7 @@ export const multiCloudApi = {
    * 合规检查
    */
   runComplianceCheck: async (categories?: string[]) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/compliance/check', { categories });
+    const response = await apiClient.post('/api/multi-cloud/compliance/check', { categories });
     return response.data as { success: boolean; data: ComplianceReport };
   },
 
@@ -348,7 +348,7 @@ export const multiCloudApi = {
    * 获取合规规则列表
    */
   getComplianceRules: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/compliance/rules');
+    const response = await apiClient.get('/api/multi-cloud/compliance/rules');
     return response.data as { success: boolean; data: ComplianceRule[] };
   },
 
@@ -362,7 +362,7 @@ export const multiCloudApi = {
     priority?: number;
     enabled?: boolean;
   }) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/scheduling/policies', data);
+    const response = await apiClient.post('/api/multi-cloud/scheduling/policies', data);
     return response.data as { success: boolean; data: SchedulingPolicy };
   },
 
@@ -370,7 +370,7 @@ export const multiCloudApi = {
    * 获取调度策略列表
    */
   listSchedulingPolicies: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/scheduling/policies');
+    const response = await apiClient.get('/api/multi-cloud/scheduling/policies');
     return response.data as { success: boolean; data: SchedulingPolicy[] };
   },
 
@@ -384,7 +384,7 @@ export const multiCloudApi = {
     preferredProvider?: string;
     preferredRegion?: string;
   }) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/scheduling/schedule', data);
+    const response = await apiClient.post('/api/multi-cloud/scheduling/schedule', data);
     return response.data as { success: boolean; data: SchedulingDecision };
   },
 
@@ -392,7 +392,7 @@ export const multiCloudApi = {
    * 获取调度历史
    */
   getSchedulingHistory: async () => {
-    const response = await apiClient.get('/api/v1/multi-cloud/scheduling/history');
+    const response = await apiClient.get('/api/multi-cloud/scheduling/history');
     return response.data as { success: boolean; data: SchedulingDecision[] };
   },
 
@@ -409,7 +409,7 @@ export const multiCloudApi = {
     estimatedCost?: number;
     estimatedDuration?: number;
   }) => {
-    const response = await apiClient.post('/api/v1/multi-cloud/migration/plan', data);
+    const response = await apiClient.post('/api/multi-cloud/migration/plan', data);
     return response.data as { success: boolean; data: MigrationPlan };
   },
 
@@ -417,7 +417,7 @@ export const multiCloudApi = {
    * 执行迁移
    */
   executeMigration: async (planId: string) => {
-    const response = await apiClient.post(`/api/v1/multi-cloud/migration/${planId}/execute`);
+    const response = await apiClient.post(`/api/multi-cloud/migration/${planId}/execute`);
     return response.data as { success: boolean; data: MigrationResult };
   },
 };

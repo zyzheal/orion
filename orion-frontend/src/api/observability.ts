@@ -115,51 +115,51 @@ export interface SilenceRuleInput {
 // ---- Alert Rules API ----
 
 export function getAlertRules(params?: { enabled?: boolean }) {
-  return api.get<{ rules: AlertRule[] }>('/api/v1/observability/alert-rules', { params });
+  return api.get<{ rules: AlertRule[] }>('/api/observability/alert-rules', { params });
 }
 
 export function createAlertRule(data: AlertRuleInput) {
-  return api.post<AlertRule>('/api/v1/observability/alert-rules', data);
+  return api.post<AlertRule>('/api/observability/alert-rules', data);
 }
 
 export function updateAlertRule(ruleId: string, data: Partial<AlertRuleInput>) {
-  return api.put<AlertRule>(`/api/v1/observability/alert-rules/${ruleId}`, data);
+  return api.put<AlertRule>(`/api/observability/alert-rules/${ruleId}`, data);
 }
 
 export function deleteAlertRule(ruleId: string) {
-  return api.delete(`/api/v1/observability/alert-rules/${ruleId}`);
+  return api.delete(`/api/observability/alert-rules/${ruleId}`);
 }
 
 export function toggleAlertRule(ruleId: string) {
-  return api.post(`/api/v1/observability/alert-rules/${ruleId}/toggle`);
+  return api.post(`/api/observability/alert-rules/${ruleId}/toggle`);
 }
 
 // ---- Silence Rules API ----
 
 export function getSilenceRules(params?: { status?: string }) {
-  return api.get<{ rules: SilenceRule[] }>('/api/v1/observability/silence-rules', { params });
+  return api.get<{ rules: SilenceRule[] }>('/api/observability/silence-rules', { params });
 }
 
 export function createSilenceRule(data: SilenceRuleInput) {
-  return api.post<SilenceRule>('/api/v1/observability/silence-rules', data);
+  return api.post<SilenceRule>('/api/observability/silence-rules', data);
 }
 
 export function deleteSilenceRule(ruleId: string) {
-  return api.delete(`/api/v1/observability/silence-rules/${ruleId}`);
+  return api.delete(`/api/observability/silence-rules/${ruleId}`);
 }
 
 // ---- Root Cause Analysis API ----
 
 export function getRootCauseAnalyses(params?: { incidentId?: string; status?: string }) {
-  return api.get<{ analyses: RootCauseAnalysis[] }>('/api/v1/observability/rca', { params });
+  return api.get<{ analyses: RootCauseAnalysis[] }>('/api/observability/rca', { params });
 }
 
 export function getRootCauseAnalysis(analysisId: string) {
-  return api.get<RootCauseAnalysis>(`/api/v1/observability/rca/${analysisId}`);
+  return api.get<RootCauseAnalysis>(`/api/observability/rca/${analysisId}`);
 }
 
 export function triggerRCA(data: { incidentId: string; serviceIds?: string[] }) {
-  return api.post<RootCauseAnalysis>('/api/v1/observability/rca/trigger', data);
+  return api.post<RootCauseAnalysis>('/api/observability/rca/trigger', data);
 }
 
 // ---- Traces API ----
@@ -171,17 +171,17 @@ export function getTraces(params?: {
   startTime?: string;
   endTime?: string;
 }) {
-  return api.get<{ traces: TraceData[] }>('/api/v1/observability/traces', { params });
+  return api.get<{ traces: TraceData[] }>('/api/observability/traces', { params });
 }
 
 export function getTrace(traceId: string) {
-  return api.get<TraceData>(`/api/v1/observability/traces/${traceId}`);
+  return api.get<TraceData>(`/api/observability/traces/${traceId}`);
 }
 
 // ---- Service Health API ----
 
 export function getServiceHealth(params?: { serviceName?: string }) {
-  return api.get<{ services: ServiceHealth[] }>('/api/v1/observability/health', { params });
+  return api.get<{ services: ServiceHealth[] }>('/api/observability/health', { params });
 }
 
 // ---- Alert Rule Templates API ----
@@ -199,7 +199,7 @@ export interface AlertRuleTemplate {
 
 export function getAlertRuleTemplates(params?: { category?: string }) {
   return api.get<{ data: AlertRuleTemplate[]; total: number }>(
-    '/api/v1/observability/alert-rule-templates',
+    '/api/observability/alert-rule-templates',
     { params },
   );
 }
@@ -208,7 +208,7 @@ export function createAlertRuleFromTemplate(data: {
   templateId: string;
   overrides?: Record<string, unknown>;
 }) {
-  return api.post('/api/v1/observability/alert-rules/from-template', data);
+  return api.post('/api/observability/alert-rules/from-template', data);
 }
 
 // ---- RCA Timeline API ----
@@ -232,7 +232,7 @@ export interface TimelineReport {
 
 export function getRcaTimeline(deploymentId: string, params?: { start?: string; end?: string }) {
   return api.get<{ timeline: TimelineReport }>(
-    `/api/v1/observability/rca/${deploymentId}/timeline`,
+    `/api/observability/rca/${deploymentId}/timeline`,
     { params },
   );
 }
@@ -246,12 +246,12 @@ export interface ServiceDependency {
 }
 
 export function getDependencyGraph() {
-  return api.get<{ data: ServiceDependency[] }>('/api/v1/observability/dependency-graph');
+  return api.get<{ data: ServiceDependency[] }>('/api/observability/dependency-graph');
 }
 
 export function analyzeDependencyRootCause(affectedServices: string[]) {
   return api.post<{ data: string[] }>(
-    '/api/v1/observability/dependency-graph/analyze',
+    '/api/observability/dependency-graph/analyze',
     { affectedServices },
   );
 }
@@ -282,7 +282,7 @@ export function analyzeTemporalCorrelation(
   windowMs?: number,
 ) {
   return api.post<{ data: TemporalCorrelationResult }>(
-    '/api/v1/observability/temporal-correlation',
+    '/api/observability/temporal-correlation',
     { alerts, windowMs },
   );
 }

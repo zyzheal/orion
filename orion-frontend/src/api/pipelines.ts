@@ -108,31 +108,31 @@ export interface StageInput {
 // ---- Pipeline CRUD ----
 
 export function getPipelines(params?: PipelineListParams) {
-  return api.get('/api/v1/pipelines', { params });
+  return api.get('/api/pipelines', { params });
 }
 
 export function getPipeline(id: string) {
-  return api.get(`/api/v1/pipelines/${id}`);
+  return api.get(`/api/pipelines/${id}`);
 }
 
 export function createPipeline(data: CreatePipelineInput) {
-  return api.post('/api/v1/pipelines', data);
+  return api.post('/api/pipelines', data);
 }
 
 export function updatePipeline(id: string, data: UpdatePipelineInput) {
-  return api.put(`/api/v1/pipelines/${id}`, data);
+  return api.put(`/api/pipelines/${id}`, data);
 }
 
 export function deletePipeline(id: string) {
-  return api.delete(`/api/v1/pipelines/${id}`);
+  return api.delete(`/api/pipelines/${id}`);
 }
 
 export function getPipelineVersions(name: string) {
-  return api.get(`/api/v1/pipelines/versions/${name}`);
+  return api.get(`/api/pipelines/versions/${name}`);
 }
 
 export function validatePipelineYaml(yamlDefinition: string) {
-  return api.post('/api/v1/pipelines/validate', { yamlDefinition });
+  return api.post('/api/pipelines/validate', { yamlDefinition });
 }
 
 // ---- Pipeline Execution ----
@@ -141,66 +141,66 @@ export function triggerPipeline(
   id: string,
   data?: { branch?: string; variables?: Record<string, string> }
 ) {
-  return api.post(`/api/v1/pipelines/${id}/runs`, data);
+  return api.post(`/api/pipelines/${id}/runs`, data);
 }
 
 export function getPipelineRuns(pipelineId: string, params?: PipelineRunListParams) {
-  return api.get(`/api/v1/pipeline-runs`, { params: { pipelineId, ...params } });
+  return api.get(`/api/pipeline-runs`, { params: { pipelineId, ...params } });
 }
 
 export function getPipelineRun(runId: string) {
-  return api.get(`/api/v1/pipeline-runs/${runId}`);
+  return api.get(`/api/pipeline-runs/${runId}`);
 }
 
 export function cancelPipelineRun(runId: string) {
-  return api.post(`/api/v1/pipeline-runs/${runId}/cancel`);
+  return api.post(`/api/pipeline-runs/${runId}/cancel`);
 }
 
 export function retryPipelineRun(runId: string) {
-  return api.post(`/api/v1/pipeline-runs/${runId}/retry`);
+  return api.post(`/api/pipeline-runs/${runId}/retry`);
 }
 
 // ---- Cache Management ----
 
 export function saveCache(runId: string, stageId: string, data: { key: string; paths: string[] }) {
-  return api.post(`/api/v1/pipeline-runs/${runId}/stages/${stageId}/cache`, data);
+  return api.post(`/api/pipeline-runs/${runId}/stages/${stageId}/cache`, data);
 }
 
 export function restoreCache(runId: string, stageId: string, key: string) {
-  return api.get(`/api/v1/pipeline-runs/${runId}/stages/${stageId}/cache`, { params: { key } });
+  return api.get(`/api/pipeline-runs/${runId}/stages/${stageId}/cache`, { params: { key } });
 }
 
 // Note: Build cache management is under /build-cache, not /caches
 export function deleteCache(_cacheKey: string) {
   // Backend uses /build-cache/entries/:id for cache entry deletion
-  console.warn('deleteCache: use build-cache endpoints under /api/v1/build-cache instead');
+  console.warn('deleteCache: use build-cache endpoints under /api/build-cache instead');
   return Promise.resolve();
 }
 
 export function listCaches(_params?: { stageName?: string }) {
   // Backend uses /build-cache/configs and /build-cache/entries
-  console.warn('listCaches: use build-cache endpoints under /api/v1/build-cache instead');
+  console.warn('listCaches: use build-cache endpoints under /api/build-cache instead');
   return Promise.resolve({ data: [] });
 }
 
 // ---- Artifact Management ----
 
 export function uploadArtifact(runId: string, stageId: string, data: FormData) {
-  return api.post(`/api/v1/pipeline-runs/${runId}/stages/${stageId}/artifacts`, data, {
+  return api.post(`/api/pipeline-runs/${runId}/stages/${stageId}/artifacts`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }
 
 export function downloadArtifact(artifactId: string) {
-  return api.get(`/api/v1/artifacts/${artifactId}/download`, { responseType: 'blob' });
+  return api.get(`/api/artifacts/${artifactId}/download`, { responseType: 'blob' });
 }
 
 export function listArtifacts(params?: { runId?: string; stageId?: string }) {
-  return api.get('/api/v1/artifacts', { params });
+  return api.get('/api/artifacts', { params });
 }
 
 export function deleteArtifact(artifactId: string) {
-  return api.delete(`/api/v1/artifacts/${artifactId}`);
+  return api.delete(`/api/artifacts/${artifactId}`);
 }
 
 // ---- Pipeline Error Detail ----
@@ -209,7 +209,7 @@ export function batchUpdatePipelines(
   ids: string[],
   action: 'activate' | 'deactivate' | 'delete'
 ) {
-  return api.post('/api/v1/pipelines/batch', {
+  return api.post('/api/pipelines/batch', {
     ids,
     action,
   });
@@ -241,10 +241,10 @@ export interface PipelineErrorDetailResponse {
 
 /**
  * Get structured error detail for a failed pipeline run.
- * Maps to GET /api/v1/pipelines/:runId/error-detail
+ * Maps to GET /api/pipelines/:runId/error-detail
  */
 export function getPipelineErrorDetail(runId: string) {
   return api.get<{ data: PipelineErrorDetailResponse }>(
-    `/api/v1/pipelines/${runId}/error-detail`
+    `/api/pipelines/${runId}/error-detail`
   );
 }

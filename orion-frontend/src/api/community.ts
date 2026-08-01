@@ -61,12 +61,12 @@ export interface Mentorship {
 export const communityApi = {
   // Contributions
   listContributions: async (params?: { type?: string; status?: string; userId?: string }) => {
-    const response = await apiClient.get('/api/v1/community/contributions', { params });
+    const response = await apiClient.get('/api/community/contributions', { params });
     return response.data as Contribution[];
   },
 
   getContribution: async (contributionId: string) => {
-    const response = await apiClient.get(`/api/v1/community/contributions/${contributionId}`);
+    const response = await apiClient.get(`/api/community/contributions/${contributionId}`);
     return response.data as Contribution;
   },
 
@@ -76,13 +76,13 @@ export const communityApi = {
     description?: string;
     repository_url?: string;
   }) => {
-    const response = await apiClient.post('/api/v1/community/contributions', data);
+    const response = await apiClient.post('/api/community/contributions', data);
     return response.data as Contribution;
   },
 
   // Contributors
   getContributor: async (userId: string) => {
-    const response = await apiClient.get(`/api/v1/community/contributors/${userId}`);
+    const response = await apiClient.get(`/api/community/contributors/${userId}`);
     return response.data as Contributor;
   },
 
@@ -93,29 +93,29 @@ export const communityApi = {
     repository_url: string;
     version: string;
   }) => {
-    const response = await apiClient.post('/api/v1/community/plugins', data);
+    const response = await apiClient.post('/api/community/plugins', data);
     return response.data;
   },
 
   reviewPlugin: async (pluginId: string, data: { score: number; feedback: string }) => {
-    const response = await apiClient.post(`/api/v1/community/plugins/${pluginId}/review`, data);
+    const response = await apiClient.post(`/api/community/plugins/${pluginId}/review`, data);
     return response.data as PluginReview;
   },
 
   // Badges
   listBadges: async () => {
-    const response = await apiClient.get('/api/v1/community/badges');
+    const response = await apiClient.get('/api/community/badges');
     return response.data as Badge[];
   },
 
   // Mentorship
   listMentorship: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/community/mentorship', { params });
+    const response = await apiClient.get('/api/community/mentorship', { params });
     return response.data as Mentorship[];
   },
 
   createMentorship: async (data: { mentor_id: string; mentee_id: string; skill_area: string }) => {
-    const response = await apiClient.post('/api/v1/community/mentorship', data);
+    const response = await apiClient.post('/api/community/mentorship', data);
     return response.data as Mentorship;
   },
 };

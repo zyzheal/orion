@@ -1,7 +1,7 @@
 /**
  * Notification Enhanced API Client
  * 高级通知管理 API: 策略、集成、订阅、历史、公告、矩阵
- * 后端基础路径: /api/v1/notification-enhanced
+ * 后端基础路径: /api/notification-enhanced
  */
 
 import { api } from './client';
@@ -193,7 +193,7 @@ export interface DataMatrixInput {
 // Constants
 // ============================================================================
 
-const BASE = '/api/v1/notification-enhanced';
+const BASE = '/api/notification-enhanced';
 
 /** 所有可用事件类型 */
 export const EVENT_TYPES = [

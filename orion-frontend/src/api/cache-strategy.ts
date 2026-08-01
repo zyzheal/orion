@@ -71,79 +71,79 @@ export const cacheStrategyApi = {
     page?: number;
     limit?: number;
   }) => {
-    const response = await apiClient.get('/api/v1/cache-strategies', { params });
+    const response = await apiClient.get('/api/cache-strategies', { params });
     return response.data;
   },
 
   // Get cache strategy by ID
   get: async (id: string) => {
-    const response = await apiClient.get(`/api/v1/cache-strategies/${id}`);
+    const response = await apiClient.get(`/api/cache-strategies/${id}`);
     return response.data as CacheStrategy;
   },
 
   // Create cache strategy
   create: async (data: CacheStrategyCreateInput) => {
-    const response = await apiClient.post('/api/v1/cache-strategies', data);
+    const response = await apiClient.post('/api/cache-strategies', data);
     return response.data as CacheStrategy;
   },
 
   // Update cache strategy
   update: async (id: string, data: Partial<CacheStrategyUpdateInput>) => {
-    const response = await apiClient.put(`/api/v1/cache-strategies/${id}`, data);
+    const response = await apiClient.put(`/api/cache-strategies/${id}`, data);
     return response.data as CacheStrategy;
   },
 
   // Delete cache strategy
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/api/v1/cache-strategies/${id}`);
+    const response = await apiClient.delete(`/api/cache-strategies/${id}`);
     return response.data;
   },
 
   // Get cache recommendation for type
   getRecommendation: async (type: CacheType) => {
-    const response = await apiClient.get(`/api/v1/cache-recommendations/${type}`);
+    const response = await apiClient.get(`/api/cache-recommendations/${type}`);
     return response.data as CacheRecommendation;
   },
 
   // Get all recommendations
   getAllRecommendations: async () => {
-    const response = await apiClient.get('/api/v1/cache-recommendations');
+    const response = await apiClient.get('/api/cache-recommendations');
     return response.data as CacheRecommendation[];
   },
 
   // Create from recommendation
   createFromRecommendation: async (type: CacheType, name: string) => {
-    const response = await apiClient.post('/api/v1/cache-strategies/recommended', { type, name });
+    const response = await apiClient.post('/api/cache-strategies/recommended', { type, name });
     return response.data as CacheStrategy;
   },
 
   // Get cache stats
   getStats: async (id: string) => {
-    const response = await apiClient.get(`/api/v1/cache-strategies/${id}/stats`);
+    const response = await apiClient.get(`/api/cache-strategies/${id}/stats`);
     return response.data as CacheStats;
   },
 
   // Warm cache
   warmCache: async (id: string) => {
-    const response = await apiClient.post(`/api/v1/cache-strategies/${id}/warm`);
+    const response = await apiClient.post(`/api/cache-strategies/${id}/warm`);
     return response.data;
   },
 
   // Record hit
   recordHit: async (id: string) => {
-    const response = await apiClient.post(`/api/v1/cache-strategies/${id}/hit`);
+    const response = await apiClient.post(`/api/cache-strategies/${id}/hit`);
     return response.data;
   },
 
   // Record miss
   recordMiss: async (id: string) => {
-    const response = await apiClient.post(`/api/v1/cache-strategies/${id}/miss`);
+    const response = await apiClient.post(`/api/cache-strategies/${id}/miss`);
     return response.data;
   },
 
   // Generate cache key
   generateKey: async (id: string, context: Record<string, string>) => {
-    const response = await apiClient.post(`/api/v1/cache-strategies/${id}/generate-key`, { context });
+    const response = await apiClient.post(`/api/cache-strategies/${id}/generate-key`, { context });
     return response.data as { key: string };
   },
 };

@@ -97,39 +97,39 @@ export interface ArtifactVersionListResult {
 
 /** Get list of artifact versions with filters */
 export function getArtifactVersions(params?: ArtifactVersionQuery) {
-  return api.get<ArtifactVersionListResult>('/api/v1/artifact-versions', { params });
+  return api.get<ArtifactVersionListResult>('/api/artifact-versions', { params });
 }
 
 /** Get a single artifact version by ID */
 export function getArtifactVersion(id: string) {
-  return api.get<ArtifactVersion>(`/api/v1/artifact-versions/${id}`);
+  return api.get<ArtifactVersion>(`/api/artifact-versions/${id}`);
 }
 
 /** Get full traceability chain for a version */
 export function getTraceabilityChain(versionId: string) {
-  return api.get<TraceabilityChain>(`/api/v1/artifact-versions/${versionId}/traceability`);
+  return api.get<TraceabilityChain>(`/api/artifact-versions/${versionId}/traceability`);
 }
 
 /** Get version comparison between two versions */
 export function getVersionDiff(pipelineId: string, versionA: string, versionB: string) {
-  return api.get<VersionDiff>(`/api/v1/artifact-versions/diff`, {
+  return api.get<VersionDiff>(`/api/artifact-versions/diff`, {
     params: { pipelineId, versionA, versionB },
   });
 }
 
 /** Get deployment history for a pipeline */
 export function getDeploymentHistory(pipelineId: string, limit?: number) {
-  return api.get<DeploymentHistory>(`/api/v1/artifact-versions/history/${pipelineId}`, {
+  return api.get<DeploymentHistory>(`/api/artifact-versions/history/${pipelineId}`, {
     params: { limit },
   });
 }
 
 /** Trigger deployment of a specific version */
 export function deployVersion(versionId: string, data: { environment: string; deployedBy: string }) {
-  return api.post(`/api/v1/artifact-versions/${versionId}/deploy`, data);
+  return api.post(`/api/artifact-versions/${versionId}/deploy`, data);
 }
 
 /** Find versions by commit SHA (code traceability) */
 export function findVersionsByCommit(commitSha: string) {
-  return api.get<ArtifactVersion[]>(`/api/v1/artifact-versions/commit/${commitSha}`);
+  return api.get<ArtifactVersion[]>(`/api/artifact-versions/commit/${commitSha}`);
 }

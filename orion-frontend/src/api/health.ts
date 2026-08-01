@@ -1,6 +1,6 @@
 /**
  * Health Dashboard API Service
- * Prefix: /api/v1/service-health
+ * Prefix: /api/service-health
  */
 
 import { api } from './client';
@@ -52,21 +52,21 @@ export interface HealthDashboardData {
 // ==================== Dashboard API ====================
 
 export function getHealthDashboard(): Promise<HealthDashboardData> {
-  return api.get<HealthDashboardData>('/api/v1/service-health/dashboard').then((res) => res.data);
+  return api.get<HealthDashboardData>('/api/service-health/dashboard').then((res) => res.data);
 }
 
 export function getHealthScore(): Promise<HealthScore> {
-  return api.get<HealthScore>('/api/v1/service-health/score').then((res) => res.data);
+  return api.get<HealthScore>('/api/service-health/score').then((res) => res.data);
 }
 
 export function getServiceHealthList(): Promise<ServiceHealthRow[]> {
-  return api.get<ServiceHealthRow[]>('/api/v1/service-health/services').then((res) => res.data);
+  return api.get<ServiceHealthRow[]>('/api/service-health/services').then((res) => res.data);
 }
 
 export function getHealthAlerts(params?: { status?: string; limit?: number }): Promise<HealthAlert[]> {
-  return api.get<HealthAlert[]>('/api/v1/service-health/alerts', { params }).then((res) => res.data);
+  return api.get<HealthAlert[]>('/api/service-health/alerts', { params }).then((res) => res.data);
 }
 
 export function getHealthTrend(since?: string): Promise<TrendPoint[]> {
-  return api.get<TrendPoint[]>('/api/v1/service-health/trend', { params: { since } }).then((res) => res.data);
+  return api.get<TrendPoint[]>('/api/service-health/trend', { params: { since } }).then((res) => res.data);
 }

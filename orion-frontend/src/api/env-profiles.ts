@@ -46,37 +46,37 @@ export interface ResolvedVariablesResult {
 
 // ==================== API 方法 ====================
 
-// POST /api/v1/env-profiles — 创建
+// POST /api/env-profiles — 创建
 export function createEnvProfile(data: CreateEnvProfileInput) {
-  return api.post<EnvProfile>('/api/v1/env-profiles', data);
+  return api.post<EnvProfile>('/api/env-profiles', data);
 }
 
-// GET /api/v1/env-profiles — 列表查询
+// GET /api/env-profiles — 列表查询
 export function getEnvProfiles(params?: { name?: string; environment?: string }) {
-  return api.get<EnvProfile[]>('/api/v1/env-profiles', { params });
+  return api.get<EnvProfile[]>('/api/env-profiles', { params });
 }
 
-// GET /api/v1/env-profiles/:id — 获取详情
+// GET /api/env-profiles/:id — 获取详情
 export function getEnvProfile(id: string) {
-  return api.get<EnvProfile>(`/api/v1/env-profiles/${id}`);
+  return api.get<EnvProfile>(`/api/env-profiles/${id}`);
 }
 
-// PUT /api/v1/env-profiles/:id — 更新
+// PUT /api/env-profiles/:id — 更新
 export function updateEnvProfile(id: string, data: UpdateEnvProfileInput) {
-  return api.put<EnvProfile>(`/api/v1/env-profiles/${id}`, data);
+  return api.put<EnvProfile>(`/api/env-profiles/${id}`, data);
 }
 
-// DELETE /api/v1/env-profiles/:id — 删除
+// DELETE /api/env-profiles/:id — 删除
 export function deleteEnvProfile(id: string) {
-  return api.delete(`/api/v1/env-profiles/${id}`);
+  return api.delete(`/api/env-profiles/${id}`);
 }
 
-// GET /api/v1/env-profiles/:name/environments — 列出环境
+// GET /api/env-profiles/:name/environments — 列出环境
 export function getEnvironmentsForProfile(name: string) {
-  return api.get<string[]>(`/api/v1/env-profiles/${encodeURIComponent(name)}/environments`);
+  return api.get<string[]>(`/api/env-profiles/${encodeURIComponent(name)}/environments`);
 }
 
-// POST /api/v1/env-profiles/resolve — 解析变量
+// POST /api/env-profiles/resolve — 解析变量
 export function resolveEnvVariables(data: ResolveVariablesInput) {
-  return api.post<ResolvedVariablesResult>('/api/v1/env-profiles/resolve', data);
+  return api.post<ResolvedVariablesResult>('/api/env-profiles/resolve', data);
 }

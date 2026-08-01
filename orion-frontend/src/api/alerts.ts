@@ -53,21 +53,21 @@ export interface AlertRule {
 // ---- Alert CRUD ----
 
 export function getAlerts(params?: AlertListParams) {
-  return api.get('/api/v1/alert/list', { params });
+  return api.get('/api/alert/list', { params });
 }
 
 export function getAlert(id: string) {
-  return api.get(`/api/v1/alert/${id}`);
+  return api.get(`/api/alert/${id}`);
 }
 
 export function createAlert(data: CreateAlertInput) {
-  return api.post('/api/v1/alert/ingest', data);
+  return api.post('/api/alert/ingest', data);
 }
 
 export function acknowledgeAlert(id: string, _data?: { acknowledgedBy?: string; reason?: string }) {
   // Backend doesn't have a direct acknowledge endpoint; use suppression maintenance window as workaround
   console.warn('acknowledgeAlert: backend endpoint not available, using suppression as fallback');
-  return api.post(`/api/v1/alert/suppression/maintenance-windows`, {
+  return api.post(`/api/alert/suppression/maintenance-windows`, {
     name: `ack-${id}`,
     description: _data?.reason,
     startTime: new Date().toISOString(),
@@ -78,7 +78,7 @@ export function acknowledgeAlert(id: string, _data?: { acknowledgedBy?: string; 
 export function resolveAlert(_id: string, _data?: { resolvedBy?: string; resolution?: string }) {
   // Backend doesn't have a direct resolve endpoint
   console.warn('resolveAlert: backend endpoint not available');
-  return api.post(`/api/v1/alert/correlate`, { alerts: [{ id: _id }] });
+  return api.post(`/api/alert/correlate`, { alerts: [{ id: _id }] });
 }
 
 export function deleteAlert(_id: string) {
@@ -88,7 +88,7 @@ export function deleteAlert(_id: string) {
 }
 
 export function getActiveAlerts() {
-  return api.get('/api/v1/alert/list', { params: { status: 'active' } });
+  return api.get('/api/alert/list', { params: { status: 'active' } });
 }
 
 // ---- Alert Rules ----
@@ -98,7 +98,7 @@ export function getActiveAlerts() {
 export function getAlertRules() {
   // Alert rules are managed by /monitoring/rules, not /alert/rules
   console.warn('getAlertRules: rules are managed under /monitoring/rules, not /alert/rules');
-  return api.get('/api/v1/monitoring/rules');
+  return api.get('/api/monitoring/rules');
 }
 
 export function createAlertRule(data: {
@@ -108,27 +108,27 @@ export function createAlertRule(data: {
   threshold: number;
   severity: string;
 }) {
-  return api.post('/api/v1/monitoring/rules', data);
+  return api.post('/api/monitoring/rules', data);
 }
 
 export function updateAlertRule(id: string, data: Partial<AlertRule>) {
-  return api.put(`/api/v1/monitoring/rules/${id}`, data);
+  return api.put(`/api/monitoring/rules/${id}`, data);
 }
 
 export function deleteAlertRule(id: string) {
-  return api.delete(`/api/v1/monitoring/rules/${id}`);
+  return api.delete(`/api/monitoring/rules/${id}`);
 }
 
 export function toggleAlertRule(id: string) {
-  return api.patch(`/api/v1/monitoring/rules/${id}/toggle`);
+  return api.patch(`/api/monitoring/rules/${id}/toggle`);
 }
 
 // ---- Alert Stats ----
 
 export function getAlertStats() {
-  return api.get('/api/v1/alert/deduplication/stats');
+  return api.get('/api/alert/deduplication/stats');
 }
 
 export function getAlertMetrics(metric: string, startTime?: string, endTime?: string) {
-  return api.get(`/api/v1/alert/groups`, { params: { metric, startTime, endTime } });
+  return api.get(`/api/alert/groups`, { params: { metric, startTime, endTime } });
 }

@@ -122,79 +122,79 @@ export interface PolicyTestInput {
 // ---- Policy Management ----
 
 export function getPolicies(params?: PolicyListParams) {
-  return api.get('/api/v1/policies', { params });
+  return api.get('/api/policies', { params });
 }
 
 export function getPolicy(id: string) {
-  return api.get(`/api/v1/policies/${id}`);
+  return api.get(`/api/policies/${id}`);
 }
 
 export function createPolicy(data: PolicyInput) {
-  return api.post('/api/v1/policies', data);
+  return api.post('/api/policies', data);
 }
 
 export function updatePolicy(id: string, data: UpdatePolicyInput) {
-  return api.put(`/api/v1/policies/${id}`, data);
+  return api.put(`/api/policies/${id}`, data);
 }
 
 export function deletePolicy(id: string) {
-  return api.delete(`/api/v1/policies/${id}`);
+  return api.delete(`/api/policies/${id}`);
 }
 
 export function togglePolicy(id: string) {
-  return api.patch(`/api/v1/policies/${id}/toggle`);
+  return api.patch(`/api/policies/${id}/toggle`);
 }
 
 // ---- Bundle Sync ----
 
 export function syncPolicyBundles() {
-  return api.post('/api/v1/policies/bundles/sync');
+  return api.post('/api/policies/bundles/sync');
 }
 
 export function getPolicyBundles() {
-  return api.get('/api/v1/policies/bundles');
+  return api.get('/api/policies/bundles');
 }
 
 export function getPolicyBundle(id: string) {
-  return api.get(`/api/v1/policies/bundles/${id}`);
+  return api.get(`/api/policies/bundles/${id}`);
 }
 
 // ---- Policy Evaluation ----
 
 export function evaluatePolicy(data: PolicyEvaluateInput) {
-  return api.post('/api/v1/policies/evaluate', data);
+  return api.post('/api/policies/evaluate', data);
 }
 
 export function getPolicyEvaluations(params?: { runId?: string }) {
-  return api.get('/api/v1/policies/evaluations', { params });
+  return api.get('/api/policies/evaluations', { params });
 }
 
 export function evaluateGate(gateId: string, data?: Record<string, unknown>) {
-  return api.post(`/api/v1/policies/gate/${gateId}/evaluate`, data);
+  return api.post(`/api/policies/gate/${gateId}/evaluate`, data);
 }
 
 // ---- Violations ----
 
 export function getPolicyViolations(params?: PolicyViolationListParams) {
-  return api.get('/api/v1/policies/violations', { params });
+  return api.get('/api/policies/violations', { params });
 }
 
 export function getPolicyViolation(id: string) {
-  return api.get(`/api/v1/policies/violations/${id}`);
+  return api.get(`/api/policies/violations/${id}`);
 }
 
 export function waiveViolation(id: string, data: ViolationWaiveInput) {
-  return api.post(`/api/v1/policies/violations/${id}/waive`, data);
+  return api.post(`/api/policies/violations/${id}/waive`, data);
 }
 
 export function resolveViolation(id: string) {
-  return api.post(`/api/v1/policies/violations/${id}/resolve`);
+  return api.post(`/api/policies/violations/${id}/resolve`);
 }
 
 // ---- Overrides ----
 
 export function getPolicyOverrides(params?: { scope?: string }) {
-  return api.get('/api/v1/policies/overrides', { params });
+  return api.get('/api/policies/overrides', { params });
 }
 
 export function createPolicyOverride(data: {
@@ -204,15 +204,15 @@ export function createPolicyOverride(data: {
   expiresAt: string;
   scope?: string;
 }) {
-  return api.post('/api/v1/policies/overrides', data);
+  return api.post('/api/policies/overrides', data);
 }
 
 // ---- Policy Test ----
 
 export function testPolicy(data: PolicyTestInput) {
-  return api.post('/api/v1/policies/test', data);
+  return api.post('/api/policies/test', data);
 }
 
 export function getPolicyTestResults(testId: string) {
-  return api.get(`/api/v1/policies/test/results/${testId}`);
+  return api.get(`/api/policies/test/results/${testId}`);
 }

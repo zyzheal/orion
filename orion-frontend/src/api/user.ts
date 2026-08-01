@@ -1,7 +1,7 @@
 /**
  * User API Client
  * 用户管理 API 客户端
- * 后端 API 前缀: /api/v1/users
+ * 后端 API 前缀: /api/users
  */
 
 import { api } from './client';
@@ -63,35 +63,35 @@ export const userApi = {
    * 获取用户档案
    */
   getProfile: (userId: string) => {
-    return api.get<UserProfile>(`/api/v1/users/${userId}/profile`);
+    return api.get<UserProfile>(`/api/users/${userId}/profile`);
   },
 
   /**
    * 更新用户档案
    */
   updateProfile: (userId: string, data: Partial<UserProfile>) => {
-    return api.put<UserProfile>(`/api/v1/users/${userId}/profile`, data);
+    return api.put<UserProfile>(`/api/users/${userId}/profile`, data);
   },
 
   /**
    * 获取用户所属团队
    */
   getTeams: (userId: string) => {
-    return api.get<UserTeam[]>(`/api/v1/users/${userId}/teams`);
+    return api.get<UserTeam[]>(`/api/users/${userId}/teams`);
   },
 
   /**
    * 获取用户权限
    */
   getPermissions: (userId: string) => {
-    return api.get<UserPermission[]>(`/api/v1/users/${userId}/permissions`);
+    return api.get<UserPermission[]>(`/api/users/${userId}/permissions`);
   },
 
   /**
    * 获取用户活动日志
    */
   getActivities: (userId: string, page = 1, pageSize = 20) => {
-    return api.get<UserActivity[]>(`/api/v1/users/${userId}/activities`, {
+    return api.get<UserActivity[]>(`/api/users/${userId}/activities`, {
       params: { page, pageSize },
     });
   },
@@ -100,42 +100,42 @@ export const userApi = {
    * 获取用户 API Token 列表
    */
   getTokens: (userId: string) => {
-    return api.get<UserToken[]>(`/api/v1/users/${userId}/tokens`);
+    return api.get<UserToken[]>(`/api/users/${userId}/tokens`);
   },
 
   /**
    * 创建用户 API Token
    */
   createToken: (userId: string, name: string, expiresInDays?: number) => {
-    return api.post<UserToken>(`/api/v1/users/${userId}/tokens`, { name, expiresInDays });
+    return api.post<UserToken>(`/api/users/${userId}/tokens`, { name, expiresInDays });
   },
 
   /**
    * 删除用户 API Token
    */
   deleteToken: (userId: string, tokenId: string) => {
-    return api.delete<void>(`/api/v1/users/${userId}/tokens/${tokenId}`);
+    return api.delete<void>(`/api/users/${userId}/tokens/${tokenId}`);
   },
 
   /**
    * 获取用户通知偏好设置
    */
   getNotificationPreferences: (userId: string) => {
-    return api.get<NotificationPreferences>(`/api/v1/users/${userId}/notifications`);
+    return api.get<NotificationPreferences>(`/api/users/${userId}/notifications`);
   },
 
   /**
    * 更新用户通知偏好设置
    */
   updateNotificationPreferences: (userId: string, data: NotificationPreferences) => {
-    return api.put<NotificationPreferences>(`/api/v1/users/${userId}/notifications`, data);
+    return api.put<NotificationPreferences>(`/api/users/${userId}/notifications`, data);
   },
 
   /**
    * 修改密码
    */
   changePassword: (userId: string, oldPassword: string, newPassword: string) => {
-    return api.post<void>(`/api/v1/users/${userId}/change-password`, {
+    return api.post<void>(`/api/users/${userId}/change-password`, {
       oldPassword,
       newPassword,
     });

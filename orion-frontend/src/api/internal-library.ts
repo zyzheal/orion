@@ -158,7 +158,7 @@ export interface LibraryListParams {
 
 // ---- API Functions ----
 
-const BASE_URL = '/api/v1/internal-libraries';
+const BASE_URL = '/api/internal-libraries';
 
 /** List internal libraries with optional filters */
 export function getInternalLibraries(params?: LibraryListParams) {

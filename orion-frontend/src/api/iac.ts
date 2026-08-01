@@ -122,55 +122,55 @@ export interface ModuleListParams {
 // ---- Workspaces ----
 
 export function getWorkspaces(params?: WorkspaceListParams) {
-  return api.get('/api/v1/iac/workspaces', { params });
+  return api.get('/api/iac/workspaces', { params });
 }
 
 export function getWorkspace(id: string) {
-  return api.get(`/api/v1/iac/workspaces/${id}`);
+  return api.get(`/api/iac/workspaces/${id}`);
 }
 
 export function createWorkspace(data: WorkspaceInput) {
-  return api.post('/api/v1/iac/workspaces', data);
+  return api.post('/api/iac/workspaces', data);
 }
 
 export function updateWorkspace(id: string, data: UpdateWorkspaceInput) {
-  return api.put(`/api/v1/iac/workspaces/${id}`, data);
+  return api.put(`/api/iac/workspaces/${id}`, data);
 }
 
 // ---- Plans ----
 
 export function planWorkspace(id: string, data?: PlanInput) {
-  return api.post(`/api/v1/iac/workspaces/${id}/plan`, data);
+  return api.post(`/api/iac/workspaces/${id}/plan`, data);
 }
 
 export function applyWorkspace(id: string, data?: ApplyInput) {
-  return api.post(`/api/v1/iac/workspaces/${id}/apply`, data);
+  return api.post(`/api/iac/workspaces/${id}/apply`, data);
 }
 
 export function getWorkspacePlans(id: string) {
-  return api.get(`/api/v1/iac/workspaces/${id}/plans`);
+  return api.get(`/api/iac/workspaces/${id}/plans`);
 }
 
 export function getWorkspacePlan(workspaceId: string, planId: string) {
-  return api.get(`/api/v1/iac/workspaces/${workspaceId}/plans/${planId}`);
+  return api.get(`/api/iac/workspaces/${workspaceId}/plans/${planId}`);
 }
 
 // ---- State ----
 
 export function getWorkspaceState(id: string) {
-  return api.get(`/api/v1/iac/workspaces/${id}/state`);
+  return api.get(`/api/iac/workspaces/${id}/state`);
 }
 
 export function getWorkspaceStateVersions(id: string) {
-  return api.get(`/api/v1/iac/workspaces/${id}/state/versions`);
+  return api.get(`/api/iac/workspaces/${id}/state/versions`);
 }
 
 export function getWorkspaceResources(id: string) {
-  return api.get(`/api/v1/iac/workspaces/${id}/resources`);
+  return api.get(`/api/iac/workspaces/${id}/resources`);
 }
 
 export function getStateDiff(workspaceId: string, versionA: number, versionB: number) {
-  return api.get(`/api/v1/iac/workspaces/${workspaceId}/state/diff`, {
+  return api.get(`/api/iac/workspaces/${workspaceId}/state/diff`, {
     params: { versionA, versionB },
   });
 }
@@ -178,17 +178,17 @@ export function getStateDiff(workspaceId: string, versionA: number, versionB: nu
 // ---- Modules ----
 
 export function getModules(params?: ModuleListParams) {
-  return api.get('/api/v1/iac/modules', { params });
+  return api.get('/api/iac/modules', { params });
 }
 
 export function getModule(id: string) {
-  return api.get(`/api/v1/iac/modules/${id}`);
+  return api.get(`/api/iac/modules/${id}`);
 }
 
 export function createModule(data: ModuleInput) {
-  return api.post('/api/v1/iac/modules', data);
+  return api.post('/api/iac/modules', data);
 }
 
 export function deleteModule(id: string) {
-  return api.delete(`/api/v1/iac/modules/${id}`);
+  return api.delete(`/api/iac/modules/${id}`);
 }

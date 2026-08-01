@@ -12,7 +12,7 @@ import { api } from './client';
 export type TimeoutAction = 'remind' | 'escalate' | 'auto_complete' | 'cancel';
 
 /**
- * 超时任务信息（来自后端 GET /api/v1/task-timeouts/timed-out）
+ * 超时任务信息（来自后端 GET /api/task-timeouts/timed-out）
  */
 export interface TimedOutTask {
   task: {
@@ -31,7 +31,7 @@ export interface TimedOutTask {
 }
 
 /**
- * 手动触发检查响应（来自后端 POST /api/v1/task-timeouts/check-now）
+ * 手动触发检查响应（来自后端 POST /api/task-timeouts/check-now）
  */
 export interface CheckNowResult {
   checkedTasks: number;
@@ -44,7 +44,7 @@ export interface CheckNowResult {
 }
 
 /**
- * 检查器状态（来自后端 GET /api/v1/task-timeouts/status）
+ * 检查器状态（来自后端 GET /api/task-timeouts/status）
  */
 export interface TimeoutStatus {
   isRunning: boolean;
@@ -55,7 +55,7 @@ export interface TimeoutStatus {
  * 获取当前超时任务列表
  */
 export async function getTimedOutTasks(): Promise<TimedOutTask[]> {
-  const res = await api.get('/api/v1/task-timeouts/timed-out');
+  const res = await api.get('/api/task-timeouts/timed-out');
   return (res.data as unknown as { success: boolean; data: TimedOutTask[] }).data;
 }
 
@@ -63,7 +63,7 @@ export async function getTimedOutTasks(): Promise<TimedOutTask[]> {
  * 手动触发超时检查
  */
 export async function triggerCheckNow(): Promise<CheckNowResult> {
-  const res = await api.post('/api/v1/task-timeouts/check-now');
+  const res = await api.post('/api/task-timeouts/check-now');
   return (res.data as unknown as { success: boolean; data: CheckNowResult }).data;
 }
 
@@ -71,6 +71,6 @@ export async function triggerCheckNow(): Promise<CheckNowResult> {
  * 获取超时检查器状态
  */
 export async function getTimeoutStatus(): Promise<TimeoutStatus> {
-  const res = await api.get('/api/v1/task-timeouts/status');
+  const res = await api.get('/api/task-timeouts/status');
   return (res.data as unknown as { success: boolean; data: TimeoutStatus }).data;
 }

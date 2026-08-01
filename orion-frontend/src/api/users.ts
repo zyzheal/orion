@@ -67,84 +67,84 @@ export interface PaginatedUserResult {
 
 /**
  * List users with pagination and optional filters
- * GET /api/v1/users
+ * GET /api/users
  */
 export function listUsers(params?: ListUsersParams) {
-  return api.get<PaginatedUserResult>('/api/v1/users', { params });
+  return api.get<PaginatedUserResult>('/api/users', { params });
 }
 
 /**
  * Get user detail by ID
- * GET /api/v1/users/:id
+ * GET /api/users/:id
  */
 export function getUser(id: string) {
-  return api.get<User>(`/api/v1/users/${id}`);
+  return api.get<User>(`/api/users/${id}`);
 }
 
 /**
  * Create a new user
- * POST /api/v1/users
+ * POST /api/users
  */
 export function createUser(data: CreateUserInput) {
-  return api.post<User>('/api/v1/users', data);
+  return api.post<User>('/api/users', data);
 }
 
 /**
  * Update an existing user
- * PUT /api/v1/users/:id
+ * PUT /api/users/:id
  */
 export function updateUser(id: string, data: UpdateUserInput) {
-  return api.put<User>(`/api/v1/users/${id}`, data);
+  return api.put<User>(`/api/users/${id}`, data);
 }
 
 /**
  * Soft delete a user
- * DELETE /api/v1/users/:id
+ * DELETE /api/users/:id
  */
 export function deleteUser(id: string) {
-  return api.delete(`/api/v1/users/${id}`);
+  return api.delete(`/api/users/${id}`);
 }
 
 // ---- Authentication ----
 
 /**
  * Authenticate user (internal use)
- * POST /api/v1/users/authenticate
+ * POST /api/users/authenticate
  */
 export function authenticateUser(username: string, password: string) {
-  return api.post<User>('/api/v1/users/authenticate', { username, password });
+  return api.post<User>('/api/users/authenticate', { username, password });
 }
 
 /**
  * Change user password
- * POST /api/v1/users/:id/change-password
+ * POST /api/users/:id/change-password
  */
 export function changePassword(id: string, data: ChangePasswordInput) {
-  return api.post(`/api/v1/users/${id}/change-password`, data);
+  return api.post(`/api/users/${id}/change-password`, data);
 }
 
 // ---- Tenant Management ----
 
 /**
  * Get users by tenant
- * GET /api/v1/users/by-tenant/:tenantId
+ * GET /api/users/by-tenant/:tenantId
  */
 export function getUsersByTenant(tenantId: string) {
-  return api.get<User[]>(`/api/v1/users/by-tenant/${tenantId}`);
+  return api.get<User[]>(`/api/users/by-tenant/${tenantId}`);
 }
 
 /**
  * Add user to tenant
- * POST /api/v1/users/:userId/tenants/:tenantId
+ * POST /api/users/:userId/tenants/:tenantId
  */
 export function addUserToTenant(userId: string, tenantId: string, role?: string) {
-  return api.post(`/api/v1/users/${userId}/tenants/${tenantId}`, { role });
+  return api.post(`/api/users/${userId}/tenants/${tenantId}`, { role });
 }
 
 /**
  * Remove user from tenant
- * DELETE /api/v1/users/:userId/tenants/:tenantId
+ * DELETE /api/users/:userId/tenants/:tenantId
  */
 export function removeUserFromTenant(userId: string, tenantId: string) {
-  return api.delete(`/api/v1/users/${userId}/tenants/${tenantId}`);
+  return api.delete(`/api/users/${userId}/tenants/${tenantId}`);
 }

@@ -5,7 +5,7 @@ import type { LoginRequest, LoginResponse, RefreshTokenResponse, UserInfo } from
  * 用户登录
  */
 export const login = async (data: LoginRequest): Promise<LoginResponse> => {
-  const response = await api.post<LoginResponse>('/api/v1/auth/login', data);
+  const response = await api.post<LoginResponse>('/api/auth/login', data);
   return response.data;
 };
 
@@ -16,7 +16,7 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
  * 前端需传递 accessToken 和 refreshToken 以触发 token 黑名单
  */
 export const logout = async (accessToken?: string, refreshToken?: string): Promise<void> => {
-  await api.post('/api/v1/auth/logout', {
+  await api.post('/api/auth/logout', {
     accessToken,
     refreshToken,
   });
@@ -26,7 +26,7 @@ export const logout = async (accessToken?: string, refreshToken?: string): Promi
  * 刷新 Token
  */
 export const refreshToken = async (refreshToken: string): Promise<RefreshTokenResponse> => {
-  const response = await api.post<RefreshTokenResponse>('/api/v1/auth/refresh', { refreshToken });
+  const response = await api.post<RefreshTokenResponse>('/api/auth/refresh', { refreshToken });
   return response.data;
 };
 
@@ -52,7 +52,7 @@ export const refreshAuthTokenApi = async (
  * 获取当前用户信息
  */
 export const getCurrentUser = async (): Promise<UserInfo> => {
-  const response = await api.get<UserInfo>('/api/v1/auth/me');
+  const response = await api.get<UserInfo>('/api/auth/me');
   return response.data;
 };
 
@@ -67,7 +67,7 @@ export const getEnabledSsoProviders = async (): Promise<Array<{
   display_name: string;
   display_icon?: string;
 }>> => {
-  const response = await api.get('/api/v1/auth/sso/providers-enabled');
+  const response = await api.get('/api/auth/sso/providers-enabled');
   return (response.data || []) as { name: string; type: string; display_name: string; display_icon?: string }[];
 };
 
@@ -79,7 +79,7 @@ export const getSsoStatus = async (): Promise<{
   ssoIssuer: string | null;
   ssoScopes: string[];
 }> => {
-  const response = await api.get('/api/v1/auth/sso/status');
+  const response = await api.get('/api/auth/sso/status');
   return response.data as { ssoEnabled: boolean; ssoIssuer: string | null; ssoScopes: string[] };
 };
 
@@ -94,6 +94,6 @@ export const getJwtKeyStatus = async (): Promise<{
   verificationKeyCount: number;
   nextRotationDate?: string;
 }> => {
-  const response = await api.get('/api/v1/auth/keys');
+  const response = await api.get('/api/auth/keys');
   return response.data as { initialized: boolean; activeKeyId?: string; verificationKeyCount: number; nextRotationDate?: string };
 };

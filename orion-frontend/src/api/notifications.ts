@@ -138,7 +138,7 @@ export const getNotifications = async (
 ): Promise<{ data: MockNotification[]; total: number }> => {
   const userId = getCurrentUserId();
 
-  const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/api/v1/notifications/${userId}`, {
+  const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/api/notifications/${userId}`, {
     params: {
       limit: params?.pageSize || 20,
       page: params?.page || 1,
@@ -186,7 +186,7 @@ export const getNotifications = async (
  * 获取单个通知详情
  */
 export const getNotification = async (id: string): Promise<MockNotification> => {
-  const response = await api.get(`/api/v1/notifications/${id}`);
+  const response = await api.get(`/api/notifications/${id}`);
   // 拦截器已自动解包，response.data 直接是 BackendNotification
   return mapBackendToNotification(response.data as BackendNotification);
 };
@@ -195,7 +195,7 @@ export const getNotification = async (id: string): Promise<MockNotification> => 
  * 标记通知为已读
  */
 export const markAsRead = async (id: string): Promise<void> => {
-  await api.put(`/api/v1/notifications/${id}/read`);
+  await api.put(`/api/notifications/${id}/read`);
 };
 
 /**
@@ -203,13 +203,13 @@ export const markAsRead = async (id: string): Promise<void> => {
  */
 export const markAllAsRead = async (): Promise<void> => {
   const userId = getCurrentUserId();
-  const response = await api.get(`/api/v1/notifications/${userId}`, { params: { limit: 100 } });
+  const response = await api.get(`/api/notifications/${userId}`, { params: { limit: 100 } });
   // 拦截器已自动解包，response.data 直接是 BackendNotification[]
   const notifications: BackendNotification[] = response.data as BackendNotification[] | [];
   // Mark each unread notification as read
   for (const n of notifications) {
     if (n.status !== 'read' && !n.read_at) {
-      await api.put(`/api/v1/notifications/${n.id}/read`);
+      await api.put(`/api/notifications/${n.id}/read`);
     }
   }
 };
@@ -219,7 +219,7 @@ export const markAllAsRead = async (): Promise<void> => {
  */
 export const deleteNotification = async (id: string): Promise<void> => {
   // Backend doesn't have a delete endpoint yet, mark as read for now
-  await api.put(`/api/v1/notifications/${id}/read`);
+  await api.put(`/api/notifications/${id}/read`);
 };
 
 /**
@@ -228,13 +228,13 @@ export const deleteNotification = async (id: string): Promise<void> => {
 export const getNotificationStats = async (): Promise<NotificationStats> => {
   const userId = getCurrentUserId();
 
-  const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/api/v1/notifications/${userId}/unread-count`);
+  const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/api/notifications/${userId}/unread-count`);
   // 拦截器已自动解包，response1.data 直接是响应数据
   const data1 = response1.data as { data?: { unreadCount?: number } };
   const unreadCount = Number(data1.data?.unreadCount) || 0;
 
   // Fetch recent notifications for other stats
-  const response2 = await api.get<{ data?: BackendNotification[] }>(`/api/v1/notifications/${userId}`, { params: { limit: 100 } });
+  const response2 = await api.get<{ data?: BackendNotification[] }>(`/api/notifications/${userId}`, { params: { limit: 100 } });
   // 拦截器已自动解包，response2.data 直接是响应数据
   const data2 = response2.data as { data?: BackendNotification[] };
   const backendNotifications: BackendNotification[] = data2.data ?? [];
@@ -259,7 +259,7 @@ export const getNotificationStats = async (): Promise<NotificationStats> => {
 export const getNotificationSettings = async (): Promise<NotificationSettings> => {
   const userId = getCurrentUserId();
   const tenantId = getCurrentTenantId();
-  const response = await api.get(`/api/v1/notifications/settings/${userId}`, {
+  const response = await api.get(`/api/notifications/settings/${userId}`, {
     params: { tenantId },
   });
   // 拦截器已自动解包，response.data 直接是响应数据
@@ -312,7 +312,7 @@ export const updateNotificationSettings = async (
       }
     }
 
-    const response = await api.put(`/api/v1/notifications/settings/${userId}`, backendUpdates, {
+    const response = await api.put(`/api/notifications/settings/${userId}`, backendUpdates, {
       params: { tenantId },
     });
     // 拦截器已自动解包，response.data 直接是响应数据
@@ -339,7 +339,7 @@ export const updateNotificationSettings = async (
 
 /**
  * 广播通知给多个用户
- * POST /api/v1/notifications/broadcast
+ * POST /api/notifications/broadcast
  */
 export interface BroadcastInput {
   tenantId: string;
@@ -354,7 +354,7 @@ export interface BroadcastResult {
 }
 
 export const broadcastNotification = async (input: BroadcastInput): Promise<BroadcastResult> => {
-  const response = await api.post('/api/v1/notifications/broadcast', {
+  const response = await api.post('/api/notifications/broadcast', {
     tenant_id: input.tenantId,
     user_ids: input.userIds,
     type: input.type,

@@ -43,47 +43,47 @@ export interface ResourcePool {
 
 export const federationApi = {
   registerCluster: async (data: { name: string; provider: string; region: string; endpoint: string }) => {
-    const response = await apiClient.post('/api/v1/federation/clusters', data);
+    const response = await apiClient.post('/api/federation/clusters', data);
     return response.data as FederationCluster;
   },
 
   listClusters: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/federation/clusters', { params });
+    const response = await apiClient.get('/api/federation/clusters', { params });
     return response.data as FederationCluster[];
   },
 
   getClusterHealth: async (clusterId: string) => {
-    const response = await apiClient.get(`/api/v1/federation/clusters/${clusterId}/health`);
+    const response = await apiClient.get(`/api/federation/clusters/${clusterId}/health`);
     return response.data as ClusterHealth;
   },
 
   submitCrossClusterJob: async (data: { name: string; targetClusters: string[]; spec: Record<string, unknown> }) => {
-    const response = await apiClient.post('/api/v1/federation/jobs', data);
+    const response = await apiClient.post('/api/federation/jobs', data);
     return response.data as CrossClusterJob;
   },
 
   getJobStatus: async (jobId: string) => {
-    const response = await apiClient.get(`/api/v1/federation/jobs/${jobId}`);
+    const response = await apiClient.get(`/api/federation/jobs/${jobId}`);
     return response.data as CrossClusterJob;
   },
 
   listJobs: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/federation/jobs', { params });
+    const response = await apiClient.get('/api/federation/jobs', { params });
     return response.data as CrossClusterJob[];
   },
 
   submitJob: async (data: { name: string; targetClusters: string[]; spec: Record<string, unknown> }) => {
-    const response = await apiClient.post('/api/v1/federation/jobs', data);
+    const response = await apiClient.post('/api/federation/jobs', data);
     return response.data as CrossClusterJob;
   },
 
   listResourcePools: async (params?: { clusterId?: string }) => {
-    const response = await apiClient.get('/api/v1/federation/resource-pools', { params });
+    const response = await apiClient.get('/api/federation/resource-pools', { params });
     return response.data as ResourcePool[];
   },
 
   createResourcePool: async (data: { name: string; clusterId: string; cpuCores: number; memoryMb: number }) => {
-    const response = await apiClient.post('/api/v1/federation/resource-pools', data);
+    const response = await apiClient.post('/api/federation/resource-pools', data);
     return response.data as ResourcePool;
   },
 };

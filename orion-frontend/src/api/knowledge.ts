@@ -104,7 +104,7 @@ export async function getDocs(params?: {
   if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
 
   const res = await api.get<{ data: KnowledgeDoc[]; meta: { total: number } }>(
-    `/api/v1/knowledge/docs?${queryParams.toString()}`
+    `/api/knowledge/docs?${queryParams.toString()}`
   );
   // 拦截器已自动解包，res.data 直接是返回的数据
   const data = res.data?.data;
@@ -119,7 +119,7 @@ export async function getDocs(params?: {
  * 获取单个文档详情
  */
 export async function getDoc(id: string): Promise<KnowledgeDoc> {
-  const res = await api.get<KnowledgeDoc>(`/api/v1/knowledge/docs/${id}`);
+  const res = await api.get<KnowledgeDoc>(`/api/knowledge/docs/${id}`);
   return res.data;
 }
 
@@ -127,7 +127,7 @@ export async function getDoc(id: string): Promise<KnowledgeDoc> {
  * 获取文档分类列表 (按 tag 聚合)
  */
 export async function getDocTags(): Promise<string[]> {
-  const res = await api.get<string[]>('/api/v1/knowledge/docs/tags?type=docs');
+  const res = await api.get<string[]>('/api/knowledge/docs/tags?type=docs');
   return res.data ?? [];
 }
 
@@ -139,7 +139,7 @@ export async function getDocToc(): Promise<{
   tags: string[];
 }> {
   const res = await api.get<{ spaces: KnowledgeSpace[]; tags: string[] }>(
-    '/api/v1/knowledge/docs/toc?type=docs'
+    '/api/knowledge/docs/toc?type=docs'
   );
   return res.data ?? { spaces: [], tags: [] };
 }
@@ -159,7 +159,7 @@ export async function getDocSpaces(params?: {
   if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
 
   const res = await api.get<{ data: KnowledgeSpace[]; meta: { total: number } }>(
-    `/api/v1/knowledge/spaces?${queryParams.toString()}`
+    `/api/knowledge/spaces?${queryParams.toString()}`
   );
   const data = res.data?.data;
   const total = res.data?.meta?.total;
@@ -176,7 +176,7 @@ export async function triggerDocSync(
   syncType: 'full' | 'incremental'
 ): Promise<SyncResult> {
   const res = await api.post<SyncResult>(
-    `/api/v1/knowledge/sync?type=${syncType}`
+    `/api/knowledge/sync?type=${syncType}`
   );
   return res.data;
 }
@@ -193,7 +193,7 @@ export async function getSyncLogs(params?: {
   if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
 
   const res = await api.get<{ data: SyncLog[]; meta: { total: number } }>(
-    `/api/v1/knowledge/sync/logs?${queryParams.toString()}`
+    `/api/knowledge/sync/logs?${queryParams.toString()}`
   );
   const data = res.data?.data;
   const total = res.data?.meta?.total;
@@ -219,7 +219,7 @@ export async function searchDocs(
   }>;
 }> {
   const res = await api.post<{ results: Array<{ docId: string; title: string; snippet: string; score: number }> }>(
-    '/api/v1/knowledge/rag/retrieve',
+    '/api/knowledge/rag/retrieve',
     {
       query,
       spaceId,
@@ -253,21 +253,21 @@ export interface KnowledgeInput {
 }
 
 export async function searchKnowledge(query: string) {
-  return api.get<KnowledgeItem[]>(`/api/v1/knowledge/search?q=${encodeURIComponent(query)}`);
+  return api.get<KnowledgeItem[]>(`/api/knowledge/search?q=${encodeURIComponent(query)}`);
 }
 
 export async function getKnowledge(id: string) {
-  return api.get<KnowledgeItem>(`/api/v1/knowledge/${id}`);
+  return api.get<KnowledgeItem>(`/api/knowledge/${id}`);
 }
 
 export async function createKnowledge(input: KnowledgeInput) {
-  return api.post<KnowledgeItem>('/api/v1/knowledge', input);
+  return api.post<KnowledgeItem>('/api/knowledge', input);
 }
 
 export async function updateKnowledge(id: string, input: Partial<KnowledgeInput>) {
-  return api.put<KnowledgeItem>(`/api/v1/knowledge/${id}`, input);
+  return api.put<KnowledgeItem>(`/api/knowledge/${id}`, input);
 }
 
 export async function deleteKnowledge(id: string) {
-  return api.delete<void>(`/api/v1/knowledge/${id}`);
+  return api.delete<void>(`/api/knowledge/${id}`);
 }

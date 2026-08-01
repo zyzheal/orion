@@ -1,6 +1,6 @@
 /**
  * UEBA API
- * 对接后端 /api/v1/ueba 端点
+ * 对接后端 /api/ueba 端点
  */
 
 import { api } from './client';

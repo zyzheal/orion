@@ -67,33 +67,33 @@ export interface ProjectStats {
 // ---- CRUD ----
 
 export function getProjects(params?: { tenantId?: string }) {
-  return api.get<ProjectListResponse>('/api/v1/projects', { params });
+  return api.get<ProjectListResponse>('/api/projects', { params });
 }
 
 export function getProject(id: string) {
-  return api.get<Project>(`/api/v1/projects/${id}`);
+  return api.get<Project>(`/api/projects/${id}`);
 }
 
 export function createProject(data: CreateProjectInput) {
-  return api.post<Project>('/api/v1/projects', data);
+  return api.post<Project>('/api/projects', data);
 }
 
 export function updateProject(id: string, data: UpdateProjectInput) {
-  return api.put<Project>(`/api/v1/projects/${id}`, data);
+  return api.put<Project>(`/api/projects/${id}`, data);
 }
 
 export function deleteProject(id: string) {
-  return api.delete(`/api/v1/projects/${id}`);
+  return api.delete(`/api/projects/${id}`);
 }
 
 // ---- Resources ----
 
 export function getProjectResources(projectId: string) {
-  return api.get<ProjectResource[]>(`/api/v1/projects/${projectId}/resources`);
+  return api.get<ProjectResource[]>(`/api/projects/${projectId}/resources`);
 }
 
 // ---- Stats ----
 
 export function getProjectStats(params?: { tenantId?: string }) {
-  return api.get<ProjectStats>('/api/v1/projects/stats', { params });
+  return api.get<ProjectStats>('/api/projects/stats', { params });
 }

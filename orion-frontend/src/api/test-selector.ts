@@ -33,23 +33,23 @@ export interface TestStats {
   suites: TestSuite[];
 }
 
-// GET /api/v1/test-selector/cases - 获取测试用例列表
+// GET /api/test-selector/cases - 获取测试用例列表
 export async function getTestCases(filters?: { suite?: string; status?: string }) {
   const params = new URLSearchParams();
   if (filters?.suite) params.append('suite', filters.suite);
   if (filters?.status) params.append('status', filters.status);
   const qs = params.toString();
-  return api.get<TestCase[]>(`/api/v1/test-selector/cases${qs ? '?' + qs : ''}`);
+  return api.get<TestCase[]>(`/api/test-selector/cases${qs ? '?' + qs : ''}`);
 }
 
-// GET /api/v1/test-selector/suites - 获取测试套件列表
+// GET /api/test-selector/suites - 获取测试套件列表
 export async function getTestSuites() {
-  return api.get<TestSuite[]>('/api/v1/test-selector/suites');
+  return api.get<TestSuite[]>('/api/test-selector/suites');
 }
 
-// GET /api/v1/test-selector/coverage - 获取测试覆盖率
+// GET /api/test-selector/coverage - 获取测试覆盖率
 export async function getTestCoverage() {
-  return api.get<Record<string, number>>('/api/v1/test-selector/coverage');
+  return api.get<Record<string, number>>('/api/test-selector/coverage');
 }
 
 export interface FlakyTest {
@@ -69,22 +69,22 @@ export interface TestHistoryEntry {
   duration: number;
 }
 
-// GET /api/v1/test-selector/flaky - 获取抖动测试
+// GET /api/test-selector/flaky - 获取抖动测试
 export async function getFlakyTests(threshold?: number) {
   const params = threshold ? `?threshold=${threshold}` : '';
-  return api.get<{ flakyTests: FlakyTest[]; threshold: number }>(`/api/v1/test-selector/flaky${params}`);
+  return api.get<{ flakyTests: FlakyTest[]; threshold: number }>(`/api/test-selector/flaky${params}`);
 }
 
-// GET /api/v1/test-selector/history - 获取测试历史
+// GET /api/test-selector/history - 获取测试历史
 export async function getTestHistory() {
-  return api.get<TestHistoryEntry[]>('/api/v1/test-selector/history');
+  return api.get<TestHistoryEntry[]>('/api/test-selector/history');
 }
 
 // 兼容旧接口
 export async function getTestStats() {
   const [casesRes, suitesRes] = await Promise.all([
-    api.get<TestCase[]>('/api/v1/test-selector/cases'),
-    api.get<TestSuite[]>('/api/v1/test-selector/suites'),
+    api.get<TestCase[]>('/api/test-selector/cases'),
+    api.get<TestSuite[]>('/api/test-selector/suites'),
   ]);
 
   const cases = casesRes.data ?? [];
@@ -109,5 +109,5 @@ export async function getTestStats() {
 }
 
 export async function runTests(testIds: string[]) {
-  return api.post<{ runId: string }>('/api/v1/test-selector/run', { testIds });
+  return api.post<{ runId: string }>('/api/test-selector/run', { testIds });
 }

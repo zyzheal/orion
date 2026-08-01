@@ -113,35 +113,35 @@ export interface CostEstimateInput {
 // ---- Traces ----
 
 export function getTrace(traceId: string) {
-  return api.get<LLMTrace>(`/api/v1/llm/traces/${traceId}`);
+  return api.get<LLMTrace>(`/api/llm/traces/${traceId}`);
 }
 
 export function getTraces(params?: TraceQuery) {
-  return api.get<LLMTrace[]>('/api/v1/llm/traces', { params });
+  return api.get<LLMTrace[]>('/api/llm/traces', { params });
 }
 
 // ---- Statistics ----
 
 export function getDailyStats(params: DailyStatsQuery) {
-  return api.get<DailyStats>('/api/v1/llm/stats/daily', { params });
+  return api.get<DailyStats>('/api/llm/stats/daily', { params });
 }
 
 // ---- Cost Analysis ----
 
 export function getCostBreakdown(params: CostBreakdownQuery) {
-  return api.get<CostBreakdown>('/api/v1/llm/cost/breakdown', { params });
+  return api.get<CostBreakdown>('/api/llm/cost/breakdown', { params });
 }
 
 export function getTrackingAccuracy() {
-  return api.get<TrackingAccuracy>('/api/v1/llm/tracking/accuracy');
+  return api.get<TrackingAccuracy>('/api/llm/tracking/accuracy');
 }
 
 // ---- Pricing ----
 
 export function getPricing() {
-  return api.get<PricingTable>('/api/v1/llm/pricing');
+  return api.get<PricingTable>('/api/llm/pricing');
 }
 
 export function estimateCost(data: CostEstimateInput) {
-  return api.post<CostEstimate>('/api/v1/llm/cost/estimate', data);
+  return api.post<CostEstimate>('/api/llm/cost/estimate', data);
 }

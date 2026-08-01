@@ -52,14 +52,14 @@ export function getApkUploadHistory(_tenantId: string, query?: ApkUploadHistoryQ
   if (query?.market) params.market = query.market;
   if (query?.status) params.status = query.status;
 
-  return api.get<ApkUploadHistoryListResponse>(`/api/v1/apk-upload-history`, { params });
+  return api.get<ApkUploadHistoryListResponse>(`/api/apk-upload-history`, { params });
 }
 
 /**
  * Get a single APK upload record
  */
 export function getApkUploadRecord(id: string) {
-  return api.get<{ data: ApkUploadRecord }>(`/api/v1/apk-upload-history/${id}`);
+  return api.get<{ data: ApkUploadRecord }>(`/api/apk-upload-history/${id}`);
 }
 
 /**
@@ -69,7 +69,7 @@ export function getRecentFailures(_tenantId: string, limit?: number) {
   const params: Record<string, string> = {};
   if (limit) params.limit = limit.toString();
 
-  return api.get<{ data: ApkUploadRecord[] }>(`/api/v1/apk-upload-history/recent-failures`, { params });
+  return api.get<{ data: ApkUploadRecord[] }>(`/api/apk-upload-history/recent-failures`, { params });
 }
 
 /**
@@ -85,7 +85,7 @@ export function getApkUploadStats(_tenantId: string) {
       pending: number;
       submitted: number;
     };
-  }>(`/api/v1/apk-upload-history/stats`);
+  }>(`/api/apk-upload-history/stats`);
 }
 
 /**

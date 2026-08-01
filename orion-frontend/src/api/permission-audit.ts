@@ -1,6 +1,6 @@
 /**
  * Permission Audit API
- * 对接后端 /api/v1/permission-audit 端点
+ * 对接后端 /api/permission-audit 端点
  */
 
 import { api } from './client';

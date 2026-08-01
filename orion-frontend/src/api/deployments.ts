@@ -1,7 +1,7 @@
 /**
  * Deployment API Service - FIXED P0-2
  * Deployment CRUD operations and execution management
- * Aligned with backend routes: /api/v1/deploy/*
+ * Aligned with backend routes: /api/deploy/*
  */
 import { api } from './client';
 
@@ -60,19 +60,19 @@ export interface CreateDeploymentInput {
 // ---- Deployment CRUD ----
 
 export function getDeployments(params?: DeploymentListParams) {
-  return api.get('/api/v1/deploy/history', { params });
+  return api.get('/api/deploy/history', { params });
 }
 
 export function getDeployment(id: string) {
-  return api.get(`/api/v1/deploy/${id}`);
+  return api.get(`/api/deploy/${id}`);
 }
 
 export function createDeployment(data: CreateDeploymentInput) {
-  return api.post('/api/v1/deploy', data);
+  return api.post('/api/deploy', data);
 }
 
 export function cancelDeployment(id: string) {
-  return api.post(`/api/v1/deploy/${id}/cancel`);
+  return api.post(`/api/deploy/${id}/cancel`);
 }
 
 // ---- Smart Deploy API ----
@@ -83,21 +83,21 @@ export function smartDeploy(data: {
   version: string;
   strategy?: string;
 }) {
-  return api.post('/api/v1/deploy', data);
+  return api.post('/api/deploy', data);
 }
 
 export function getDeploymentStatus(id: string) {
-  return api.get(`/api/v1/deploy/${id}`);
+  return api.get(`/api/deploy/${id}`);
 }
 
 export function getDeploymentHistory(appName?: string) {
-  return api.get('/api/v1/deploy/history', { params: { appName } });
+  return api.get('/api/deploy/history', { params: { appName } });
 }
 
 export function getDeploymentMetrics() {
-  return api.get('/api/v1/deploy/metrics');
+  return api.get('/api/deploy/metrics');
 }
 
 export function rollbackDeployment(id: string, data?: { targetVersion?: string }) {
-  return api.post(`/api/v1/deploy/${id}/rollback`, data);
+  return api.post(`/api/deploy/${id}/rollback`, data);
 }

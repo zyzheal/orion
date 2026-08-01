@@ -40,34 +40,34 @@ export interface ScriptVersionDiff {
 
 // ==================== API 方法 ====================
 
-// POST /api/v1/script-versions/:scriptId/versions — 创建版本
+// POST /api/script-versions/:scriptId/versions — 创建版本
 export function createScriptVersion(scriptId: string, data: CreateScriptVersionInput) {
-  return api.post<ScriptVersion>(`/api/v1/script-versions/${scriptId}/versions`, data);
+  return api.post<ScriptVersion>(`/api/script-versions/${scriptId}/versions`, data);
 }
 
-// GET /api/v1/script-versions/:scriptId/versions — 列表
+// GET /api/script-versions/:scriptId/versions — 列表
 export function getScriptVersions(scriptId: string, params?: { latest?: string }) {
-  return api.get<ScriptVersion[]>(`/api/v1/script-versions/${scriptId}/versions`, { params });
+  return api.get<ScriptVersion[]>(`/api/script-versions/${scriptId}/versions`, { params });
 }
 
-// GET /api/v1/script-versions/:scriptId/versions/latest — 最新版本
+// GET /api/script-versions/:scriptId/versions/latest — 最新版本
 export function getLatestScriptVersion(scriptId: string) {
-  return api.get<ScriptVersion>(`/api/v1/script-versions/${scriptId}/versions/latest`);
+  return api.get<ScriptVersion>(`/api/script-versions/${scriptId}/versions/latest`);
 }
 
-// GET /api/v1/script-versions/:scriptId/versions/:version — 指定版本
+// GET /api/script-versions/:scriptId/versions/:version — 指定版本
 export function getScriptVersion(scriptId: string, version: string) {
-  return api.get<ScriptVersion>(`/api/v1/script-versions/${scriptId}/versions/${version}`);
+  return api.get<ScriptVersion>(`/api/script-versions/${scriptId}/versions/${version}`);
 }
 
-// GET /api/v1/script-versions/:scriptId/versions/:v1/diff/:v2 — 版本对比
+// GET /api/script-versions/:scriptId/versions/:v1/diff/:v2 — 版本对比
 export function diffScriptVersions(scriptId: string, v1: string, v2: string) {
   return api.get<ScriptVersionDiff>(
-    `/api/v1/script-versions/${scriptId}/versions/${encodeURIComponent(v1)}/diff/${encodeURIComponent(v2)}`
+    `/api/script-versions/${scriptId}/versions/${encodeURIComponent(v1)}/diff/${encodeURIComponent(v2)}`
   );
 }
 
-// DELETE /api/v1/script-versions/:scriptId/versions/:version — 删除版本
+// DELETE /api/script-versions/:scriptId/versions/:version — 删除版本
 export function deleteScriptVersion(scriptId: string, version: string) {
-  return api.delete(`/api/v1/script-versions/${scriptId}/versions/${version}`);
+  return api.delete(`/api/script-versions/${scriptId}/versions/${version}`);
 }

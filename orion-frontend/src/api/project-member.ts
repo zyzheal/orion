@@ -1,6 +1,6 @@
 /**
  * Project Member API
- * 对接后端 /api/v1/project-members 端点
+ * 对接后端 /api/project-members 端点
  */
 
 import { api } from './client';
@@ -14,7 +14,7 @@ export interface ProjectMember {
  * 获取项目成员列表
  */
 export async function getProjectMembers(projectId: string) {
-  const res = await api.get(`/api/v1/project-members/${projectId}`);
+  const res = await api.get(`/api/project-members/${projectId}`);
   return res.data as { data: ProjectMember[]; total: number };
 }
 
@@ -22,7 +22,7 @@ export async function getProjectMembers(projectId: string) {
  * 添加项目成员
  */
 export async function addProjectMember(projectId: string, userId: string, role: string) {
-  const res = await api.post(`/api/v1/project-members/${projectId}`, { userId, role });
+  const res = await api.post(`/api/project-members/${projectId}`, { userId, role });
   return res.data as { message: string; userId: string; role: string };
 }
 
@@ -30,7 +30,7 @@ export async function addProjectMember(projectId: string, userId: string, role: 
  * 移除项目成员
  */
 export async function removeProjectMember(projectId: string, userId: string) {
-  const res = await api.delete(`/api/v1/project-members/${projectId}/${userId}`);
+  const res = await api.delete(`/api/project-members/${projectId}/${userId}`);
   return res.data as { message: string };
 }
 
@@ -38,6 +38,6 @@ export async function removeProjectMember(projectId: string, userId: string) {
  * 检查用户是否为项目成员
  */
 export async function checkProjectMember(projectId: string, userId: string) {
-  const res = await api.get(`/api/v1/project-members/${projectId}/check/${userId}`);
+  const res = await api.get(`/api/project-members/${projectId}/check/${userId}`);
   return res.data as { isMember: boolean };
 }
