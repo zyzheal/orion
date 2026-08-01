@@ -86,6 +86,13 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
+  // OpsTools (运维管理工具)
+  {
+    path: '/ops-tools',
+    element: React.lazy(() => import('@/pages/OpsTools')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
   // SubApp 管理（子应用配置页面）
   {
     path: '/console/subapps',
@@ -177,10 +184,10 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AlertList')),
     protected: true,
   },
-  // AI Gateway
+  // [ARCHIVED] - old /ai-gateway standalone route, migrated to /ai/gateway; retained as redirect only (dedup 2026-08-01)
   {
     path: '/ai-gateway',
-    element: React.lazy(() => import('@/pages/AIGateway')),
+    element: <RedirectTo to="/ai/gateway" />,
     protected: true,
   },
   // Audit Log
@@ -228,6 +235,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/NotificationCenter')),
     protected: true,
   },
+  // Notification Enhanced
+  {
+    path: '/notification-enhanced',
+    element: React.lazy(() => import('@/pages/NotificationEnhanced')),
+    protected: true,
+  },
   // Ticketing Routes
   {
     path: '/tickets',
@@ -270,12 +283,14 @@ export const routes: AppRoute[] = [
     protected: true,
   },
   // Personal Workbench (统一工作台)
+  // [ARCHIVED] - old /bi entry, migrated to /dashboard/executive; retained for backward compatibility
   // BI Dashboard Routes (统一入口)
   {
     path: '/bi',
     element: <RedirectTo to="/dashboard/executive" />,
     protected: true,
   },
+  // [ARCHIVED] - old /bi/* wildcard redirect, migrated to /dashboard/executive
   {
     path: '/bi/*',
     element: <RedirectTo to="/dashboard/executive" />,
@@ -502,12 +517,14 @@ export const routes: AppRoute[] = [
       },
     ],
   },
+  // [ARCHIVED] - migrated to /ai/chatops; retained for backward compatibility
   // ChatOps (M35) - redirect to new /ai/chatops location
   {
     path: '/console/chatops',
     element: <RedirectTo to="/ai/chatops" />,
     protected: false,
   },
+  // [ARCHIVED] - old /console/chatops/* sub-route redirects, migrated to /ai/chatops
   {
     path: '/console/chatops/recommend',
     element: <RedirectTo to="/ai/chatops" />,
@@ -947,18 +964,21 @@ export const routes: AppRoute[] = [
       },
     ],
   },
+  // [ARCHIVED] - old /console/monitoring path, migrated to /observability/monitoring
   // 旧路由兼容：/console/monitoring → /observability/monitoring
   {
     path: '/console/monitoring',
     element: <RedirectTo to="/observability/monitoring" />,
     protected: false,
   },
+  // [ARCHIVED] - old /console/diagnostic path, migrated to /observability/diagnostic
   // 旧路由兼容：/console/diagnostic → /observability/diagnostic
   {
     path: '/console/diagnostic',
     element: <RedirectTo to="/observability/diagnostic" />,
     protected: false,
   },
+  // [ARCHIVED] - old /console/self-healing path, migrated to /observability/self-healing
   // 旧路由兼容：/console/self-healing → /observability/self-healing
   {
     path: '/console/self-healing',
@@ -966,11 +986,13 @@ export const routes: AppRoute[] = [
     protected: false,
   },
   // AI Agent Orchestration (redirect to /ai/agents)
+  // [ARCHIVED] - old /agents path, migrated to /ai/agents; retained for backward compatibility
   {
     path: '/agents',
     element: <RedirectTo to="/ai/agents" />,
     protected: false,
   },
+  // [ARCHIVED] - old /agent-runs/:id path, migrated to /ai/agents; retained for backward compatibility
   {
     path: '/agent-runs/:id',
     element: <RedirectTo to="/ai/agents" />,
@@ -1103,6 +1125,7 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/ProcessStep')),
     protected: true,
   },
+  // [ARCHIVED] - old /documents path, migrated to /knowledge; retained for backward compatibility
   // Document Center - 统一指向PandaWiki知识空间
   {
     path: '/documents',
@@ -1245,10 +1268,10 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/PluginSPI')),
     protected: true,
   },
-  // AI Security (P1)
+  // [ARCHIVED] - old /ai-security standalone route, migrated to /ai/security; retained as redirect only (dedup 2026-08-01)
   {
     path: '/ai-security',
-    element: React.lazy(() => import('@/pages/AISecurity')),
+    element: <RedirectTo to="/ai/security" />,
     protected: true,
   },
   // Module Manager (Workflow 5: Feature Domain Management)
@@ -1530,12 +1553,6 @@ export const routes: AppRoute[] = [
 
   // Service Registry & Health Dashboard (Task 6.5 + 6.8)
   {
-    path: '/observability/service-registry',
-    element: React.lazy(() => import('@/pages/service-registry/ServiceRegistry')),
-    protected: true,
-    requiredPermission: { resource: 'observability', action: 'read' },
-  },
-  {
     path: '/observability/health-dashboard',
     element: React.lazy(() => import('@/pages/HealthDashboard')),
     protected: true,
@@ -1555,11 +1572,11 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
+  // [ARCHIVED] - top-level /health-dashboard, migrated to /observability/health-dashboard; redirect only (dedup 2026-08-01)
   {
     path: '/health-dashboard',
-    element: React.lazy(() => import('@/pages/HealthDashboard')),
+    element: <RedirectTo to="/observability/health-dashboard" />,
     protected: true,
-    requiredPermission: { resource: 'observability', action: 'read' },
   },
   {
     path: '/service-topology',
@@ -1696,7 +1713,7 @@ export const routes: AppRoute[] = [
   },
   {
     path: '/observability',
-    element: <RedirectTo to="/console/monitoring" />,
+    element: <RedirectTo to="/observability/monitoring" />,
     protected: true,
   },
   {
@@ -1719,49 +1736,23 @@ export const routes: AppRoute[] = [
     element: <RedirectTo to="/dba" />,
     protected: true,
   },
-  // 旧模块入口重定向（向后兼容）
+  // [ARCHIVED] - old /ops entry, migrated to /delivery; retained for backward compatibility
   {
     path: '/ops',
     element: <RedirectTo to="/delivery" />,
     protected: true,
   },
+  // [ARCHIVED] - old /dev-env entry, migrated to /infra; retained for backward compatibility
   {
     path: '/dev-env',
     element: <RedirectTo to="/infra" />,
     protected: true,
   },
 
-  // ==================== 旧路由 301 重定向（向后兼容） ====================
-  {
-    path: '/ai-gateway',
-    element: <RedirectTo to="/ai/gateway" />,
-    protected: false,
-  },
-  {
-    path: '/ai-security',
-    element: <RedirectTo to="/ai/security" />,
-    protected: false,
-  },
-  {
-    path: '/console/ai-review',
-    element: <RedirectTo to="/ai/review" />,
-    protected: false,
-  },
-  {
-    path: '/console/ai-docs',
-    element: <RedirectTo to="/ai/docs" />,
-    protected: false,
-  },
-  {
-    path: '/console/llm-trace',
-    element: <RedirectTo to="/ai/trace" />,
-    protected: false,
-  },
-  {
-    path: '/console/ai-cost',
-    element: <RedirectTo to="/ai/cost" />,
-    protected: false,
-  },
+  // ==================== [ARCHIVED] 旧路由 301 重定向（向后兼容） ====================
+  // These paths migrated from /console/ai-* to /ai/* hierarchy; Go backend fully handles /ai/*
+  // NOTE: /console/ai-review, /console/ai-docs, /console/llm-trace, /console/ai-cost
+  // redirects moved above; active feature blocks (with children) handle these paths (dedup 2026-08-01)
 
   // 用户个人中心与设置
   {
@@ -1784,6 +1775,7 @@ export const routes: AppRoute[] = [
   } as any,
 
   // ==================== Previously Orphaned Pages ====================
+  // [ARCHIVED] - orphaned pages re-registered; some now served by Go microservices
   // Report Designer (M33)
   {
     path: '/console/report-designer',
@@ -2002,17 +1994,7 @@ export const routes: AppRoute[] = [
     protected: true,
   },
 
-  // P0-14: 补充未注册路由 (2026-07-20)
-  {
-    path: '/digital-twin',
-    element: React.lazy(() => import('@/pages/DigitalTwin')),
-    protected: true,
-  },
-  {
-    path: '/service-registry',
-    element: React.lazy(() => import('@/pages/service-registry/ServiceRegistry')),
-    protected: true,
-  },
+  // P0-14: 补充未注册路由 (2026-07-20) — 已修复重复路由，仅保留以下新路由
   {
     path: '/apk-credentials',
     element: React.lazy(() => import('@/pages/pipeline-svc/ApkCredentials')),

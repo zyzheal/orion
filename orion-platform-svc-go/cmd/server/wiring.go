@@ -14,6 +14,9 @@ import (
 	fed_handler "orion/platform-svc-go/internal/federation/handler"
 
 	plugin_handler "orion/platform-svc-go/internal/plugin/handler"
+	pm_handler "orion/platform-svc-go/internal/plugin-marketplace/handler"
+	pm_repo "orion/platform-svc-go/internal/plugin-marketplace/repository"
+	pm_service "orion/platform-svc-go/internal/plugin-marketplace/service"
 
 	inc_handler "orion/platform-svc-go/internal/inception/handler"
 
@@ -131,7 +134,7 @@ import (
 
 	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
 
-	notification_handler "orion/platform-svc-go/internal/notification/notification/handler"
+	notification_handler "orion/platform-svc-go/internal/notification/notification-handler"
 
 	notification_policy_handler "orion/platform-svc-go/internal/notification/notification-policy/handler"
 
@@ -293,16 +296,16 @@ import (
 	infraServerless_service "orion/platform-svc-go/internal/infrastructure/serverless/service"
 
 	// ---- Batch 1: registered modules ----
-	aiAgents_handler "orion/platform-svc-go/internal/ai-agents/handler"
-	aiCost_handler "orion/platform-svc-go/internal/ai-cost/handler"
-	aiGateway_handler "orion/platform-svc-go/internal/ai-gateway/handler"
-	aiDecisions_handler "orion/platform-svc-go/internal/ai-decisions/handler"
-	aiDecisions_repo "orion/platform-svc-go/internal/ai-decisions/repository"
-	aiDecisions_service "orion/platform-svc-go/internal/ai-decisions/service"
-	aiGateway_repo "orion/platform-svc-go/internal/ai-gateway/repository"
-	aiGateway_service "orion/platform-svc-go/internal/ai-gateway/service"
+	aiAgents_handler "orion/platform-svc-go/internal/ai/agents/handler"
+	aiCost_handler "orion/platform-svc-go/internal/ai/cost/handler"
+	aiGateway_handler "orion/platform-svc-go/internal/ai/gateway/handler"
+	aiDecisions_handler "orion/platform-svc-go/internal/ai/decisions/handler"
+	aiDecisions_repo "orion/platform-svc-go/internal/ai/decisions/repository"
+	aiDecisions_service "orion/platform-svc-go/internal/ai/decisions/service"
+	aiGateway_repo "orion/platform-svc-go/internal/ai/gateway/repository"
+	aiGateway_service "orion/platform-svc-go/internal/ai/gateway/service"
 	llmprovider "orion/platform-svc-go/internal/ai/llm-provider"
-	aiReview_handler "orion/platform-svc-go/internal/ai-review/handler"
+	aiReview_handler "orion/platform-svc-go/internal/ai/review/handler"
 	artifactVersion_handler "orion/platform-svc-go/internal/artifact-version/handler"
 	cache_mod_handler "orion/platform-svc-go/internal/cache/handler"
 	cacheCleanup_handler "orion/platform-svc-go/internal/cache-cleanup/handler"
@@ -355,9 +358,9 @@ import (
 
 	// ---- P0-6: Agent sandbox (isolated code execution) ----
 	sandbox_handler "orion/platform-svc-go/internal/sandbox/handler"
-	aiModels_handler "orion/platform-svc-go/internal/ai-models/handler"
-	aiModels_repo "orion/platform-svc-go/internal/ai-models/repository"
-	aiModels_service "orion/platform-svc-go/internal/ai-models/service"
+	aiModels_handler "orion/platform-svc-go/internal/ai/models/handler"
+	aiModels_repo "orion/platform-svc-go/internal/ai/models/repository"
+	aiModels_service "orion/platform-svc-go/internal/ai/models/service"
 
 	pipeline_budget_handler "orion/platform-svc-go/internal/pipeline-budget/handler"
 	pipeline_budget_repo "orion/platform-svc-go/internal/pipeline-budget/repository"
@@ -396,8 +399,8 @@ import (
 	message_queue_service "orion/platform-svc-go/internal/message-queue/service"
 
 	// ---- P0-4: AI Inference Proxy ----
-	aiInference_handler "orion/platform-svc-go/internal/ai-inference/handler"
-	aiInference_service "orion/platform-svc-go/internal/ai-inference/service"
+	aiInference_handler "orion/platform-svc-go/internal/ai/inference/handler"
+	aiInference_service "orion/platform-svc-go/internal/ai/inference/service"
 
 	sh_handler "orion/platform-svc-go/internal/self-healing/handler"
 	jobsource_handler "orion/platform-svc-go/internal/job-source/handler"
@@ -414,7 +417,13 @@ import (
 
 	"os"
 
+	"context"
+
 	"go.uber.org/zap"
+
+	// NATS subscribers for incident + self-healing domains
+	incident_nats "orion/platform-svc-go/internal/incident/nats"
+	sh_nats "orion/platform-svc-go/internal/self-healing/nats"
 
 	// ---- AI module handler imports (internal/ai/) ----
 	ai_llm_handler "orion/platform-svc-go/internal/ai/llm/handler"
@@ -429,6 +438,10 @@ import (
 	ai_skill_handler "orion/platform-svc-go/internal/ai/skill/handler"
 	ai_intelligence_handler "orion/platform-svc-go/internal/ai/intelligence/handler"
 	ai_llmtrace_handler "orion/platform-svc-go/internal/ai/llm-trace/handler"
+
+	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
+	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
+	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
 )
 
 // Package-level handler variables — initialized in initWiring(), consumed in setupRouter().
@@ -440,6 +453,7 @@ var (
 	artifactH           *artifact_handler.Handler
 	fedH                *fed_handler.Handler
 	pluginH             *plugin_handler.Handler
+	pluginMarketplaceH  *pm_handler.Handler
 	incH                *inc_handler.Handler
 	policyH             *policy_handler.Handler
 	envH                *env_handler.Handler
@@ -563,6 +577,7 @@ var (
 	graphvizH           *graphviz_handler.Handler
 	contractH           *contract_handler.Handler
 	peH                 *pe_handler.Handler
+	aiAgentRunH         *ai_agent_run_handler.Handler
 	aiAgentsH           *aiAgents_handler.Handler
 	aiCostH             *aiCost_handler.Handler
 	aiGatewayH          *aiGateway_handler.Handler
@@ -781,6 +796,17 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	aiDecisionsSvc.WithLLMProvider(llmProviderRegistry)
 	aiDecisionsH = aiDecisions_handler.NewHandler(aiDecisionsSvc)
 
+
+	// ai-agent-run services
+	aiAgentRunRepo := ai_agent_run_repo.NewRepository(infra.db.DB)
+	aiAgentRunSvc := ai_agent_run_service.NewService(aiAgentRunRepo)
+	aiAgentRunH = ai_agent_run_handler.NewHandler(aiAgentRunSvc)
+
+	// plugin-marketplace services
+	pmRepo := pm_repo.NewRepository(infra.db.DB)
+	pmSvc := pm_service.NewService(pmRepo)
+	pluginMarketplaceH = pm_handler.NewHandler(pmSvc)
+
 	// ai-gateway services
 	aiGatewayRepo := aiGateway_repo.NewRepository(infra.db.DB)
 	aiGatewaySvc := aiGateway_service.NewService(aiGatewayRepo)
@@ -951,4 +977,66 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// ---- AI modules (internal/ai/) ----
 	wireAIModules(db, logger)
 
+		// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
+		wireNatsSubscribers(logger)
+}
+// wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
+// subscribers. Graceful no-op when NATS is unreachable (async event-driven pipeline).
+func wireNatsSubscribers(logger *zap.Logger) {
+	natsAddr := os.Getenv("NATS_ADDR")
+	if natsAddr == "" {
+		natsAddr = "nats://localhost:4222"
+	}
+	natsStream := os.Getenv("NATS_STREAM")
+	if natsStream == "" {
+		natsStream = "ORION_EVENTS"
+	}
+
+	// --- Incident NATS Subscriber ---
+	// incidentSvc is wired via wireCICDModules and exported as package-level global.
+	if incidentSvc != nil {
+		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, incidentSvc)
+		if err != nil {
+			logger.Warn("incident NATS subscriber init failed (event-driven disabled)", zap.Error(err))
+		} else {
+			ctx := context.Background()
+			if startErr := incSub.Start(ctx); startErr != nil {
+				logger.Warn("incident NATS subscriber start failed", zap.Error(startErr))
+			} else {
+				logger.Info("incident NATS subscriber started")
+			}
+		}
+	} else {
+		logger.Debug("incident service not available, skipping NATS subscriber")
+	}
+
+	// --- Self-Healing NATS Subscriber ---
+	// SelfHealingService needs *zap.Logger and *repository.SelfHealingRepository;
+	// the repo requires pgxpool which is not currently wired at this layer.
+	// Register a no-op handler to keep the NATS subject consumed even without full repo wiring.
+	// TODO: wire pgxpool and pass real selfHealingRepo once core_infra_wiring exposes it.
+	if selfhealingH != nil {
+		// service already wired via external wiring — handler is available
+	}
+
+	shSub, err := sh_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &selfHealingNatsHandler{})
+	if err != nil {
+		logger.Warn("self-healing NATS subscriber init failed (event-driven disabled)", zap.Error(err))
+	} else {
+		ctx := context.Background()
+		if startErr := shSub.Start(ctx); startErr != nil {
+			logger.Warn("self-healing NATS subscriber start failed", zap.Error(startErr))
+		} else {
+			logger.Info("self-healing NATS subscriber started")
+		}
+	}
+}
+
+// selfHealingNatsHandler is a no-op EventHandler for the self-healing NATS subscriber
+// until the full SelfHealingService is wired. Keeps the NATS subject consumed and
+// logged while pgxpool-based repository wiring is pending.
+type selfHealingNatsHandler struct{}
+
+func (h *selfHealingNatsHandler) HandleSelfHealingEvent(ctx context.Context, event *sh_nats.SelfHealingEvent) error {
+	return nil
 }

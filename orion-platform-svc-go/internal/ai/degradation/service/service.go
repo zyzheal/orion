@@ -1,182 +1,199 @@
 package service
 
+//go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
+//go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
+
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"time"
 
-	"orion/platform-svc-go/internal/ai/degradation/models"
-	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/ai-degradation/models"
+	"orion/platform-svc-go/internal/ai-degradation/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountActiveConfigs(ctx context.Context, tenantID string) (int, error)
+	CountTotalConfigs(ctx context.Context, tenantID string) (int, error)
+	CreateConfig(ctx context.Context, config *models.DegradationConfig) error
+	CreateHistory(ctx context.Context, history *models.DegradationHistory) error
+	DeleteConfig(ctx context.Context, tenantID, configID string) error
+	GetConfig(ctx context.Context, tenantID, configID string) (*models.DegradationConfig, error)
+	GetHistoryList(ctx context.Context, tenantID, configID string, q models.ListHistoryQuery) (*models.HistoryListResponse, error)
+	GetServiceSummary(ctx context.Context, tenantID string) ([]repository.ServiceSummary, error)
+	ListConfigs(ctx context.Context, tenantID string, q models.ListConfigsQuery) (*models.ConfigListResponse, error)
+	UpdateConfig(ctx context.Context, tenantID, configID string,
+		name *string, description *string, triggers *string, actions *string,
+		recovery *string, metadata *string) (*models.DegradationConfig, error)
+	UpdateConfigRecovered(ctx context.Context, tenantID, configID string) error
+	UpdateConfigStatus(ctx context.Context, tenantID, configID string, enabled bool, status models.DegradationStatus) (*models.DegradationConfig, error)
+	UpdateConfigTriggered(ctx context.Context, tenantID, configID string, triggeredAt int64) error
+	UpdateHistoryRecovered(ctx context.Context, tenantID, historyID string, recoveredAt int64) error
+}
+
+// DegradationService exposes the methods the handler expects.
 type DegradationService struct {
-	configs  map[string]*models.DegradationConfig
-	events   map[string]*models.DegradationEvent
-	logger   *zap.Logger
+	repo RepositoryInterface
 }
 
-func NewDegradationService(logger *zap.Logger) *DegradationService {
-	s := &DegradationService{
-		configs: make(map[string]*models.DegradationConfig),
-		events:  make(map[string]*models.DegradationEvent),
-		logger:  logger,
-	}
-
-	// Initialize with default configs
-	s.configs["ai-gateway"] = &models.DegradationConfig{
-		ID:                "ai-gateway",
-		ServiceName:       "ai-gateway",
-		Level:             models.DegradationLevelNone,
-		BackoffMultiplier: 1.0,
-		RateLimit:         100,
-		TimeoutMultiplier: 1.0,
-		Enabled:           true,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
-	}
-
-	return s
+func NewService(repo RepositoryInterface) *DegradationService {
+	return &DegradationService{repo: repo}
 }
 
-// GetLevel returns the degradation level for a service.
-func (s *DegradationService) GetLevel(serviceName string) models.DegradationLevel {
-	if cfg, ok := s.configs[serviceName]; ok {
-		return cfg.Level
+func (s *DegradationService) CreateConfig(ctx context.Context, tenantID string, req models.CreateDegradationConfigRequest) (*models.DegradationConfig, error) {
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
 	}
-	return models.DegradationLevelNone
-}
-
-// SetLevel sets the degradation level for a service.
-func (s *DegradationService) SetLevel(ctx context.Context, tenantID string, serviceName string, req *models.SetLevelRequest) (*models.DegradationConfig, error) {
-	cfg, ok := s.configs[serviceName]
-	if !ok {
-		now := time.Now()
-		cfg = &models.DegradationConfig{
-			ID:                serviceName,
-			TenantID:          tenantID,
-			ServiceName:       serviceName,
-	Level:             req.Level,
-		Reason:            req.Reason,
-		BackoffMultiplier: 1.0,
-		RateLimit:         100,
-		TimeoutMultiplier: 1.0,
-		Enabled:           true,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+	triggers, _ := json.Marshal(req.Triggers)
+	actions, _ := json.Marshal(req.Actions)
+	var recovery *models.RecoveryConfig
+	if req.Recovery == nil {
+		recovery = &models.RecoveryConfig{
+			AutoRecover:         true,
+			RecoveryTimeout:     60000,
+			HealthCheckInterval: 10000,
+			MinHealthyDuration:  30000,
 		}
-		s.configs[serviceName] = cfg
 	} else {
-		cfg.Level = req.Level
-		cfg.Reason = req.Reason
-		cfg.UpdatedAt = time.Now()
+		recovery = req.Recovery
 	}
+	rcJSON, _ := json.Marshal(recovery)
+	metadata, _ := json.Marshal(req.Metadata)
 
-	// Set appropriate parameters based on level
-	switch req.Level {
-	case models.DegradationLevelMinor:
-		cfg.BackoffMultiplier = 1.5
-		cfg.TimeoutMultiplier = 2.0
-	case models.DegradationLevelMajor:
-		cfg.BackoffMultiplier = 2.0
-		cfg.TimeoutMultiplier = 3.0
-		cfg.RateLimit = 50
-	case models.DegradationLevelCritical:
-		cfg.BackoffMultiplier = 5.0
-		cfg.TimeoutMultiplier = 5.0
-		cfg.RateLimit = 10
-	case models.DegradationLevelNone:
-		cfg.BackoffMultiplier = 1.0
-		cfg.TimeoutMultiplier = 1.0
-		cfg.RateLimit = 100
+	config := &models.DegradationConfig{
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Description: req.Description,
+		ServiceName: req.ServiceName,
+		Strategy:    req.Strategy,
+		Triggers:    string(triggers),
+		Actions:     string(actions),
+		Recovery:    string(rcJSON),
+		Metadata:    string(metadata),
+		Enabled:     enabled,
 	}
-
-	// Log degradation event
-	event := &models.DegradationEvent{
-		ID:        fmt.Sprintf("evt_%d", time.Now().UnixNano()),
-		TenantID:  tenantID,
-		Service:   serviceName,
-		Level:     req.Level,
-		Message:   fmt.Sprintf("Degradation level set to %s: %s", req.Level, req.Reason),
-		TriggeredAt: time.Now(),
-	}
-	s.events[event.ID] = event
-
-	s.logger.Info("degradation level set",
-		zap.String("service", serviceName),
-		zap.String("level", string(req.Level)),
-		zap.String("reason", req.Reason),
-	)
-
-	return cfg, nil
-}
-
-// GetConfig returns the degradation config for a service.
-func (s *DegradationService) GetConfig(serviceName string) (*models.DegradationConfig, error) {
-	cfg, ok := s.configs[serviceName]
-	if !ok {
-		return nil, fmt.Errorf("config not found for service: %s", serviceName)
-	}
-	return cfg, nil
-}
-
-// QueryConfigs returns all degradation configs.
-func (s *DegradationService) QueryConfigs() models.DegradationResponse {
-	var resp models.DegradationResponse
-	for _, cfg := range s.configs {
-		resp.Data = append(resp.Data, *cfg)
-	}
-	resp.Total = int64(len(resp.Data))
-	return resp
-}
-
-// Resolve resolves a degradation for a service.
-func (s *DegradationService) Resolve(ctx context.Context, tenantID string, serviceName string) (*models.DegradationConfig, error) {
-	req := &models.SetLevelRequest{
-		Level:  models.DegradationLevelNone,
-		Reason: "Manually resolved",
-	}
-	cfg, err := s.SetLevel(ctx, tenantID, serviceName, req)
-	if err != nil {
+	if err := s.repo.CreateConfig(ctx, config); err != nil {
 		return nil, err
 	}
+	return config, nil
+}
 
-	// Mark the latest event as resolved
-	for _, event := range s.events {
-		if event.Service == serviceName && event.ResolvedAt == nil {
-			now := time.Now()
-			event.ResolvedAt = &now
-			s.logger.Info("degradation resolved",
-				zap.String("service", serviceName),
-			)
+func (s *DegradationService) GetConfig(ctx context.Context, tenantID, configID string) (*models.DegradationConfig, error) {
+	return s.repo.GetConfig(ctx, tenantID, configID)
+}
+
+func (s *DegradationService) ListConfigs(ctx context.Context, tenantID string, q models.ListConfigsQuery) (*models.ConfigListResponse, error) {
+	return s.repo.ListConfigs(ctx, tenantID, q)
+}
+
+func (s *DegradationService) UpdateConfig(ctx context.Context, tenantID, configID string, req models.UpdateDegradationConfigRequest) (*models.DegradationConfig, error) {
+	var triggers, actions, recovery, metadata *string
+	if req.Triggers != nil {
+		b, _ := json.Marshal(*req.Triggers)
+		s := string(b)
+		triggers = &s
+	}
+	if req.Actions != nil {
+		b, _ := json.Marshal(*req.Actions)
+		s := string(b)
+		actions = &s
+	}
+	if req.Recovery != nil {
+		b, _ := json.Marshal(*req.Recovery)
+		s := string(b)
+		recovery = &s
+	}
+	if req.Metadata != nil {
+		b, _ := json.Marshal(*req.Metadata)
+		s := string(b)
+		metadata = &s
+	}
+	return s.repo.UpdateConfig(ctx, tenantID, configID, req.Name, req.Description, triggers, actions, recovery, metadata)
+}
+
+func (s *DegradationService) DeleteConfig(ctx context.Context, tenantID, configID string) error {
+	return s.repo.DeleteConfig(ctx, tenantID, configID)
+}
+
+func (s *DegradationService) EnableConfig(ctx context.Context, tenantID, configID string) (*models.DegradationConfig, error) {
+	return s.repo.UpdateConfigStatus(ctx, tenantID, configID, true, models.StatusActive)
+}
+
+func (s *DegradationService) DisableConfig(ctx context.Context, tenantID, configID string) (*models.DegradationConfig, error) {
+	return s.repo.UpdateConfigStatus(ctx, tenantID, configID, false, models.StatusInactive)
+}
+
+func (s *DegradationService) TriggerDegradation(ctx context.Context, tenantID, configID string, req models.TriggerDegradationRequest) (*models.DegradationHistory, error) {
+	now := time.Now().UTC().Unix()
+	if err := s.repo.UpdateConfigTriggered(ctx, tenantID, configID, now); err != nil {
+		return nil, err
+	}
+	history := &models.DegradationHistory{
+		ConfigID:     configID,
+		TenantID:     tenantID,
+		TriggeredAt:  now,
+		TriggerType:  models.ConditionManual,
+		TriggerValue: 1.0,
+		Status:       models.HistoryStatusTriggered,
+	}
+	duration := int64(0)
+	if req.Duration != nil {
+		duration = *req.Duration
+	}
+	history.Duration = duration
+	if err := s.repo.CreateHistory(ctx, history); err != nil {
+		return nil, err
+	}
+	return history, nil
+}
+
+func (s *DegradationService) RecoverService(ctx context.Context, tenantID, configID string) (*models.DegradationConfig, error) {
+	now := time.Now().UTC().Unix()
+	// Mark latest triggered history as recovered
+	if err := s.repo.UpdateHistoryRecovered(ctx, tenantID, "", now); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateConfigRecovered(ctx, tenantID, configID); err != nil {
+		return nil, err
+	}
+	return s.repo.GetConfig(ctx, tenantID, configID)
+}
+
+func (s *DegradationService) GetHistory(ctx context.Context, tenantID, configID string, q models.ListHistoryQuery) (*models.HistoryListResponse, error) {
+	return s.repo.GetHistoryList(ctx, tenantID, configID, q)
+}
+
+func (s *DegradationService) GetGlobalStatus(ctx context.Context, tenantID string) (*models.GlobalDegradationStatus, error) {
+	activeCount, _ := s.repo.CountActiveConfigs(ctx, tenantID)
+	totalCount, _ := s.repo.CountTotalConfigs(ctx, tenantID)
+	summaries, _ := s.repo.GetServiceSummary(ctx, tenantID)
+
+	var services []models.ServiceStatusEntry
+	for _, s := range summaries {
+		status := models.ServiceHealthy
+		if s.ActiveDegradations > 0 {
+			status = models.ServiceDegraded
 		}
+		services = append(services, models.ServiceStatusEntry{
+			Name:               s.ServiceName,
+			Status:             status,
+			ActiveDegradations: s.ActiveDegradations,
+			LastIncident:       s.LastIncident,
+		})
 	}
 
-	return cfg, nil
-}
-
-// GetBackoffMultiplier returns the backoff multiplier for a service.
-func (s *DegradationService) GetBackoffMultiplier(serviceName string) float64 {
-	cfg, ok := s.configs[serviceName]
-	if ok {
-		return cfg.BackoffMultiplier
+	health := "healthy"
+	if activeCount > 0 {
+		health = "warning"
 	}
-	return 1.0
-}
 
-// GetTimeoutMultiplier returns the timeout multiplier for a service.
-func (s *DegradationService) GetTimeoutMultiplier(serviceName string) float64 {
-	cfg, ok := s.configs[serviceName]
-	if ok {
-		return cfg.TimeoutMultiplier
-	}
-	return 1.0
-}
-
-// GetRateLimit returns the rate limit for a service.
-func (s *DegradationService) GetRateLimit(serviceName string) int {
-	cfg, ok := s.configs[serviceName]
-	if ok {
-		return cfg.RateLimit
-	}
-	return 100
+	return &models.GlobalDegradationStatus{
+		Services:       services,
+		ActiveConfigs:  activeCount,
+		TotalConfigs:   totalCount,
+		RecentTriggers: activeCount,
+		SystemHealth:   health,
+	}, nil
 }
