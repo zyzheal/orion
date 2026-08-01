@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * API Key Management Page
  *
@@ -218,4 +219,9 @@ const ApiKeyManagement: React.FC = () => {
   );
 };
 
-export default ApiKeyManagement;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="API 密钥管理">
+    <ApiKeyManagement />
+  </PermissionGuard>
+);

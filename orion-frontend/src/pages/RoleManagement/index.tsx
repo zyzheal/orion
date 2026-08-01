@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Role Management Page
  * Role CRUD, permission assignment, and assigned user viewing
@@ -430,4 +431,9 @@ const RoleManagement: React.FC = () => {
   );
 };
 
-export default RoleManagement;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="角色管理">
+    <RoleManagement />
+  </PermissionGuard>
+);

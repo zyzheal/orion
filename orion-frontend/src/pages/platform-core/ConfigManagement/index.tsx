@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Configuration Management Page
  * GitOps, config approval, diff analysis, and drift detection
@@ -1084,4 +1085,9 @@ const ConfigManagementPage: React.FC = () => {
   );
 };
 
-export default ConfigManagementPage;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="配置管理">
+    <ConfigManagementPage />
+  </PermissionGuard>
+);

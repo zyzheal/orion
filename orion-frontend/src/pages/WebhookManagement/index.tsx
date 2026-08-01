@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Webhook Management Page
  *
@@ -298,4 +299,9 @@ const WebhookManagement: React.FC = () => {
   );
 };
 
-export default WebhookManagement;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="Webhook 管理">
+    <WebhookManagement />
+  </PermissionGuard>
+);

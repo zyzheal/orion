@@ -1,8 +1,15 @@
-// Package handler exposes the Job Operation Processor over REST.
+// Package handler provides HTTP handlers for job-processor,
+// delegating all business logic to the service layer.
+//
+// ARCHITECTURE (Clean Architecture):
+//   Handler (thin, gin) → Service → Processor + Repository
+//
+// The handler is responsible ONLY for: HTTP binding, response formatting,
+// error mapping, and routing. All orchestration lives in the service layer.
 package handler
 
 import (
-	"errors"
+	stderrors "errors"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -10,17 +17,17 @@ import (
 	"orion/platform-svc-go/internal/job-processor/models"
 	"orion/platform-svc-go/internal/job-processor/processor"
 	"orion/platform-svc-go/internal/job-processor/repository"
+	"orion/platform-svc-go/internal/job-processor/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	proc *processor.Processor
-	repo *repository.Repository
+	svc *service.Service
 }
 
-func NewHandler(proc *processor.Processor, repo *repository.Repository) *Handler {
-	return &Handler{proc: proc, repo: repo}
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -48,7 +55,7 @@ func (h *Handler) Process(c *gin.Context) {
 		return
 	}
 	chainID := c.Query("chain_id")
-	op, err := h.proc.Process(c.Request.Context(), h.tenantID(c), &req, chainID)
+	op, err := h.svc.Process(c.Request.Context(), h.tenantID(c), &req, chainID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -66,7 +73,7 @@ func (h *Handler) ProcessChain(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	chain, err := h.proc.ProcessChain(c.Request.Context(), h.tenantID(c), &req)
+	chain, err := h.svc.ProcessChain(c.Request.Context(), h.tenantID(c), &req)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -79,9 +86,9 @@ func (h *Handler) ProcessChain(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) GetOperation(c *gin.Context) {
-	op, err := h.proc.GetOperation(c.Request.Context(), h.tenantID(c), c.Param("id"))
+	op, err := h.svc.GetOperation(c.Request.Context(), h.tenantID(c), c.Param("id"))
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if stderrors.Is(err, repository.ErrNotFound) {
 			respondNotFound(c, err.Error())
 			return
 		}
@@ -99,7 +106,7 @@ func (h *Handler) ListOperations(c *gin.Context) {
 	chainID := c.Query("chain_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.proc.ListOperations(c.Request.Context(), h.tenantID(c), chainID, limit, offset)
+	resp, err := h.svc.ListOperations(c.Request.Context(), h.tenantID(c), chainID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -114,7 +121,7 @@ func (h *Handler) ListOperations(c *gin.Context) {
 func (h *Handler) ListChains(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.repo.ListChains(c.Request.Context(), h.tenantID(c), limit, offset)
+	resp, err := h.svc.ListChains(c.Request.Context(), h.tenantID(c), limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -127,7 +134,7 @@ func (h *Handler) ListChains(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) CancelChain(c *gin.Context) {
-	chain, err := h.proc.CancelChain(c.Request.Context(), h.tenantID(c), c.Param("id"))
+	chain, err := h.svc.CancelChain(c.Request.Context(), h.tenantID(c), c.Param("id"))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -141,13 +148,13 @@ func (h *Handler) CancelChain(c *gin.Context) {
 
 func respondError(c *gin.Context, err error) {
 	// Map known processor errors to appropriate HTTP statuses
-	if errors.Is(err, processor.ErrUnknownOperationType) ||
-		errors.Is(err, processor.ErrInvalidStatus) {
+	if stderrors.Is(err, processor.ErrUnknownOperationType) ||
+		stderrors.Is(err, processor.ErrInvalidStatus) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if errors.Is(err, processor.ErrChainNotFound) ||
-		errors.Is(err, repository.ErrNotFound) {
+	if stderrors.Is(err, processor.ErrChainNotFound) ||
+		stderrors.Is(err, repository.ErrNotFound) {
 		respondNotFound(c, err.Error())
 		return
 	}

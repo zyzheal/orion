@@ -14,6 +14,7 @@ import { typographyCSSVariables } from './tokens/typography';
 import { radiusCSSVariables } from './tokens/radius';
 import { shadowsCSSVariables } from './tokens/shadows';
 import { initMicroFrontend, cleanupMicroFrontend } from './microfront/config';
+import { QueryProvider } from './providers/QueryProvider';
 import '@/assets/styles/global.css';
 
 /**
@@ -126,12 +127,14 @@ const AppContent: React.FC = () => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <MicroFrontendInitializer />
-      <AuthInitializer>
-        <ChartProvider>
-          <AppContent />
-        </ChartProvider>
-      </AuthInitializer>
+      <QueryProvider>
+        <MicroFrontendInitializer />
+        <AuthInitializer>
+          <ChartProvider>
+            <AppContent />
+          </ChartProvider>
+        </AuthInitializer>
+      </QueryProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

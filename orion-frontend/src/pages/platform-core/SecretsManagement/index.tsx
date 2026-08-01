@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Secrets Management Page
  * Create, view, edit, and delete pipeline secrets.
@@ -501,4 +502,9 @@ const SecretsManagement: React.FC = () => {
   );
 };
 
-export default SecretsManagement;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="Secret 管理">
+    <SecretsManagement />
+  </PermissionGuard>
+);

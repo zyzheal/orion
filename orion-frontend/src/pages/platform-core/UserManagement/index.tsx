@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * User Management Page
  * List, create, edit, enable/disable users, role assignment, and detail view
@@ -810,4 +811,9 @@ const UserManagement: React.FC = () => {
   );
 };
 
-export default UserManagement;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="用户管理">
+    <UserManagement />
+  </PermissionGuard>
+);

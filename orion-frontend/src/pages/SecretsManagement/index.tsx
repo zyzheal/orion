@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Secrets Management Page
  * Create, view, edit, and delete pipeline secrets.
@@ -47,7 +48,7 @@ const scopeColorMap: Record<SecretScope, string> = {
   project: 'green',
 };
 
-const SecretsManagement: React.FC = () => {
+const SecretsManagementInner: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -501,4 +502,8 @@ const SecretsManagement: React.FC = () => {
   );
 };
 
-export default SecretsManagement;
+export default () => (
+  <PermissionGuard resource="secrets" action="read" pageLevel resourceName="Secret 管理">
+    <SecretsManagementInner />
+  </PermissionGuard>
+)

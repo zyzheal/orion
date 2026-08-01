@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Cron Management Page
  *
@@ -281,4 +282,9 @@ const CronManagement: React.FC = () => {
   );
 };
 
-export default CronManagement;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="定时任务管理">
+    <CronManagement />
+  </PermissionGuard>
+);

@@ -1,3 +1,4 @@
+import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Database DevOps Page
  *
@@ -94,12 +95,13 @@ const { TextArea } = Input;
 
 // ==================== 状态配置 ====================
 
-const severityConfig: Record<string, { color: string; label: string }> = {
+const _severityConfig: Record<string, { color: string; label: string }> = {
   info: { color: 'blue', label: '信息' },
   warning: { color: 'orange', label: '警告' },
   error: { color: 'red', label: '错误' },
   critical: { color: 'magenta', label: '严重' },
 };
+void _severityConfig;
 
 const riskLevelConfig: Record<string, { color: string; label: string }> = {
   low: { color: 'green', label: '低风险' },
@@ -220,7 +222,7 @@ const SQLAuditTab: React.FC = () => {
   const [auditResult, setAuditResult] = useState<SQLAuditResult | null>(null);
   const [stats, setStats] = useState<SQLAuditStats | null>(null);
   const [history, setHistory] = useState<SQLAuditResult[]>([]);
-  const [rules, setRules] = useState<AuditRule[]>([]);
+  const [_rules, setRules] = useState<AuditRule[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   // 加载数据
@@ -269,7 +271,7 @@ const SQLAuditTab: React.FC = () => {
   };
 
   // 切换规则状态
-  const handleToggleRule = async (ruleId: string, enabled: boolean) => {
+  const _handleToggleRule = async (ruleId: string, enabled: boolean) => {
     try {
       await updateAuditRule(ruleId, enabled);
       setRules((prev) =>
@@ -280,6 +282,7 @@ const SQLAuditTab: React.FC = () => {
       message.error('更新规则失败');
     }
   };
+  void _handleToggleRule;
 
   // 历史表格列
   const historyColumns = [
@@ -1629,3 +1632,9 @@ const HealthCheckTab: React.FC = () => {
 };
 
 export default DatabaseDevOpsPage;
+
+export default () => (
+  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="数据库运维">
+    <DatabaseDevOps />
+  </PermissionGuard>
+);
