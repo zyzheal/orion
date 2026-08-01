@@ -1022,7 +1022,7 @@ func wireNatsSubscribers(logger *zap.Logger) {
 	// --- Incident NATS Subscriber ---
 	// incidentSvc is wired via wireCICDModules and exported as package-level global.
 	if incidentSvc != nil {
-		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, incidentSvc)
+		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &incidentNatsHandler{})
 		if err != nil {
 			logger.Warn("incident NATS subscriber init failed (event-driven disabled)", zap.Error(err))
 		} else {
@@ -1065,5 +1065,13 @@ func wireNatsSubscribers(logger *zap.Logger) {
 type selfHealingNatsHandler struct{}
 
 func (h *selfHealingNatsHandler) HandleSelfHealingEvent(ctx context.Context, event *sh_nats.SelfHealingEvent) error {
+	return nil
+}
+
+// incidentNatsHandler is a no-op EventHandler for the incident NATS subscriber.
+// Keeps the NATS subject consumed while full incident event processing is pending.
+type incidentNatsHandler struct{}
+
+func (h *incidentNatsHandler) HandleIncidentEvent(ctx context.Context, event *incident_nats.EventBusEvent) error {
 	return nil
 }
