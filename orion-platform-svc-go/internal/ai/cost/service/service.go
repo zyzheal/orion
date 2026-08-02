@@ -9,8 +9,8 @@ import (
 	"math"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-cost/models"
-	"orion/platform-svc-go/internal/ai-cost/repository"
+	"orion/platform-svc-go/internal/ai/cost/models"
+	"orion/platform-svc-go/internal/ai/cost/repository"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

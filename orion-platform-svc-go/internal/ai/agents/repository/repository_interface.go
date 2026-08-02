@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai-agents/models"
+	"orion/platform-svc-go/internal/ai/agents/models"
 )
 
 

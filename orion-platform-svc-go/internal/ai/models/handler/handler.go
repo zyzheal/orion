@@ -5,8 +5,8 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/ai-models/models"
-	"orion/platform-svc-go/internal/ai-models/service"
+	"orion/platform-svc-go/internal/ai/models/models"
+	"orion/platform-svc-go/internal/ai/models/service"
 
 	"orion/go-common/pkg/errors"
 

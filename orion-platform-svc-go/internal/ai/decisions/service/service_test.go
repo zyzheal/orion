@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-decisions/models"
-	"orion/platform-svc-go/internal/ai-decisions/repository"
+	"orion/platform-svc-go/internal/ai/decisions/models"
+	"orion/platform-svc-go/internal/ai/decisions/repository"
 )
 
 // mockDecisionRepo implements DecisionRepo backed by an in-memory map.

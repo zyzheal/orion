@@ -109,7 +109,6 @@ import (
 	security_compliance_handler "orion/platform-svc-go/internal/security-compliance/handler"
 
 	change_handler "orion/platform-svc-go/internal/change/handler"
-	skill_handler "orion/platform-svc-go/internal/skill/handler"
 	sla_handler "orion/platform-svc-go/internal/sla/handler"
 	tenant_handler "orion/platform-svc-go/internal/tenant/handler"
 	visor_handler "orion/platform-svc-go/internal/visor-exec/handler"
@@ -439,12 +438,10 @@ import (
 	ai_aigateway_handler "orion/platform-svc-go/internal/ai/aigateway/handler"
 	ai_aireview_handler "orion/platform-svc-go/internal/ai/aireview/handler"
 	ai_aisecurity_handler "orion/platform-svc-go/internal/ai/aisecurity/handler"
-	ai_knowledge_handler "orion/platform-svc-go/internal/ai/knowledge/handler"
 	ai_orchestration_handler "orion/platform-svc-go/internal/ai/orchestration/handler"
 	ai_autorecovery_handler "orion/platform-svc-go/internal/ai/auto-recovery/handler"
 	ai_skill_handler "orion/platform-svc-go/internal/ai/skill/handler"
 	ai_intelligence_handler "orion/platform-svc-go/internal/ai/intelligence/handler"
-	ai_llmtrace_handler "orion/platform-svc-go/internal/ai/llm-trace/handler"
 
 	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
 	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
@@ -522,7 +519,6 @@ var (
 	knowledgeH          *knowledge_handler.Handler
 	security_complianceH *security_compliance_handler.Handler
 	changeH             *change_handler.Handler
-	skillH              *skill_handler.Handler
 	slaH                *sla_handler.Handler
 	tenantH             *tenant_handler.Handler
 	visorH              *visor_handler.Handler
@@ -737,488 +733,56 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// Wave 7a: P2 security & compliance modules
 	wireP2Modules(db)
 
-	// Blueprint modules: billing, cost-allocation, efficiency, data-lineage,
-	// data-quality, api-consumption, contract
-	wireBlueprintModules(db)
-
-	// Data modules (catalog, quality, pipeline) — repo -> service -> handler
-	dataCatalogRepo := dataCatalog_repo.NewRepository(infra.db.DB)
-	dataCatalogSvc := dataCatalog_service.NewService(dataCatalogRepo, dataCatalog_introspector.New())
-	dataCatalogH = dataCatalog_handler.NewHandler(dataCatalogSvc)
-
-	dataQualityRepo := dataQuality_repo.NewRepository(infra.db.DB)
-	dataQualitySvc := dataQuality_service.NewService(dataQualityRepo)
-	dataQualityH = dataQuality_handler.NewHandler(dataQualitySvc)
-
-	dataPipelineRepo := dataPipeline_repo.NewRepository(infra.db.DB)
-	dataPipelineSvc := dataPipeline_service.NewService(dataPipelineRepo)
-	dataPipelineH = dataPipeline_handler.NewHandler(dataPipelineSvc)
-
-	// Wave 7: P2 batch modules (alert-breaker, apm, bi-dashboard, canary-*,
-	// cross-domain, decision-explanation, degradation, dependency-coordination,
-	// dual-engine, env-*, global-param, integration, maintenance-window,
-	// message-queue, metrics, multi-modal-trigger, notification-management,
-	// oci-registry, plugin-hotreload, process-step, progressive, queue, risk,
-	// runbook, script-*, self-service, service-*, ticket-knowledge, topology,
-	// unified-config, vector-*, version-archive)
-	wireWave7BatchModules(db)
-
-	// Wave 7b-j: Automation modules
-	wireAutomationModules(db)
-
-	// ---- Inline wiring (requires secrets or cross-module dependencies) ----
-
-	// user services (needed by auth)
-	userRepo := user_repo.NewRepository(infra.db.DB)
-	userSvc := user_service.NewService(userRepo)
-	userH = user_handler.NewHandler(userSvc)
-
-	// auth services (requires ffCfg.JWTSecret + userRepo)
-	authRepo := auth_repo.NewRepository(infra.db.DB)
-	authSvc := auth_service.NewService(authRepo, userRepo, infra.ffCfg.JWTSecret)
-	authH = auth_handler.NewHandler(authSvc)
-
-	// permission services
-	permRepo := perm_repo.NewRepository(infra.db.DB)
-	permSvc := perm_service.NewService(permRepo)
-	permH = perm_handler.NewHandler(permSvc)
-	// ---- LLM Provider Registry + AI services ----
-	llmProviderRegistry := llmprovider.NewProviderRegistry()
-	// Wire real LLM providers from environment variables (graceful no-op when unset).
-	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey != "" {
-		llmProviderRegistry.Register(llmprovider.NewOpenAIClient(llmprovider.OpenAIConfig{
-			BaseURL:      os.Getenv("OPENAI_BASE_URL"),
-			APIKey:       openaiKey,
-			DefaultModel: "gpt-4o-mini",
-		}))
-	}
-	if anthropicKey := os.Getenv("ANTHROPIC_API_KEY"); anthropicKey != "" {
-		llmProviderRegistry.Register(llmprovider.NewAnthropicClient(llmprovider.AnthropicConfig{
-			BaseURL:      os.Getenv("ANTHROPIC_BASE_URL"),
-			APIKey:       anthropicKey,
-			DefaultModel: "claude-3-haiku-20240307",
-		}))
-	}
-
-	// ai-decisions services
-	aiDecisionsRepo := aiDecisions_repo.NewRepository(infra.db.DB)
-	aiDecisionsSvc := aiDecisions_service.NewService(aiDecisionsRepo)
-	aiDecisionsSvc.WithLLMProvider(llmProviderRegistry)
-	aiDecisionsH = aiDecisions_handler.NewHandler(aiDecisionsSvc)
-
-
-	// ai-agent-run services
-	aiAgentRunRepo := ai_agent_run_repo.NewRepository(infra.db.DB)
-	aiAgentRunSvc := ai_agent_run_service.NewService(aiAgentRunRepo)
-	aiAgentRunH = ai_agent_run_handler.NewHandler(aiAgentRunSvc)
-
-	// plugin-marketplace services
-	pmRepo := pm_repo.NewRepository(infra.db.DB)
-	pmSvc := pm_service.NewService(pmRepo)
-	pluginMarketplaceH = pm_handler.NewHandler(pmSvc)
-
-	// ai-gateway services
-	aiGatewayRepo := aiGateway_repo.NewRepository(infra.db.DB)
-	aiGatewaySvc := aiGateway_service.NewService(aiGatewayRepo)
-	aiGatewaySvc.WithLLMProvider(llmProviderRegistry)
-	aiGatewayH = aiGateway_handler.NewHandler(aiGatewaySvc)
-
-	// P0-6: Agent sandbox (isolated code execution)
-	sandboxRepo := sandbox_repo.NewRepository(infra.db.DB)
-	sandboxSvc := sandbox_service.NewService(sandboxRepo, infra.logger)
-	sandboxH = sandbox_handler.NewHandler(sandboxSvc)
-
-	// P0-9: Centralized logging service
-	loggingRepo := logging_repo.NewRepository(infra.db.DB)
-	loggingSvc := logging_service.NewService(loggingRepo)
-	loggingH = logging_handler.NewHandler(loggingSvc)
-
-	// P0-5: Object storage metadata (S3/MinIO abstraction)
-	storageRepo := storage_repo.NewRepository(infra.db.DB)
-	storageSvc := storage_service.NewService(storageRepo)
-	storageH = storage_handler.NewHandler(storageSvc)
-
-	// P0-8: Message queue reliable persistence
-	message_queueRepo := message_queue_repo.NewRepository(infra.db.DB)
-	message_queueSvc := message_queue_service.NewService(message_queueRepo)
-	message_queueH = message_queue_handler.NewHandler(message_queueSvc)
-
-	// P0-18: K8s Provisioner
-	clusterRepo := cluster_repo.NewRepository(infra.db.DB)
-	clusterSvc := cluster_service.NewService(clusterRepo)
-	clusterH = cluster_handler.NewHandler(clusterSvc)
-
-	// P0-4: AI Inference Proxy (HTTP proxy to Python AI service)
-	aiInferenceSvc := aiInference_service.NewPythonInferenceService()
-	aiInferenceH = aiInference_handler.NewHandler(aiInferenceSvc)
-
-	// P0-20: Network Management Module
-	networkRepo := network_repo.NewRepository(infra.db.DB)
-	networkSvc := network_service.NewService(networkRepo)
-	networkH = network_handler.NewHandler(networkSvc)
-	// ai-models services
-	aiModelsRepo := aiModels_repo.NewRepository(infra.db.DB)
-	aiModelsSvc := aiModels_service.NewService(aiModelsRepo, infra.logger)
-	aiModelsH = aiModels_handler.NewHandler(aiModelsSvc)
-
-	// pipeline-budget services
-	pipelineBudgetRepo := pipeline_budget_repo.NewRepository(infra.db.DB)
-	pipelineBudgetSvc := pipeline_budget_service.NewService(pipelineBudgetRepo)
-	pipelineBudgetH = pipeline_budget_handler.NewHandler(pipelineBudgetSvc)
-
-	// pipeline-templates services
-	pipelineTemplatesRepo := pipeline_templates_repo.NewRepository(infra.db.DB)
-	pipelineTemplatesSvc := pipeline_templates_service.NewService(pipelineTemplatesRepo)
-	pipelineTemplatesH = pipeline_templates_handler.NewHandler(pipelineTemplatesSvc)
-
-	// pipeline-versions services
-	pipelineVersionsRepo := pipeline_versions_repo.NewRepository(infra.db.DB)
-	pipelineVersionsSvc := pipeline_versions_service.NewService(pipelineVersionsRepo)
-	pipelineVersionsH = pipeline_versions_handler.NewHandler(pipelineVersionsSvc)
-
-	// resilience-score services
-	resilienceScoreRepo := resilience_score_repo.NewRepository(infra.db.DB)
-	resilienceScoreSvc := resilience_score_service.NewService(resilienceScoreRepo, infra.db.DB)
-	resilienceScoreH = resilience_score_handler.NewHandler(resilienceScoreSvc)
-
-	// sbom services
-	sbomRepo := sbom_repo.NewRepository(infra.db.DB)
-	sbomSvc := sbom_service.NewService(sbomRepo)
-	sbomH = sbom_handler.NewHandler(sbomSvc)
-
-	// ---- Blueprint CI-CD merge: wire subdomain handlers ----
-	// artifact-registry: repo -> service -> handler
-	ciArtRegRepo := ciArtReg_repo.NewArtifactRegistryRepository(infra.db.DB.DB)
-	ciArtRegSvc := ciArtReg_service.NewArtifactRegistryService(ciArtRegRepo, infra.logger)
-	ciArtRegH = ciArtReg_handler.NewArtifactRegistryHandler(ciArtRegSvc)
-
-	// artifact-version: service -> handler (map-based, logger only)
-	ciArtVerSvc := ciArtVer_service.NewArtifactVersionService(infra.logger)
-	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
-
-	// build: repo -> service -> handler (requires db + logger)
-	ciBuildH = ciBuild_handler.New(infra.db, infra.logger)
-
-	// canary: repo -> service -> handler
-	ciCanaryRepo := ciCanary_repo.NewCanaryRepository(infra.db.DB)
-	ciCanaryRunRepo := ciCanary_repo.NewCanaryAnalysisRunRepository(infra.db.DB)
-	ciCanaryMetricRepo := ciCanary_repo.NewCanaryMetricResultRepository(infra.db.DB)
-	ciCanaryMLRepo := ciCanary_repo.NewCanaryMLResultRepository(infra.db.DB)
-	ciCanaryConfigRepo := ciCanary_repo.NewCanaryAnalysisConfigRepository(infra.db.DB)
-	ciCanaryDecisionRepo := ciCanary_repo.NewCanaryDecisionRepository(infra.db.DB)
-	ciCanaryRetrainRepo := ciCanary_repo.NewCanaryRetrainJobRepository(infra.db.DB)
-	ciCanaryTrafficRepo := ciCanary_repo.NewTrafficConfigRepository(infra.db.DB)
-	ciCanaryHistoryRepo := ciCanary_repo.NewTrafficHistoryRepository(infra.db.DB)
-	ciCanarySvc := ciCanary_service.NewCanaryService(ciCanaryRepo, ciCanaryRunRepo, ciCanaryMetricRepo, ciCanaryMLRepo, ciCanaryConfigRepo, ciCanaryDecisionRepo, ciCanaryRetrainRepo, ciCanaryTrafficRepo, ciCanaryHistoryRepo)
-	ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
-
-	// deploy: repo -> service -> handler (requires db + logger)
-	ciDeployH = ciDeploy_handler.New(infra.db, infra.logger)
-
-	// pipeline: repo -> service -> handler
-	ciPipelineRepo := ciPipeline_repo.NewPipelineRepository(infra.db.DB)
-	ciPipelineRunRepo := ciPipeline_repo.NewRunRepository(infra.db.DB)
-	ciPipelineStageRepo := ciPipeline_repo.NewStageRepository(infra.db.DB)
-	ciPipelineTaskRepo := ciPipeline_repo.NewTaskRepository(infra.db.DB)
-	ciPipelineEngine := ciPipeline_engine.NewPipelineEngine(ciPipeline_engine.EngineDeps{
-		PipelineRepo: ciPipelineRepo,
-		RunRepo:      ciPipelineRunRepo,
-		StageRepo:    ciPipelineStageRepo,
-		TaskRepo:     ciPipelineTaskRepo,
-		Logger:       infra.logger,
-	})
-	ciPipelineSvc := ciPipeline_service.NewPipelineService(ciPipelineRepo, ciPipelineRunRepo, ciPipelineStageRepo, ciPipelineTaskRepo, ciPipelineEngine)
-	ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
-
-	// pipeline-template: repo -> service -> handler
-	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
-	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo)
-	ciPTmplH = ciPTmpl_handler.NewHandler(ciPTmplSvc)
-
-	// runner: repo -> service -> handler
-	ciRunnerRepo := ciRunner_repo.NewRepository(infra.db.DB)
-	ciRunnerSvc := ciRunner_service.NewService(ciRunnerRepo)
-	ciRunnerH = ciRunner_handler.NewHandler(ciRunnerSvc)
-
-	// ---- Blueprint InfraOps merge: wire infrastructure subdomain handlers ----
-	// capacity: repo -> service -> handler
-
-	// dr: repo -> service -> handler
-	infraDrRepo := infraDr_repo.NewRepository(infra.db.DB)
-	infraDrSvc := infraDr_service.NewService(infraDrRepo)
-	infraDrH = infraDr_handler.NewHandler(infraDrSvc)
-
-	// ephemeral-env: repo -> service -> handler
-	infraEERepo := infraEE_repo.NewRepository(infra.db.DB)
-	infraEESvc := infraEE_service.NewService(infraEERepo)
-	infraEEH = infraEE_handler.NewHandler(infraEESvc)
-
-	// middleware-ops: repo -> service -> handler
-
-	// backup: repo -> 2 services (BackupService + RecoveryService) -> handler
-	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)
-	infraBackupSvc := infraBackup_service.NewBackupService(infraBackupRepo, infra.logger)
-	infraRecoverySvc := infraBackup_service.NewRecoveryService(infraBackupRepo, infra.logger)
-	infraBackupH = infraBackup_handler.New(infraBackupSvc, infraRecoverySvc, infra.logger)
-
-	// chaos: repo -> service -> handler
-	infraChaosRepo := infraChaos_repo.NewChaosRepository(infra.db.DB)
-	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
-	infraChaosH = infraChaos_handler.NewHandler(infraChaosSvc)
-
-	// dba: repo -> service -> handler
-	infraDbaRepo := infraDba_repo.NewRepository(infra.db.DB)
-	infraDbaSvc := infraDba_service.NewService(infraDbaRepo)
-	infraDbaH = infraDba_handler.NewHandler(infraDbaSvc)
-
-	// degradation: repo -> service -> handler
-	infraDegRepo := infraDegradation_repo.NewRepository(infra.db.DB)
-	infraDegSvc := infraDegradation_service.NewService(infraDegRepo)
-	infraDegH = infraDegradation_handler.NewHandler(infraDegSvc)
-
-	// digital-twin: repo -> service -> handler
-	infraDTwinRepo := infraDTwin_repo.NewRepository(infra.db.DB)
-	infraDTwinSvc := infraDTwin_service.NewService(infraDTwinRepo)
-	infraDTwinH = infraDTwin_handler.NewHandler(infraDTwinSvc)
-
-	// iac: repo -> service -> handler
-	infraIacRepo := infraIac_repo.NewRepository(infra.db.DB)
-	infraIacSvc := infraIac_service.NewService(infraIacRepo)
-	infraIacH = infraIac_handler.NewHandler(infraIacSvc)
-
-	// maintenance-window: repo -> service -> handler
-	infraMWnRepo := infraMWn_repo.NewRepository(infra.db.DB)
-	infraMWnSvc := infraMWn_service.NewService(infraMWnRepo)
-	infraMWnH = infraMWn_handler.NewHandler(infraMWnSvc)
-
-	// multicloud: repo -> service -> handler
-	infraMultiRepo := infraMulti_repo.NewRepository(infra.db.DB)
-	infraMultiSvc := infraMulti_service.NewService(infraMultiRepo)
-	infraMultiH = infraMulti_handler.NewHandler(infraMultiSvc)
-
-	// oci-registry: repo -> service -> handler
-	infraOCIRepo := infraOCI_repo.NewRepository(infra.db.DB)
-	infraOCISvc := infraOCI_service.NewService(infraOCIRepo)
-	infraOCIH = infraOCI_handler.NewHandler(infraOCISvc)
-
-	// serverless: repo -> service -> handler
-	infraServerlessRepo := infraServerless_repo.NewRepository(infra.db.DB)
-	infraServerlessSvc := infraServerless_service.NewService(infraServerlessRepo)
-	infraServerlessH = infraServerless_handler.NewHandler(infraServerlessSvc)
-
-	// ---- AI modules (internal/ai/) ----
-	wireAIModules(db, logger)
-
-		// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
-		wireNatsSubscribers(logger)
-}
-// wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
-// subscribers. Graceful no-op when NATS is unreachable (async event-driven pipeline).
-func wireNatsSubscribers(logger *zap.Logger) {
-	natsAddr := os.Getenv("NATS_ADDR")
-	if natsAddr == "" {
-		natsAddr = "nats://localhost:4222"
-	}
-	natsStream := os.Getenv("NATS_STREAM")
-	if natsStream == "" {
-		natsStream = "ORION_EVENTS"
-	}
-
-	// --- Incident NATS Subscriber ---
-	// incidentSvc is wired via wireCICDModules and exported as package-level global.
-	if incidentSvc != nil {
-		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &incidentNatsHandler{svc: incidentSvc})
-		if err != nil {
-			logger.Warn("incident NATS subscriber init failed (event-driven disabled)", zap.Error(err))
-		} else {
-			ctx := context.Background()
-			if startErr := incSub.Start(ctx); startErr != nil {
-				logger.Warn("incident NATS subscriber start failed", zap.Error(startErr))
-			} else {
-				logger.Info("incident NATS subscriber started")
-			}
-		}
-	} else {
-		logger.Debug("incident service not available, skipping NATS subscriber")
-	}
-
-	// --- Self-Healing NATS Subscriber ---
-	// SelfHealingService needs *zap.Logger and *repository.SelfHealingRepository;
-	// the repo requires pgxpool which is not currently wired at this layer.
-	// Register a no-op handler to keep the NATS subject consumed even without full repo wiring.
-	// TODO: wire pgxpool and pass real selfHealingRepo once core_infra_wiring exposes it.
-	if selfhealingH != nil {
-		// service already wired via external wiring — handler is available
-	}
-
-	shSub, err := sh_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &selfHealingNatsHandler{})
-	if err != nil {
-		logger.Warn("self-healing NATS subscriber init failed (event-driven disabled)", zap.Error(err))
-	} else {
-		ctx := context.Background()
-		if startErr := shSub.Start(ctx); startErr != nil {
-			logger.Warn("self-healing NATS subscriber start failed", zap.Error(startErr))
-		} else {
-			logger.Info("self-healing NATS subscriber started")
-		}
-	}
-}
-
-// selfHealingNatsHandler is a no-op EventHandler for the self-healing NATS subscriber
-// until the full SelfHealingService is wired. Keeps the NATS subject consumed and
-// logged while pgxpool-based repository wiring is pending.
-type selfHealingNatsHandler struct{}
-
-func (h *selfHealingNatsHandler) HandleSelfHealingEvent(ctx context.Context, event *sh_nats.SelfHealingEvent) error {
-	return nil
-}
-
-// incidentNatsHandler processes incident events received via NATS JetStream.
-// It dispatches based on event.Type: created → Create, status_changed/resolved/escalated → UpdateStatus,
-// with a timeline event appended for each operation.
-type incidentNatsHandler struct {
-	svc *incident_service.Service
-}
-
-func (h *incidentNatsHandler) HandleIncidentEvent(ctx context.Context, event *incident_nats.EventBusEvent) error {
-	if h.svc == nil {
-		return nil
-	}
-
-	// Parse the payload into the create request / update request.
-	// The payload schema follows models.Incident fields.
-	var payload map[string]interface{}
-	if err := json.Unmarshal(event.Payload, &payload); err != nil {
-		return err
-	}
-
-	tenantID := "default"
-	if tid, ok := payload["tenant_id"]; ok {
-		if s, ok := tid.(string); ok {
-			tenantID = s
-		}
-	}
-
-	switch event.Type {
-	case "incident.created":
-		req := incident_models.CreateIncidentRequest{
-			Title:             getString(payload, "title"),
-			Description:       getString(payload, "description"),
-			Type:              getString(payload, "type"),
-			Severity:          getString(payload, "severity"),
-			Impact:            getString(payload, "impact"),
-			Urgency:           getString(payload, "urgency"),
-			Service:           getString(payload, "service"),
-			Environment:       getString(payload, "environment"),
-			ErrorMessage:      getString(payload, "error_message"),
-			DetectedBy:        getString(payload, "detected_by"),
-			AssignedTeam:      getString(payload, "assigned_team"),
-			AffectedServices:  getStringSlice(payload, "affected_services"),
-			Tags:              getStringSlice(payload, "tags"),
-			DeploymentID:      getString(payload, "deployment_id"),
-			PipelineRunID:     getString(payload, "pipeline_run_id"),
-			CommitSha:         getString(payload, "commit_sha"),
-		}
-		incident, err := h.svc.Create(ctx, tenantID, req)
-		if err != nil {
-			return err
-		}
-		// Append a creation timeline event.
-		_, err = h.svc.AddTimelineEvent(ctx, tenantID, incident.ID, incident_models.AddTimelineEventRequest{
-			EventType: "created",
-			Content:   fmt.Sprintf("Incident created via event bus (event=%s, type=%s)", event.ID, req.Type),
-			ActorID:   "nats",
-			Metadata: map[string]interface{}{
-				"source": event.Source,
-			},
-		})
-		return err
-
-	case "incident.status_changed", "incident.resolved":
-		incidentID := getString(payload, "id")
-		if incidentID == "" {
-			return nil // skip — no incident id to update
-		}
-		newStatus := getString(payload, "status")
-		if newStatus == "" {
-			if event.Type == "incident.resolved" {
-				newStatus = "resolved"
-			}
-		}
-		actorID := getString(payload, "actor_id")
-		reason := getString(payload, "reason")
-		_, err := h.svc.UpdateStatus(ctx, tenantID, incidentID, newStatus, actorID, reason)
-		if err != nil {
-			return err
-		}
-		_, err = h.svc.AddTimelineEvent(ctx, tenantID, incidentID, incident_models.AddTimelineEventRequest{
-			EventType: event.Type,
-			Content:   fmt.Sprintf("Status changed to %s (event=%s)", newStatus, event.ID),
-			ActorID:   actorID,
-		})
-		return err
-
-	case "incident.escalated":
-		incidentID := getString(payload, "id")
-		if incidentID == "" {
-			return nil
-		}
-		escLevel := getInt(payload, "escalation_level")
-		escBy := getString(payload, "escalated_by")
-		escReason := getString(payload, "reason")
-		escReq := incident_models.EscalateRequest{
-			ToLevel:     escLevel,
-			Reason:      escReason,
-			EscalatedBy: escBy,
-		}
-		err := h.svc.Escalate(ctx, tenantID, incidentID, escReq)
-		if err != nil {
-			return err
-		}
-		_, err = h.svc.AddTimelineEvent(ctx, tenantID, incidentID, incident_models.AddTimelineEventRequest{
-			EventType: "escalated",
-			Content:   fmt.Sprintf("Escalated to level %d by %s (reason=%s)", escLevel, escBy, escReason),
-			ActorID:   escBy,
-			Metadata: map[string]interface{}{
-				"event_id": event.ID,
-			},
-		})
-		return err
-
-	default:
-		return nil // ignore unknown event types
-	}
-}
-
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return ""
-}
-
-func getStringSlice(m map[string]interface{}, key string) []string {
-	var out []string
-	switch v := m[key].(type) {
-	case []interface{}:
-		for _, e := range v {
-			if s, ok := e.(string); ok {
-				out = append(out, s)
-			}
-		}
-	case []string:
-		out = v
-	}
-	return out
-}
-
-func getInt(m map[string]interface{}, key string) int {
-	if v, ok := m[key]; ok {
-		if n, ok := v.(float64); ok {
-			return int(n)
-		}
-	}
-	return 0
-}
+	// Batch 1: application, escalation, pandawiki, metadata
+
+t// Batch 2: param-types, form, mlops, sla-engine, test-selector, test-generation, visor-exec
+twireImportExport(db, logger)
+t// Batch 3: alert pipeline (dedup, adapter)
+twireAlertDeduplication(db, logger)
+twireAlertAdapter(db, logger)
+
+t// Batch 4: chaos-gateway, circuit-breaker, vulnerability, CMDB submodules
+twireChaosGateway(db, logger)
+twireCircuitBreaker(db, logger)
+twireVulnerability(db, logger)
+twireCmdbCollector(db, logger)
+twireCmdbImport(db, logger)
+twireCmdbRelationship(db, logger)
+twireCmdbValidator(db, logger)twireParamTypes(db, logger)
+twireForm(db, logger)
+twireMLOps(db, logger)
+twireSLAEngine(db, logger)
+twireTestSelector(db, logger)
+twireTestGeneration(db, logger)
+twireVisorExec(db, logger)	wireApplication(db, logger)
+	wireEscalation(db, logger)
+	wirePandawiki(db, logger)
+	wireMetadata(db, logger)
+
+	// Core domains (identity, governance, security, ticket) — see wiring-core-domains.go
+	wireCoreDomains(db, logger)
+
+
+
+t// Batch 1: application, escalation, pandawiki, metadata
+
+t// Batch 2: param-types, form, mlops, sla-engine, test-selector, test-generation, visor-exec
+twireImportExport(db, logger)
+t// Batch 3: alert pipeline (dedup, adapter)
+twireAlertDeduplication(db, logger)
+twireAlertAdapter(db, logger)
+
+t// Batch 4: chaos-gateway, circuit-breaker, vulnerability, CMDB submodules
+twireChaosGateway(db, logger)
+twireCircuitBreaker(db, logger)
+twireVulnerability(db, logger)
+twireCmdbCollector(db, logger)
+twireCmdbImport(db, logger)
+twireCmdbRelationship(db, logger)
+twireCmdbValidator(db, logger)twireParamTypes(db, logger)
+twireForm(db, logger)
+twireMLOps(db, logger)
+twireSLAEngine(db, logger)
+twireTestSelector(db, logger)
+twireTestGeneration(db, logger)
+twireVisorExec(db, logger)

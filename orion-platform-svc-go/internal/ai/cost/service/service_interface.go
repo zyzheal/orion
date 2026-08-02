@@ -7,7 +7,7 @@ package service
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai-cost/models"
+	"orion/platform-svc-go/internal/ai/cost/models"
 )
 
 // ServiceInterface defines the interface for the ai-cost service.

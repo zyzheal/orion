@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-agents/models"
-	"orion/platform-svc-go/internal/ai-agents/repository"
+	"orion/platform-svc-go/internal/ai/agents/models"
+	"orion/platform-svc-go/internal/ai/agents/repository"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

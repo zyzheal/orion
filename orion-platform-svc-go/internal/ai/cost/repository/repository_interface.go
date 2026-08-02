@@ -3,7 +3,7 @@ package repository
 import (
 	"time"
 	"context"
-	"orion/platform-svc-go/internal/ai-cost/models"
+	"orion/platform-svc-go/internal/ai/cost/models"
 )
 
 

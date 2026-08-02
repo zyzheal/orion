@@ -7,7 +7,7 @@ package service
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai-gateway/models"
+	"orion/platform-svc-go/internal/ai/gateway/models"
 )
 
 // ServiceInterface defines the interface for the ai-gateway service.

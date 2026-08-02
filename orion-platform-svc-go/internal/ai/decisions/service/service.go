@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ai/llm-provider"
-	"orion/platform-svc-go/internal/ai-decisions/models"
-	"orion/platform-svc-go/internal/ai-decisions/repository"
+	"orion/platform-svc-go/internal/ai/decisions/models"
+	"orion/platform-svc-go/internal/ai/decisions/repository"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

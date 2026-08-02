@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-gateway/models"
+	"orion/platform-svc-go/internal/ai/gateway/models"
 	"orion/platform-svc-go/internal/ai/llm-provider"
 )
 

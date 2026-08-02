@@ -3,8 +3,8 @@ package handler
 import (
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
-	"orion/platform-svc-go/internal/ai-inference/models"
-	"orion/platform-svc-go/internal/ai-inference/service"
+	"orion/platform-svc-go/internal/ai/inference/models"
+	"orion/platform-svc-go/internal/ai/inference/service"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"

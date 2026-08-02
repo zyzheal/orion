@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-models/models"
+	"orion/platform-svc-go/internal/ai/models/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

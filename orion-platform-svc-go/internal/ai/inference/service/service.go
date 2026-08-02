@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-inference/models"
+	"orion/platform-svc-go/internal/ai/inference/models"
 )
 
 // PythonInferenceService proxies requests to the Python AI inference service.

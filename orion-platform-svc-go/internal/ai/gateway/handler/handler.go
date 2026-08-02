@@ -6,8 +6,8 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
-	"orion/platform-svc-go/internal/ai-gateway/models"
-	"orion/platform-svc-go/internal/ai-gateway/service"
+	"orion/platform-svc-go/internal/ai/gateway/models"
+	"orion/platform-svc-go/internal/ai/gateway/service"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"

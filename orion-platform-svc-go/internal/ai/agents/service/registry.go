@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-agents/models"
+	"orion/platform-svc-go/internal/ai/agents/models"
 )
 
 // --- Agent Executor Interface ---

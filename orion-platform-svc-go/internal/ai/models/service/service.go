@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-models/models"
+	"orion/platform-svc-go/internal/ai/models/models"
 	"orion/platform-svc-go/internal/middleware"
 
 	"go.uber.org/zap"

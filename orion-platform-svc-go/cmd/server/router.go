@@ -615,3 +615,96 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 
 	return r
 }
+  if applicationH != nil {
+    applicationH.RegisterRoutes(api)
+  }
+  if escalationH != nil {
+    escalationH.RegisterRoutes(api)
+  }
+  if pandawikiH != nil {
+    pandawikiH.RegisterRoutes(api)
+  }
+  if metadataH != nil {
+    metadataH.RegisterRoutes(api)
+  }
+  if paramTypesH != nil {
+    paramTypesH.RegisterRoutes(api)
+  }
+  if formH != nil {
+    formH.RegisterRoutes(api)
+  }
+  if mlopsH != nil {
+    mlopsH.RegisterRoutes(api)
+  }
+  if slaEngineH != nil {
+    slaEngineH.RegisterRoutes(api)
+  }
+  if testSelectorH != nil {
+    testSelectorH.RegisterRoutes(api)
+  }
+  if testGenH != nil {
+    testGenH.RegisterRoutes(api)
+  }
+  if visorExecH != nil {
+    visorExecH.RegisterRoutes(api)
+  }
+  if importExportH != nil {
+    importExportH.RegisterRoutes(api)
+  }
+  if governanceH != nil {
+    governanceH.RegisterRoutes(api)
+  }
+  if governanceComplianceH != nil {
+    governanceComplianceH.RegisterRoutes(api)
+  }
+  if governanceRiskH != nil {
+    governanceRiskH.RegisterRoutes(api)
+  }
+  if governancePolicyH != nil {
+    governancePolicyH.RegisterRoutes(api)
+  }
+  if securityH != nil {
+    securityH.RegisterRoutes(api)
+  }
+  if securitySecretH != nil {
+    securitySecretH.RegisterRoutes(api)
+  }
+  if securityBranchPolicyH != nil {
+    securityBranchPolicyH.RegisterRoutes(api)
+  }
+  if securityPrivacyH != nil {
+    securityPrivacyH.RegisterRoutes(api)
+  }
+  if securityUebaH != nil {
+    securityUebaH.RegisterRoutes(api)
+  }
+  if securityCrossDomainH != nil {
+    securityCrossDomainH.RegisterRoutes(api)
+  }
+  if identityApikeyH != nil {
+    identityApikeyH.RegisterRoutes(api)
+  }
+  if identityConfirmationH != nil {
+    identityConfirmationH.RegisterRoutes(api)
+  }
+  if identitySessionH != nil {
+    identitySessionH.RegisterRoutes(api)
+  }
+  if identitySsoH != nil {
+    identitySsoH.RegisterRoutes(api)
+  }
+  if identityTenantH != nil {
+    identityTenantH.RegisterRoutes(api)
+  }
+  if analyticsTicketH != nil {
+    analyticsTicketH.RegisterRoutes(api)
+  }
+  if automationRuleTicketH != nil {
+    automationRuleTicketH.RegisterRoutes(api)
+  }
+  if slaPolicyTicketH != nil {
+    slaPolicyTicketH.RegisterRoutes(api)
+  }
+  if ticketSourceTicketH != nil {
+    ticketSourceTicketH.RegisterRoutes(api)
+  }

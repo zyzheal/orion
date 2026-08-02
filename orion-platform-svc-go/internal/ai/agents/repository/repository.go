@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"orion/platform-svc-go/internal/ai-agents/models"
+	"orion/platform-svc-go/internal/ai/agents/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

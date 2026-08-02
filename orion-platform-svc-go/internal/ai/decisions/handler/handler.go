@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/ai-decisions/models"
-	"orion/platform-svc-go/internal/ai-decisions/service"
+	"orion/platform-svc-go/internal/ai/decisions/models"
+	"orion/platform-svc-go/internal/ai/decisions/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"

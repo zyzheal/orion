@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-decisions/models"
-	"orion/platform-svc-go/internal/ai-decisions/service"
+	"orion/platform-svc-go/internal/ai/decisions/models"
+	"orion/platform-svc-go/internal/ai/decisions/service"
 
 	"github.com/gin-gonic/gin"
 )

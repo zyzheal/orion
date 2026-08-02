@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"orion/platform-svc-go/internal/ai-gateway/models"
+	"orion/platform-svc-go/internal/ai/gateway/models"
 
 	"orion/go-common/pkg/sentinel"
 

@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/ai-agents/models"
-	"orion/platform-svc-go/internal/ai-agents/repository"
-	"orion/platform-svc-go/internal/ai-agents/service"
+	"orion/platform-svc-go/internal/ai/agents/models"
+	"orion/platform-svc-go/internal/ai/agents/repository"
+	"orion/platform-svc-go/internal/ai/agents/service"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"

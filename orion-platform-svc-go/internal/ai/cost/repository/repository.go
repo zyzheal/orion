@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-cost/models"
+	"orion/platform-svc-go/internal/ai/cost/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

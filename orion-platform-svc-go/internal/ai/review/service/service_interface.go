@@ -7,7 +7,7 @@ package service
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai-review/models"
+	"orion/platform-svc-go/internal/ai/review/models"
 )
 
 // ServiceInterface defines the interface for the ai-review service.

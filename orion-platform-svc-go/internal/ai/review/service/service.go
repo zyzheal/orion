@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"orion/go-common/pkg/sentinel"
-	"orion/platform-svc-go/internal/ai-review/models"
+	"orion/platform-svc-go/internal/ai/review/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
