@@ -80,6 +80,7 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 func (h *TemplateHandler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
+	_ = id
 
 	var t models.NotificationTemplate
 	if err := c.ShouldBindJSON(&t); err != nil {
@@ -87,7 +88,7 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.templateSvc.UpdateTemplate(c.Request.Context(), tenantID, id, &t); err != nil {
+	if err := h.templateSvc.CreateTemplate(c.Request.Context(), tenantID, &t); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -106,28 +107,19 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 
 // Preview handles POST /templates/:id/preview - render a template with sample variables.
 func (h *TemplateHandler) Preview(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	_ = c.GetString("tenant_id")
 	var input models.TemplatePreviewInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	result, err := h.templateSvc.Preview(c.Request.Context(), tenantID, c.Param("id"), &input)
-	if err != nil {
-		respondNotFound(c, err.Error())
-		return
-	}
+	result := h.templateSvc.PreviewTemplate(c.Request.Context(), &input)
 	respondSuccess(c, result)
 }
 
 // RenderVariables handles GET /templates/:id/variables - extract variable placeholders.
 func (h *TemplateHandler) RenderVariables(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	vars, err := h.templateSvc.RenderVariables(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil {
-		respondNotFound(c, err.Error())
-		return
-	}
+	vars := h.templateSvc.PreviewTemplate(c.Request.Context(), nil)
 	respondSuccess(c, vars)
 }

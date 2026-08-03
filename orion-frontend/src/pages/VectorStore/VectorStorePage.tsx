@@ -5,7 +5,6 @@ import { colors, spacing } from '@/tokens';
  * Collection management, document upload, similarity search, and collection details
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import type { ReactNode } from 'react';
 import {
   Typography,
   Button,
@@ -180,15 +179,6 @@ const VectorStorePage: React.FC = () => {
     } catch (error: unknown) {
       message.error(`删除失败：${(error as Error).message}`);
     }
-  };
-
-  const handleUpdateCollection_ = async (
-    name: string,
-    data: { displayName?: string; description?: string; dimensions?: number; indexType?: string; distanceMetric?: string }
-  ) => {
-    // TODO: Replace with actual update API when available: updateCollection(name, data)
-    console.warn('[VectorStore] updateCollection API not yet implemented', name, data);
-    message.info('集合配置更新功能开发中');
   };
 
   const openDetail = async (collection: VectorCollection) => {
@@ -430,15 +420,15 @@ const VectorStorePage: React.FC = () => {
                 ellipsis: true,
                 render: (val: string, record: VectorDocument) => (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Text ellipsis={{ rows: 2 as any }} style={{ fontSize: 13 }}>
+                    <Text ellipsis style={{ fontSize: 13 }}>
                       {val}
                     </Text>
-                    {record.metadata?.source && (
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        来源: <code>{record.metadata.source as ReactNode}</code>
-                        {record.metadata.category && ` | 分类: ${record.metadata.category as ReactNode}`}
-                      </Text>
-                    )}
+                    {(() => { const src = record.metadata?.source; const cat = record.metadata?.category; return src ? (
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          来源: <code>{String(src)}</code>
+                          {cat ? ` | 分类: ${String(cat)}` : null}
+                        </Text>
+                      ) : null; })()}
                   </div>
                 ),
               },
@@ -633,10 +623,10 @@ const VectorStorePage: React.FC = () => {
                       </Tag>
                       <Text type="secondary" style={{ fontSize: 11 }}>
                         {hit.collection}
-                        {hit.metadata?.source && ` | ${hit.metadata.source as string}`}
+                        {(() => { const s = hit.metadata?.source; return s ? ` | ${String(s)}` : null; })()}
                       </Text>
                     </div>
-                    <Text ellipsis={{ rows: 3 as any }} style={{ fontSize: 12, display: 'block' }}>
+                    <Text ellipsis style={{ fontSize: 12, display: 'block' }}>
                       {hit.content}
                     </Text>
                   </Card>

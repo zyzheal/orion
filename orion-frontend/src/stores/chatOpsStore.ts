@@ -289,7 +289,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
       set({ isRecommendationLoading: true });
       try {
         const response = await fetchRecommendations({});
-        const recs = (response.data as RecommendationListResponse)?.data?.recommendations || [];
+        const recs = ((response.data as RecommendationListResponse)?.data?.recommendations || []) as unknown as Recommendation[];
         set({
           recommendations: recs,
           unreadAlerts: recs.filter(

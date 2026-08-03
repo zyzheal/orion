@@ -2,7 +2,6 @@
  * VectorSearch - Similarity search panel
  */
 import React from 'react';
-import type { ReactNode } from 'react';
 import { Card, Form, Input, Select, Button, Tag, Typography } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { VectorCollection, SearchHit } from '@/api/vector-store';
@@ -102,7 +101,7 @@ const VectorSearch: React.FC<VectorSearchProps> = ({
                 </Tag>
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {hit.collection}
-                  {hit.metadata?.source && ` | ${hit.metadata.source as string}`}
+                  {(() => { const src = hit.metadata?.source; return src ? ` | ${String(src)}` : null; })()}
                 </Text>
               </div>
               <Paragraph ellipsis={{ rows: 3 }} style={{ marginBottom: 0, fontSize: 12 }}>

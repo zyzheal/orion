@@ -131,7 +131,7 @@ func (h *DashboardHandler) Delete(c *gin.Context) {
 // ListWidgets handles GET /dashboard/:dashboard_id/widgets - list widgets.
 func (h *DashboardHandler) ListWidgets(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	widgets, err := h.dashboardSvc.ListWidgets(c.Request.Context(), tenantID, c.Param("dashboard_id"))
+	widgets, err := h.dashboardSvc.ListWidgets(c.Request.Context(), tenantID)
 	if err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
@@ -151,7 +151,7 @@ func (h *DashboardHandler) CreateWidget(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.dashboardSvc.CreateWidget(c.Request.Context(), tenantID, c.Param("dashboard_id"), &w); err != nil {
+	if err := h.dashboardSvc.CreateWidget(c.Request.Context(), tenantID, &w); err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
 			return

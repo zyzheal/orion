@@ -6,15 +6,15 @@ import (
 	"orion/go-common/pkg/database"
 
 	ac_handler "orion/platform-svc-go/internal/alert-correlation/handler"
+	ac_repo "orion/platform-svc-go/internal/alert-correlation/repository"
 	ac_service "orion/platform-svc-go/internal/alert-correlation/service"
 )
 
-func wireAlertCorrelation(db *database.DB, logger *zap.Logger) {
-	// TODO: repository requires *pgxpool.Pool — wire pgxpool at infrastructure layer first
-	// svc := ac_service.NewAlertCorrelationService(repo, logger)
-	// alertCorrelationH = ac_handler.NewAlertCorrelationHandler(svc)
-	_ = db
-	_ = logger
-}
-
 var alertCorrelationH *ac_handler.AlertCorrelationHandler
+
+func wireAlertCorrelation(db *database.DB, logger *zap.Logger) {
+	repoDB := ac_repo.NewDB(db.DB, logger)
+	repo := ac_repo.NewAlertCorrelationRepository(repoDB, logger)
+	svc := ac_service.NewAlertCorrelationService(repo, logger)
+	alertCorrelationH = ac_handler.NewAlertCorrelationHandler(svc)
+}

@@ -287,7 +287,8 @@ const RepoDetail: React.FC = () => {
           merged: { status: 'success', label: 'Merged' },
         };
         const config = statusMap[String(value)] || { status: 'unknown', label: String(value) };
-        return <StatusBadge status={config.status} label={config.label} size="small" />;
+        const cfg = config as { status: string; label: string };
+        return <StatusBadge status={(cfg.status as any) ?? 'unknown'} label={cfg.label} size="small" />;
       },
     },
     {

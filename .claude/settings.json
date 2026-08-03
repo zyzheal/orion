@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
-    "claude-hud@zyzheal-plugins": true
+    "claude-hud@zyzheal-plugins": true,
+    "superpowers@claude-plugins-official": true
   },
   "projectSettings": {
     "knowledgeBase": [

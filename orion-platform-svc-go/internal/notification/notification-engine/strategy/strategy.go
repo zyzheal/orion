@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification/engine"
+	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/notification/models"
 )
 

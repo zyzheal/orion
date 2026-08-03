@@ -38,7 +38,6 @@ import {
   HeartOutlined,
   ApartmentOutlined,
   CloudUploadOutlined,
-  ApartmentOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius } from '@/tokens';
 import { getInstalledPlugins } from '@/api/plugins';
@@ -369,7 +368,7 @@ const Console: React.FC = () => {
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>
-                <SplitNumberOutlined style={{ fontSize: 24, color: colors.warning[500] }} />
+                <ApartmentOutlined style={{ fontSize: 24, color: colors.warning[500] }} />
                 <Text strong>流量治理</Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   灰度发布和流量切分规则管理

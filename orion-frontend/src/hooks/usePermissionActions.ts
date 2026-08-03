@@ -54,12 +54,13 @@ export function usePermissionActions(resource: string) {
   const getActionProps = useMemo(() => {
     return (action: string, extraProps: Record<string, unknown> = {}) => {
       const allowed = hasPermission(resource, action);
+      const styleObj = extraProps.style && typeof extraProps.style === 'object' ? extraProps.style : {};
       return {
         ...extraProps,
         disabled: !allowed || extraProps.disabled,
         title: allowed ? extraProps.title : '无操作权限',
         style: {
-          ...extraProps.style,
+          ...styleObj,
           ...(!allowed ? { cursor: 'not-allowed', opacity: 0.5 } : {}),
         },
       };

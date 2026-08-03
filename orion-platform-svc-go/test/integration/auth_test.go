@@ -21,7 +21,6 @@ import (
 	"orion/platform-svc-go/internal/auth/models"
 	auth_repo "orion/platform-svc-go/internal/auth/repository"
 	auth_svc "orion/platform-svc-go/internal/auth/service"
-	user_models "orion/platform-svc-go/internal/user/models"
 	user_repo "orion/platform-svc-go/internal/user/repository"
 
 	"github.com/jmoiron/sqlx"
@@ -201,9 +200,6 @@ func TestAuthService_RegisterAndLogin(t *testing.T) {
 		t.Fatalf("failed to setup auth tables: %v", err)
 	}
 
-	// Create a test user manually (Register requires service logic;
-	// here we simulate what the service would do).
-	uID := MustUUID()
 	// bcrypt hash for "TestPass123456" - but service uses bcrypt so we
 	// actually test via the Register flow below with the real service.
 

@@ -372,7 +372,7 @@ func (s *Service) UpdateSettings(ctx context.Context, tenantID, userID string, r
 		settings.WebhookEnabled = *req.WebhookEnabled
 	}
 	if req.WebhookURL != nil {
-		settings.WebhookURL = req.WebhookURL
+		settings.WebhookURL = *req.WebhookURL
 	}
 	if req.PipelineCompleted != nil {
 		settings.PipelineCompleted = *req.PipelineCompleted
@@ -417,10 +417,10 @@ func (s *Service) UpdateSettings(ctx context.Context, tenantID, userID string, r
 		settings.DigestFrequency = *req.DigestFrequency
 	}
 	if req.QuietHoursStart != nil {
-		settings.QuietHoursStart = req.QuietHoursStart
+		settings.QuietHoursStart = *req.QuietHoursStart
 	}
 	if req.QuietHoursEnd != nil {
-		settings.QuietHoursEnd = req.QuietHoursEnd
+		settings.QuietHoursEnd = *req.QuietHoursEnd
 	}
 
 	if err := s.repo.UpsertSettings(ctx, settings); err != nil {

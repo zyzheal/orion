@@ -76,8 +76,8 @@ func (r *ScheduledNotificationRepository) FindAll(ctx context.Context, tenantID 
 	}
 
 	// Fetch page
-	offset := opts.Offset()
-	limit := opts.Limit()
+	offset := opts.Offset
+	limit := opts.Limit
 	args = append(args, offset, limit)
 	query := fmt.Sprintf("SELECT * FROM scheduled_notifications %s ORDER BY scheduled_at ASC OFFSET $%d LIMIT $%d", where, argIdx, argIdx+1)
 

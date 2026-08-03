@@ -43,7 +43,12 @@ func (h *DNDHandler) Set(c *gin.Context) {
 	}
 	req.UserID = userID
 
-	dnd, err := h.dndSvc.SetDND(c.Request.Context(), tenantID, req.UserID, req.StartTime, req.EndTime, req.Reason)
+	input := &models.CreateDoNotDisturbInput{
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
+		Reason:    req.Reason,
+	}
+	dnd, err := h.dndSvc.SetDND(c.Request.Context(), tenantID, req.UserID, input)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -93,7 +98,7 @@ func (h *DNDHandler) IsActive(c *gin.Context) {
 // GetActiveUsers handles GET /dnd/active/users - get all users with active DND.
 func (h *DNDHandler) GetActiveUsers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	users, err := h.dndSvc.GetActiveUsers(c.Request.Context(), tenantID)
+	users, err := h.dndSvc.GetDndSettings(c.Request.Context(), tenantID, "")
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

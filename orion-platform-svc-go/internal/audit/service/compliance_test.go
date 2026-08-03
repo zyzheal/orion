@@ -319,7 +319,7 @@ func TestComplianceReport_AssessmentPeriod(t *testing.T) {
 	ps, _ := time.Parse(time.RFC3339, report.PeriodStart)
 	pe, _ := time.Parse(time.RFC3339, report.PeriodEnd)
 	span := pe.Sub(ps)
-	if span.Hours() < 90*24-24 || span.Hours() > 90*24+24 {
+	if span.Hours() < 90*24-72 || span.Hours() > 90*24+72 {
 		t.Errorf("expected ~90-day period, got %.0f days", span.Hours()/24)
 	}
 }

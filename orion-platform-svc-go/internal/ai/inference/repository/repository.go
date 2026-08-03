@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ai-inference/models"
+	"orion/platform-svc-go/internal/ai/inference/models"
 
 	"github.com/jmoiron/sqlx"
 )

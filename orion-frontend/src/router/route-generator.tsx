@@ -10,7 +10,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import type { AppRoute } from './routes';
-import type { RegistrySource } from './page-registry-types';
 import type { PageEntry, PageRegistry } from './page-registry-types';
 
 /**

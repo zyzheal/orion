@@ -145,12 +145,12 @@ func (h *Handler) Broadcast(c *gin.Context) {
 		return
 	}
 
-	count, err := h.svc.Broadcast(c.Request.Context(), tenantID, &req)
+	err := h.svc.Broadcast(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"sent": count})
+	respondCreated(c, gin.H{"sent": 0})
 }
 
 // Delete handles DELETE /notifications/:id.

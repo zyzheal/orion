@@ -28,7 +28,6 @@ vi.mock('antd', async () => {
 });
 
 // Mock subappStore to prevent zustand persist state pollution
-const mockApps: any[] = [];
 vi.mock('@/stores/subappStore', () => ({
   useSubAppStore: () => ({
     apps: [],

@@ -1,0 +1,253 @@
+definitions:
+  gin.H:
+    additionalProperties: {}
+    type: object
+  models.AuditLogCreateRequest:
+    properties:
+      action:
+        type: string
+      details:
+        additionalProperties: {}
+        type: object
+      ipAddress:
+        type: string
+      requestBody:
+        additionalProperties: {}
+        type: object
+      requestMethod:
+        type: string
+      requestPath:
+        type: string
+      resourceId:
+        type: string
+      resourceType:
+        type: string
+      responseBody:
+        additionalProperties: {}
+        type: object
+      responseCode:
+        type: integer
+      tenantId:
+        type: string
+      userAgent:
+        type: string
+      userId:
+        type: string
+    required:
+    - action
+    type: object
+  models.AuditLogEntry:
+    properties:
+      action:
+        type: string
+      chainHash:
+        type: string
+      contentHash:
+        type: string
+      details:
+        additionalProperties: {}
+        type: object
+      id:
+        type: string
+      ipAddress:
+        type: string
+      prevHash:
+        type: string
+      requestMethod:
+        type: string
+      requestPath:
+        type: string
+      resource:
+        type: string
+      resourceId:
+        type: string
+      responseCode:
+        type: integer
+      sequenceNumber:
+        type: integer
+      tenantId:
+        type: string
+      timestamp:
+        type: string
+      userAgent:
+        type: string
+      userId:
+        type: string
+    type: object
+  models.AuditLogListResult:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/models.AuditLogEntry'
+        type: array
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+  models.ControlResult:
+    properties:
+      details:
+        type: string
+      evidenceCount:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      status:
+        description: passed / failed / warning
+        type: string
+    type: object
+  orion_platform-svc-go_internal_audit_models.ComplianceFinding:
+    properties:
+      controlId:
+        type: string
+      description:
+        type: string
+      evidence:
+        type: string
+      id:
+        type: string
+      remediation:
+        type: string
+      severity:
+        description: low / medium / high / critical
+        type: string
+      title:
+        type: string
+    type: object
+  orion_platform-svc-go_internal_audit_models.ComplianceReport:
+    properties:
+      controls:
+        items:
+          $ref: '#/definitions/models.ControlResult'
+        type: array
+      failedControls:
+        type: integer
+      findings:
+        items:
+          $ref: '#/definitions/orion_platform-svc-go_internal_audit_models.ComplianceFinding'
+        type: array
+      generatedAt:
+        type: string
+      passedControls:
+        type: integer
+      periodEnd:
+        type: string
+      periodStart:
+        type: string
+      rating:
+        description: compliant / partial / non-compliant
+        type: string
+      recommendations:
+        items:
+          type: string
+        type: array
+      reportType:
+        type: string
+      score:
+        description: 0-100 overall
+        type: number
+      totalControls:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /audit/compliance/soc2:
+    get:
+      consumes:
+      - application/json
+      description: Get SOC2 Type II compliance report
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orion_platform-svc-go_internal_audit_models.ComplianceReport'
+      summary: SOC2 compliance report
+      tags:
+      - audit
+  /audit/logs:
+    get:
+      consumes:
+      - application/json
+      description: List audit logs with pagination and filtering
+      parameters:
+      - description: log ID
+        in: path
+        name: id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AuditLogListResult'
+      summary: List audit logs
+      tags:
+      - audit
+    post:
+      consumes:
+      - application/json
+      description: Create a new audit log entry
+      parameters:
+      - description: log data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.AuditLogCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.AuditLogEntry'
+      summary: Create audit log
+      tags:
+      - audit
+  /audit/report/generate:
+    post:
+      consumes:
+      - application/json
+      description: Generate an audit/compliance report on demand
+      parameters:
+      - description: framework (soc2/iso27001/combined)
+        in: query
+        name: framework
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: Generate audit report
+      tags:
+      - audit
+  /audit/reports:
+    get:
+      consumes:
+      - application/json
+      description: List all available audit/compliance reports
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gin.H'
+      summary: List audit reports
+      tags:
+      - audit
+swagger: "2.0"

@@ -196,7 +196,7 @@ func wireTicketDomain(db *database.DB, logger *zap.Logger) {
 	slaPolicyRepo := ti_repo.NewSLAPolicyRepository(db)
 	automationRuleRepo := ti_repo.NewAutomationRuleRepository(db)
 	analyticsRepo := ti_repo.NewAnalyticsRepository(db)
-(commentRepo := ti_repo.NewCommentRepository(db)
+	commentRepo := ti_repo.NewCommentRepository(db)
 	transferRepo := ti_repo.NewTransferRepository(db)
 	suspendRepo := ti_repo.NewSuspendRepository(db)
 	assignmentRuleRepo := ti_repo.NewAssignmentRuleRepository(db)

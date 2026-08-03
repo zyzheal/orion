@@ -2,10 +2,9 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/risk/models"
 	"orion/platform-svc-go/internal/risk/service"
-
-	"orion/go-common/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -26,7 +25,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("", auth.RequirePermission("risk", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("risk", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("risk", "delete"), h.Delete)
+
+	// Scoring & heatmap routes
+	r.POST("/score", auth.RequirePermission("risk", "read"), h.CalculateScore)
+	r.GET("/matrix", auth.RequirePermission("risk", "read"), h.GetRiskMatrix)
+	r.GET("/heatmap", auth.RequirePermission("risk", "read"), h.GetHeatmap)
 }
+
+// ---------- CRUD handlers ----------
 
 func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
@@ -99,3 +105,52 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	errors.WriteSuccess(c, gin.H{"message": "deleted"})
 }
+
+// ---------- Scoring handlers ----------
+
+// CalculateScore computes the risk score from severity, probability, and impact.
+// POST /risk/score
+func (h *Handler) CalculateScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CalculateScore")
+	defer span.End()
+	var req models.RiskScoreRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
+	}
+	result, err := h.svc.CalculateScore(ctx, req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, result)
+}
+
+// GetRiskMatrix returns the 5x5 risk matrix (severity x probability).
+// GET /risk/matrix
+func (h *Handler) GetRiskMatrix(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRiskMatrix")
+	defer span.End()
+	matrix, err := h.svc.GetRiskMatrix(ctx)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, matrix)
+}
+
+// GetHeatmap returns aggregated heatmap data for the tenant's risks.
+// GET /risk/heatmap
+func (h *Handler) GetHeatmap(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHeatmap")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	heatmap, err := h.svc.GetHeatmap(ctx, tenantID)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, heatmap)
+}
+
+// Keep gofmt happy with unused net/http import guard.

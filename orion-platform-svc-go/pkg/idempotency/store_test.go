@@ -1,6 +1,7 @@
 package idempotency
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -85,8 +86,10 @@ func TestMemoryStoreConcurrent(t *testing.T) {
 func TestCompactBackground(t *testing.T) {
 	store := NewMemoryStore()
 	_ = store.Set(IdempotencyKey("bg"), &ResponsePayload{StatusCode: 200}, 50*time.Millisecond)
-	done := store.CompactBackground(t.Context(), 25*time.Millisecond)
+	ctx, cancel := context.WithCancel(t.Context())
+	done := store.CompactBackground(ctx, 25*time.Millisecond)
 	time.Sleep(100 * time.Millisecond)
+	cancel()
 	<-done
 	// Entry should have been compacted.
 	_, err := store.Get(IdempotencyKey("bg"))

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ai-review/models"
+	"orion/platform-svc-go/internal/ai/review/models"
 
 	"orion/go-common/pkg/sentinel"
 

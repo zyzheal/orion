@@ -502,7 +502,7 @@ const AgentRunDetail: React.FC = () => {
           }
           size="small"
         >
-          {run.result.prUrl && (
+          {Boolean(run.result.prUrl) && (
             <Alert
               message="PR 已创建"
               description={(run.result.prUrl as string)}
@@ -511,8 +511,8 @@ const AgentRunDetail: React.FC = () => {
               style={{ marginBottom: spacing[3] }}
             />
           )}
-          {run.result.summary && <Paragraph>{run.result.summary as string}</Paragraph>}
-          {run.result.errorMessage && (
+          {Boolean(run.result.summary) && <Paragraph>{run.result.summary as string}</Paragraph>}
+          {Boolean(run.result.errorMessage) && (
             <Alert
               message="失败原因"
               description={run.result.errorMessage as string}

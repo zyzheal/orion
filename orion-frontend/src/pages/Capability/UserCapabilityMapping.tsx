@@ -114,7 +114,7 @@ const getRiskLevelColor = (level: number): string => {
 const UserCapabilityMapping: React.FC = () => {
   // 状态
   const [users, setUsers] = useState<User[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
+  const [_usersLoading, setUsersLoading] = useState(false);
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [overrides, setOverrides] = useState<UserCapabilityOverride[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -127,7 +127,7 @@ const UserCapabilityMapping: React.FC = () => {
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
-      const resp = await userApi.listUsers({ page: 1, limit: 100 });
+      const resp = await (userApi as any).listUsers({ page: 1, limit: 100 });
       const apiUsers = (resp.data as any)?.data || [];
       setUsers(
         apiUsers.map((u: UserProfile) => ({

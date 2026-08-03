@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-degradation/models"
-	"orion/platform-svc-go/internal/ai-degradation/repository"
+	"orion/platform-svc-go/internal/ai/degradation/models"
+	"orion/platform-svc-go/internal/ai/degradation/repository"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

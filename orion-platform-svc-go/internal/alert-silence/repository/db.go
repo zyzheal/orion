@@ -3,22 +3,18 @@ package repository
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+	"github.com/jmoiron/sqlx"
 )
 
-// DB wraps pgxpool and provides common query helpers.
+// DB wraps *sqlx.DB for the alert-silence repository.
 type DB struct {
-	pool   *pgxpool.Pool
+	DB     *sqlx.DB
 	logger *zap.Logger
 }
 
-func NewDB(pool *pgxpool.Pool, log *zap.Logger) *DB {
-	return &DB{pool: pool, logger: log}
-}
-
-func (d *DB) Pool() *pgxpool.Pool {
-	return d.pool
+func NewDB(db *sqlx.DB, log *zap.Logger) *DB {
+	return &DB{DB: db, logger: log}
 }
 
 func (d *DB) Logger() *zap.Logger {
@@ -29,15 +25,4 @@ func (d *DB) Logger() *zap.Logger {
 func (d *DB) RunMigrations(ctx context.Context, migrationsDir string) error {
 	d.logger.Info("migrations stub", zap.String("dir", migrationsDir))
 	return nil
-}
-
-// ExecContext executes a query and returns the result (sqlx-compatible wrapper).
-func (d *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (interface{}, error) {
-	tag, err := d.pool.Exec(ctx, query, args...)
-	return tag, err
-}
-
-// GetContext executes a query that returns a single row and scans the result into dest.
-func (d *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
-	return d.pool.QueryRow(ctx, query, args...).Scan(dest)
 }

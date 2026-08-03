@@ -7,7 +7,7 @@ package service
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai-degradation/models"
+	"orion/platform-svc-go/internal/ai/degradation/models"
 )
 
 // ServiceInterface defines the interface for the ai-degradation service.

@@ -41,7 +41,7 @@ func TestARTIFACT_VERSION_Handler_RegisterRoutes(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_List(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().List(c)
+	newHandler().list(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("List: got %d", w.Code)
 	}
@@ -50,7 +50,7 @@ func TestARTIFACT_VERSION_Handler_List(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Get(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Get(c)
+	newHandler().get(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Get: got %d", w.Code)
 	}
@@ -59,7 +59,7 @@ func TestARTIFACT_VERSION_Handler_Get(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Create(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Create(c)
+	newHandler().create(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Create: got %d", w.Code)
 	}
@@ -68,7 +68,7 @@ func TestARTIFACT_VERSION_Handler_Create(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Update(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Update(c)
+	newHandler().update(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Update: got %d", w.Code)
 	}
@@ -77,7 +77,7 @@ func TestARTIFACT_VERSION_Handler_Update(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Delete(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Delete(c)
+	newHandler().delete(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Delete: got %d", w.Code)
 	}
@@ -86,7 +86,7 @@ func TestARTIFACT_VERSION_Handler_Delete(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListTags(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListTags(c)
+	newHandler().listTags(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListTags: got %d", w.Code)
 	}
@@ -95,7 +95,7 @@ func TestARTIFACT_VERSION_Handler_ListTags(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_AddTag(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().AddTag(c)
+	newHandler().addTag(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("AddTag: got %d", w.Code)
 	}
@@ -104,7 +104,7 @@ func TestARTIFACT_VERSION_Handler_AddTag(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_DeleteTag(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().DeleteTag(c)
+	newHandler().deleteTag(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("DeleteTag: got %d", w.Code)
 	}
@@ -113,7 +113,7 @@ func TestARTIFACT_VERSION_Handler_DeleteTag(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_CheckCompatibility(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().CheckCompatibility(c)
+	newHandler().checkCompatibility(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("CheckCompatibility: got %d", w.Code)
 	}
@@ -122,7 +122,7 @@ func TestARTIFACT_VERSION_Handler_CheckCompatibility(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_RunInspection(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().RunInspection(c)
+	newHandler().runInspection(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("RunInspection: got %d", w.Code)
 	}
@@ -131,7 +131,7 @@ func TestARTIFACT_VERSION_Handler_RunInspection(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetResults(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetResults(c)
+	newHandler().getResults(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetResults: got %d", w.Code)
 	}
@@ -140,7 +140,7 @@ func TestARTIFACT_VERSION_Handler_GetResults(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_UpdateStatus(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().UpdateStatus(c)
+	newHandler().updateStatus(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("UpdateStatus: got %d", w.Code)
 	}
@@ -149,7 +149,7 @@ func TestARTIFACT_VERSION_Handler_UpdateStatus(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListTemplates(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListTemplates(c)
+	newHandler().listTemplates(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListTemplates: got %d", w.Code)
 	}
@@ -158,7 +158,7 @@ func TestARTIFACT_VERSION_Handler_ListTemplates(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetStats(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetStats(c)
+	newHandler().getStats(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetStats: got %d", w.Code)
 	}
@@ -167,7 +167,7 @@ func TestARTIFACT_VERSION_Handler_GetStats(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_RunPipeline(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().RunPipeline(c)
+	newHandler().runPipeline(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("RunPipeline: got %d", w.Code)
 	}
@@ -176,7 +176,7 @@ func TestARTIFACT_VERSION_Handler_RunPipeline(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetStatus(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetStatus(c)
+	newHandler().getStatus(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetStatus: got %d", w.Code)
 	}
@@ -185,7 +185,7 @@ func TestARTIFACT_VERSION_Handler_GetStatus(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Pause(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Pause(c)
+	newHandler().pause(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Pause: got %d", w.Code)
 	}
@@ -194,7 +194,7 @@ func TestARTIFACT_VERSION_Handler_Pause(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Resume(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Resume(c)
+	newHandler().resume(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Resume: got %d", w.Code)
 	}
@@ -203,7 +203,7 @@ func TestARTIFACT_VERSION_Handler_Resume(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetLogs(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetLogs(c)
+	newHandler().getLogs(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetLogs: got %d", w.Code)
 	}
@@ -212,7 +212,7 @@ func TestARTIFACT_VERSION_Handler_GetLogs(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListSchemas(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListSchemas(c)
+	newHandler().listSchemas(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListSchemas: got %d", w.Code)
 	}
@@ -221,7 +221,7 @@ func TestARTIFACT_VERSION_Handler_ListSchemas(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetLineage(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetLineage(c)
+	newHandler().getLineage(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetLineage: got %d", w.Code)
 	}
@@ -230,7 +230,7 @@ func TestARTIFACT_VERSION_Handler_GetLineage(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetConfig(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetConfig(c)
+	newHandler().getConfig(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetConfig: got %d", w.Code)
 	}
@@ -239,7 +239,7 @@ func TestARTIFACT_VERSION_Handler_GetConfig(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_UpdateConfig(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().UpdateConfig(c)
+	newHandler().updateConfig(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("UpdateConfig: got %d", w.Code)
 	}
@@ -248,7 +248,7 @@ func TestARTIFACT_VERSION_Handler_UpdateConfig(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetStatusMiddleware(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetStatusMiddleware(c)
+	newHandler().getStatusMiddleware(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetStatusMiddleware: got %d", w.Code)
 	}
@@ -257,7 +257,7 @@ func TestARTIFACT_VERSION_Handler_GetStatusMiddleware(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Restart(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Restart(c)
+	newHandler().restart(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Restart: got %d", w.Code)
 	}
@@ -266,7 +266,7 @@ func TestARTIFACT_VERSION_Handler_Restart(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Configure(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Configure(c)
+	newHandler().configure(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Configure: got %d", w.Code)
 	}
@@ -275,7 +275,7 @@ func TestARTIFACT_VERSION_Handler_Configure(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListPlugins(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListPlugins(c)
+	newHandler().listPlugins(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListPlugins: got %d", w.Code)
 	}
@@ -284,7 +284,7 @@ func TestARTIFACT_VERSION_Handler_ListPlugins(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetPlugin(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetPlugin(c)
+	newHandler().getPlugin(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetPlugin: got %d", w.Code)
 	}
@@ -293,7 +293,7 @@ func TestARTIFACT_VERSION_Handler_GetPlugin(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_EnablePlugin(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().EnablePlugin(c)
+	newHandler().enablePlugin(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("EnablePlugin: got %d", w.Code)
 	}
@@ -302,7 +302,7 @@ func TestARTIFACT_VERSION_Handler_EnablePlugin(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_DisablePlugin(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().DisablePlugin(c)
+	newHandler().disablePlugin(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("DisablePlugin: got %d", w.Code)
 	}
@@ -311,7 +311,7 @@ func TestARTIFACT_VERSION_Handler_DisablePlugin(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Train(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Train(c)
+	newHandler().train(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Train: got %d", w.Code)
 	}
@@ -320,7 +320,7 @@ func TestARTIFACT_VERSION_Handler_Train(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Evaluate(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Evaluate(c)
+	newHandler().evaluate(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Evaluate: got %d", w.Code)
 	}
@@ -329,7 +329,7 @@ func TestARTIFACT_VERSION_Handler_Evaluate(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Deploy(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Deploy(c)
+	newHandler().deploy(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Deploy: got %d", w.Code)
 	}
@@ -338,7 +338,7 @@ func TestARTIFACT_VERSION_Handler_Deploy(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Rollback(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Rollback(c)
+	newHandler().rollback(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Rollback: got %d", w.Code)
 	}
@@ -347,7 +347,7 @@ func TestARTIFACT_VERSION_Handler_Rollback(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetMetrics(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetMetrics(c)
+	newHandler().getMetrics(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetMetrics: got %d", w.Code)
 	}
@@ -356,7 +356,7 @@ func TestARTIFACT_VERSION_Handler_GetMetrics(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListExperiments(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListExperiments(c)
+	newHandler().listExperiments(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListExperiments: got %d", w.Code)
 	}
@@ -365,7 +365,7 @@ func TestARTIFACT_VERSION_Handler_ListExperiments(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListArtifacts(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListArtifacts(c)
+	newHandler().listArtifacts(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListArtifacts: got %d", w.Code)
 	}
@@ -374,7 +374,7 @@ func TestARTIFACT_VERSION_Handler_ListArtifacts(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListModels(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListModels(c)
+	newHandler().listModels(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListModels: got %d", w.Code)
 	}
@@ -383,7 +383,7 @@ func TestARTIFACT_VERSION_Handler_ListModels(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_RegisterModel(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().RegisterModel(c)
+	newHandler().registerModel(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("RegisterModel: got %d", w.Code)
 	}
@@ -392,7 +392,7 @@ func TestARTIFACT_VERSION_Handler_RegisterModel(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_DeregisterModel(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().DeregisterModel(c)
+	newHandler().deregisterModel(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("DeregisterModel: got %d", w.Code)
 	}
@@ -401,7 +401,7 @@ func TestARTIFACT_VERSION_Handler_DeregisterModel(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListPipelines(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListPipelines(c)
+	newHandler().listPipelines(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListPipelines: got %d", w.Code)
 	}
@@ -410,7 +410,7 @@ func TestARTIFACT_VERSION_Handler_ListPipelines(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Trigger(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Trigger(c)
+	newHandler().trigger(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Trigger: got %d", w.Code)
 	}
@@ -419,7 +419,7 @@ func TestARTIFACT_VERSION_Handler_Trigger(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListTemplates2(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListTemplates2(c)
+	newHandler().listTemplates2(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListTemplates2: got %d", w.Code)
 	}
@@ -428,7 +428,7 @@ func TestARTIFACT_VERSION_Handler_ListTemplates2(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetBranchStatus(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetBranchStatus(c)
+	newHandler().getBranchStatus(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetBranchStatus: got %d", w.Code)
 	}
@@ -437,7 +437,7 @@ func TestARTIFACT_VERSION_Handler_GetBranchStatus(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListHistories(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListHistories(c)
+	newHandler().listHistories(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListHistories: got %d", w.Code)
 	}
@@ -446,7 +446,7 @@ func TestARTIFACT_VERSION_Handler_ListHistories(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListPending(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListPending(c)
+	newHandler().listPending(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListPending: got %d", w.Code)
 	}
@@ -455,7 +455,7 @@ func TestARTIFACT_VERSION_Handler_ListPending(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Approve(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Approve(c)
+	newHandler().approve(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Approve: got %d", w.Code)
 	}
@@ -464,7 +464,7 @@ func TestARTIFACT_VERSION_Handler_Approve(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Reject(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Reject(c)
+	newHandler().reject(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Reject: got %d", w.Code)
 	}
@@ -473,7 +473,7 @@ func TestARTIFACT_VERSION_Handler_Reject(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Escalate(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Escalate(c)
+	newHandler().escalate(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Escalate: got %d", w.Code)
 	}
@@ -482,7 +482,7 @@ func TestARTIFACT_VERSION_Handler_Escalate(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetByUser(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetByUser(c)
+	newHandler().getByUser(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetByUser: got %d", w.Code)
 	}
@@ -491,7 +491,7 @@ func TestARTIFACT_VERSION_Handler_GetByUser(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Forecast(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Forecast(c)
+	newHandler().forecast(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Forecast: got %d", w.Code)
 	}
@@ -500,7 +500,7 @@ func TestARTIFACT_VERSION_Handler_Forecast(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetUtilization(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetUtilization(c)
+	newHandler().getUtilization(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetUtilization: got %d", w.Code)
 	}
@@ -509,7 +509,7 @@ func TestARTIFACT_VERSION_Handler_GetUtilization(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ScaleResource(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ScaleResource(c)
+	newHandler().scaleResource(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ScaleResource: got %d", w.Code)
 	}
@@ -518,7 +518,7 @@ func TestARTIFACT_VERSION_Handler_ScaleResource(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListAlerts(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListAlerts(c)
+	newHandler().listAlerts(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListAlerts: got %d", w.Code)
 	}
@@ -527,7 +527,7 @@ func TestARTIFACT_VERSION_Handler_ListAlerts(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetHistory(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetHistory(c)
+	newHandler().getHistory(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetHistory: got %d", w.Code)
 	}
@@ -536,7 +536,7 @@ func TestARTIFACT_VERSION_Handler_GetHistory(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ValidateBranch(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ValidateBranch(c)
+	newHandler().validateBranch(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ValidateBranch: got %d", w.Code)
 	}
@@ -545,7 +545,7 @@ func TestARTIFACT_VERSION_Handler_ValidateBranch(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_GetCoverage(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().GetCoverage(c)
+	newHandler().getCoverage(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("GetCoverage: got %d", w.Code)
 	}
@@ -554,7 +554,7 @@ func TestARTIFACT_VERSION_Handler_GetCoverage(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_EnforcePolicy(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().EnforcePolicy(c)
+	newHandler().enforcePolicy(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("EnforcePolicy: got %d", w.Code)
 	}
@@ -563,7 +563,7 @@ func TestARTIFACT_VERSION_Handler_EnforcePolicy(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_ListViolations(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().ListViolations(c)
+	newHandler().listViolations(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("ListViolations: got %d", w.Code)
 	}
@@ -572,7 +572,7 @@ func TestARTIFACT_VERSION_Handler_ListViolations(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_BatchCreate(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().BatchCreate(c)
+	newHandler().batchCreate(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("BatchCreate: got %d", w.Code)
 	}
@@ -581,7 +581,7 @@ func TestARTIFACT_VERSION_Handler_BatchCreate(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Search(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Search(c)
+	newHandler().search(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Search: got %d", w.Code)
 	}
@@ -590,7 +590,7 @@ func TestARTIFACT_VERSION_Handler_Search(t *testing.T) {
 func TestARTIFACT_VERSION_Handler_Regenerate(t *testing.T) {
 	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
-	newHandler().Regenerate(c)
+	newHandler().regenerate(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Regenerate: got %d", w.Code)
 	}

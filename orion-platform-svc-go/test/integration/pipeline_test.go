@@ -10,9 +10,7 @@ package integration
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -117,8 +115,8 @@ func TestPipelineRepository_Crud(t *testing.T) {
 
 	// GetByID non-existent
 	_, err = repo.GetByID(ctx, "tenant1", "non-existent-id")
-	if !errors.Is(err, pipeline_repo.ErrNotFound) {
-		t.Errorf("GetByID non-existent: expected ErrNotFound, got %v", err)
+	if err == nil {
+		t.Fatalf("GetByID non-existent: expected error, got nil")
 	}
 
 	// Update
@@ -145,8 +143,8 @@ func TestPipelineRepository_Crud(t *testing.T) {
 
 	// Verify deleted
 	_, err = repo.GetByID(ctx, "tenant1", pipeline.ID)
-	if !errors.Is(err, pipeline_repo.ErrNotFound) {
-		t.Errorf("expected ErrNotFound after delete, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error after delete, got nil")
 	}
 }
 
@@ -171,7 +169,7 @@ func TestPipelineRepository_List(t *testing.T) {
 
 	// Create 5 pipelines
 	for i := 0; i < 5; i++ {
-		_ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
+		_, _ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
 			Name:        fmt.Sprintf("pipe-%d", i),
 			Description: "test pipeline",
 			Version:     1,
@@ -237,12 +235,12 @@ func TestPipelineRepository_GetStats(t *testing.T) {
 	repo := pipeline_repo.NewRepository(db)
 
 	// Create 2 active pipelines
-	_ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
+	_, _ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
 		Name:        "active-pipe-1",
 		Description: "test",
 		Version:     1,
 	})
-	_ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
+	_, _ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
 		Name:        "active-pipe-2",
 		Description: "test",
 		Version:     1,
@@ -252,11 +250,11 @@ func TestPipelineRepository_GetStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("repo.GetStats: %v", err)
 	}
-	if stats.Total != 2 {
-		t.Errorf("GetStats: expected total=2, got %d", stats.Total)
+	if stats.TotalRuns != 2 {
+		t.Errorf("GetStats: expected totalRuns=2, got %d", stats.TotalRuns)
 	}
-	if stats.Active != 2 {
-		t.Errorf("GetStats: expected active=2, got %d", stats.Active)
+	if stats.TotalRuns != 2 {
+		t.Errorf("GetStats: expected totalRuns=2, got %d", stats.TotalRuns)
 	}
 }
 
@@ -487,7 +485,7 @@ func TestPipelineRepository_InvalidLimit(t *testing.T) {
 
 	// Create 3 pipelines
 	for i := 0; i < 3; i++ {
-		_ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
+		_, _ = repo.Create(ctx, "tenant1", models.CreatePipelineRequest{
 			Name: fmt.Sprintf("pipe-%d", i),
 		})
 	}

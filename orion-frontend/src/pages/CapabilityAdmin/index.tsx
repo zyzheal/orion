@@ -170,6 +170,7 @@ export const CapabilityAdmin: React.FC = () => {
         await capabilityApi.create(values);
         message.success('创建成功');
       } else {
+        if (!selectedCapability) return;
         await capabilityApi.update(selectedCapability.capability_id, values);
         message.success('更新成功');
       }

@@ -3,9 +3,10 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-ro
 import { routes, type AppRoute } from './routes';
 import { generateRoutes } from './route-generator';
 import { listPageRegistry } from '@/api/page-registry';
-import type { PageRegistry } from './page-registry-types';
+import type { PageEntry, PageRegistry } from './page-registry-types';
 import { Layout } from '@/components/Layout';
 import { Loading } from '@/components/Loading';
+import { PageErrorBoundary, pathToPageName } from '@/components/ErrorBoundary/PageErrorBoundary';
 import { useAuthStore } from '@/stores/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { getCurrentUser } from '@/api/auth';
@@ -196,7 +197,7 @@ const renderElement = (el: any) => {
 const AppRoutes: React.FC = () => {
   const [pageRegistryRoutes, setPageRegistryRoutes] = useState<AppRoute[] | null>(null);
   const [registryLoading, setRegistryLoading] = useState(false);
-  const [registryError, setRegistryError] = useState(false);
+  const [_registryError, setRegistryError] = useState(false);
 
   // Phase 4: Dual-track routing — load from page_registry when VITE_USE_PAGE_REGISTRY is enabled
   useEffect(() => {
@@ -215,7 +216,7 @@ const AppRoutes: React.FC = () => {
       try {
         const result = await listPageRegistry({ enabled: true });
         if (!cancelled) {
-          const registry: PageRegistry = { pages: result.data };
+          const registry: PageRegistry = { pages: result.data as unknown as PageEntry[] };
           const generated = generateRoutes(registry);
           setPageRegistryRoutes(generated);
         }
@@ -251,10 +252,13 @@ const AppRoutes: React.FC = () => {
     <Routes>
       {activeRoutes.map((route) => {
         // 支持 React.lazy 组件和普通 ReactNode
+        const pageName = (route as { path?: string }).path != null ? pathToPageName((route as { path?: string }).path) : undefined;
         const element = (
-          <React.Suspense fallback={<Loading fullscreen />}>
-            {renderElement(route.element)}
-          </React.Suspense>
+          <PageErrorBoundary pageName={pageName}>
+            <React.Suspense fallback={<Loading fullscreen />}>
+              {renderElement(route.element)}
+            </React.Suspense>
+          </PageErrorBoundary>
         );
 
         // 处理有 children 的路由（嵌套路由）
@@ -262,10 +266,13 @@ const AppRoutes: React.FC = () => {
           const childRoutes = route.children.map((child) => {
             // 处理 index 路由
             if (child.index) {
+              const childPageName = (child as { path?: string }).path != null ? pathToPageName((child as { path?: string }).path) : undefined;
               const childElement = (
-                <React.Suspense fallback={<Loading />}>
-                  {renderElement(child.element)}
-                </React.Suspense>
+                <PageErrorBoundary pageName={childPageName}>
+                  <React.Suspense fallback={<Loading />}>
+                    {renderElement(child.element)}
+                  </React.Suspense>
+                </PageErrorBoundary>
               );
               return <Route key="index" index element={childElement} />;
             }

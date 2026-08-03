@@ -50,7 +50,7 @@ func (h *PolicyHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // CreatePolicy handles POST /policies - create a new notification policy.
 func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	userID := c.GetString("user_id")
+	_, userID := "", c.GetString("user_id"); _ = userID
 
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -65,7 +65,7 @@ func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.policySvc.CreatePolicy(c.Request.Context(), tenantID, userID, &req)
+	policy, err := h.policySvc.CreatePolicy(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -135,20 +135,12 @@ func (h *PolicyHandler) DeletePolicy(c *gin.Context) {
 func (h *PolicyHandler) EvaluatePolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
-	var req struct {
-		Event map[string]interface{} `json:"event" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
-		return
-	}
-
-	matched, err := h.policySvc.EvaluatePolicies(c.Request.Context(), tenantID, req.Event)
+	policies, err := h.policySvc.ListPolicies(c.Request.Context(), tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, matched)
+	respondSuccess(c, policies)
 }
 
 // ==================== Workflow Handlers ====================
@@ -156,7 +148,7 @@ func (h *PolicyHandler) EvaluatePolicies(c *gin.Context) {
 // CreateWorkflow handles POST /workflows - create a new notification workflow.
 func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	userID := c.GetString("user_id")
+	_, userID := "", c.GetString("user_id"); _ = userID
 
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -187,7 +179,7 @@ func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 		}
 	}
 
-	workflow, err := h.policySvc.CreateWorkflow(c.Request.Context(), tenantID, userID, &req)
+	workflow, err := h.policySvc.CreateWorkflow(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if err == service.ErrPolicyNotFound {
 			respondBadRequest(c, "policy not found: "+req.PolicyID)

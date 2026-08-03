@@ -6,7 +6,7 @@
  * - Final result: PR URL, fix summary, failure reason
  * - Actions: cancel, retry, replay
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -507,12 +507,12 @@ const AgentRunDetail: React.FC = () => {
           }
           size="small"
         >
-          {run.result.prUrl && (
+          {Boolean(run.result.prUrl) && (
             <Alert
               message="PR 已创建"
               description={
                 <a href={run.result.prUrl as string} target="_blank" rel="noopener noreferrer">
-                  {run.result.prUrl}
+                  {run.result.prUrl as ReactNode}
                 </a>
               }
               type="success"
@@ -520,11 +520,11 @@ const AgentRunDetail: React.FC = () => {
               style={{ marginBottom: spacing[3] }}
             />
           )}
-          {run.result.summary && <Paragraph>{run.result.summary as string}</Paragraph>}
-          {run.result.errorMessage && (
+          {Boolean(run.result.summary) && <Paragraph>{run.result.summary as ReactNode}</Paragraph>}
+          {Boolean(run.result.errorMessage) && (
             <Alert
               message="失败原因"
-              description={run.result.errorMessage as string}
+              description={run.result.errorMessage as ReactNode}
               type="error"
               showIcon
               style={{ marginBottom: spacing[3] }}

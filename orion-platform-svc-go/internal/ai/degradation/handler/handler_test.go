@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"orion/platform-svc-go/internal/ai-degradation/service"
+	"orion/platform-svc-go/internal/ai/degradation/service"
 
 	"github.com/gin-gonic/gin"
 )

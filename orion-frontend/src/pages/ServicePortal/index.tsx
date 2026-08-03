@@ -336,10 +336,11 @@ const ServicePortal: React.FC = () => {
     () => tickets.filter((t) => t.status === 'pending').length,
     [tickets]
   );
-  const _inProgressCount = useMemo(
+  const inProgressCount = useMemo(
     () => tickets.filter((t) => t.status === 'in_progress').length,
     [tickets]
   );
+  void inProgressCount;
   const fulfilledCount = useMemo(
     () => tickets.filter((t) => t.status === 'fulfilled').length,
     [tickets]

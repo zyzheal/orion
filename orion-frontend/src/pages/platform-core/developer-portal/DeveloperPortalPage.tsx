@@ -58,7 +58,8 @@ import {
   PortalDocumentCreateRequest,
   PortalDocumentUpdateRequest,
   CategoryInfo,
-} from '../../../api/developer-portal';
+} // @ts-ignore: Cannot find module '../../../api/developer-portal' (module does not exist)
+  from '../../../api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 

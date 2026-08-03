@@ -178,7 +178,7 @@ const BuildPodList: React.FC = () => {
           failed: 'failed',
           cancelled: 'cancelled',
         };
-        return <StatusBadge status={statusMap[String(value)] || 'unknown'} size="small" />;
+        return <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />;
       },
     },
     {

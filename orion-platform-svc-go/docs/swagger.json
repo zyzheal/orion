@@ -1,0 +1,384 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/audit/compliance/soc2": {
+            "get": {
+                "description": "Get SOC2 Type II compliance report",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "SOC2 compliance report",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/orion_platform-svc-go_internal_audit_models.ComplianceReport"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit/logs": {
+            "get": {
+                "description": "List audit logs with pagination and filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "List audit logs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "log ID",
+                        "name": "id",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.AuditLogListResult"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new audit log entry",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Create audit log",
+                "parameters": [
+                    {
+                        "description": "log data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.AuditLogCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.AuditLogEntry"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit/report/generate": {
+            "post": {
+                "description": "Generate an audit/compliance report on demand",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "Generate audit report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "framework (soc2/iso27001/combined)",
+                        "name": "framework",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        },
+        "/audit/reports": {
+            "get": {
+                "description": "List all available audit/compliance reports",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "summary": "List audit reports",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/gin.H"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "gin.H": {
+            "type": "object",
+            "additionalProperties": {}
+        },
+        "models.AuditLogCreateRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "ipAddress": {
+                    "type": "string"
+                },
+                "requestBody": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "requestMethod": {
+                    "type": "string"
+                },
+                "requestPath": {
+                    "type": "string"
+                },
+                "resourceId": {
+                    "type": "string"
+                },
+                "resourceType": {
+                    "type": "string"
+                },
+                "responseBody": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "responseCode": {
+                    "type": "integer"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "userAgent": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.AuditLogEntry": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "chainHash": {
+                    "type": "string"
+                },
+                "contentHash": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ipAddress": {
+                    "type": "string"
+                },
+                "prevHash": {
+                    "type": "string"
+                },
+                "requestMethod": {
+                    "type": "string"
+                },
+                "requestPath": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "resourceId": {
+                    "type": "string"
+                },
+                "responseCode": {
+                    "type": "integer"
+                },
+                "sequenceNumber": {
+                    "type": "integer"
+                },
+                "tenantId": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "userAgent": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.AuditLogListResult": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.AuditLogEntry"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.ControlResult": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string"
+                },
+                "evidenceCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "passed / failed / warning",
+                    "type": "string"
+                }
+            }
+        },
+        "orion_platform-svc-go_internal_audit_models.ComplianceFinding": {
+            "type": "object",
+            "properties": {
+                "controlId": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "evidence": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "remediation": {
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "low / medium / high / critical",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "orion_platform-svc-go_internal_audit_models.ComplianceReport": {
+            "type": "object",
+            "properties": {
+                "controls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ControlResult"
+                    }
+                },
+                "failedControls": {
+                    "type": "integer"
+                },
+                "findings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/orion_platform-svc-go_internal_audit_models.ComplianceFinding"
+                    }
+                },
+                "generatedAt": {
+                    "type": "string"
+                },
+                "passedControls": {
+                    "type": "integer"
+                },
+                "periodEnd": {
+                    "type": "string"
+                },
+                "periodStart": {
+                    "type": "string"
+                },
+                "rating": {
+                    "description": "compliant / partial / non-compliant",
+                    "type": "string"
+                },
+                "recommendations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reportType": {
+                    "type": "string"
+                },
+                "score": {
+                    "description": "0-100 overall",
+                    "type": "number"
+                },
+                "totalControls": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

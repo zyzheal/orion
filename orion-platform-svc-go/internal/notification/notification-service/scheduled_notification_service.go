@@ -19,8 +19,8 @@ var ErrScheduledNotificationNotFound = fmt.Errorf("scheduled notification not fo
 
 // ScheduledNotificationService implements the scheduled notification business logic.
 type ScheduledNotificationService struct {
-	repo      *repository.ScheduledNotificationRepository
-	logger    *zap.Logger
+	repo   *repository.ScheduledNotificationRepository
+	logger *zap.Logger
 }
 
 // NewScheduledNotificationService creates a new ScheduledNotificationService.
@@ -31,8 +31,6 @@ func NewScheduledNotificationService(repo *repository.ScheduledNotificationRepos
 	return &ScheduledNotificationService{repo: repo, logger: logger}
 }
 
-// ==================== CRUD ====================
-
 // CreateScheduledNotification creates a new scheduled notification.
 func (s *ScheduledNotificationService) CreateScheduledNotification(ctx context.Context, tenantID string, req *models.CreateScheduledNotificationInput) (*models.ScheduledNotification, error) {
 	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "ScheduledNotificationService.Create")
@@ -42,22 +40,23 @@ func (s *ScheduledNotificationService) CreateScheduledNotification(ctx context.C
 		return nil, fmt.Errorf("user_id, type, title, message, and scheduled_at are required")
 	}
 
+	now := time.Now()
+	scheduledAt := req.ScheduledAt
 	channel := req.Channel
 	if channel == "" {
 		channel = models.ChannelInApp
 	}
 
-	now := time.Now()
 	n := &models.ScheduledNotification{
 		ID:          mustGenerateID(),
 		TenantID:    tenantID,
-		UserID:      &req.UserID,
+		UserID:      req.UserID,
 		TemplateID:  req.TemplateID,
 		Type:        req.Type,
 		Title:       req.Title,
 		Message:     req.Message,
-		Channel:     channel,
-		ScheduledAt: req.ScheduledAt,
+		Channel:     string(channel),
+		ScheduledAt: &scheduledAt,
 		Status:      models.ScheduledStatusPending,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -166,18 +165,14 @@ func (s *ScheduledNotificationService) DeleteScheduledNotification(ctx context.C
 	return nil
 }
 
-// ==================== Cron Validation ====================
-
 // ValidateCronExpression validates a cron expression and returns a human-readable description.
 func (s *ScheduledNotificationService) ValidateCronExpression(cronExpression string) models.ParsedCronSchedule {
 	fields := strings.Fields(cronExpression)
 
 	if len(fields) != 5 {
 		return models.ParsedCronSchedule{
-			Expression:  cronExpression,
-			Valid:       false,
-			Error:       "Cron expression must have exactly 5 fields (minute hour day-of-month month day-of-week)",
-			NextFireTime: nil,
+			Expression: cronExpression,
+			Error:      "Cron expression must have exactly 5 fields (minute hour day-of-month month day-of-week)",
 		}
 	}
 
@@ -186,9 +181,7 @@ func (s *ScheduledNotificationService) ValidateCronExpression(cronExpression str
 		if !valid {
 			return models.ParsedCronSchedule{
 				Expression: cronExpression,
-				Valid:       false,
-				Error:       fmt.Sprintf("Invalid field: %s", field),
-				NextFireTime: nil,
+				Error:      fmt.Sprintf("Invalid field: %s", field),
 			}
 		}
 	}
@@ -199,20 +192,15 @@ func (s *ScheduledNotificationService) ValidateCronExpression(cronExpression str
 	return models.ParsedCronSchedule{
 		Expression:   cronExpression,
 		Description:  fmt.Sprintf("Runs %s", description),
-		NextFireTime: &nextFire,
-		Timezone:     "UTC",
-		Valid:        true,
+		NextRuns:     []time.Time{nextFire},
 	}
 }
-
-// ==================== Helpers ====================
 
 func mustGenerateID() string {
 	return "sn-" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
 }
 
 func regexpMatchString(pattern, s string) (bool, error) {
-	// Simplified regex check - in production use regexp package
 	for _, ch := range s {
 		matched := (ch >= '0' && ch <= '9') || ch == '*' || ch == '/' || ch == '-' || ch == ','
 		if !matched {
@@ -276,13 +264,11 @@ func (s *ScheduledNotificationService) ToggleScheduledNotification(ctx context.C
 	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "ScheduledNotificationService.Toggle")
 	defer span.End()
 
-	// Verify exists
 	n, err := s.repo.FindByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, ErrScheduledNotificationNotFound
 	}
 
-	// Determine new status
 	var newStatus models.ScheduledNotificationStatus
 	if enabled {
 		newStatus = models.ScheduledStatusPending
@@ -294,7 +280,7 @@ func (s *ScheduledNotificationService) ToggleScheduledNotification(ctx context.C
 		return n, nil
 	}
 
-	updates := map[string]interface{}{"status": newStatus}
+	updates := map[string]interface{}{"status": string(newStatus)}
 	n, err = s.repo.Update(ctx, tenantID, id, updates)
 	if err != nil {
 		s.logger.Error("failed to toggle scheduled notification", zap.Error(err), zap.String("id", id))

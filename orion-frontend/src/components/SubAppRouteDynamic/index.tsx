@@ -9,10 +9,10 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSubAppStore } from '@/stores/subappStore';
-import { loadSubApp, getSubApp, destroySubApp, emitReady, emitError, orionBus, emitAuthState } from '@orion-mf/core';
+import { loadSubApp, getSubApp, destroySubApp, emitReady, emitError, orionBus } from '@orion-mf/core';
 import { injectAuthState } from '@/microfront/config';
 import { Result, Button, Progress, Skeleton, Space, Tag } from 'antd';
-import { CheckCircleOutlined, LoadingOutlined, CloudServerOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloudServerOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -25,7 +25,7 @@ const SubAppRouteDynamic: React.FC = () => {
   const [loadStage, setLoadStage] = useState('');
   const [isFromCache, setIsFromCache] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const instanceRef = useRef<SubAppInstance | null>(null);
+  const instanceRef = useRef<unknown>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // 用 ref 记录当前正在加载的 subAppKey，避免 effect 因 setState 重复执行
   const loadingKeyRef = useRef<string | null>(null);

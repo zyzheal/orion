@@ -10,8 +10,8 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select,
-  Empty, Card, Descriptions, Tooltip, InputNumber, Row, Col, Statistic, Alert, Divider,
+  Typography, Button, Space, Tag, message, Modal, Form, Input, Select,
+  Empty, Card, Descriptions, Tooltip, Row, Col, Divider,
 } from 'antd';
 import {
   AppstoreOutlined, EyeOutlined, PlusOutlined, SearchOutlined, ThunderboltOutlined, ExportOutlined,
@@ -43,8 +43,8 @@ const TemplateMarketPage: React.FC = () => {
   const [templates, setTemplates] = useState<LowcodeTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(12);
+  const [_page, setPage] = useState(1);
+  const [_pageSize] = useState(12);
 
   // Filters
   const [searchText, setSearchText] = useState('');
@@ -230,7 +230,7 @@ const TemplateMarketPage: React.FC = () => {
         }
         description={
           <div>
-            <Typography.Text type="secondary" ellipsis={{ rows: 2 }} style={{ display: 'block', marginBottom: 4 }}>
+            <Typography.Text type="secondary" ellipsis style={{ display: 'block', marginBottom: 4 }}>
               {template.description || '无描述'}
             </Typography.Text>
             <Space size="small">

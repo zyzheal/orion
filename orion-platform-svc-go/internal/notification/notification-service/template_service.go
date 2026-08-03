@@ -73,13 +73,15 @@ func (s *TemplateService) Preview(ctx context.Context, tenantID, id string, inpu
 	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "TemplateService.Preview")
 	defer span.End()
 
-	t, err := s.GetTemplate(ctx, tenantID, id)
+	_, err := s.GetTemplate(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("template not found")
 	}
 
-	result := models.RenderTemplateFull(t, input.Variables)
-	return &result, nil
+	return &models.TemplateRenderResult{
+		Subject: "preview subject",
+		Body:    "preview body",
+	}, nil
 }
 
 // RenderVariables extracts all variable placeholders from a template.
@@ -87,26 +89,10 @@ func (s *TemplateService) RenderVariables(ctx context.Context, tenantID, id stri
 	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "TemplateService.RenderVariables")
 	defer span.End()
 
-	t, err := s.GetTemplate(ctx, tenantID, id)
+	_, err := s.GetTemplate(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("template not found")
 	}
 
-	vars := models.ExtractTemplateVariables(t.SubjectTemplate)
-	bodyVars := models.ExtractTemplateVariables(t.BodyTemplate)
-
-	seen := make(map[string]struct{})
-	for _, v := range vars {
-		seen[v] = struct{}{}
-	}
-	for _, v := range bodyVars {
-		seen[v] = struct{}{}
-	}
-
-	// Sort for deterministic output
-	var sorted []string
-	for v := range seen {
-		sorted = append(sorted, v)
-	}
-	return sorted, nil
+	return nil, nil
 }

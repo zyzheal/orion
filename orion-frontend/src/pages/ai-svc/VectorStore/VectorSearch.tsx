@@ -101,7 +101,7 @@ const VectorSearch: React.FC<VectorSearchProps> = ({
                 </Tag>
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {hit.collection}
-                  {hit.metadata?.source && ` | ${hit.metadata.source as string}`}
+                  {(() => { const src = hit.metadata?.source; return src ? ` | ${String(src)}` : null; })()}
                 </Text>
               </div>
               <Paragraph ellipsis={{ rows: 3 }} style={{ marginBottom: 0, fontSize: 12 }}>

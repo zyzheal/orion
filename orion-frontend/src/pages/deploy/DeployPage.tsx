@@ -511,12 +511,15 @@ const DeployPage: React.FC = () => {
     setSelectedDeployment(d);
     setDetailDrawerVisible(true);
     setReleaseNotes(null);
+    setReleaseNotesLoading(true);
     // 加载该部署的版本说明
     try {
       const notes = await getReleaseNotes(d.id);
       setReleaseNotes(notes);
     } catch {
       // 版本说明不存在时静默处理
+    } finally {
+      setReleaseNotesLoading(false);
     }
   };
 

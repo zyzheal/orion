@@ -8,7 +8,7 @@
  * - 设计规范样式
  */
 import React, { useState } from 'react';
-import { Result, Button, Input, Space, Card, Typography, Descriptions } from 'antd';
+import { Result, Button, Space, Card, Typography, Descriptions } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   HomeOutlined,

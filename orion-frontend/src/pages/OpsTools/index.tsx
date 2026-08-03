@@ -162,7 +162,7 @@ const OpsTools: React.FC = () => {
   const [dumpRunning, setDumpRunning] = useState(false);
   const [fragments, setFragments] = useState<DatabaseFragment[]>([]);
   const [indexes, setIndexes] = useState<IndexInfo[]>([]);
-  const [dbLoading, setDbLoading] = useState(false);
+  const [_dbLoading, setDbLoading] = useState(false);
   const [indexModalOpen, setIndexModalOpen] = useState(false);
   const [indexForm] = Form.useForm();
 
@@ -188,13 +188,13 @@ const OpsTools: React.FC = () => {
 
   // ============ Theme State ============
   const [themes, setThemes] = useState<ThemeConfig[]>([]);
-  const [themeLoading, setThemeLoading] = useState(false);
+  const [themeLoading, _setThemeLoading] = useState(false);
   const [themeModalOpen, setThemeModalOpen] = useState(false);
   const [themeForm] = Form.useForm();
 
   // ============ Module State ============
   const [modules, setModules] = useState<SystemModule[]>([]);
-  const [moduleLoading, setModuleLoading] = useState(false);
+  const [moduleLoading, _setModuleLoading] = useState(false);
 
   // ============ License State ============
   const [licenses, setLicenses] = useState<LicenseInfo[]>([]);
@@ -208,8 +208,8 @@ const OpsTools: React.FC = () => {
   const [auditPage, setAuditPage] = useState(1);
 
   // ============ MQ State ============
-  const [mqQueues, setMqQueues] = useState<MQQueue[]>([]);
-  const [mqLoading, setMqLoading] = useState(false);
+  const [_mqQueues, setMqQueues] = useState<MQQueue[]>([]);
+  const [_mqLoading, setMqLoading] = useState(false);
 
   // ============ Log State ============
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -271,7 +271,7 @@ const OpsTools: React.FC = () => {
     }
   }, []);
 
-  const loadMqQueues = useCallback(async () => {
+  const _loadMqQueues = useCallback(async () => {
     setMqLoading(true);
     try {
       const res = await getMQQueues();
@@ -282,6 +282,7 @@ const OpsTools: React.FC = () => {
       setMqLoading(false);
     }
   }, []);
+  void _loadMqQueues;
 
   const loadBatchOps = useCallback(async () => {
     setBatchLoading(true);

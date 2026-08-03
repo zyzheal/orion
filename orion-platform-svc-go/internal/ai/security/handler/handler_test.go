@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"orion/platform-svc-go/internal/ai-security/models"
+	"orion/platform-svc-go/internal/ai/security/models"
 
 	"github.com/gin-gonic/gin"
 )

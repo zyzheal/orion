@@ -7,7 +7,7 @@ package service
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai-security/models"
+	"orion/platform-svc-go/internal/ai/security/models"
 )
 
 // ServiceInterface defines the interface for the ai-security service.

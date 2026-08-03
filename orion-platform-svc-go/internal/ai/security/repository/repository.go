@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"orion/go-common/pkg/sentinel"
-	"orion/platform-svc-go/internal/ai-security/models"
+	"orion/platform-svc-go/internal/ai/security/models"
 
 	"github.com/jmoiron/sqlx"
 )

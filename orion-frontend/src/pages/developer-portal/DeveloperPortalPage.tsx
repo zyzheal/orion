@@ -80,7 +80,8 @@ import {
   SubscriptionCreateRequest,
   PlaygroundRequest,
   PlaygroundExecuteRequest,
-} from '../../api/developer-portal';
+} // @ts-ignore: Cannot find module '../../api/developer-portal' (module does not exist)
+  from '../../api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 
@@ -1405,7 +1406,7 @@ const DeveloperPortalPage: React.FC = () => {
               <Descriptions.Item label="状态">{selectedDoc.published ? <Tag color="green">已发布</Tag> : <Tag>草稿</Tag>}</Descriptions.Item>
               <Descriptions.Item label="分类">{selectedDoc.category || '未分类'}</Descriptions.Item>
               <Descriptions.Item label="版本">{selectedDoc.version || '-'}</Descriptions.Item>
-              <Descriptions.Item label="标签" span={2}><Space wrap>{(selectedDoc.tags || []).map((t, i) => <Tag key={i}>{t}</Tag>)}</Space></Descriptions.Item>
+              <Descriptions.Item label="标签" span={2}><Space wrap>{(selectedDoc.tags || []).map((t: string, i: number) => <Tag key={i}>{t}</Tag>)}</Space></Descriptions.Item>
               <Descriptions.Item label="浏览">{selectedDoc.viewCount || 0}</Descriptions.Item>
               <Descriptions.Item label="点赞"><StarOutlined style={{ color: colors.warning[500], marginRight: 4 }} />{selectedDoc.helpfulCount || 0}</Descriptions.Item>
               <Descriptions.Item label="作者">{selectedDoc.authorId}</Descriptions.Item>

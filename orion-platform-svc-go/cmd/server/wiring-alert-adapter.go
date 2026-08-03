@@ -12,7 +12,7 @@ import (
 
 func wireAlertAdapter(db *database.DB, logger *zap.Logger) {
 	repo := adapter_repo.NewRepository(db.DB)
-	factory := adapter_service.NewAdapterFactory(repo) // adjust if interface-based
+	factory := adapter_service.NewFactory(repo, logger)
 	svc := adapter_service.NewAdapterService(factory, repo)
 	alertAdapterH = adapter_handler.NewHandler(svc)
 }

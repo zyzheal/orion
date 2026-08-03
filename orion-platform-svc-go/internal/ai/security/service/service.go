@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-security/models"
+	"orion/platform-svc-go/internal/ai/security/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

@@ -7,11 +7,13 @@ import (
 
 	cmdb_relationship_handler "orion/platform-svc-go/internal/cmdb-relationship/handler"
 	cmdb_relationship_service "orion/platform-svc-go/internal/cmdb-relationship/service"
+	cmdb_relationship_repo "orion/platform-svc-go/internal/cmdb-relationship/repository"
 )
 
 func wireCmdbRelationship(db *database.DB, logger *zap.Logger) {
 	_ = db
-	svc := cmdb_relationship_service.NewService(logger)
+	repo := cmdb_relationship_repo.NewRepository(db.DB)
+	svc := cmdb_relationship_service.NewRelationshipManager(repo, logger)
 	cmdb_relationshipH = cmdb_relationship_handler.NewHandler(svc)
 }
 

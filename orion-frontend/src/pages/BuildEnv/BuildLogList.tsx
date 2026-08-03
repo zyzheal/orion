@@ -144,7 +144,7 @@ const BuildLogList: React.FC = () => {
           completed: 'success',
           failed: 'failed',
         };
-        return <StatusBadge status={statusMap[String(value)] || 'unknown'} size="small" />;
+        return <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />;
       },
     },
     {

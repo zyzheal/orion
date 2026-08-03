@@ -63,8 +63,8 @@ func (r *Repository) ListNotifications(ctx context.Context, tenantID string, opt
 	}
 
 	// Fetch page
-	offset := opts.Offset()
-	limit := opts.Limit()
+	offset := opts.Offset
+	limit := opts.Limit
 	args = append(args, offset, limit)
 	query := fmt.Sprintf("SELECT * FROM notifications WHERE %s ORDER BY created_at DESC OFFSET $%d LIMIT $%d", where, argIdx, argIdx+1)
 

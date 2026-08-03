@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"orion/platform-svc-go/internal/ai-degradation/models"
+	"orion/platform-svc-go/internal/ai/degradation/models"
 
 	"orion/go-common/pkg/sentinel"
 

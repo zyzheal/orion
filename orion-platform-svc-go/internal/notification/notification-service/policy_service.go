@@ -224,7 +224,7 @@ func (s *PolicyService) filterMatchedPolicies(policies []models.NotificationPoli
 }
 
 // evaluateCondition evaluates a single condition.
-func evaluateCondition(fieldValue interface{}, operator models.PolicyConditionOperator, conditionValue interface{}) bool {
+func evaluateCondition(fieldValue interface{}, operator models.PolicyOp, conditionValue interface{}) bool {
 	switch operator {
 	case models.PolicyOpEQ:
 		return fieldValue == conditionValue

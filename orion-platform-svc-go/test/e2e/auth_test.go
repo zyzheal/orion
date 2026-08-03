@@ -20,7 +20,6 @@ package e2e
 
 import (
 	"encoding/json"
-	"net/http"
 	"os"
 	"strings"
 	"testing"

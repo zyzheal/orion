@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { NotificationDetail } from '@/pages/NotificationDetail';
+import NotificationDetail from '@/pages/NotificationDetail';
 import { getNotification, markAsRead, deleteNotification } from '@/api/notifications';
 import type { MockNotification } from '@/api/notifications';
 

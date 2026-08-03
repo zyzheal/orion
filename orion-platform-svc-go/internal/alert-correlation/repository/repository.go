@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"orion/platform-svc-go/internal/alert-correlation/models"
 	"go.uber.org/zap"
 )
@@ -29,7 +30,7 @@ func (r *AlertCorrelationRepository) CreateGroup(ctx context.Context, tenantID, 
 
 	alertIDsJSON, _ := json.Marshal(alertIDs)
 	query := `INSERT INTO correlation_groups (id, tenant_id, root_alert_id, alert_ids, group_type, confidence, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-	if _, err := r.db.Pool().Exec(ctx, query, id, tenantID, rootAlertID, string(alertIDsJSON), groupType, 0.0, now, now); err != nil {
+	if _, err := r.db.DB.ExecContext(ctx, query, id.String(), tenantID.String(), rootAlertID.String(), string(alertIDsJSON), groupType, 0.0, now, now); err != nil {
 		return nil, fmt.Errorf("create correlation group: %w", err)
 	}
 
@@ -54,7 +55,7 @@ func (r *AlertCorrelationRepository) QueryGroups(ctx context.Context, tenantID u
 	}
 
 	where := []string{"tenant_id = $1"}
-	args := []any{tenantID}
+	args := []any{tenantID.String()}
 	argIdx := 2
 
 	if groupType != "" {
@@ -76,39 +77,27 @@ func (r *AlertCorrelationRepository) QueryGroups(ctx context.Context, tenantID u
 		whereClause, argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
-	if err := r.db.Pool().QueryRow(ctx, countQuery, countArgs...).Scan(&resp.Total); err != nil {
+	var total int64
+	if err := r.db.DB.GetContext(ctx, &total, countQuery, countArgs...); err != nil {
 		return resp, fmt.Errorf("count correlation groups: %w", err)
 	}
 
-	rows, err := r.db.Pool().Query(ctx, query, args...)
-	if err != nil {
+	var rows []models.CorrelationGroup
+	if err := r.db.DB.SelectContext(ctx, &rows, query, args...); err != nil {
 		return resp, fmt.Errorf("query correlation groups: %w", err)
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var g models.CorrelationGroup
-		var alertIDsJSON sql.NullString
-		if err := rows.Scan(&g.ID, &g.TenantID, &g.RootAlertID, &alertIDsJSON, &g.GroupType, &g.Confidence, &g.CreatedAt, &g.UpdatedAt); err != nil {
-			return resp, fmt.Errorf("scan correlation group: %w", err)
-		}
-		if alertIDsJSON.Valid {
-			_ = json.Unmarshal([]byte(alertIDsJSON.String), &g.AlertIDs)
-		}
-		resp.Groups = append(resp.Groups, g)
-	}
+	resp.Groups = rows
+	resp.Total = total
 	return resp, nil
 }
 
 // GetGroup returns a correlation group by ID.
 func (r *AlertCorrelationRepository) GetGroup(ctx context.Context, tenantID, id uuid.UUID) (*models.CorrelationGroup, error) {
 	var g models.CorrelationGroup
-	var alertIDsJSON sql.NullString
 
 	query := `SELECT id, tenant_id, root_alert_id, alert_ids, group_type, confidence, created_at, updated_at FROM correlation_groups WHERE id = $1 AND tenant_id = $2`
-	if err := r.db.Pool().QueryRow(ctx, query, id, tenantID).Scan(
-		&g.ID, &g.TenantID, &g.RootAlertID, &alertIDsJSON, &g.GroupType, &g.Confidence, &g.CreatedAt, &g.UpdatedAt,
-	); err != nil {
+	var alertIDsJSON sql.NullString
+	if err := r.db.DB.GetContext(ctx, &g, query, id.String(), tenantID.String()); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("correlation group not found: %s", id)
 		}
@@ -126,7 +115,7 @@ func (r *AlertCorrelationRepository) CreateRule(ctx context.Context, tenantID uu
 	id := uuid.New()
 
 	query := `INSERT INTO correlation_rules (id, tenant_id, name, description, group_type, time_window_sec, is_enabled, conditions, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	if _, err := r.db.Pool().Exec(ctx, query, id, tenantID, name, description, groupType, timeWindowSec, true, conditions, now); err != nil {
+	if _, err := r.db.DB.ExecContext(ctx, query, id.String(), tenantID.String(), name, description, groupType, timeWindowSec, true, conditions, now); err != nil {
 		return nil, fmt.Errorf("create correlation rule: %w", err)
 	}
 
@@ -151,35 +140,25 @@ func (r *AlertCorrelationRepository) QueryRules(ctx context.Context, tenantID uu
 
 	var total int64
 	countQuery := `SELECT COUNT(*) FROM correlation_rules WHERE tenant_id = $1`
-	if err := r.db.Pool().QueryRow(ctx, countQuery, tenantID).Scan(&total); err != nil {
+	if err := r.db.DB.GetContext(ctx, &total, countQuery, tenantID.String()); err != nil {
 		return nil, 0, fmt.Errorf("count correlation rules: %w", err)
 	}
 
 	query := `SELECT id, tenant_id, name, description, group_type, time_window_sec, is_enabled, conditions, created_at FROM correlation_rules WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-	rows, err := r.db.Pool().Query(ctx, query, tenantID, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("query correlation rules: %w", err)
-	}
-	defer rows.Close()
-
 	var rules []models.CorrelationRule
-	for rows.Next() {
-		var r models.CorrelationRule
-		if err := rows.Scan(&r.ID, &r.TenantID, &r.Name, &r.Description, &r.GroupType, &r.TimeWindowSec, &r.IsEnabled, &r.Conditions, &r.CreatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scan correlation rule: %w", err)
-		}
-		rules = append(rules, r)
+	if err := r.db.DB.SelectContext(ctx, &rules, query, tenantID.String(), limit, offset); err != nil {
+		return nil, 0, fmt.Errorf("query correlation rules: %w", err)
 	}
 	return rules, total, nil
 }
 
 // DeleteGroup removes a correlation group.
 func (r *AlertCorrelationRepository) DeleteGroup(ctx context.Context, tenantID, id uuid.UUID) error {
-	result, err := r.db.Pool().Exec(ctx, `DELETE FROM correlation_groups WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.db.DB.ExecContext(ctx, `DELETE FROM correlation_groups WHERE id = $1 AND tenant_id = $2`, id.String(), tenantID.String())
 	if err != nil {
 		return fmt.Errorf("delete correlation group: %w", err)
 	}
-	rows := result.RowsAffected()
+	rows, _ := result.RowsAffected()
 	if rows == 0 {
 		return fmt.Errorf("correlation group not found: %s", id)
 	}

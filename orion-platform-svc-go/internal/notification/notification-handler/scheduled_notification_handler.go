@@ -112,7 +112,10 @@ func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
 		return
 	}
 
-	n, err := h.scheduledSvc.ToggleScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), *req.Enabled)
+	enabled := req.Enabled
+	n, err := h.scheduledSvc.UpdateScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), &models.UpdateScheduledNotificationInput{
+		Enabled: enabled,
+	})
 	if err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
 			respondNotFound(c, err.Error())
@@ -127,7 +130,7 @@ func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
 // Cancel handles POST /scheduled-notifications/:id/cancel - cancel a pending scheduled notification.
 func (h *ScheduledNotificationHandler) Cancel(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	if err := h.scheduledSvc.CancelScheduledNotification(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.scheduledSvc.DeleteScheduledNotification(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
 			respondNotFound(c, err.Error())
 			return

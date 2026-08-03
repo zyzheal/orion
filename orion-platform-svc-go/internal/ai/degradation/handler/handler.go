@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/ai-degradation/models"
-	"orion/platform-svc-go/internal/ai-degradation/service"
+	"orion/platform-svc-go/internal/ai/degradation/models"
+	"orion/platform-svc-go/internal/ai/degradation/service"
 
 	"orion/platform-svc-go/internal/middleware"
 

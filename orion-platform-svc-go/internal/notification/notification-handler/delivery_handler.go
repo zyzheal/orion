@@ -40,10 +40,10 @@ func (h *DeliveryHandler) List(c *gin.Context) {
 	var err error
 
 	if notificationID != "" {
-		items, err = h.deliverySvc.GetDeliveryHistory(c.Request.Context(), tenantID, notificationID)
+		items, err = h.deliverySvc.ListDeliveries(c.Request.Context(), tenantID, notificationID)
 	} else {
 		// For now, return all deliveries; in production add pagination
-		items, err = h.deliverySvc.GetPendingDeliveries(c.Request.Context(), tenantID, 100)
+		items, err = h.deliverySvc.ListDeliveries(c.Request.Context(), tenantID, "")
 		_ = status
 	}
 
@@ -59,7 +59,7 @@ func (h *DeliveryHandler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	delivery, err := h.deliverySvc.GetDeliveryByID(c.Request.Context(), tenantID, id)
+	delivery, err := h.deliverySvc.GetDelivery(c.Request.Context(), tenantID, id)
 	if err != nil {
 		respondNotFound(c, "delivery not found")
 		return
@@ -72,7 +72,7 @@ func (h *DeliveryHandler) Retry(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	delivery, err := h.deliverySvc.RetryDelivery(c.Request.Context(), tenantID, id)
+	delivery, err := h.deliverySvc.GetDelivery(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrDeliveryNotFound {
 			respondNotFound(c, err.Error())

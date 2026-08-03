@@ -43,8 +43,8 @@ describe('HealthDashboard', () => {
   it('renders without crashing', async () => {
     renderWithRouter(<HealthDashboard />);
     await waitFor(() => {
-      expect(screen.getByText('健康评分')).toBeInTheDocument() ||
-        expect(document.body).toBeTruthy();
+      const found = screen.getByText('健康评分');
+      expect(found).toBeInTheDocument();
     });
   });
 });
