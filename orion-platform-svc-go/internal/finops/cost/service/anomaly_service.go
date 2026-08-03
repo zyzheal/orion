@@ -341,7 +341,6 @@ func computeQuartiles(sorted []float64) (float64, float64) {
 	copy(s, sorted)
 	sort.Float64s(s)
 
-	n := len(s)
 	q1 := percentile(s, 25)
 	q3 := percentile(s, 75)
 	return q1, q3

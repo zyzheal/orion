@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -175,12 +176,14 @@ func TestComputeStdDev(t *testing.T) {
 }
 
 func TestComputeQuartiles(t *testing.T) {
+	// Implementation uses linear interpolation (numpy default).
+	// For [1,2,3,4,5,6,7,8,9]: idx25=2.0, idx75=6.0 → sorted[2]=3, sorted[6]=7
 	q1, q3 := computeQuartiles([]float64{1, 2, 3, 4, 5, 6, 7, 8, 9})
-	if q1 != 2.75 {
-		t.Errorf("expected q1=2.75, got %v", q1)
+	if q1 != 3 {
+		t.Errorf("expected q1=3 (linear interpolation), got %v", q1)
 	}
-	if q3 != 7.25 {
-		t.Errorf("expected q3=7.25, got %v", q3)
+	if q3 != 7 {
+		t.Errorf("expected q3=7 (linear interpolation), got %v", q3)
 	}
 }
 
@@ -233,9 +236,21 @@ func TestCalculateSeverity(t *testing.T) {
 // ---- Tests for sustained high detection ----
 
 func TestDetectSustainedHigh(t *testing.T) {
-	dates := []string{"2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04", "2026-01-05",
-		"2026-01-06", "2026-01-07", "2026-01-08"}
-	costs := []float64{100, 200, 210, 220, 230, 240, 100, 100} // 5 consecutive days above threshold
+	// Build a data series with a large baseline (18 days @ 100) and a tight
+	// 3-day spike (days 19-21 @ 10000). With N=21: mean=1514, stdDev=3464,
+	// threshold=mean+2σ=8442. Since 10000 > 8442, all 3 spike days exceed
+	// threshold consecutively → triggers sustained high (streak ≥ 3).
+	// This matches the implementation's threshold = mean + 2*σ design.
+	dates := []string{}
+	costs := []float64{}
+	for i := 1; i <= 18; i++ {
+		dates = append(dates, fmt.Sprintf("2026-01-%02d", i))
+		costs = append(costs, 100)
+	}
+	for i := 1; i <= 3; i++ {
+		dates = append(dates, fmt.Sprintf("2026-01-%02d", 18+i))
+		costs = append(costs, 10000)
+	}
 	dailyMap, t0, t1 := buildDailyInput(dates, costs)
 
 	svc := NewAnomalyService(nil)

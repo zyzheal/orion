@@ -354,7 +354,14 @@ func TestRegistry_HealthAll(t *testing.T) {
 	r.Register(newEchoProvider(ProviderTypeOpenAI, "ok", nil))
 	r.Register(newEchoProvider(ProviderTypeAnthropic, "", errors.New("bad")))
 
-	stats := r.Health(context.Background())
+	// Make one call per provider so health counters are populated
+	ctx := context.Background()
+	req := &ChatRequest{Model: "gpt-4o", Messages: []Message{{Role: "user", Content: "hi"}}}
+	_, _ = r.Call(ctx, req) // openai: success
+	req2 := &ChatRequest{Model: "claude-sonnet", Messages: []Message{{Role: "user", Content: "hi"}}}
+	_, _ = r.Call(ctx, req2) // anthropic: error ("bad")
+
+	stats := r.Health(ctx)
 	if len(stats) != 2 {
 		t.Fatalf("expected 2 health stats, got %d", len(stats))
 	}
@@ -374,6 +381,9 @@ func TestRegistry_HealthAll(t *testing.T) {
 	}
 	if healthy != 1 {
 		t.Fatalf("expected 1 healthy, got %d", healthy)
+	}
+	if unhealthy != 1 {
+		t.Fatalf("expected 1 unhealthy, got %d", unhealthy)
 	}
 }
 
