@@ -16,8 +16,8 @@ func wireImportExport(db *database.DB, logger *zap.Logger) {
 	_ = logger
 	repo := ie_repo.NewRepository(db.DB)
 	factory := ie_factory.NewFactory()
-	svc := ie_service.NewImportExportService(factory, repo)
 	asyncSvc := ie_async.NewProcessor(factory, repo)
+	svc := ie_service.New(factory, repo)
 	importExportH = ie_handler.NewHandler(svc, asyncSvc)
 }
 

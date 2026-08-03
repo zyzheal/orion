@@ -6,12 +6,14 @@ import (
 	"orion/go-common/pkg/database"
 
 	chaosgw_handler "orion/platform-svc-go/internal/chaos-gateway/handler"
+	chaosgw_repo "orion/platform-svc-go/internal/chaos-gateway/repository"
 	chaosgw_service "orion/platform-svc-go/internal/chaos-gateway/service"
 )
 
 func wireChaosGateway(db *database.DB, logger *zap.Logger) {
-	_ = db
-	svc := chaosgw_service.NewService(logger)
+	_ = logger
+	repo := chaosgw_repo.NewRepository(db.DB)
+	svc := chaosgw_service.NewService(repo)
 	chaosGatewayH = chaosgw_handler.NewHandler(svc)
 }
 
