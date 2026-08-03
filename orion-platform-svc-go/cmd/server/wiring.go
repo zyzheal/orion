@@ -1,75 +1,32 @@
 package main
 
 import (
-	ff_handler "orion/platform-svc-go/internal/feature-flag/handler"
 
 	gs_handler "orion/platform-svc-go/internal/global-search/handler"
 
-	role_handler "orion/platform-svc-go/internal/role/handler"
 
-	ag_handler "orion/platform-svc-go/internal/api-governance/handler"
 
-	artifact_handler "orion/platform-svc-go/internal/artifact/handler"
 
-	fed_handler "orion/platform-svc-go/internal/federation/handler"
 
-	plugin_handler "orion/platform-svc-go/internal/plugin/handler"
 	pm_handler "orion/platform-svc-go/internal/plugin-marketplace/handler"
 	pm_repo "orion/platform-svc-go/internal/plugin-marketplace/repository"
 	pm_service "orion/platform-svc-go/internal/plugin-marketplace/service"
 
-	inc_handler "orion/platform-svc-go/internal/inception/handler"
 
-	policy_handler "orion/platform-svc-go/internal/policy/handler"
 
-	env_handler "orion/platform-svc-go/internal/environment/handler"
 
-	capability_handler "orion/platform-svc-go/internal/capability/handler"
-	chaos_handler "orion/platform-svc-go/internal/chaos/handler"
-	cron_handler "orion/platform-svc-go/internal/cron/handler"
-	developerportal_handler "orion/platform-svc-go/internal/developer-portal/handler"
-	infra_handler "orion/platform-svc-go/internal/infrastructure/handler"
-	internallibrary_handler "orion/platform-svc-go/internal/internal-library/handler"
-	pageregistry_handler "orion/platform-svc-go/internal/page-registry/handler"
-	productline_handler "orion/platform-svc-go/internal/product-line/handler"
-	projectmember_handler "orion/platform-svc-go/internal/project-member/handler"
-	proj_handler "orion/platform-svc-go/internal/project/handler"
-	serviceregistry_handler "orion/platform-svc-go/internal/service-registry/handler"
-	sprint_handler "orion/platform-svc-go/internal/sprint/handler"
-	subapp_handler "orion/platform-svc-go/internal/subapp/handler"
-	team_handler "orion/platform-svc-go/internal/team/handler"
-	workbench_handler "orion/platform-svc-go/internal/workbench/handler"
 
-	gatewaydynamic_handler "orion/platform-svc-go/internal/gateway-dynamic/handler"
-	handlerregistry_handler "orion/platform-svc-go/internal/handler-registry/handler"
-	i18n_handler "orion/platform-svc-go/internal/i18n/handler"
-	iac_handler "orion/platform-svc-go/internal/iac/handler"
-	multicloud_handler "orion/platform-svc-go/internal/multi-cloud/handler"
-	serverless_handler "orion/platform-svc-go/internal/serverless/handler"
 
-	alert_handler "orion/platform-svc-go/internal/alert/handler"
-	cmdb_handler "orion/platform-svc-go/internal/cmdb/handler"
-	monitoring_handler "orion/platform-svc-go/internal/monitoring/handler"
 
-	graph_handler "orion/platform-svc-go/internal/graph/handler"
 
-	artifactops_handler "orion/platform-svc-go/internal/artifact-ops/handler"
 
-	config_handler "orion/platform-svc-go/internal/config/handler"
 
-	approval_handler "orion/platform-svc-go/internal/approval/handler"
 
-	chatops_handler "orion/platform-svc-go/internal/chatops/handler"
 
-	session_handler "orion/platform-svc-go/internal/session/handler"
 
-	apikey_handler "orion/platform-svc-go/internal/api-key/handler"
 
-	eventbus_handler "orion/platform-svc-go/internal/eventbus/handler"
 
-	trigger_handler "orion/platform-svc-go/internal/event-trigger/handler"
 
-	hook_handler "orion/platform-svc-go/internal/hook-chain/handler"
 
 	user_handler "orion/platform-svc-go/internal/user/handler"
 	user_repo "orion/platform-svc-go/internal/user/repository"
@@ -83,137 +40,68 @@ import (
 	perm_repo "orion/platform-svc-go/internal/permission/repository"
 	perm_service "orion/platform-svc-go/internal/permission/service"
 
-	code_repo_handler "orion/platform-svc-go/internal/code-repo/handler"
 
-	incident_handler "orion/platform-svc-go/internal/incident/handler"
 
-	audit_handler "orion/platform-svc-go/internal/audit/handler"
 
-	build_env_handler "orion/platform-svc-go/internal/build-env/handler"
 
-	build_handler "orion/platform-svc-go/internal/build/handler"
-	pipeline_handler "orion/platform-svc-go/internal/pipeline/handler"
 	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
-	dba_handler "orion/platform-svc-go/internal/dba/handler"
 
-	deploy_enhanced_handler "orion/platform-svc-go/internal/deploy-enhanced/handler"
-	deploy_handler "orion/platform-svc-go/internal/deploy/handler"
 
-	digital_twin_handler "orion/platform-svc-go/internal/digital-twin/handler"
 
-	finops_v2_handler "orion/platform-svc-go/internal/finops-v2/handler"
-	finops_handler "orion/platform-svc-go/internal/finops/handler"
 
-	knowledge_handler "orion/platform-svc-go/internal/knowledge/handler"
 
-	security_compliance_handler "orion/platform-svc-go/internal/security-compliance/handler"
 
-	change_handler "orion/platform-svc-go/internal/change/handler"
-	sla_handler "orion/platform-svc-go/internal/sla/handler"
-	tenant_handler "orion/platform-svc-go/internal/tenant/handler"
-	visor_handler "orion/platform-svc-go/internal/visor-exec/handler"
+	skill_handler "orion/platform-svc-go/internal/skill/handler"
 
-	cr_handler "orion/platform-svc-go/internal/change-request/handler"
-	rd_handler "orion/platform-svc-go/internal/report-designer/handler"
 
-	diagnostic_handler "orion/platform-svc-go/internal/diagnostic/handler"
 
-	backup_handler "orion/platform-svc-go/internal/backup/handler"
 
-	am_handler "orion/platform-svc-go/internal/api-market/handler"
-	cit_handler "orion/platform-svc-go/internal/ci-type/handler"
 
 	// ---- Wave 2: Auth + Permission modules ----
-	ae_handler "orion/platform-svc-go/internal/auth-enhanced/handler"
-	amfa_handler "orion/platform-svc-go/internal/auth-mfa/handler"
-	ssou_handler "orion/platform-svc-go/internal/sso-unified/handler"
-	ssop_handler "orion/platform-svc-go/internal/sso-providers/handler"
-	abac_handler "orion/platform-svc-go/internal/abac-policy/handler"
-	paudit_handler "orion/platform-svc-go/internal/permission-audit/handler"
 
-	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
 
-	notification_handler "orion/platform-svc-go/internal/notification/notification-handler"
 
-	notification_policy_handler "orion/platform-svc-go/internal/notification/notification-policy/handler"
 
-	notification_template_handler "orion/platform-svc-go/internal/notification/notification-template/handler"
 
-	scheduled_notification_handler "orion/platform-svc-go/internal/notification/scheduled-notification/handler"
 
-	webhook_handler "orion/platform-svc-go/internal/webhook/handler"
 
-	dd_handler "orion/platform-svc-go/internal/notification/do-not-disturb/handler"
 
-	chan_handler "orion/platform-svc-go/internal/notification/channel/handler"
 
-	workflow_handler "orion/platform-svc-go/internal/workflow/workflow/handler"
 
-	workflow_trigger_handler "orion/platform-svc-go/internal/workflow/workflow-trigger/handler"
 
-	workflow_task_handler "orion/platform-svc-go/internal/workflow/workflow-task/handler"
 
-	workflow_dep_handler "orion/platform-svc-go/internal/workflow/workflow-dependency/handler"
 
-	workflow_webhook_handler "orion/platform-svc-go/internal/workflow-webhook/handler"
 
-	lowcode_handler "orion/platform-svc-go/internal/lowcode/handler"
 
-	ticketing_handler "orion/platform-svc-go/internal/ticketing/handler"
 
 	// ---- Wave 5: Pipeline Assistant modules ----
-	pb_handler "orion/platform-svc-go/internal/pipeline-batch/handler"
 
-	pal_handler "orion/platform-svc-go/internal/pipeline-audit-log/handler"
 
-	ptmpl_handler "orion/platform-svc-go/internal/pipeline-template/handler"
 
-	pver_handler "orion/platform-svc-go/internal/pipeline-version/handler"
 
-	phist_handler "orion/platform-svc-go/internal/pipeline-run-history/handler"
 
-	pbo_handler "orion/platform-svc-go/internal/pipeline-batch-operations/handler"
 
-	psse_handler "orion/platform-svc-go/internal/pipeline-sse/handler"
 
-	pec_handler "orion/platform-svc-go/internal/pipeline-execution-control/handler"
 
-	pgraph_handler "orion/platform-svc-go/internal/pipeline-graph/handler"
 
-	ptrend_handler "orion/platform-svc-go/internal/pipeline-trend/handler"
 
-	ci_handler "orion/platform-svc-go/internal/change-intelligence/handler"
 
-	tracing_handler "orion/platform-svc-go/internal/tracing/handler"
 
-	slo_handler "orion/platform-svc-go/internal/slo/handler"
 
-	perf_handler "orion/platform-svc-go/internal/performance/handler"
 
-	hc_handler "orion/platform-svc-go/internal/health-check/handler"
 
 	// ---- Wave 7a: P2 modules ----
-	compliance_handler "orion/platform-svc-go/internal/compliance/handler"
 
-	supply_chain_handler "orion/platform-svc-go/internal/supply-chain/handler"
 
-	secret_handler "orion/platform-svc-go/internal/secret/handler"
 
-	chaos_enhanced_handler "orion/platform-svc-go/internal/chaos-enhanced/handler"
 
-	ueba_handler "orion/platform-svc-go/internal/ueba/handler"
 
 	// ---- problem module ----
-	problem_handler "orion/platform-svc-go/internal/problem/handler"
 
 	// ---- new blueprint modules ----
-	billing_handler "orion/platform-svc-go/internal/billing/handler"
 
-	costalloc_handler "orion/platform-svc-go/internal/cost-allocation/handler"
 
-	efficiency_handler "orion/platform-svc-go/internal/efficiency/handler"
 
-	dataLineage_handler "orion/platform-svc-go/internal/data-lineage/handler"
 
 	dataCatalog_handler "orion/platform-svc-go/internal/data-catalog/handler"
 	dataCatalog_repo "orion/platform-svc-go/internal/data-catalog/repository"
@@ -245,13 +133,8 @@ import (
 	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
 	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
 	ciCanary_handler "orion/platform-svc-go/internal/ci-cd/canary/handler"
-	ciCanary_repo "orion/platform-svc-go/internal/ci-cd/canary/repository"
-	ciCanary_service "orion/platform-svc-go/internal/ci-cd/canary/service"
 	ciDeploy_handler "orion/platform-svc-go/internal/ci-cd/deploy/handler"
 	ciPipeline_handler "orion/platform-svc-go/internal/ci-cd/pipeline/handler"
-	ciPipeline_repo "orion/platform-svc-go/internal/ci-cd/pipeline/repository"
-	ciPipeline_service "orion/platform-svc-go/internal/ci-cd/pipeline/service"
-	ciPipeline_engine "orion/platform-svc-go/internal/ci-cd/pipeline/engine"
 	ciPTmpl_handler "orion/platform-svc-go/internal/ci-cd/pipeline-template/handler"
 	ciPTmpl_repo "orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
 	ciPTmpl_service "orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
@@ -315,50 +198,9 @@ import (
 	cacheCleanup_handler "orion/platform-svc-go/internal/cache-cleanup/handler"
 
 	// ---- Wave 7: P2 module imports (batch 1-2 + alert/apm/bi/canary) ----
-	canary_traffic_handler "orion/platform-svc-go/internal/canary-traffic/handler"
-	cross_domain_handler "orion/platform-svc-go/internal/cross-domain/handler"
-	decision_explanation_handler "orion/platform-svc-go/internal/decision-explanation/handler"
-	degradation_handler "orion/platform-svc-go/internal/degradation/handler"
-	dependency_coordination_handler "orion/platform-svc-go/internal/dependency-coordination/handler"
-	dual_engine_handler "orion/platform-svc-go/internal/dual-engine/handler"
-	env_lifecycle_handler "orion/platform-svc-go/internal/env-lifecycle/handler"
-	env_profile_handler "orion/platform-svc-go/internal/env-profile/handler"
-	global_param_handler "orion/platform-svc-go/internal/global-param/handler"
-	integration_handler "orion/platform-svc-go/internal/integration/handler"
-	maintenance_window_handler "orion/platform-svc-go/internal/maintenance-window/handler"
 	message_queue_handler "orion/platform-svc-go/internal/message-queue/handler"
-	metrics_handler "orion/platform-svc-go/internal/metrics/handler"
-	multi_modal_trigger_handler "orion/platform-svc-go/internal/multi-modal-trigger/handler"
-	notification_mgmt_handler "orion/platform-svc-go/internal/notification-management/handler"
-	oci_registry_handler "orion/platform-svc-go/internal/oci-registry/handler"
-	plugin_hotreload_handler "orion/platform-svc-go/internal/plugin-hotreload/handler"
-	process_step_handler "orion/platform-svc-go/internal/process-step/handler"
-	progessive_handler "orion/platform-svc-go/internal/progressive/handler"
-	queue_mod_handler "orion/platform-svc-go/internal/queue/handler"
-	risk_handler "orion/platform-svc-go/internal/risk/handler"
-	runbook_handler "orion/platform-svc-go/internal/runbook/handler"
-	script_library_handler "orion/platform-svc-go/internal/script-library/handler"
-	script_mod_handler "orion/platform-svc-go/internal/script/handler"
-	script_version_handler "orion/platform-svc-go/internal/script-version/handler"
-	self_service_handler "orion/platform-svc-go/internal/self-service/handler"
-	service_catalog_handler "orion/platform-svc-go/internal/service-catalog/handler"
-	service_health_handler "orion/platform-svc-go/internal/service-health/handler"
-	service_topology_handler "orion/platform-svc-go/internal/service-topology/handler"
-	ticket_knowledge_handler "orion/platform-svc-go/internal/ticket-knowledge/handler"
-	topology_handler "orion/platform-svc-go/internal/topology/handler"
-	unified_config_handler "orion/platform-svc-go/internal/unified-config/handler"
-	vector_store_handler "orion/platform-svc-go/internal/vector-store/handler"
-	vectorize_rules_handler "orion/platform-svc-go/internal/vectorize-rules/handler"
-	version_archive_handler "orion/platform-svc-go/internal/version-archive/handler"
 
-	alert_breaker_handler "orion/platform-svc-go/internal/alert-breaker/handler"
-	apm_handler "orion/platform-svc-go/internal/apm/handler"
-	bi_dashboard_handler "orion/platform-svc-go/internal/bi-dashboard/handler"
-	canary_analysis_handler "orion/platform-svc-go/internal/canary-analysis/handler"
 
-	deployment_trigger_handler "orion/platform-svc-go/internal/deployment-trigger/handler"
-	incident_action_handler "orion/platform-svc-go/internal/incident-action/handler"
-	ticket_automation_handler "orion/platform-svc-go/internal/ticket-automation/handler"
 
 	// ---- P0-6: Agent sandbox (isolated code execution) ----
 	sandbox_handler "orion/platform-svc-go/internal/sandbox/handler"
@@ -407,7 +249,6 @@ import (
 	aiInference_service "orion/platform-svc-go/internal/ai/inference/service"
 
 	sh_handler "orion/platform-svc-go/internal/self-healing/handler"
-	jobsource_handler "orion/platform-svc-go/internal/job-source/handler"
 
 	// ---- P0-20: Network Management Module ----
 	network_handler "orion/platform-svc-go/internal/network/handler"
@@ -426,155 +267,24 @@ import (
 	"go.uber.org/zap"
 
 	// NATS subscribers for incident + self-healing domains
-	incident_models "orion/platform-svc-go/internal/incident/models"
 	incident_nats "orion/platform-svc-go/internal/incident/nats"
-	incident_service "orion/platform-svc-go/internal/incident/service"
 	sh_nats "orion/platform-svc-go/internal/self-healing/nats"
 
 	// ---- AI module handler imports (internal/ai/) ----
-	ai_llm_handler "orion/platform-svc-go/internal/ai/llm/handler"
-	ai_aiagent_handler "orion/platform-svc-go/internal/ai/aiagent/handler"
-	ai_aicost_handler "orion/platform-svc-go/internal/ai/aicost/handler"
-	ai_aigateway_handler "orion/platform-svc-go/internal/ai/aigateway/handler"
-	ai_aireview_handler "orion/platform-svc-go/internal/ai/aireview/handler"
-	ai_aisecurity_handler "orion/platform-svc-go/internal/ai/aisecurity/handler"
-	ai_orchestration_handler "orion/platform-svc-go/internal/ai/orchestration/handler"
-	ai_autorecovery_handler "orion/platform-svc-go/internal/ai/auto-recovery/handler"
-	ai_skill_handler "orion/platform-svc-go/internal/ai/skill/handler"
-	ai_intelligence_handler "orion/platform-svc-go/internal/ai/intelligence/handler"
+	ai_knowledge_handler "orion/platform-svc-go/internal/ai/knowledge/handler"
 
 	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
 	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
 	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
-
-	"encoding/json"
-	"fmt"
 )
 
 // Package-level handler variables — initialized in initWiring(), consumed in setupRouter().
 var (
-	ffH                 *ff_handler.Handler
 	gsH                 *gs_handler.Handler // Global search service
-	roleH               *role_handler.Handler
-	agH                 *ag_handler.Handler
-	artifactH           *artifact_handler.Handler
-	fedH                *fed_handler.Handler
-	pluginH             *plugin_handler.Handler
 	pluginMarketplaceH  *pm_handler.Handler
-	incH                *inc_handler.Handler
-	policyH             *policy_handler.Handler
-	envH                *env_handler.Handler
-	capabilityH         *capability_handler.Handler
-	chaosH              *chaos_handler.Handler
-	cronH               *cron_handler.Handler
-	jobsourceH          *jobsource_handler.Handler
-	developerportalH    *developerportal_handler.Handler
-	infraH              *infra_handler.Handler
-	internallibraryH    *internallibrary_handler.Handler
-	pageregistryH       *pageregistry_handler.Handler
-	productlineH        *productline_handler.Handler
-	projectmemberH      *projectmember_handler.Handler
-	projH               *proj_handler.Handler
-	serviceregistryH    *serviceregistry_handler.Handler
-	sprintH             *sprint_handler.Handler
-	subappH             *subapp_handler.Handler
-	teamH               *team_handler.Handler
-	workbenchH          *workbench_handler.Handler
-	gatewaydynamicH     *gatewaydynamic_handler.Handler
-	gdGrayH             *gatewaydynamic_handler.GrayReleaseHandler
-	handlerregistryH    *handlerregistry_handler.Handler
-	i18nH               *i18n_handler.Handler
-	iacH                *iac_handler.Handler
-	multicloudH         *multicloud_handler.Handler
-	serverlessH         *serverless_handler.Handler
-	alertH              *alert_handler.Handler
-	cmdbH               *cmdb_handler.Handler
-	monitoringH         *monitoring_handler.Handler
-	graphH              *graph_handler.Handler
-	artifactopsH        *artifactops_handler.Handler
-	configH             *config_handler.Handler
-	approvalH           *approval_handler.Handler
-	chatopsH            *chatops_handler.Handler
-	sessionH            *session_handler.Handler
-	apikeyH             *apikey_handler.Handler
-	eventbusH           *eventbus_handler.Handler
-	triggerH            *trigger_handler.Handler
-	hookH               *hook_handler.Handler
-	userH               *user_handler.Handler
 	authH               *auth_handler.Handler
-	permH               *perm_handler.Handler
-	code_repoH          *code_repo_handler.Handler
-	incidentH           *incident_handler.Handler
-	auditH              *audit_handler.Handler
-	build_envH          *build_env_handler.Handler
-	buildH              *build_handler.Handler
-	pipelineH           *pipeline_handler.Handler
 	pipelineRunnerSvc   *pipeline_service.Service
-	dbaH                *dba_handler.Handler
-	deploy_enhancedH    *deploy_enhanced_handler.Handler
-	deployH             *deploy_handler.Handler
-	digital_twinH       *digital_twin_handler.Handler
-	finops_v2H          *finops_v2_handler.Handler
-	finopsH             *finops_handler.Handler
-	knowledgeH          *knowledge_handler.Handler
-	security_complianceH *security_compliance_handler.Handler
-	changeH             *change_handler.Handler
-	slaH                *sla_handler.Handler
-	tenantH             *tenant_handler.Handler
-	visorH              *visor_handler.Handler
-	crH                 *cr_handler.Handler
-	rdH                 *rd_handler.Handler
-	diagnosticH         *diagnostic_handler.Handler
-	backupH             *backup_handler.Handler
-	amH                 *am_handler.Handler
-	citH                *cit_handler.Handler
-	aeH                 *ae_handler.Handler
-	amfaH               *amfa_handler.Handler
-	ssouH               *ssou_handler.Handler
-	ssopH               *ssop_handler.Handler
-	abacH               *abac_handler.Handler
-	pauditH             *paudit_handler.Handler
-	oncallH             *oncall_handler.OnCallHandler
-	notificationH       *notification_handler.Handler
-	notification_policyH *notification_policy_handler.Handler
-	notification_templateH *notification_template_handler.Handler
-	scheduled_notificationH *scheduled_notification_handler.Handler
-	webhookH            *webhook_handler.Handler
-	ddH                 *dd_handler.Handler
-	chanH               *chan_handler.Handler
-	workflowH           *workflow_handler.Handler
-	workflow_triggerH   *workflow_trigger_handler.Handler
-	workflow_taskH      *workflow_task_handler.Handler
-	workflow_depH       *workflow_dep_handler.Handler
-	workflow_webhookH   *workflow_webhook_handler.Handler
-	lowcodeH            *lowcode_handler.Handler
-	ticketingH          *ticketing_handler.Handler
-	pbH                 *pb_handler.Handler
-	palH                *pal_handler.Handler
-	ptmplH              *ptmpl_handler.Handler
-	pverH               *pver_handler.Handler
-	phistH              *phist_handler.Handler
-	pboH                *pbo_handler.Handler
-	psseH               *psse_handler.Handler
-	pecH                *pec_handler.Handler
-	pgraphH             *pgraph_handler.Handler
-	ptrendH             *ptrend_handler.Handler
-	ciH                 *ci_handler.Handler
-	tracingH            *tracing_handler.Handler
-	sloH                *slo_handler.Handler
-	perfH               *perf_handler.Handler
-	hcH                 *hc_handler.Handler
-	complianceH         *compliance_handler.Handler
-	supply_chainH       *supply_chain_handler.Handler
-	secretH             *secret_handler.Handler
-	chaos_enhancedH     *chaos_enhanced_handler.Handler
-	uebaH               *ueba_handler.Handler
-	problemH            *problem_handler.Handler
-	billingH            *billing_handler.Handler
-	costallocH          *costalloc_handler.Handler
-	efficiencyH         *efficiency_handler.Handler
-	dataLineageH        *dataLineage_handler.Handler
-	dataCatalogH        *dataCatalog_handler.Handler
+	skillH              *skill_handler.Handler
 	dataQualityH        *dataQuality_handler.Handler
 	dataPipelineH       *dataPipeline_handler.Handler
 	apiConsumptionH     *apiConsumption_handler.Handler
@@ -592,52 +302,10 @@ var (
 	artifactVersionH    *artifactVersion_handler.Handler
 	cacheModH           *cache_mod_handler.Handler
 	cacheCleanupH       *cacheCleanup_handler.Handler
-	canary_trafficH     *canary_traffic_handler.Handler
-	cross_domainH       *cross_domain_handler.Handler
-	decision_explanationH *decision_explanation_handler.Handler
-	degradationH        *degradation_handler.Handler
-	dependency_coordinationH *dependency_coordination_handler.Handler
-	dual_engineH        *dual_engine_handler.Handler
-	env_lifecycleH      *env_lifecycle_handler.Handler
-	env_profileH        *env_profile_handler.Handler
-	global_paramH       *global_param_handler.Handler
-	integrationH        *integration_handler.Handler
-	maintenance_windowH *maintenance_window_handler.Handler
-	message_queueH      *message_queue_handler.Handler
 	storageH            *storage_handler.Handler
 	clusterH            *cluster_handler.Handler
 	aiInferenceH        *aiInference_handler.Handler
 	networkH            *network_handler.Handler
-	metricsH            *metrics_handler.Handler
-	multi_modal_triggerH *multi_modal_trigger_handler.Handler
-	notification_mgmtH  *notification_mgmt_handler.Handler
-	oci_registryH       *oci_registry_handler.Handler
-	plugin_hotreloadH   *plugin_hotreload_handler.Handler
-	process_stepH       *process_step_handler.Handler
-	progessiveH         *progessive_handler.Handler
-	queue_modH          *queue_mod_handler.Handler
-	riskH               *risk_handler.Handler
-	runbookH            *runbook_handler.Handler
-	script_libraryH     *script_library_handler.Handler
-	script_modH         *script_mod_handler.Handler
-	script_versionH     *script_version_handler.Handler
-	self_serviceH       *self_service_handler.Handler
-	service_catalogH    *service_catalog_handler.Handler
-	service_healthH     *service_health_handler.Handler
-	service_topologyH   *service_topology_handler.Handler
-	ticket_knowledgeH   *ticket_knowledge_handler.Handler
-	topologyH           *topology_handler.Handler
-	unified_configH     *unified_config_handler.Handler
-	vector_storeH       *vector_store_handler.Handler
-	vectorize_rulesH    *vectorize_rules_handler.Handler
-	version_archiveH    *version_archive_handler.Handler
-	alert_breakerH      *alert_breaker_handler.Handler
-	apmH                *apm_handler.Handler
-	bi_dashboardH       *bi_dashboard_handler.Handler
-	canary_analysisH    *canary_analysis_handler.Handler
-	deployment_triggerH *deployment_trigger_handler.Handler
-	incident_actionH    *incident_action_handler.Handler
-	ticket_automationH  *ticket_automation_handler.Handler
 	sandboxH            *sandbox_handler.Handler
 	aiModelsH           *aiModels_handler.Handler
 	pipelineBudgetH     *pipeline_budget_handler.Handler
@@ -675,25 +343,28 @@ var (
 	infraServerlessH *infraServerless_handler.Handler
 
 	// ---- AI module handlers (internal/ai/) ----
-	ai_llmH           *ai_llm_handler.Handler
-	ai_aiagentH       *ai_aiagent_handler.Handler
-	ai_aicostH        *ai_aicost_handler.Handler
-	ai_aigatewayH     *ai_aigateway_handler.Handler
-	ai_aireviewH      *ai_aireview_handler.Handler
-	ai_aisecurityH    *ai_aisecurity_handler.Handler
 	ai_knowledgeH     *ai_knowledge_handler.KnowledgeHandler
-	ai_orchestrationH *ai_orchestration_handler.OrchestrationHandler
-	ai_autorecoveryH  *ai_autorecovery_handler.AutoRecoveryHandler
-	ai_skillH         *ai_skill_handler.Handler
-	ai_intelligenceH  *ai_intelligence_handler.Handler
-	ai_llmtraceH      *ai_llmtrace_handler.LLMTraceHandler
 )
 
 func initWiring(infra *infrastructure, logger *zap.Logger) {
+
+
 	db := infra.db
 	_ = logger
 
 	// ---- Delegated domain wiring (split for readability) ----
+	// P0-09: Alert pipeline handler
+	wireAlertPipeline(db, logger)
+
+	// P0-26: Domain CQRS handler
+	wireDomainCQRS(db, logger)
+
+	// P0-30: Pipeline audit log handler
+	wirePipelineAuditLog(db, logger)
+
+	// P0-31: Pipeline run history handler
+	wirePipelineRunHistory(db, logger)
+
 
 	// Core modules: feature-flag, role, ag, artifact, plugin, inception,
 	// environment, policy, project/team organization
@@ -733,56 +404,327 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// Wave 7a: P2 security & compliance modules
 	wireP2Modules(db)
 
-	// Batch 1: application, escalation, pandawiki, metadata
+	// Blueprint modules: billing, cost-allocation, efficiency, data-lineage,
+	// data-quality, api-consumption, contract
+	wireBlueprintModules(db)
 
-t// Batch 2: param-types, form, mlops, sla-engine, test-selector, test-generation, visor-exec
-twireImportExport(db, logger)
-t// Batch 3: alert pipeline (dedup, adapter)
-twireAlertDeduplication(db, logger)
-twireAlertAdapter(db, logger)
+	// Data modules (catalog, quality, pipeline) — repo -> service -> handler
+	dataCatalogRepo := dataCatalog_repo.NewRepository(infra.db.DB)
+	dataCatalogSvc := dataCatalog_service.NewService(dataCatalogRepo, dataCatalog_introspector.New())
+	dataCatalogH = dataCatalog_handler.NewHandler(dataCatalogSvc)
 
-t// Batch 4: chaos-gateway, circuit-breaker, vulnerability, CMDB submodules
-twireChaosGateway(db, logger)
-twireCircuitBreaker(db, logger)
-twireVulnerability(db, logger)
-twireCmdbCollector(db, logger)
-twireCmdbImport(db, logger)
-twireCmdbRelationship(db, logger)
-twireCmdbValidator(db, logger)twireParamTypes(db, logger)
-twireForm(db, logger)
-twireMLOps(db, logger)
-twireSLAEngine(db, logger)
-twireTestSelector(db, logger)
-twireTestGeneration(db, logger)
-twireVisorExec(db, logger)	wireApplication(db, logger)
-	wireEscalation(db, logger)
-	wirePandawiki(db, logger)
-	wireMetadata(db, logger)
+	dataQualityRepo := dataQuality_repo.NewRepository(infra.db.DB)
+	dataQualitySvc := dataQuality_service.NewService(dataQualityRepo)
+	dataQualityH = dataQuality_handler.NewHandler(dataQualitySvc)
 
-	// Core domains (identity, governance, security, ticket) — see wiring-core-domains.go
-	wireCoreDomains(db, logger)
+	dataPipelineRepo := dataPipeline_repo.NewRepository(infra.db.DB)
+	dataPipelineSvc := dataPipeline_service.NewService(dataPipelineRepo)
+	dataPipelineH = dataPipeline_handler.NewHandler(dataPipelineSvc)
+
+	// Wave 7: P2 batch modules (alert-breaker, apm, bi-dashboard, canary-*,
+	// cross-domain, decision-explanation, degradation, dependency-coordination,
+	// dual-engine, env-*, global-param, integration, maintenance-window,
+	// message-queue, metrics, multi-modal-trigger, notification-management,
+	// oci-registry, plugin-hotreload, process-step, progressive, queue, risk,
+	// runbook, script-*, self-service, service-*, ticket-knowledge, topology,
+	// unified-config, vector-*, version-archive)
+	wireWave7BatchModules(db)
+
+	// Wave 7b-j: Automation modules
+	wireAutomationModules(db)
+
+	// ---- Inline wiring (requires secrets or cross-module dependencies) ----
+
+	// user services (needed by auth)
+	userRepo := user_repo.NewRepository(infra.db.DB)
+	userSvc := user_service.NewService(userRepo)
+	userH = user_handler.NewHandler(userSvc)
+
+	// auth services (requires ffCfg.JWTSecret + userRepo)
+	authRepo := auth_repo.NewRepository(infra.db.DB)
+	authSvc := auth_service.NewService(authRepo, userRepo, infra.ffCfg.JWTSecret)
+	authH = auth_handler.NewHandler(authSvc)
+
+	// permission services
+	permRepo := perm_repo.NewRepository(infra.db.DB)
+	permSvc := perm_service.NewService(permRepo)
+	permH = perm_handler.NewHandler(permSvc)
+	// ---- LLM Provider Registry + AI services ----
+	llmProviderRegistry := llmprovider.NewProviderRegistry()
+	// Wire real LLM providers from environment variables (graceful no-op when unset).
+	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey != "" {
+		llmProviderRegistry.Register(llmprovider.NewOpenAIClient(llmprovider.OpenAIConfig{
+			BaseURL:      os.Getenv("OPENAI_BASE_URL"),
+			APIKey:       openaiKey,
+			DefaultModel: "gpt-4o-mini",
+		}))
+	}
+	if anthropicKey := os.Getenv("ANTHROPIC_API_KEY"); anthropicKey != "" {
+		llmProviderRegistry.Register(llmprovider.NewAnthropicClient(llmprovider.AnthropicConfig{
+			BaseURL:      os.Getenv("ANTHROPIC_BASE_URL"),
+			APIKey:       anthropicKey,
+			DefaultModel: "claude-3-haiku-20240307",
+		}))
+	}
+
+	// ai-decisions services
+	aiDecisionsRepo := aiDecisions_repo.NewRepository(infra.db.DB)
+	aiDecisionsSvc := aiDecisions_service.NewService(aiDecisionsRepo)
+	aiDecisionsSvc.WithLLMProvider(llmProviderRegistry)
+	aiDecisionsH = aiDecisions_handler.NewHandler(aiDecisionsSvc)
 
 
+	// ai-agent-run services
+	aiAgentRunRepo := ai_agent_run_repo.NewRepository(infra.db.DB)
+	aiAgentRunSvc := ai_agent_run_service.NewService(aiAgentRunRepo)
+	aiAgentRunH = ai_agent_run_handler.NewHandler(aiAgentRunSvc)
 
-t// Batch 1: application, escalation, pandawiki, metadata
+	// plugin-marketplace services
+	pmRepo := pm_repo.NewRepository(infra.db.DB)
+	pmSvc := pm_service.NewService(pmRepo)
+	pluginMarketplaceH = pm_handler.NewHandler(pmSvc)
 
-t// Batch 2: param-types, form, mlops, sla-engine, test-selector, test-generation, visor-exec
-twireImportExport(db, logger)
-t// Batch 3: alert pipeline (dedup, adapter)
-twireAlertDeduplication(db, logger)
-twireAlertAdapter(db, logger)
+	// ai-gateway services
+	aiGatewayRepo := aiGateway_repo.NewRepository(infra.db.DB)
+	aiGatewaySvc := aiGateway_service.NewService(aiGatewayRepo)
+	aiGatewaySvc.WithLLMProvider(llmProviderRegistry)
+	aiGatewayH = aiGateway_handler.NewHandler(aiGatewaySvc)
 
-t// Batch 4: chaos-gateway, circuit-breaker, vulnerability, CMDB submodules
-twireChaosGateway(db, logger)
-twireCircuitBreaker(db, logger)
-twireVulnerability(db, logger)
-twireCmdbCollector(db, logger)
-twireCmdbImport(db, logger)
-twireCmdbRelationship(db, logger)
-twireCmdbValidator(db, logger)twireParamTypes(db, logger)
-twireForm(db, logger)
-twireMLOps(db, logger)
-twireSLAEngine(db, logger)
-twireTestSelector(db, logger)
-twireTestGeneration(db, logger)
-twireVisorExec(db, logger)
+	// P0-6: Agent sandbox (isolated code execution)
+	sandboxRepo := sandbox_repo.NewRepository(infra.db.DB)
+	sandboxSvc := sandbox_service.NewService(sandboxRepo, infra.logger)
+	sandboxH = sandbox_handler.NewHandler(sandboxSvc)
+
+	// P0-9: Centralized logging service
+	loggingRepo := logging_repo.NewRepository(infra.db.DB)
+	loggingSvc := logging_service.NewService(loggingRepo)
+	loggingH = logging_handler.NewHandler(loggingSvc)
+
+	// P0-5: Object storage metadata (S3/MinIO abstraction)
+	storageRepo := storage_repo.NewRepository(infra.db.DB)
+	storageSvc := storage_service.NewService(storageRepo)
+	storageH = storage_handler.NewHandler(storageSvc)
+
+	// P0-8: Message queue reliable persistence
+	message_queueRepo := message_queue_repo.NewRepository(infra.db.DB)
+	message_queueSvc := message_queue_service.NewService(message_queueRepo)
+	message_queueH = message_queue_handler.NewHandler(message_queueSvc)
+
+	// P0-18: K8s Provisioner
+	clusterRepo := cluster_repo.NewRepository(infra.db.DB)
+	clusterSvc := cluster_service.NewService(clusterRepo)
+	clusterH = cluster_handler.NewHandler(clusterSvc)
+
+	// P0-4: AI Inference Proxy (HTTP proxy to Python AI service)
+	aiInferenceSvc := aiInference_service.NewPythonInferenceService()
+	aiInferenceH = aiInference_handler.NewHandler(aiInferenceSvc)
+
+	// P0-20: Network Management Module
+	networkRepo := network_repo.NewRepository(infra.db.DB)
+	networkSvc := network_service.NewService(networkRepo)
+	networkH = network_handler.NewHandler(networkSvc)
+	// ai-models services
+	aiModelsRepo := aiModels_repo.NewRepository(infra.db.DB)
+	aiModelsSvc := aiModels_service.NewService(aiModelsRepo, infra.logger)
+	aiModelsH = aiModels_handler.NewHandler(aiModelsSvc)
+
+	// pipeline-budget services
+	pipelineBudgetRepo := pipeline_budget_repo.NewRepository(infra.db.DB)
+	pipelineBudgetSvc := pipeline_budget_service.NewService(pipelineBudgetRepo)
+	pipelineBudgetH = pipeline_budget_handler.NewHandler(pipelineBudgetSvc)
+
+	// pipeline-templates services
+	pipelineTemplatesRepo := pipeline_templates_repo.NewRepository(infra.db.DB)
+	pipelineTemplatesSvc := pipeline_templates_service.NewService(pipelineTemplatesRepo)
+	pipelineTemplatesH = pipeline_templates_handler.NewHandler(pipelineTemplatesSvc)
+
+	// pipeline-versions services
+	pipelineVersionsRepo := pipeline_versions_repo.NewRepository(infra.db.DB)
+	pipelineVersionsSvc := pipeline_versions_service.NewService(pipelineVersionsRepo)
+	pipelineVersionsH = pipeline_versions_handler.NewHandler(pipelineVersionsSvc)
+
+	// resilience-score services
+	resilienceScoreRepo := resilience_score_repo.NewRepository(infra.db.DB)
+	resilienceScoreSvc := resilience_score_service.NewService(resilienceScoreRepo, infra.db.DB)
+	resilienceScoreH = resilience_score_handler.NewHandler(resilienceScoreSvc)
+
+	// sbom services
+	sbomRepo := sbom_repo.NewRepository(infra.db.DB)
+	sbomSvc := sbom_service.NewService(sbomRepo)
+	sbomH = sbom_handler.NewHandler(sbomSvc)
+
+	// ---- Blueprint CI-CD merge: wire subdomain handlers ----
+	// artifact-registry: repo -> service -> handler
+	ciArtRegRepo := ciArtReg_repo.NewArtifactRegistryRepository(infra.db.DB.DB)
+	ciArtRegSvc := ciArtReg_service.NewArtifactRegistryService(ciArtRegRepo, infra.logger)
+	ciArtRegH = ciArtReg_handler.NewArtifactRegistryHandler(ciArtRegSvc)
+
+	// artifact-version: service -> handler (map-based, logger only)
+	ciArtVerSvc := ciArtVer_service.NewArtifactVersionService(infra.logger)
+	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
+
+	// build: repo -> service -> handler (requires db + logger)
+	ciBuildH = ciBuild_handler.New(infra.db, infra.logger)
+
+	// canary: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
+	// ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
+
+	// deploy: repo -> service -> handler (requires db + logger)
+	ciDeployH = ciDeploy_handler.New(infra.db, infra.logger)
+
+	// pipeline: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
+	// ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
+
+	// pipeline-template: repo -> service -> handler
+	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
+	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo)
+	ciPTmplH = ciPTmpl_handler.NewHandler(ciPTmplSvc)
+
+	// runner: repo -> service -> handler
+	ciRunnerRepo := ciRunner_repo.NewRepository(infra.db.DB)
+	ciRunnerSvc := ciRunner_service.NewService(ciRunnerRepo)
+	ciRunnerH = ciRunner_handler.NewHandler(ciRunnerSvc)
+
+	// ---- Blueprint InfraOps merge: wire infrastructure subdomain handlers ----
+	// capacity: repo -> service -> handler
+
+	// dr: repo -> service -> handler
+	infraDrRepo := infraDr_repo.NewRepository(infra.db.DB)
+	infraDrSvc := infraDr_service.NewService(infraDrRepo)
+	infraDrH = infraDr_handler.NewHandler(infraDrSvc)
+
+	// ephemeral-env: repo -> service -> handler
+	infraEERepo := infraEE_repo.NewRepository(infra.db.DB)
+	infraEESvc := infraEE_service.NewService(infraEERepo)
+	infraEEH = infraEE_handler.NewHandler(infraEESvc)
+
+	// middleware-ops: repo -> service -> handler
+
+	// backup: repo -> 2 services (BackupService + RecoveryService) -> handler
+	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)
+	infraBackupSvc := infraBackup_service.NewBackupService(infraBackupRepo, infra.logger)
+	infraRecoverySvc := infraBackup_service.NewRecoveryService(infraBackupRepo, infra.logger)
+	infraBackupH = infraBackup_handler.New(infraBackupSvc, infraRecoverySvc, infra.logger)
+
+	// chaos: repo -> service -> handler
+	infraChaosRepo := infraChaos_repo.NewChaosRepository(infra.db.DB)
+	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
+	infraChaosH = infraChaos_handler.NewHandler(infraChaosSvc)
+
+	// dba: repo -> service -> handler
+	infraDbaRepo := infraDba_repo.NewRepository(infra.db.DB)
+	infraDbaSvc := infraDba_service.NewService(infraDbaRepo)
+	infraDbaH = infraDba_handler.NewHandler(infraDbaSvc)
+
+	// degradation: repo -> service -> handler
+	infraDegRepo := infraDegradation_repo.NewRepository(infra.db.DB)
+	infraDegSvc := infraDegradation_service.NewService(infraDegRepo)
+	infraDegH = infraDegradation_handler.NewHandler(infraDegSvc)
+
+	// digital-twin: repo -> service -> handler
+	infraDTwinRepo := infraDTwin_repo.NewRepository(infra.db.DB)
+	infraDTwinSvc := infraDTwin_service.NewService(infraDTwinRepo)
+	infraDTwinH = infraDTwin_handler.NewHandler(infraDTwinSvc)
+
+	// iac: repo -> service -> handler
+	infraIacRepo := infraIac_repo.NewRepository(infra.db.DB)
+	infraIacSvc := infraIac_service.NewService(infraIacRepo)
+	infraIacH = infraIac_handler.NewHandler(infraIacSvc)
+
+	// maintenance-window: repo -> service -> handler
+	infraMWnRepo := infraMWn_repo.NewRepository(infra.db.DB)
+	infraMWnSvc := infraMWn_service.NewService(infraMWnRepo)
+	infraMWnH = infraMWn_handler.NewHandler(infraMWnSvc)
+
+	// multicloud: repo -> service -> handler
+	infraMultiRepo := infraMulti_repo.NewRepository(infra.db.DB)
+	infraMultiSvc := infraMulti_service.NewService(infraMultiRepo)
+	infraMultiH = infraMulti_handler.NewHandler(infraMultiSvc)
+
+	// oci-registry: repo -> service -> handler
+	infraOCIRepo := infraOCI_repo.NewRepository(infra.db.DB)
+	infraOCISvc := infraOCI_service.NewService(infraOCIRepo)
+	infraOCIH = infraOCI_handler.NewHandler(infraOCISvc)
+
+	// serverless: repo -> service -> handler
+	infraServerlessRepo := infraServerless_repo.NewRepository(infra.db.DB)
+	infraServerlessSvc := infraServerless_service.NewService(infraServerlessRepo)
+	infraServerlessH = infraServerless_handler.NewHandler(infraServerlessSvc)
+
+	// ---- AI modules (internal/ai/) ----
+	wireAIModules(db, logger)
+
+		// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
+		wireNatsSubscribers(logger)
+}
+// wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
+// subscribers. Graceful no-op when NATS is unreachable (async event-driven pipeline).
+func wireNatsSubscribers(logger *zap.Logger) {
+	natsAddr := os.Getenv("NATS_ADDR")
+	if natsAddr == "" {
+		natsAddr = "nats://localhost:4222"
+	}
+	natsStream := os.Getenv("NATS_STREAM")
+	if natsStream == "" {
+		natsStream = "ORION_EVENTS"
+	}
+
+	// --- Incident NATS Subscriber ---
+	// incidentSvc is wired via wireCICDModules and exported as package-level global.
+	if incidentSvc != nil {
+		incidentHandler := &incidentEventHandlerStub{logger: logger}
+		incSub, err := incident_nats.NewNATSSubscriber(natsAddr, natsStream, logger, incidentHandler)
+		if err != nil {
+			logger.Warn("incident NATS subscriber init failed (event-driven disabled)", zap.Error(err))
+		} else {
+			ctx := context.Background()
+			if startErr := incSub.Start(ctx); startErr != nil {
+				logger.Warn("incident NATS subscriber start failed", zap.Error(startErr))
+			} else {
+				logger.Info("incident NATS subscriber started")
+			}
+		}
+	} else {
+		logger.Debug("incident service not available, skipping NATS subscriber")
+	}
+
+	// --- Self-Healing NATS Subscriber ---
+	// SelfHealingService needs *zap.Logger and *repository.SelfHealingRepository;
+	// the repo requires pgxpool which is not currently wired at this layer.
+	// Register a no-op handler to keep the NATS subject consumed even without full repo wiring.
+	// TODO: wire pgxpool and pass real selfHealingRepo once core_infra_wiring exposes it.
+	if selfhealingH != nil {
+		// service already wired via external wiring — handler is available
+	}
+
+	shSub, err := sh_nats.NewNATSSubscriber(natsAddr, natsStream, logger, &selfHealingNatsHandler{})
+	if err != nil {
+		logger.Warn("self-healing NATS subscriber init failed (event-driven disabled)", zap.Error(err))
+	} else {
+		ctx := context.Background()
+		if startErr := shSub.Start(ctx); startErr != nil {
+			logger.Warn("self-healing NATS subscriber start failed", zap.Error(startErr))
+		} else {
+			logger.Info("self-healing NATS subscriber started")
+		}
+	}
+}
+
+// selfHealingNatsHandler is a no-op EventHandler for the self-healing NATS subscriber
+// until the full SelfHealingService is wired. Keeps the NATS subject consumed and
+// logged while pgxpool-based repository wiring is pending.
+type selfHealingNatsHandler struct{}
+
+func (h *selfHealingNatsHandler) HandleSelfHealingEvent(ctx context.Context, event *sh_nats.SelfHealingEvent) error {
+	return nil
+}
+// incidentEventHandlerStub adapts to the NATS EventHandler interface.
+type incidentEventHandlerStub struct {
+	logger *zap.Logger
+}
+
+func (h *incidentEventHandlerStub) HandleIncidentEvent(ctx context.Context, event *incident_nats.EventBusEvent) error {
+	h.logger.Info("incident event received", zap.String("id", event.ID), zap.String("type", event.Type))
+	_ = ctx
+	return nil
+}

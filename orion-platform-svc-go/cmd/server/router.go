@@ -145,6 +145,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if citH != nil {
     citH.RegisterRoutes(api)
   }
+  if channelH != nil {
+    channelH.RegisterRoutes(api)
+  }
   if cmdbH != nil {
     cmdbH.RegisterRoutes(api)
   }
@@ -463,9 +466,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if sessionH != nil {
     sessionH.RegisterRoutes(api)
   }
-  if skillH != nil {
-    skillH.RegisterRoutes(api)
-  }
   if slaH != nil {
     slaH.RegisterRoutes(api)
   }
@@ -590,9 +590,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if ai_aisecurityH != nil {
     ai_aisecurityH.RegisterRoutes(api)
   }
-  if ai_knowledgeH != nil {
-    ai_knowledgeH.RegisterRoutes(api)
-  }
   if ai_orchestrationH != nil {
     ai_orchestrationH.RegisterRoutes(api)
   }
@@ -611,15 +608,87 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if networkH != nil {
     networkH.RegisterRoutes(api)
   }
-	}
-
-	return r
-}
+  if visorH != nil {
+    visorH.RegisterRoutes(api)
+  }
+  if visorExecH != nil {
+    visorExecH.RegisterRoutes(api)
+  }
   if applicationH != nil {
     applicationH.RegisterRoutes(api)
   }
   if escalationH != nil {
     escalationH.RegisterRoutes(api)
+  }
+  if runbookH != nil {
+    runbookH.RegisterRoutes(api)
+  }
+  if sagaH != nil {
+    sagaH.RegisterRoutes(api)
+  }
+  if pipelineExecutorH != nil {
+    pipelineExecutorH.RegisterRoutes(api)
+  }
+  if alertAdapterH != nil {
+    alertAdapterH.RegisterRoutes(api)
+  }
+  if alertCorrelationH != nil {
+    alertCorrelationH.RegisterRoutes(api)
+  }
+  if alertDeduplicationH != nil {
+    alertDeduplicationH.RegisterRoutes(api)
+  }
+  if alertSilenceH != nil {
+    alertSilenceH.RegisterRoutes(api)
+  }
+  if alertPipelineH != nil {
+    alertPipelineH.RegisterRoutes(api)
+  }
+  if domainCqrsH != nil {
+    domainCqrsH.RegisterRoutes(api)
+  }
+  if pipelineAuditLogH != nil {
+    pipelineAuditLogH.RegisterRoutes(api)
+  }
+  if pipelineRunHistoryH != nil {
+    pipelineRunHistoryH.RegisterRoutes(api)
+  }
+
+
+
+
+  if dndH != nil {
+    dndH.RegisterRoutes(api)
+  }
+  if chaosGatewayH != nil {
+    chaosGatewayH.RegisterRoutes(api)
+  }
+  if circuitBreakerH != nil {
+    circuitBreakerH.RegisterRoutes(api)
+  }
+  if importExportH != nil {
+    importExportH.RegisterRoutes(api)
+  }
+  if extensionPointH != nil {
+    extensionPointH.RegisterRoutes(api)
+  }
+  if cacheMgmtH != nil {
+    cacheMgmtH.RegisterRoutes(api)
+  }
+  if smartDeployH != nil {
+    smartDeployH.RegisterRoutes(api)
+  }
+  if testSelectorH != nil {
+    testSelectorH.RegisterRoutes(api)
+  }
+  if slaEngineH != nil {
+    slaEngineH.RegisterRoutes(api)
+  }
+  if formH != nil {
+    formH.RegisterRoutes(api)
+  }
+  if paramTypesH != nil {
+    paramTypesH.RegisterRoutes(api)
   }
   if pandawikiH != nil {
     pandawikiH.RegisterRoutes(api)
@@ -627,84 +696,121 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if metadataH != nil {
     metadataH.RegisterRoutes(api)
   }
-  if paramTypesH != nil {
-    paramTypesH.RegisterRoutes(api)
-  }
-  if formH != nil {
-    formH.RegisterRoutes(api)
-  }
   if mlopsH != nil {
     mlopsH.RegisterRoutes(api)
-  }
-  if slaEngineH != nil {
-    slaEngineH.RegisterRoutes(api)
-  }
-  if testSelectorH != nil {
-    testSelectorH.RegisterRoutes(api)
   }
   if testGenH != nil {
     testGenH.RegisterRoutes(api)
   }
-  if visorExecH != nil {
-    visorExecH.RegisterRoutes(api)
+  if inspectionH != nil {
+    inspectionH.RegisterRoutes(api)
   }
-  if importExportH != nil {
-    importExportH.RegisterRoutes(api)
+  if cmdbCollectorH != nil {
+    cmdbCollectorH.RegisterRoutes(api)
   }
-  if governanceH != nil {
-    governanceH.RegisterRoutes(api)
+  if cmdbDriftH != nil {
+    cmdbDriftH.RegisterRoutes(api)
   }
-  if governanceComplianceH != nil {
-    governanceComplianceH.RegisterRoutes(api)
+  if apkUploadHistoryH != nil {
+    apkUploadHistoryH.RegisterRoutes(api)
   }
-  if governanceRiskH != nil {
-    governanceRiskH.RegisterRoutes(api)
+  if artifactlifecycleH != nil {
+    artifactlifecycleH.RegisterRoutes(api)
   }
-  if governancePolicyH != nil {
-    governancePolicyH.RegisterRoutes(api)
+  if autoExecH != nil {
+    autoExecH.RegisterRoutes(api)
   }
-  if securityH != nil {
-    securityH.RegisterRoutes(api)
+  if autonomousPipelineH != nil {
+    autonomousPipelineH.RegisterRoutes(api)
   }
-  if securitySecretH != nil {
-    securitySecretH.RegisterRoutes(api)
+  if cacheMgmtH != nil {
+    cacheMgmtH.RegisterRoutes(api)
   }
-  if securityBranchPolicyH != nil {
-    securityBranchPolicyH.RegisterRoutes(api)
+  if communityAdvancedH != nil {
+    communityAdvancedH.RegisterRoutes(api)
   }
-  if securityPrivacyH != nil {
-    securityPrivacyH.RegisterRoutes(api)
+  if communityH != nil {
+    communityH.RegisterRoutes(api)
   }
-  if securityUebaH != nil {
-    securityUebaH.RegisterRoutes(api)
+  if conditionH != nil {
+    conditionH.RegisterRoutes(api)
   }
-  if securityCrossDomainH != nil {
-    securityCrossDomainH.RegisterRoutes(api)
+  if configMgmtEnhancedH != nil {
+    configMgmtEnhancedH.RegisterRoutes(api)
   }
-  if identityApikeyH != nil {
-    identityApikeyH.RegisterRoutes(api)
+  if dataMaskingH != nil {
+    dataMaskingH.RegisterRoutes(api)
   }
-  if identityConfirmationH != nil {
-    identityConfirmationH.RegisterRoutes(api)
+  if digitalTwinSimulationH != nil {
+    digitalTwinSimulationH.RegisterRoutes(api)
   }
-  if identitySessionH != nil {
-    identitySessionH.RegisterRoutes(api)
+  if disasterrecoveryH != nil {
+    disasterrecoveryH.RegisterRoutes(api)
   }
-  if identitySsoH != nil {
-    identitySsoH.RegisterRoutes(api)
+  if eventTriggerRegistryH != nil {
+    eventTriggerRegistryH.RegisterRoutes(api)
   }
-  if identityTenantH != nil {
-    identityTenantH.RegisterRoutes(api)
+  if executionModeEngineH != nil {
+    executionModeEngineH.RegisterRoutes(api)
   }
-  if analyticsTicketH != nil {
-    analyticsTicketH.RegisterRoutes(api)
+  if jobProcessorH != nil {
+    jobProcessorH.RegisterRoutes(api)
   }
-  if automationRuleTicketH != nil {
-    automationRuleTicketH.RegisterRoutes(api)
+  if mcpH != nil {
+    mcpH.RegisterRoutes(api)
   }
-  if slaPolicyTicketH != nil {
-    slaPolicyTicketH.RegisterRoutes(api)
+  if moduleH != nil {
+    moduleH.RegisterRoutes(api)
   }
-  if ticketSourceTicketH != nil {
-    ticketSourceTicketH.RegisterRoutes(api)
+  if observabilityH != nil {
+    observabilityH.RegisterRoutes(api)
   }
+  if pipelineErrorDetailH != nil {
+    pipelineErrorDetailH.RegisterRoutes(api)
+  }
+  if pipelineExecutorH != nil {
+    pipelineExecutorH.RegisterRoutes(api)
+  }
+  if releaseMgmtH != nil {
+    releaseMgmtH.RegisterRoutes(api)
+  }
+  if smartDeployH != nil {
+    smartDeployH.RegisterRoutes(api)
+  }
+  if startupH != nil {
+    startupH.RegisterRoutes(api)
+  }
+  if taskTimeoutH != nil {
+    taskTimeoutH.RegisterRoutes(api)
+  }
+  if tenantGatewayH != nil {
+    tenantGatewayH.RegisterRoutes(api)
+  }
+  if terminalAuditH != nil {
+    terminalAuditH.RegisterRoutes(api)
+  }
+  if testExecEngineH != nil {
+    testExecEngineH.RegisterRoutes(api)
+  }
+  if useractivityH != nil {
+    useractivityH.RegisterRoutes(api)
+  }
+  if userprofileH != nil {
+    userprofileH.RegisterRoutes(api)
+  }
+  if userstatusH != nil {
+    userstatusH.RegisterRoutes(api)
+  }
+  if usertokenH != nil {
+    usertokenH.RegisterRoutes(api)
+  }
+  if vectorH != nil {
+    vectorH.RegisterRoutes(api)
+  }
+  if vulnerabilityH != nil {
+    vulnerabilityH.RegisterRoutes(api)
+  }
+	}
+
+	return r
+}
