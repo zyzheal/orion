@@ -9,10 +9,10 @@ import (
 	dedup_service "orion/platform-svc-go/internal/alert-deduplication/service"
 )
 
+var alertDeduplicationH *dedup_handler.AlertDeduplicationHandler
+
 func wireAlertDeduplication(db *database.DB, logger *zap.Logger) {
 	_ = db
 	svc := dedup_service.NewAlertDeduplicationService(logger)
 	alertDeduplicationH = dedup_handler.NewAlertDeduplicationHandler(svc)
 }
-
-var alertDeduplicationH *dedup_handler.AlertDeduplicationHandler
