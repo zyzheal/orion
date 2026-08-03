@@ -776,6 +776,35 @@ func aggregateHealthResults(checks []models.HealthCheck, totalDuration int64) mo
 }
 
 // ============================================================
+// Public Scoring API (no persistence, directly testable)
+// ============================================================
+
+// ScoreDeploymentRisk performs a pure risk score evaluation without DB persistence.
+// It returns the computed score, level, individual factors, and recommendations.
+func (s *Service) ScoreDeploymentRisk(dr models.DeploymentRisk) (float64, string, []models.RiskFactor, []models.RiskRecommendation) {
+	score := calculateRiskScore(dr, s.weights)
+	factors := getRiskFactors(dr, s.weights)
+	level := evaluateRiskLevel(score)
+	recommendations := generateRecommendations(factors, level)
+	return score, level, factors, recommendations
+}
+
+// ScoreChangeRisk performs a pure risk score evaluation for a code change.
+func (s *Service) ScoreChangeRisk(dr models.DeploymentRisk) (float64, string, []models.RiskFactor, []models.RiskRecommendation) {
+	return s.ScoreDeploymentRisk(dr)
+}
+
+// ComputeWeightedScore computes the weighted score from a list of factors (public for testing).
+func (s *Service) ComputeWeightedScore(factors []models.RiskFactor) float64 {
+	return computeWeightedScore(factors)
+}
+
+// EvaluateRiskLevel maps a numeric score to a risk level (public for testing).
+func (s *Service) EvaluateRiskLevel(score float64) string {
+	return evaluateRiskLevel(score)
+}
+
+// ============================================================
 // Service (business logic layer)
 // ============================================================
 

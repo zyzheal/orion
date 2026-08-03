@@ -11,6 +11,7 @@ type ProviderType string
 const (
 	ProviderTypeOpenAI    ProviderType = "openai"
 	ProviderTypeAnthropic ProviderType = "anthropic"
+	ProviderTypeDeepSeek  ProviderType = "deepseek"
 	ProviderTypeCustom    ProviderType = "custom"
 )
 
@@ -55,6 +56,7 @@ var (
 	ErrInvalidAPIKey    = errors.New("LLM invalid API key")
 	ErrInvalidModel     = errors.New("LLM invalid model")
 	ErrEmptyContent     = errors.New("LLM response returned empty content")
+	ErrTokenPoolExhausted = errors.New("LLM token pool exhausted")
 )
 
 // LLMProvider is the contract for any LLM backend adapter.
