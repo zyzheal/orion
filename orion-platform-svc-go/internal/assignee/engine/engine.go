@@ -76,6 +76,9 @@ func (e *Engine) DispatchItem(ctx context.Context, item *types.WorkItem, candida
 
 	// 2. For each evaluated rule, pick the best candidate
 	for _, ev := range evaluated {
+		if !ev.Matched {
+			continue
+		}
 		rule := ev.Rule
 
 			// Check rule capacity
@@ -111,16 +114,20 @@ func (e *Engine) evaluateRules(item *types.WorkItem, rules []*types.AssigneeRule
 			continue
 		}
 		// Check rule-level cooldown
+		inCooldown := false
 		if rule.CooldownSec > 0 {
 			for _, tid := range rule.TargetIDs {
 				last := e.cooldownMap[tid]
-				if last.IsZero() || now.Sub(last) < time.Duration(rule.CooldownSec)*time.Second {
-					// At least one target in cooldown — skip for now
-					continue
+				if !last.IsZero() && now.Sub(last) < time.Duration(rule.CooldownSec)*time.Second {
+					inCooldown = true
+					break
 				}
 			}
 		}
-		match := e.matchConditions(item, rule.Conditions)
+		var match bool
+		if !inCooldown {
+			match = e.matchConditions(item, rule.Conditions)
+		}
 		out = append(out, &EvaluatedRule{
 			Rule:     rule,
 			Matched:  match,
