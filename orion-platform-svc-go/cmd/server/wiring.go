@@ -130,6 +130,7 @@ import (
 	ciArtReg_repo "orion/platform-svc-go/internal/ci-cd/artifact-registry/repository"
 	ciArtReg_service "orion/platform-svc-go/internal/ci-cd/artifact-registry/service"
 	ciArtVer_handler "orion/platform-svc-go/internal/ci-cd/artifact-version/handler"
+	ciArtVer_repo "orion/platform-svc-go/internal/ci-cd/artifact-version/repository"
 	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
 	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
 	ciCanary_handler "orion/platform-svc-go/internal/ci-cd/canary/handler"
@@ -559,8 +560,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	ciArtRegSvc := ciArtReg_service.NewArtifactRegistryService(ciArtRegRepo, infra.logger)
 	ciArtRegH = ciArtReg_handler.NewArtifactRegistryHandler(ciArtRegSvc)
 
-	// artifact-version: service -> handler (map-based, logger only)
-	ciArtVerSvc := ciArtVer_service.NewArtifactVersionService(infra.logger)
+	// artifact-version: repo -> service -> handler
+	ciArtVerSvc := ciArtVer_service.NewArtifactVersionServiceWithRepo(ciArtVer_repo.NewArtifactVersionRepository(infra.db.DB), infra.logger)
 	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
 
 	// build: repo -> service -> handler (requires db + logger)
