@@ -8,35 +8,34 @@ import (
 	"orion/platform-svc-go/internal/visor-exec/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateCommandLog(ctx context.Context, log *models.CommandLog) error
-	CreateCommandLogDetails(ctx context.Context, details []models.CommandLogDetail) error
+	CreateCommandLogDetails(ctx context.Context, tenantID string, details []models.CommandLogDetail) error
 	ListCommandLogs(ctx context.Context, tenantID string, page, pageSize int) ([]models.CommandLog, error)
 	CountCommandLogs(ctx context.Context, tenantID string) (int, error)
-	GetCommandLogByID(ctx context.Context, id string) (*models.CommandLog, error)
-	GetCommandLogDetailsByCommandID(ctx context.Context, commandID string) ([]models.CommandLogDetail, error)
+	GetCommandLogByID(ctx context.Context, tenantID, id string) (*models.CommandLog, error)
+	GetCommandLogDetailsByCommandID(ctx context.Context, tenantID, commandID string) ([]models.CommandLogDetail, error)
 	CreateTemplate(ctx context.Context, tmpl *models.Template) error
-	ListTemplates(ctx context.Context) ([]models.Template, error)
-	CountTemplates(ctx context.Context) (int, error)
-	GetTemplateByID(ctx context.Context, id string) (*models.Template, error)
-	UpdateTemplate(ctx context.Context, id string, updates map[string]interface{}) error
-	DeleteTemplate(ctx context.Context, id string) error
+	ListTemplates(ctx context.Context, tenantID string) ([]models.Template, error)
+	CountTemplates(ctx context.Context, tenantID string) (int, error)
+	GetTemplateByID(ctx context.Context, tenantID, id string) (*models.Template, error)
+	UpdateTemplate(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	DeleteTemplate(ctx context.Context, tenantID, id string) error
 	CreateCronJob(ctx context.Context, job *models.CronJob) error
-	ListCronJobs(ctx context.Context) ([]models.CronJob, error)
-	CountCronJobs(ctx context.Context) (int, error)
-	GetCronJobByID(ctx context.Context, id string) (*models.CronJob, error)
-	UpdateCronJob(ctx context.Context, id string, updates map[string]interface{}) error
-	DeleteCronJob(ctx context.Context, id string) error
-	ToggleCronJob(ctx context.Context, id string, enabled bool) error
-	UpdateCronJobLastRun(ctx context.Context, id string, lastRunAt time.Time) error
+	ListCronJobs(ctx context.Context, tenantID string) ([]models.CronJob, error)
+	CountCronJobs(ctx context.Context, tenantID string) (int, error)
+	GetCronJobByID(ctx context.Context, tenantID, id string) (*models.CronJob, error)
+	UpdateCronJob(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	DeleteCronJob(ctx context.Context, tenantID, id string) error
+	ToggleCronJob(ctx context.Context, tenantID, id string, enabled bool) error
+	UpdateCronJobLastRun(ctx context.Context, tenantID, id string, lastRunAt time.Time) error
 	CreateCronJobLog(ctx context.Context, log *models.CronJobLog) error
-	ListCronJobLogsByJobID(ctx context.Context, jobID string, page, pageSize int) ([]models.CronJobLog, error)
+	ListCronJobLogsByJobID(ctx context.Context, tenantID, jobID string, page, pageSize int) ([]models.CronJobLog, error)
 	CountCronJobLogsByJobID(ctx context.Context, tenantID, jobID string) (int, error)
 	CreateUploadTask(ctx context.Context, task *models.UploadTask) error
-	ListUploadTasks(ctx context.Context) ([]models.UploadTask, error)
+	ListUploadTasks(ctx context.Context, tenantID string) ([]models.UploadTask, error)
 	CountUploadTasks(ctx context.Context, tenantID string) (int, error)
-	GetUploadTaskByID(ctx context.Context, id string) (*models.UploadTask, error)
-	UpdateUploadTask(ctx context.Context, id string, updates map[string]interface{}) error
+	GetUploadTaskByID(ctx context.Context, tenantID, id string) (*models.UploadTask, error)
+	UpdateUploadTask(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }

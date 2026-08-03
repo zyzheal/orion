@@ -1,7 +1,6 @@
 package service
 
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
-//go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
 import (
 	"context"
@@ -16,35 +15,41 @@ import (
 	"orion/platform-svc-go/internal/visor-exec/models"
 )
 
-// RepositoryInterface defines the repository methods used by the service.
+// RepositoryInterface defines the data-access contract used by the service.
+// Note: the concrete repo methods carry an extra tenantID parameter; the
+// wiring layer provides a tenantID adapter that bridges this gap.
 type RepositoryInterface interface {
-	CountCommandLogs(ctx context.Context, tenantID string) (int, error)
-	CountCronJobLogsByJobID(ctx context.Context, jobID string) (int, error)
-	CountCronJobs(ctx context.Context) (int, error)
-	CountTemplates(ctx context.Context) (int, error)
-	CountUploadTasks(ctx context.Context) (int, error)
+	// Command execution
 	CreateCommandLog(ctx context.Context, log *models.CommandLog) error
 	CreateCommandLogDetails(ctx context.Context, details []models.CommandLogDetail) error
-	CreateCronJob(ctx context.Context, job *models.CronJob) error
-	CreateCronJobLog(ctx context.Context, log *models.CronJobLog) error
-	CreateTemplate(ctx context.Context, tmpl *models.Template) error
-	CreateUploadTask(ctx context.Context, task *models.UploadTask) error
-	DeleteCronJob(ctx context.Context, id string) error
-	DeleteTemplate(ctx context.Context, id string) error
-	GetCommandLogByID(ctx context.Context, id string) (*models.CommandLog, error)
-	GetCommandLogDetailsByCommandID(ctx context.Context, commandID string) ([]models.CommandLogDetail, error)
-	GetCronJobByID(ctx context.Context, id string) (*models.CronJob, error)
-	GetTemplateByID(ctx context.Context, id string) (*models.Template, error)
-	GetUploadTaskByID(ctx context.Context, id string) (*models.UploadTask, error)
 	ListCommandLogs(ctx context.Context, tenantID string, page, pageSize int) ([]models.CommandLog, error)
-	ListCronJobLogsByJobID(ctx context.Context, jobID string, page, pageSize int) ([]models.CronJobLog, error)
-	ListCronJobs(ctx context.Context) ([]models.CronJob, error)
+	CountCommandLogs(ctx context.Context, tenantID string) (int, error)
+	GetCommandLogByID(ctx context.Context, id string) (*models.CommandLog, error)
+	GetCommandLogDetailsByCommandID(ctx context.Context, id string) ([]models.CommandLogDetail, error)
+	// Script templates
+	CreateTemplate(ctx context.Context, tmpl *models.Template) error
 	ListTemplates(ctx context.Context) ([]models.Template, error)
-	ListUploadTasks(ctx context.Context) ([]models.UploadTask, error)
-	ToggleCronJob(ctx context.Context, id string, enabled bool) error
-	UpdateCronJob(ctx context.Context, id string, updates map[string]interface{}) error
-	UpdateCronJobLastRun(ctx context.Context, id string, lastRunAt time.Time) error
+	CountTemplates(ctx context.Context) (int, error)
+	GetTemplateByID(ctx context.Context, id string) (*models.Template, error)
 	UpdateTemplate(ctx context.Context, id string, updates map[string]interface{}) error
+	DeleteTemplate(ctx context.Context, id string) error
+	// Cron jobs
+	CreateCronJob(ctx context.Context, job *models.CronJob) error
+	ListCronJobs(ctx context.Context) ([]models.CronJob, error)
+	CountCronJobs(ctx context.Context) (int, error)
+	GetCronJobByID(ctx context.Context, id string) (*models.CronJob, error)
+	UpdateCronJob(ctx context.Context, id string, updates map[string]interface{}) error
+	DeleteCronJob(ctx context.Context, id string) error
+	ToggleCronJob(ctx context.Context, id string, enabled bool) error
+	UpdateCronJobLastRun(ctx context.Context, id string, lastRunAt time.Time) error
+	CreateCronJobLog(ctx context.Context, log *models.CronJobLog) error
+	ListCronJobLogsByJobID(ctx context.Context, jobID string, page, pageSize int) ([]models.CronJobLog, error)
+	CountCronJobLogsByJobID(ctx context.Context, jobID string) (int, error)
+	// Upload tasks
+	CreateUploadTask(ctx context.Context, task *models.UploadTask) error
+	ListUploadTasks(ctx context.Context) ([]models.UploadTask, error)
+	CountUploadTasks(ctx context.Context) (int, error)
+	GetUploadTaskByID(ctx context.Context, id string) (*models.UploadTask, error)
 	UpdateUploadTask(ctx context.Context, id string, updates map[string]interface{}) error
 }
 
