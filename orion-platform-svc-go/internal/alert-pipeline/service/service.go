@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/alert-pipeline/models"
+	"orion/platform-svc-go/internal/alert-pipeline/repository"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/dedup"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/enrich"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/notify"
@@ -28,22 +29,37 @@ import (
 // ErrPipelineDisabled is returned when the pipeline is not enabled for a tenant.
 var ErrPipelineDisabled = errors.New("alert pipeline is disabled for this tenant")
 
+// RepositoryInterface defines the persistence interface for alert pipeline results.
+// Only Save is used at runtime; the full interface is kept for future query methods.
+type RepositoryInterface interface {
+	Save(ctx context.Context, tenantID string, result *models.PipelineResult, alertName, severity string) error
+	GetByResultID(ctx context.Context, resultID interface{}) (*repository.Result, error)
+	GetByAlertID(ctx context.Context, alertID string) (*repository.Result, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]*repository.Result, error)
+	Count(ctx context.Context, tenantID string) (int, error)
+}
+
 // PipelineService orchestrates the end-to-end alert processing pipeline.
 type PipelineService struct {
 	mu        sync.RWMutex
 	chains    map[string]*stages_pkg.Chain  // tenantID → chain
 	cfg       *models.PipelineConfig
 	logger    *zap.Logger
+	repo      RepositoryInterface
 }
 
 // NewPipelineService creates a new PipelineService.
-func NewPipelineService(logger *zap.Logger) *PipelineService {
+func NewPipelineService(logger *zap.Logger, repo RepositoryInterface) *PipelineService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	cfg := models.DefaultPipelineConfig("default")
 	cfg.Stages = []string{"receive", "validate", "dedup", "enrich", "route", "notify"}
 	return &PipelineService{
 		chains: make(map[string]*stages_pkg.Chain),
 		cfg:    cfg,
 		logger: logger,
+		repo:   repo,
 	}
 }
 
@@ -104,6 +120,16 @@ func (s *PipelineService) Execute(ctx context.Context, tenantID string, alert mo
 		Stages:    stageNames(resultCtx.History),
 		StageCount: len(resultCtx.History),
 		Errors:    errors,
+	}
+}
+
+// persistResult saves the pipeline result to the repository (best-effort).
+func (s *PipelineService) persistResult(ctx context.Context, tenantID string, result *models.PipelineResult, alertName, severity string) {
+	if s.repo == nil || result == nil {
+		return
+	}
+	if err := s.repo.Save(ctx, tenantID, result, alertName, severity); err != nil {
+		s.logger.Debug("failed to persist pipeline result", zap.Error(err))
 	}
 }
 

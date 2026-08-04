@@ -5,8 +5,13 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"math"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"orion/platform-svc-go/internal/risk/models"
 )
@@ -31,10 +36,291 @@ var riskLevels = []models.RiskLevel{
 
 type Service struct {
 	repo RepositoryInterface
+
+	// scoreHistory tracks weighted scores per risk (tenantID:ID -> []scoreRecord)
+	scoreHistoryMu sync.RWMutex
+	scoreHistory   map[string][]scoreRecord
+}
+
+type scoreRecord struct {
+	score float64
+	ts    time.Time
 }
 
 func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+	return &Service{
+		repo:         repo,
+		scoreHistory: make(map[string][]scoreRecord),
+	}
+}
+
+// ---------- Enhanced scoring methods ----------
+
+// CalculateWeightedScore computes a weighted risk score from a set of risk factors.
+// Score = sum(factor.Weight * factor.Value), clamped to [0, 100].
+// The resulting score is mapped to a level using 0-25=Low, 26-50=Medium, 51-75=High, 76-100=Critical.
+func (s *Service) CalculateWeightedScore(_ context.Context, factors []models.RiskFactor, mitigation *models.MitigationPlan) (*models.WeightedScoreResult, error) {
+	if len(factors) == 0 {
+		return &models.WeightedScoreResult{
+			Score:  0,
+			Level:  "low",
+			FactorBreakdown: []models.FactorBreakdown{},
+		}, nil
+	}
+
+	breakdown := make([]models.FactorBreakdown, len(factors))
+	var totalWeight float64
+	var rawScore float64
+
+	for i, f := range factors {
+		contrib := f.Weight * f.Value
+		totalWeight += f.Weight
+		rawScore += contrib
+		breakdown[i] = models.FactorBreakdown{
+			Name:         f.Name,
+			Weight:       f.Weight,
+			Value:        f.Value,
+			Contribution: contrib,
+		}
+	}
+
+	// Normalize if weights don't sum to 1, then apply mitigation.
+	score := rawScore
+	if totalWeight > 0 {
+		score = score / totalWeight
+	}
+
+	// Apply mitigation effectiveness: reduce score by the mitigation factor.
+	if mitigation != nil && mitigation.Effectiveness > 0 {
+		score = score * (1 - mitigation.Effectiveness)
+	}
+
+	// Clamp to [0, 100].
+	if score < 0 {
+		score = 0
+	}
+	if score > 100 {
+		score = 100
+	}
+
+	// Record into history (use first factor name as key).
+	s.recordScore("global", breakdown[0].Name, score, time.Now())
+
+	level := mapWeightedScore(score)
+	result := &models.WeightedScoreResult{
+		Score:           score,
+		Level:           level,
+		FactorBreakdown: breakdown,
+		Mitigation:      mitigation,
+	}
+	return result, nil
+}
+
+// recordScore appends a score to the in-memory history for trend computation.
+func (s *Service) recordScore(tenantID, riskName string, score float64, ts time.Time) {
+	key := tenantID + ":" + riskName
+	s.scoreHistoryMu.Lock()
+	defer s.scoreHistoryMu.Unlock()
+	s.scoreHistory[key] = append(s.scoreHistory[key], scoreRecord{score: score, ts: ts})
+	// Keep last 1000 records to bound memory.
+	if len(s.scoreHistory[key]) > 1000 {
+		s.scoreHistory[key] = s.scoreHistory[key][len(s.scoreHistory[key])-1000:]
+	}
+}
+
+// mapWeightedScore maps a score in [0, 100] to a risk level.
+func mapWeightedScore(score float64) string {
+	switch {
+	case score <= 25:
+		return "low"
+	case score <= 50:
+		return "medium"
+	case score <= 75:
+		return "high"
+	default:
+		return "critical"
+	}
+}
+
+// GetRiskTrends returns aggregated score deltas over time since the given cutoff.
+// It reads the in-memory score history plus the current risk list from the repo.
+func (s *Service) GetRiskTrends(_ context.Context, tenantID string, since time.Time) ([]models.RiskTrend, error) {
+	risks, err := s.repo.List(ctxForTrends(), tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("list risks for trends: %w", err)
+	}
+
+	s.scoreHistoryMu.RLock()
+	defer s.scoreHistoryMu.RUnlock()
+
+	trends := make([]models.RiskTrend, 0, len(risks))
+	for _, r := range risks {
+		key := tenantID + ":" + r.Name
+		records := s.scoreHistory[key]
+		records = filterSince(records, since)
+
+		if len(records) == 0 {
+			trends = append(trends, models.RiskTrend{
+				RiskID:        r.ID,
+				RiskName:      r.Name,
+				AvgScore:      0,
+				MinScore:      0,
+				MaxScore:      0,
+				ScoreDelta:    0,
+				SampleCount:   0,
+				TrendDirection: "stable",
+			})
+			continue
+		}
+
+		var sum, minV, maxV float64
+		for i, rec := range records {
+			if i == 0 {
+				minV = rec.score
+				maxV = rec.score
+			} else {
+				if rec.score < minV {
+					minV = rec.score
+				}
+				if rec.score > maxV {
+					maxV = rec.score
+				}
+			}
+			sum += rec.score
+		}
+		avg := sum / float64(len(records))
+		delta := maxV - minV
+		direction := "stable"
+		if len(records) >= 2 {
+			if records[len(records)-1].score > records[0].score+0.001 {
+				direction = "up"
+			} else if records[len(records)-1].score < records[0].score-0.001 {
+				direction = "down"
+			}
+		}
+
+		trends = append(trends, models.RiskTrend{
+			RiskID:        r.ID,
+			RiskName:      r.Name,
+			AvgScore:      roundFloat(avg, 2),
+			MinScore:      roundFloat(minV, 2),
+			MaxScore:      roundFloat(maxV, 2),
+			ScoreDelta:    roundFloat(delta, 2),
+			SampleCount:   len(records),
+			TrendDirection: direction,
+		})
+	}
+	return trends, nil
+}
+
+// ctxForTrends returns a context used internally for the GetRiskTrends repo call.
+// Exported so tests can override if needed.
+var ctxForTrends = func() context.Context {
+	return context.Background()
+}
+
+func filterSince(records []scoreRecord, since time.Time) []scoreRecord {
+	var filtered []scoreRecord
+	for _, r := range records {
+		if !r.ts.Before(since) {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
+// GetCorrelatedRisks finds pairs of risks within a tenant that share overlapping tags
+// (encoded in the Risk.Value field as comma-separated tag strings) and returns them.
+// Only pairs with overlap_score > 0 are returned, sorted by overlap descending.
+func (s *Service) GetCorrelatedRisks(ctx context.Context, tenantID string) ([]models.CorrelatedRiskPair, error) {
+	risks, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := make([]models.CorrelatedRiskPair, 0)
+	for i := 0; i < len(risks); i++ {
+		for j := i + 1; j < len(risks); j++ {
+			a := &risks[i]
+			b := &risks[j]
+			tagsA := parseTags(a.Value)
+			tagsB := parseTags(b.Value)
+			shared, union := tagIntersectionAndUnion(tagsA, tagsB)
+			if len(shared) == 0 {
+				continue
+			}
+			var overlap float64
+			if len(union) > 0 {
+				overlap = float64(len(shared)) / float64(len(union))
+			}
+			pairs = append(pairs, models.CorrelatedRiskPair{
+				RiskA:        a,
+				RiskB:        b,
+				SharedTags:   shared,
+				OverlapScore: roundFloat(overlap, 3),
+			})
+		}
+	}
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].OverlapScore > pairs[j].OverlapScore
+	})
+	return pairs, nil
+}
+
+// parseTags extracts comma-separated tags from the risk Value field.
+// Falls back to splitting on space or returning the value as a single tag.
+func parseTags(value string) []string {
+	if value == "" {
+		return nil
+	}
+	if strings.Contains(value, ",") {
+		return splitAndTrim(value, ",")
+	}
+	if strings.Contains(value, " ") {
+		return splitAndTrim(value, " ")
+	}
+	return []string{strings.TrimSpace(value)}
+}
+
+func splitAndTrim(s string, sep string) []string {
+	var out []string
+	for _, part := range strings.Split(s, sep) {
+		p := strings.TrimSpace(part)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func tagIntersectionAndUnion(a, b []string) (shared, unionSet []string) {
+	setA := make(map[string]bool)
+	for _, t := range a {
+		setA[t] = true
+	}
+	union := make(map[string]bool)
+	for _, t := range a {
+		union[t] = true
+	}
+	var sharedOut []string
+	for _, t := range b {
+		union[t] = true
+		if setA[t] {
+			sharedOut = append(sharedOut, t)
+		}
+	}
+	// Make union deterministic.
+	for t := range union {
+		unionSet = append(unionSet, t)
+	}
+	return sharedOut, unionSet
+}
+
+// ---------- Helpers ----------
+
+func roundFloat(v float64, decimals int) float64 {
+	pow := math.Pow(10, float64(decimals))
+	return math.Round(v*pow) / pow
 }
 
 // ---------- CRUD methods ----------
