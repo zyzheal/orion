@@ -102,11 +102,19 @@ func (e *Evaluator) evaluateAggregate(agg AggregatedMetrics) Decision {
 	return d
 }
 
-// EvaluateRecovery checks whether a degraded system may recover.
-// It applies the hysteresis margin and returns true only when the
-// metrics are strictly below the threshold minus the configured margin.
-func (e *Evaluator) EvaluateRecovery(agg AggregatedMetrics) Decision {
+// EvaluateRecoverySnapshot checks whether a degraded system may recover
+// based on the latest snapshot.  It applies the hysteresis margin and returns
+// true only when the metrics are strictly below the threshold minus the
+// configured margin.
+func (e *Evaluator) EvaluateRecoverySnapshot(s MetricSnapshot) Decision {
+	agg := AggregatedMetrics{
+		ErrorCount:     s.ErrorCount,
+		TotalCount:     s.TotalCount,
+		ErrorRate:      s.ErrorRate(),
+		LatencySamples: s.LatencySamples,
+	}
 	agg.Compute()
+
 	d := Decision{
 		EvaluatedAt:       time.Now().UTC(),
 		ErrorRate:         agg.ErrorRate,
@@ -140,6 +148,58 @@ func (e *Evaluator) EvaluateRecovery(agg AggregatedMetrics) Decision {
 		}
 	} else {
 		// Hysteresis disabled → recover on any healthy evaluation.
+		recoverError = agg.ErrorRate < e.cfg.ErrorRateThreshold
+		recoverLatency = agg.P99LatencyMs < e.cfg.LatencyThresholdMs
+		if recoverError && recoverLatency {
+			d.Recover = true
+			d.Reason = "within normal thresholds (hysteresis disabled)"
+		}
+	}
+
+	return d
+}
+
+// EvaluateRecovery is the legacy window-aggregate version, kept for callers
+// that want to evaluate against the full sliding window rather than the
+// latest snapshot.
+func (e *Evaluator) EvaluateRecovery(agg AggregatedMetrics) Decision {
+	agg.Compute()
+	return e.evaluateRecovery(agg)
+}
+
+func (e *Evaluator) evaluateRecovery(agg AggregatedMetrics) Decision {
+	d := Decision{
+		EvaluatedAt:       time.Now().UTC(),
+		ErrorRate:         agg.ErrorRate,
+		LatencyP99Ms:      agg.P99LatencyMs,
+		ErrorRateLimit:    e.cfg.RecoverErrorRate(),
+		LatencyP99LimitMs: e.cfg.RecoverLatencyMs(),
+	}
+
+	if agg.TotalCount < e.cfg.MinSampleCount {
+		d.Reason = fmt.Sprintf("insufficient traffic (samples=%d, min=%d)", agg.TotalCount, e.cfg.MinSampleCount)
+		return d
+	}
+
+	recoverError := agg.ErrorRate < e.cfg.RecoverErrorRate()
+	recoverLatency := agg.P99LatencyMs < e.cfg.RecoverLatencyMs()
+
+	if e.cfg.Hysteresis.Enabled {
+		if recoverError && recoverLatency {
+			d.Recover = true
+			d.Reason = fmt.Sprintf("hysteresis: error_rate=%.4f < %.4f, latency_p99=%dms < %dms",
+				agg.ErrorRate, e.cfg.RecoverErrorRate(), agg.P99LatencyMs, e.cfg.RecoverLatencyMs())
+		} else {
+			var still []string
+			if !recoverError {
+				still = append(still, fmt.Sprintf("error_rate=%.4f >= %.4f", agg.ErrorRate, e.cfg.RecoverErrorRate()))
+			}
+			if !recoverLatency {
+				still = append(still, fmt.Sprintf("latency_p99=%dms >= %dms", agg.P99LatencyMs, e.cfg.RecoverLatencyMs()))
+			}
+			d.Reason = fmt.Sprintf("still above hysteresis margin: %s", joinReasons(still))
+		}
+	} else {
 		recoverError = agg.ErrorRate < e.cfg.ErrorRateThreshold
 		recoverLatency = agg.P99LatencyMs < e.cfg.LatencyThresholdMs
 		if recoverError && recoverLatency {

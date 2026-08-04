@@ -87,17 +87,21 @@ func (t *Trigger) Observe(s MetricSnapshot) Decision {
 	return t.Evaluate()
 }
 
-// Evaluate aggregates the sliding window and decides the current state.
+// Evaluate decides the current state based on the latest snapshot in the
+// window (Prometheus-style: current value, not historical average).
 func (t *Trigger) Evaluate() Decision {
-	agg := t.window.Aggregated()
-	agg.Compute()
+	snapshots := t.window.All()
+	if len(snapshots) == 0 {
+		return Decision{Reason: "empty window"}
+	}
+	latest := snapshots[len(snapshots)-1]
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	switch t.state {
 	case StateNormal:
-		d := t.evaluator.EvaluateAggregated(agg)
+		d := t.evaluator.EvaluateSnapshot(latest)
 		if d.Trigger {
 			t.state = StateDegraded
 			t.streak = 0
@@ -112,11 +116,12 @@ func (t *Trigger) Evaluate() Decision {
 	case StateDegraded:
 		// Check whether we may recover.  Only the recovery evaluator
 		// (with hysteresis) is consulted while degraded.
-		d := t.evaluator.EvaluateRecovery(agg)
+		d := t.evaluator.EvaluateRecoverySnapshot(latest)
 		if d.Recover {
 			t.streak++
 			if t.streak >= t.cfg.Hysteresis.HealthStreakRequired {
 				t.state = StateNormal
+				// streak will be cleared after callback, but we log the value.
 				streak := t.streak
 				t.streak = 0
 				t.log.Info("RECOVERED",
@@ -133,7 +138,7 @@ func (t *Trigger) Evaluate() Decision {
 		return d
 
 	default:
-		d := t.evaluator.EvaluateAggregated(agg)
+		d := t.evaluator.EvaluateSnapshot(latest)
 		d.Reason = "unknown state, normal evaluation returned: " + d.Reason
 		return d
 	}
@@ -186,8 +191,9 @@ func (t *Trigger) StartBackgroundEvaluation(ctx context.Context) {
 				t.log.Info("background evaluation stopped (manual)")
 				return
 			case <-ticker.C:
-				t.Evaluate()
 			}
+			// Acquire lock outside the select to avoid holding it during cancellation.
+			t.Evaluate()
 		}
 	}()
 }
@@ -195,14 +201,22 @@ func (t *Trigger) StartBackgroundEvaluation(ctx context.Context) {
 // StopBackgroundEvaluation signals the background loop to exit.
 func (t *Trigger) StopBackgroundEvaluation() {
 	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.tickerStop != nil {
+	stop := t.tickerStop
+	t.tickerStop = nil
+	t.mu.Unlock()
+
+	if stop != nil {
 		select {
-		case t.tickerStop <- struct{}{}:
+		case stop <- struct{}{}:
 		default:
 		}
-		<-t.done
-		t.tickerStop = nil
+		// Wait up to 2s for the background goroutine to drain; don't deadlock.
+		done := time.NewTimer(2 * time.Second)
+		select {
+		case <-t.done:
+		case <-done.C:
+		}
+		done.Stop()
 	}
 }
 

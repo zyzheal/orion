@@ -40,12 +40,19 @@ func snapshotWithErrorRate(rate float64, n int64) MetricSnapshot {
 	}
 }
 
+// snapshotWithLatencyP99 builds a MetricSnapshot whose P99 latency
+// (computed via int((len-1)*0.99)) is at least `p99`.  It fills the
+// bottom 1% with `p99` so that the P99 index always lands on the high
+// value regardless of small n.
 func snapshotWithLatencyP99(p99 int64, n int) MetricSnapshot {
 	s := make([]int64, n)
 	for i := range s {
 		s[i] = 100
 	}
-	for i := n - 1; i >= int(float64(n)*0.99) && i >= 0; i-- {
+	// P99 idx = int((n-1)*0.99).  Push p99 values from idx 999 down to
+	// the P99 index inclusive, so sorted[p99Idx] == p99.
+	cutoff := int(float64(n-1) * 0.99)
+	for i := n - 1; i >= cutoff && i >= 0; i-- {
 		s[i] = p99
 	}
 	return MetricSnapshot{
