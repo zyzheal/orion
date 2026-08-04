@@ -285,7 +285,11 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// Blueprint modules: billing, cost-allocation, efficiency, data-lineage,
 	// data-quality, api-consumption, contract
 	wireBlueprintModules(db)
-	// Data modules (catalog, quality, pipeline) — repo -> service -> handler
+	// P1: wire metadata, mlops, test-generation, inspection handlers
+	wireMetadata(db, logger)
+	wireMLOps(db, logger)
+	wireTestGeneration(db, logger)
+	wireInspection(db, logger)
 	dataCatalogRepo := dataCatalog_repo.NewRepository(infra.db.DB)
 	dataCatalogSvc := dataCatalog_service.NewService(dataCatalogRepo, dataCatalog_introspector.New())
 	dataCatalogH = dataCatalog_handler.NewHandler(dataCatalogSvc)
