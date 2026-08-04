@@ -8,8 +8,16 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"orion/platform-svc-go/internal/alert-pipeline/models"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/dedup"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/enrich"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/notify"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/receive"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/route"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/track"
+	"orion/platform-svc-go/internal/alert-pipeline/stages/validate"
 	stages_pkg "orion/platform-svc-go/internal/alert-pipeline/stages"
 
 	"github.com/google/uuid"
@@ -150,19 +158,31 @@ func (s *PipelineService) buildChain(_ string) *stages_pkg.Chain {
 	}))
 }
 
-// newStage creates a stage by name. If no concrete implementation exists,
-// returns a no-op stage that always passes through.
+// newStage creates a concrete stage by name. Falls back to a no-op stage
+// for unknown names so that misconfigured pipelines still execute.
 func newStage(name string, logger *zap.Logger) stages_pkg.Stage {
-	logger.Debug("pipeline stage", zap.String("stage", name))
-	return &noopStage{
-		name:   name,
-		logger: logger,
+	switch name {
+	case "receive":
+		return receive.NewStage(logger)
+	case "validate":
+		return validate.NewStage(logger)
+	case "dedup":
+		return dedup.NewStage(logger, 10*time.Minute)
+	case "enrich":
+		return enrich.NewStage(logger)
+	case "route":
+		return route.NewStage(logger, []string{"default"})
+	case "notify":
+		return notify.NewStage(logger, false) // dryRun=false
+	case "track":
+		return track.NewStage(nil, logger)
+	default:
+		return &noopStage{name: name, logger: logger}
 	}
 }
 
 // noopStage is a placeholder that passes through without processing.
-// Concrete implementations (validate, dedup, enrich, route, notify) should
-// replace this once their full logic is ready.
+// Used as a fallback when newStage encounters an unknown stage name.
 type noopStage struct {
 	name   string
 	logger *zap.Logger

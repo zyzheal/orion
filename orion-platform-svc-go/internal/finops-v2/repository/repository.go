@@ -519,6 +519,44 @@ func (r *Repository) GetSchedule(ctx context.Context, provider string) (*models.
 	return &s, nil
 }
 
+func (r *Repository) CollectCost(ctx context.Context, tenantID string, provider string, days int) (*models.CollectCostResponse, error) {
+	end := time.Now().UTC()
+	start := end.AddDate(0, 0, -days)
+	startStr := start.Format(time.DateOnly)
+	endStr := end.Format(time.DateOnly)
+
+	where := "tenant_id=$1 AND created_at >= $2 AND created_at <= $3"
+	args := []interface{}{tenantID, start, end}
+	argIdx := 3
+
+	if provider != "" {
+		where += fmt.Sprintf(" AND provider=$%d", argIdx)
+		args = append(args, provider)
+	}
+
+	var collected int
+	err := r.db.GetContext(ctx, &collected,
+		fmt.Sprintf("SELECT COUNT(*) FROM finops_costs WHERE %s", where), args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var totalCost float64
+	err = r.db.GetContext(ctx, &totalCost,
+		fmt.Sprintf("SELECT COALESCE(SUM(cost), 0) FROM finops_costs WHERE %s", where), args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.CollectCostResponse{
+		Collected:   collected,
+		TotalCost:   totalCost,
+		Provider:    provider,
+		PeriodStart: startStr,
+		PeriodEnd:   endStr,
+	}, nil
+}
+
 // --- Health check ---
 
 func (r *Repository) HealthCheck(ctx context.Context) (bool, error) {

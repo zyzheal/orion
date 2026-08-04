@@ -35,6 +35,7 @@ type RepositoryInterface interface {
 	GetReportHistory(ctx context.Context, tenantID string) ([]models.Report, error)
 	GetRightSizingRecommendations(ctx context.Context, tenantID string) ([]models.Recommendation, error)
 	GetSchedule(ctx context.Context, provider string) (*models.CollectionSchedule, error)
+	CollectCost(ctx context.Context, tenantID string, provider string, days int) (*models.CollectCostResponse, error)
 	HealthCheckAlways(ctx context.Context) (bool, error)
 	ListBudgets(ctx context.Context, tenantID string, limit, offset int) ([]models.Budget, error)
 	ListRecommendations(ctx context.Context, tenantID string, limit, offset int) ([]models.Recommendation, error)
@@ -372,6 +373,20 @@ func (s *Service) SetSchedule(ctx context.Context, provider, cronExpression stri
 
 func (s *Service) GetSchedule(ctx context.Context, provider string) (*models.CollectionSchedule, error) {
 	return s.repo.GetSchedule(ctx, provider)
+}
+
+// CollectCost collects cost data for the given provider over the past N days,
+// returning the number of entries collected and their total cost.
+func (s *Service) CollectCost(ctx context.Context, tenantID string, req models.CollectCostRequest) (*models.CollectCostResponse, error) {
+	days := req.Days
+	if days <= 0 {
+		days = 30
+	}
+	resp, err := s.repo.CollectCost(ctx, tenantID, req.Provider, days)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // --- Health check ---

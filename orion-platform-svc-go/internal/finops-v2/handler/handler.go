@@ -496,23 +496,27 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 // --- Cost collection ---
 
 func (h *Handler) CollectCost(c *gin.Context) {
-	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CollectCost")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CollectCost")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectCostRequest
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	days := req.Days
 	if days <= 0 {
 		days = 30
 	}
-	// Record collection metadata as a cost entry placeholder
-	middleware.RespondSuccess(c, models.CollectCostResponse{
-		Provider:    req.Provider,
-		Collected:   0,
-		TotalCost:   0,
-		PeriodStart: strconv.Itoa(days),
-		PeriodEnd:   tenantID,
+	resp, err := h.svc.CollectCost(ctx, tenantID, models.CollectCostRequest{
+		Provider: req.Provider,
+		Days:     days,
 	})
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) GetProviders(c *gin.Context) {
