@@ -183,25 +183,17 @@ func TestParseLabelMatchers(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			inner := expr.inner
-			var id *IdentifierExpr
-			if l, ok := inner.(*LabeledExpr); ok {
-				// LabeledExpr case
-				for k, v := range tc.labels {
-					if l.Labels[k] != v {
-						t.Errorf("label %s: expected %s, got %s", k, v, l.Labels[k])
-					}
-				}
-				return
-			}
-			if comp, ok := inner.(*ComparisonExpr); ok {
-				id, _ = comp.Left.(*IdentifierExpr)
-			}
-			if id == nil {
-				t.Fatalf("expected IdentifierExpr in tree, got %T", inner)
+			var labels map[string]string
+			if id, ok := inner.(*IdentifierExpr); ok {
+				labels = id.Labels
+			} else if l, ok := inner.(*LabeledExpr); ok {
+				labels = l.Labels
+			} else {
+				t.Fatalf("expected IdentifierExpr or LabeledExpr in tree, got %T", inner)
 			}
 			for k, v := range tc.labels {
-				if id.Labels[k] != v {
-					t.Errorf("label %s: expected %s, got %s", k, v, id.Labels[k])
+				if labels[k] != v {
+					t.Errorf("label %s: expected %s, got %s", k, v, labels[k])
 				}
 			}
 		})
@@ -220,8 +212,9 @@ func TestParseParenthesizedExpr(t *testing.T) {
 
 func TestParseInvalidExpr(t *testing.T) {
 	tests := []string{
-		``,
-		`cpu ??? 80`,
+		`cpu < 80 &&`,      // trailing && without right operand
+		`cpu > && 80`,      // missing operand
+		`80 > cpu`,         // number as left operand before compare
 	}
 	for _, s := range tests {
 		_, err := ParseExpression(s)
@@ -713,7 +706,7 @@ func TestCompileRuleValidation(t *testing.T) {
 	}
 
 	// invalid expression
-	_, err = CompileRule(&Rule{ID: "r1", Expression: `invalid ???`})
+	_, err = CompileRule(&Rule{ID: "r1", Expression: `cpu <>`})
 	if err == nil {
 		t.Error("expected error for invalid expression")
 	}

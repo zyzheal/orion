@@ -445,7 +445,9 @@ func (l *Lexer) Scan() Token {
 			l.next(); l.next()
 			return Token{Type: TokCompare, Value: "=="}
 		}
-		return Token{Type: TokIdent, Value: "="} // single = treated as ident for label assignment
+		
+		l.next()
+		return Token{Type: TokIdent, Value: "="}
 	case '!':
 		if l.pos < len(l.input) && l.input[l.pos] == '=' {
 			l.next(); l.next()
@@ -500,24 +502,25 @@ func (l *Lexer) scanIdent() Token {
 }
 
 func (l *Lexer) scanNumber() Token {
-	start := l.pos - 1
+	var buf strings.Builder
 	for isDigit(l.ch) || l.ch == '.' {
+		buf.WriteByte(l.ch)
 		l.next()
 	}
-	return Token{Type: TokNumber, Value: l.input[start:l.pos]}
+	return Token{Type: TokNumber, Value: buf.String()}
 }
 
 func (l *Lexer) scanString() Token {
 	l.next() // consume opening quote
-	start := l.pos
+	var buf strings.Builder
 	for l.ch != '"' && l.ch != 0 {
+		buf.WriteByte(l.ch)
 		l.next()
 	}
-	s := l.input[start:l.pos]
 	if l.ch == '"' {
 		l.next() // consume closing quote
 	}
-	return Token{Type: TokString, Value: s}
+	return Token{Type: TokString, Value: buf.String()}
 }
 
 func isAlpha(c byte) bool {
@@ -660,16 +663,24 @@ func (p *Parser) parsePostfix(name string, labels map[string]string) (Expr, erro
 			}
 			key := p.cur.Value
 			p.advance()
-			// Accept both = and == for label assignment
+			eqFound := false
 			if p.cur.Type == TokIdent && p.cur.Value == "=" {
 				p.advance()
-			} else if p.cur.Type != TokCompare || p.cur.Value != "==" {
-				return nil, fmt.Errorf("expected '=' in label matcher, got %s", p.cur.Type)
+				eqFound = true
+			} else if p.cur.Type == TokCompare && p.cur.Value == "==" {
+				p.advance()
+				eqFound = true
 			}
-			if p.cur.Type != TokString {
-				return nil, fmt.Errorf("expected string value in label matcher, got %s", p.cur.Type)
+			if !eqFound {
+				return nil, fmt.Errorf("expected = or == in label matcher, got %s", p.cur.Type)
 			}
-			labels[key] = p.cur.Value
+			if p.cur.Type == TokString {
+				labels[key] = p.cur.Value
+			} else if p.cur.Type == TokIdent {
+				labels[key] = p.cur.Value
+			} else {
+				return nil, fmt.Errorf("expected value in label matcher, got %s", p.cur.Type)
+			}
 			p.advance()
 			if p.cur.Type == TokComma {
 				p.advance()
@@ -762,6 +773,7 @@ func (p *Parser) parsePostfix(name string, labels map[string]string) (Expr, erro
 
 // parseDuration converts a duration string like "5m", "1h", "30s", "10" to a window size.
 func parseDuration(s string) (int, error) {
+	s = strings.TrimRight(s, " )")
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, fmt.Errorf("empty duration")
