@@ -37,8 +37,16 @@ func (j *JSONB) Scan(src interface{}) error {
 	}
 	switch v := src.(type) {
 	case []byte:
+		if len(v) == 0 {
+			*j = nil
+			return nil
+		}
 		return json.Unmarshal(v, j)
 	case string:
+		if v == "" {
+			*j = nil
+			return nil
+		}
 		return json.Unmarshal([]byte(v), j)
 	default:
 		return fmt.Errorf("cannot scan %T into JSONB", src)

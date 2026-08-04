@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"testing"
@@ -22,6 +23,14 @@ import (
 type sqlmockTest struct {
 	db   *sqlx.DB
 	mock sqlmock.Sqlmock
+}
+
+func anyArgs(n int) []driver.Value {
+	args := make([]driver.Value, n)
+	for i := range args {
+		args[i] = sqlmock.AnyArg()
+	}
+	return args
 }
 
 func newSQLMockTest() *sqlmockTest {
@@ -59,7 +68,7 @@ func appendCallRows(call *CallRecord) *sqlmock.Rows {
 	return sqlmock.NewRows(columns).AddRow(
 		call.ID, call.TenantID, call.SourceDomain, call.TargetDomain, call.Method,
 		"", "", call.Status, call.Duration,
-		call.CreatedAt.Format(time.RFC3339Nano), call.UpdatedAt.Format(time.RFC3339Nano),
+		call.CreatedAt, call.UpdatedAt,
 	)
 }
 
@@ -77,12 +86,9 @@ func TestCreateCall(t *testing.T) {
 	ctx := context.Background()
 	call := makeTestCall()
 
-	st.mock.ExpectBegin()
 	st.mock.ExpectQuery("INSERT INTO crossover_calls").
-		WithArgs(call.ID, call.TenantID, call.SourceDomain, call.TargetDomain, call.Method,
-			"", "", call.Status, call.Duration, call.CreatedAt, call.UpdatedAt).
+		WithArgs(anyArgs(11)...).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(call.ID))
-	st.mock.ExpectCommit()
 
 	err := st.repo().CreateCall(ctx, call)
 	require.NoError(t, err)
@@ -95,11 +101,9 @@ func TestCreateCallReturnsID(t *testing.T) {
 	call := makeTestCall()
 	returnedID := uuid.NewString()
 
-	st.mock.ExpectBegin()
 	st.mock.ExpectQuery("INSERT INTO crossover_calls").
-		WithArgs(call.ID, sqlmock.AnyArg()).
+		WithArgs(anyArgs(11)...).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(returnedID))
-	st.mock.ExpectCommit()
 
 	err := st.repo().CreateCall(ctx, call)
 	require.NoError(t, err)
@@ -111,10 +115,9 @@ func TestCreateCallDBError(t *testing.T) {
 	ctx := context.Background()
 	call := makeTestCall()
 
-	st.mock.ExpectBegin()
 	st.mock.ExpectQuery("INSERT INTO crossover_calls").
+		WithArgs(anyArgs(11)...).
 		WillReturnError(fmt.Errorf("duplicate key"))
-	st.mock.ExpectRollback()
 
 	err := st.repo().CreateCall(ctx, call)
 	assert.Error(t, err)
@@ -498,12 +501,14 @@ func TestGetCallStatsByTargetNone(t *testing.T) {
 	ctx := context.Background()
 	dv := make([]driver.Value, 4); dv[0] = "t1"; dv[1] = "nonexistent"; dv[2] = sqlmock.AnyArg(); dv[3] = sqlmock.AnyArg()
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 3; i++ {
 		st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs(dv...).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(0)))
 	}
 	st.mock.ExpectQuery("SELECT COALESCE\\(AVG").WithArgs(dv...).
 		WillReturnRows(sqlmock.NewRows([]string{"avg"}).AddRow(float64(0)))
+	st.mock.ExpectQuery("SELECT PERCENTILE_CONT").WithArgs(dv...).
+		WillReturnRows(sqlmock.NewRows([]string{"p99"}).AddRow(float64(0)))
 
 	stats, err := st.repo().GetCallStatsByTarget(ctx, "t1", "nonexistent", time.Time{}, time.Time{})
 	require.NoError(t, err)

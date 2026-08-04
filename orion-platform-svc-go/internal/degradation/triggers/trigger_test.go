@@ -28,14 +28,14 @@ func healthySnapshot() MetricSnapshot {
 	}
 }
 
-func snapshotWithErrorRate(rate float64, n int) MetricSnapshot {
+func snapshotWithErrorRate(rate float64, n int64) MetricSnapshot {
 	err := int(float64(n) * rate)
-	if err > n {
-		err = n
+	if err > int(n) {
+		err = int(n)
 	}
 	return MetricSnapshot{
 		ErrorCount:   err,
-		TotalCount:   n,
+		TotalCount:   int(n),
 		LatencySamples: latencies(n, 200, 300),
 	}
 }
@@ -58,7 +58,7 @@ func snapshotWithLatencyP99(p99 int64, n int) MetricSnapshot {
 func latencies(n, base, max int64) []int64 {
 	s := make([]int64, n)
 	for i := range s {
-		s[i] = base + i%int(max-base)
+		s[i] = base + int64(i)%(max-base)
 	}
 	return s
 }
@@ -217,7 +217,6 @@ func TestEvaluator_RecoveryNoHysteresis(t *testing.T) {
 		LatencySamples: latencies(1000, 100, 200),
 	}
 	d := eval.EvaluateRecovery(agg)
-	d.Compute()
 	if !d.Recover {
 		t.Fatalf("expected recover when healthy (hysteresis disabled)")
 	}
@@ -232,14 +231,12 @@ func TestEvaluator_RecoveryWithHysteresis(t *testing.T) {
 		LatencySamples: latencies(1000, 200, 300),
 	}
 	d := eval.EvaluateRecovery(agg)
-	d.Compute()
 	if d.Recover {
 		t.Fatalf("expected no recover at 7%% (above margin 5%%)")
 	}
 
 	agg.ErrorCount = 30
 	d = eval.EvaluateRecovery(agg)
-	d.Compute()
 	if !d.Recover {
 		t.Fatalf("expected recover at 3%% (below margin 5%%)")
 	}
@@ -254,7 +251,6 @@ func TestEvaluator_RecoveryBlockedByLatencyHysteresis(t *testing.T) {
 		LatencySamples: latencies(1000, 400, 500),
 	}
 	d := eval.EvaluateRecovery(agg)
-	d.Compute()
 	if d.Recover {
 		t.Fatalf("expected no recover at P99 ~490ms (above margin 400ms)")
 	}

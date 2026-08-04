@@ -59,8 +59,7 @@ type Trigger struct {
 // Pass nil for log to fall back to a no-op logger.
 func NewTrigger(cfg TriggerConfig, log *zap.Logger) *Trigger {
 	if log == nil {
-		nop, _ := zap.NewNop()
-		log = nop
+		log = zap.NewNop()
 	}
 	log = log.Named("degradation-trigger").With(zap.String("trigger", cfg.CircuitBreakerRef))
 	return &Trigger{
