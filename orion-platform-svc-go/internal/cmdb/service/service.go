@@ -38,6 +38,7 @@ type RepositoryInterface interface {
 	GetVersionSnapshot(ctx context.Context, ciID string, version int) (*string, error)
 	ListCIs(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error)
 	UpdateCI(ctx context.Context, id string, updates map[string]interface{}) (*models.CI, error)
+	SearchCIs(ctx context.Context, tenantID, query, domain string, limit, offset int) ([]models.CI, error)
 }
 
 type Service struct {
@@ -467,6 +468,15 @@ func (s *Service) ExecuteScript(ctx context.Context, req *models.ScriptExecReque
 		Status:      "completed",
 		Results:     results,
 	}, nil
+}
+
+// Search performs full-text search across CMDB CIs using the repository's FTS query.
+func (s *Service) Search(ctx context.Context, tenantID, query, domain string) ([]models.CI, error) {
+	// Tenant isolation: always filter by tenant
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000000"
+	}
+	return s.repo.SearchCIs(ctx, tenantID, query, domain, 20, 0)
 }
 
 // --- Errors ---

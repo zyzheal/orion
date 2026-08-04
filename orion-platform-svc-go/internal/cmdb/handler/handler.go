@@ -85,6 +85,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// GET /cmdb/health - Health check
 	f.GET("/health", h.Health)
 
+	// --- Search ---
+	// GET /cmdb/search - Full-text search for CIs
+	f.GET("/search", auth.RequirePermission("cmdb", "read"), h.Search)
+
 	// --- Integration (Hosts, K8s, CICD, Execute) ---
 
 	// GET /cmdb/hosts - List hosts
@@ -486,6 +490,30 @@ func (h *Handler) GetImpactAnalysis(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, result)
+}
+
+// --- Search handler ---
+
+func (h *Handler) Search(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Search")
+	defer span.End()
+	query := c.Query("q")
+	domain := c.Query("domain")
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	items, err := h.svc.Search(ctx, tenantID, query, domain)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	if items == nil {
+		items = []models.CI{}
+	}
+	middleware.RespondSuccess(c, models.PaginatedResponse{
+		Data:     items,
+		Total:    len(items),
+		Page:     1,
+		PageSize: 20,
+	})
 }
 
 // --- Health handler ---

@@ -1,0 +1,470 @@
+package service
+
+import (
+	"context"
+	"database/sql/driver"
+	"encoding/json"
+	"testing"
+	"time"
+
+	"orion/platform-svc-go/internal/logging/models"
+)
+
+// ===========================================================================
+// Test mock for RepositoryInterface
+// ===========================================================================
+
+type mockRepo struct {
+	insertErr     error
+	batchErr      error
+	getByIDErr    error
+	getByIDResult *models.LogEntry
+	findByTrace   []models.LogEntry
+	findByTraceErr error
+	queryRows     []models.LogEntry
+	queryTotal    int64
+	queryErr      error
+	aggResult     *models.LogAggregation
+	aggErr        error
+	deleteResult  int64
+	deleteErr     error
+	// captured inputs for verification
+	lastQuery *models.LogQuery
+}
+
+func (m *mockRepo) Insert(ctx context.Context, entry *models.LogEntry) error {
+	if m.insertErr != nil {
+		return m.insertErr
+	}
+	// Mimic repo: assign ID and created_at so service sees them back
+	if entry.ID == "" {
+		entry.ID = "entry-1"
+	}
+	if entry.CreatedAt.IsZero() {
+		entry.CreatedAt = time.Now().UTC()
+	}
+	return nil
+}
+
+func (m *mockRepo) InsertBatch(ctx context.Context, entries []*models.LogEntry) error {
+	if m.batchErr != nil {
+		return m.batchErr
+	}
+	return nil
+}
+
+func (m *mockRepo) GetByID(ctx context.Context, tenantID, id string) (*models.LogEntry, error) {
+	if m.getByIDErr != nil {
+		return nil, m.getByIDErr
+	}
+	return m.getByIDResult, nil
+}
+
+func (m *mockRepo) FindByTraceID(ctx context.Context, tenantID, traceID string) ([]models.LogEntry, error) {
+	return m.findByTrace, m.findByTraceErr
+}
+
+func (m *mockRepo) Query(ctx context.Context, q *models.LogQuery) ([]models.LogEntry, int64, error) {
+	m.lastQuery = q
+	if m.queryErr != nil {
+		return nil, 0, m.queryErr
+	}
+	return m.queryRows, m.queryTotal, nil
+}
+
+func (m *mockRepo) Aggregation(ctx context.Context, q *models.LogQuery) (*models.LogAggregation, error) {
+	if m.aggErr != nil {
+		return nil, m.aggErr
+	}
+	return m.aggResult, nil
+}
+
+func (m *mockRepo) DeleteByTime(ctx context.Context, tenantID string, before time.Time) (int64, error) {
+	return m.deleteResult, m.deleteErr
+}
+
+// ---------------------------------------------------------------------------
+// Helper: build a repo mock + service
+// ---------------------------------------------------------------------------
+
+func newTestService(repo *mockRepo) *Service {
+	return NewService(repo)
+}
+
+// makeLogEntry creates a default LogEntry for test data.
+func makeLogEntry(id string) *models.LogEntry {
+	now := time.Now().UTC()
+	meta, _ := json.Marshal(map[string]string{"key": "val"})
+	return &models.LogEntry{
+		ID:        id,
+		TenantID:  "tenant-1",
+		Service:   "api-server",
+		Level:     "INFO",
+		Message:   "hello world",
+		Timestamp: now,
+		TraceID:   "trace-123",
+		Metadata:  meta,
+		CreatedAt: now,
+	}
+}
+
+// makeDriverValues returns driver.Values for a log_entries row.
+func makeLogEntryRow(id, tenantID, svc, level, msg, traceID, metadata string) []driver.Value {
+	now := time.Now().UTC()
+	return []driver.Value{
+		id, tenantID, svc, level, msg, now, traceID, metadata, now,
+	}
+}
+
+// ===========================================================================
+// Ingest tests
+// ===========================================================================
+
+func TestIngest_Success(t *testing.T) {
+	repo := &mockRepo{}
+	svc := newTestService(repo)
+	req := models.IngestLogRequest{
+		Service: "api-server",
+		Level:   "WARN",
+		Message: "high latency",
+		TraceID: "trace-abc",
+		Metadata: map[string]interface{}{"latency_ms": 500},
+	}
+
+	entry, err := svc.Ingest(context.Background(), "tenant-1", req)
+	if err != nil {
+		t.Fatalf("Ingest returned error: %v", err)
+	}
+	if entry.TenantID != "tenant-1" {
+		t.Errorf("expected tenant-1, got %q", entry.TenantID)
+	}
+	if entry.Service != "api-server" {
+		t.Errorf("expected api-server, got %q", entry.Service)
+	}
+	if entry.Level != "WARN" {
+		t.Errorf("expected WARN, got %q", entry.Level)
+	}
+	if entry.TraceID != "trace-abc" {
+		t.Errorf("expected trace-abc, got %q", entry.TraceID)
+	}
+	// Metadata should be serialised to JSON
+	if len(entry.Metadata) == 0 {
+		t.Error("expected non-empty metadata")
+	}
+}
+
+func TestIngest_CustomTimestamp(t *testing.T) {
+	repo := &mockRepo{}
+	svc := newTestService(repo)
+	ts := time.Unix(1700000000, 0).UTC()
+	req := models.IngestLogRequest{
+		Service:   "api",
+		Level:     "INFO",
+		Message:   "custom ts",
+		Timestamp: &ts,
+	}
+
+	entry, err := svc.Ingest(context.Background(), "t1", req)
+	if err != nil {
+		t.Fatalf("Ingest returned error: %v", err)
+	}
+	if entry.Timestamp != ts {
+		t.Errorf("expected custom timestamp, got %v", entry.Timestamp)
+	}
+}
+
+func TestIngest_RepoError(t *testing.T) {
+	repo := &mockRepo{insertErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+	req := models.IngestLogRequest{
+		Service: "api",
+		Level:   "INFO",
+		Message: "fail",
+	}
+
+	_, err := svc.Ingest(context.Background(), "t1", req)
+	if err == nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// IngestBatch tests
+// ===========================================================================
+
+func TestIngestBatch_Success(t *testing.T) {
+	repo := &mockRepo{}
+	svc := newTestService(repo)
+	reqs := []models.IngestLogRequest{
+		{Service: "s1", Level: "INFO", Message: "msg1"},
+		{Service: "s2", Level: "ERROR", Message: "msg2"},
+		{Service: "s3", Level: "DEBUG", Message: "msg3"},
+	}
+
+	n, err := svc.IngestBatch(context.Background(), "tenant-1", reqs)
+	if err != nil {
+		t.Fatalf("IngestBatch returned error: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("expected 3 ingested, got %d", n)
+	}
+}
+
+func TestIngestBatch_Empty(t *testing.T) {
+	repo := &mockRepo{}
+	svc := newTestService(repo)
+
+	n, err := svc.IngestBatch(context.Background(), "tenant-1", []models.IngestLogRequest{})
+	if err != nil {
+		t.Fatalf("IngestBatch returned error: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 ingested, got %d", n)
+	}
+}
+
+func TestIngestBatch_RepoError(t *testing.T) {
+	repo := &mockRepo{batchErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+	reqs := []models.IngestLogRequest{
+		{Service: "s1", Level: "INFO", Message: "msg1"},
+	}
+
+	_, err := svc.IngestBatch(context.Background(), "t1", reqs)
+	if err == nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// GetByTrace tests
+// ===========================================================================
+
+func TestGetByTrace_Success(t *testing.T) {
+	repo := &mockRepo{
+		findByTrace: []models.LogEntry{
+			*makeLogEntry("e-1"),
+			*makeLogEntry("e-2"),
+		},
+	}
+	svc := newTestService(repo)
+
+	entries, err := svc.GetByTrace(context.Background(), "tenant-1", "trace-123")
+	if err != nil {
+		t.Fatalf("GetByTrace returned error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[0].ID != "e-1" {
+		t.Errorf("expected e-1, got %q", entries[0].ID)
+	}
+}
+
+func TestGetByTrace_Empty(t *testing.T) {
+	repo := &mockRepo{findByTrace: []models.LogEntry{}}
+	svc := newTestService(repo)
+
+	entries, err := svc.GetByTrace(context.Background(), "tenant-1", "missing-trace")
+	if err != nil {
+		t.Fatalf("GetByTrace returned error: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(entries))
+	}
+}
+
+func TestGetByTrace_RepoError(t *testing.T) {
+	repo := &mockRepo{findByTraceErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+
+	_, err := svc.GetByTrace(context.Background(), "t1", "trace-1")
+	if err == nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// Query tests
+// ===========================================================================
+
+func TestQuery_Success(t *testing.T) {
+	rows := []models.LogEntry{*makeLogEntry("e-1")}
+	repo := &mockRepo{queryRows: rows, queryTotal: 1}
+	svc := newTestService(repo)
+
+	q := &models.LogQuery{
+		TenantID: "tenant-1",
+		Service:  "api",
+		Page:     1,
+		PageSize: 10,
+	}
+
+	entries, total, err := svc.Query(context.Background(), q)
+	if err != nil {
+		t.Fatalf("Query returned error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if total != 1 {
+		t.Errorf("expected total 1, got %d", total)
+	}
+}
+
+func TestQuery_EmptyTenantID(t *testing.T) {
+	repo := &mockRepo{queryRows: []models.LogEntry{*makeLogEntry("e-1")}}
+	svc := newTestService(repo)
+
+	q := &models.LogQuery{
+		TenantID: "",
+	}
+
+	_, _, err := svc.Query(context.Background(), q)
+	if err == nil {
+		t.Fatal("expected error for empty tenantId")
+	}
+	// Verify repo Query was never called
+	if repo.lastQuery != nil {
+		t.Error("expected repo Query to not be called for empty tenantId")
+	}
+}
+
+func TestQuery_RepoError(t *testing.T) {
+	repo := &mockRepo{queryErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+
+	q := &models.LogQuery{TenantID: "tenant-1"}
+	_, _, err := svc.Query(context.Background(), q)
+	if err == nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// Search tests
+// ===========================================================================
+
+func TestSearch_Success(t *testing.T) {
+	rows := []models.LogEntry{*makeLogEntry("e-1")}
+	repo := &mockRepo{queryRows: rows, queryTotal: 1}
+	svc := newTestService(repo)
+
+	entries, err := svc.Search(context.Background(), "tenant-1", []string{"error", "timeout"})
+	if err != nil {
+		t.Fatalf("Search returned error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if repo.lastQuery == nil {
+		t.Fatal("expected repo Query to be called")
+	}
+	if len(repo.lastQuery.Keywords) != 2 {
+		t.Errorf("expected 2 keywords, got %d", len(repo.lastQuery.Keywords))
+	}
+	if repo.lastQuery.TenantID != "tenant-1" {
+		t.Errorf("expected tenant-1, got %q", repo.lastQuery.TenantID)
+	}
+}
+
+func TestSearch_RepoError(t *testing.T) {
+	repo := &mockRepo{queryErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+
+	_, err := svc.Search(context.Background(), "tenant-1", []string{"foo"})
+	if err != nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// Aggregation tests
+// ===========================================================================
+
+func TestAggregation_Success(t *testing.T) {
+	agg := &models.LogAggregation{
+		Total: 100,
+		ByLevel: map[string]int64{"INFO": 80, "ERROR": 20},
+		ByService: map[string]int64{"api": 60, "worker": 40},
+	}
+	repo := &mockRepo{aggResult: agg}
+	svc := newTestService(repo)
+
+	q := &models.LogQuery{TenantID: "tenant-1"}
+	result, err := svc.Aggregation(context.Background(), q)
+	if err != nil {
+		t.Fatalf("Aggregation returned error: %v", err)
+	}
+	if result.Total != 100 {
+		t.Errorf("expected total 100, got %d", result.Total)
+	}
+	if result.ByLevel["ERROR"] != 20 {
+		t.Errorf("expected 20 errors, got %d", result.ByLevel["ERROR"])
+	}
+}
+
+func TestAggregation_EmptyTenantID(t *testing.T) {
+	repo := &mockRepo{}
+	svc := newTestService(repo)
+
+	_, err := svc.Aggregation(context.Background(), &models.LogQuery{TenantID: ""})
+	if err == nil {
+		t.Fatal("expected error for empty tenantId")
+	}
+}
+
+func TestAggregation_RepoError(t *testing.T) {
+	repo := &mockRepo{aggErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+
+	_, err := svc.Aggregation(context.Background(), &models.LogQuery{TenantID: "t1"})
+	if err == nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// CleanupOld tests
+// ===========================================================================
+
+func TestCleanupOld_Success(t *testing.T) {
+	repo := &mockRepo{deleteResult: 42}
+	svc := newTestService(repo)
+
+	n, err := svc.CleanupOld(context.Background(), "tenant-1")
+	if err != nil {
+		t.Fatalf("CleanupOld returned error: %v", err)
+	}
+	if n != 42 {
+		t.Errorf("expected 42 deleted, got %d", n)
+	}
+}
+
+func TestCleanupOld_RepoError(t *testing.T) {
+	repo := &mockRepo{deleteErr: context.DeadlineExceeded}
+	svc := newTestService(repo)
+
+	_, err := svc.CleanupOld(context.Background(), "tenant-1")
+	if err == nil {
+		t.Fatal("expected error for repo failure")
+	}
+}
+
+// ===========================================================================
+// Service construction + retention constant
+// ===========================================================================
+
+func TestNewService(t *testing.T) {
+	repo := &mockRepo{}
+	svc := NewService(repo)
+	if svc == nil {
+		t.Fatal("expected non-nil service")
+	}
+}
+
+func TestRetentionDays(t *testing.T) {
+	if RetentionDays != 30 {
+		t.Errorf("expected RetentionDays 30, got %d", RetentionDays)
+	}
+}

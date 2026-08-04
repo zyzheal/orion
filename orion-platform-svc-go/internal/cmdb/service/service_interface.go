@@ -42,6 +42,7 @@ type ServiceInterface interface {
 	StartK8sSync(ctx context.Context, config *models.StartK8sSyncRequest) error
 	StopK8sSync(ctx context.Context) error
 	Update(ctx context.Context, id string, req *models.UpdateCIRequest) (*models.CI, error)
+	Search(ctx context.Context, tenantID, query, domain string) ([]models.CI, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

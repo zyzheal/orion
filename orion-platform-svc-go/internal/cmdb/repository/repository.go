@@ -520,6 +520,45 @@ func (r *Repository) GetImpactAnalysis(ctx context.Context, tenantID string, ciI
 	return relations, err
 }
 
+// SearchCIs performs full-text search across CMDB CI fields (name, ci_id,
+// ci_type, description) using PostgreSQL to_tsvector/to_tsquery with the
+// GIN index defined in migrations/002_fts_search.sql.
+func (r *Repository) SearchCIs(ctx context.Context, tenantID, query string, domain string, limit, offset int) ([]models.CI, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if query == "" {
+		return []models.CI{}, nil
+	}
+
+	var items []models.CI
+	where := "WHERE tenant_id = $1 AND to_tsvector('english', coalesce(name, '') || ' ' || coalesce(ci_id, '') || ' ' || coalesce(ci_type, '') || ' ' || coalesce(description, '')) @@ to_tsquery('english', $2)"
+	args := []interface{}{tenantID, fmt.Sprintf("%s:*", query)}
+	argIdx := 3
+
+	if domain != "" {
+		where += fmt.Sprintf(" AND ci_type = $%d", argIdx)
+		args = append(args, domain)
+		argIdx++
+	}
+
+	orderBy := fmt.Sprintf(` ORDER BY ts_rank(to_tsvector('english', coalesce(name, '') || ' ' || coalesce(ci_id, '') || ' ' || coalesce(ci_type, '') || ' ' || coalesce(description, '')), to_tsquery('english', $%d)) DESC `, argIdx)
+	orderByArgs := args
+	orderByArgs = append(orderByArgs, fmt.Sprintf("%s:*", query))
+	argIdx++
+
+	limitClause := fmt.Sprintf("LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	sql := fmt.Sprintf(`SELECT * FROM cmdb_cis %s%s%s`, where, orderBy, limitClause)
+	args = append(orderByArgs, limit, offset)
+
+	err := r.db.SelectContext(ctx, &items, sql, args...)
+	return items, err
+}
+
+// NotYetImplemented returns a sentinel error for unimplemented operations.
 func NotYetImplemented(msg string) error {
 	return fmt.Errorf("%s", msg)
 }

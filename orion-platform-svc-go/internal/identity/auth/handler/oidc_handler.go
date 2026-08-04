@@ -483,6 +483,26 @@ func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// WellKnownOpenIDConfig handles GET /api/auth/.well-known/openid-configuration.
+// Returns the OIDC discovery document so that clients can auto-discover the
+// authorization, token, JWKS, and userinfo endpoints plus supported algorithms
+// and PKCE configuration.
+func (h *Handler) WellKnownOpenIDConfig(c *gin.Context) {
+	cfg := gin.H{
+		"issuer":                                  "https://orion.platform/api/auth",
+		"authorization_endpoint":                  "/api/auth/oidc/authorize",
+		"token_endpoint":                          "/api/auth/oidc/token",
+		"jwks_uri":                                "/api/auth/oidc/jwks",
+		"userinfo_endpoint":                       "/api/auth/oidc/userinfo",
+		"response_types_supported":                []string{"code"},
+		"grant_types_supported":                   []string{"authorization_code"},
+		"code_challenge_methods_supported":        []string{"S256"},
+		"id_token_signing_alg_values_supported":   []string{"RS256"},
+	}
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK, cfg)
+}
+
 // OIDCGetProvider handles GET /sso/oidc/providers/:id.
 func (h *Handler) OIDCGetProvider(c *gin.Context) {
 	id := c.Param("id")
