@@ -277,7 +277,11 @@ import (
 	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
 	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
 	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
-)
+
+	// ---- Prompt Security module (repo -> service -> handler) ----
+	ps_handler "orion/platform-svc-go/internal/prompt-security/handler"
+	ps_repo "orion/platform-svc-go/internal/prompt-security/repository"
+	ps_service "orion/platform-svc-go/internal/prompt-security/service")
 
 // Package-level handler variables — initialized in initWiring(), consumed in setupRouter().
 var (
@@ -345,7 +349,8 @@ var (
 
 	// ---- AI module handlers (internal/ai/) ----
 	ai_knowledgeH     *ai_knowledge_handler.KnowledgeHandler
-)
+
+	psH *ps_handler.PromptSecurityHandler)
 
 func initWiring(infra *infrastructure, logger *zap.Logger) {
 
@@ -366,6 +371,9 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// P0-31: Pipeline run history handler
 	wirePipelineRunHistory(db, logger)
 
+
+	// P0-47: Prompt security module (config + scan persistence)
+	wirePromptSecurity(db, logger)
 
 	// Core modules: feature-flag, role, ag, artifact, plugin, inception,
 	// environment, policy, project/team organization
@@ -654,6 +662,10 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 
 	// ---- AI modules (internal/ai/) ----
 	wireAIModules(db, logger)
+		// Prompt Security: repo -> service -> handler
+		psRepo := ps_repo.NewRepository(infra.db.DB)
+		psSvc := ps_service.NewPromptSecurityService(psRepo, infra.logger)
+		psH = ps_handler.NewPromptSecurityHandler(psSvc)
 
 		// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
 		wireNatsSubscribers(logger)

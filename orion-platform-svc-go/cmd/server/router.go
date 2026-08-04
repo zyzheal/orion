@@ -400,6 +400,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if psseH != nil {
     psseH.RegisterRoutes(api)
   }
+  if promptSecurityH != nil {
+    promptSecurityH.RegisterRoutes(api)
+  }
   if ptmplH != nil {
     ptmplH.RegisterRoutes(api)
   }
