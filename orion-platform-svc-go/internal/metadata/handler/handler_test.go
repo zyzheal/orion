@@ -35,6 +35,7 @@ func TestHandler_METADATA_List(t *testing.T) {
 		t.Fatalf("List: got %d", w.Code)
 	}
 }
+
 func TestHandler_METADATA_Get(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
@@ -43,6 +44,7 @@ func TestHandler_METADATA_Get(t *testing.T) {
 		t.Fatalf("Get: got %d", w.Code)
 	}
 }
+
 func TestHandler_METADATA_Create(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
@@ -51,6 +53,7 @@ func TestHandler_METADATA_Create(t *testing.T) {
 		t.Fatalf("Create: got %d", w.Code)
 	}
 }
+
 func TestHandler_METADATA_Update(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
@@ -59,6 +62,7 @@ func TestHandler_METADATA_Update(t *testing.T) {
 		t.Fatalf("Update: got %d", w.Code)
 	}
 }
+
 func TestHandler_METADATA_Delete(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
@@ -67,430 +71,7 @@ func TestHandler_METADATA_Delete(t *testing.T) {
 		t.Fatalf("Delete: got %d", w.Code)
 	}
 }
-func TestHandler_METADATA_RunInspection(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().RunInspection(c)
-	if w.Code >= 500 {
-		t.Fatalf("RunInspection: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetResults(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetResults(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetResults: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_UpdateStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().UpdateStatus(c)
-	if w.Code >= 500 {
-		t.Fatalf("UpdateStatus: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListTemplates(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListTemplates(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListTemplates: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetStats(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetStats: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_RunPipeline(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().RunPipeline(c)
-	if w.Code >= 500 {
-		t.Fatalf("RunPipeline: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetStatus(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetStatus: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Pause(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Pause(c)
-	if w.Code >= 500 {
-		t.Fatalf("Pause: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Resume(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Resume(c)
-	if w.Code >= 500 {
-		t.Fatalf("Resume: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetLogs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetLogs(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetLogs: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListSchemas(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListSchemas(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListSchemas: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetLineage(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetLineage(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetLineage: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetConfig(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetConfig: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_UpdateConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().UpdateConfig(c)
-	if w.Code >= 500 {
-		t.Fatalf("UpdateConfig: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetStatusMiddleware(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetStatusMiddleware(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetStatusMiddleware: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Restart(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Restart(c)
-	if w.Code >= 500 {
-		t.Fatalf("Restart: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Configure(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Configure(c)
-	if w.Code >= 500 {
-		t.Fatalf("Configure: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListPlugins(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListPlugins(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListPlugins: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetPlugin(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetPlugin(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetPlugin: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_EnablePlugin(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().EnablePlugin(c)
-	if w.Code >= 500 {
-		t.Fatalf("EnablePlugin: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_DisablePlugin(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().DisablePlugin(c)
-	if w.Code >= 500 {
-		t.Fatalf("DisablePlugin: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Train(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Train(c)
-	if w.Code >= 500 {
-		t.Fatalf("Train: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Evaluate(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Evaluate(c)
-	if w.Code >= 500 {
-		t.Fatalf("Evaluate: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Deploy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Deploy(c)
-	if w.Code >= 500 {
-		t.Fatalf("Deploy: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Rollback(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Rollback(c)
-	if w.Code >= 500 {
-		t.Fatalf("Rollback: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetMetrics(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetMetrics(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetMetrics: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListExperiments(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListExperiments(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListExperiments: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListArtifacts(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListArtifacts(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListArtifacts: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListModels(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListModels(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListModels: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_RegisterModel(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().RegisterModel(c)
-	if w.Code >= 500 {
-		t.Fatalf("RegisterModel: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_DeregisterModel(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().DeregisterModel(c)
-	if w.Code >= 500 {
-		t.Fatalf("DeregisterModel: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListPipelines(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListPipelines(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListPipelines: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Trigger(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Trigger(c)
-	if w.Code >= 500 {
-		t.Fatalf("Trigger: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListTemplates2(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListTemplates2(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListTemplates2: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetBranchStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetBranchStatus(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetBranchStatus: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListHistories(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListHistories(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListHistories: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListPending(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListPending(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListPending: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Approve(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Approve(c)
-	if w.Code >= 500 {
-		t.Fatalf("Approve: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Reject(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Reject(c)
-	if w.Code >= 500 {
-		t.Fatalf("Reject: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Escalate(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Escalate(c)
-	if w.Code >= 500 {
-		t.Fatalf("Escalate: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetByUser(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetByUser(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetByUser: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_Forecast(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Forecast(c)
-	if w.Code >= 500 {
-		t.Fatalf("Forecast: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetUtilization(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetUtilization(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetUtilization: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ScaleResource(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ScaleResource(c)
-	if w.Code >= 500 {
-		t.Fatalf("ScaleResource: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListAlerts(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListAlerts(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListAlerts: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetHistory(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetHistory(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetHistory: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_AddTag(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().AddTag(c)
-	if w.Code >= 500 {
-		t.Fatalf("AddTag: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_DeleteTag(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().DeleteTag(c)
-	if w.Code >= 500 {
-		t.Fatalf("DeleteTag: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_CheckCompatibility(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().CheckCompatibility(c)
-	if w.Code >= 500 {
-		t.Fatalf("CheckCompatibility: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ValidateBranch(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ValidateBranch(c)
-	if w.Code >= 500 {
-		t.Fatalf("ValidateBranch: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_GetCoverage(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetCoverage(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetCoverage: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_EnforcePolicy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().EnforcePolicy(c)
-	if w.Code >= 500 {
-		t.Fatalf("EnforcePolicy: got %d", w.Code)
-	}
-}
-func TestHandler_METADATA_ListViolations(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListViolations(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListViolations: got %d", w.Code)
-	}
-}
+
 func TestHandler_METADATA_BatchCreate(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
@@ -499,6 +80,7 @@ func TestHandler_METADATA_BatchCreate(t *testing.T) {
 		t.Fatalf("BatchCreate: got %d", w.Code)
 	}
 }
+
 func TestHandler_METADATA_Search(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
@@ -507,11 +89,12 @@ func TestHandler_METADATA_Search(t *testing.T) {
 		t.Fatalf("Search: got %d", w.Code)
 	}
 }
-func TestHandler_METADATA_Regenerate(t *testing.T) {
+
+func TestHandler_METADATA_GetStats(t *testing.T) {
 	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Regenerate(c)
+	newHandler().GetStats(c)
 	if w.Code >= 500 {
-		t.Fatalf("Regenerate: got %d", w.Code)
+		t.Fatalf("GetStats: got %d", w.Code)
 	}
 }
