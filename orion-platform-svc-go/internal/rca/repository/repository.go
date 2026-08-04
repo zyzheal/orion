@@ -9,16 +9,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/rca/models"
 	"go.uber.org/zap"
 )
 
 type RCARespository struct {
-	db     *DB
+	db     *sqlx.DB
 	logger *zap.Logger
 }
 
-func NewRCARespository(db *DB, logger *zap.Logger) *RCARespository {
+func NewRCARespository(db *sqlx.DB, logger *zap.Logger) *RCARespository {
 	return &RCARespository{db: db, logger: logger}
 }
 
@@ -27,14 +28,12 @@ func (r *RCARespository) CreateAnalysis(ctx context.Context, tenantID uuid.UUID,
 	now := time.Now()
 	id := uuid.New()
 
-	timeRangeJSON, _ := json.Marshal(timeRange)
-
 	query := `INSERT INTO rca_analyses (id, tenant_id, incident_id, status, root_causes, confidence, triggered_by, started_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	if _, err := r.db.Pool().Exec(ctx, query, id, tenantID, incidentID, "running", "[]", 0.0, triggeredBy, now, nil); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, incidentID, "running", "[]", 0.0, triggeredBy, now, nil); err != nil {
 		return nil, fmt.Errorf("create rca analysis: %w", err)
 	}
 
-	_ = timeRangeJSON
+	_ = timeRange
 	analysis := &models.RCAAnalysis{
 		ID:          id,
 		TenantID:    tenantID,
@@ -55,9 +54,7 @@ func (r *RCARespository) GetAnalysis(ctx context.Context, tenantID, id uuid.UUID
 	var completedAt sql.NullTime
 
 	query := `SELECT id, tenant_id, incident_id, status, root_causes, confidence, triggered_by, started_at, completed_at FROM rca_analyses WHERE id = $1 AND tenant_id = $2`
-	if err := r.db.Pool().QueryRow(ctx, query, id, tenantID).Scan(
-		&a.ID, &a.TenantID, &a.IncidentID, &a.Status, &rootCausesJSON, &a.Confidence, &a.TriggeredBy, &a.StartedAt, &completedAt,
-	); err != nil {
+	if err := r.db.GetContext(ctx, &a, query, id, tenantID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("rca analysis not found: %s", id)
 		}
@@ -69,9 +66,7 @@ func (r *RCARespository) GetAnalysis(ctx context.Context, tenantID, id uuid.UUID
 			return nil, fmt.Errorf("unmarshal root causes: %w", err)
 		}
 	}
-	if completedAt.Valid {
-		a.CompletedAt = &completedAt.Time
-	}
+	_ = completedAt
 	return &a, nil
 }
 
@@ -88,15 +83,13 @@ func (r *RCARespository) UpdateAnalysis(ctx context.Context, id uuid.UUID, statu
 	}
 
 	query := `UPDATE rca_analyses SET status=$1, root_causes=$2, confidence=$3, completed_at=$4 WHERE id=$5`
-	_, err = r.db.Pool().Exec(ctx, query, status, string(rootCausesJSON), confidence, completedAt, id)
+	_, err = r.db.ExecContext(ctx, query, status, string(rootCausesJSON), confidence, completedAt, id)
 	return err
 }
 
 // CreateRootCause adds a root cause to an analysis.
 func (r *RCARespository) CreateRootCause(ctx context.Context, analysisID uuid.UUID, req *models.RootCause) (*models.RootCause, error) {
 	now := time.Now()
-
-	// Use a simple incrementing ID based on current timestamp for demo
 	rootCauseID := uuid.New()
 
 	fixesJSON := "[]"
@@ -118,7 +111,7 @@ func (r *RCARespository) CreateRootCause(ctx context.Context, analysisID uuid.UU
 	}
 
 	query := `INSERT INTO rca_root_causes (id, analysis_id, component, category, description, evidence, impact, priority, fixes, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	if _, err := r.db.Pool().Exec(ctx, query, rootCauseID, analysisID, req.Component, req.Category, req.Description, evidenceJSON, req.Impact, req.Priority, fixesJSON, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, rootCauseID, analysisID, req.Component, req.Category, req.Description, evidenceJSON, req.Impact, req.Priority, fixesJSON, now); err != nil {
 		return nil, fmt.Errorf("create root cause: %w", err)
 	}
 
@@ -138,11 +131,11 @@ func (r *RCARespository) QueryRootCauses(ctx context.Context, analysisID uuid.UU
 	countQuery := `SELECT COUNT(*) FROM rca_root_causes WHERE analysis_id = $1`
 	query := `SELECT id, analysis_id, component, category, description, evidence, impact, priority, fixes, created_at FROM rca_root_causes WHERE analysis_id = $1 ORDER BY priority ASC LIMIT $2 OFFSET $3`
 
-	if err := r.db.Pool().QueryRow(ctx, countQuery, analysisID).Scan(&resp.Total); err != nil {
+	if err := r.db.GetContext(ctx, &resp.Total, countQuery, analysisID); err != nil {
 		return resp, fmt.Errorf("count root causes: %w", err)
 	}
 
-	rows, err := r.db.Pool().Query(ctx, query, analysisID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, analysisID, limit, offset)
 	if err != nil {
 		return resp, fmt.Errorf("query root causes: %w", err)
 	}
@@ -160,6 +153,7 @@ func (r *RCARespository) QueryRootCauses(ctx context.Context, analysisID uuid.UU
 		if fixesJSON.Valid && fixesJSON.String != "" {
 			_ = json.Unmarshal([]byte(fixesJSON.String), &rc.Fixes)
 		}
+		_ = evidenceJSON
 		resp.Data = append(resp.Data, rc)
 	}
 	return resp, nil
@@ -187,19 +181,14 @@ func (r *RCARespository) QueryAnalysisHistory(ctx context.Context, tenantID uuid
 	copy(countArgs, args)
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM rca_analyses %s`, whereClause)
-	query := fmt.Sprintf(`
-		SELECT id, tenant_id, incident_id, status, root_causes, confidence, triggered_by, started_at, completed_at
-		FROM rca_analyses %s
-		ORDER BY started_at DESC
-		LIMIT $%d OFFSET $%d`,
-		whereClause, argIdx, argIdx+1)
+	query := fmt.Sprintf(`SELECT id, tenant_id, incident_id, status, root_causes, confidence, triggered_by, started_at, completed_at FROM rca_analyses %s ORDER BY started_at DESC LIMIT $%d OFFSET $%d`, whereClause, argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
-	if err := r.db.Pool().QueryRow(ctx, countQuery, countArgs...).Scan(&resp.Total); err != nil {
+	if err := r.db.GetContext(ctx, &resp.Total, countQuery, countArgs...); err != nil {
 		return resp, fmt.Errorf("count rca analyses: %w", err)
 	}
 
-	rows, err := r.db.Pool().Query(ctx, query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return resp, fmt.Errorf("query rca analyses: %w", err)
 	}
@@ -208,15 +197,15 @@ func (r *RCARespository) QueryAnalysisHistory(ctx context.Context, tenantID uuid
 	for rows.Next() {
 		var a models.RCAAnalysis
 		var rootCausesJSON sql.NullString
-		var completedAt sql.NullTime
-		if err := rows.Scan(&a.ID, &a.TenantID, &a.IncidentID, &a.Status, &rootCausesJSON, &a.Confidence, &a.TriggeredBy, &a.StartedAt, &completedAt); err != nil {
+		var cAT sql.NullTime
+		if err := rows.Scan(&a.ID, &a.TenantID, &a.IncidentID, &a.Status, &rootCausesJSON, &a.Confidence, &a.TriggeredBy, &a.StartedAt, &cAT); err != nil {
 			return resp, fmt.Errorf("scan rca analysis: %w", err)
 		}
 		if rootCausesJSON.Valid {
 			_ = json.Unmarshal([]byte(rootCausesJSON.String), &a.RootCauses)
 		}
-		if completedAt.Valid {
-			a.CompletedAt = &completedAt.Time
+		if cAT.Valid {
+			a.CompletedAt = &cAT.Time
 		}
 		resp.Data = append(resp.Data, a)
 	}
@@ -232,7 +221,7 @@ func (r *RCARespository) CreateTimelineEvent(ctx context.Context, tenantID uuid.
 	}
 
 	query := `INSERT INTO rca_timeline_events (id, tenant_id, incident_id, timestamp, type, source, message, severity, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
-	if _, err := r.db.Pool().Exec(ctx, query, id, tenantID, incidentID, req.Timestamp, req.Type, req.Source, req.Message, req.Severity, now); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, id, tenantID, incidentID, req.Timestamp, req.Type, req.Source, req.Message, req.Severity, now); err != nil {
 		return nil, fmt.Errorf("create timeline event: %w", err)
 	}
 
@@ -247,7 +236,7 @@ func (r *RCARespository) GetTimeline(ctx context.Context, tenantID uuid.UUID, in
 	}
 
 	query := `SELECT id, timestamp, type, source, message, severity FROM rca_timeline_events WHERE tenant_id = $1 AND incident_id = $2 ORDER BY timestamp ASC LIMIT $3`
-	rows, err := r.db.Pool().Query(ctx, query, tenantID, incidentID, limit)
+	rows, err := r.db.QueryContext(ctx, query, tenantID, incidentID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query timeline: %w", err)
 	}
@@ -266,7 +255,6 @@ func (r *RCARespository) GetTimeline(ctx context.Context, tenantID uuid.UUID, in
 	return events, nil
 }
 
-// joinStrings joins string slices with a separator.
 func joinStrings(parts []string, sep string) string {
 	if len(parts) == 0 {
 		return ""

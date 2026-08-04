@@ -403,6 +403,36 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if promptSecurityH != nil {
     promptSecurityH.RegisterRoutes(api)
   }
+  if cacheMonitorH != nil {
+    cacheMonitorH.RegisterRoutes(api)
+  }
+  if codeEmbeddingH != nil {
+    codeEmbeddingH.RegisterRoutes(api)
+  }
+  if dataClassificationH != nil {
+    dataClassificationH.RegisterRoutes(api)
+  }
+  if fileHandlerH != nil {
+    fileHandlerH.RegisterRoutes(api)
+  }
+  if jobActionsH != nil {
+    jobActionsH.RegisterRoutes(api)
+  }
+  if rcaH != nil {
+    rcaH.RegisterRoutes(api)
+  }
+  if ruleEngineH != nil {
+    ruleEngineH.RegisterRoutes(api)
+  }
+  if semanticSearchH != nil {
+    semanticSearchH.RegisterRoutes(api)
+  }
+  if taskExecutorH != nil {
+    taskExecutorH.RegisterRoutes(api)
+  }
+  if toolH != nil {
+    toolH.RegisterRoutes(api)
+  }
   if ptmplH != nil {
     ptmplH.RegisterRoutes(api)
   }
