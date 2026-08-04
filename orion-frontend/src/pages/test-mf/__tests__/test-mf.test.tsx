@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import React from 'react';
 import { render } from '@testing-library/react';
-import test-mf from '../index';
+import TestMfIndex from '../index';
 
 describe('test-mf', () => {
   it('renders without crashing', () => {
-    const { container } = render(<test-mf />);
+    const { container } = render(<TestMfIndex />);
     expect(container.firstChild).not.toBeNull();
   });
 });

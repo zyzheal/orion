@@ -106,3 +106,75 @@ export const PermissionGuard: React.FC<Props> = ({
 
   return <>{children}</>;
 };
+
+/**
+ * 权限按钮包装器 — 简化常用场景
+ *
+ * @example
+ * <PermissionButton resource="pipeline" action="execute" onClick={handleExecute}>
+ *   执行流水线
+ * </PermissionButton>
+ */
+interface PermissionButtonProps {
+  resource: string;
+  action: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  danger?: boolean;
+  style?: React.CSSProperties;
+}
+
+export const PermissionButton: React.FC<PermissionButtonProps> = ({
+  resource,
+  action,
+  children,
+  onClick,
+  disabled = false,
+  loading = false,
+  danger = false,
+  style,
+}) => {
+  return (
+    <PermissionGuard resource={resource} action={action} pageLevel={false}>
+      <Button
+        onClick={onClick}
+        disabled={disabled}
+        loading={loading}
+        danger={danger}
+        style={style}
+      >
+        {children}
+      </Button>
+    </PermissionGuard>
+  );
+};
+
+/**
+ * 权限 Tab 包装器 — 用于控制 Tab 的显示和交互
+ *
+ * @example
+ * <PermissionTab key="settings" resource="chatops" action="write">
+ *   设置
+ * </PermissionTab>
+ */
+interface PermissionTabProps {
+  key: string;
+  resource: string;
+  action: string;
+  children: React.ReactNode;
+}
+
+export const PermissionTab: React.FC<PermissionTabProps> = ({
+  key,
+  resource,
+  action,
+  children,
+}) => {
+  return (
+    <PermissionGuard resource={resource} action={action}>
+      <span data-permission-tab={key}>{children}</span>
+    </PermissionGuard>
+  );
+};

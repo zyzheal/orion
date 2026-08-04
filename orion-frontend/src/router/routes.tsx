@@ -48,6 +48,7 @@ export const routes: AppRoute[] = [
     path: '/dashboard',
     element: React.lazy(() => import('@/pages/DashboardNew')),
     protected: true,
+    requiredPermission: { resource: 'dashboard', action: 'read' },
   },
   {
     path: '/console',
@@ -111,52 +112,62 @@ export const routes: AppRoute[] = [
     path: '/projects',
     element: React.lazy(() => import('@/pages/Projects')),
     protected: true,
+    requiredPermission: { resource: 'project', action: 'read' },
   },
   // Core Pages (TASK-905)
   {
     path: '/dashboard-core',
     element: React.lazy(() => import('@/pages/DashboardCore')),
     protected: true,
+    requiredPermission: { resource: 'dashboard', action: 'read' },
   },
   {
     path: '/pipelines',
     element: React.lazy(() => import('@/pages/PipelineList')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'read' },
   },
   {
     path: '/pipelines/new',
     element: React.lazy(() => import('@/pages/PipelineEditor')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'write' },
   },
   {
     path: '/pipelines/:id/edit',
     element: React.lazy(() => import('@/pages/PipelineEditor')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'write' },
   },
   {
     path: '/pipelines/:id/versions',
     element: React.lazy(() => import('@/pages/PipelineVersionHistory')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'read' },
   },
   {
     path: '/pipelines/:id/runs',
     element: React.lazy(() => import('@/pages/PipelineRunList')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'read' },
   },
   {
     path: '/pipelines/:id/runs/:runId',
     element: React.lazy(() => import('@/pages/PipelineRunLive')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'read' },
   },
   {
     path: '/pipelines/:id',
     element: React.lazy(() => import('@/pages/PipelineDetail')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'read' },
   },
   {
     path: '/pipeline-runs',
     element: React.lazy(() => import('@/pages/PipelineRunList')),
     protected: true,
+    requiredPermission: { resource: 'pipeline', action: 'read' },
   },
   {
     path: '/pipelines/monitor',
@@ -167,22 +178,26 @@ export const routes: AppRoute[] = [
     path: '/deployments',
     element: React.lazy(() => import('@/pages/DeploymentList')),
     protected: true,
+    requiredPermission: { resource: 'deployment', action: 'read' },
   },
   {
     path: '/deployments/:id',
     element: React.lazy(() => import('@/pages/DeploymentDetail')),
     protected: true,
+    requiredPermission: { resource: 'deployment', action: 'read' },
   },
   // Deploy (deployment management)
   {
     path: '/deploy',
     element: React.lazy(() => import('@/pages/deploy/DeployPage')),
     protected: true,
+    requiredPermission: { resource: 'deployment', action: 'read' },
   },
   {
     path: '/alerts',
     element: React.lazy(() => import('@/pages/AlertList')),
     protected: true,
+    requiredPermission: { resource: 'alert', action: 'read' },
   },
   // [ARCHIVED] - old /ai-gateway standalone route, migrated to /ai/gateway; retained as redirect only (dedup 2026-08-01)
   {
@@ -216,12 +231,14 @@ export const routes: AppRoute[] = [
     path: '/config-management',
     element: React.lazy(() => import('@/pages/ConfigManagement')),
     protected: true,
+    requiredPermission: { resource: 'config', action: 'read' },
   },
   // Risk Dashboard
   {
     path: '/risk-dashboard',
     element: React.lazy(() => import('@/pages/RiskDashboard')),
     protected: true,
+    requiredPermission: { resource: 'risk', action: 'read' },
   },
   // Efficiency Dashboard
   {
@@ -246,23 +263,27 @@ export const routes: AppRoute[] = [
     path: '/tickets',
     element: React.lazy(() => import('@/pages/TicketList')),
     protected: true,
+    requiredPermission: { resource: 'ticket', action: 'read' },
   },
   {
     path: '/tickets/:id',
     element: React.lazy(() => import('@/pages/TicketDetail')),
     protected: true,
+    requiredPermission: { resource: 'ticket', action: 'read' },
   },
   // ITSM - Incident Management
   {
     path: '/itsm/incidents',
     element: React.lazy(() => import('@/pages/Incident')),
     protected: true,
+    requiredPermission: { resource: 'incident', action: 'read' },
   },
   // ITSM - Problem Management
   {
     path: '/itsm/problems',
     element: React.lazy(() => import('@/pages/Problem')),
     protected: true,
+    requiredPermission: { resource: 'problem', action: 'read' },
   },
   // ITSM - Service Catalog
   {
@@ -322,6 +343,7 @@ export const routes: AppRoute[] = [
     path: '/finops',
     element: React.lazy(() => import('@/pages/finops/FinOpsPage')),
     protected: true,
+    requiredPermission: { resource: 'finops', action: 'read' },
   },
   // Pipeline Budget
   {
@@ -335,6 +357,7 @@ export const routes: AppRoute[] = [
     path: '/cost-operations',
     element: React.lazy(() => import('@/pages/cost-operations/CostOperationsPage')),
     protected: true,
+    requiredPermission: { resource: 'finops', action: 'read' },
   },
   // SBOM Attestation
   {
@@ -370,6 +393,7 @@ export const routes: AppRoute[] = [
     path: '/policies',
     element: React.lazy(() => import('@/pages/PolicyManagement')),
     protected: true,
+    requiredPermission: { resource: 'policy', action: 'read' },
   },
   // Change Intelligence
   {
@@ -1014,12 +1038,14 @@ export const routes: AppRoute[] = [
     path: '/artifacts',
     element: React.lazy(() => import('@/pages/Artifacts')),
     protected: true,
+    requiredPermission: { resource: 'artifact', action: 'read' },
   },
   // Artifact Version Browser (GAP-CN-06)
   {
     path: '/artifacts/browser',
     element: React.lazy(() => import('@/pages/ArtifactBrowser')),
     protected: true,
+    requiredPermission: { resource: 'artifact', action: 'read' },
   },
   // Product Line Management (M6)
   {
@@ -1051,12 +1077,14 @@ export const routes: AppRoute[] = [
     path: '/cmdb',
     element: React.lazy(() => import('@/pages/CMDB')),
     protected: true,
+    requiredPermission: { resource: 'cmdb', action: 'read' },
   },
   // Approval Management (M33)
   {
     path: '/approvals',
     element: React.lazy(() => import('@/pages/Approvals')),
     protected: true,
+    requiredPermission: { resource: 'approval', action: 'read' },
   },
   // Approval Flow Management (V2/V3)
   {
@@ -1156,6 +1184,7 @@ export const routes: AppRoute[] = [
     path: '/environments',
     element: React.lazy(() => import('@/pages/env/EnvironmentPage')),
     protected: true,
+    requiredPermission: { resource: 'environment', action: 'read' },
   },
   // Vector Store Management
   {

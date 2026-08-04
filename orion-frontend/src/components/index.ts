@@ -65,3 +65,8 @@ export type { StepConfigurationPanelProps } from './StepConfigurationPanel';
 
 export { ExecutionTimeline } from './ExecutionTimeline';
 export type { ExecutionTimelineProps, TimelineStep } from './ExecutionTimeline';
+
+// Permission / Auth Components
+export { AuthRouteGuard, AuthRouteElement } from './AuthRouteGuard';
+export type { AuthRouteGuardProps, PermissionConfig } from './AuthRouteGuard';
+export { PermissionGuard } from './PermissionGuard';

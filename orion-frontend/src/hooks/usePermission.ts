@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types/api';
 
@@ -110,6 +110,59 @@ function matchPermission(perms: string[], resource: string, action: string): boo
   return false;
 }
 
+// 默认防抖时长 (ms)
+const DEFAULT_DEBOUNCE_MS = 250;
+
+/**
+ * 防抖版本的 hasPermission 缓存检查
+ * 短时间内重复调用相同参数时，直接返回缓存结果而非重新计算
+ */
+function createDebouncedPermissionChecker(hasPermissionBase: (resource: string, action: string) => boolean) {
+  let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+  const cache = new Map<string, boolean>();
+
+  return {
+    hasPermissionDebounced: useCallback((resource: string, action: string): boolean => {
+      const key = `${resource}:${action}`;
+
+      // 清除未完成的防抖计时器
+      if (pendingTimer) {
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+      }
+
+      // 返回缓存结果（即使可能是旧的，也先返回，避免闪烁）
+      if (cache.has(key)) {
+        return cache.get(key)!;
+      }
+
+      // 触发异步刷新缓存
+      pendingTimer = setTimeout(() => {
+        const result = hasPermissionBase(resource, action);
+        cache.set(key, result);
+        pendingTimer = null;
+      }, DEFAULT_DEBOUNCE_MS);
+
+      // 无缓存时，直接同步计算
+      return hasPermissionBase(resource, action);
+    }, [hasPermissionBase]),
+
+    clear: useCallback(() => {
+      if (pendingTimer) {
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+      }
+      cache.clear();
+    }, []),
+
+    invalidate: useCallback((resource: string, action: string) => {
+      cache.delete(`${resource}:${action}`);
+      // 同时清除同资源的通配缓存
+      cache.delete(`${resource}:*`);
+    }, []),
+  };
+}
+
 export function usePermission() {
   const user = useAuthStore(state => state.user);
   const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>(_permissionsCache || ROLE_PERMISSIONS_FALLBACK);
@@ -125,15 +178,15 @@ export function usePermission() {
   const userRoles = useMemo(() => {
     const userWithRoles = user as unknown as User;
     if (user && 'roles' in userWithRoles && Array.isArray(userWithRoles.roles) && userWithRoles.roles.length > 0) {
-      return userWithRoles.roles;
+      return userWithRoles.roles as string[];
     }
     if (user && 'role' in userWithRoles && userWithRoles.role) {
-      return [userWithRoles.role];
+      return [userWithRoles.role as string];
     }
     return [];
   }, [user]);
 
-  const hasPermission = useMemo(() => {
+  const hasPermissionBase = useMemo(() => {
     return (resource: string, action: string): boolean => {
       for (const role of userRoles) {
         const perms = rolePermissions[role] || [];
@@ -143,6 +196,15 @@ export function usePermission() {
     };
   }, [userRoles, rolePermissions]);
 
+  // 防抖版本的 hasPermission（减少频繁渲染导致的重复计算）
+  const { hasPermissionDebounced } = createDebouncedPermissionChecker(hasPermissionBase);
+
+  const hasPermission = useMemo(() => {
+    return (resource: string, action: string): boolean => {
+      return hasPermissionBase(resource, action);
+    };
+  }, [hasPermissionBase]);
+
   const canView = useMemo(() => (resource: string) => hasPermission(resource, 'read'), [hasPermission]);
   const canEdit = useMemo(() => (resource: string) => hasPermission(resource, 'write'), [hasPermission]);
   const canDelete = useMemo(() => (resource: string) => hasPermission(resource, 'delete'), [hasPermission]);
@@ -150,8 +212,32 @@ export function usePermission() {
   const canApprove = useMemo(() => (resource: string) => hasPermission(resource, 'approve'), [hasPermission]);
   const canManage = useMemo(() => (resource: string) => hasPermission(resource, 'manage'), [hasPermission]);
   const canAcknowledge = useMemo(() => (resource: string) => hasPermission(resource, 'acknowledge'), [hasPermission]);
+  const canRead = useMemo(() => (resource: string) => hasPermission(resource, 'read'), [hasPermission]);
 
-  return { hasPermission, canView, canEdit, canDelete, canExecute, canApprove, canManage, canAcknowledge };
+  // 权限信息
+  const currentRoles = userRoles;
+  const hasAnyPermission = useMemo(() => currentRoles.length > 0, [currentRoles]);
+
+  // 检查用户是否拥有管理员权限
+  const isAdmin = useMemo(() => {
+    return currentRoles.some((r) => ['admin', 'super_admin', 'platform_admin', 'tenant_admin', 'org_admin'].includes(r));
+  }, [currentRoles]);
+
+  return {
+    hasPermission,
+    hasPermissionDebounced,
+    canView,
+    canEdit,
+    canDelete,
+    canExecute,
+    canApprove,
+    canManage,
+    canAcknowledge,
+    canRead,
+    currentRoles,
+    hasAnyPermission,
+    isAdmin,
+  };
 }
 
 // 向后兼容导出
