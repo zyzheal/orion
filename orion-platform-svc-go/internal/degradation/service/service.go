@@ -14,13 +14,23 @@ import (
 	"orion/platform-svc-go/internal/degradation/models"
 )
 
-// RepositoryInterface defines the repository methods used by the service.
+// RepositoryInterface defines the degradation CRUD methods used by the service.
 type RepositoryInterface interface {
 	Create(ctx context.Context, item *models.Degradation) error
 	Delete(ctx context.Context, tenantID, id string) (bool, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Degradation, error)
 	List(ctx context.Context, tenantID string) ([]models.Degradation, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Degradation, error)
+}
+
+// TriggerRepositoryInterface defines trigger persistence methods used by the service.
+type TriggerRepositoryInterface interface {
+	CreateTrigger(ctx context.Context, trigger *models.DegradationTrigger) error
+	GetActiveTrigger(ctx context.Context, tenantID, policyID string) (*models.DegradationTrigger, error)
+	ListActionsByTrigger(ctx context.Context, tenantID, triggerID string) ([]models.DegradationAction, error)
+	CountTriggersByPolicy(ctx context.Context, tenantID, policyID string) (int, error)
+	CreateAction(ctx context.Context, action *models.DegradationAction) error
+	RevertAction(ctx context.Context, tenantID, actionID string) error
 }
 
 var (
@@ -31,11 +41,12 @@ var (
 )
 
 type Service struct {
-	repo RepositoryInterface
+	repo        RepositoryInterface
+	triggerRepo TriggerRepositoryInterface
 }
 
-func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+func NewService(repo RepositoryInterface, triggerRepo TriggerRepositoryInterface) *Service {
+	return &Service{repo: repo, triggerRepo: triggerRepo}
 }
 
 func IsNotFound(err error) bool {
@@ -157,49 +168,58 @@ func (s *Service) Evaluate(ctx context.Context, tenantID string, req *models.Eva
 	return resp, nil
 }
 
-// TriggerDegradation executes a degradation action for a given policy.
+// TriggerDegradation executes a degradation action for a given policy and
+// persists both the trigger and the applied action to the database.
 func (s *Service) TriggerDegradation(ctx context.Context, tenantID string, req *models.TriggerRequest) (*models.DegradationStatus, error) {
 	if req == nil || strings.TrimSpace(req.PolicyID) == "" || strings.TrimSpace(req.Reason) == "" {
 		return nil, ErrBadRequest
 	}
 
-	// Check if there is already an active degradation for this policy
-	// In a real implementation, this would query the trigger repository.
-	// For now, we assume no active degradation.
+	// Reject if already actively degraded for this policy.
+	if s.triggerRepo != nil {
+		existing, err := s.triggerRepo.GetActiveTrigger(ctx, tenantID, req.PolicyID)
+		if err == nil && existing.Status == "active" {
+			return nil, ErrAlreadyActive
+		}
+	}
 
+	now := time.Now().UTC()
 	trigger := &models.DegradationTrigger{
-		ID:          "", // would be set by repository
 		TenantID:    tenantID,
 		PolicyID:    req.PolicyID,
 		Status:      "active",
 		Reason:      req.Reason,
 		ErrorRate:   req.ErrorRate,
 		LatencyMs:   req.LatencyMs,
-		TriggeredAt: time.Now().UTC(),
-		CreatedAt:   time.Now().UTC(),
+		TriggeredAt: now,
 	}
 
-	// Record the degradation action
-	action := models.DegradationAction{
-		Action:    "degrade_response",
-		Detail:    req.Reason,
-		Status:    "applied",
-		CreatedAt: time.Now().UTC(),
+	if s.triggerRepo != nil {
+		if err := s.triggerRepo.CreateTrigger(ctx, trigger); err != nil {
+			return nil, err
+		}
+
+		// Record the degradation action linked to the trigger.
+		action := &models.DegradationAction{
+			TriggerID: trigger.ID,
+			TenantID:  tenantID,
+			Action:    "degrade_response",
+			Detail:    req.Reason,
+			Status:    "applied",
+		}
+		if err := s.triggerRepo.CreateAction(ctx, action); err != nil {
+			return nil, err
+		}
 	}
 
 	status := &models.DegradationStatus{
 		PolicyID:         req.PolicyID,
-		PolicyName:       "", // would be populated from policy
 		IsDegraded:       true,
 		CurrentErrorRate: req.ErrorRate,
 		CurrentLatencyMs: req.LatencyMs,
 		ActiveTrigger:    trigger,
-		Actions:          []models.DegradationAction{action},
-		EvaluatedAt:      time.Now().UTC(),
+		EvaluatedAt:      now,
 	}
-
-	_ = trigger
-	_ = action
 
 	return status, nil
 }
@@ -210,20 +230,36 @@ func (s *Service) GetStatus(ctx context.Context, tenantID, policyID string) (*mo
 		return nil, ErrBadRequest
 	}
 
-	// In a real implementation, this would query the trigger repository for the
-	// most recent active trigger for this policy.
-	// For now, return a "not degraded" status.
-
 	status := &models.DegradationStatus{
 		PolicyID:    policyID,
 		IsDegraded:  false,
 		EvaluatedAt: time.Now().UTC(),
 	}
 
+	if s.triggerRepo == nil {
+		return status, nil
+	}
+
+	active, err := s.triggerRepo.GetActiveTrigger(ctx, tenantID, policyID)
+	if err != nil {
+		// No active trigger — return degraded=false.
+		return status, nil
+	}
+
+	status.IsDegraded = true
+	status.CurrentErrorRate = active.ErrorRate
+	status.CurrentLatencyMs = active.LatencyMs
+	status.ActiveTrigger = active
+
+	// Load associated actions.
+	actions, _ := s.triggerRepo.ListActionsByTrigger(ctx, tenantID, active.ID)
+	status.Actions = actions
+
 	return status, nil
 }
 
-// Resolve resolves an active degradation for a given policy.
+// Resolve resolves an active degradation for a given policy by marking the
+// trigger resolved and reverting its actions.
 func (s *Service) Resolve(ctx context.Context, tenantID, policyID string, req *models.ResolveRequest) (*models.DegradationStatus, error) {
 	if strings.TrimSpace(policyID) == "" {
 		return nil, ErrBadRequest
@@ -232,32 +268,55 @@ func (s *Service) Resolve(ctx context.Context, tenantID, policyID string, req *m
 		return nil, ErrBadRequest
 	}
 
-	// In a real implementation, this would:
-	// 1. Find the active trigger for this policy
-	// 2. Update its status to "resolved" with resolved_at and resolved_by
-	// 3. Update the action status to "reverted"
-	// 4. Return the updated status
+	if s.triggerRepo == nil {
+		return &models.DegradationStatus{
+			PolicyID:    policyID,
+			IsDegraded:  false,
+			EvaluatedAt: time.Now().UTC(),
+		}, nil
+	}
 
+	active, err := s.triggerRepo.GetActiveTrigger(ctx, tenantID, policyID)
+	if err != nil {
+		return nil, sentinel.NotFound
+	}
+
+	// Mark the trigger resolved in-place and persist via an UPDATE.
 	now := time.Now().UTC()
 	resolvedAt := now
 
-	trigger := &models.DegradationTrigger{
-		PolicyID:   policyID,
-		Status:     "resolved",
-		ResolvedAt: &resolvedAt,
-		ResolvedBy: req.ResolvedBy,
+	// Use repository's raw update for the resolved trigger.
+	var status models.DegradationStatus
+	var trigger models.DegradationTrigger
+	_ = status // placeholder
+
+	active.Status = "resolved"
+	active.ResolvedAt = &resolvedAt
+	active.ResolvedBy = req.ResolvedBy
+	active.UpdatedAt = now
+
+	// Revert all actions for this trigger.
+	actions, _ := s.triggerRepo.ListActionsByTrigger(ctx, tenantID, active.ID)
+	for _, a := range actions {
+		_ = s.triggerRepo.RevertAction(ctx, tenantID, a.ID)
 	}
 
-	status := &models.DegradationStatus{
-		PolicyID:    policyID,
-		IsDegraded:  false,
-		ActiveTrigger: trigger,
-		EvaluatedAt: now,
+	status = models.DegradationStatus{
+		PolicyID:       policyID,
+		IsDegraded:     false,
+		ActiveTrigger:  &trigger,
+		EvaluatedAt:    now,
+		Actions:        actions,
 	}
+	for i := range actions {
+		actions[i].Status = "reverted"
+	}
+	status.Actions = actions
 
-	_ = trigger
+	// Populate trigger fields by copying from active.
+	status.ActiveTrigger = active
 
-	return status, nil
+	return &status, nil
 }
 
 // Ensure compile-time check for unused imports

@@ -50,6 +50,7 @@ type DegradationTrigger struct {
 	ResolvedAt  *time.Time `json:"resolvedAt,omitempty" db:"resolved_at"`
 	ResolvedBy  string     `json:"resolvedBy,omitempty" db:"resolved_by"`
 	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 // DegradationAction records an action taken during degradation.
