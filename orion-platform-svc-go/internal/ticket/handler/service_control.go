@@ -86,3 +86,10 @@ func (h *ServiceControlHandler) TicketingHealthCheck(c *gin.Context) {
 			},
 		},)
 }
+
+// RegisterRoutes mounts all service-control endpoints under the given RouterGroup.
+func (h *ServiceControlHandler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.POST("/ticketing/start", h.StartTicketingService)
+	rg.POST("/ticketing/stop", h.StopTicketingService)
+	rg.GET("/ticketing/health", h.TicketingHealthCheck)
+}

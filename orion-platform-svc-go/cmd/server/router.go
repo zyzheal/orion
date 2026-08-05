@@ -845,6 +845,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
 
   // ---- Wired but unregistered handlers (Wave 2 parallel execution) ----
+  if serviceControlH != nil {
+    serviceControlH.RegisterRoutes(api)
+  }
   if automationRuleTicketH != nil {
     automationRuleTicketH.RegisterRoutes(api)
   }
@@ -874,6 +877,140 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if securityBranchPolicyH != nil {
     securityBranchPolicyH.RegisterRoutes(api)
+  }
+
+  // ---- Wired but unregistered handlers (batch registration) ----
+  // Note: 10 handlers skipped - no RegisterRoutes method:
+  //   analyticsTicketH (AnalyticsHandler), dispatchH (DispatchHandler),
+  //   loadBalancerH (LoadBalancerHandler), queueH (QueueHandler),
+  //   relationH (RelationHandler), slaModH (SLAHandler),
+  //   suspendH (SuspendHandler), transferH (TransferHandler),
+  //   ticketH (TicketHandler), workflowModH (WorkflowHandler)
+  if aiAgentRunH != nil {
+    aiAgentRunH.RegisterRoutes(api)
+  }
+  if aiModelsH != nil {
+    aiModelsH.RegisterRoutes(api)
+  }
+  if ciArtRegH != nil {
+    ciArtRegH.RegisterRoutes(api)
+  }
+  if ciArtVerH != nil {
+    ciArtVerH.RegisterRoutes(api)
+  }
+  if ciBuildH != nil {
+    ciBuildH.RegisterRoutes(api)
+  }
+  if ciDeployH != nil {
+    ciDeployH.RegisterRoutes(api)
+  }
+  if ciPTmplH != nil {
+    ciPTmplH.RegisterRoutes(api)
+  }
+  if ciRunnerH != nil {
+    ciRunnerH.RegisterRoutes(api)
+  }
+  if governanceH != nil {
+    governanceH.RegisterRoutes(api)
+  }
+  if governancePolicyH != nil {
+    governancePolicyH.RegisterRoutes(api)
+  }
+  if governanceRiskH != nil {
+    governanceRiskH.RegisterRoutes(api)
+  }
+  if graphH != nil {
+    graphH.RegisterRoutes(api)
+  }
+  if identityApikeyH != nil {
+    identityApikeyH.RegisterRoutes(api)
+  }
+  if identitySessionH != nil {
+    identitySessionH.RegisterRoutes(api)
+  }
+  if identitySsoH != nil {
+    identitySsoH.RegisterRoutes(api)
+  }
+  if identityTenantH != nil {
+    identityTenantH.RegisterRoutes(api)
+  }
+  if infraBackupH != nil {
+    infraBackupH.RegisterRoutes(api)
+  }
+  if infraChaosH != nil {
+    infraChaosH.RegisterRoutes(api)
+  }
+  if infraDbaH != nil {
+    infraDbaH.RegisterRoutes(api)
+  }
+  if infraDegH != nil {
+    infraDegH.RegisterRoutes(api)
+  }
+  if infraDrH != nil {
+    infraDrH.RegisterRoutes(api)
+  }
+  if infraDTwinH != nil {
+    infraDTwinH.RegisterRoutes(api)
+  }
+  if infraEEH != nil {
+    infraEEH.RegisterRoutes(api)
+  }
+  if infraIacH != nil {
+    infraIacH.RegisterRoutes(api)
+  }
+  if infraMultiH != nil {
+    infraMultiH.RegisterRoutes(api)
+  }
+  if infraMWnH != nil {
+    infraMWnH.RegisterRoutes(api)
+  }
+  if infraOCIH != nil {
+    infraOCIH.RegisterRoutes(api)
+  }
+  if jobsourceH != nil {
+    jobsourceH.RegisterRoutes(api)
+  }
+  if pipelineBudgetH != nil {
+    pipelineBudgetH.RegisterRoutes(api)
+  }
+  if pipelineTemplatesH != nil {
+    pipelineTemplatesH.RegisterRoutes(api)
+  }
+  if pipelineVersionsH != nil {
+    pipelineVersionsH.RegisterRoutes(api)
+  }
+  if pluginMarketplaceH != nil {
+    pluginMarketplaceH.RegisterRoutes(api)
+  }
+  if resilienceScoreH != nil {
+    resilienceScoreH.RegisterRoutes(api)
+  }
+  if runnerH != nil {
+    runnerH.RegisterRoutes(api)
+  }
+  if sbomH != nil {
+    sbomH.RegisterRoutes(api)
+  }
+  if securityCrossDomainH != nil {
+    securityCrossDomainH.RegisterRoutes(api)
+  }
+  if securityH != nil {
+    securityH.RegisterRoutes(api)
+  }
+  if securityPrivacyH != nil {
+    securityPrivacyH.RegisterRoutes(api)
+  }
+  if securitySecretH != nil {
+    securitySecretH.RegisterRoutes(api)
+  }
+  if securityUebaH != nil {
+    securityUebaH.RegisterRoutes(api)
+  }
+  if slaPolicyTicketH != nil {
+    slaPolicyTicketH.RegisterRoutes(api)
+  }
+  if ticketSourceTicketH != nil {
+    ticketSourceTicketH.RegisterRoutes(api)
   }
 	}
 
