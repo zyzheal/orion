@@ -51,7 +51,7 @@ func (s *ScheduledNotificationService) CreateScheduledNotification(ctx context.C
 		ID:          mustGenerateID(),
 		TenantID:    tenantID,
 		UserID:      req.UserID,
-		TemplateID:  req.TemplateID,
+		TemplateID:  func() *string { t := req.TemplateID; return &t }(),
 		Type:        req.Type,
 		Title:       req.Title,
 		Message:     req.Message,

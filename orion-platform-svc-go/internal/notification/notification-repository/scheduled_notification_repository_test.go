@@ -36,7 +36,7 @@ func TestScheduledNotificationRepository_Create(t *testing.T) {
 		ID:          "sn-abc123",
 		TenantID:    "tenant-1",
 		UserID:      "user-1",
-		TemplateID:  "tmpl-1",
+		TemplateID:  strPtr("tmpl-1"),
 		Type:        "alert",
 		Title:       "Test",
 		Message:     "Hello",
@@ -48,7 +48,7 @@ func TestScheduledNotificationRepository_Create(t *testing.T) {
 	}
 
 	mock.ExpectExec("INSERT INTO scheduled_notifications").
-		WithArgs(n.ID, n.TenantID, n.UserID, n.TemplateID, n.Type, n.Title, n.Message,
+		WithArgs(n.ID, n.TenantID, n.UserID, *n.TemplateID, n.Type, n.Title, n.Message,
 			n.Channel, n.ScheduledAt, n.Status, n.CreatedAt, n.UpdatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -143,7 +143,7 @@ func TestScheduledNotificationRepository_FindAll(t *testing.T) {
 			AddRow("sn-2", "tenant-1", "user-2", nil, "alert", "B", "MsgB", "email", now, "sent", nil, nil, now, now))
 
 	ctx := context.Background()
-	items, total, err := repo.FindAll(ctx, "tenant-1", models.ListNotificationsQuery{})
+	items, total, err := repo.FindAll(ctx, "tenant-1", models.ListNotificationsQuery{Limit: 20, Offset: 0})
 	if err != nil {
 		t.Fatalf("FindAll failed: %v", err)
 	}

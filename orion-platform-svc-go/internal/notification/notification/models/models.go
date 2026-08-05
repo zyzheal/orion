@@ -267,7 +267,7 @@ type ScheduledNotification struct {
 	Type           string                      `json:"type" db:"type"`
 	Title          string                      `json:"title" db:"title"`
 	Message        string                      `json:"message" db:"message"`
-	TemplateID     string                      `json:"template_id" db:"template_id"`
+	TemplateID     *string                     `json:"template_id" db:"template_id"`
 	Status         ScheduledNotificationStatus `json:"status" db:"status"`
 	CronSchedule   string                      `json:"cron_schedule" db:"cron_schedule"`
 	Channel        string                      `json:"channel" db:"channel"`
@@ -288,6 +288,8 @@ type DoNotDisturb struct {
 	EndTime   time.Time  `json:"end_time" db:"end_time"`
 	Reason    *string    `json:"reason" db:"reason"`
 	Active    bool       `json:"active" db:"active"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type Dashboard struct {
