@@ -843,6 +843,38 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if vulnerabilityH != nil {
     vulnerabilityH.RegisterRoutes(api)
   }
+
+  // ---- Wired but unregistered handlers (Wave 2 parallel execution) ----
+  if automationRuleTicketH != nil {
+    automationRuleTicketH.RegisterRoutes(api)
+  }
+  if cmdb_importH != nil {
+    cmdb_importH.RegisterRoutes(api)
+  }
+  if cmdb_relationshipH != nil {
+    cmdb_relationshipH.RegisterRoutes(api)
+  }
+  if cmdb_validatorH != nil {
+    cmdb_validatorH.RegisterRoutes(api)
+  }
+  if governanceComplianceH != nil {
+    governanceComplianceH.RegisterRoutes(api)
+  }
+  if identityConfirmationH != nil {
+    identityConfirmationH.RegisterRoutes(api)
+  }
+  if infraCapH != nil {
+    infraCapH.RegisterRoutes(api)
+  }
+  if infraServerlessH != nil {
+    infraServerlessH.RegisterRoutes(api)
+  }
+  if psH != nil {
+    psH.RegisterRoutes(api)
+  }
+  if securityBranchPolicyH != nil {
+    securityBranchPolicyH.RegisterRoutes(api)
+  }
 	}
 
 	return r
