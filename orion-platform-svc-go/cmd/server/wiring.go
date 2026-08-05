@@ -105,6 +105,25 @@ import (
 	artifactVersion_handler "orion/platform-svc-go/internal/artifact-version/handler"
 	cache_mod_handler "orion/platform-svc-go/internal/cache/handler"
 	cacheCleanup_handler "orion/platform-svc-go/internal/cache-cleanup/handler"
+	aiReview_repo "orion/platform-svc-go/internal/ai/review/repository"
+	aiReview_service "orion/platform-svc-go/internal/ai/review/service"
+	aiAgents_repo "orion/platform-svc-go/internal/ai/agents/repository"
+	aiAgents_service "orion/platform-svc-go/internal/ai/agents/service"
+	aiCost_repo "orion/platform-svc-go/internal/ai/cost/repository"
+	aiCost_service "orion/platform-svc-go/internal/ai/cost/service"
+	apiConsumption_repo "orion/platform-svc-go/internal/api-consumption/repository"
+	apiConsumption_service "orion/platform-svc-go/internal/api-consumption/service"
+	artifactVersion_repo "orion/platform-svc-go/internal/artifact-version/repository"
+	artifactVersion_service "orion/platform-svc-go/internal/artifact-version/service"
+	cache_mod_repo "orion/platform-svc-go/internal/cache/repository"
+	cache_mod_service "orion/platform-svc-go/internal/cache/service"
+	cacheCleanup_repo "orion/platform-svc-go/internal/cache-cleanup/repository"
+	cacheCleanup_service "orion/platform-svc-go/internal/cache-cleanup/service"
+	contract_repo "orion/platform-svc-go/internal/contract/repository"
+	contract_service "orion/platform-svc-go/internal/contract/service"
+	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
+	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
+	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
 	// ---- Wave 7: P2 module imports (batch 1-2 + alert/apm/bi/canary) ----
 	message_queue_handler "orion/platform-svc-go/internal/message-queue/handler"
 	// ---- P0-6: Agent sandbox (isolated code execution) ----
@@ -489,6 +508,48 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		// Prompt Security: repo -> service -> handler
 		// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
 		wireNatsSubscribers(logger)
+		// ---- Wire unassigned handlers (repo → service → handler) ----
+		// Group A: Standard CRUD handlers
+		aiAgentsRepo := aiAgents_repo.NewRepository(db.DB)
+		aiAgentsSvc := aiAgents_service.NewService(aiAgentsRepo)
+		aiAgentsH = aiAgents_handler.NewHandler(aiAgentsSvc)
+		aiCostRepo := aiCost_repo.NewRepository(db.DB)
+		aiCostSvc := aiCost_service.NewService(aiCostRepo)
+		aiCostH = aiCost_handler.NewHandler(aiCostSvc)
+		aiReviewRepo := aiReview_repo.NewRepository(db.DB)
+		aiReviewSvc := aiReview_service.NewService(aiReviewRepo)
+		aiReviewH = aiReview_handler.NewHandler(aiReviewSvc)
+		apiConsumptionRepo := apiConsumption_repo.NewRepository(db.DB)
+		apiConsumptionSvc := apiConsumption_service.NewService(apiConsumptionRepo)
+		apiConsumptionH = apiConsumption_handler.NewHandler(apiConsumptionSvc)
+		artifactVersionRepo := artifactVersion_repo.NewRepository(db.DB)
+		artifactVersionSvc := artifactVersion_service.NewService(artifactVersionRepo)
+		artifactVersionH = artifactVersion_handler.NewHandler(artifactVersionSvc)
+		cacheCleanupRepo := cacheCleanup_repo.NewRepository(db.DB)
+		cacheCleanupSvc := cacheCleanup_service.NewService(cacheCleanupRepo)
+		cacheCleanupH = cacheCleanup_handler.NewHandler(cacheCleanupSvc)
+		cacheModRepo := cache_mod_repo.NewRepository(db.DB)
+		cacheModSvc := cache_mod_service.NewService(cacheModRepo)
+		cacheModH = cache_mod_handler.NewHandler(cacheModSvc)
+		contractRepo := contract_repo.NewRepository(db.DB)
+		contractSvc := contract_service.NewService(contractRepo)
+		contractH = contract_handler.NewHandler(contractSvc)
+		// Group B: Special handlers
+		// selfHealing requires pgxpool (not available from sqlx.DB),
+		// defer to infrastructure layer wiring.
+		selfhealingH = sh_handler.NewSelfHealingHandler(nil)
+		peH = pe_handler.NewHandler(&pe_service.PipelineEngine{})
+		infraCapPoolRepo := infraCap_repo.NewPoolRepository(db.DB)
+		infraCapForecastRepo := infraCap_repo.NewForecastRepository(db.DB)
+		infraCapPolicyRepo := infraCap_repo.NewPolicyRepository(db.DB)
+		infraCapMetricRepo := infraCap_repo.NewMetricRepository(db.DB)
+		infraCapAlertRepo := infraCap_repo.NewAlertRepository(db.DB)
+		infraCapReportRepo := infraCap_repo.NewReportRepository(db.DB)
+		infraCapSvc := infraCap_service.NewService(infraCapPoolRepo, infraCapForecastRepo, infraCapPolicyRepo, infraCapMetricRepo, infraCapAlertRepo, infraCapReportRepo)
+		infraCapH = infraCap_handler.NewHandler(infraCapSvc)
+		// Group C: Duplicate - psH shares the same handler as promptSecurityH
+		psH = promptSecurityH
+	
 }
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
 // subscribers. Graceful no-op when NATS is unreachable (async event-driven pipeline).
