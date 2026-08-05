@@ -241,7 +241,7 @@ func (r *ProviderRegistry) Call(ctx context.Context, req *ChatRequest) (*ChatRes
 		order = append(order, preferred.Name())
 	}
 	for _, name := range providers {
-		if name != preferred.Name() {
+		if resolveErr != nil || name != preferred.Name() {
 			order = append(order, name)
 		}
 	}

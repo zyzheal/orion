@@ -303,7 +303,8 @@ func (ctx *ExecutionContext) MarshalValues() ([]byte, error) {
 
 // MarshalResult serializes the full run result to JSON bytes.
 func (r *RunResult) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r)
+	type runResultAlias RunResult
+	return json.Marshal((*runResultAlias)(r))
 }
 
 // formatAgentConfig converts an external AgentConfig to an AgentNode for

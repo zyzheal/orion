@@ -138,9 +138,11 @@ func (o *Orchestrator) Execute(
 	// Dry run mode.
 	if opts.DryRun {
 		result.ExecutionLog = append(result.ExecutionLog, "dry-run mode: skipping LLM calls")
-		// Still walk the DAG to validate structure.
+		// Still walk the DAG to validate structure (maxSteps still enforced).
 		o.executeDAG(ctx, dag, execCtx, maxSteps, result, true)
-		result.Status = "completed"
+		if result.Status == "" {
+			result.Status = "completed"
+		}
 		return result
 	}
 
@@ -281,6 +283,13 @@ func (o *Orchestrator) executeDAG(
 		}
 
 		if !allParentsDone || criticBlocked {
+			if criticBlocked && allParentsDone {
+				// Critic blocked and all parents done — mark complete without executing.
+				completed[nodeID] = true
+				result.ExecutionLog = append(result.ExecutionLog,
+					fmt.Sprintf("node %s skipped: permanently blocked by critic", nodeID))
+				continue
+			}
 			// Re-queue: the node is not ready yet; try again after other nodes run.
 			// Guard against infinite loops by checking if we made progress.
 			willBlock := true

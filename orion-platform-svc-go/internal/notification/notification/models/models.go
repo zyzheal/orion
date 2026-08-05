@@ -133,14 +133,14 @@ type NotificationDelivery struct {
 	Body           string          `json:"body" db:"body"`
 	Channel        DeliveryChannel `json:"channel" db:"channel"`
 	Status         DeliveryStatus  `json:"status" db:"status"`
-	ErrorMessage   string          `json:"error_message" db:"error_message"`
-	ResponseStatus int             `json:"response_status" db:"response_status"`
-	ResponseBody   string          `json:"response_body" db:"response_body"`
+	ErrorMessage   *string         `json:"error_message" db:"error_message"`
+	ResponseStatus *int            `json:"response_status" db:"response_status"`
+	ResponseBody   *string         `json:"response_body" db:"response_body"`
 	AttemptNumber  int             `json:"attempt_number" db:"attempt_number"`
 	MaxAttempts    int             `json:"max_attempts" db:"max_attempts"`
 	NextRetryAt    *time.Time      `json:"next_retry_at" db:"next_retry_at"`
 	SentAt         *time.Time      `json:"sent_at" db:"sent_at"`
-	FallbackChannel ChannelType    `json:"fallback_channel" db:"fallback_channel"`
+	FallbackChannel *ChannelType  `json:"fallback_channel" db:"fallback_channel"`
 	Metadata       JSONB           `json:"metadata" db:"metadata"`
 	CreatedAt      time.Time       `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at" db:"updated_at"`
@@ -274,17 +274,20 @@ type ScheduledNotification struct {
 	ScheduledAt    *time.Time                  `json:"scheduled_at" db:"scheduled_at"`
 	NextRun        *time.Time                  `json:"next_run" db:"next_run"`
 	NotificationID string                      `json:"notification_id" db:"notification_id"`
+	SentAt         *time.Time                  `json:"sent_at" db:"sent_at"`
+	ErrorMessage   *string                     `json:"error_message" db:"error_message"`
 	CreatedAt      time.Time                   `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time                   `json:"updated_at" db:"updated_at"`
 }
 
 type DoNotDisturb struct {
-	ID        string    `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	UserID    string    `json:"user_id" db:"user_id"`
-	StartTime time.Time `json:"start_time" db:"start_time"`
-	EndTime   time.Time `json:"end_time" db:"end_time"`
-	Active    bool      `json:"active" db:"active"`
+	ID        string     `json:"id" db:"id"`
+	TenantID  string     `json:"tenant_id" db:"tenant_id"`
+	UserID    string     `json:"user_id" db:"user_id"`
+	StartTime time.Time  `json:"start_time" db:"start_time"`
+	EndTime   time.Time  `json:"end_time" db:"end_time"`
+	Reason    *string    `json:"reason" db:"reason"`
+	Active    bool       `json:"active" db:"active"`
 }
 
 type Dashboard struct {

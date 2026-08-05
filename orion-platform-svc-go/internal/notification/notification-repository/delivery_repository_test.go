@@ -190,7 +190,7 @@ func TestDeliveryRepository_UpdateStatus(t *testing.T) {
 		TenantID:      "tenant-1",
 		Status:        models.DeliveryStatusSent,
 		AttemptNumber: 2,
-		ErrorMessage:  "error",
+		ErrorMessage:  strPtr("error"),
 		UpdatedAt:     now,
 	}
 

@@ -537,7 +537,8 @@ func TestOrchestratorDryRunSequential(t *testing.T) {
 
 func TestOrchestratorMaxSteps(t *testing.T) {
 	orch := NewOrchestrator(nil, testLogger())
-	dag := buildLinearDAG(5)
+	dag := buildLinearDAG(10)
+	dag.MaxSteps = 1000 // ensure DAG default is not the bottleneck
 	result := orch.Execute(context.Background(), dag, map[string]interface{}{}, NewRunOptions(0, 3, false, true))
 
 	if result.Status != "max_steps" {
@@ -648,6 +649,7 @@ func TestOrchestratorCriticFailBlocksDownstream(t *testing.T) {
 				{From: "c", To: "f"},
 			},
 		},
+		Model: "custom",
 	}
 	result := orch.Execute(context.Background(), dag, map[string]interface{}{}, NewRunOptions(0, 0, false, false))
 
