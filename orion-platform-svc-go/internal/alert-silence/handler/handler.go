@@ -1,23 +1,36 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/alert-silence/fatigue"
 	"orion/platform-svc-go/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/alert-silence/service"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/auth"
 )
 
-type AlertSilenceHandler struct {
-	svc *service.AlertSilenceService
+// FatigueServiceInterface exposes the fatigue methods used by the handler.
+type FatigueServiceInterface interface {
+	RecordFatigueAlert(ctx context.Context, tenantID uuid.UUID, ruleName, severity string)
+	RecordFatigueSilenced(ctx context.Context, tenantID uuid.UUID, ruleName, severity string)
+	GetFatigueScore(ctx context.Context, tenantID uuid.UUID) (map[string]fatigue.FatigueInfo, error)
+	GetRuleFatigue(ctx context.Context, tenantID uuid.UUID, ruleName string) (*fatigue.FatigueInfo, error)
+	AutoSilenceRecommendations(ctx context.Context, tenantID uuid.UUID) ([]string, error)
 }
 
-func NewAlertSilenceHandler(svc *service.AlertSilenceService) *AlertSilenceHandler {
-	return &AlertSilenceHandler{svc: svc}
+// AlertSilenceHandler handles HTTP routes for the alert silence module.
+type AlertSilenceHandler struct {
+	svc    *service.AlertSilenceService
+	fatSvc FatigueServiceInterface
+}
+
+func NewAlertSilenceHandler(svc *service.AlertSilenceService, fatSvc FatigueServiceInterface) *AlertSilenceHandler {
+	return &AlertSilenceHandler{svc: svc, fatSvc: fatSvc}
 }
 
 func (h *AlertSilenceHandler) GetTenantID(c *gin.Context) uuid.UUID {
@@ -34,6 +47,13 @@ func (h *AlertSilenceHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	silences.GET("/:id", auth.RequirePermission("monitor", "read"), h.Get)
 	silences.DELETE("/:id", auth.RequirePermission("monitor", "delete"), h.Delete)
 	silences.PATCH("/:id/extend", auth.RequirePermission("monitor", "write"), h.Extend)
+
+	// Fatigue analysis endpoints (P1-19)
+	fat := rg.Group("/alert-fatigue")
+	fat.GET("", auth.RequirePermission("monitor", "read"), h.FatigueScore)
+	fat.GET("/recommendations", auth.RequirePermission("monitor", "read"), h.AutoSilenceRecommendations)
+	fat.GET("/:ruleName", auth.RequirePermission("monitor", "read"), h.RuleFatigue)
+	fat.POST("/record", auth.RequirePermission("monitor", "write"), h.RecordAlert)
 }
 
 // List returns paginated silences.
@@ -128,4 +148,74 @@ func (h *AlertSilenceHandler) Extend(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, silence)
+}
+
+// FatigueScore returns per-rule fatigue metrics for the tenant.
+func (h *AlertSilenceHandler) FatigueScore(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	if h.fatSvc == nil {
+		middleware.RespondBadRequest(c, "fatigue analyzer not available")
+		return
+	}
+	scores, err := h.fatSvc.GetFatigueScore(c.Request.Context(), tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"rules": scores})
+}
+
+// AutoSilenceRecommendations returns rules recommended for auto-silencing.
+func (h *AlertSilenceHandler) AutoSilenceRecommendations(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	if h.fatSvc == nil {
+		middleware.RespondBadRequest(c, "fatigue analyzer not available")
+		return
+	}
+	names, err := h.fatSvc.AutoSilenceRecommendations(c.Request.Context(), tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"recommended_rules": names})
+}
+
+// RuleFatigue returns fatigue info for a single rule.
+func (h *AlertSilenceHandler) RuleFatigue(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	ruleName := c.Param("ruleName")
+	if h.fatSvc == nil {
+		middleware.RespondBadRequest(c, "fatigue analyzer not available")
+		return
+	}
+	info, err := h.fatSvc.GetRuleFatigue(c.Request.Context(), tenantID, ruleName)
+	if err != nil {
+		middleware.RespondNotFound(c, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, info)
+}
+
+// RecordAlert records a fired alert into the fatigue analyzer.
+func (h *AlertSilenceHandler) RecordAlert(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	if h.fatSvc == nil {
+		middleware.RespondBadRequest(c, "fatigue analyzer not available")
+		return
+	}
+	var req struct {
+		RuleName string `json:"rule_name" binding:"required"`
+		Severity string `json:"severity"`
+		Silenced bool   `json:"silenced"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	if req.Silenced {
+		h.fatSvc.RecordFatigueSilenced(c.Request.Context(), tenantID, req.RuleName, req.Severity)
+	} else {
+		h.fatSvc.RecordFatigueAlert(c.Request.Context(), tenantID, req.RuleName, req.Severity)
+	}
+	c.Status(http.StatusAccepted)
 }

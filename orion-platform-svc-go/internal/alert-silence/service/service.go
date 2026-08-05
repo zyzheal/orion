@@ -6,18 +6,32 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/alert-silence/fatigue"
 	"orion/platform-svc-go/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/alert-silence/repository"
 	"go.uber.org/zap"
 )
 
+// FatigueInterface abstracts the fatigue analyzer for dependency injection.
+type FatigueInterface interface {
+	RecordAlert(tenantID, ruleName, severity string)
+	RecordSilencedAlert(tenantID, ruleName, severity string)
+	GetFatigueScore(tenantID string) map[string]fatigue.FatigueInfo
+	GetRuleFatigue(tenantID, ruleName string) (*fatigue.FatigueInfo, bool)
+	AutoSilenceRecommendations(tenantID string) []string
+}
+
+// Ensure *fatigue.Analyzer satisfies the interface.
+var _ FatigueInterface = (*fatigue.Analyzer)(nil)
+
 type AlertSilenceService struct {
 	repo   *repository.AlertSilenceRepository
 	logger *zap.Logger
+	fatigue FatigueInterface
 }
 
-func NewAlertSilenceService(repo *repository.AlertSilenceRepository, logger *zap.Logger) *AlertSilenceService {
-	return &AlertSilenceService{repo: repo, logger: logger}
+func NewAlertSilenceService(repo *repository.AlertSilenceRepository, logger *zap.Logger, fatigue FatigueInterface) *AlertSilenceService {
+	return &AlertSilenceService{repo: repo, logger: logger, fatigue: fatigue}
 }
 
 // CreateSilence creates a new silence.
@@ -107,4 +121,53 @@ func (s *AlertSilenceService) ExtendSilence(ctx context.Context, tenantID, id uu
 		zap.Int("extendBy", extendBy),
 	)
 	return silence, nil
+}
+
+// RecordFatigueAlert records a fired alert into the fatigue analyzer.
+func (s *AlertSilenceService) RecordFatigueAlert(ctx context.Context, tenantID uuid.UUID, ruleName, severity string) {
+	if s.fatigue == nil {
+		return
+	}
+	_ = ctx
+	s.fatigue.RecordAlert(tenantID.String(), ruleName, severity)
+}
+
+// RecordFatigueSilenced records a silenced alert into the fatigue analyzer.
+func (s *AlertSilenceService) RecordFatigueSilenced(ctx context.Context, tenantID uuid.UUID, ruleName, severity string) {
+	if s.fatigue == nil {
+		return
+	}
+	_ = ctx
+	s.fatigue.RecordSilencedAlert(tenantID.String(), ruleName, severity)
+}
+
+// GetFatigueScore returns per-rule fatigue metrics for the tenant.
+func (s *AlertSilenceService) GetFatigueScore(ctx context.Context, tenantID uuid.UUID) (map[string]fatigue.FatigueInfo, error) {
+	_ = ctx
+	if s.fatigue == nil {
+		return nil, fmt.Errorf("fatigue analyzer not available")
+	}
+	return s.fatigue.GetFatigueScore(tenantID.String()), nil
+}
+
+// GetRuleFatigue returns fatigue info for a single rule.
+func (s *AlertSilenceService) GetRuleFatigue(ctx context.Context, tenantID uuid.UUID, ruleName string) (*fatigue.FatigueInfo, error) {
+	_ = ctx
+	if s.fatigue == nil {
+		return nil, fmt.Errorf("fatigue analyzer not available")
+	}
+	info, ok := s.fatigue.GetRuleFatigue(tenantID.String(), ruleName)
+	if !ok {
+		return nil, fmt.Errorf("no fatigue data for rule %s", ruleName)
+	}
+	return info, nil
+}
+
+// AutoSilenceRecommendations returns rules recommended for auto-silencing.
+func (s *AlertSilenceService) AutoSilenceRecommendations(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+	_ = ctx
+	if s.fatigue == nil {
+		return nil, fmt.Errorf("fatigue analyzer not available")
+	}
+	return s.fatigue.AutoSilenceRecommendations(tenantID.String()), nil
 }
