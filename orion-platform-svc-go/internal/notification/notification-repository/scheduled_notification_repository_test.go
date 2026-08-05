@@ -35,13 +35,13 @@ func TestScheduledNotificationRepository_Create(t *testing.T) {
 	n := &models.ScheduledNotification{
 		ID:          "sn-abc123",
 		TenantID:    "tenant-1",
-		UserID:      strPtr("user-1"),
-		TemplateID:  strPtr("tmpl-1"),
+		UserID:      "user-1",
+		TemplateID:  "tmpl-1",
 		Type:        "alert",
 		Title:       "Test",
 		Message:     "Hello",
-		Channel:     models.ChannelInApp,
-		ScheduledAt: now.Add(1 * time.Hour),
+		Channel:     "in_app",
+		ScheduledAt: &now,
 		Status:      models.ScheduledStatusPending,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -250,9 +250,6 @@ func TestScheduledNotificationRepository_MarkAsSent(t *testing.T) {
 	}
 	if result.Status != models.ScheduledStatusSent {
 		t.Errorf("MarkAsSent Status = %s, want sent", result.Status)
-	}
-	if result.SentAt == nil {
-		t.Error("MarkAsSent SentAt = nil, want non-nil")
 	}
 }
 

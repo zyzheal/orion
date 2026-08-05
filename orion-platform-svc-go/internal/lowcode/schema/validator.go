@@ -118,7 +118,7 @@ func (v *Validator) validateNodeTypes(flow *Flow) []ValidationError {
 				Severity: "error",
 				NodeID:   node.ID,
 				Field:    "type",
-				Message:  fmt.Sprintf("节点类型 '%s' 不存在"),
+				Message:  fmt.Sprintf("节点类型 '%s' 不存在", node.Type),
 			})
 		}
 	}
@@ -140,7 +140,7 @@ func (v *Validator) validateRequiredAttributes(node FlowNode) []ValidationError 
 				Severity: "error",
 				NodeID:   node.ID,
 				Field:    attr.Name,
-				Message:  fmt.Sprintf("缺少必填属性 '%s'"),
+				Message:  fmt.Sprintf("缺少必填属性 '%s'", attr.Name),
 			})
 		}
 		return errs
@@ -153,7 +153,7 @@ func (v *Validator) validateRequiredAttributes(node FlowNode) []ValidationError 
 				Severity: "error",
 				NodeID:   node.ID,
 				Field:    attr.Name,
-				Message:  fmt.Sprintf("缺少必填属性 '%s'"),
+				Message:  fmt.Sprintf("缺少必填属性 '%s'", attr.Name),
 			})
 			continue
 		}
@@ -163,7 +163,7 @@ func (v *Validator) validateRequiredAttributes(node FlowNode) []ValidationError 
 				Severity: "error",
 				NodeID:   node.ID,
 				Field:    attr.Name,
-				Message:  fmt.Sprintf("必填属性 '%s' 不能为空"),
+				Message:  fmt.Sprintf("必填属性 '%s' 不能为空", attr.Name),
 			})
 		}
 	}

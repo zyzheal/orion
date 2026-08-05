@@ -5,11 +5,20 @@ import (
 	"testing"
 
 	"orion/platform-svc-go/internal/alert-pipeline/models"
+	"orion/platform-svc-go/internal/alert-pipeline/repository"
 	"go.uber.org/zap"
 )
 
+type mockRepo struct{}
+
+func (m *mockRepo) Save(ctx context.Context, tenantID string, result *models.PipelineResult, alertName, severity string) error { return nil }
+func (m *mockRepo) GetByResultID(ctx context.Context, resultID interface{}) (*repository.Result, error) { return nil, nil }
+func (m *mockRepo) GetByAlertID(ctx context.Context, alertID string) (*repository.Result, error) { return nil, nil }
+func (m *mockRepo) List(ctx context.Context, tenantID string, limit, offset int) ([]*repository.Result, error) { return nil, nil }
+func (m *mockRepo) Count(ctx context.Context, tenantID string) (int, error) { return 0, nil }
+
 func TestPipelineServiceNew(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	if svc == nil {
 		t.Fatal("NewPipelineService returned nil")
 	}
@@ -23,7 +32,7 @@ func TestPipelineServiceNew(t *testing.T) {
 }
 
 func TestPipelineServiceConfigHasStages(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	cfg := svc.Config()
 	if len(cfg.Stages) == 0 {
 		t.Error("stages should not be empty")
@@ -38,7 +47,7 @@ func makeAlert(id string) models.AlertEvent {
 }
 
 func TestPipelineServiceExecute(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	result := svc.Execute(context.Background(), "t1", makeAlert("a1"))
 	if result == nil {
 		t.Fatal("Execute returned null")
@@ -49,7 +58,7 @@ func TestPipelineServiceExecute(t *testing.T) {
 }
 
 func TestPipelineServiceExecuteReturnsResult(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	result := svc.Execute(context.Background(), "t1", makeAlert("a2"))
 	if result.AlertID != "a2" {
 		t.Errorf("AlertID=%s, want a2", result.AlertID)
@@ -60,7 +69,7 @@ func TestPipelineServiceExecuteReturnsResult(t *testing.T) {
 }
 
 func TestPipelineServiceExecuteBatch(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	alerts := []models.AlertEvent{
 		{ID: "b1", Name: "a", Severity: "warning"},
 		{ID: "b2", Name: "b", Severity: "info"},
@@ -73,7 +82,7 @@ func TestPipelineServiceExecuteBatch(t *testing.T) {
 }
 
 func TestPipelineServiceExecuteBatchEmpty(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	results := svc.ExecuteBatch(context.Background(), "t1", nil)
 	if len(results) != 0 {
 		t.Errorf("got %d results, want 0", len(results))
@@ -81,7 +90,7 @@ func TestPipelineServiceExecuteBatchEmpty(t *testing.T) {
 }
 
 func TestPipelineServiceEnableDisable(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	svc.Enable("t1", false)
 	if svc.Config().Enabled {
 		t.Error("pipeline should be disabled after Enable(false)")
@@ -93,7 +102,7 @@ func TestPipelineServiceEnableDisable(t *testing.T) {
 }
 
 func TestPipelineServiceExecuteMultipleTenants(t *testing.T) {
-	svc := NewPipelineService(zap.NewNop())
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	r1 := svc.Execute(context.Background(), "t1", makeAlert("c1"))
 	r2 := svc.Execute(context.Background(), "t2", makeAlert("c2"))
 	if r1.AlertID != "c1" || r2.AlertID != "c2" {

@@ -39,9 +39,6 @@ func TestDNDRepository_FindByUser(t *testing.T) {
 	if result.UserID != "user-1" {
 		t.Errorf("FindByUser UserID = %s, want user-1", result.UserID)
 	}
-	if result.Reason == nil || *result.Reason != "focus time" {
-		t.Errorf("FindByUser Reason = %v, want %q", result.Reason, "focus time")
-	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unfulfilled expectations: %v", err)

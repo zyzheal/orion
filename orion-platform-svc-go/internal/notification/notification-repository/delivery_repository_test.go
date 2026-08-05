@@ -23,16 +23,14 @@ func TestDeliveryRepository_Create(t *testing.T) {
 	repo := NewDeliveryRepository(sqlxDB)
 
 	now := time.Now()
-	subject := "Test"
-	body := "Body"
 	d := &models.NotificationDelivery{
 		ID:             "del-1",
 		TenantID:       "tenant-1",
 		NotificationID: "notif-1",
 		Channel:        models.DeliveryChannelEmail,
 		Recipient:      "user@example.com",
-		Subject:        &subject,
-		Body:           &body,
+		Subject:        "Test",
+		Body:           "Body",
 		Status:         models.DeliveryStatusPending,
 		AttemptNumber:  1,
 		MaxAttempts:    3,
@@ -192,7 +190,7 @@ func TestDeliveryRepository_UpdateStatus(t *testing.T) {
 		TenantID:      "tenant-1",
 		Status:        models.DeliveryStatusSent,
 		AttemptNumber: 2,
-		ErrorMessage:  strPtr("error"),
+		ErrorMessage:  "error",
 		UpdatedAt:     now,
 	}
 

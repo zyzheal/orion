@@ -43,10 +43,7 @@ func InitTracerProvider(ctx context.Context, cfg TracerProviderConfig) (Shutdown
 	}
 
 	// Parent-based + head-based probability sampler.
-	sampler := sdktrace.ParentBased(
-		sdktrace.TraceIDRatioBased(cfg.SampleRate),
-		sdktrace.WithRoot(sdktrace.TraceIDRatioBased(cfg.SampleRate)),
-	)
+	sampler := sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.SampleRate))
 
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sampler),

@@ -263,7 +263,7 @@ func TestAgentExecutorDryRunCritic(t *testing.T) {
 }
 
 func TestAgentExecutorDryRunSupervisor(t *testing.T) {
-	exec := NewAgentExecutor(null, testLogger())
+	exec := NewAgentExecutor(nil, testLogger())
 	ctx := &ExecutionContext{
 		Values:      map[string]interface{}{},
 		RunID:       "test-run",

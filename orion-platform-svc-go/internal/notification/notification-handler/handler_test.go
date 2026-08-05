@@ -46,7 +46,7 @@ func TestDeliveryHandler_List(t *testing.T) {
 
 	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 	repo := repository.NewDeliveryRepository(sqlxDB)
-	svc := service.NewDeliveryService(repo, zap.NewNop())
+	svc := service.NewDeliveryService(repo, nil)
 	h := NewDeliveryHandler(svc)
 
 	now := time.Now()
@@ -79,7 +79,7 @@ func TestDeliveryHandler_Get(t *testing.T) {
 
 		sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 		repo := repository.NewDeliveryRepository(sqlxDB)
-		svc := service.NewDeliveryService(repo, zap.NewNop())
+		svc := service.NewDeliveryService(repo, nil)
 		h := NewDeliveryHandler(svc)
 
 		now := time.Now()
@@ -111,7 +111,7 @@ func TestDeliveryHandler_Get(t *testing.T) {
 
 		sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 		repo := repository.NewDeliveryRepository(sqlxDB)
-		svc := service.NewDeliveryService(repo, zap.NewNop())
+		svc := service.NewDeliveryService(repo, nil)
 		h := NewDeliveryHandler(svc)
 
 		mock.ExpectQuery("SELECT \\* FROM notification_deliveries WHERE id=\\$1 AND tenant_id=\\$2").
@@ -140,8 +140,7 @@ func TestDeliveryHandler_Retry(t *testing.T) {
 		sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 		fixedTime := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 		repo := repository.NewDeliveryRepository(sqlxDB)
-		repo.NowFunc = func() time.Time { return fixedTime }
-		svc := service.NewDeliveryService(repo, zap.NewNop())
+		svc := service.NewDeliveryService(repo, nil)
 		h := NewDeliveryHandler(svc)
 
 		// First, FindByID returns the existing delivery
@@ -183,7 +182,7 @@ func TestDeliveryHandler_Retry(t *testing.T) {
 
 		sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 		repo := repository.NewDeliveryRepository(sqlxDB)
-		svc := service.NewDeliveryService(repo, zap.NewNop())
+		svc := service.NewDeliveryService(repo, nil)
 		h := NewDeliveryHandler(svc)
 
 		c, w := setupTestContext("POST", "/deliveries/del-missing/retry", "")

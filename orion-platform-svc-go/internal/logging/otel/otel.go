@@ -21,7 +21,6 @@ package otel
 import (
 	"context"
 	"fmt"
-	"os"
 
 	otelglobal "go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -60,7 +59,12 @@ func Init(ctx context.Context, cfg Config) (ShutdownFunc, error) {
 	shutoffs := make([]func(), 0, 2)
 
 	// TracerProvider.
-	tpShutdown, tpErr := newTracerProvider(ctx, cfg)
+	tpShutdown, tpErr := InitTracerProvider(ctx, TracerProviderConfig{
+		ServiceName:  cfg.ServiceName,
+		OTLPEndpoint: cfg.OTLPEndpoint,
+		Insecure:     cfg.Insecure,
+		SampleRate:   cfg.TracesSampleRate,
+	})
 	if tpErr != nil {
 		return nil, fmt.Errorf("otel: init tracer provider: %w", tpErr)
 	}
@@ -69,7 +73,10 @@ func Init(ctx context.Context, cfg Config) (ShutdownFunc, error) {
 	}
 
 	// MeterProvider.
-	mpShutdown, mpErr := newMeterProvider(ctx, cfg)
+	mpShutdown, mpErr := InitMeterProvider(ctx, MeterProviderConfig{
+		OTLPEndpoint:   cfg.OTLPEndpoint,
+		ExportInterval: cfg.MetricExportInterval,
+	})
 	if mpErr != nil {
 		return nil, fmt.Errorf("otel: init meter provider: %w", mpErr)
 	}
@@ -102,11 +109,6 @@ func MeterProvider(name string) Meter {
 // When none is configured this returns the default (W3C TraceContext + Baggage).
 func Propagator() propagation.TextMapPropagator {
 	return otelglobal.GetTextMapPropagator()
-}
-
-// isSet returns the value of an environment variable, empty string if unset.
-func isSet(key string) string {
-	return os.Getenv(key)
 }
 
 type initInfo struct {
