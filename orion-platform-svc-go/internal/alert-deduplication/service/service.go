@@ -3,24 +3,32 @@ package service
 import (
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/alert-deduplication/models"
+	"orion/platform-svc-go/internal/alert-deduplication/repository"
 	"go.uber.org/zap"
 )
 
+// AlertDeduplicationService checks and persists duplicate alerts.
 type AlertDeduplicationService struct {
 	logger *zap.Logger
 	config *models.DeduplicationConfig
+	repo   repository.RepositoryInterface
 	recent map[string]*models.DeduplicationRecord // fingerprint -> record
 }
 
-func NewAlertDeduplicationService(logger *zap.Logger) *AlertDeduplicationService {
+// NewAlertDeduplicationService creates a deduplication service with optional persistence.
+// Pass repo as nil for in-memory-only mode (backward compatible).
+func NewAlertDeduplicationService(logger *zap.Logger, repo repository.RepositoryInterface) *AlertDeduplicationService {
 	return &AlertDeduplicationService{
 		logger: logger,
+		repo:   repo,
 		config: &models.DeduplicationConfig{
 			IsEnabled: true,
 			WindowSec: 300,
@@ -70,7 +78,7 @@ func (s *AlertDeduplicationService) CheckDuplicate(ctx context.Context, alert ma
 
 	fingerprint := s.GenerateFingerprint(alert)
 
-	// Clean expired records
+	// Clean expired records from cache
 	cutoff := time.Now().Add(-time.Duration(s.config.WindowSec) * time.Second)
 	for k, rec := range s.recent {
 		if rec.DedupedAt.Before(cutoff) {
@@ -78,8 +86,19 @@ func (s *AlertDeduplicationService) CheckDuplicate(ctx context.Context, alert ma
 		}
 	}
 
-	// Check for existing record
+	// Check in-memory cache first (fast path)
 	existing, found := s.recent[fingerprint]
+	if !found && s.repo != nil {
+		dbRecord, err := s.repo.GetByFingerprint(ctx, s.config.TenantID, fingerprint)
+		if err == nil {
+			existing = dbRecord
+			found = true
+			s.recent[fingerprint] = existing // warm cache
+		} else if !errors.Is(err, sentinel.NotFound) {
+			s.logger.Error("dedup DB lookup failed", zap.Error(err))
+		}
+	}
+
 	if found {
 		now := time.Now()
 		record := &models.DeduplicationRecord{
@@ -89,6 +108,10 @@ func (s *AlertDeduplicationService) CheckDuplicate(ctx context.Context, alert ma
 			DuplicateID: uuid.New(),
 			Fingerprint: fingerprint,
 			DedupedAt:   now,
+		}
+		s.recent[fingerprint] = record
+		if s.repo != nil {
+			_ = s.repo.Insert(ctx, record)
 		}
 		s.logger.Info("alert deduplicated",
 			zap.String("fingerprint", fingerprint),
@@ -108,6 +131,9 @@ func (s *AlertDeduplicationService) CheckDuplicate(ctx context.Context, alert ma
 		DedupedAt:   now,
 	}
 	s.recent[fingerprint] = record
+	if s.repo != nil {
+		_ = s.repo.Insert(ctx, record)
+	}
 
 	s.logger.Debug("alert stored as original",
 		zap.String("fingerprint", fingerprint),
@@ -125,13 +151,23 @@ func (s *AlertDeduplicationService) Stats() map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
+	stats := map[string]interface{}{
 		"is_enabled":   s.config.IsEnabled,
 		"window_sec":   s.config.WindowSec,
 		"field_mask":   s.config.FieldMask,
 		"active_count": activeCount,
 		"total_count":  len(s.recent),
 	}
+
+	// Augment with DB-backed active count if available
+	if s.repo != nil {
+		dbCount, err := s.repo.CountActive(context.Background(), s.config.TenantID, cutoff)
+		if err == nil {
+			stats["db_active_count"] = dbCount
+		}
+	}
+
+	return stats
 }
 
 // IsEnabled checks if deduplication is enabled.

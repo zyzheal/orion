@@ -5,12 +5,25 @@ import (
 	"database/sql"
 	"errors"
 
-	"orion/platform-svc-go/internal/mlops/models"
-
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/mlops/models"
+	"orion/platform-svc-go/internal/shared/crud"
 
 	"github.com/jmoiron/sqlx"
 )
+
+// RepositoryInterface is the domain repository contract.
+type RepositoryInterface interface {
+	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
+	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+	Delete(ctx context.Context, tenantID, id string) error
+}
+
+// Compile-time assertion that Repository satisfies both interfaces.
+var _ RepositoryInterface = (*Repository)(nil)
+var _ crud.RepositoryInterface = (*Repository)(nil)
 
 type Repository struct {
 	db *sqlx.DB

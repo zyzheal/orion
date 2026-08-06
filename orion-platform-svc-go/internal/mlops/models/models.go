@@ -1,23 +1,11 @@
 package models
 
-import "time"
+import "orion/platform-svc-go/internal/shared/crud"
 
-type Record struct {
-	ID        string    `json:"id" db:"id"`
-	TenantID  string    `json:"tenantId" db:"tenant_id"`
-	Name      string    `json:"name" db:"name"`
-	Status    string    `json:"status" db:"status"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
-}
-
-type ListQuery struct {
-	Page   int    `json:"page" query:"page"`
-	Limit  int    `json:"limit" query:"limit"`
-	Status string `json:"status" query:"status"`
-}
-
-type CreateRequest struct {
-	Name   string                 `json:"name" binding:"required"`
-	Status string                 `json:"status"`
-	Config map[string]interface{} `json:"config"`
-}
+// Record, CreateRequest, ListQuery are type aliases to the shared CRUD types.
+// Kept for backward compatibility with existing domain code.
+type (
+	Record = crud.Record
+	CreateRequest = crud.CreateRequest
+	ListQuery = crud.ListQuery
+)

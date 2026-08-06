@@ -254,6 +254,11 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// ---- Delegated domain wiring (split for readability) ----
 	// P0-09: Alert pipeline handler
 	wireAlertPipeline(db, logger)
+	// P0-05~08: Alert adapter/correlation/deduplication/silence wiring
+	wireAlertAdapter(db, logger)
+	wireAlertCorrelation(db, logger)
+	wireAlertDeduplication(db, logger)
+	wireAlertSilence(db, logger)
 	// P0-26: Domain CQRS handler
 	wireDomainCQRS(db, logger)
 	// P0-30: Pipeline audit log handler
@@ -284,6 +289,15 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// Observability & operations modules: cmdb, monitoring, alert, artifact-ops,
 	// config, session, api-key, eventbus, event-trigger, hook-chain
 	wireObservabilityModules(db)
+	// P0-10~22: Notification/CMDB/Chaos/Circuit wiring
+	wireCmdbCollector(db, logger)
+	wireCmdbValidator(db, logger)
+	wireCmdbImport(db, logger)
+	wireCmdbRelationship(db, logger)
+	wireChannel(db, logger)
+	wireDoNotDisturb(db)
+	wireChaosGateway(db, logger)
+	wireCircuitBreaker(db, logger)
 	// CI/CD & domain modules: chatops, code-repo, approval, audit, incident,
 	// build-env, build, pipeline, dba, deploy, deploy-enhanced, digital-twin,
 	// finops, knowledge, security-compliance, tenant, ticketing, change, skill,
@@ -328,6 +342,56 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireWave7BatchModules(db)
 	// Wave 7b-j: Automation modules
 	wireAutomationModules(db)
+	// ---- P0-23~30: Core business modules (un-wired standalone wiring files) ----
+	wireForm(db, logger)
+	wireImportExport(db, logger)
+	wireExtensionPoint(db, logger)
+	wirePipelineExecutor(db, logger)
+	wireParamTypes(db, logger)
+	wireSLAEngine(db, logger)
+	wireEscalation(db, logger)
+	wireRunbook(db, logger)
+	wireCondition(db, logger)
+	wireConfigMgmtEnhanced(db, logger)
+	wireSaga(db, logger)
+	wireApplication(db, logger)
+	// ---- P0-31~40: Tool/Platform modules ----
+	wirePandawiki(db, logger)
+	wirecachemgmt(db, logger)
+	wiresmartdeploy(db, logger)
+	wirePipelineErrorDetail(db, logger)
+	wireStartup(db, logger)
+	wireTaskTimeout(db, logger)
+	wireDigitalTwinSimulation(db, logger)
+	wireTestSelector(db, logger)
+	wireEventTriggerRegistry(db, logger)
+	wireExecutionModeEngine(db, logger)
+	wireJobProcessor(db, logger)
+	wireDataMasking(logger)
+	// ---- P0-41~47: Community/User/Security/Infra modules ----
+	wireUcommunity(db, logger)
+	wireCommunityAdvanced(db, logger)
+	wireUmcp(db, logger)
+	wireUmodule(db, logger)
+	wireUobservability(db, logger)
+	wireUvector(db, logger)
+	wireuseractivity(db, logger)
+	wireuserprofile(db, logger)
+	wireuserstatus(db, logger)
+	wireusertoken(db, logger)
+	wireVulnerability(db, logger)
+	wireTerminalAudit(db, logger)
+	wireTenantGateway(db, logger)
+	wireApkUploadHistory(db, logger)
+	wireartifactlifecycle(db, logger)
+	wireAutonomousPipeline(db, logger)
+	wireAutoExec(db, logger)
+	wireReleaseManagement(db, logger)
+	wiredisasterrecovery(db, logger)
+	wirellmtrace(db, logger)
+	wireVisorCore(db, logger)
+	wireVisorExec(db, logger)
+	wireTestExecutionEngine(db, logger)
 	// ---- Inline wiring (requires secrets or cross-module dependencies) ----
 	// user services (needed by auth)
 	userRepo := user_repo.NewRepository(infra.db.DB)

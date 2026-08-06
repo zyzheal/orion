@@ -1,33 +1,37 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/mlops/models"
 	"orion/platform-svc-go/internal/mlops/service"
+	"orion/platform-svc-go/internal/shared/crud"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
+	*crud.CRUDHandler
 	svc *service.Service
 }
 
 func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+	crudH := crud.NewCRUDHandler(svc, crud.WithResource("mlops"), crud.WithPrefix("/mlops"), crud.WithListQueryPaging())
+	return &Handler{CRUDHandler: crudH, svc: svc}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/mlops")
+	// Canonical CRUD routes via shared handler.
 	r.GET("", auth.RequirePermission("mlops", "read"), h.List)
 	r.GET("/:id", auth.RequirePermission("mlops", "read"), h.Get)
 	r.POST("", auth.RequirePermission("mlops", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("mlops", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("mlops", "delete"), h.Delete)
+	// Domain-specific MLOps endpoints.
 	r.POST("/:id/train", auth.RequirePermission("mlops", "write"), h.Train)
 	r.POST("/:id/evaluate", auth.RequirePermission("mlops", "write"), h.Evaluate)
 	r.PUT("/:id/deploy", auth.RequirePermission("mlops", "write"), h.Deploy)
@@ -39,83 +43,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/models", auth.RequirePermission("mlops", "write"), h.RegisterModel)
 	r.DELETE("/models/:id", auth.RequirePermission("mlops", "delete"), h.DeregisterModel)
 	r.GET("/pipelines", auth.RequirePermission("mlops", "read"), h.ListPipelines)
-}
-
-func (h *Handler) List(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	q := models.ListQuery{}
-	if p := c.Query("page"); p != "" {
-		fmt.Sscanf(p, "%d", &q.Page)
-	}
-	if l := c.Query("limit"); l != "" {
-		fmt.Sscanf(l, "%d", &q.Limit)
-	}
-	records, err := h.svc.List(ctx, tenantID)
-	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	errors.WriteSuccess(c, gin.H{"data": records, "total": len(records)})
-}
-
-func (h *Handler) Get(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	record, err := h.svc.Get(ctx, tenantID, c.Param("id"))
-	if err != nil {
-		errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
-		return
-	}
-	errors.WriteSuccess(c, record)
-}
-
-func (h *Handler) Create(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	var req models.CreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
-		return
-	}
-	record, err := h.svc.Create(ctx, tenantID, req)
-	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	errors.WriteSuccess(c, record)
-}
-
-func (h *Handler) Update(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	var req models.CreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
-		return
-	}
-	record, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
-	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	errors.WriteSuccess(c, record)
-}
-
-func (h *Handler) Delete(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	err := h.svc.Delete(ctx, tenantID, c.Param("id"))
-	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	errors.WriteSuccess(c, nil)
 }
 
 func (h *Handler) Train(c *gin.Context) {
@@ -158,6 +85,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	_ = c.GetString("tenant_id")
 	result, err := h.svc.Rollback(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -175,6 +103,7 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	_ = c
 	errors.WriteSuccess(c, gin.H{"metrics": result})
 }
 
