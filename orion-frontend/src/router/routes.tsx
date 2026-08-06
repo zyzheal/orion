@@ -2022,6 +2022,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/config-mgmt/ConfigMgmtPage')),
     protected: true,
   },
+  // Config Version Diff
+  {
+    path: '/config-diff',
+    element: React.lazy(() => import('@/pages/ConfigDiff')),
+    protected: true,
+  },
 
   // P0-14: 补充未注册路由 (2026-07-20) — 已修复重复路由，仅保留以下新路由
   {
