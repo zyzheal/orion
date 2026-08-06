@@ -36,6 +36,7 @@ import {
   DesktopOutlined,
   CodeOutlined,
   ExclamationCircleOutlined,
+  FundOutlined,
 } from '@ant-design/icons';
 
 export const iconMap: Record<string, React.ReactNode> = {
@@ -47,6 +48,7 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/infra': <CloudServerOutlined />,
   '/governance': <SettingOutlined />,
   '/ecosystem': <AppstoreOutlined />,
+  '/efficacy-metrics': <FundOutlined />,
 
   // 独立菜单项
   '/tickets': <UnorderedListOutlined />,
@@ -151,6 +153,14 @@ export const iconMap: Record<string, React.ReactNode> = {
   '/console/plugins': <AppstoreOutlined />,
   '/console/settings': <SettingOutlined />,
   '/console/users': <UserOutlined />,
+
+  // 效能度量中心子菜单
+  '/efficacy-metrics/e2e': <CloudUploadOutlined />,
+  '/efficacy-metrics/management': <TeamOutlined />,
+  '/efficacy-metrics/engineering': <BarChartOutlined />,
+  '/efficacy-metrics/compliance': <CheckCircleOutlined />,
+  '/efficacy-metrics/ai-efficiency': <RocketOutlined />,
+  '/efficacy-metrics/risk': <AlertOutlined />,
 
   // 扩展能力
   '/skills': <AppstoreOutlined />,

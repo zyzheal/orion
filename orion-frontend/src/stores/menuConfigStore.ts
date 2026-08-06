@@ -262,6 +262,23 @@ const defaultModules: Record<string, MenuModuleConfig> = {
       { key: '/plugin-spi', label: 'SPI 扩展点', description: '插件扩展规范框架', category: '扩展能力', enabled: true },
     ],
   },
+  '/efficacy-metrics': {
+    key: '/efficacy-metrics',
+    label: '效能度量',
+    description: '跨域研效指标聚合与分析',
+    systemTitle: '效能度量中心',
+    systemDescription: '端到端、管理域、工程域、合规域、AI提效、风险看板六大域统一度量',
+    enabled: true,
+    children: [
+      { key: '/efficacy-metrics', label: '度量总览', description: '六域整体评分与趋势', category: '总览', enabled: true },
+      { key: '/efficacy-metrics/e2e', label: '端到端链路', description: 'Commit→Prod 全链路周期', category: '端到端', enabled: true },
+      { key: '/efficacy-metrics/management', label: '管理域', description: '团队/产品线效能对标', category: '管理域', enabled: true },
+      { key: '/efficacy-metrics/engineering', label: '工程域', description: 'DORA + 工程效率深度', category: '工程域', enabled: true },
+      { key: '/efficacy-metrics/compliance', label: '合规域', description: '合规率与SLA达成度量', category: '合规域', enabled: true },
+      { key: '/efficacy-metrics/ai-efficiency', label: 'AI智研提效', description: 'AI辅助研发效能度量', category: 'AI提效', enabled: true },
+      { key: '/efficacy-metrics/risk', label: '风险看板', description: '风险+技术债务+质量门禁', category: '风险域', enabled: true },
+    ],
+  },
 };
 
 const STORAGE_KEY = 'orion_menu_config_v2';
