@@ -154,9 +154,8 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if code_repoH != nil {
     code_repoH.RegisterRoutes(api)
   }
-  if complianceH != nil {
-    complianceH.RegisterRoutes(api)
-  }
+  // compliance: merged into governance/compliance (P2-01)
+  // governanceComplianceH registered below
   if configH != nil {
     configH.RegisterRoutes(api)
   }
