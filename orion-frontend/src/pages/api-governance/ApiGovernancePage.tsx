@@ -9,8 +9,7 @@ import React, { useState, useEffect } from 'react';
 import {
   apiGovernanceApi, GovernanceContract, GovernanceRule,
   GovernanceViolation, GovernanceReport
-} // @ts-ignore: Cannot find module '../../api/api-governance' (module does not exist)
-  from '../../api/api-governance';
+} from '@/api/api-governance';
 import {
   Card, Table, Button, Modal, Form, Select, Input, Tag,
   message, Space, Statistic, Row, Col, Badge, Tabs, Descriptions,
@@ -80,17 +79,23 @@ const ApiGovernancePage: React.FC = () => {
         apiGovernanceApi.listViolations(),
         apiGovernanceApi.getReport(),
       ]);
-      setContracts(contractRes || []);
-      setRules(ruleRes || []);
-      setViolations(violationRes || []);
-      setReport(reportRes as GovernanceReport);
+      const contractData = (contractRes as any).data ?? contractRes ?? [];
+      const ruleData = (ruleRes as any).data ?? ruleRes ?? [];
+      const violationData = (violationRes as any).data ?? violationRes ?? [];
+      const reportData = (reportRes as any).data ?? reportRes ?? null;
+
+      setContracts(contractData);
+      setRules(ruleData);
+      setViolations(violationData);
+      setReport(reportData);
 
       // Load versions for all contracts
       const allVersions: ApiVersionType[] = [];
-      if (contractRes && contractRes.length > 0) {
-        for (const contract of contractRes) {
+      if (contractData.length > 0) {
+        for (const contract of contractData) {
           try {
-            const contractVersions = await apiGovernanceApi.listVersions(contract.id);
+            const cvRes = await apiGovernanceApi.listVersions(contract.id);
+            const contractVersions = (cvRes as any).data ?? cvRes;
             if (Array.isArray(contractVersions)) {
               allVersions.push(...contractVersions);
             }
@@ -145,11 +150,12 @@ const ApiGovernancePage: React.FC = () => {
         message.error('No contract selected');
         return;
       }
-      const result = await apiGovernanceApi.verifyContract(selectedContract.id, {
+      const resultRes = await apiGovernanceApi.verifyContract(selectedContract.id, {
         actualResponse: values.actualResponse ? JSON.parse(values.actualResponse) : {},
         endpoint: values.endpoint,
         method: values.method,
       });
+      const result = (resultRes as any).data ?? resultRes;
       setVerificationResults([...verificationResults, result as VerificationResult]);
       if ((result as VerificationResult).passed) {
         message.success('Verification passed');

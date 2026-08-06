@@ -6,7 +6,7 @@
  * - API-backed impact analysis (upstream/downstream traversal)
  * - Pipeline filter
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Typography,
@@ -39,7 +39,6 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   FilterOutlined,
-  FileTextOutlined,
   LinkOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -73,14 +72,6 @@ interface ColumnDef {
   upstreamSource?: string;
   upstreamColumn?: string;
   transformed?: boolean;
-}
-
-interface ImpactNode {
-  id: string;
-  name: string;
-  type: ApiLineageNode['type'];
-  distance: number;
-  direction: 'upstream' | 'downstream';
 }
 
 // ==================== Helpers ====================
@@ -137,11 +128,10 @@ export default function DataLineageEnhancedPage() {
 
   // Detail & impact
   const [selectedNode, setSelectedNode] = useState<ApiLineageNode | null>(null);
-  const [nodeColumns] = useState<ColumnDef[]>([]);
   const [impactData, setImpactData] = useState<ApiImpact | null>(null);
   const [upstreamNodes, setUpstreamNodes] = useState<ApiLineageNode[]>([]);
   const [downstreamNodes, setDownstreamNodes] = useState<ApiLineageNode[]>([]);
-  const [impactLoading, setImpactLoading] = useState(false);
+  const [_, setImpactLoading] = useState(false);
 
   // Pipeline list for filter
   const [pipelineList, setPipelineList] = useState<{ key: string; label: string }[]>([]);
@@ -663,11 +653,14 @@ export default function DataLineageEnhancedPage() {
             </Panel>
             <Panel header={`受影响的 Pipelines (${impactData?.affectedPipelines.length ?? 0})`} key="pipelines">
               <Space size="small" wrap>
-                {(impactData?.affectedPipelines || []).length > 0
-                  ? impactData.affectedPipelines.map((p) => (
+                {(() => {
+                  const pipelines = impactData?.affectedPipelines ?? [];
+                  return pipelines.length > 0
+                    ? pipelines.map((p) => (
                       <Tag key={p} color="warning">{p}</Tag>
                     ))
-                  : <Text type="secondary">无受影响 Pipeline</Text>}
+                    : <Text type="secondary">无受影响 Pipeline</Text>
+                })()}
               </Space>
             </Panel>
           </Collapse>

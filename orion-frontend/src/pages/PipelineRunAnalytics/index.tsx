@@ -21,16 +21,15 @@ import {
   List,
   Descriptions,
   Drawer,
+  Empty,
+  Spin,
 } from 'antd';
 import {
-  ThunderboltOutlined,
   ReloadOutlined,
   TrophyOutlined,
   ClockCircleOutlined,
   FireOutlined,
   DashboardOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
   PauseCircleOutlined,
@@ -176,7 +175,8 @@ export default function PipelineRunAnalyticsPage() {
     setLoading(true);
     try {
       const res = await getAllPipelineRuns(buildParams());
-      let data = (res.data as { data?: RunRecord[]; runs?: RunRecord[] })?.data ?? (res.data as { runs?: RunRecord[] })?.runs ?? (res.data as RunRecord[]) ?? [];
+      const raw = (res as any).data ?? res;
+      let data = (raw as { data?: RunRecord[]; runs?: RunRecord[] })?.data ?? (raw as { runs?: RunRecord[] })?.runs ?? (raw as RunRecord[]) ?? [];
       if (!Array.isArray(data)) data = [];
 
       // Client-side date filtering
@@ -222,8 +222,8 @@ export default function PipelineRunAnalyticsPage() {
       .map(([pid, pruns]) => {
         const failures = pruns.filter((r) => r.status === 'failed');
         const durations = pruns.filter((r) => r.status === 'success')
-          .map((r) => typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs)
-          .filter((d): d is number => d > 0);
+          .map((r) => typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : (r.durationMs ?? 0))
+          .filter((d) => Number.isFinite(d) && d > 0);
         const avgMs = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
         const pname = pipelines.find((p) => p.id === pid)?.name || pid;
         return {
@@ -602,7 +602,7 @@ export default function PipelineRunAnalyticsPage() {
               { title: 'Started At', dataIndex: 'startedAt', key: 'startedAt' },
               { title: 'Duration', key: 'duration', render: (_: unknown, r: { durationMs?: number | string }) => formatDuration(typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs ?? 0) },
             ]}
-            dataSource={stageDetails as unknown[]}
+            dataSource={stageDetails as { id?: string; name?: string; status?: string; durationMs?: number | string; startedAt?: string }[]}
             rowKey="id"
             pagination={false}
             size="small"
