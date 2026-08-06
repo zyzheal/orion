@@ -4,7 +4,6 @@
  */
 
 import { api } from './client';
-import type { PageEntry } from '../router/page-registry-types';
 
 export interface PageRegistryEntry {
   id: string;

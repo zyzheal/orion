@@ -437,7 +437,7 @@ export function connectSSE(options: SSEConnectionOptions): void {
       // ARCH-005: 监听后端发送的 shutdown 事件
       es.addEventListener('shutdown', (event: MessageEvent) => {
         try {
-          const _data = JSON.parse(event.data);
+          JSON.parse(event.data);
 
           // 后端主动关闭时等待健康检查触发重连
         } catch {

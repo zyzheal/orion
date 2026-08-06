@@ -187,7 +187,7 @@ export const lowcodeApi = {
    */
   listWorkflowVersions: async (workflowId: string, params?: { limit?: number; offset?: number }): Promise<{ versions: LowcodeWorkflowVersion[]; total: number }> => {
     const response = await api.get<{ data: { versions: LowcodeWorkflowVersion[]; total: number; limit: number; offset: number } }>(`/api/v1/lowcode/workflows/${workflowId}/versions`, { params });
-    const unwrapped = response.data;
+    const unwrapped = response.data.data;
     return { versions: unwrapped.versions || [], total: unwrapped.total || 0 };
   },
 

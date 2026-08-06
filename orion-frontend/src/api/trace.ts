@@ -96,7 +96,7 @@ export const traceApi = {
   /**
    * 搜索 Trace 列表
    */
-  searchTraces: async (params?: TraceSearchParams): Promise<TraceSearchResult> => {
+  searchTraces: async (_params?: TraceSearchParams): Promise<TraceSearchResult> => {
     // TODO: 对接真实后端后替换为以下调用
     // const response = await apiClient.get('/trace/search', { params });
     // return response.data as TraceSearchResult;

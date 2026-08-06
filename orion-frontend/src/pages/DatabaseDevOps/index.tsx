@@ -1631,10 +1631,8 @@ const HealthCheckTab: React.FC = () => {
   );
 };
 
-export default DatabaseDevOpsPage;
-
 export default () => (
   <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="数据库运维">
-    <DatabaseDevOps />
+    <DatabaseDevOpsPage />
   </PermissionGuard>
 );

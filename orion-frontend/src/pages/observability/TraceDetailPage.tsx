@@ -435,10 +435,9 @@ const TreeNodeRow: React.FC<{
 
 const TimeAxis: React.FC<{
   chartWidth: number;
-  traceStartMs: number;
   totalDurationMs: number;
   zoom: number;
-}> = ({ chartWidth, traceStartMs, totalDurationMs, zoom }) => {
+}> = ({ chartWidth, totalDurationMs, zoom }) => {
   const effectiveDurationMs = totalDurationMs * zoom;
   const pxPerMs = chartWidth / Math.max(1, effectiveDurationMs);
 
@@ -1077,7 +1076,6 @@ const TraceDetailPage: React.FC = () => {
               <g transform={`translate(0, ${svgHeight - HEADER_HEIGHT - AXIS_HEIGHT})`}>
                 <TimeAxis
                   chartWidth={chartWidth}
-                  traceStartMs={traceStartMs}
                   totalDurationMs={totalDurationMs}
                   zoom={zoom}
                 />

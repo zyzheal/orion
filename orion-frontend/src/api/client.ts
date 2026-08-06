@@ -60,7 +60,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 // 响应拦截器 — 统一响应格式解包 + 自动 Token 刷新
 apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
-    const wrapped = response.data as Record<string, unknown> | undefined;
+    const wrapped = response.data as unknown as Record<string, unknown> | undefined;
     // 统一格式: { success: true, data: T, meta?, requestId?, timestamp }
     // 如果 success 为 true，自动解包 data 字段，让调用方直接拿到 T
     if (wrapped && typeof wrapped === 'object' && 'success' in wrapped) {
