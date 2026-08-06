@@ -2074,6 +2074,42 @@ export const routes: AppRoute[] = [
     protected: true,
     hideLayout: true,
   },
+  // ==================== 效能度量中心 (Efficacy Metrics Hub) ====================
+  {
+    path: '/efficacy-metrics',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics')),
+    protected: true,
+  },
+  {
+    path: '/efficacy-metrics/e2e',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics/E2EAnalysis')),
+    protected: true,
+  },
+  {
+    path: '/efficacy-metrics/management',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics/ManagementView')),
+    protected: true,
+  },
+  {
+    path: '/efficacy-metrics/engineering',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics/EngineeringView')),
+    protected: true,
+  },
+  {
+    path: '/efficacy-metrics/compliance',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics/ComplianceView')),
+    protected: true,
+  },
+  {
+    path: '/efficacy-metrics/ai-efficiency',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics/AIefficiencyView')),
+    protected: true,
+  },
+  {
+    path: '/efficacy-metrics/risk',
+    element: React.lazy(() => import('@/pages/EfficacyMetrics/RiskView')),
+    protected: true,
+  },
 
   // 404 页面
   {
