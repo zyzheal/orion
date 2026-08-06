@@ -4,14 +4,17 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"orion/platform-svc-go/internal/lowcode/executor"
 	"orion/platform-svc-go/internal/lowcode/models"
 
+	"go.uber.org/zap"
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/lowcode/repository"
 )
@@ -35,7 +38,8 @@ type RepositoryInterface interface {
 
 // Service provides lowcode business logic.
 type Service struct {
-	repo RepositoryInterface
+	repo   RepositoryInterface
+	logger *zap.Logger
 }
 
 var (
@@ -46,7 +50,7 @@ var (
 
 // NewService creates a new Service instance.
 func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, logger: zap.NewNop()}
 }
 
 // --- Flow CRUD ---
@@ -190,7 +194,7 @@ func (s *Service) PublishFlow(ctx context.Context, tenantID, id string) (*models
 	return flow, nil
 }
 
-// ExecuteFlow creates a workflow execution instance.
+// ExecuteFlow creates a workflow execution instance and runs the DAG via the executor.
 func (s *Service) ExecuteFlow(ctx context.Context, tenantID, userID, flowID string, input string) (*models.LowcodeInstance, error) {
 	flow, err := s.repo.GetFlowByID(ctx, tenantID, flowID)
 	if err != nil {
@@ -224,7 +228,106 @@ func (s *Service) ExecuteFlow(ctx context.Context, tenantID, userID, flowID stri
 		return nil, fmt.Errorf("failed to create instance: %w", err)
 	}
 
+	// Parse input variables.
+	var inputVars map[string]interface{}
+	if input != "" {
+		if err := json.Unmarshal([]byte(input), &inputVars); err != nil {
+			inputVars = map[string]interface{}{"raw_input": input}
+		}
+	}
+
+	// Parse flow nodes/edges into an executor DAG.
+	dag, parseErr := s.parseFlowToDAG(flow)
+	execResult := &executor.ExecutionResult{
+		Status: executor.StatusPending,
+	}
+
+	if parseErr != nil {
+		s.logger.Error("flow parse failed, running in passthrough mode",
+			zap.String("flowID", flowID),
+			zap.Error(parseErr),
+		)
+		inst.Status = "failed"
+		inst.Output = fmt.Sprintf(`{"status":"parse_error","error":"%s"}`, parseErr.Error())
+	} else if len(dag.Nodes) == 0 {
+		inst.Status = "empty_dag"
+		inst.Output = `{"status":"skipped","reason":"no nodes"}`
+	} else {
+		// Run the DAG via executor.
+		exec := executor.NewExecutor(
+			executor.WithLogger(s.logger),
+		)
+		execResult, err = exec.Execute(ctx, dag, inputVars)
+		if err != nil {
+			s.logger.Warn("DAG execution failed",
+				zap.String("flowID", flowID),
+				zap.String("instanceID", inst.ID),
+				zap.Error(err),
+			)
+			inst.Status = "failed"
+		} else {
+			inst.Status = execResult.Status.String()
+		}
+
+		// Serialize result to JSON.
+		resultJSON, _ := json.Marshal(execResult.Output)
+		inst.Output = string(resultJSON)
+	}
+
+	inst.CompletedAt = &now
+	// Persist status update — the repo currently has no UpdateInstance method,
+	// so we return the in-memory instance; caller should persist if needed.
+
 	return inst, nil
+}
+
+// parseFlowToDAG converts a LowcodeFlow's JSON nodes/edges into an executor DAG.
+func (s *Service) parseFlowToDAG(flow *models.LowcodeFlow) (*executor.DAG, error) {
+	var nodes []executor.FlowNodeDef
+	var edges []executor.FlowEdgeDef
+
+	if flow.Nodes != "" {
+		if err := json.Unmarshal([]byte(flow.Nodes), &nodes); err != nil {
+			return nil, fmt.Errorf("invalid flow nodes: %w", err)
+		}
+	}
+	if flow.Edges != "" {
+		if err := json.Unmarshal([]byte(flow.Edges), &edges); err != nil {
+			return nil, fmt.Errorf("invalid flow edges: %w", err)
+		}
+	}
+
+	// Convert to executor.Node format.
+	dagNodes := make([]*executor.Node, 0, len(nodes))
+	for _, n := range nodes {
+		cfg := make(map[string]interface{})
+		if n.Properties != nil {
+			// properties stored as JSON string
+			if props, ok := n.Properties.(string); ok && props != "" {
+				var propsMap map[string]interface{}
+				if err := json.Unmarshal([]byte(props), &propsMap); err == nil {
+					cfg = propsMap
+				}
+			}
+		}
+		dagNodes = append(dagNodes, &executor.Node{
+			ID:   n.ID,
+			Name: n.Name,
+			Type: executor.NodeType(n.Type),
+			Config: cfg,
+		})
+	}
+
+	dagEdges := make([]*executor.Edge, 0, len(edges))
+	for _, e := range edges {
+		dagEdges = append(dagEdges, &executor.Edge{
+			ID:   e.ID,
+			From: e.Source,
+			To:   e.Target,
+		})
+	}
+
+	return executor.NewDAG(dagNodes, dagEdges), nil
 }
 
 // --- Version Management ---

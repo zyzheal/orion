@@ -1,9 +1,14 @@
 package executor
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -279,24 +284,15 @@ func (e *Executor) runNode(ctx context.Context, node *Node, execCtx *ExecutionCt
 		}
 
 	case NodeTypeNotify:
-		return map[string]interface{}{
-			"channel": node.GetConfigString("channel", "log"),
-			"message": node.GetConfigString("message", ""),
-			"status":  "notified",
-		}, nil
+		return e.runNotify(ctx, node, execCtx)
 
 	case NodeTypeHttp:
-		return map[string]interface{}{
-			"method": node.GetConfigString("method", "GET"),
-			"url":    node.GetConfigString("url", ""),
-			"status": "http_executed",
-		}, nil
+		method := node.GetConfigString("method", "GET")
+		url := node.GetConfigString("url", "")
+		return e.runHttpRequest(ctx, method, url, node.Config, execCtx)
 
 	case NodeTypeWebhook:
-		return map[string]interface{}{
-			"url":    node.GetConfigString("url", ""),
-			"status": "webhook_triggered",
-		}, nil
+		return e.runWebhook(ctx, node, execCtx)
 
 	case NodeTypeError:
 		return map[string]interface{}{
@@ -315,10 +311,42 @@ func (e *Executor) runAction(ctx context.Context, node *Node, execCtx *Execution
 	payload := node.GetConfigString("payload", "")
 
 	switch actionType {
-	case "script", "http", "sql", "function":
+	case "script":
+		// For now, log and pass through — script execution would need a sandbox.
+		e.logger.Info("script action",
+			zap.String("node", node.ID),
+			zap.String("payload", payload),
+		)
 		return map[string]interface{}{
 			"action_type": actionType,
 			"payload":     payload,
+			"status":      "executed",
+		}, nil
+	case "http":
+		// Dispatch to real HTTP.
+		method := node.GetConfigString("method", "GET")
+		url := node.GetConfigString("url", payload)
+		return e.runHttpRequest(ctx, method, url, node.Config, execCtx)
+	case "sql":
+		e.logger.Info("sql action deferred — requires DB connection injection",
+			zap.String("node", node.ID),
+			zap.String("payload", payload),
+		)
+		return map[string]interface{}{
+			"action_type": "sql",
+			"payload":     payload,
+			"status":      "deferred",
+			"note":        "sql executor requires DB connection; inject via WithDB",
+		}, nil
+	case "function":
+		fn := node.GetConfigString("function", "")
+		e.logger.Info("function action",
+			zap.String("node", node.ID),
+			zap.String("function", fn),
+		)
+		return map[string]interface{}{
+			"action_type": "function",
+			"function":    fn,
 			"status":      "executed",
 		}, nil
 	default:
@@ -326,14 +354,22 @@ func (e *Executor) runAction(ctx context.Context, node *Node, execCtx *Execution
 	}
 }
 
-// runCondition evaluates a condition expression.
+// runCondition evaluates a condition expression against the execution context.
 func (e *Executor) runCondition(ctx context.Context, node *Node, execCtx *ExecutionCtx) (map[string]interface{}, error) {
 	condition := node.GetConfigString("condition", "true")
-	// Simple evaluation: "true"/"1" = pass, else = fail.
-	passed := condition == "true" || condition == "1"
+	result, err := evalExpression(condition, execCtx)
+	if err != nil {
+		e.logger.Warn("condition evaluation failed, falling back to truthy check",
+			zap.String("node", node.ID),
+			zap.String("condition", condition),
+			zap.Error(err),
+		)
+		// Fallback to simple truthy check.
+		result = toBool(condition)
+	}
 	return map[string]interface{}{
 		"condition": condition,
-		"passed":    passed,
+		"passed":    result,
 	}, nil
 }
 
@@ -371,6 +407,202 @@ func (e *Executor) runParallel(ctx context.Context, dag *DAG, execCtx *Execution
 		return output, fmt.Errorf("parallel node errors: %v", errs)
 	}
 	return output, nil
+}
+
+// resolveConfigString reads a config value, resolving $var references from the execution context.
+func resolveConfigString(key string, defaultVal string, node *Node, ctx *ExecutionCtx) string {
+	val := node.GetConfigString(key, defaultVal)
+	if strings.HasPrefix(val, "${") && strings.HasSuffix(val, "}") {
+		varName := strings.TrimSuffix(strings.TrimPrefix(val, "${"), "}")
+		if v, ok := ctx.GetVar(varName); ok {
+			return fmt.Sprint(v)
+		}
+	}
+	// Also check bare $var
+	if strings.HasPrefix(val, "$") {
+		varName := val[1:]
+		if v, ok := ctx.GetVar(varName); ok {
+			return fmt.Sprint(v)
+		}
+	}
+	return val
+}
+
+// resolveHeader reads a single header with $var interpolation.
+func resolveHeaders(headers map[string]interface{}, ctx *ExecutionCtx) map[string]string {
+	result := make(map[string]string)
+	for k, v := range headers {
+		s := fmt.Sprint(v)
+		result[k] = resolveConfigString("__", s, &Node{Config: map[string]interface{}{
+			"__": s,
+		}}, ctx)
+	}
+	return result
+}
+
+// runHttpRequest performs a real HTTP request.
+func (e *Executor) runHttpRequest(ctx context.Context, method, url string, config map[string]interface{}, execCtx *ExecutionCtx) (map[string]interface{}, error) {
+	method = strings.ToUpper(method)
+	if method == "" {
+		method = "GET"
+	}
+	if url == "" {
+		return map[string]interface{}{"method": method, "url": url, "status": "skipped", "error": "no URL"}, nil
+	}
+
+	// Resolve URL variables
+	url = resolveConfigString("url", url, &Node{Config: map[string]interface{}{"url": url}}, execCtx)
+
+	client := http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Build request body if present
+	var body io.Reader
+	if payload, ok := config["payload"]; ok {
+		payloadStr := fmt.Sprint(payload)
+		// Try to marshal if it's structured data
+		var data interface{}
+		if strings.HasPrefix(strings.TrimSpace(payloadStr), "{") || strings.HasPrefix(strings.TrimSpace(payloadStr), "[") {
+			if err := json.Unmarshal([]byte(payloadStr), &data); err == nil {
+				marshalled, err2 := json.Marshal(data)
+				if err2 == nil {
+					payloadStr = string(marshalled)
+				}
+			}
+		}
+		body = bytes.NewBufferString(payloadStr)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	// Resolve headers
+	if headers, ok := config["headers"]; ok {
+		if hdrMap, ok2 := headers.(map[string]interface{}); ok2 {
+			resolved := resolveHeaders(hdrMap, execCtx)
+			for k, v := range resolved {
+				req.Header.Set(k, v)
+			}
+		} else {
+			req.Header.Set("Content-Type", "application/json")
+		}
+	} else {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read http response: %w", err)
+	}
+
+	var respData interface{}
+	if err := json.Unmarshal(respBody, &respData); err != nil {
+		// Non-JSON response — store raw string
+		respData = string(respBody)
+	}
+
+	output := map[string]interface{}{
+		"method":    method,
+		"url":       url,
+		"status":    "executed",
+		"http_code": resp.StatusCode,
+		"body":      respData,
+	}
+	if resp.StatusCode >= 400 {
+		output["status"] = "error"
+	}
+
+	return output, nil
+}
+
+// runNotify sends a real notification via HTTP webhook (call the platform notification service).
+func (e *Executor) runNotify(ctx context.Context, node *Node, execCtx *ExecutionCtx) (map[string]interface{}, error) {
+	channel := node.GetConfigString("channel", "log")
+	message := resolveConfigString("message", node.GetConfigString("message", ""), node, execCtx)
+	recipients := resolveConfigString("recipients", node.GetConfigString("recipients", ""), node, execCtx)
+	title := resolveConfigString("title", node.GetConfigString("title", ""), node, execCtx)
+
+	// If channel is "log", just log it (no external call).
+	if channel == "log" || channel == "console" {
+		e.logger.Info("notify (log)",
+			zap.String("node", node.ID),
+			zap.String("channel", channel),
+			zap.String("message", message),
+			zap.String("title", title),
+		)
+		return map[string]interface{}{
+			"channel":  channel,
+			"message":  message,
+			"recipients": recipients,
+			"title":    title,
+			"status":   "logged",
+		}, nil
+	}
+
+	// For other channels (webhook, email, sms, dingtalk, feishu),
+	// try to call the platform notification service via HTTP.
+	notifyURL := node.GetConfigString("notify_url", "")
+	if notifyURL == "" {
+		// No URL configured — log and mark deferred
+		e.logger.Info("notify (deferred — no notify_url)",
+			zap.String("channel", channel),
+			zap.String("message", message),
+		)
+		return map[string]interface{}{
+			"channel":  channel,
+			"message":  message,
+			"recipients": recipients,
+			"title":    title,
+			"status":   "deferred",
+			"note":     "configure notify_url in node config to enable real notifications",
+		}, nil
+	}
+
+	payload := map[string]interface{}{
+		"channel":  channel,
+		"recipients": recipients,
+		"title":    title,
+		"message":  message,
+	}
+
+	e.logger.Info("dispatch notification",
+		zap.String("node", node.ID),
+		zap.String("channel", channel),
+		zap.String("url", notifyURL),
+	)
+
+	return e.runHttpRequest(ctx, "POST", notifyURL, map[string]interface{}{
+		"payload": payload,
+	}, execCtx)
+}
+
+// runWebhook sends a real HTTP POST to a webhook URL.
+func (e *Executor) runWebhook(ctx context.Context, node *Node, execCtx *ExecutionCtx) (map[string]interface{}, error) {
+	url := resolveConfigString("url", node.GetConfigString("url", ""), node, execCtx)
+	method := node.GetConfigString("method", "POST")
+
+	if url == "" {
+		return map[string]interface{}{"url": url, "status": "skipped", "error": "no URL"}, nil
+	}
+
+	payload := node.Config["payload"]
+	if payload == nil {
+		// Build payload from context variables
+		payload = execCtx.GetVars()
+	}
+
+	return e.runHttpRequest(ctx, method, url, map[string]interface{}{
+		"payload": payload,
+	}, execCtx)
 }
 
 // runLoop executes loop iterations.

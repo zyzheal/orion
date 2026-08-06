@@ -45,6 +45,21 @@ type Edge struct {
 	Label     string       // display label on the edge
 }
 
+// FlowNodeDef is the JSON-deserializable flow node definition (from DB).
+type FlowNodeDef struct {
+	ID         string      `json:"id"`
+	Name       string      `json:"name"`
+	Type       string      `json:"type"`
+	Properties interface{} `json:"properties"`
+}
+
+// FlowEdgeDef is the JSON-deserializable flow edge definition (from DB).
+type FlowEdgeDef struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
+
 // DAG is the execution graph: a collection of nodes and edges.
 // The executor assumes the DAG is acyclic (cycles are detected at construction).
 type DAG struct {
