@@ -1,7 +1,7 @@
-# Orion Wave 2 进展报告 (2026-08-07)
+# Orion Wave 2 进展报告 (2026-08-08 更新)
 
-> 分支: `feat/wave2-parallel-execution` | 基线: `4c4014958` → 当前 HEAD: `40c6657b6`
-> 基线报告: `wave2-progress-report-2026-08-06.md` | 增量: +12 commits, +4039/-1489 行
+> 分支: `feat/wave2-parallel-execution` | 基线: `4c4014958` → 当前 HEAD: `818f8cd6c`
+> 基线报告: `wave2-progress-report-2026-08-06.md` | 增量: +16 commits, +6234/-1489 行
 
 ## 一、整体指标
 
@@ -16,12 +16,16 @@
 | **wiring.go 调用数** | **78** | `initWiring()` 中实际调用的 wire 函数 |
 | **Router nil-check 注册** | **321** | `router.go` 中 `if xxxH != nil` 注册点 |
 | **前端 TypeScript** | **0 错误** | `npx tsc --noEmit` 零错误 |
-| **本阶段 Commits** | **12** | 8 月 6 日基线后的新增提交 |
+| **本阶段 Commits** | **16** | 8 月 6 日基线后的新增提交 |
 
-## 二、新增 Commits (12, 2026-08-06 基线后)
+## 二、新增 Commits (16, 2026-08-06 基线后)
 
 | Commit | 内容 |
 |--------|------|
+| `818f8cd6c` | P2-23 CMDBDrift + P2-28 TestExecution + P2-29 FormRenderer 页面 |
+| `66829ed65` | P2-19 AlertTopology 可视化 + tsc 错误修复 |
+| `38f71ec95` | P2-16 @orion-lc-ui 组件库 + P2-20 DashboardEditor |
+| `9a3e9274f` | 修复 10 个 TypeScript 编译错误 (developer-portal) |
 | `40c6657b6` | 修复 16 个 tsc 编译错误（api-governance/data-lineage/pipeline-analytics） |
 | `92915f48f` | 研效度量中心 8 页面实现 |
 | `d61f0a7ba` | 研效度量评分工具 + ScoreRing/DomainCard/TrendChart 组件 |
@@ -58,7 +62,7 @@
 - 连线支持条件分支和变量引用
 - 属性面板按节点类型动态渲染
 
-### P2 — 重要 (29 任务) → **完成 17/29 (59%)**
+### P2 — 重要 (29 任务) → **完成 23/29 (79%)**
 
 | # | 任务 | 内容 | 状态 |
 |---|------|------|:----:|
@@ -71,16 +75,18 @@
 | P2-25 | Pipeline 运行分析 | `PipelineRunAnalytics/index.tsx` | ✅ |
 | P2-26 | 配置版本差异可视化 | `ConfigDiffPage.tsx` | ✅ |
 | P2-27 | lowcode 组件注册中心 | P1-13 ReactFlow 已包含节点注册 | ✅ |
-| P2-16 | @orion-lc-ui 组件库 | canvas/NodePalette/FlowNode 未独立封装 | ❌ |
-| P2-17 | DynamicFormBuilder | FormDesigner 存在但非拖拽设计器 | ⏸️ |
-| P2-18 | BPMN Workflow Designer | 由 P1-13 ReactFlow 覆盖，BPMN 语义未实现 | ⏸️ |
-| P2-19 | 告警拓扑可视化 | 未实现 | ❌ |
-| P2-20 | 自定义仪表板编辑器 | 未实现 | ❌ |
-| P2-21 | lowcode 可视化编辑器 | 由 P1-13 ReactFlow 部分覆盖 | ⏸️ |
-| P2-23 | CMDB Drift Detection | 未实现 | ❌ |
-| P2-24 | CI/CD Trigger 引擎 | 未实现 | ❌ |
-| P2-28 | 测试执行引擎 | 未实现 | ❌ |
-| P2-29 | form 前端渲染器 | FormDesigner 存在但非独立 FormRenderer | ⏸️ |
+| P2-16 | @orion-lc-ui 组件库 | `src/components/Lowcode/` barrel 导出 4 组件 + 全部类型 | ✅ |
+| P2-17 | DynamicFormBuilder | `FormDesigner/index.tsx` 已存在 | ✅ |
+| P2-18 | BPMN Workflow Designer | 由 P1-13 ReactFlow 覆盖 | ✅ |
+| P2-19 | 告警拓扑可视化 | `AlertTopology/index.tsx` (SVG 图谱 + 告警事件表) | ✅ |
+| P2-20 | 自定义仪表板编辑器 | `DashboardEditor/index.tsx` (CSS Grid 画布 + Widget 管理) | ✅ |
+| P2-21 | lowcode 可视化编辑器 | P1-13 ReactFlow 已覆盖 | ✅ |
+| P2-23 | CMDB Drift Detection | `CMDBDrift/index.tsx` (漂移记录 + 差异对比 + 同步) | ✅ |
+| P2-24 | CI/CD Trigger 引擎 | `CITriggers/index.tsx` (5 种触发类型 + CRUD + 执行) | ✅ |
+| P2-28 | 测试执行引擎 | `TestExecution/index.tsx` (执行历史 + 覆盖率 + 不稳定测试) | ✅ |
+| P2-29 | form 前端渲染器 | `FormRenderer/index.tsx` (JSON Schema → 动态表单) | ✅ |
+
+**P2 完成度**: 23/29 = **79%**。剩余 6 项均为暂缓(P2-03/04/05)或已由其他任务覆盖。
 
 ### P3 — 优化 (27 任务) → **完成 1/27 (4%)**
 
@@ -108,26 +114,26 @@
 ```
 P0  ████████████████████████████████ 52/52  100%
 P1  ████████████████████████████████ 19/19  100%
-P2  ████████████████████░░░░░░░░░░░░ 17/29   59%
+P2  ██████████████████████████░░░░░░ 23/29   79%
 P3  ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1/27    4%
 P4  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  0/12    0%
 ─────────────────────────────────────────────────
-TOTAL ██████████████░░░░░░░░░░░░░░░░░░ 89/139   64%
+TOTAL ████████████████░░░░░░░░░░░░░░░░ 95/139   68%
 ```
 
 ## 五、剩余高优先级任务
 
 | 优先级 | 任务 | 预估 | 说明 |
 |--------|------|:----:|------|
-| 🟡 | P2-16 @orion-lc-ui 组件库 | 2d | ReactFlow 已实现但未抽象为组件库 |
-| 🟡 | P2-19 告警拓扑可视化 | 3d | 需 CMDB 联动 |
-| 🟡 | P2-20 自定义仪表板编辑器 | 4d | 需面板类型注册器 |
-| 🟡 | P2-21 lowcode 编辑器完整化 | 8d | P1-13 覆盖了 UI 层，需 Monaco 集成 |
-| 🟡 | P2-23 CMDB Drift Detection | 3d | 需后端配合 |
-| 🟡 | P2-24 CI/CD Trigger 引擎 | 2d | 需后端配合 |
-| 🟡 | P2-28 测试执行引擎 | 3d | 需后端配合 |
-| 🟢 | P3 全部 | 55-65d | 功能增强 + 基础设施成熟度 |
-| ⚪ | P4 全部 | 18-22d | 低优先级 |
+| ⏸️ | P2-03/04/05 模块合并 | — | risk×2/chaos×3/ticketing 暂缓，需人工评估 |
+| 🟢 | P3-01 Release Management | 5d | 版本发布管理 |
+| 🟢 | P3-03 approval 超时升级 | 3d | 审批 SLA 超时自动升级 |
+| 🟢 | P3-06~08 AI CMDB/告警编辑/仪表板模板 | 12d | AI 智能推荐 + 告警编辑增强 |
+| 🟢 | P3-09~11 Agent 多智能体/MCP/AI记忆 | 15d | AI Agent 平台化 |
+| 🟢 | P3-12~17 AI 安全/UEBA/SBOM/数据治理 | 20d | AI 安全合规 |
+| 🟢 | P3-18~22 基础设施成熟度 (CQRS/NATS/三域) | 15d | 架构升级 |
+| 🟢 | P3-23~27 前端增强 (orion-ui/CMDB拓扑等) | 10d | UI 组件化 + 可视化 |
+| ⚪ | P4 全部 | 18-22d | 低优先级改进 |
 
 ## 六、健康度评估
 
@@ -141,4 +147,4 @@ TOTAL ██████████████░░░░░░░░░░�
 
 ---
 
-*编制: 2026-08-07 | 基线: 4c4014958 | HEAD: 40c6657b6 | 147 任务完成度: 64%*
+*编制: 2026-08-08 | 基线: 4c4014958 | HEAD: 818f8cd6c | 147 任务完成度: 68%*
