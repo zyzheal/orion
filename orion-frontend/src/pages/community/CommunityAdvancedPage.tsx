@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { communityApi, Contribution, Badge, Mentorship } from '../../api/community';
+import { communityApi, Contribution, Badge, Mentorship } from '@/api/community';
 import {
   Card, Table, Button, Modal, Form, Select, Input, Tag,
   message, Space, Statistic, Row, Col, Avatar, Tabs,

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { federationApi, FederationCluster, CrossClusterJob } from '../../api/federation';
+import { federationApi, FederationCluster, CrossClusterJob } from '@/api/federation';
 import {
   Card, Table, Button, Modal, Form, Select, Input, Tag,
   message, Space, Statistic, Row, Col, Progress, Tabs,

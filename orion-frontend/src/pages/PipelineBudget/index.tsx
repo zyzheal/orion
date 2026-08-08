@@ -41,7 +41,7 @@ import {
   CheckCircleOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { pipelineBudgetApi, BudgetConfig, BudgetUsage } from '../../api/pipeline-budget';
+import { pipelineBudgetApi, BudgetConfig, BudgetUsage } from '@/api/pipeline-budget';
 
 const { Title, Text } = Typography;
 

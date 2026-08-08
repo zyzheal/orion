@@ -48,7 +48,7 @@ import {
   ChaosExperiment,
   ChaosFault,
   ResilienceScore,
-} from '../../api/chaos';
+} from '@/api/chaos';
 import type { ColumnsType } from 'antd/es/table';
 import { spacing } from '@/tokens';
 

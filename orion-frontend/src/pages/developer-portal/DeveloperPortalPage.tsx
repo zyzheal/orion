@@ -80,8 +80,7 @@ import {
   SubscriptionCreateRequest,
   PlaygroundRequest,
   PlaygroundExecuteRequest,
-} // @ts-ignore: Cannot find module '../../api/developer-portal' (module does not exist)
-  from '../../api/developer-portal';
+} from '@/api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 
@@ -1410,7 +1409,7 @@ const DeveloperPortalPage: React.FC = () => {
               <Descriptions.Item label="浏览">{selectedDoc.viewCount || 0}</Descriptions.Item>
               <Descriptions.Item label="点赞"><StarOutlined style={{ color: colors.warning[500], marginRight: 4 }} />{selectedDoc.helpfulCount || 0}</Descriptions.Item>
               <Descriptions.Item label="作者">{selectedDoc.authorId}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{new Date(selectedDoc.createdAt).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">{selectedDoc.createdAt ? new Date(selectedDoc.createdAt).toLocaleString() : new Date(selectedDoc.created_at).toLocaleString()}</Descriptions.Item>
             </Descriptions>
             <Card size="small" title="内容预览"><Paragraph>{selectedDoc.content?.substring(0, 500) || '无内容'}{(selectedDoc.content?.length || 0) > 500 && '...'}</Paragraph></Card>
             {docVersions.length > 1 && (
@@ -1485,7 +1484,7 @@ const DeveloperPortalPage: React.FC = () => {
       </Modal>
 
       {/* SDK Detail Drawer */}
-      <Drawer title={`SDK 代码 - ${selectedSdk?.name || ''}`} open={sdkDetailDrawer} onClose={() => setSdkDetailDrawer(false)} width={800} destroyOnClose extra={selectedSdk?.output && <Button icon={<CopyOutlined />} onClick={() => handleCopyToClipboard(selectedSdk.output)}>复制代码</Button>}>
+      <Drawer title={`SDK 代码 - ${selectedSdk?.name || ''}`} open={sdkDetailDrawer} onClose={() => setSdkDetailDrawer(false)} width={800} destroyOnClose extra={selectedSdk?.output && <Button icon={<CopyOutlined />} onClick={() => handleCopyToClipboard(selectedSdk.output || '')}>复制代码</Button>}>
         {selectedSdk && (
           <Space direction="vertical" style={{ width: '100%' }} size="middle">
             <Descriptions bordered size="small" column={2}>
@@ -1540,7 +1539,7 @@ const DeveloperPortalPage: React.FC = () => {
               <Descriptions.Item label="申请理由" span={2}>{selectedSub.reason || '-'}</Descriptions.Item>
               {selectedSub.rejectReason && <Descriptions.Item label="拒绝原因" span={2}><Text type="danger">{selectedSub.rejectReason}</Text></Descriptions.Item>}
               <Descriptions.Item label="到期时间">{selectedSub.expiresAt ? new Date(selectedSub.expiresAt).toLocaleDateString() : '-'}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{new Date(selectedSub.createdAt).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">{selectedSub.createdAt ? new Date(selectedSub.createdAt).toLocaleString() : new Date(selectedSub.created_at).toLocaleString()}</Descriptions.Item>
             </Descriptions>
 
             <Card size="small" title="用量趋势">

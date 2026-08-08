@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { digitalTwinApi, TwinSnapshot, TrafficRecording, TrafficReplay, DigitalTwin } from '../../api/digital-twin';
+import { digitalTwinApi, TwinSnapshot, TrafficRecording, TrafficReplay, DigitalTwin } from '@/api/digital-twin';
 import {
   Card, Table, Button, Modal, Form, Select, Input, Tag, Tabs,
   Progress, message, Space, Statistic, Row, Col, Badge

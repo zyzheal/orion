@@ -143,7 +143,7 @@ const DeveloperPortalPage: React.FC = () => {
   const loadCategories = async () => {
     try {
       const resp = await developerPortalApi.getCategories();
-      setCategories(resp.data || []);
+      setCategories(resp || []);
     } catch {
       // Silently fail - categories are non-critical
     }
@@ -152,7 +152,7 @@ const DeveloperPortalPage: React.FC = () => {
   const loadPopular = async () => {
     try {
       const resp = await developerPortalApi.getPopularDocuments(5);
-      setPopularDocs(resp.data || []);
+      setPopularDocs(resp || []);
     } catch {
       // Silently fail
     }
@@ -858,10 +858,10 @@ const DeveloperPortalPage: React.FC = () => {
                 {selectedDoc.authorId}
               </Descriptions.Item>
               <Descriptions.Item label="创建时间" span={2}>
-                {new Date(selectedDoc.createdAt).toLocaleString()}
+                {selectedDoc.createdAt ? new Date(selectedDoc.createdAt).toLocaleString() : new Date(selectedDoc.created_at).toLocaleString()}
               </Descriptions.Item>
               <Descriptions.Item label="更新时间" span={2}>
-                {new Date(selectedDoc.updatedAt).toLocaleString()}
+                {selectedDoc.updatedAt ? new Date(selectedDoc.updatedAt).toLocaleString() : new Date(selectedDoc.updated_at).toLocaleString()}
               </Descriptions.Item>
             </Descriptions>
 
