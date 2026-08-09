@@ -1,5 +1,20 @@
 package models
 
+// PipelineTrend represents a computed trend summary for a single pipeline
+// aggregated over a given time period (day/week/month).
+type PipelineTrend struct {
+	ID          string  `json:"id" db:"id"`
+	PipelineID  string  `json:"pipelineId" db:"pipeline_id"`
+	SuccessRate float64 `json:"successRate" db:"success_rate"`
+	AvgDuration float64 `json:"avgDuration" db:"avg_duration"`
+	TotalRuns   int     `json:"totalRuns" db:"total_runs"`
+	FailedRuns  int     `json:"failedRuns" db:"failed_runs"`
+	Period      string  `json:"period" db:"period"` // day/week/month
+	PeriodStart string  `json:"periodStart" db:"period_start"`
+	TenantID    string  `json:"tenantId" db:"tenant_id"`
+	CreatedAt   string  `json:"createdAt" db:"created_at"`
+}
+
 // TrendEntry represents a single data point in a pipeline run history trend.
 type TrendEntry struct {
 	Date        string   `json:"date"`
