@@ -25,6 +25,7 @@ func (h *PromptSecurityHandler) GetTenantID(c *gin.Context) string {
 func (h *PromptSecurityHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	sec := rg.Group("/prompt-security")
 	sec.POST("/scan", auth.RequirePermission("ai", "read"), h.Scan)
+	sec.POST("/check", auth.RequirePermission("ai", "read"), h.Check)
 	sec.GET("/config", auth.RequirePermission("ai", "read"), h.GetConfig)
 	sec.PUT("/config", auth.RequirePermission("ai", "write"), h.UpdateConfig)
 }
@@ -55,6 +56,21 @@ func (h *PromptSecurityHandler) Scan(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp.Scan})
+}
+
+// Check performs prompt-injection detection on the provided prompt.
+func (h *PromptSecurityHandler) Check(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+	var req models.CheckRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		return
+	}
+
+	result := h.svc.CheckPrompt(c.Request.Context(), tenantID, req.Prompt)
+	resp := &models.CheckResponse{Result: *result}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
 }
 
 // GetConfig returns the current security config.

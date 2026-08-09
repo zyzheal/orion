@@ -2,21 +2,37 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/ai/prompt-security/models"
 	"go.uber.org/zap"
 )
 
+// injectionKeywords are the keyword patterns used for prompt-injection detection.
+var injectionKeywords = []string{
+	"ignore previous",
+	"system prompt",
+	"you are now",
+	"act as",
+	"disregard",
+	"bypass",
+	"ignore all",
+}
+
 type PromptSecurityService struct {
-	config *models.PromptSecurityConfig
-	logger *zap.Logger
-	piiPatterns []*regexp.Regexp
+	config            *models.PromptSecurityConfig
+	logger            *zap.Logger
+	piiPatterns       []*regexp.Regexp
 	injectionPatterns []*regexp.Regexp
+	repo              interface {
+		Create(ctx context.Context, check *models.SecurityCheck) error
+	}
 }
 
 func NewPromptSecurityService(logger *zap.Logger) *PromptSecurityService {
@@ -43,6 +59,14 @@ func NewPromptSecurityService(logger *zap.Logger) *PromptSecurityService {
 			regexp.MustCompile(`(?i)(extract|reveal|show|display|output)\s+(the?\s+(system|prompt|instruction|config))`),
 		},
 	}
+	return s
+}
+
+// WithRepository attaches a persistence repository for storing check records.
+func (s *PromptSecurityService) WithRepository(repo interface{
+	Create(ctx context.Context, check *models.SecurityCheck) error
+}) *PromptSecurityService {
+	s.repo = repo
 	return s
 }
 
@@ -171,4 +195,89 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// CheckPrompt performs prompt-injection detection on the given prompt and
+// returns a SecurityCheckResult with risk score, matched keywords, and suggested action.
+// If a repository is configured, the result is also persisted.
+func (s *PromptSecurityService) CheckPrompt(ctx context.Context, tenantID string, prompt string) *models.SecurityCheckResult {
+	promptLower := strings.ToLower(prompt)
+	matchedKeywords := []string{}
+	score := 0
+	findings := []string{}
+
+	// Keyword-based prompt-injection detection
+	for _, keyword := range injectionKeywords {
+		if strings.Contains(promptLower, strings.ToLower(keyword)) {
+			matchedKeywords = append(matchedKeywords, keyword)
+			score += 14
+			findings = append(findings, fmt.Sprintf("prompt-injection keyword matched: %s", keyword))
+		}
+	}
+
+	// Regex-based injection pattern detection (existing logic)
+	if s.config.InjectionEnabled {
+		for _, pattern := range s.injectionPatterns {
+			matches := pattern.FindAllString(prompt, -1)
+			if len(matches) > 0 {
+				score += 20
+				findings = append(findings, fmt.Sprintf("injection pattern: %s", matches[0]))
+			}
+		}
+	}
+
+	// Cap risk score at 100
+	if score > 100 {
+		score = 100
+	}
+
+	// Determine action based on risk score
+	action := "allow"
+	if score >= 70 {
+		action = "blocked"
+	} else if score >= 30 {
+		action = "warn"
+	}
+
+	isSafe := score < 30
+
+	result := &models.SecurityCheckResult{
+		IsSafe:          isSafe,
+		RiskScore:       score,
+		MatchedKeywords: matchedKeywords,
+		Action:          action,
+		Findings:        findings,
+	}
+
+	// Compute prompt hash for deduplication
+	promptHash := fmt.Sprintf("%x", sha256.Sum256([]byte(prompt)))
+
+	// Persist the check record if a repository is available
+	if s.repo != nil {
+		check := &models.SecurityCheck{
+			ID:              uuid.NewString(),
+			TenantID:        tenantID,
+			Type:            "prompt",
+			PromptHash:      promptHash,
+			RiskScore:       score,
+			IsSafe:          isSafe,
+			Action:          action,
+			MatchedKeywords: matchedKeywords,
+			Findings:        findings,
+			Timestamp:       time.Now(),
+		}
+		if err := s.repo.Create(ctx, check); err != nil {
+			s.logger.Warn("failed to persist security check", zap.Error(err))
+		}
+	}
+
+	s.logger.Info("prompt injection check completed",
+		zap.String("tenantId", tenantID),
+		zap.Int("riskScore", score),
+		zap.Bool("isSafe", isSafe),
+		zap.String("action", action),
+		zap.Strings("matchedKeywords", matchedKeywords),
+	)
+
+	return result
 }
