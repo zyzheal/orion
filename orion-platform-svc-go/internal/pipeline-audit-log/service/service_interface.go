@@ -13,6 +13,8 @@ import (
 // ServiceInterface defines the interface for the pipeline-audit-log service.
 type ServiceInterface interface {
 	CleanupExpired(ctx context.Context, tenantID string, req *models.CleanupRequest) (int64, error)
+	GetAuditLogByAction(ctx context.Context, tenantID, action string, limit, offset int) ([]models.AuditLog, int, error)
+	GetAuditLogByPipeline(ctx context.Context, tenantID, pipelineID string, limit, offset int) ([]models.AuditLog, int, error)
 	GetRunAuditTrail(ctx context.Context, tenantID, runID string, limit int) (*models.AuditTrailResponse, error)
 	Query(ctx context.Context, q *models.AuditLogQuery, tenantID string) ([]models.AuditLog, int, error)
 	Record(ctx context.Context, req *models.AuditLogRequest, tenantID string) (*models.AuditLog, error)

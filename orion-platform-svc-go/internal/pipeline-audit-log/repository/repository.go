@@ -30,9 +30,11 @@ func (r *Repository) Record(ctx context.Context, log *models.AuditLog) error {
 	}
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO pipeline_audit_logs (id, tenant_id, run_id, stage_id, task_id, action, actor,
-			outcome, duration_ms, input_summary, output_summary, error_message, metadata, created_at)
+			outcome, duration_ms, input_summary, output_summary, error_message, metadata,
+			resource_type, resource_id, details, ip_address, created_at)
 		 VALUES (:id, :tenantId, :runId, :stageId, :taskId, :action, :actor,
-			:outcome, :durationMs, :inputSummary, :outputSummary, :errorMessage, :metadata, :createdAt)`,
+			:outcome, :durationMs, :inputSummary, :outputSummary, :errorMessage, :metadata,
+			:resourceType, :resourceId, :details, :ipAddress, :createdAt)`,
 		log)
 	return err
 }
@@ -159,4 +161,64 @@ func addFilter(where string, args []interface{}, idx int, val *string, column st
 // IsNoRows returns true if the error indicates no rows found.
 func IsNoRows(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
+}
+
+// GetAuditLogByPipeline retrieves audit logs for a specific pipeline (by run_id).
+func (r *Repository) GetAuditLogByPipeline(ctx context.Context, tenantID, pipelineID string, limit, offset int) ([]models.AuditLog, int, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	var total int
+	err := r.db.GetContext(ctx, &total,
+		`SELECT COUNT(*) FROM pipeline_audit_logs WHERE tenant_id=$1 AND run_id=$2`,
+		tenantID, pipelineID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var logs []models.AuditLog
+	err = r.db.SelectContext(ctx, &logs,
+		`SELECT * FROM pipeline_audit_logs WHERE tenant_id=$1 AND run_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
+		tenantID, pipelineID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	if logs == nil {
+		logs = []models.AuditLog{}
+	}
+	return logs, total, nil
+}
+
+// GetAuditLogByAction retrieves audit logs filtered by action type for a tenant.
+func (r *Repository) GetAuditLogByAction(ctx context.Context, tenantID, action string, limit, offset int) ([]models.AuditLog, int, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	var total int
+	err := r.db.GetContext(ctx, &total,
+		`SELECT COUNT(*) FROM pipeline_audit_logs WHERE tenant_id=$1 AND action=$2`,
+		tenantID, action)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var logs []models.AuditLog
+	err = r.db.SelectContext(ctx, &logs,
+		`SELECT * FROM pipeline_audit_logs WHERE tenant_id=$1 AND action=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
+		tenantID, action, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	if logs == nil {
+		logs = []models.AuditLog{}
+	}
+	return logs, total, nil
 }

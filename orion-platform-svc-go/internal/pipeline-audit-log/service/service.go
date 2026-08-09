@@ -15,6 +15,8 @@ import (
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
 	CleanupExpired(ctx context.Context, tenantID string, retentionDays int) (int64, error)
+	GetAuditLogByAction(ctx context.Context, tenantID, action string, limit, offset int) ([]models.AuditLog, int, error)
+	GetAuditLogByPipeline(ctx context.Context, tenantID, pipelineID string, limit, offset int) ([]models.AuditLog, int, error)
 	GetRunAuditTrail(ctx context.Context, tenantID, runID string, limit int) (*models.AuditTrailResponse, error)
 	Query(ctx context.Context, q models.AuditLogQuery) ([]models.AuditLog, int, error)
 	Record(ctx context.Context, log *models.AuditLog) error
@@ -86,6 +88,28 @@ func (s *Service) CleanupExpired(ctx context.Context, tenantID string, req *mode
 	return s.repo.CleanupExpired(ctx, tenantID, retentionDays)
 }
 
+// GetAuditLogByPipeline retrieves audit logs for a specific pipeline run with pagination.
+func (s *Service) GetAuditLogByPipeline(ctx context.Context, tenantID, pipelineID string, limit, offset int) ([]models.AuditLog, int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.GetAuditLogByPipeline(ctx, tenantID, pipelineID, limit, offset)
+}
+
+// GetAuditLogByAction retrieves audit logs filtered by action type with pagination.
+func (s *Service) GetAuditLogByAction(ctx context.Context, tenantID, action string, limit, offset int) ([]models.AuditLog, int, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.GetAuditLogByAction(ctx, tenantID, action, limit, offset)
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -103,6 +127,10 @@ func toAuditLog(req *models.AuditLogRequest, tenantID string) *models.AuditLog {
 		InputSummary:  req.InputSummary,
 		OutputSummary: req.OutputSummary,
 		ErrorMessage:  req.ErrorMessage,
+		ResourceType:  req.ResourceType,
+		ResourceID:    req.ResourceID,
+		Details:       req.Details,
+		IPAddress:     req.IPAddress,
 	}
 	// Ensure metadata is valid JSON text. If it is not parseable JSON, store as
 	// a JSON string value so the column always contains valid JSON.

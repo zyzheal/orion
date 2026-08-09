@@ -17,6 +17,10 @@ type AuditLog struct {
 	OutputSummary *string   `db:"output_summary" json:"outputSummary"`
 	ErrorMessage  *string   `db:"error_message" json:"errorMessage"`
 	Metadata      string    `db:"metadata" json:"metadata"`
+	ResourceType  *string   `db:"resource_type" json:"resourceType"`
+	ResourceID    *string   `db:"resource_id" json:"resourceId"`
+	Details       *string   `db:"details" json:"details"`
+	IPAddress     *string   `db:"ip_address" json:"ipAddress"`
 	CreatedAt     time.Time `db:"created_at" json:"createdAt"`
 }
 
@@ -34,6 +38,10 @@ type AuditLogRequest struct {
 	OutputSummary *string `json:"outputSummary"`
 	ErrorMessage  *string `json:"errorMessage"`
 	Metadata      *string `json:"metadata"`
+	ResourceType  *string `json:"resourceType"`
+	ResourceID    *string `json:"resourceId"`
+	Details       *string `json:"details"`
+	IPAddress     *string `json:"ipAddress"`
 }
 
 // AuditLogBatchRequest is the request body for batch recording audit events.
