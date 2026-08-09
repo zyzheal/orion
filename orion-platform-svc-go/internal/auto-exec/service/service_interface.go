@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/auto-exec/models"
+	"orion/platform-svc-go/internal/auto-exec/plugins"
 )
 
 type ServiceInterface interface {
@@ -23,6 +24,9 @@ type ServiceInterface interface {
 	UpdatePlugin(ctx context.Context, tenantID string, name string, fields map[string]any) (*models.PluginSPI, error)
 
 	ListEnginePlugins() []models.PluginSPI
+
+	// TriggerPipeline triggers a pipeline execution via the pipeline plugin.
+	TriggerPipeline(ctx context.Context, pipelineID string, params map[string]any) (*plugins.PipelineRunResult, error)
 }
 
 var _ ServiceInterface = (*Service)(nil)

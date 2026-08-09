@@ -98,9 +98,9 @@ func TestAllAndMetadata(t *testing.T) {
 }
 
 func TestGlobalFactoryAutoRegistration(t *testing.T) {
-	// The global factory registers 5 plugins via init().
+	// The global factory registers 6 plugins via init(): shell, python, http, sql, webhook, pipeline-trigger.
 	global := Factory()
-	for _, name := range []string{"shell", "python", "http", "sql", "webhook"} {
+	for _, name := range []string{"shell", "python", "http", "sql", "webhook", "pipeline-trigger"} {
 		if _, ok := global.Get(name); !ok {
 			t.Errorf("expected plugin %q to be auto-registered", name)
 		}

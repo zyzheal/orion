@@ -130,6 +130,16 @@ func init() {
 			panic(fmt.Sprintf("auto-exec: failed to register plugin %q: %v", p.Name(), err))
 		}
 	}
+
+	// Pipeline plugin — registered with a default no-op runner.  Production
+	// deployments should call plugins.SetTriggerPipelineRunner(...) at startup
+	// to inject the real pipeline-executor service.
+	pipelinePlugin := plugins.NewPipelinePlugin(
+		plugins.NewDefaultPipelineRunner(),
+	)
+	if err := f.Register(pipelinePlugin); err != nil {
+		panic(fmt.Sprintf("auto-exec: failed to register plugin %q: %v", pipelinePlugin.Name(), err))
+	}
 }
 
 // ---------------------------------------------------------------------------

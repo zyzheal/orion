@@ -13,6 +13,7 @@ import (
 
 	"orion/platform-svc-go/internal/auto-exec/engine"
 	"orion/platform-svc-go/internal/auto-exec/models"
+	"orion/platform-svc-go/internal/auto-exec/plugins"
 	"orion/platform-svc-go/internal/auto-exec/repository"
 )
 
@@ -85,4 +86,13 @@ func (s *Service) UpdatePlugin(ctx context.Context, tenantID string, name string
 
 func (s *Service) ListEnginePlugins() []models.PluginSPI {
 	return s.eng.ListPlugins()
+}
+
+// ---- Pipeline integration ----
+
+// TriggerPipeline triggers a pipeline execution via the configured pipeline runner.
+// It delegates to plugins.TriggerPipeline which uses the package-level runner
+// injected via plugins.SetTriggerPipelineRunner at startup.
+func (s *Service) TriggerPipeline(ctx context.Context, pipelineID string, params map[string]any) (*plugins.PipelineRunResult, error) {
+	return plugins.TriggerPipeline(ctx, pipelineID, params)
 }

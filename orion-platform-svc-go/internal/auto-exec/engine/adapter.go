@@ -38,6 +38,8 @@ func (a *executorPluginAdapter) Category() string {
 		return "database"
 	case "webhook":
 		return "integration"
+	case "pipeline-trigger":
+		return "pipeline"
 	default:
 		return "custom"
 	}
