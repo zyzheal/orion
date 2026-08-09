@@ -1315,6 +1315,7 @@ export const routes: AppRoute[] = [
     path: '/secrets',
     element: React.lazy(() => import('@/pages/SecretsManagement')),
     protected: true,
+    requiredPermission: { resource: 'secrets', action: 'read' },
   },
   // Pipeline Template (Workflow 9: Advanced CI/CD)
   {

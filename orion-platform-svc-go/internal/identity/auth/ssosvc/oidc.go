@@ -260,6 +260,28 @@ func (s *OIDCService) FetchUserInfo(ctx context.Context, disc *OIDCDiscoveryResp
 	return nil, fmt.Errorf("%w: userinfo endpoint unavailable", ErrUserInfo)
 }
 
+// ParseIDTokenNonce extracts the `nonce` claim from an unverified ID Token payload.
+// Used to cross-check against the original nonce stored in state before trusting claims.
+func (s *OIDCService) ParseIDTokenNonce(idToken string) (string, error) {
+	parts := strings.Split(idToken, ".")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("%w: invalid JWT structure", ErrUserInfo)
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("%w: failed to decode JWT payload: %v", ErrUserInfo, err)
+	}
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("%w: invalid claims JSON: %v", ErrUserInfo, err)
+	}
+	nonce := claimString(claims, "nonce")
+	if nonce == "" {
+		return "", fmt.Errorf("%w: ID token missing nonce claim", ErrInvalidState)
+	}
+	return nonce, nil
+}
+
 // ParseIDTokenClaims extracts claims from the JWT payload (base64 decoded).
 // This is a minimal, stateless parser that does NOT verify signatures — use only
 // when the provider's jwks_uri is not available or as a fallback.

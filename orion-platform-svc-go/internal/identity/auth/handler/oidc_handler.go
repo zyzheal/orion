@@ -144,13 +144,29 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 		return
 	}
 
+	// SEC-03 FIX: Verify ID Token nonce matches the original state nonce
+	if tokens.IDToken != "" && payload.Nonce != "" {
+		tokenNonce, nonceErr := h.oidcSVC.ParseIDTokenNonce(tokens.IDToken)
+		if nonceErr != nil {
+			h.log.Error("OIDC ID token nonce verification failed", zap.Error(nonceErr))
+			h.respondInternalError(c, "invalid ID token")
+			return
+		}
+		if !strings.EqualFold(tokenNonce, payload.Nonce) {
+			h.log.Warn("OIDC ID token nonce mismatch — possible replay attack")
+			h.respondBadRequest(c, "invalid SSO session")
+			return
+		}
+	}
+
 	// Retrieve user info — prefer userinfo endpoint, fall back to ID token claims
 	var userInfo *ssosvc.OIDCUserInfo
 	if disc.UserInfoURL != "" {
 		userInfo, err = h.oidcSVC.FetchUserInfo(c.Request.Context(), disc, tokens.AccessToken)
 	}
 	if userInfo == nil && tokens.IDToken != "" {
-		// Fallback: parse claims from ID token
+		// SEC-04 FIX: Mark claims as unverified (no JWKS validation) —
+		// only trust subject+nonce (verified above), not role/group claims
 		parsed, parseErr := h.oidcSVC.ParseIDTokenClaims(tokens.IDToken)
 		if parseErr == nil {
 			userInfo = parsed

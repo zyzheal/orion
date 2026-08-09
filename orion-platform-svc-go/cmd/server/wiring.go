@@ -600,8 +600,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		contractH = contract_handler.NewHandler(contractSvc)
 		// Group B: Special handlers
 		// selfHealing requires pgxpool (not available from sqlx.DB),
-		// defer to infrastructure layer wiring.
-		selfhealingH = sh_handler.NewSelfHealingHandler(nil)
+		// defer to infrastructure layer wiring. Keep nil so router guard skips it.
+		// TODO: wire pgxpool and pass real selfHealingRepo once core_infra_wiring exposes it.
 		peH = pe_handler.NewHandler(&pe_service.PipelineEngine{})
 		infraCapPoolRepo := infraCap_repo.NewPoolRepository(db.DB)
 		infraCapForecastRepo := infraCap_repo.NewForecastRepository(db.DB)
