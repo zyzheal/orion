@@ -49,6 +49,10 @@ interface TemplateItem {
   iconColor: string;
 }
 
+// ---- Constants ----
+
+const ICON_FONT_SIZE = 36; // px
+
 // ---- Template Data ----
 
 const TEMPLATES: TemplateItem[] = [
@@ -58,7 +62,7 @@ const TEMPLATES: TemplateItem[] = [
     description: '服务器/容器/网络核心指标',
     widgetCount: 8,
     category: '运维',
-    icon: <CloudServerOutlined style={{ fontSize: 36 }} />,
+    icon: <CloudServerOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.primary[500],
   },
   {
@@ -67,7 +71,7 @@ const TEMPLATES: TemplateItem[] = [
     description: 'DORA/CI/CD/代码提交',
     widgetCount: 6,
     category: '开发',
-    icon: <RocketOutlined style={{ fontSize: 36 }} />,
+    icon: <RocketOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.purple[500],
   },
   {
@@ -76,7 +80,7 @@ const TEMPLATES: TemplateItem[] = [
     description: '数据管道/质量规则/血缘',
     widgetCount: 6,
     category: '数据',
-    icon: <DatabaseOutlined style={{ fontSize: 36 }} />,
+    icon: <DatabaseOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.success[500],
   },
   {
@@ -85,7 +89,7 @@ const TEMPLATES: TemplateItem[] = [
     description: '漏洞/威胁/合规评分',
     widgetCount: 7,
     category: '安全',
-    icon: <SafetyCertificateOutlined style={{ fontSize: 36 }} />,
+    icon: <SafetyCertificateOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.error[500],
   },
   {
@@ -94,7 +98,7 @@ const TEMPLATES: TemplateItem[] = [
     description: '告警规则/事件/趋势',
     widgetCount: 5,
     category: '运维',
-    icon: <ThunderboltOutlined style={{ fontSize: 36 }} />,
+    icon: <ThunderboltOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.warning[500],
   },
   {
@@ -103,7 +107,7 @@ const TEMPLATES: TemplateItem[] = [
     description: '制品版本/下载量/依赖',
     widgetCount: 5,
     category: '开发',
-    icon: <BoxPlotOutlined style={{ fontSize: 36 }} />,
+    icon: <BoxPlotOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.primary[500],
   },
   {
@@ -112,7 +116,7 @@ const TEMPLATES: TemplateItem[] = [
     description: 'AI 采纳率/Token 消耗/模型性能',
     widgetCount: 6,
     category: '数据',
-    icon: <RobotOutlined style={{ fontSize: 36 }} />,
+    icon: <RobotOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.purple[500],
   },
   {
@@ -121,7 +125,7 @@ const TEMPLATES: TemplateItem[] = [
     description: '云成本/资源利用率/预算',
     widgetCount: 7,
     category: '运维',
-    icon: <FundOutlined style={{ fontSize: 36 }} />,
+    icon: <FundOutlined style={{ fontSize: ICON_FONT_SIZE }} />,
     iconColor: colors.success[500],
   },
 ];
@@ -136,6 +140,7 @@ const DashboardTemplateMarket: React.FC = () => {
     template: TemplateItem | null;
   }>({ visible: false, template: null });
   const [applying, setApplying] = useState(false);
+  const [applyingId, setApplyingId] = useState<number | null>(null);
 
   // Filtered templates
   const filteredTemplates = useMemo(() => {
@@ -150,6 +155,7 @@ const DashboardTemplateMarket: React.FC = () => {
   }, [selectedCategory, searchKeyword]);
 
   const handleApply = (template: TemplateItem) => {
+    setApplyingId(template.id);
     setConfirmModal({ visible: true, template });
   };
 
@@ -159,11 +165,13 @@ const DashboardTemplateMarket: React.FC = () => {
     // Simulate async operation
     await new Promise((resolve) => setTimeout(resolve, 500));
     setApplying(false);
+    setApplyingId(null);
     setConfirmModal({ visible: false, template: null });
     message.success(`模板「${confirmModal.template.name}」已应用`);
   };
 
   const handleCancelModal = () => {
+    setApplyingId(null);
     setConfirmModal({ visible: false, template: null });
   };
 
@@ -298,6 +306,8 @@ const DashboardTemplateMarket: React.FC = () => {
                     <Button
                       type="primary"
                       size="middle"
+                      loading={applyingId === template.id}
+                      disabled={applyingId === template.id}
                       onClick={() => handleApply(template)}
                       style={{
                         borderRadius: 6,
