@@ -285,7 +285,8 @@ const ContainerScanPage: React.FC = () => {
   const [scanningKey, setScanningKey] = useState<string | null>(null);
   const [policyForm] = Form.useForm();
   const [policySaving, setPolicySaving] = useState(false);
-  const [policy, setPolicy] = useState<ScanPolicy>({
+
+  const [policy] = useState<ScanPolicy>({
     engine: 'Trivy',
     frequency: '每次推送',
     threshold: 'Critical+High',
@@ -451,6 +452,15 @@ const ContainerScanPage: React.FC = () => {
       <Text type="secondary">Trivy/Clair 漏洞扫描 · 镜像合规 · 修复建议</Text>
 
       <Divider />
+
+      <div
+        style={{
+          height: 1,
+          backgroundColor: commonStyle.primary,
+          width: 60,
+          marginBottom: spacing.md,
+        }}
+      />
 
       {/* 顶部统计卡片 */}
       <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
@@ -677,10 +687,8 @@ const ContainerScanPage: React.FC = () => {
                 <Switch
                   checkedChildren="开启"
                   unCheckedChildren="关闭"
-                  onChange={(checked: boolean) => {
-                    setPolicy((prev) => ({ ...prev, autoBlock: checked }));
-                    message.info(checked ? '自动阻止部署已开启' : '自动阻止部署已关闭');
-                  }}
+                  checked={policy.autoBlock}
+                  onChange={() => message.info('自动阻止部署状态已切换')}
                 />
               </Form.Item>
             </Col>
