@@ -1,0 +1,273 @@
+{
+  "alertRuleEditor": {
+    "title": "Alert Rule Visual Editor",
+    "subtitle": "Condition Builder · Threshold Config · Cooldown Settings",
+    "newRule": "New Rule",
+    "refresh": "Refresh",
+    "total": "Total Rules",
+    "enabled": "Enabled",
+    "critical": "Critical Rules",
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Info"
+    },
+    "severityOptions": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Info"
+    },
+    "condition": {
+      "gt": "Greater than (>)",
+      "lt": "Less than (<)",
+      "gte": "Greater than or equal (>=)",
+      "lte": "Less than or equal (<=)",
+      "eq": "Equals (==)",
+      "neq": "Not equals (!=)"
+    },
+    "columns": {
+      "ruleName": "Rule Name",
+      "metric": "Metric",
+      "conditionExpr": "Condition",
+      "severity": "Severity",
+      "cooldown": "Cooldown",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "switch": {
+      "on": "On",
+      "off": "Off"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "modal": {
+      "create": "Create Alert Rule",
+      "edit": "Edit Alert Rule",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "createBtn": "Create",
+      "updateBtn": "Update",
+      "confirmDelete": "Confirm deleting this rule?",
+      "deleteDesc": "This action cannot be undone"
+    },
+    "form": {
+      "ruleName": "Rule Name",
+      "metricName": "Metric Name",
+      "condition": "Condition",
+      "threshold": "Threshold",
+      "severity": "Severity",
+      "cooldown": "Cooldown",
+      "ruleNamePlaceholder": "e.g. High CPU Usage Alert",
+      "metricPlaceholder": "e.g. cpu_usage_percent",
+      "conditionPlaceholder": "Select comparison",
+      "thresholdPlaceholder": "e.g. 90",
+      "thresholdUnit": "unit",
+      "severityPlaceholder": "Select severity",
+      "cooldownPlaceholder": "Optional, in seconds",
+      "cooldownUnit": "s",
+      "cooldownTooltip": "Cooldown after alert triggers to avoid duplicates",
+      "ruleNameRequired": "Please enter a rule name",
+      "metricRequired": "Please enter a metric name",
+      "conditionRequired": "Please select a condition",
+      "thresholdRequired": "Please enter a threshold",
+      "severityRequired": "Please select a severity"
+    },
+    "messages": {
+      "loadFailed": "Failed to load alert rules, please try again",
+      "ruleUpdated": "Rule updated",
+      "ruleCreated": "Rule created",
+      "updateFailed": "Failed to update rule",
+      "createFailed": "Failed to create rule",
+      "ruleDisabled": "Rule disabled",
+      "ruleEnabled": "Rule enabled",
+      "toggleFailed": "Failed to toggle rule",
+      "ruleDeleted": "Rule deleted",
+      "deleteFailed": "Failed to delete rule"
+    },
+    "empty": "No alert rules yet"
+  },
+  "dashboardTemplateMarket": {
+    "title": "Dashboard Template Market",
+    "subtitle": "Pre-built Templates · One-click Apply · Personalization",
+    "applyTemplate": "Apply Template",
+    "categories": {
+      "all": "All Categories",
+      "ops": "Operations",
+      "dev": "Development",
+      "data": "Data",
+      "security": "Security"
+    },
+    "searchPlaceholder": "Search template name or description",
+    "empty": "No matching templates found",
+    "confirm": {
+      "title": "Confirm Apply Template",
+      "ok": "Apply",
+      "cancel": "Cancel"
+    },
+    "widgets": "Widgets",
+    "templates": {
+      "opsOverview": "Ops Overview",
+      "devEfficiency": "Dev Efficiency",
+      "dataQuality": "Data Quality",
+      "securityPosture": "Security Posture",
+      "alertMonitoring": "Alert Monitoring",
+      "artifactManagement": "Artifact Management",
+      "aiEfficiency": "AI Efficiency",
+      "costAnalysis": "Cost Analysis"
+    },
+    "templateDescriptions": {
+      "opsOverview": "Server/Container/Network core metrics",
+      "devEfficiency": "DORA/CI/CD/code commits",
+      "dataQuality": "Data pipeline/quality rules/lineage",
+      "securityPosture": "Vulnerabilities/threats/compliance score",
+      "alertMonitoring": "Alert rules/events/trends",
+      "artifactManagement": "Artifact versions/downloads/dependencies",
+      "aiEfficiency": "AI adoption/Token usage/model performance",
+      "costAnalysis": "Cloud cost/resource utilization/budget"
+    },
+    "messages": {
+      "applied": "Template applied"
+    }
+  },
+  "cmdbDrift": {
+    "title": "CMDB Drift Detection",
+    "subtitle": "Configuration Change Tracking · Diff Comparison · Sync CMDB",
+    "refresh": "Refresh",
+    "severity": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "info": "Info"
+    },
+    "stats": {
+      "critical": "Critical Drifts",
+      "warning": "Warning Drifts",
+      "info": "Info Drifts",
+      "total": "Total Drifts"
+    },
+    "columns": {
+      "configItem": "CI Name",
+      "type": "Type",
+      "field": "Field",
+      "oldValue": "Old Value",
+      "newValue": "New Value",
+      "severity": "Severity",
+      "changedBy": "Changed By",
+      "time": "Time",
+      "actions": "Actions"
+    },
+    "actions": {
+      "diff": "Diff",
+      "sync": "Sync"
+    },
+    "filters": {
+      "severity": "Severity",
+      "type": "CI Type",
+      "service": "Service",
+      "database": "Database",
+      "cache": "Cache"
+    },
+    "sectionTitle": "Drift Records",
+    "empty": "No drift records",
+    "messages": {
+      "refreshed": "Drift data refreshed",
+      "synced": "Synced to CMDB"
+    }
+  },
+  "testExecution": {
+    "title": "Test Execution Engine",
+    "subtitle": "Test Suite Execution · Flaky Tests · Coverage",
+    "refresh": "Refresh",
+    "stats": {
+      "total": "Total Test Cases",
+      "passed": "Passed",
+      "failed": "Failed",
+      "duration": "Total Duration(ms)"
+    },
+    "status": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "blocked": "Blocked",
+      "error": "Error",
+      "pending": "Pending"
+    },
+    "environment": {
+      "placeholder": "Environment",
+      "dev": "Dev",
+      "staging": "Staging",
+      "prod": "Production"
+    },
+    "sections": {
+      "history": "Test Execution History",
+      "coverage": "Coverage",
+      "flaky": "Flaky Tests"
+    },
+    "columns": {
+      "suiteName": "Test Suite",
+      "caseName": "Test Case",
+      "status": "Status",
+      "duration": "Duration(ms)",
+      "time": "Time",
+      "fileName": "File/Module",
+      "coverage": "Coverage",
+      "passRate": "Pass Rate",
+      "failCount": "Fail Count",
+      "totalRuns": "Total Runs",
+      "lastFail": "Last Failure"
+    },
+    "empty": {
+      "coverage": "No coverage data",
+      "flaky": "No flaky tests"
+    },
+    "messages": {
+      "loadFailed": "Failed to load test data"
+    }
+  },
+  "formRenderer": {
+    "title": "Form Renderer",
+    "subtitle": "JSON Schema-based Dynamic Form · Multi-type Fields · Real-time Validation",
+    "preview": "Preview",
+    "edit": "Edit",
+    "importSchema": "Import Schema",
+    "exportSchema": "Export Schema",
+    "reset": "Reset",
+    "submit": "Submit",
+    "submitForm": "Submit Form",
+    "sections": {
+      "formList": "Form List",
+      "fields": "Fields"
+    },
+    "tags": {
+      "previewMode": "Preview Mode"
+    },
+    "switch": {
+      "on": "On",
+      "off": "Off"
+    },
+    "modals": {
+      "resultTitle": "Submit Result",
+      "resultDesc": "Here is your submitted form data:",
+      "importTitle": "Import Schema",
+      "importDesc": "Paste JSON Schema, format required",
+      "exportTitle": "Export Schema",
+      "close": "Close"
+    },
+    "messages": {
+      "submitSuccess": "Form submitted successfully",
+      "requiredFields": "Please complete required fields",
+      "importSuccess": "Schema imported successfully",
+      "invalidSchema": "Invalid Schema format",
+      "parseFailed": "JSON parse failed"
+    },
+    "formSchemas": {
+      "ticketRequest": "Ticket Request",
+      "ticketRequestDesc": "Standard ticket request form",
+      "onboarding": "Onboarding",
+      "onboardingDesc": "New employee onboarding registration",
+      "feedback": "Feedback Form",
+      "feedbackDesc": "User feedback collection"
+    }
+  }
+}

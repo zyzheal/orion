@@ -1,0 +1,273 @@
+{
+  "alertRuleEditor": {
+    "title": "告警规则可视化编辑器",
+    "subtitle": "条件编辑器 · 阈值配置 · 冷却时间设置",
+    "newRule": "新建规则",
+    "refresh": "刷新",
+    "total": "总规则数",
+    "enabled": "启用数",
+    "critical": "严重规则数",
+    "severity": {
+      "critical": "严重",
+      "warning": "警告",
+      "info": "信息"
+    },
+    "severityOptions": {
+      "critical": "严重 (Critical)",
+      "warning": "警告 (Warning)",
+      "info": "信息 (Info)"
+    },
+    "condition": {
+      "gt": "大于 (>)",
+      "lt": "小于 (<)",
+      "gte": "大于等于 (>=)",
+      "lte": "小于等于 (<=)",
+      "eq": "等于 (==)",
+      "neq": "不等于 (!=)"
+    },
+    "columns": {
+      "ruleName": "规则名称",
+      "metric": "指标",
+      "conditionExpr": "条件表达式",
+      "severity": "严重度",
+      "cooldown": "冷却时间",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "switch": {
+      "on": "开",
+      "off": "关"
+    },
+    "actions": {
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "modal": {
+      "create": "新建告警规则",
+      "edit": "编辑告警规则",
+      "confirm": "确认",
+      "cancel": "取消",
+      "createBtn": "创建",
+      "updateBtn": "更新",
+      "confirmDelete": "确认删除此规则？",
+      "deleteDesc": "删除后无法恢复"
+    },
+    "form": {
+      "ruleName": "规则名称",
+      "metricName": "指标名称",
+      "condition": "条件",
+      "threshold": "阈值",
+      "severity": "严重度",
+      "cooldown": "冷却时间",
+      "ruleNamePlaceholder": "例如：CPU使用率过高告警",
+      "metricPlaceholder": "例如：cpu_usage_percent",
+      "conditionPlaceholder": "选择比较条件",
+      "thresholdPlaceholder": "例如：90",
+      "thresholdUnit": "单位",
+      "severityPlaceholder": "选择严重级别",
+      "cooldownPlaceholder": "可选，单位：秒",
+      "cooldownUnit": "秒",
+      "cooldownTooltip": "告警触发后的冷却时间，避免重复告警",
+      "ruleNameRequired": "请输入规则名称",
+      "metricRequired": "请输入指标名称",
+      "conditionRequired": "请选择条件",
+      "thresholdRequired": "请输入阈值",
+      "severityRequired": "请选择严重度"
+    },
+    "messages": {
+      "loadFailed": "加载告警规则失败，请稍后重试",
+      "ruleUpdated": "规则已更新",
+      "ruleCreated": "规则已创建",
+      "updateFailed": "更新规则失败",
+      "createFailed": "创建规则失败",
+      "ruleDisabled": "规则已禁用",
+      "ruleEnabled": "规则已启用",
+      "toggleFailed": "切换规则状态失败",
+      "ruleDeleted": "规则已删除",
+      "deleteFailed": "删除规则失败"
+    },
+    "empty": "暂无告警规则"
+  },
+  "dashboardTemplateMarket": {
+    "title": "仪表板模板市场",
+    "subtitle": "预置模板 · 一键应用 · 个性化配置",
+    "applyTemplate": "应用模板",
+    "categories": {
+      "all": "全部分类",
+      "ops": "运维",
+      "dev": "开发",
+      "data": "数据",
+      "security": "安全"
+    },
+    "searchPlaceholder": "搜索模板名称或描述",
+    "empty": "没有找到匹配的模板",
+    "confirm": {
+      "title": "确认应用模板",
+      "ok": "确认应用",
+      "cancel": "取消"
+    },
+    "widgets": "Widgets",
+    "templates": {
+      "opsOverview": "运维概览",
+      "devEfficiency": "开发效率",
+      "dataQuality": "数据质量",
+      "securityPosture": "安全态势",
+      "alertMonitoring": "告警监控",
+      "artifactManagement": "制品管理",
+      "aiEfficiency": "AI 效能",
+      "costAnalysis": "成本分析"
+    },
+    "templateDescriptions": {
+      "opsOverview": "服务器/容器/网络核心指标",
+      "devEfficiency": "DORA/CI/CD/代码提交",
+      "dataQuality": "数据管道/质量规则/血缘",
+      "securityPosture": "漏洞/威胁/合规评分",
+      "alertMonitoring": "告警规则/事件/趋势",
+      "artifactManagement": "制品版本/下载量/依赖",
+      "aiEfficiency": "AI 采纳率/Token 消耗/模型性能",
+      "costAnalysis": "云成本/资源利用率/预算"
+    },
+    "messages": {
+      "applied": "模板已应用"
+    }
+  },
+  "cmdbDrift": {
+    "title": "CMDB 漂移检测",
+    "subtitle": "配置项变更记录追踪 · 差异对比 · 同步 CMDB",
+    "refresh": "刷新",
+    "severity": {
+      "critical": "严重",
+      "warning": "警告",
+      "info": "信息"
+    },
+    "stats": {
+      "critical": "严重漂移",
+      "warning": "警告漂移",
+      "info": "信息漂移",
+      "total": "总漂移数"
+    },
+    "columns": {
+      "configItem": "配置项",
+      "type": "类型",
+      "field": "字段",
+      "oldValue": "旧值",
+      "newValue": "新值",
+      "severity": "严重度",
+      "changedBy": "变更人",
+      "time": "时间",
+      "actions": "操作"
+    },
+    "actions": {
+      "diff": "对比",
+      "sync": "同步"
+    },
+    "filters": {
+      "severity": "严重级别",
+      "type": "配置项类型",
+      "service": "Service",
+      "database": "Database",
+      "cache": "Cache"
+    },
+    "sectionTitle": "漂移记录",
+    "empty": "无漂移记录",
+    "messages": {
+      "refreshed": "漂移数据已刷新",
+      "synced": "已同步到 CMDB"
+    }
+  },
+  "testExecution": {
+    "title": "测试执行引擎",
+    "subtitle": "测试套件执行 · 不稳定测试 · 覆盖率",
+    "refresh": "刷新",
+    "stats": {
+      "total": "总测试用例",
+      "passed": "通过",
+      "failed": "失败",
+      "duration": "总耗时(ms)"
+    },
+    "status": {
+      "passed": "通过",
+      "failed": "失败",
+      "skipped": "跳过",
+      "blocked": "阻塞",
+      "error": "错误",
+      "pending": "待执行"
+    },
+    "environment": {
+      "placeholder": "环境",
+      "dev": "开发",
+      "staging": "预发布",
+      "prod": "生产"
+    },
+    "sections": {
+      "history": "测试执行历史",
+      "coverage": "覆盖率",
+      "flaky": "不稳定测试 (Flaky Tests)"
+    },
+    "columns": {
+      "suiteName": "测试套件",
+      "caseName": "测试用例",
+      "status": "状态",
+      "duration": "耗时(ms)",
+      "time": "时间",
+      "fileName": "文件/模块",
+      "coverage": "覆盖率",
+      "passRate": "通过率",
+      "failCount": "失败次数",
+      "totalRuns": "总运行次数",
+      "lastFail": "上次失败"
+    },
+    "empty": {
+      "coverage": "暂无覆盖率数据",
+      "flaky": "无不稳定测试"
+    },
+    "messages": {
+      "loadFailed": "加载测试数据失败，请稍后重试"
+    }
+  },
+  "formRenderer": {
+    "title": "表单渲染器",
+    "subtitle": "基于 JSON Schema 动态渲染表单 · 多类型字段支持 · 实时校验",
+    "preview": "预览",
+    "edit": "编辑",
+    "importSchema": "导入 Schema",
+    "exportSchema": "导出 Schema",
+    "reset": "重置",
+    "submit": "提交",
+    "submitForm": "提交表单",
+    "sections": {
+      "formList": "表单列表",
+      "fields": "字段"
+    },
+    "tags": {
+      "previewMode": "预览模式"
+    },
+    "switch": {
+      "on": "开启",
+      "off": "关闭"
+    },
+    "modals": {
+      "resultTitle": "提交结果",
+      "resultDesc": "以下为您提交的表单数据：",
+      "importTitle": "导入 Schema",
+      "importDesc": "粘贴 JSON Schema，格式要求",
+      "exportTitle": "导出 Schema",
+      "close": "关闭"
+    },
+    "messages": {
+      "submitSuccess": "表单提交成功",
+      "requiredFields": "请完成必填项",
+      "importSuccess": "Schema 导入成功",
+      "invalidSchema": "无效的 Schema 格式",
+      "parseFailed": "JSON 解析失败"
+    },
+    "formSchemas": {
+      "ticketRequest": "工单申请",
+      "ticketRequestDesc": "标准工单申请表单",
+      "onboarding": "入职登记",
+      "onboardingDesc": "新员工入职信息登记",
+      "feedback": "反馈表单",
+      "feedbackDesc": "用户反馈收集"
+    }
+  }
+}
