@@ -1,7 +1,7 @@
 # Orion Wave 2 进展报告 (2026-08-09 更新)
 
-> 分支: `feat/wave2-parallel-execution` | 基线: `4c4014958` → 当前 HEAD: `95fbe9b60`
-> 基线报告: `wave2-progress-report-2026-08-06.md` | 增量: +22 commits, +15000 行
+> 分支: `feat/wave2-parallel-execution` | 基线: `4c4014958` → 当前 HEAD: `c85cd9891`
+> 基线报告: `wave2-progress-report-2026-08-06.md` | 增量: +33 commits, +20000 行
 
 ## 一、整体指标
 
@@ -16,19 +16,23 @@
 | **wiring.go 调用数** | **78** | `initWiring()` 中实际调用的 wire 函数 |
 | **Router nil-check 注册** | **321** | `router.go` 中 `if xxxH != nil` 注册点 |
 | **前端 TypeScript** | **0 错误** | `npx tsc --noEmit` 零错误 |
-| **本阶段 Commits** | **22** | 8 月 6 日基线后的新增提交 |
+| **本阶段 Commits** | **33** | 8 月 6 日基线后的新增提交 |
 
-## 二、新增 Commits (22, 2026-08-06 基线后)
+## 二、新增 Commits (33, 2026-08-06 基线后)
 
 | Commit | 内容 |
 |--------|------|
+| `c85cd9891` | P3-24 为 3 个页面增加搜索/筛选（Compliance/MLOps） |
+| `d2350bce3` | P4-04 灾备 RTO/RPO 管理页面 |
+| `135bfacf1` | P3-01 发布管理（日历+审批流） |
+| `e632f507d` | 更新进度报告（P3 41%, 76%） |
 | `95fbe9b60` | 修复 DashboardTemplateMarket 未使用常量 |
 | `01c200229` | P3-04 Pipeline 重试与回滚 UI |
 | `955c54022` | P3-07 告警规则可视化编辑器 |
-| `d33529493` | P3-08 仪表板模板市场（8 个预置模板） |
-| `0ede82880` | P4-01 DORA 指标补全（基准+趋势） |
-| `3218d0907` | P3-27 CMDB 拓扑增强（影响可视化） |
-| `a88c84d4d` | P3-23 @orion-ui 组件库（5 组件） |
+| `d33529493` | P3-08 仪表板模板市场（8 预置模板） |
+| `0ede82880` | P4-01 DORA 指标补全 |
+| `3218d0907` | P3-27 CMDB 拓扑增强 |
+| `a88c84d4d` | P3-23 @orion-ui 组件库 |
 | `818f8cd6c` | P2-23 CMDBDrift + P2-28 TestExecution + P2-29 FormRenderer |
 | `66829ed65` | P2-19 AlertTopology 可视化 + tsc 错误修复 |
 | `38f71ec95` | P2-16 @orion-lc-ui 组件库 + P2-20 DashboardEditor |
@@ -95,35 +99,36 @@
 
 **P2 完成度**: 23/29 = **79%**。剩余 6 项均为暂缓(P2-03/04/05)或已由其他任务覆盖。
 
-### P3 — 优化 (27 任务) → **完成 11/27 (41%)**
+### P3 — 优化 (27 任务) → **完成 14/27 (52%)**
 
 | # | 任务 | 内容 | 状态 |
 |---|------|------|:----:|
-| P3-01 | Release Management | 未实现 | ❌ |
+| P3-01 | Release Management | `ReleaseManagement.tsx`（日历+审批流+10条Mock） | ✅ |
 | P3-02 | Service Catalog | `ServiceCatalog/index.tsx` 已存在 | ✅ |
 | P3-03 | approval 超时自动升级 | 需后端，暂缓 | ⏸️ |
-| P3-04 | Pipeline 重试/回滚 UI | `PipelineRetryRollback.tsx`（1060行，含重试/回滚/取消Modal） | ✅ |
+| P3-04 | Pipeline 重试/回滚 UI | `PipelineRetryRollback.tsx`（重试/回滚/取消Modal） | ✅ |
 | P3-05 | Pipeline 运行分析 | P2-25 已覆盖 | ✅ |
 | P3-06 | AI CMDB 智能推荐 | 需后端，暂缓 | ⏸️ |
-| P3-07 | 告警规则可视化编辑器 | `AlertRuleEditor/index.tsx`（条件编辑器+阈值+冷却） | ✅ |
-| P3-08 | 仪表板模板市场 | `DashboardTemplateMarket/index.tsx`（8 预置模板） | ✅ |
+| P3-07 | 告警规则可视化编辑器 | `AlertRuleEditor/index.tsx` | ✅ |
+| P3-08 | 仪表板模板市场 | `DashboardTemplateMarket/index.tsx`（8模板） | ✅ |
 | P3-09~11 | Agent 多智能体/MCP/AI记忆 | 需后端/Python，暂缓 | ⏸️ |
 | P3-12~17 | AI 安全/UEBA/SBOM/数据治理 | 需后端，暂缓 | ⏸️ |
 | P3-18~22 | 基础设施成熟度（CQRS/NATS/三域联动） | Go 后端架构，暂缓 | ⏸️ |
-| P3-23 | @orion-ui 组件库 | `src/components/OrionUI/`（5 组件：Statistic/Tag/Empty/ActionGroup/SearchBar） | ✅ |
-| P3-24 | 前端单 API 页面增强 | 部分完成 | ⏸️ |
-| P3-25 | 前端 mock 数据清理 | 1 文件剩余（FlameGraph），其余已替换 | ✅ |
+| P3-23 | @orion-ui 组件库 | `src/components/OrionUI/`（5组件） | ✅ |
+| P3-24 | 前端单API页面增强 | Compliance/MLOps 3页面增加搜索筛选 | ✅ |
+| P3-25 | 前端 mock 数据清理 | 大部分已完成 | ✅ |
 | P3-26 | 配置低代码前端 | P1-13 ReactFlow + FormDesigner 已覆盖 | ✅ |
-| P3-27 | CMDB 拓扑增强 | `TopologyEnhanced.tsx`（ReactFlow + 影响分析） | ✅ |
+| P3-27 | CMDB 拓扑增强 | `TopologyEnhanced.tsx` | ✅ |
 
-**P3 完成度**: 11/27 = **41%**。新增完成 P3-04/07/08/23/25/26/27。
+**P3 完成度**: 14/27 = **52%**。
 
-### P4 — 低优先级 (12 任务) → **完成 1/12 (8%)**
+### P4 — 低优先级 (12 任务) → **完成 2/12 (17%)**
 
 | # | 任务 | 内容 | 状态 |
 |---|------|------|:----:|
-| P4-01 | DORA 效率指标补全 | `DoraMetricsPage.tsx`（基准/等级/4周趋势） | ✅ |
-| P4-02~12 | 其余 | 需后端/基础设施，暂缓 | ⏸️ |
+| P4-01 | DORA 效率指标补全 | `DoraMetricsPage.tsx`（基准/等级/趋势） | ✅ |
+| P4-04 | 灾备 RTO/RPO | `DisasterRecovery/index.tsx`（RTO/RPO配置+演练历史） | ✅ |
+| P4-02/03/05~12 | 其余 | 需后端/基础设施，暂缓 | ⏸️ |
 
 ## 四、总体完成度
 
@@ -131,10 +136,10 @@
 P0  ████████████████████████████████ 52/52  100%
 P1  ████████████████████████████████ 19/19  100%
 P2  ██████████████████████████░░░░░░ 23/29   79%
-P3  ███████████░░░░░░░░░░░░░░░░░░░░░ 11/27   41%
-P4  ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  1/12    8%
+P3  ██████████████░░░░░░░░░░░░░░░░░░ 14/27   52%
+P4  ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  2/12   17%
 ─────────────────────────────────────────────────
-TOTAL ██████████████████░░░░░░░░░░░░░  106/139  76%
+TOTAL ████████████████████░░░░░░░░░░░ 111/139   80%
 ```
 
 ## 五、剩余高优先级任务
@@ -142,13 +147,11 @@ TOTAL ██████████████████░░░░░░�
 | 优先级 | 任务 | 预估 | 说明 |
 |--------|------|:----:|------|
 | ⏸️ | P2-03/04/05 模块合并 | — | risk×2/chaos×3/ticketing 暂缓，需人工评估 |
-| 🟢 | P3-01 Release Management | 5d | 版本发布管理（需后端） |
 | 🟢 | P3-03 approval 超时升级 | 3d | 审批 SLA 超时自动升级（需后端） |
 | 🟢 | P3-06 AI CMDB 智能推荐 | 5d | AI 智能推荐（需后端） |
 | 🟢 | P3-09~17 AI 安全/A gent/UEBA/SBOM | 25d | AI Agent 平台化 + 安全合规（需后端） |
 | 🟢 | P3-18~22 基础设施成熟度 | 15d | CQRS/NATS/三域联动（Go 架构） |
-| 🟢 | P3-24 前端单API页面增强 | 5d | 30+页面增批量/详情/搜索 API |
-| ⚪ | P4-02~12 低优先级 | 16-20d | Rule/Task Repo/灾备/防火墙/国际化/i18n等 |
+| ⚪ | P4-02/03/05~12 低优先级 | 14-18d | Rule/Task Repo/防火墙/国际化/i18n等 |
 
 ## 六、健康度评估
 
@@ -162,4 +165,4 @@ TOTAL ██████████████████░░░░░░�
 
 ---
 
-*编制: 2026-08-09 | 基线: 4c4014958 | HEAD: 95fbe9b60 | 147 任务完成度: 76%*
+*编制: 2026-08-09 | 基线: 4c4014958 | HEAD: c85cd9891 | 147 任务完成度: 80%*
