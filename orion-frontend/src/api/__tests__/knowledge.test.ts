@@ -36,7 +36,7 @@ describe('Knowledge API', () => {
       config: {},
     } as any);
     await searchKnowledge('test query');
-    expect(api.get).toHaveBeenCalledWith('/v1/knowledge/search?q=test%20query');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/knowledge/search?q=test%20query');
   });
 
   it('should get a knowledge item', async () => {
@@ -48,7 +48,7 @@ describe('Knowledge API', () => {
       config: {},
     } as any);
     const result = await getKnowledge('1');
-    expect(api.get).toHaveBeenCalledWith('/v1/knowledge/1');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/knowledge/1');
     expect(result.data.title).toBe('Test');
   });
 
@@ -61,7 +61,7 @@ describe('Knowledge API', () => {
       config: {},
     } as any);
     await createKnowledge({ title: 'New', content: 'Content', category: 'General' });
-    expect(api.post).toHaveBeenCalledWith('/v1/knowledge', {
+    expect(api.post).toHaveBeenCalledWith('/api/v1/knowledge', {
       title: 'New',
       content: 'Content',
       category: 'General',
@@ -77,7 +77,7 @@ describe('Knowledge API', () => {
       config: {},
     } as any);
     await updateKnowledge('1', { title: 'Updated' });
-    expect(api.put).toHaveBeenCalledWith('/v1/knowledge/1', { title: 'Updated' });
+    expect(api.put).toHaveBeenCalledWith('/api/v1/knowledge/1', { title: 'Updated' });
   });
 
   it('should delete a knowledge item', async () => {
@@ -89,6 +89,6 @@ describe('Knowledge API', () => {
       config: {},
     } as any);
     await deleteKnowledge('1');
-    expect(api.delete).toHaveBeenCalledWith('/v1/knowledge/1');
+    expect(api.delete).toHaveBeenCalledWith('/api/v1/knowledge/1');
   });
 });

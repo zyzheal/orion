@@ -31,7 +31,7 @@ describe('Test Selector API', () => {
       config: {} as InternalAxiosRequestConfig<any>,
     } as any);
     await getTestCases();
-    expect(api.get).toHaveBeenCalledWith('/v1/test-selector/cases');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/test-selector/cases');
   });
 
   it('should get test cases with filters', async () => {
@@ -43,7 +43,7 @@ describe('Test Selector API', () => {
       config: {} as InternalAxiosRequestConfig<any>,
     } as any);
     await getTestCases({ suite: 'Auth', status: 'pass' });
-    expect(api.get).toHaveBeenCalledWith('/v1/test-selector/cases?suite=Auth&status=pass');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/test-selector/cases?suite=Auth&status=pass');
   });
 
   it('should get test stats', async () => {
@@ -55,8 +55,8 @@ describe('Test Selector API', () => {
       config: {} as InternalAxiosRequestConfig<any>,
     } as any);
     const result = await getTestStats();
-    expect(api.get).toHaveBeenCalledWith('/v1/test-selector/cases');
-    expect(api.get).toHaveBeenCalledWith('/v1/test-selector/suites');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/test-selector/cases');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/test-selector/suites');
     // stats 计算来自 cases，cases 为空时 passRate 为 0
     expect(result.data.stats.passRate).toBe(0);
   });
@@ -70,7 +70,7 @@ describe('Test Selector API', () => {
       config: {} as InternalAxiosRequestConfig<any>,
     } as any);
     const result = await runTests(['t1', 't2']);
-    expect(api.post).toHaveBeenCalledWith('/v1/test-selector/run', { testIds: ['t1', 't2'] });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/test-selector/run', { testIds: ['t1', 't2'] });
     expect(result.data.runId).toBe('run-1');
   });
 });

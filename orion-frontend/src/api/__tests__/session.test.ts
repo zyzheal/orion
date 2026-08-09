@@ -31,7 +31,7 @@ describe('Session API', () => {
     } as any);
 
     await getSessions();
-    expect(api.get).toHaveBeenCalledWith('/v1/sessions');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/sessions');
   });
 
   it('should get sessions with tenant filter', async () => {
@@ -44,7 +44,7 @@ describe('Session API', () => {
     } as any);
 
     await getSessions('tenant-1');
-    expect(api.get).toHaveBeenCalledWith('/v1/sessions?tenantId=tenant-1');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/sessions?tenantId=tenant-1');
   });
 
   it('should get a single session', async () => {
@@ -57,7 +57,7 @@ describe('Session API', () => {
     } as any);
 
     const result = await getSession('1');
-    expect(api.get).toHaveBeenCalledWith('/v1/sessions/1');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/sessions/1');
     expect(result.data.id).toBe('1');
   });
 
@@ -71,7 +71,7 @@ describe('Session API', () => {
     } as any);
 
     await deleteSession('1');
-    expect(api.delete).toHaveBeenCalledWith('/v1/sessions/1');
+    expect(api.delete).toHaveBeenCalledWith('/api/v1/sessions/1');
   });
 
   it('should get session stats', async () => {

@@ -45,7 +45,7 @@ describe('Notification Rules API', () => {
     } as any);
 
     const result = await getIMNotificationRules();
-    expect(api.get).toHaveBeenCalledWith('/v1/notifications/im-rules');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/notifications/im-rules');
     expect(result).toHaveLength(1);
     expect(result[0].platform).toBe('dingtalk');
   });
@@ -70,7 +70,7 @@ describe('Notification Rules API', () => {
       webhookUrl: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send',
       events: ['pipeline.failed'],
     });
-    expect(api.post).toHaveBeenCalledWith('/v1/notifications/im-rules', {
+    expect(api.post).toHaveBeenCalledWith('/api/v1/notifications/im-rules', {
       platform: 'wecom',
       name: 'Test Rule',
       webhookUrl: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send',
@@ -85,14 +85,14 @@ describe('Notification Rules API', () => {
     } as any);
 
     await updateIMNotificationRule('1', { name: 'Updated' });
-    expect(api.put).toHaveBeenCalledWith('/v1/notifications/im-rules/1', { name: 'Updated' });
+    expect(api.put).toHaveBeenCalledWith('/api/v1/notifications/im-rules/1', { name: 'Updated' });
   });
 
   it('should delete an IM notification rule', async () => {
     vi.mocked(api.delete).mockResolvedValue({ data: undefined } as any);
 
     await deleteIMNotificationRule('1');
-    expect(api.delete).toHaveBeenCalledWith('/v1/notifications/im-rules/1');
+    expect(api.delete).toHaveBeenCalledWith('/api/v1/notifications/im-rules/1');
   });
 
   it('should toggle IM notification rule', async () => {
@@ -101,7 +101,7 @@ describe('Notification Rules API', () => {
     } as any);
 
     const result = await toggleIMNotificationRule('1', false);
-    expect(api.put).toHaveBeenCalledWith('/v1/notifications/im-rules/1/toggle', { enabled: false });
+    expect(api.put).toHaveBeenCalledWith('/api/v1/notifications/im-rules/1/toggle', { enabled: false });
     expect(result.enabled).toBe(false);
   });
 
@@ -111,7 +111,7 @@ describe('Notification Rules API', () => {
     } as any);
 
     const result = await testIMNotificationRule('1');
-    expect(api.post).toHaveBeenCalledWith('/v1/notifications/im-rules/1/test');
+    expect(api.post).toHaveBeenCalledWith('/api/v1/notifications/im-rules/1/test');
     expect(result.success).toBe(true);
   });
 });

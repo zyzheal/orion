@@ -30,7 +30,7 @@ describe('API Key API', () => {
       config: {},
     } as any);
     const result = await getApiKeys();
-    expect(api.get).toHaveBeenCalledWith('/v1/api-keys');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/api-keys');
     expect(Array.isArray(result.data)).toBe(true);
   });
 
@@ -43,7 +43,7 @@ describe('API Key API', () => {
       config: {},
     } as any);
     const result = await createApiKey({ name: 'test' });
-    expect(api.post).toHaveBeenCalledWith('/v1/api-keys', { name: 'test' });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/api-keys', { name: 'test' });
     expect(result.data.name).toBe('test');
   });
 
@@ -56,7 +56,7 @@ describe('API Key API', () => {
       config: {},
     } as any);
     await revokeApiKey('1');
-    expect(api.delete).toHaveBeenCalledWith('/v1/api-keys/1');
+    expect(api.delete).toHaveBeenCalledWith('/api/v1/api-keys/1');
   });
 
   it('should get API key stats', async () => {

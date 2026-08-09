@@ -3,12 +3,31 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import NotificationDetail from '@/pages/NotificationDetail';
 import { getNotification, markAsRead, deleteNotification } from '@/api/notifications';
 import type { MockNotification } from '@/api/notifications';
 
 vi.mock('@/api/notifications');
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return {
+    ...actual,
+    message: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+    // Mock Popconfirm to expose onConfirm directly (jsdom doesn't support React Portal well)
+    Popconfirm: ({ onConfirm, okText, cancelText, children }: {
+      onConfirm?: () => void;
+      okText?: string;
+      cancelText?: string;
+      children: React.ReactNode;
+    }) => (
+      <div>
+        {children}
+        <button onClick={() => onConfirm?.()}>Popconfirm-{okText}</button>
+      </div>
+    ),
+  };
+});
 
 const mockNotification: MockNotification = {
   id: '1',
@@ -23,7 +42,13 @@ const mockNotification: MockNotification = {
 };
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <MemoryRouter initialEntries={['/notifications/1']}>
+      <Routes>
+        <Route path="/notifications/:id" element={ui} />
+      </Routes>
+    </MemoryRouter>
+  );
 };
 
 describe('NotificationDetail', () => {
@@ -46,7 +71,7 @@ describe('NotificationDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('通知详情')).toBeInTheDocument();
       expect(screen.getByText('System')).toBeInTheDocument();
-      expect(screen.getByText('紧急')).toBeInTheDocument();
+      expect(screen.getAllByText('紧急')[0]).toBeInTheDocument();
     });
   });
 
@@ -68,7 +93,9 @@ describe('NotificationDetail', () => {
       expect(screen.getByText('Detail Test Notification')).toBeInTheDocument();
     });
 
+    // Click delete to open Popconfirm, then confirm
     fireEvent.click(screen.getByText('删除'));
+    fireEvent.click(screen.getByText('Popconfirm-确定'));
     await waitFor(() => {
       expect(deleteNotification).toHaveBeenCalledWith('1');
     });

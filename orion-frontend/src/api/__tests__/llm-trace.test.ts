@@ -48,7 +48,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       const result = await getTrace('trace-001');
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/traces/trace-001');
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/traces/trace-001');
       expect(result.data).toEqual(mockTrace);
     });
 
@@ -62,7 +62,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       const result = await getTraces({ tenantId: 1, limit: 50 });
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/traces', {
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/traces', {
         params: { tenantId: 1, limit: 50 },
       });
       expect(Array.isArray(result.data)).toBe(true);
@@ -78,7 +78,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       const result = await getTraces({ scenarioId: 'autofix' });
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/traces', {
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/traces', {
         params: { scenarioId: 'autofix' },
       });
       expect(result.data.length).toBe(1);
@@ -104,7 +104,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       const result = await getDailyStats({ tenantId: 1, date: '2026-05-04' });
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/stats/daily', {
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/stats/daily', {
         params: { tenantId: 1, date: '2026-05-04' },
       });
       expect(result.data).toEqual(mockStats);
@@ -120,7 +120,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       await getDailyStats({ tenantId: 1 });
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/stats/daily', {
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/stats/daily', {
         params: { tenantId: 1 },
       });
     });
@@ -150,7 +150,7 @@ describe('LLM Trace API', () => {
         startDate: '2026-04-01',
         endDate: '2026-04-30',
       });
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/cost/breakdown', {
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/cost/breakdown', {
         params: { tenantId: 1, startDate: '2026-04-01', endDate: '2026-04-30' },
       });
       expect(result.data).toEqual(mockBreakdown);
@@ -174,7 +174,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       const result = await getTrackingAccuracy();
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/tracking/accuracy');
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/tracking/accuracy');
       expect(result.data).toEqual(mockAccuracy);
     });
   });
@@ -197,7 +197,7 @@ describe('LLM Trace API', () => {
       } as any);
 
       const result = await getPricing();
-      expect(api.get).toHaveBeenCalledWith('/v1/llm/pricing');
+      expect(api.get).toHaveBeenCalledWith('/api/v1/llm/pricing');
       expect(result.data).toEqual(mockPricing);
     });
 
@@ -223,7 +223,7 @@ describe('LLM Trace API', () => {
         inputTokens: 1000,
         outputTokens: 500,
       });
-      expect(api.post).toHaveBeenCalledWith('/v1/llm/cost/estimate', {
+      expect(api.post).toHaveBeenCalledWith('/api/v1/llm/cost/estimate', {
         modelId: 'gpt-4',
         inputTokens: 1000,
         outputTokens: 500,

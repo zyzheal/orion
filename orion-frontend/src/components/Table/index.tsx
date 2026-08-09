@@ -193,7 +193,7 @@ function OrionTable<T extends object>({
 
   // ---- Client-side filtering & sorting ----
   const processedData = useMemo(() => {
-    let data = [...dataSource];
+    let data = Array.isArray(dataSource) ? [...dataSource] : [];
 
     // Apply text filters
     const activeFilters = Object.entries(filterValues).filter(([, v]) => v && v.trim());

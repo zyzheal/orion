@@ -345,6 +345,10 @@ const ServicePortal: React.FC = () => {
     () => tickets.filter((t) => t.status === 'fulfilled').length,
     [tickets]
   );
+  const filteredTickets = useMemo(() => {
+    if (!ticketStatusFilter || ticketStatusFilter === 'all') return tickets;
+    return tickets.filter((t) => t.status === ticketStatusFilter);
+  }, [tickets, ticketStatusFilter]);
 
   // ============================================================================
   // Render: Catalog Grid
@@ -453,11 +457,6 @@ const ServicePortal: React.FC = () => {
   // ============================================================================
 
   const renderMyTickets = () => {
-    const filteredTickets = useMemo(() => {
-      if (!ticketStatusFilter || ticketStatusFilter === 'all') return tickets;
-      return tickets.filter((t) => t.status === ticketStatusFilter);
-    }, [tickets, ticketStatusFilter]);
-
     const columns = [
       {
         title: '工单ID',

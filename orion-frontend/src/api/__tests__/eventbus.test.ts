@@ -39,7 +39,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     const result = await getEventBusStatus();
-    expect(api.get).toHaveBeenCalledWith('/v1/eventbus/status');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/eventbus/status');
     expect(result.data).toEqual(mockStatus);
   });
 
@@ -52,7 +52,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     await publishEvent('test.event', { key: 'value' }, 'tenant-1', 'user-1');
-    expect(api.post).toHaveBeenCalledWith('/v1/eventbus/publish', {
+    expect(api.post).toHaveBeenCalledWith('/api/v1/eventbus/publish', {
       subject: 'test.event',
       data: { key: 'value' },
       tenantId: 'tenant-1',
@@ -69,7 +69,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     await getEvents({ eventType: 'test', limit: 10 });
-    expect(api.get).toHaveBeenCalledWith('/v1/eventbus/events?eventType=test&limit=10');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/eventbus/events?eventType=test&limit=10');
   });
 
   it('should get subscriptions', async () => {
@@ -81,7 +81,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     await getSubscriptions('tenant-1');
-    expect(api.get).toHaveBeenCalledWith('/v1/eventbus/subscriptions?tenantId=tenant-1');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/eventbus/subscriptions?tenantId=tenant-1');
   });
 
   it('should get stats', async () => {
@@ -93,7 +93,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     const result = await getStats();
-    expect(api.get).toHaveBeenCalledWith('/v1/eventbus/stats');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/eventbus/stats');
     expect(result.data.stats.delivered).toBe(100);
   });
 
@@ -106,7 +106,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     const result = await getJetStreamMetrics();
-    expect(api.get).toHaveBeenCalledWith('/v1/eventbus/jetstream/metrics');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/eventbus/jetstream/metrics');
     expect(result.data.available).toBe(true);
   });
 
@@ -119,7 +119,7 @@ describe('EventBus API', () => {
       config: {},
     } as any);
     const result = await getDLQEvents(20);
-    expect(api.get).toHaveBeenCalledWith('/v1/eventbus/dlq?limit=20');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/eventbus/dlq?limit=20');
     expect(result.data.total).toBe(2);
   });
 });

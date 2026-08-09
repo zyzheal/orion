@@ -38,7 +38,7 @@ describe('Webhook API', () => {
     } as any);
 
     const result = await getWebhooks();
-    expect(api.get).toHaveBeenCalledWith('/v1/webhooks');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/webhooks');
     expect(Array.isArray(result.data)).toBe(true);
   });
 
@@ -52,7 +52,7 @@ describe('Webhook API', () => {
     } as any);
 
     const result = await createWebhook({ url: 'https://example.com', events: ['test'] });
-    expect(api.post).toHaveBeenCalledWith('/v1/webhooks', {
+    expect(api.post).toHaveBeenCalledWith('/api/v1/webhooks', {
       url: 'https://example.com',
       events: ['test'],
     });
@@ -69,7 +69,7 @@ describe('Webhook API', () => {
     } as any);
 
     await updateWebhook('1', { enabled: false });
-    expect(api.put).toHaveBeenCalledWith('/v1/webhooks/1', { enabled: false });
+    expect(api.put).toHaveBeenCalledWith('/api/v1/webhooks/1', { enabled: false });
   });
 
   it('should delete a webhook', async () => {
@@ -82,7 +82,7 @@ describe('Webhook API', () => {
     } as any);
 
     await deleteWebhook('1');
-    expect(api.delete).toHaveBeenCalledWith('/v1/webhooks/1');
+    expect(api.delete).toHaveBeenCalledWith('/api/v1/webhooks/1');
   });
 
   it('should test a webhook', async () => {
@@ -95,7 +95,7 @@ describe('Webhook API', () => {
     } as any);
 
     await testWebhook('1');
-    expect(api.post).toHaveBeenCalledWith('/v1/webhooks/1/test');
+    expect(api.post).toHaveBeenCalledWith('/api/v1/webhooks/1/test');
   });
 
   it('should get webhook logs', async () => {
@@ -108,6 +108,6 @@ describe('Webhook API', () => {
     } as any);
 
     await getWebhookLogs('1', 20);
-    expect(api.get).toHaveBeenCalledWith('/v1/webhooks/1/logs?limit=20');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/webhooks/1/logs?limit=20');
   });
 });

@@ -39,32 +39,33 @@ vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
 });
 
 // Mock API to return mock data
+// 注意：usePagination 期望响应格式为 { data: Pipeline[], total: number }
+// 前端 axios 拦截器已解包 response.data，因此 getPipelines 直接返回 data 和 total
 vi.mock('@/api/pipelines', () => ({
   getPipelines: vi.fn().mockResolvedValue({
-    data: {
-      data: [
-        {
-          id: 'pl-001',
-          name: 'frontend-deploy',
-          version: '1.0.0',
-          status: 'active',
-          description: '',
-          spec: { stages: [] },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: 'pl-002',
-          name: 'api-service-build',
-          version: '2.0.0',
-          status: 'active',
-          description: '',
-          spec: { stages: [] },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    },
+    data: [
+      {
+        id: 'pl-001',
+        name: 'frontend-deploy',
+        version: '1.0.0',
+        status: 'active',
+        description: '',
+        spec: { stages: [] },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 'pl-002',
+        name: 'api-service-build',
+        version: '2.0.0',
+        status: 'active',
+        description: '',
+        spec: { stages: [] },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+    total: 2,
   }),
 }));
 
@@ -100,7 +101,9 @@ describe('PipelineList', () => {
   it('should display pipeline count', async () => {
     renderWithRouter(<PipelineList />);
     await waitFor(() => {
-      expect(screen.getByText(/共 .* 个 Pipeline/)).toBeInTheDocument();
+      // 组件显示"共 {total} 条"，total 来自 usePagination 的 mock 响应
+      // 可能同时出现在标题和分页中，使用 getAllByText
+      expect(screen.getAllByText(/共 .* 条/).length).toBeGreaterThan(0);
     });
   });
 });

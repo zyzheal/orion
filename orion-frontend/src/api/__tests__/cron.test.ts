@@ -37,7 +37,7 @@ describe('Cron API', () => {
       config: {},
     } as any);
     const result = await getCronJobs();
-    expect(api.get).toHaveBeenCalledWith('/v1/cron/jobs');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/cron/jobs');
     expect(Array.isArray(result.data)).toBe(true);
   });
 
@@ -50,7 +50,7 @@ describe('Cron API', () => {
       config: {},
     } as any);
     const result = await createCronJob({ name: 'test', schedule: '0 * * * *', command: 'cmd' });
-    expect(api.post).toHaveBeenCalledWith('/v1/cron/jobs', {
+    expect(api.post).toHaveBeenCalledWith('/api/v1/cron/jobs', {
       name: 'test',
       schedule: '0 * * * *',
       command: 'cmd',
@@ -67,7 +67,7 @@ describe('Cron API', () => {
       config: {},
     } as any);
     await updateCronJob('1', { name: 'updated' });
-    expect(api.put).toHaveBeenCalledWith('/v1/cron/jobs/1', { name: 'updated' });
+    expect(api.put).toHaveBeenCalledWith('/api/v1/cron/jobs/1', { name: 'updated' });
   });
 
   it('should delete a cron job', async () => {
@@ -79,7 +79,7 @@ describe('Cron API', () => {
       config: {},
     } as any);
     await deleteCronJob('1');
-    expect(api.delete).toHaveBeenCalledWith('/v1/cron/jobs/1');
+    expect(api.delete).toHaveBeenCalledWith('/api/v1/cron/jobs/1');
   });
 
   it('should execute a cron job', async () => {
@@ -91,7 +91,7 @@ describe('Cron API', () => {
       config: {},
     } as any);
     await executeCronJob('1');
-    expect(api.post).toHaveBeenCalledWith('/v1/cron/jobs/1/execute');
+    expect(api.post).toHaveBeenCalledWith('/api/v1/cron/jobs/1/execute');
   });
 
   it('should get cron status', async () => {
@@ -103,7 +103,7 @@ describe('Cron API', () => {
       config: {},
     } as any);
     const result = await getCronStatus();
-    expect(api.get).toHaveBeenCalledWith('/v1/cron/status');
+    expect(api.get).toHaveBeenCalledWith('/api/v1/cron/status');
     expect(result.data.running).toBe(2);
   });
 });
