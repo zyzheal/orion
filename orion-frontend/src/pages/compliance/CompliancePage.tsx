@@ -9,7 +9,7 @@
  * - Integrity report generation
  * - Audit plan management
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -33,7 +33,9 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-  SafetyCertificateOutlined,} from '@ant-design/icons';
+  SafetyCertificateOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import {
   getAuditLogs,
   verifyChain,
@@ -90,6 +92,8 @@ const CompliancePage: React.FC = () => {
   const [createAuditPlanModal, setCreateAuditPlanModal] = useState(false);
   const [policyForm] = Form.useForm();
   const [auditPlanForm] = Form.useForm();
+  const [policySearchQuery, setPolicySearchQuery] = useState('');
+  const [policyStatusFilter, setPolicyStatusFilter] = useState<string | undefined>();
 
   useEffect(() => {
     loadData();
@@ -243,6 +247,23 @@ const CompliancePage: React.FC = () => {
   const totalViolations = evaluations.reduce((sum, e) => sum + e.violations.length, 0);
   const overallScore = complianceScore?.overall ?? 0;
 
+  // Filtered policies
+  const filteredPolicies = useMemo(() => {
+    let result = policies;
+    if (policySearchQuery) {
+      const q = policySearchQuery.toLowerCase();
+      result = result.filter((p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.framework.toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q),
+      );
+    }
+    if (policyStatusFilter) {
+      result = result.filter((p) => p.status === policyStatusFilter);
+    }
+    return result;
+  }, [policies, policySearchQuery, policyStatusFilter]);
+
   // Policy columns
   const policyColumns = [
     {
@@ -358,13 +379,35 @@ const CompliancePage: React.FC = () => {
       key: 'policies',
       label: '合规策略',
       children: (
-        <Table
-          columns={policyColumns}
-          dataSource={policies}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'center' }}>
+            <Input
+              placeholder="搜索策略名称、框架..."
+              prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
+              value={policySearchQuery}
+              onChange={(e) => setPolicySearchQuery(e.target.value)}
+              style={{ width: 220 }}
+              allowClear
+            />
+            <Select
+              placeholder="状态筛选"
+              value={policyStatusFilter}
+              onChange={setPolicyStatusFilter}
+              allowClear
+              style={{ width: 120 }}
+            >
+              <Select.Option value="active">活跃</Select.Option>
+              <Select.Option value="inactive">未激活</Select.Option>
+            </Select>
+          </div>
+          <Table
+            columns={policyColumns}
+            dataSource={filteredPolicies}
+            rowKey="id"
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+          />
+        </div>
       ),
     },
     {

@@ -8,7 +8,7 @@
  * - Training Jobs: Create, Read, Status Management
  * - Metrics dashboard
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography, Table, Button, Tag, Space, Tabs, message,
   Modal, Form, Input, Select, Popconfirm, Statistic, Row, Col, Card,
@@ -25,6 +25,7 @@ import {
   RocketOutlined,
   BarChartOutlined,
   FileSearchOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import {
   listExperiments, createExperiment, updateExperiment, deleteExperiment,
@@ -168,6 +169,8 @@ const ExperimentsTab: React.FC = () => {
   const [currentExperiment, setCurrentExperiment] = useState<MLExperiment | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
+  const [experimentSearchQuery, setExperimentSearchQuery] = useState('');
+  const [experimentStatusFilter, setExperimentStatusFilter] = useState<string | undefined>();
 
   const loadData = async () => {
     setLoading(true);
@@ -289,6 +292,24 @@ const ExperimentsTab: React.FC = () => {
     { title: '完成时间', dataIndex: 'completedAt', key: 'completedAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
   ];
 
+  // Filtered experiments
+  const filteredExperiments = useMemo(() => {
+    let result = experiments;
+    if (experimentSearchQuery) {
+      const q = experimentSearchQuery.toLowerCase();
+      result = result.filter((e) =>
+        e.name.toLowerCase().includes(q) ||
+        (e.project || '').toLowerCase().includes(q) ||
+        (e.modelType || '').toLowerCase().includes(q) ||
+        (e.description || '').toLowerCase().includes(q),
+      );
+    }
+    if (experimentStatusFilter) {
+      result = result.filter((e) => e.status === experimentStatusFilter);
+    }
+    return result;
+  }, [experiments, experimentSearchQuery, experimentStatusFilter]);
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -305,15 +326,38 @@ const ExperimentsTab: React.FC = () => {
         </Space>
       </div>
 
-      {experiments.length === 0 && !loading ? (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'center' }}>
+        <Input
+          placeholder="搜索实验名称、项目、模型类型..."
+          prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
+          value={experimentSearchQuery}
+          onChange={(e) => setExperimentSearchQuery(e.target.value)}
+          style={{ width: 260 }}
+          allowClear
+        />
+        <Select
+          placeholder="状态筛选"
+          value={experimentStatusFilter}
+          onChange={setExperimentStatusFilter}
+          allowClear
+          style={{ width: 120 }}
+        >
+          <Select.Option value="draft">草稿</Select.Option>
+          <Select.Option value="running">运行中</Select.Option>
+          <Select.Option value="completed">已完成</Select.Option>
+          <Select.Option value="failed">失败</Select.Option>
+        </Select>
+      </div>
+
+      {filteredExperiments.length === 0 && !loading ? (
         <Empty description="暂无实验数据">
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建第一个实验
           </Button>
         </Empty>
       ) : (
-        <Table columns={columns} dataSource={experiments} rowKey="id" loading={loading} pagination={{ pageSize: 10 }}
-          locale={{ emptyText: experiments.length === 0 ? '暂无实验数据' : undefined }} />
+        <Table columns={columns} dataSource={filteredExperiments} rowKey="id" loading={loading} pagination={{ pageSize: 10 }}
+          locale={{ emptyText: filteredExperiments.length === 0 ? '暂无实验数据' : undefined }} />
       )}
 
       {/* Create Modal */}
@@ -382,6 +426,8 @@ const ModelRegistryTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [registerForm] = Form.useForm();
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [modelStatusFilter, setModelStatusFilter] = useState<string | undefined>();
 
   const loadData = async () => {
     setLoading(true);
@@ -455,6 +501,23 @@ const ModelRegistryTab: React.FC = () => {
     },
   ];
 
+  // Filtered models
+  const filteredModels = useMemo(() => {
+    let result = models;
+    if (modelSearchQuery) {
+      const q = modelSearchQuery.toLowerCase();
+      result = result.filter((m) =>
+        m.name.toLowerCase().includes(q) ||
+        (m.artifactPath || '').toLowerCase().includes(q) ||
+        (m.description || '').toLowerCase().includes(q),
+      );
+    }
+    if (modelStatusFilter) {
+      result = result.filter((m) => m.status === modelStatusFilter);
+    }
+    return result;
+  }, [models, modelSearchQuery, modelStatusFilter]);
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -471,14 +534,37 @@ const ModelRegistryTab: React.FC = () => {
         </Space>
       </div>
 
-      {models.length === 0 && !loading ? (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'center' }}>
+        <Input
+          placeholder="搜索模型名称、Artifact..."
+          prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
+          value={modelSearchQuery}
+          onChange={(e) => setModelSearchQuery(e.target.value)}
+          style={{ width: 260 }}
+          allowClear
+        />
+        <Select
+          placeholder="状态筛选"
+          value={modelStatusFilter}
+          onChange={setModelStatusFilter}
+          allowClear
+          style={{ width: 120 }}
+        >
+          <Select.Option value="draft">草稿</Select.Option>
+          <Select.Option value="staging">预发布</Select.Option>
+          <Select.Option value="production">生产</Select.Option>
+          <Select.Option value="archived">已归档</Select.Option>
+        </Select>
+      </div>
+
+      {filteredModels.length === 0 && !loading ? (
         <Empty description="暂无模型数据">
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalOpen(true)}>
             注册第一个模型
           </Button>
         </Empty>
       ) : (
-        <Table columns={columns} dataSource={models} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table columns={columns} dataSource={filteredModels} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
       )}
 
       <Modal title="注册模型" open={registerModalOpen} onCancel={() => setRegisterModalOpen(false)} onOk={() => registerForm.submit()}>
