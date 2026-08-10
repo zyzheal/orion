@@ -143,15 +143,18 @@ Orion 平台当前规模：
 
 ### 3.1 系统总览
 
+> **架构定位**: RAG 作为 AI Gateway（`/ai/gateway`）的子能力注册，通过 `rag-agent` agentType 接入。
+> 复用现有 AI Gateway 的 LLM 路由、鉴权和追踪能力，不新建独立服务。
+
 ```
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│                           AI Gateway (现有)                                     │
+│                           AI Gateway (现有: /ai/gateway)                        │
 │                                                                               │
-│  POST /api/v1/ai/agent/query  { agentType: "rag-agent", ... }                 │
+│  POST /api/v1/knowledge/api/v1/rag/query  { query, spaceId?, topK }          │
 │         │                                                                     │
 │         ▼                                                                     │
 │  ┌─────────────────────────────────────────────────────────────────────────┐ │
-│  │                       RAG Agent (新增)                                    │ │
+│  │                    RAG Agent（注册为 AI Gateway 子能力）                     │ │
 │  │                                                                         │ │
 │  │  Phase 1: Query Understanding                                           │ │
 │  │  ┌───────────────────────────────────────────────────────────────────┐  │ │
@@ -159,62 +162,62 @@ Orion 平台当前规模：
 │  │  │     意图分类: navigate / troubleshoot / reference / learn / compare │  │ │
 │  │  │     领域识别: ci_cd / observability / cmdb / ai / security         │  │ │
 │  │  │     复杂度评估: simple / moderate / complex                         │  │ │
+│  │  │     【V2.11】不确定性检测: ≥0.5 触发主动反问（Clarification）       │  │ │
+│  │  │     【V2.11】复杂度路由: simple(200ms) / moderate(600ms) / complex(5s)│ │ │
 │  │  └───────────────────────────────────────────────────────────────────┘  │ │
 │  │  ┌───────────────────────────────────────────────────────────────────┐  │ │
 │  │  │ 1b. Query Rewriter                                                │  │ │
 │  │  │     同义词扩展 / 缩写展开 / 实体提取 / 歧义消解                     │  │ │
-│  │  │     输出: { original_query, expanded_queries[], entities[], intent }│  │ │
+│  │  │     多意图分解: LLM 拆分子查询 + 并行检索（V2.10 新增）            │  │ │
+│  │  │     输出: { original_query, expanded_queries[], entities[], intent }│ │ │
+│  │  └───────────────────────────────────────────────────────────────────┘  │ │
+│  │  ┌───────────────────────────────────────────────────────────────────┐  │ │
+│  │  │ 1c. PII Filter（向量化前脱敏，V2.10 新增）                        │  │ │
+│  │  │     复用 prompt-security 正则: phone/email/id_card/api_key/IP      │  │ │
+│  │  │     脱敏后的文本进入检索，原始文本不进入向量库                      │  │ │
 │  │  └───────────────────────────────────────────────────────────────────┘  │ │
 │  │                                                                         │ │
-│  │  Phase 2: Hybrid Retrieval                                              │ │
+│  │  Phase 2: Hybrid Retrieval（仅检索已启用适配器，V2.9 三层开关）         │ │
 │  │  ┌───────────────────────────────────────────────────────────────────┐  │ │
-│  │  │ 2a. Multi-Source Parallel Retriever (6 源并行)                     │  │ │
-│  │  │     Vector Search ─┐                                               │  │ │
+│  │  │ 2a. Multi-Source Parallel Retriever (6 源并行)                    │  │ │
+│  │  │     Vector Search ─┐  (Milvus FloatVector 768d)                    │  │ │
 │  │  │     BM25 Search   ─┼→ 2b. Score Fusion (RRF / 加权融合)           │  │ │
 │  │  │     KB Search     ─┤   Top-K=10 → 2c. Cross-Encoder Re-ranker    │  │ │
 │  │  │     API Index     ─┤   → Top-5 最终候选                         │  │ │
 │  │  │     CMDB Query    ─┤                                               │  │ │
 │  │  │     Runbook Search─┤                                               │  │ │
 │  │  │     Graph Query   ─┘                                               │  │ │
+│  │  │     【V2.11】Live Data: 并行拉取活跃告警/部署/服务健康（30s 缓存）  │  │ │
 │  │  └───────────────────────────────────────────────────────────────────┘  │ │
 │  │                                  │                                        │ │
 │  │  ┌───────────────────────────────▼───────────────────────────────────┐  │ │
-│  │  │ 2d. RBAC-Aware Graph Reranker                                     │  │ │
-│  │  │     权限过滤 + 租户隔离 + 可执行性标记 + 图谱完整性排序              │  │ │
+│  │  │ 2d. ACL-Aware Graph Reranker                                      │  │ │
+│  │  │     权限过滤(resource-action) + 租户隔离 + 可执行性标记             │  │ │
 │  │  └──────────────────────────────────┬────────────────────────────────┘  │ │
 │  │                                     │                                    │ │
 │  │  Phase 3: Context Management                                            │ │
 │  │  ┌──────────────────────────────────▼────────────────────────────────┐  │ │
 │  │  │ 3a. Context Window Manager                                         │  │ │
-│  │  │     计算可用 context budget (总窗口 - 系统提示 - 用户查询 - 余量)    │  │ │
-│  │  │     按 relevance_score 排序，贪心填充直到 budget 满                  │  │ │
-│  │  │     超出预算的节点标记为 truncated，返回给用户可选                   │  │ │
+│  │  │     计算可用 context budget → 贪心填充 → truncated 标记            │  │ │
 │  │  └──────────────────────────────────┬────────────────────────────────┘  │ │
 │  │  ┌──────────────────────────────────▼────────────────────────────────┐  │ │
-│  │  │ 3b. Context Assembler (安全隔离)                                   │  │ │
-│  │  │     构建隔离 Prompt: SYSTEM / CONTEXT / USER 三层                  │  │ │
-│  │  │     多轮对话: 追加对话历史 (压缩后)                                │  │ │
+│  │  │ 3b. Context Assembler (安全隔离: SYSTEM/CONTEXT/USER 三层)         │  │ │
 │  │  └──────────────────────────────────┬────────────────────────────────┘  │ │
 │  │                                     │                                    │ │
 │  │  Phase 4: Generation & Safety                                           │ │
 │  │  ┌──────────────────────────────────▼────────────────────────────────┐  │ │
-│  │  │ 4a. LLM Inference (复用现有模型路由 + 降级/缓存)                   │  │ │
+│  │  │ 4a. LLM Inference (复用 AI Gateway 模型路由: Qwen2.5-3B 本地+Claude 兜底)│  │ │
+│  │  │     【V2.11】结构化生成: JSON Schema 约束输出（Jsonformer/Outlines）  │  │ │
 │  │  └──────────────────────────────────┬────────────────────────────────┘  │ │
 │  │  ┌──────────────────────────────────▼────────────────────────────────┐  │ │
-│  │  │ 4b. Citation Verifier (引用真实性验证)                              │  │ │
-│  │  │     提取答案中的引用 → 回查知识图谱 → 验证引用确实存在于检索结果中    │  │ │
-│  │  │     虚假引用 → 标记 hallucinated_citations → 触发重新生成           │  │ │
-│  │  └──────────────────────────────────┬────────────────────────────────┘  │ │
-│  │  ┌──────────────────────────────────▼────────────────────────────────┐  │ │
-│  │  │ 4c. Safety Pipeline (4层)                                         │  │ │
-│  │  │     Layer 1: 来源可信度 | Layer 2: 上下文隔离                       │  │ │
-│  │  │     Layer 3: 输出过滤(关键词+PII+语义) | Layer 4: 工具沙箱          │  │ │
+│  │  │ 4b. Citation Verifier + Safety Pipeline (4+1 层)                    │  │ │
+│  │  │     【V2.11】Agentic Loop: Verifier→Analyzer→Remediator→重试(3次)  │  │ │
+│  │  │     【V2.11】Tool-Augmented: 只读 GET API 验证系统状态               │  │ │
 │  │  └──────────────────────────────────┬────────────────────────────────┘  │ │
 │  │                                     │                                    │ │
 │  └─────────────────────────────────────┼────────────────────────────────────┘ │
 │                                       ▼                                      │
-│  { answer, citations[], graph_links[], confidence,                           │
-│    truncated_sources[], feedback_token, conversation_id }                    │
+│  RAGResponse { answer, sources[], graph_links[], confidence, feedback_token } │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -224,12 +227,18 @@ Orion 平台当前规模：
 |------|---------|---------|------------|---------|
 | **Runbook** | `runbooks` 表 | 操作步骤、故障处理流程、命令 | `tenant_id` + `owner` | 全文 + 步骤混合 embedding |
 | **Pandawiki** | `orion-knowledge` | 系统架构、配置说明、概念文档 | `visibility` (public/private) | 节点树 + 内容 embedding |
-| **API Schema** | `handler_registry_entries` 表 | 端点定义、参数、返回格式 | `config.required_role` | 结构化 Markdown + BM25 |
+| **API Schema** | `handler_registry_entries` 表 | 端点定义、参数、返回格式 | `config.permissions`（resource-action） | 结构化 Markdown + BM25 |
 | **CMDB** | `cmdb_ci` 表 | 资产信息、服务依赖关系 | `tenant_id` | 描述文本 embedding |
 | **Alert Rules** | `alert_rules` 表 | 告警规则名、表达式、处理建议 | `tenant_id` | 规则名+描述 embedding |
 | **Frontend Pages** | 路由表提取 | 页面路径、功能描述、菜单归属 | route-level RBAC | 页面标题+描述 embedding |
+| **外部系统**（通过 Adapter Registry 接入，V2.9 新增）| 适配器实现 `IIndexAdapter` 接口 | 代码/告警/工单/面板 | 适配器独立配置 | 同 Orion 内部数据源 |
+
+> **外部系统适配器**（V2.9）: `gitlab-code` / `prometheus-rules` / `servicenow` / `grafana-dashboard` / `jenkins-pipeline` / 任意系统（实现 IIndexAdapter 接口）
 
 ### 3.3 回答格式（V2 增强版）
+
+> **【V2.11】结构化生成**: 以下 JSON 示例受 JSON Schema 约束（Jsonformer/Outlines 结构化生成），
+> 字段名/类型/枚举值由 Schema 强制，LLM 输出格式错误时触发 Agentic Loop 重新生成。完整 Schema 见 `V2.11-rag-frontier-ai-upgrade.md §三`。
 
 ```json
 {
@@ -291,30 +300,33 @@ Orion 平台当前规模：
 用户提问
     │
     ▼
-解析 User Context: { tenant_id, roles[], permissions[], user_id }
+解析 User Context: { tenant_id, user_id, permissions: [{ resource, action }] }
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  RBAC-Aware Retriever                                            │
+│  ACL-Aware Retriever（对齐前端 routes.tsx requiredPermission 模型） │
 │                                                                  │
 │  每个检索源附加权限条件：                                          │
-│  • Vector DB: metadata_filter                                   │
-│    { tenant_id: X, max_role_level: Y, visibility: [public, ...] }│
-│  • BM25: WHERE tenant_id=X                                      │
-│    AND (visibility='public' OR required_role IN user_roles)      │
+│  • Vector DB (Milvus): metadata_filter                          │
+│    { tenant_id: X, visibility: [public, team, personal] }        │
+│  • BM25 (PostgreSQL): WHERE tenant_id=X                         │
+│    AND (visibility='public' OR owner_id = current_user.id)       │
 │  • KB Search: 同 Vector DB 权限条件                               │
-│  • API: 仅返回用户有权限调用的端点                                 │
+│  • API: 仅返回用户有对应 resource-action 权限的端点                 │
+│    例: 用户有 {resource:"pipeline",action:"write"}               │
+│        → 返回 POST/PUT/DELETE pipeline 相关 API                  │
+│        → 屏蔽 GET/DELETE 需 admin 的 API                        │
 └─────────────────────────────────────────────────────────────────┘
     │
     ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Graph Reranker                                                  │
+│  ACL-Aware Graph Reranker                                        │
 │                                                                  │
-│  1. 权限过滤：移除需要更高权限的节点                                │
+│  1. 权限过滤：对比 resource-action 矩阵，移除无权限节点              │
 │  2. 租户隔离：移除其他租户的节点                                   │
 │  3. 可执行性标记：                                                │
-│     • executable=true  — 用户有该 API 的调用权限                  │
-│     • executable=false — 用户仅有读取权限                         │
+│     • executable=true  — 用户有该 API 对应的 resource-action     │
+│     • executable=false — 用户仅有读取权限（缺 write/delete action）│
 │     • executable=null  — 非操作类节点（Runbook/知识文档）           │
 │  4. 图谱完整性排序：优先返回 API+页面+Runbook 三者齐全的结果       │
 │  5. 相关性加权：RRF fusion score × 图谱完整度系数                  │
@@ -326,7 +338,7 @@ Orion 平台当前规模：
 │                                                                  │
 │  LLM 生成答案后，额外检查答案中提到的操作是否超出用户权限：          │
 │  • 提取答案中提到的 API/操作                                      │
-│  • 对比用户权限表                                                  │
+│  • 对比用户 permissions[]（resource-action 矩阵）                  │
 │  • 超出权限 → 标记答案对应部分为 "需要更高权限"                      │
 │  • 记录审计日志                                                    │
 └─────────────────────────────────────────────────────────────────┘
@@ -335,7 +347,18 @@ Orion 平台当前规模：
 权限标记后的检索结果 → Context Assembler
 ```
 
-### 4.3 权限行为矩阵
+### 4.3 权限模型
+
+> **权限声明方式**: resource-action 模型，与前端 `requiredPermission` 一致（routes.tsx:1675-1681）
+
+| 权限声明 | 含义 | 示例 |
+|---------|------|------|
+| `{resource:"rag", action:"query"}` | 可执行 RAG 查询 | 所有已认证用户 |
+| `{resource:"pipeline", action:"read"}` | 可查看流水线信息 | developer / admin |
+| `{resource:"pipeline", action:"write"}` | 可回滚/重启流水线 | admin |
+| `{resource:"knowledge", action:"read"}` | 可访问 AI 文档管理 | 所有已认证用户 |
+
+### 4.4 权限行为矩阵
 
 | 用户角色 | 提问"如何回滚发布" | 返回内容 |
 |---------|-------------------|---------|
@@ -384,13 +407,12 @@ Orion 已有 `handler_registry_entries` 表，所有 handler 启动时自动注�
 
   Pandawiki → Webhook (节点变更时主动推送) → RAG Indexer
   CMDB      → 每小时轮询 updated_at > last_sync → RAG Indexer
-  Frontend  → 部署后调用 POST /rag/index/frontend → RAG Indexer
+  Frontend  → 部署后调用 POST /api/v1/knowledge/api/v1/rag/index/frontend → RAG Indexer
 
 ═══════ Layer 3: 兜底（24h 内）════════════════════════════════════
 
 数据源: 全部
 机制:   定时全量对账
-
   每天凌晨:
   1. 重新读取所有数据源
   2. 对比 rag_knowledge_nodes 表
@@ -412,7 +434,7 @@ Orion 已有 `handler_registry_entries` 表，所有 handler 启动时自动注�
     "path": "/api/v1/pipeline/runs/:id/rollback",
     "params": ["run_id (path)", "reason (body)"],
     "response": "RollbackResult",
-    "required_role": "admin",
+    "permissions": [{ "resource": "pipeline", "action": "write" }],
     "tenant_scoped": true,
     "frontend_link": "/pipeline/runs/:id",
     "handler_file": "internal/pipeline/handler/handler.go",
@@ -440,6 +462,10 @@ Orion 已有 `handler_registry_entries` 表，所有 handler 启动时自动注�
   • API 路径不会在运行时变化（仅部署时变化）
   • Runbook 变更频率低（天级）
   • 对账报告记录所有不一致项，供管理员审查
+
+> **V2.9 更新**: 各 Layer 统一通过 Adapter Registry（`IIndexAdapter` 接口）执行，
+> 内部适配器（orion-handler/runbook/alert/frontend/migration）和外部适配器（gitlab-code/prometheus-rules 等）
+> 使用相同的 Discover → Chunk → Embed → Upsert 管道。
 ```
 
 ---
@@ -459,7 +485,7 @@ Layer A: 后端感知
 产出: API 端点档案 + Service Method 档案
 { method, path, handler_file, service_method,
   request_model, response_model, db_tables_accessed,
-  required_role, migration_version }
+  permissions, migration_version }
 
 Layer B: 前端感知
 ─────────────────
@@ -573,79 +599,61 @@ CREATE INDEX idx_rag_edges_target ON rag_knowledge_edges(target_node_id);
 CREATE INDEX idx_rag_edges_type ON rag_knowledge_edges(edge_type);
 ```
 
-### 7.3 向量嵌入表
+### 7.3 向量嵌入（Milvus Collection）
 
-```sql
--- ============================================================
--- 向量嵌入表
--- 【算法专家 P0 修复】
---   • 向量维度不再硬编码（VECTOR 不限定维度）
---   • tenant_id / node_type 独立列 + B-tree 索引（预过滤性能）
---   • embedding_model / model_version 支持模型升级多版本共存
---   • HNSW 向量索引 + cosine 距离 + L2 归一化
--- ============================================================
+> **存储引擎**: Milvus（V2.7 起替代 pgvector）
+> **向量模型**: bge-base-zh ONNX 本地推理（768 维，FP32）
+> **索引类型**: HNSW（M=16, ef_construction=256, cosine）
 
-CREATE TABLE rag_embeddings (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    node_id         UUID NOT NULL REFERENCES rag_knowledge_nodes(id),
-    embedding       VECTOR,                        -- 不限定维度，由 embedding_model 决定
-    text            TEXT NOT NULL,
-    metadata        JSONB,
-    bm25_tokens     TSVECTOR,
-    chunk_index     INT,
-    -- 高频过滤字段独立列（避免 JSONB 索引退化）
-    tenant_id       VARCHAR(255) NOT NULL DEFAULT '',
-    node_type       VARCHAR(30) NOT NULL DEFAULT '',
-    -- Embedding 模型版本管理
-    embedding_model VARCHAR(50) NOT NULL DEFAULT 'text-embedding-3-large',
-    embedding_dim   INT NOT NULL DEFAULT 3072,
-    model_version   VARCHAR(20) DEFAULT '1.0',
-    synced_at       TIMESTAMPTZ DEFAULT NOW(),
-    status          VARCHAR(20) DEFAULT 'active'   -- active / orphan / stale / deprecated
-);
+#### Milvus Collection: `rag_embeddings`
 
--- B-tree 索引：支撑 RBAC 预过滤
-CREATE INDEX idx_rag_emb_node      ON rag_embeddings(node_id);
-CREATE INDEX idx_rag_emb_synced    ON rag_embeddings(synced_at);
-CREATE INDEX idx_rag_emb_tenant    ON rag_embeddings(tenant_id);
-CREATE INDEX idx_rag_emb_nodetype  ON rag_embeddings(node_type);
-CREATE INDEX idx_rag_emb_model     ON rag_embeddings(embedding_model);
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | VarChar(64) PrimaryKey | 唯一标识（node_id-chunk_index） |
+| `node_id` | VarChar(64) | 关联 `rag_knowledge_nodes.id` |
+| `node_type` | VarChar(30) | api_endpoint / runbook / frontend_page / db_table / alert_rule / cmdb_ci |
+| `tenant_id` | VarChar(255) | 多租户隔离（标量过滤） |
+| `parent_id` | VarChar(64) | Parent Retrieval 父节点 ID |
+| `chunk_index` | Int64 | chunk 序号 |
+| `text` | VarChar(2000) | 脱敏后文本（PII Filter 处理后写入） |
+| `embedding` | FloatVector(768) | bge-base-zh 向量 |
+| `embedding_model` | VarChar(50) | 默认 `"bge-base-zh"` |
+| `model_version` | VarChar(20) | 模型版本号，支持多版本共存 |
+| `synced_at` | Int64 | 最后同步时间戳（Unix） |
+| `status` | VarChar(20) | active / orphan / stale / deprecated |
 
--- BM25 全文索引
-CREATE INDEX idx_rag_emb_bm25      ON rag_embeddings USING GIN(bm25_tokens);
+**标量索引**: `node_type`, `tenant_id`, `embedding_model`, `model_version`, `status`（Milvus 自动标量索引）
 
--- 【P0 修复】HNSW 向量索引
--- 参数: m=16 (连接数), ef_construction=64 (构建精度)
--- 适用规模: 万级向量, P99 < 50ms, 召回率 > 99%
-CREATE INDEX idx_rag_emb_hnsw      ON rag_embeddings
-    USING hnsw (embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 64);
-
--- 【P1 修复】多租户分区（>100 租户时启用）:
--- CREATE TABLE rag_embeddings_tenant_XXX (LIKE rag_embeddings)
---   PARTITION OF rag_embeddings WHERE (tenant_id = 'xxx');
+**向量索引**:
+```
+Index Type:      HNSW
+Metric Type:     COSINE
+Params:          M=16, efConstruction=256
 ```
 
-**索引与检索策略**:
+#### 预过滤策略
 
-| 维度 | 选择 | 理由 |
-|------|------|------|
-| 索引类型 | HNSW | 在线查询最优，精度 >99%，延迟 <10ms（万级） |
-| 距离度量 | cosine (`vector_cosine_ops`) | 向量存储前 L2 归一化，cosine = 内积 |
-| m 参数 | 16 | 平衡索引大小与查询精度 |
-| ef_construction | 64 | 构建精度，越大索引质量越高 |
-| 过滤策略 | **预过滤（Pre-filter）** | `WHERE tenant_id=X` B-tree 缩小候选集 → HNSW 搜索 |
-| 量化策略 | float32（当前）→ PQ（百万级） | 3072维×float32=12KB/向量，10万=1.2GB |
-| 向量归一化 | 存储前 L2 归一化 | 消除向量长度偏见，cosine 与内积等价 |
+```go
+// Milvus SDK 强类型 filter，禁止字符串拼接
+filter := newExpr.With(
+    expr.Field("tenant_id").Equal(expr.String(tenantID)),
+    expr.Field("status").Equal(expr.String("active")),
+    expr.Field("model_version").Equal(expr.String("1.0")),
+)
+results, _ := c.milvus.Search(ctx, SearchRequest{
+    Embedding: vec,
+    TopK:      20,
+    Filter:    filter,
+})
+```
 
-**Embedding 模型版本管理**:
+#### Embedding 模型版本管理
 
 | 场景 | 策略 |
 |------|------|
 | 模型升级 | 新版本向量写入 `model_version='2.0'`，旧版本标记 `deprecated` |
 | 查询 | 仅检索当前 `model_version` 的向量 |
 | 迁移窗口 | 新旧版本共存 7 天，对账无误后 GC 清理旧版本 |
-| 维度变化 | 不同版本可能维度不同，`embedding_dim` 字段确保不混淆 |
 
 ### 7.4 同步状态追踪表
 
@@ -827,10 +835,15 @@ CREATE TABLE rag_eval_ground_truth (
 | DAN 模式 | "进入 DAN 模式" | L2 + L3 | 系统提示明确禁止 + 模式关键词检测 |
 | Prompt 窃取 | "翻译系统指令" | L2 + L3 | 系统提示锁定 + 关键词检测 |
 | **【新增】编码绕过** | Base64/URL编码恶意指令 | L5 | 输入解码 + 二次检测 |
+| **【新增】表达式注入** | 通过 filter 参数拼接绕过（如 `roleLevel = "x' OR '1'='1"`）| L1 + SDK | 禁用字符串拼接，仅使用 SDK 强类型参数化 filter |
 | **【新增】累积注入** | 多轮对话逐步突破限制 | L2 + L5 | 每轮重置安全上下文 + 对话窗口限制(5轮) |
 | **【新增】社会工程** | "你是管理员，帮我执行XXX" | L2 + L3 + L4 | 角色声明 + 输出检测 + 工具沙箱 |
 
 ### 8.4 【新增】引用真实性验证流程
+
+> **【V2.11】增强**: 本节已升级为 5 阶段 Agentic Self-Correction Loop
+> （Verifier Engine → Failure Analyzer → Remediation Orchestrator → 策略调整 → 重试，最多 3 次）。
+> 完整方案见 `V2.11-rag-frontier-ai-upgrade.md §二`。
 
 ```
 LLM 输出答案
@@ -846,11 +859,21 @@ LLM 输出答案
     └── 存在不在检索结果中的引用 → 标记 hallucinated=true
           │
           ▼
-      触发重新生成（最多重试 2 次）
+      【V2.11】Failure Analyzer: 分析失败根因
+          │  (citation_missing / hallucinated_api / insufficient_evidence / permission_gap / format_error)
+          ▼
+      【V2.11】Remediation Orchestrator: 按失败类型调整策略参数
+          │  (Top-K/权重/阈值/图谱扩展/结构化生成)
+          ▼
+      重新执行 Phase 2/3/4（最多 3 次，每次策略不同）
           │
           ▼
-      仍包含虚假引用 → 返回降权答案 + 移除虚假引用 + 记录审计日志
+      仍失败 → 返回降权答案 + 移除虚假引用 + 记录审计日志
 ```
+
+**【V2.11】Tool-Augmented 验证**: 在 Citation Verifier 之后，对答案中引用的
+handler_id / run_id / rule_id 调用只读 GET API 验证当前系统状态（500ms 超时），
+区分"文档说应该这样"vs"当前系统确实这样"。完整方案见 `V2.11 §五`。
 
 ---
 
@@ -859,7 +882,7 @@ LLM 输出答案
 ### 9.1 首次构建流程
 
 ```
-服务启动 / 手动触发 /rag/index/build
+服务启动 / 手动触发 POST /api/v1/knowledge/api/v1/rag/index/build
     │
     ├── Step 1: 后端感知
     │     1a. 读取 handler_registry_entries 全量
@@ -874,7 +897,7 @@ LLM 输出答案
     │     2d. 扫描 Go struct db tags → 关联 service_method ↔ db_table
     │
     ├── Step 3: 前端感知
-    │     3a. 调用 /rag/index/frontend 端点（前端部署时触发）
+    │     3a. 部署后调用 POST /api/v1/knowledge/api/v1/rag/index/frontend（CI 钩子触发）
     │     3b. 解析 routes.tsx → 生成 frontend_page 节点
     │     3c. 解析 src/api/*.ts import 关系 → 生成 frontend_page → api_endpoint edges
     │     3d. 解析页面 title/description → 更新节点 metadata
@@ -918,69 +941,82 @@ LLM 输出答案
 
 ## 十、API 设计
 
+> **API 前缀**: 统一使用 `/api/v1/knowledge/api/v1/rag/*`，与现有 `ai-docs.ts` API client 保持一致。
+
 ### 10.1 用户查询端点
 
 ```
-POST /api/v1/ai/agent/query
+POST /api/v1/knowledge/api/v1/rag/query
 {
-  "agentType": "rag-agent",
-  "input": {
-    "query": "如何排查告警频繁触发",
-    "scope": "all" | "ci_cd" | "observability" | "cmdb" | "ai",
-    "conversation_id": "conv-abc123"  // 【新增】多轮对话支持
-  },
-  "context": {
-    "userId": "...",
-    "tenantId": "...",
-    "roles": ["admin", "developer"]
-  }
+  "query": "如何排查告警频繁触发",
+  "spaceId": "space-uuid"          // 可选：限定检索空间
+  "topK": 10,                      // 返回候选数
+  "scope": "all" | "ci_cd" | "observability" | "cmdb" | "ai",
+  "conversation_id": "conv-abc123" // 多轮对话支持
+}
+
+Response: RAGResponse
+{
+  "answer": string,
+  "sources": Array<{ docId, title, relevance }>,
+  "confidence": number,
+  "feedback_token": string
 }
 ```
 
 ### 10.2 用户反馈端点
 
 ```
-POST /api/v1/ai/agent/feedback
+POST /api/v1/knowledge/api/v1/rag/feedback
 {
   "feedback_token": "uuid-for-rating",
   "rating": "positive" | "negative",
   "comment": "答案不够准确，实际入口在...",
-  "corrected_answer": "..."  // 用户提供的修正答案（用于训练）
+  "corrected_answer": "..."
 }
 ```
 
-### 10.3 索引管理端点
+### 10.3 索引管理端点（管理员）
 
 ```
-POST /rag/index/build          — 全量构建索引（管理员）
-POST /rag/index/sync/{source}   — 增量同步指定数据源（管理员）
-GET  /rag/index/status          — 查看所有数据源同步状态
-GET  /rag/index/health          — 健康检查（各源最后同步时间）
-POST /rag/index/frontend        — 前端部署后触发前端感知构建
-POST /rag/index/rebuild         — 重建全部索引
-GET  /rag/index/reconciliation  — 查看最近一次对账报告
-
-GET  /rag/knowledge/nodes?type=api_endpoint&limit=50
-GET  /rag/knowledge/nodes/{id}
-GET  /rag/knowledge/edges?source={id}
+POST /api/v1/knowledge/api/v1/rag/index/build          — 全量构建索引
+POST /api/v1/knowledge/api/v1/rag/index/sync/{source}  — 增量同步指定数据源
+GET  /api/v1/knowledge/api/v1/rag/index/status         — 查看同步状态
+GET  /api/v1/knowledge/api/v1/rag/index/health         — 健康检查
+POST /api/v1/knowledge/api/v1/rag/index/frontend       — 前端部署后触发构建
+POST /api/v1/knowledge/api/v1/rag/index/rebuild        — 重建全部索引
+GET  /api/v1/knowledge/api/v1/rag/index/reconciliation — 查看最近对账报告
 ```
 
-### 10.4 安全审计端点
+### 10.4 安全审计端点（管理员）
 
 ```
-GET  /rag/audit/injections      — 查看被拦截的注入尝试记录
-GET  /rag/audit/queries         — 查看用户查询历史（含权限过滤结果）
-GET  /rag/audit/sync-log        — 查看索引同步日志
-GET  /rag/audit/hallucinations  — 查看检测到的幻觉引用记录
+GET  /api/v1/knowledge/api/v1/rag/audit/injections     — 拦截注入记录
+GET  /api/v1/knowledge/api/v1/rag/audit/queries        — 用户查询历史
+GET  /api/v1/knowledge/api/v1/rag/audit/sync-log       — 索引同步日志
+GET  /api/v1/knowledge/api/v1/rag/audit/hallucinations — 检测到的幻觉引用
 ```
 
-### 10.5 【新增】评估端点
+### 10.5 评估端点（管理员）
 
 ```
-GET  /rag/eval/metrics          — 查看 RAG 评估指标
-GET  /rag/eval/health           — 查看系统健康度评分
-POST /rag/eval/ground-truth     — 添加/更新评估基准（管理员）
-GET  /rag/eval/ground-truth     — 查看评估基准集
+GET  /api/v1/knowledge/api/v1/rag/eval/metrics        — RAG 评估指标
+GET  /api/v1/knowledge/api/v1/rag/eval/health         — 系统健康度评分
+POST /api/v1/knowledge/api/v1/rag/eval/ground-truth   — 添加/更新评估基准
+GET  /api/v1/knowledge/api/v1/rag/eval/ground-truth   — 查看评估基准集
+```
+
+### 10.6 管理员面板端点（V2.9 三层开关）
+
+```
+GET  /api/v1/knowledge/api/v1/rag/admin/status              — 引擎全局状态
+PUT  /api/v1/knowledge/api/v1/rag/admin/enable              — 启用引擎
+PUT  /api/v1/knowledge/api/v1/rag/admin/disable             — 停用引擎
+GET  /api/v1/knowledge/api/v1/rag/admin/adapters            — 列出所有适配器
+PUT  /api/v1/knowledge/api/v1/rag/admin/adapters/:name/config — 更新适配器配置
+PUT  /api/v1/knowledge/api/v1/rag/admin/adapters/:name/enable — 启用适配器
+PUT  /api/v1/knowledge/api/v1/rag/admin/adapters/:name/disable — 停用适配器
+```
 ```
 
 ---
@@ -995,12 +1031,12 @@ GET  /rag/eval/ground-truth     — 查看评估基准集
 
 | # | 交付物 | 说明 |
 |---|--------|------|
-| 1 | `rag-agent` 注册 + 执行逻辑 | 接入 AI Gateway，支持基础查询 |
-| 2 | 知识图谱三表（nodes / edges / embeddings） | 数据库 Schema + Repository |
+| 1 | `rag-agent` 注册 + 执行逻辑 | 作为 AI Gateway（`/ai/gateway`）子能力注册，复用 LLM 路由 |
+| 2 | 知识图谱三表（nodes / edges / embeddings） | 数据库 Schema + Repository（Milvus Collection） |
 | 3 | 后端感知 Builder | 读取 handler_registry → 生成节点 + embedding |
-| 4 | Hybrid Search（Vector + BM25） | 核心检索能力 |
+| 4 | Hybrid Search（Vector + BM25） | 核心检索能力（Milvus HNSW + PostgreSQL GIN） |
 | 5 | 安全围栏 Layer 1 + Layer 2 + Layer 5 | 来源白名单 + 上下文隔离 + 输入防护 |
-| 6 | 前端"操作指引"入口 | AI Dashboard 新增 tab + 基础问答界面 |
+| 6 | 前端"操作指引"入口 | `/console/ai-docs/rag` 页面（AI 文档管理子路由），基础问答界面 |
 
 ### 11.3 MVP Phase 2（增强能力 — 2周）
 
@@ -1217,20 +1253,14 @@ truncated 节点处理:
 
 #### Embedding 模型选择
 
-| 内容类型 | 推荐模型 | 向量维度 | 理由 |
-|---------|---------|---------|------|
-| **自然语言**（Runbook / Pandawiki / CMDB 描述） | `text-embedding-3-large` 或等效 | 3072 | 语义理解能力强 |
-| **代码/API**（API Schema / 代码注释） | `code-embedding`（现有） | 1536 | 代码语义专用 |
-| **混合内容**（Alert Rules / Frontend） | `text-embedding-3-large` | 3072 | 以自然语言为主 |
+> **统一方案**: 所有语料类型统一使用 `bge-base-zh` ONNX（本地推理，768 维，FP32），
+> 不再区分文本/代码使用不同模型。代码内容通过 `[CODE]` 前缀标记增强语义区分。
 
-**维度统一方案**：
-- 使用 `text-embedding-3-large`（3072 维）作为主模型
-- 代码内容使用现有 `code-embedding`（1536 维）
-- 在 `rag_embeddings` 表中增加 `embedding_dim` 字段区分
-- 检索时按 `node_type` 路由到对应向量空间
+| 内容类型 | 模型 | 向量维度 | 理由 |
+|---------|------|---------|------|
+| **所有类型**（Runbook / API / CMDB / Frontend / Alert / Pandawiki） | `bge-base-zh`（本地 ONNX） | **768** | 统一维度简化索引管理，768 维在千-万级规模下语义精度足够 |
 
-> **注**: 如果 Vector Store 不支持多维度混合索引，则统一使用 3072 维模型，
-> 代码内容在生成 embedding 文本前增加 `[CODE]` 前缀标记以增强语义区分。
+**代码内容处理**：生成 embedding 文本前增加 `[CODE]` 前缀标记（如 `[CODE]POST /api/v1/pipeline/runs/:id/rollback`），使模型在 768 维空间内能区分代码语义与自然语言语义。
 
 #### BM25 文本预处理
 
@@ -1251,7 +1281,7 @@ truncated 节点处理:
 
 | 维度 | 指标 | 计算方法 | 目标值 |
 |------|------|---------|--------|
-| **检索质量** | Recall@5 | 正确节点数 / 基准集中应返回节点数 | ≥ 0.85 |
+| **检索质量** | Recall@5 | 正确节点数 / 基准集中应返回节点数 | ≥ 0.85（**【V2.11】** 微调后目标 0.90） |
 | **检索质量** | MRR（平均倒数排名） | 1/首个正确结果的排名 | ≥ 0.70 |
 | **答案质量** | Faithfulness | 答案中可被检索内容支持的比例 | ≥ 0.90 |
 | **答案质量** | Answer Relevance | 答案与用户问题的相关性（LLM-as-judge） | ≥ 0.80 |
@@ -1406,6 +1436,10 @@ Ground Truth 集构建:
            → RAG 评估框架消费
            → 负面反馈聚合分析（每周）
            → 识别高频不准确领域 → 触发知识库更新工单
+
+**【V2.11】Cross-Session Memory**: 用户 👎 + 纠正文本会写入 `rag_user_corrections` 表
+（持久化跨会话记忆）。下次相似查询（cosine > 0.95）自动注入纠正记录到 Context，
+LLM 优先考虑用户之前的纠正。完整方案见 `V2.11-rag-frontier-ai-upgrade.md §六`。
 ```
 
 ### 15.4 多轮对话设计
@@ -1453,12 +1487,12 @@ Ground Truth 集构建:
 
 | 成本项 | 估算（MVP Phase 1） | 估算（全功能） | 说明 |
 |--------|-------------------|--------------|------|
-| **LLM 调用** | ~$50/月 | ~$200/月 | 50 DAU × 3 次/天 × 22天 × $0.001/次 |
-| **Embedding 调用** | ~$10/月（增量） | ~$50/月（含首次全量） | 增量更新时按需生成 |
-| **向量存储** | ~$20/月 | ~$50/月 | pgvector 扩展，与现有 DB 共用 |
+| **LLM 调用** | ~$50/月 | ~$200/月 | 50 DAU × 3 次/天 × 22天 × $0.001/次（Claude 兜底，本地 Qwen2.5-3B 优先） |
+| **Embedding 调用** | $0 | $0 | 本地 bge-base-zh ONNX 推理，零外部调用 |
+| **向量存储** | ~$20/月 | ~$46.75/月 | Milvus 单机部署（V2.7） |
 | **BM25 索引** | $0（PostgreSQL GIN 索引） | $0 | 复用现有数据库 |
 | **维护成本** | 0.5 FTE/月 | 1 FTE/月 | 索引维护 + 评估 + 知识库更新 |
-| **总计** | ~$80/月 | ~$300/月 | |
+| **总计** | ~$70/月 | ~$246.75/月 | 轻量化后比原方案节省 18% |
 
 ### 15.7 角色差异化体验
 
@@ -1476,16 +1510,15 @@ Ground Truth 集构建:
 
 ### 16.1 性能预算
 
-| 阶段 | P50 目标 | P99 目标 | 说明 |
-|------|---------|---------|------|
-| 查询理解 | 100ms | 500ms | 轻量模型分类 + 关键词提取 |
-| 向量检索 | 50ms | 200ms | pgvector HNSW 索引 |
-| BM25 检索 | 20ms | 100ms | PostgreSQL GIN 索引 |
-| 图谱查询 | 50ms | 200ms | 2-hop 图谱跳躍 |
-| Score Fusion + Re-rank | 200ms | 1000ms | Cross-Encoder（10个候选） |
-| LLM 推理 | 1000ms | 3000ms | 取决于模型 + 上下文大小 |
-| 安全管道 | 100ms | 500ms | 关键词 + 语义检测 |
-| **总延迟** | **~1.5s** | **~5s** | |
+> **【V2.11】复杂度三路路由**: 根据查询复杂度分配不同资源，覆盖 60% simple / 30% moderate / 10% complex 查询。
+> 完整方案见 `V2.11-rag-frontier-ai-upgrade.md §四`。
+
+| 查询类型 | 占比 | 路径 | P50 | P99 | 说明 |
+|---------|------|------|-----|-----|------|
+| **simple** | 60% | 语义缓存优先 → BM25+向量 → LLM（Qwen2.5-3B） | 200ms | 500ms | 缓存命中时 < 50ms |
+| **moderate** | 30% | 全量 3 路检索 + Re-rank + LLM | 600ms | 1500ms | 标准路径 |
+| **complex** | 10% | 全量 + Agentic Loop + 多源扩展 + Claude 兜底 | 2s | 5s | 含 Agentic Self-Correction |
+| **加权平均** | 100% | — | **~520ms** | **~1.8s** | 比当前统一路径延迟更低 |
 
 ### 16.2 并发能力估算
 
@@ -1499,7 +1532,10 @@ Ground Truth 集构建:
 当查询量达到 10 RPS 时需要水平扩展（约 10 万 DAU）。
 ```
 
-### 16.2b 【新增】语义缓存层（Semantic Cache）
+### 16.2b 语义缓存层（Semantic Cache）
+
+> **存储引擎**: Milvus 独立 Collection（V2.8 起替代 pgvector 表）
+> **权限过滤**: `max_role_level` Int64 数值比较 + SDK 参数化（V2.10 修复字典序+注入）
 
 ```
 用户查询
@@ -1508,52 +1544,55 @@ Ground Truth 集构建:
 ┌─────────────────────────────────────────────────────────────────┐
 │ Semantic Cache Lookup                                            │
 │                                                                  │
-│ 1. 将用户查询向量化（使用与 RAG 相同的 text embedding 模型）       │
-│ 2. 在缓存索引中查找 cosine similarity > 0.92 的最近查询          │
-│ 3. 如果命中且缓存未过期（TTL=24h）→ 直接返回缓存答案              │
-│ 4. 如果未命中 → 继续完整 RAG 流程 → 缓存结果                     │
+│ 1. 将用户查询向量化（bge-base-zh, 768维）                        │
+│ 2. 在 Milvus rag_semantic_cache Collection 中查找               │
+│    filter: tenant_id=X && max_role_level<=Y && expires_at>NOW()  │
+│    search: cosine > 0.92                                         │
+│ 3. 命中 → 直接返回缓存答案（标注 source: "cache"）              │
+│ 4. 未命中 → 完整 RAG 流程 → 写入缓存                           │
 │                                                                  │
 │ 预期缓存命中率: ≥ 15%（运维问题高度重复）                        │
 │ 延迟节省: 命中时 < 50ms（跳过检索 + LLM 推理）                  │
-│ 成本节省: 每次命中节省 ~$0.001（LLM 调用费用）                   │
 └─────────────────────────────────────────────────────────────────┘
-    │
-    ├── 命中 → 返回缓存（标注 source: "cache"）
-    │
-    └── 未命中 → 完整 RAG 流程 → 写入缓存
 ```
 
-**缓存表设计**:
+**Milvus Collection: `rag_semantic_cache`**
 
-```sql
-CREATE TABLE rag_semantic_cache (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    query_text      TEXT NOT NULL,
-    query_embedding VECTOR,          -- 用于相似度查找
-    answer          TEXT NOT NULL,
-    citations       JSONB,
-    graph_links     JSONB,
-    tenant_id       VARCHAR(255),
-    similarity_threshold NUMERIC(3,2) DEFAULT 0.92,
-    hit_count       INT DEFAULT 0,
-    created_at      TIMESTAMPTZ DEFAULT NOW(),
-    expires_at      TIMESTAMPTZ DEFAULT NOW() + INTERVAL '24 hours'
-);
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | VarChar(64) PrimaryKey | 唯一 ID |
+| `query_text` | VarChar(500) | 原始查询 |
+| `query_embedding` | FloatVector(768) | 查询向量 |
+| `answer` | VarChar(5000) | 缓存答案 |
+| `citations` | VarChar(5000) | JSON citations |
+| `graph_links` | VarChar(5000) | JSON graph_links |
+| `tenant_id` | VarChar(255) | 租户（标量过滤） |
+| `max_role_level` | **Int64** | admin=0, oncall=1, developer=2, viewer=3（V2.10 修复） |
+| `hit_count` | Int64 | 命中次数 |
+| `created_at` | Int64 | Unix 时间戳 |
+| `expires_at` | Int64 | 过期时间戳（24h TTL） |
 
-CREATE INDEX idx_rag_cache_hnsw ON rag_semantic_cache
-    USING hnsw (query_embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 32);
+**向量索引**: HNSW (M=16, efConstruction=256, COSINE)
 
-CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
+**缓存查找（V2.10 修复版）**:
+```go
+filter := newExpr.With(
+    expr.Field("tenant_id").Equal(expr.String(tenantID)),
+    expr.Field("max_role_level").LessThanEqual(expr.Int64(roleLevel)),
+    expr.Field("expires_at").GreaterThan(expr.Int64(time.Now().Unix())),
+)
 ```
+
+**主动失效**（V2.10 P2-1）: CDC 事件触发时调用 `InvalidateBySource(tenant_id, node_type)` 删除 Milvus 中匹配缓存。
 
 | 参数 | 值 | 说明 |
 |------|-----|------|
-| 相似度阈值 | 0.92 | cosine similarity，过高命中率低，过低可能返回不相关答案 |
-| TTL | 24h | 知识更新周期，超时后缓存失效 |
+| 相似度阈值 | 0.92 | cosine similarity |
+| TTL | 24h | 超时自动失效 |
+| 主动失效 | CDC 事件触发 | 数据源变更时立即失效相关缓存 |
 | 存储上限 | 10,000 条 | LRU 淘汰最旧条目 |
 | 命中率目标 | ≥ 15% | 运维场景高频重复问题占比高 |
-| 不缓存条件 | 包含实时数据的问题（如"当前告警状态"） | 此类问题答案随时间变化 |
+| 不缓存条件 | 包含实时数据的问题 | 此类问题答案随时间变化 |
 
 ### 16.3 可观测性设计
 
@@ -1574,45 +1613,50 @@ CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
 
 ### 16.4 降级策略
 
-| 组件故障 | 降级行为 | 用户体验 |
-|---------|---------|---------|
-| **LLM 服务不可用** | 返回检索结果 + "AI 服务暂不可用，以下是相关知识文档" | 降级为纯检索结果列表 |
-| **Embedding 服务不可用** | 使用 BM25 检索（纯文本匹配） | 答案质量下降但功能可用 |
-| **向量索引不可用** | 使用 BM25 检索 + 图谱查询 | 语义检索缺失但精确匹配可用 |
-| **知识图谱不可用** | 使用纯向量检索 + BM25 | 关联信息缺失但基础检索可用 |
-| **Cross-Encoder 不可用** | 使用 RRF 分数直接排序（跳过 Re-rank） | 排序质量略降但无感知 |
-| **数据库只读** | 返回缓存的最近一次检索结果 + "数据可能不是最新的" | 功能受限但可用 |
+> **Milvus 宕机检测**: Circuit Breaker（连续 3 次失败 → OPEN，30s 后 HALF_OPEN，探活成功 → CLOSED）
+
+| 级别 | 故障场景 | 降级行为 | 权重分配 | 用户体验 |
+|------|---------|---------|---------|---------|
+| **级别 1** | Milvus 宕机（Orion 业务正常） | BM25 + Graph 检索 | 0.65b + 0.35g | "⚠️ 向量检索服务暂不可用，当前基于关键词匹配" |
+| **级别 2** | Milvus + Embedding 同时宕机 | BM25 检索 only | 1.0b | "⚠️ AI 检索服务降级中，结果可能不够精确" |
+| **级别 3** | PostgreSQL 也宕机 | 无（完全降级） | — | 静态 FAQ 列表 + "系统维护中" |
+| **LLM 服务不可用** | 外部 API + 本地模型均不可用 | 返回检索结果 + "AI 服务暂不可用，以下是相关知识文档" | — | 降级为纯检索结果列表 |
+| **Cross-Encoder 不可用** | 重排序模型不可用 | 使用 RRF 分数直接排序（跳过 Re-rank） | — | 排序质量略降但无感知 |
+| **语义缓存不可用** | Milvus 缓存 Collection 不可用 | 跳过缓存，走完整 RAG 流程 | — | 延迟增加但功能正常 |
 
 ### 16.5 可扩展性路径
+
+> 当前已使用 Milvus（V2.7），以下为基于 Milvus 的扩展路径。
 
 ```
 阶段1 (当前): 千级节点 (< 5,000)
 ─────────────────────────────────
-• 单 PostgreSQL 实例
-• pgvector HNSW 索引
+• Milvus 单机部署
 • 单 RAG Agent 实例
+• bge-base-zh 768维 HNSW 索引
 • 适用: MVP Phase 1-2
 
 阶段2: 万级节点 (5,000 - 50,000)
 ───────────────────────────────────
-• 向量索引切换为 HNSW 调优参数
+• Milvus HNSW 参数调优（M=32, efConstruction=512）
 • RAG Agent 水平扩展（2-4 实例）
 • Cross-Encoder 独立部署为微服务
 • 增加查询结果缓存（Redis）
 
 阶段3: 十万级节点 (50,000 - 500,000)
 ──────────────────────────────────────
-• 向量存储迁移到专用向量数据库（Milvus/Qdrant）
-• 按 node_type 分片（API 一个分片，Runbook 一个分片）
-• RAG Agent 支持 sharding-aware 路由
+• Milvus 分布式部署（多节点集群）
+• 按 node_type 分 Collection（API/Runbook/CMDB 独立 Collection）
+• 向量量化（BinVector / PQ）减少存储
 • 异步 Re-ranking（先返回快速结果，Re-rank 后 SSE 推送）
 
 阶段4: 百万级节点 (> 500,000)
 ──────────────────────────────────
+• Milvus 多副本 + 分片
 • 多级索引：粗粒度向量检索 → 细粒度 Re-rank
-• 向量量化（PQ/SQ）减少存储
+• 向量量化（PQ/SQ）
 • 查询理解使用专用模型（非通用 LLM）
-• 冷热分离：近期活跃的索引热存储，历史数据冷归档
+• 冷热分离：近期活跃热存储，历史数据冷归档
 ```
 
 ### 16.6 数据生命周期管理
@@ -1621,6 +1665,7 @@ CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
 |------|---------|---------|
 | **rag_knowledge_nodes** | 永久保留（与数据源同步） | 数据源删除时标记 orphan → 7天后 GC 清理 |
 | **rag_embeddings** | 永久保留（与节点同步） | 节点 orphan 时同步 orphan → 7天后 GC 清理 |
+| **rag_semantic_cache** | 24h TTL | TTL 过期自动清除 + CDC 事件触发主动失效（`InvalidateBySource`） |
 | **rag_conversations** | 90 天 | 90天后归档到冷存储 |
 | **rag_conversation_turns** | 90 天 | 90天后归档到冷存储 |
 | **rag_eval_metrics** | 365 天 | 365天后聚合为月度指标后删除明细 |
@@ -1631,202 +1676,279 @@ CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
 
 ## 十七、前端交互设计
 
+> **入口路径**: `/console/ai-docs/rag`（AIDocManagement 子路由，routes.tsx:691）
+> **权限要求**: `requiredPermission: { resource: 'knowledge', action: 'read' }`
+> **设计规范**: 全部遵循 CLAUDE.md 前端设计原则（Design Token / Apple 风格 / 交互完整性）
+
 ### 17.1 主界面布局
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  Orion 智能操作指引                     [🔍 搜索] [⚙️ 设置]  │
-├────────────────────────┬─────────────────────────────────────┤
-│                        │                                     │
-│  对话历史区            │  回答展示区                          │
-│  ┌──────────────────┐ │  ┌────────────────────────────────┐ │
-│  │ conv-1: 如何回滚  │ │  │ 📋 操作步骤                      │ │
-│  │ conv-2: 告警排查  │ │  │                                  │ │
-│  │ conv-3: API参考   │ │  │ 1. 进入【交付】→【流水线管理】    │ │
-│  │ ...              │ │  │    [跳转→]                       │ │
-│  │                  │ │  │                                  │ │
-│  │ [+ 新对话]       │ │  │ 2. 找到失败的运行                  │ │
-│  │                  │ │  │                                  │ │
-│  │                  │ │  │ 3. 点击【回滚】按钮               │ │
-│  │                  │ │  │                                  │ │
-│  │                  │ │  │ ──────────────────────────────   │ │
-│  │                  │ │  │ 🔗 相关知识                       │ │
-│  │                  │ │  │ [流水线管理页面] (可跳转)          │ │
-│  │                  │ │  │ [回滚操作手册] (可跳转)            │ │
-│  │                  │ │  │ [回滚API文档] (可查看)            │ │
-│  │                  │ │  │                                  │ │
-│  │                  │ │  │ 📊 引用来源                       │ │
-│  │                  │ │  │ [RB-001] 回滚操作手册    ████████ 92%│ │
-│  │                  │ │  │ [API-042] 回滚API端点   ██████ 88% │ │
-│  │                  │ │  │ [TBL-003] pipeline_runs表 █████ 82%│ │
-│  │                  │ │  │                                  │ │
-│  │                  │ │  │ 置信度: 89% ✅                    │ │
-│  │                  │ │  │                                  │ │
-│  │                  │ │  │ 👍 有帮助   👎 需改进             │ │
-│  │                  │ │  └────────────────────────────────┘ │ │
-│  │                  │ │                                     │ │
-│  └──────────────────┘ │  ┌────────────────────────────────┐ │
-│                        │  │ [ 输入你的问题...          ] [📤] │ │
-│                        │  └────────────────────────────────┘ │ │
-└────────────────────────┴─────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│ [机器人图标] RAG 智能操作指引                                      │ ← Title level=2, 20px, 600
+│ 基于知识图谱的运维操作指引                                            │ ← Text 14px, neutral[500]
+├────────────────┬───────────────────────────────────────────────────┤
+│               │                                                    │
+│  对话历史卡    │  回答展示卡                                         │
+│  Card(圆角12px)│  Card(圆角12px)                                     │
+│  阴影: card    │  阴影: card                                         │
+│               │                                                    │
+│  ┌─────────┐ │  ┌──────────────────────────────────────────────┐  │
+│  │🔍 搜索  │ │  │ 操作步骤（步骤列表，每步带可执行链接）            │  │
+│  └─────────┘ │  │                                               │  │
+│               │  │ 1. 进入【交付】→【流水线管理】                 │  │
+│  [Conversation]│  │    → Button variant=link /api/v1/pipeline   │  │
+│  ├─ conv-1    │ │  │                                              │  │
+│  ├─ conv-2    │ │  │ 2. 找到失败的运行                            │  │
+│  ├─ conv-3    │ │  │                                              │  │
+│  │ ...        │ │  │ 3. 点击【回滚】按钮                          │  │
+│  │            │ │  │                                              │  │
+│  │ [+ 新对话] │ │  │ ── Section: 相关知识 ──                      │  │
+│  └─────────┘ │  │ [Tag: Runbook] 回滚操作手册 → LinkButton      │  │
+│               │  │ [Tag: API] 回滚API端点    → LinkButton        │  │
+│               │  │ [Tag: Table] pipeline_runs → LinkButton       │  │
+│               │  │                                               │  │
+│               │  │ ── Section: 引用来源 ──                      │  │
+│               │  │ Progress: RB-001 ██████████░░ 92% success     │  │
+│               │  │ Progress: API-042 ████████░░░░ 88% primary   │  │
+│               │  │ Progress: TBL-003 ██████░░░░░░ 82% info      │  │
+│               │  │                                               │  │
+│               │  │ Badge: 置信度 89% (variant=success)           │  │
+│               │  │                                               │  │
+│               │  │ [Button: 👍 有帮助] [Button: 👎 需改进]       │  │
+│               │  └──────────────────────────────────────────────┘  │
+│               │                                                    │
+│               │  ┌──────────────────────────────────────────────┐  │
+│               │  │ [Input: 输入你的问题...] [Button: 发送]      │  │
+│               │  └──────────────────────────────────────────────┘  │
+│               │                                                    │
+└────────────────┴───────────────────────────────────────────────────┘
 ```
+
+**样式规范**:
+
+| 属性 | 值 | Token |
+|------|-----|-------|
+| 页面标题 | `level={2}`, 20px, 600 | `fontWeight.semibold` |
+| 图标 | `RobotOutlined`, 主色 | `colors.primary[500]` |
+| Card 圆角 | 12px | `componentRadius.card` |
+| Card 阴影 | `0 1px 3px rgba(0,0,0,0.06)` | `shadows.card` |
+| 对话历史间距 | 12px | `spacing.sm` |
+| 卡片内边距 | 24px | `componentSpacing.cardPadding.lg` |
+| 按钮高度 | 36px | `componentSize` |
+| 按钮圆角 | 6px | `componentRadius.button.md` |
+| 输入框圆角 | 6px | `componentRadius.input` |
+| 输入框聚焦 | `0 0 0 2px rgba(51,112,230,0.1)` | 蓝色光晕 |
+| 表格行高 | 48px | 标准行高 |
+| 表格悬停背景 | `#EBF0FB` | `colors.primary[50]` |
+
+**交互完整性**:
+
+| 检查项 | 实现 |
+|--------|------|
+| 搜索输入 | onChange 防抖 300ms → 触发查询 |
+| 发送按钮 | loading 时 disabled + Spin 图标 |
+| 查询成功 | 渲染答案卡 + `message.success`（首次回答时） |
+| 查询失败 | 显示 ErrorCard + `message.error` + 重试按钮 |
+| 空状态 | 首次进入显示 Empty + 引导文字 + "开始提问" 按钮 |
+| 对话历史 | 点击切换上下文，active 状态高亮 `colors.primary[50]` |
+| 新对话 | Modal 弹窗确认清空当前上下文 |
+| 👍👎 反馈 | 点击后调用反馈 API + 按钮状态锁定（不可重复点击） |
 
 ### 17.2 引用可信度展示设计
 
 ```
-引用卡片:
+引用卡片组件（CitationCard）：
 
-┌──────────────────────────────────────────────────────┐
-│ [RB-001] 回滚操作手册                             [打开] │
-│ ─────────────────────────────────────────────────── │
-│ 类型: Runbook  │  相关度: 92% ████████████████░░     │
-│ 来源: runbooks表 (tenant: acme-corp)                │
-│ 最后更新: 2026-08-05                                 │
-│ 验证: ✅ 已验证与答案匹配                             │
-└──────────────────────────────────────────────────────┘
-
-颜色编码:
-  • 相关度 ≥ 80%: 绿色 ████████████
-  • 相关度 60-79%: 黄色 ████████░░░░
-  • 相关度 < 60%: 红色 ████░░░░░░░░░░
-  • 未验证引用: ⚠️ 橙色警告标记
+┌──────────────────────────────────────────────────────────────┐
+│ [Tag: RB-001] 回滚操作手册                          [LinkButton: 打开] │
+├──────────────────────────────────────────────────────────────┤
+│ 类型: Runbook        来源: runbooks 表 (tenant: acme-corp)    │
+│ 最后更新: 2026-08-05                                        │
+│                                                              │
+│ 相关度: Progress(92%, variant=success, showInfo=true)       │
+│                                                              │
+│ Badge(已验证, variant=success): 与答案匹配                    │
+│ Badge(当前不可用, variant=warning): API 探测失败（V2.6）     │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+**颜色编码（语义化 Token）**:
+
+| 相关度范围 | Progress 颜色 | 说明 |
+|-----------|-------------|------|
+| ≥ 80% | `colors.success[500]` (`#52c41a`) | 高相关 |
+| 60-79% | `colors.warning[500]` (`#faad14`) | 中等 |
+| < 60% | `colors.error[500]` (`#f5222d`) | 低相关 |
+| 未验证 | Badge `variant="warning"` + `ExclamationCircleOutlined` | 需人工确认 |
+| API 不可用 | Badge `variant="default"` + `CloseCircleOutlined` | 运行时探测失败 |
 
 ### 17.3 知识图谱可视化设计（V2）
 
+> **当前状态**: `/console/ai-docs/graph` 路由已存在（routes.tsx:697），但页面使用 `DocumentList` 占位。
+> 本节描述完整实现方案。
+
+**图谱子图展示**（使用 `react-force-graph-2d` 或 D3.js）：
+
 ```
-图谱子图展示（交互模式）:
+节点定义:
+  { id: "POST /api/v1/pipeline/runs/:id/rollback", type: "api_endpoint", color: "#3370E6" }
+  { id: "pipeline-runs",                type: "frontend_page",   color: "#52c41a", url: "/pipeline/runs" }
+  { id: "pipeline_runs",                type: "db_table",        color: "#faad14" }
+  { id: "rb-pipeline-rollback",         type: "runbook",         color: "#f5222d" }
+  { id: "alert-rollback-failed",        type: "alert_rule",      color: "#7C5CFC" }
 
-     [回滚流水线] (用户问题)
-         │
-         ├──🔵 [API] POST /pipeline/runs/:id/rollback
-         │      │
-         │      ├──🟢 [页面] 流水线管理 /pipeline/runs ← 可点击跳转
-         │      │
-         │      └──🟡 [表] pipeline_runs
-         │             │
-         │             └──🟡 [字段] status, rolled_back_at
-         │
-         ├──🔴 [Runbook] 回滚操作手册 ← 可点击展开步骤
-         │
-         └──🔵 [API] GET /pipeline/runs/:id
-                │
-                └──🟢 [页面] 流水线详情 /pipeline/runs/:id
-
-节点颜色编码:
-  • 🔵 蓝色 = API 端点
-  • 🟢 绿色 = 前端页面（可跳转）
-  • 🟡 黄色 = 数据表/结构
-  • 🔴 红色 = Runbook/文档
-  • 🟣 紫色 = Alert/监控规则
-
-交互行为:
-  • 点击节点 → 展开节点详情侧栏
-  • 点击前端页面节点 → 新标签页打开对应页面
-  • 点击 API 节点 → 展开 API 文档（参数/返回/示例）
-  • 点击 Runbook 节点 → 展开操作步骤
-  • 拖拽节点 → 调整布局
-  • 滚轮缩放 → 调整图谱视图
+边定义:
+  { source: "POST...", target: "pipeline-runs", type: "displayed_on" }
+  { source: "POST...", target: "pipeline_runs", type: "uses_table" }
+  { source: "POST...", target: "rb-pipeline-rollback", type: "documented_in" }
 ```
+
+**节点颜色编码**（Design Token 对齐）:
+
+| 节点类型 | 颜色 | Token |
+|---------|------|-------|
+| api_endpoint | `#3370E6` | `colors.primary[500]` |
+| frontend_page | `#52c41a` | `colors.success[500]` |
+| db_table / data_structure | `#faad14` | `colors.warning[500]` |
+| runbook / doc | `#f5222d` | `colors.error[500]` |
+| alert_rule / monitor | `#7C5CFC` | `colors.purple[500]` |
+
+**交互行为**:
+
+| 操作 | 行为 |
+|------|------|
+| 点击节点 | Drawer 打开（right, 400px），显示节点详情 |
+| 点击前端页面节点 | 新标签页打开对应 URL |
+| 点击 API 节点 | Drawer 内展示 API 文档（参数/返回/示例 Tab） |
+| 点击 Runbook 节点 | Drawer 内展示操作步骤列表 |
+| 拖拽节点 | 调整布局（force graph 自动重排） |
+| 滚轮缩放 | 调整图谱视图 |
+| 悬停节点 | Tooltip 显示节点名称 + 类型 |
+
+**响应式**:
+- ≥1200px: 图谱占 60% 宽度，右侧 Detail Drawer
+- 768-1199px: 图谱占 100% 宽度，点击节点弹出 Modal
+- <768px: 隐藏图谱，仅展示节点列表
 
 ### 17.4 权限差异化视觉设计
 
 ```
-可执行操作（用户有权限）:
-┌────────────────────────────────────────────────┐
-│ ✅ 你可以执行此操作                               │
-│ POST /pipeline/runs/:id/rollback                │
-│ [ 前往页面执行 ]  [ 查看API文档 ]                 │
-└────────────────────────────────────────────────┘
+可执行操作（用户有对应 resource-action 权限）:
+┌──────────────────────────────────────────────────────────────┐
+│ Alert(成功, variant=success, icon=CheckCircle):              │
+│ 你可以执行此操作                                              │
+│                                                              │
+│ Code: POST /pipeline/runs/:id/rollback                       │
+│                                                              │
+│ [Button primary: 前往页面执行] [Button ghost: 查看API文档]   │
+└──────────────────────────────────────────────────────────────┘
 
-无执行权限（用户仅有读取权限）:
-┌────────────────────────────────────────────────┐
-│ 🔒 此操作需要 admin 权限（你的角色: developer）    │
-│ POST /pipeline/runs/:id/rollback                │
-│ [ 查看操作说明 ]  [ 申请权限 ]                    │
-└────────────────────────────────────────────────┘
+无执行权限（用户缺少对应 resource-action）:
+┌──────────────────────────────────────────────────────────────┐
+│ Alert(警告, variant=warning, icon=ExclamationCircle):        │
+│ 此操作需要特定权限（你的角色: developer）                     │
+│                                                              │
+│ Code: POST /pipeline/runs/:id/rollback                       │
+│                                                              │
+│ [Button ghost: 查看操作说明] [Button dashed: 申请权限]       │
+└──────────────────────────────────────────────────────────────┘
 
-概念性内容（非操作类）:
-┌────────────────────────────────────────────────┐
-│ 📖 pipeline_runs 表结构                          │
-│ 字段: id, tenant_id, status, created_at...      │
-│ [ 查看完整表结构 ]                               │
-└────────────────────────────────────────────────┘
+概念性内容（非操作类节点，如 db_table）:
+┌──────────────────────────────────────────────────────────────┐
+│ Alert(信息, variant=info, icon=Book):                        │
+│ pipeline_runs 表结构                                          │
+│                                                              │
+│ [Descriptions] 字段: id, tenant_id, status, created_at...    │
+│                                                              │
+│ [Button link: 查看完整表结构]                                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### 17.5 加载状态设计
 
 ```
-查询中:
-┌────────────────────────────────────────────────┐
-│ ⏳ 正在检索相关知识...                             │
-│                                                  │
-│ ✓ 已检索 Runbook (12ms)                          │
-│ ✓ 已检索 API Schema (8ms)                        │
-│ ◌ 正在检索 知识图谱...                            │
-│ ◌ 正在生成回答...                                │
-└────────────────────────────────────────────────┘
+查询中状态（Steps 组件或自定义 LoadingBar）:
 
-超时降级:
-┌────────────────────────────────────────────────┐
-│ ⚠️ AI 服务响应较慢，以下是已检索到的相关知识：       │
-│                                                  │
-│ • [回滚操作手册] (相关度: 92%)                    │
-│ • [回滚API文档] (相关度: 88%)                     │
-│ • [流水线管理页面] (可跳转)                        │
-│                                                  │
-│ [ 重试 AI 生成 ]  [ 仅查看文档 ]                   │
-└────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Loading(💡 正在检索相关知识...)                               │
+│                                                              │
+│ CheckList:                                                   │
+│   ✓ Runbook 检索完成（12ms） — CheckCircle, success         │
+│   ✓ API Schema 检索完成（8ms） — CheckCircle, success       │
+│   ◌ 知识图谱检索中... — Loading, primary                     │
+│   ◌ AI 生成回答中... — Loading, primary                      │
+└──────────────────────────────────────────────────────────────┘
+
+超时降级（Alert + 文档列表）:
+
+┌──────────────────────────────────────────────────────────────┐
+│ Alert(警告, variant=warning, icon=ClockCircle):              │
+│ AI 服务响应较慢，以下是已检索到的相关知识：                    │
+│                                                              │
+│ [List] 文档列表（引用卡片缩略版）                              │
+│   • [Link: 回滚操作手册] Badge(92%) success                  │
+│   • [Link: 回滚API文档] Badge(88%) primary                   │
+│   • [Link: 流水线管理页面] Badge(可跳转) info                │
+│                                                              │
+│ [Button primary: 重试 AI 生成] [Button ghost: 仅查看文档]   │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+**响应式断点**:
+
+| 宽度 | 行为 |
+|------|------|
+| ≥1200px | 左侧对话历史（280px）+ 右侧回答区，完整布局 |
+| 768-1199px | 左侧对话历史折叠为抽屉，回答区占满宽度 |
+| <768px | 单列布局，对话历史通过 BottomSheet 展示，图谱隐藏仅列表 |
 
 ---
 
-## 十八、知识图谱自动构建流程
+## 十八、知识图谱增量更新触发机制
 
-### 18.1 首次构建流程
+> 首次构建流程详见 **§9.1**（后端感知 → 数据结构感知 → 前端感知 → Runbook/Alert/CMDB → 分块向量化 → 同步状态更新）。
+> 增量更新流程详见 **§9.2**（Diff 计算 → Upsert → Delete → GC）。
+> 本节仅补充各数据源的触发机制差异。
 
-```
-服务启动 / 手动触发 /rag/index/build
-    │
-    ├── Step 1: 后端感知
-    │     1a. 读取 handler_registry_entries 全量
-    │     1b. 生成 api_endpoint 节点
-    │     1c. 扫描 Go models 目录 → 生成 service_method 节点
-    │     1d. 提取 handler → service → repository 调用链 → 生成 edges
-    │
-    ├── Step 2: 数据结构感知
-    │     2a. 解析 migrations/*.sql 中 CREATE TABLE → 生成 db_table 节点
-    │     2b. 解析 ALTER TABLE → 更新节点 columns
-    │     2c. 解析 FOREIGN KEY → 生成 db_table ↔ db_table edges
-    │     2d. 扫描 Go struct db tags → 关联 service_method ↔ db_table
-    │
-    ├── Step 3: 前端感知
-    │     3a. 调用 /rag/index/frontend 端点（前端部署时触发）
-    │     3b. 解析 routes.tsx → 生成 frontend_page 节点
-    │     3c. 解析 src/api/*.ts import 关系 → 生成 frontend_page → api_endpoint edges
-    │     3d. 解析页面 title/description → 更新节点 metadata
-    │
-    ├── Step 4: Runbook / Alert / CMDB 索引
-    │     4a. 读取 runbooks 表 → 生成 runbook 节点
-    │     4b. 读取 alert_rules 表 → 生成 alert_rule 节点
-    │     4c. 读取 cmdb_ci 表 → 生成 db_table 节点
-    │     4d. 建立 runbook ↔ api_endpoint 关联边
-    │
-    ├── Step 5: 分块 + 向量化
-    │     5a. 按节点类型选择分块策略（详见 13.4 节）
-    │     5b. 按节点类型选择 Embedding 模型
-    │     5c. 生成 embedding → 写入 rag_embeddings
-    │     5d. 生成 BM25 tokens → 写入 rag_embeddings.bm25_tokens
-    │
-    └── Step 6: 同步状态更新
-```
+### 18.1 各适配器触发方式
 
-### 18.2 增量更新流程
+| 适配器 | 触发方式 | 延迟 | 幂等保证 |
+|--------|---------|------|---------|
+| `orion-handler` | CDC LISTEN/NOTIFY | < 1s | watermark（仅处理 > last_watermark 的事件） |
+| `orion-runbook` | Webhook + 每小时轮询 | < 1h | 指纹（内容 hash 不变则跳过） |
+| `orion-alert` | Webhook + 每小时轮询 | < 1h | 指纹 |
+| `orion-frontend` | CI 钩子（部署后 POST） | < 5min | 版本号 |
+| `orion-migration` | 轮询（每小时扫描 DDL） | < 1h | migration_id |
+| `gitlab-code` | Webhook（push）+ 轮询 | < 5min | commit_sha |
+| `prometheus-rules` | HTTP API 轮询（每小时） | < 1h | 规则 fingerprint |
+
+### 18.2 回滚检测（Rollback Detector）
 
 ```
-触发条件: 服务启动 / migration_applied / handler registry 变更 / 前端部署
+触发条件: 指纹倒退（fingerprint_hash 从旧值变为更旧的值）
+处理:     标记节点 status='orphan' → 标记 embedding status='orphan'
+          不立即删除，等待 GC 7 天后清理
+原因:     服务回滚时新数据变为旧数据，需等待确认后再清理
+```
+
+### 18.3 Runtime Health Checker（V2.6 补充）
+
+> 在给出操作指引前，对引用的 API endpoint 执行 HTTP HEAD /health 探测（500ms 超时）。
+
+```
+RAG Agent 生成答案（含 API 引用）
     │
-    ├── Diff 计算 → Upsert → Delete → GC
+    ▼
+提取答案中的 api_endpoint 引用
+    │
+    ▼
+对每个 endpoint 并行执行 HTTP HEAD（500ms 超时）
+    │
+    ├── 全部 200 → 标注 "API 可执行" ✅
+    │
+    ├── 部分失败 → 标注失败 API "当前不可用" ⚠️
+    │
+    └── 全部失败 → 标注 "所有 API 当前不可用" ❌
 ```
 
 ---
@@ -1945,6 +2067,9 @@ Week 4: +13pp → 75% ✅ 自优化闭环有效
 
 > **触发原因**: 逐行验证代码库后发现上一轮评估关键遗漏（handler-registry 误判为不存在），防幻觉机制缺少后端状态校验层。  
 > **补充文档**: `V2.5-comprehensive-review-fixes.md`
+>
+> > ⚠️ **历史版本**: 本附录中向量存储方案（pgvector）已被 V2.7 完全替代为 Milvus。
+> > 防幻觉方案已升级为 V2.6 三层（Layer A/B/C）。落地就绪度评分已过时，请以主文档为准。
 
 ### P0 修正项
 
@@ -1961,8 +2086,8 @@ Week 4: +13pp → 75% ✅ 自优化闭环有效
 |------|------|
 | **双层防幻觉** | Layer A: 后端状态实时校验（handler_registry 状态查询）+ Layer B: 前端路由校验（V2.2） |
 | **回滚即时防幻觉** | 回滚后 0 秒即可通过 Layer A（< 2ms 查询）阻止过时 API 进入答案，不依赖 1h 增量同步窗口 |
-| **handler-registry config 复用** | `config` 字段（JSONB）存储 required_role/frontend_link/service_method，RAG 索引时直接提取 |
-| **vector 模块改造** | `vector_record` 表从 JSON 存储升级为 pgvector 原生 VECTOR 类型 + HNSW 索引 |
+| **handler-registry config 复用** | `config` 字段（JSONB）存储 permissions（resource-action）/frontend_link/service_method，RAG 索引时直接提取 |
+| **vector 模块改造** | ~~`vector_record` 表从 JSON 存储升级为 pgvector 原生 VECTOR 类型 + HNSW 索引~~ | > ⚠️ **已被 V2.7 替代**: 向量存储已迁移到 Milvus，不再使用 pgvector。详见附录 I（V2.7）。 |
 | **LLM Gateway** | 新建 `internal/llm-gateway` 统一 LLM API 抽象层，与现有 `llm` Trace 模块解耦 |
 
 ### 修正后落地就绪度
@@ -1988,6 +2113,8 @@ Week 4: +13pp → 75% ✅ 自优化闭环有效
 
 > **触发原因**: 三位专家（AIGC 架构师/安全运维/算法）二次评审发现 9 个 P0 漏洞。  
 > **补充文档**: `V2.6-expert-review-round2.md`
+>
+> > ⚠️ **历史版本**: 本附录中 pgvector HNSW 索引语法已被 V2.7 替代为 Milvus SDK 创建索引。
 
 ### 9 个 P0 问题与修复
 
@@ -2000,7 +2127,7 @@ Week 4: +13pp → 75% ✅ 自优化闭环有效
 | P0-5 | 投影消费者无 CDC — 轮询存在数据竞争 | AIGC | LISTEN/NOTIFY 替代轮询 |
 | P0-6 | 零可观测性 — 无 metrics/logging/tracing | 安全 | 12 项 Prometheus 指标 + structured logging |
 | P0-7 | ON CONFLICT 语法错误 — 表达式不能作为冲突目标 | 算法 | 新增 `entity_id` 列作为唯一键 |
-| P0-8 | HNSW 索引定义缺失 — 无 CREATE INDEX 语句 | 算法 | `USING hnsw (vector vector_ip_ops) WITH (m=16)` |
+| P0-8 | HNSW 索引定义缺失 — 无 CREATE INDEX 语句 | 算法 | ~~`USING hnsw (vector vector_ip_ops) WITH (m=16)`~~ | > ⚠️ **已被 V2.7 替代**: 改为 Milvus SDK 创建 HNSW 索引（M=16, efConstruction=256, COSINE），不再使用 pgvector 语法。 |
 | P0-9 | 中文 BM25 完全失效 — simple 分词器不拆分中文 | 算法 | jieba 预分词（Go 端），无需数据库扩展 |
 
 ### 架构升级
@@ -2136,3 +2263,23 @@ IIndexAdapter 接口: `Name()` / `SourceType()` / `Discover()` / `Watch()` / `He
 | P2-1 | 语义缓存无主动失效 | P2 | CDC 事件触发 `InvalidateBySource` |
 | P2-2 | 检索延迟无 SLO 采集 | P2 | 6 项 Histogram + P50/P95/P99 三级告警 |
 | **合计** | **20** | **17** | **37 项改进** |
+
+---
+
+## 附录 M：V2.11 补丁 — AI 前沿能力补充
+
+> **触发原因**: 领域专家从 Agentic RAG、End-to-End LLM、Reasoning、Long-Term Memory、Multimodal 五个前沿视角分析，发现 8 项缺失能力。  
+> **补充文档**: `V2.11-rag-frontier-ai-upgrade.md`
+
+### 8 项前沿能力补充
+
+| # | 能力 | 严重度 | 摘要 |
+|---|------|--------|------|
+| P0-1 | **Agentic Self-Correction Loop** | P0 | Citation Verifier 升级为 5 阶段循环：Verifier → Failure Analyzer → Remediation Orchestrator → 策略调整 → 重试（最多 3 次，每次策略不同） |
+| P0-2 | **Structured Generation** | P0 | 回答格式 JSON Schema 约束 + Go validate 标签 + LLM 输出约束模板 |
+| P0-3 | **Adaptive Test-Time Compute** | P0 | 三路复杂度路由：simple(200ms/60%) / moderate(600ms/30%) / complex(5s/10%) |
+| P1-1 | **Tool-Augmented RAG** | P1 | 只读 GET API 验证层（handler_registry / pipeline / alert-rules），仅验证不执行 |
+| P1-2 | **Cross-Session Memory** | P1 | 2 张新表（rag_user_corrections + rag_user_preferences），跨会话纠正记忆自动注入 |
+| P1-3 | **Clarification / Active Learning** | P1 | 4 因素不确定性检测，≥0.5 触发主动反问 |
+| P2-1 | **End-to-End Retrieval Fine-tuning** | P2 | 反馈驱动每 2 周微调 embedding，对比损失 + 冻结前 6 层 |
+| P2-2 | **Live System Observation** | P2 | 查询时并行拉取活跃告警/部署状态/服务健康（30s 缓存） |
