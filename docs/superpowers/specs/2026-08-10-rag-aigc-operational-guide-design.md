@@ -2029,4 +2029,32 @@ CDC 升级: 每小时轮询 → PostgreSQL LISTEN/NOTIFY（< 10ms 实时通知�
 | 月度成本 | $16.20 | **$6.75** | 58% 节省 |
 
 **推荐组合**: bge-base-zh（768 维，本地）+ Qwen2.5-3B（本地）+ Claude API（兜底），零外部依赖时系统仍可全功能运行。
+
+## 附录 I：V2.7 补丁 — Milvus 向量数据库方案
+
+> **触发原因**: 将向量存储从 pgvector（PostgreSQL 扩展）升级为 Milvus 专用向量数据库，面向百万级扩展。  
+> **补充文档**: `V2.7-milvus-vector-database.md`
+
+### 方案变更
+
+| 维度 | V2.6（pgvector） | V2.7（Milvus） |
+|------|-----------------|----------------|
+| 向量存储 | PostgreSQL 扩展（JSON → VECTOR 列） | 独立 Milvus 服务（FloatVector 字段） |
+| 多租户隔离 | SQL WHERE tenant_id | Collection 内标量过滤 + 自动标量索引 |
+| 扩展上限 | 百万级（单机） | **十亿级**（分布式） |
+| 混合查询 | SQL 先过滤再向量搜索 | **原生一体**（`expr` 表达式） |
+| 查询延迟（3 万向量） | ~2ms | **~1ms** |
+| 查询延迟（100 万向量） | 15-50ms（退化） | **~2ms**（稳定） |
+| Go 客户端 | pgx（已有） | go-milvus SDK（新建） |
+| 月成本 | $6.75 | **$26.75**（+$20 Milvus 部署） |
+
+### 保留不变的设计
+
+- 本地 bge-base-zh ONNX Embedding（768 维）
+- 混合 LLM（Qwen2.5-3B 本地 + Claude 兜底）
+- Parent Retrieval（200 字 chunk → 父节点全文）
+- jieba 中文预分词
+- 三层防幻觉（Layer A/B/C）
+- CDC LISTEN/NOTIFY 增量同步
+- 全部 9 项 P0 修复方案
 | **合计** | **20** | **17** | **37 项改进** |
