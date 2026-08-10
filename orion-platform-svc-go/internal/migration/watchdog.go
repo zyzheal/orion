@@ -56,7 +56,7 @@ func (wd *MigrationWatchdog) Check() error {
     wd.mu.Unlock()
     for _, fn := range handlers {
         if err := fn(); err != nil {
-            return fmt.Errorf("migration watchdog check failed: %%v", err)
+            return fmt.Errorf("migration watchdog check failed: %v", err)
         }
     }
     wd.mu.Lock()
