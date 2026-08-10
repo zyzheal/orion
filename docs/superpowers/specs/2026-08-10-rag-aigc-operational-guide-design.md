@@ -2118,4 +2118,21 @@ IIndexAdapter 接口: `Name()` / `SourceType()` / `Discover()` / `Watch()` / `He
 | Level 3: 适配器级 | RAG 引擎配置 → 数据源管理 | 单数据源 | `rag_adapter_registry.status` |
 
 三级开关联动: 系统级关闭 → 所有请求返回"已停用"；租户级关闭 → 仅该租户不可用；适配器级关闭 → 该数据源不进入索引。
+
+## 附录 L：V2.10 补丁 — AI 架构团队第三轮评审修复
+
+> **触发原因**: AIGC 架构师第三轮评审发现 1 个 P0 + 4 个 P1 + 2 个 P2 问题。  
+> **补充文档**: `V2.10-expert-review-round3.md`
+
+### 7 项修复清单
+
+| # | 问题 | 严重度 | 修复 |
+|---|------|--------|------|
+| P0-1 | 语义缓存 `max_role_level` 字典序比较错误 + `fmt.Sprintf` 表达式注入 | **P0** | 改用 `Int64` 数值（admin=0, developer=2）+ Milvus SDK 参数化 filter |
+| P1-1 | Circuit Breaker `HalfOpen` 探活成功后 `milvus.Search` 不执行 | P1 | 重构为 if-else，移除 switch 无 fallthrough 的隐患 |
+| P1-2 | 模型加载 OOM 风险（2.6GB + ONNX ≈ 5-6GB，未声明资源约束） | P1 | `requests: 8Gi / limits: 12Gi` + INT4 量化 |
+| P1-3 | PII 脱敏缺失（向量化前未脱敏，敏感数据进入 Milvus 不可撤回） | P1 | 复用 prompt-security 正则，向量化前脱敏 |
+| P1-4 | Query Rewriting 缺失（复杂问题无法拆为多子查询） | P1 | LLM 分解 + 并行检索 + RRF 融合 |
+| P2-1 | 语义缓存无主动失效 | P2 | CDC 事件触发 `InvalidateBySource` |
+| P2-2 | 检索延迟无 SLO 采集 | P2 | 6 项 Histogram + P50/P95/P99 三级告警 |
 | **合计** | **20** | **17** | **37 项改进** |
