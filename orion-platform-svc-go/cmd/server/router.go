@@ -658,9 +658,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if sagaH != nil {
     sagaH.RegisterRoutes(api)
   }
-  if pipelineExecutorH != nil {
-    pipelineExecutorH.RegisterRoutes(api)
-  }
   if alertAdapterH != nil {
     alertAdapterH.RegisterRoutes(api)
   }
@@ -703,9 +700,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if extensionPointH != nil {
     extensionPointH.RegisterRoutes(api)
-  }
-  if cacheMgmtH != nil {
-    cacheMgmtH.RegisterRoutes(api)
   }
   if smartDeployH != nil {
     smartDeployH.RegisterRoutes(api)
@@ -755,9 +749,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if autonomousPipelineH != nil {
     autonomousPipelineH.RegisterRoutes(api)
   }
-  if cacheMgmtH != nil {
-    cacheMgmtH.RegisterRoutes(api)
-  }
   if communityAdvancedH != nil {
     communityAdvancedH.RegisterRoutes(api)
   }
@@ -799,9 +790,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if pipelineErrorDetailH != nil {
     pipelineErrorDetailH.RegisterRoutes(api)
-  }
-  if pipelineExecutorH != nil {
-    pipelineExecutorH.RegisterRoutes(api)
   }
   if releaseMgmtH != nil {
     releaseMgmtH.RegisterRoutes(api)
