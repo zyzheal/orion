@@ -2090,4 +2090,32 @@ CDC 升级: 每小时轮询 → PostgreSQL LISTEN/NOTIFY（< 10ms 实时通知�
 | 7 | 缺 pgvector → Milvus 迁移方案 | P2 | 1d |
 
 **18 个维度全部 100% 覆盖。**
+
+## 附录 K：V2.9 补丁 — 可扩展多系统索引 + Orion 原生集成
+
+> **触发原因**: 用户提出两项能力提升 — (1) RAG 索引不限于 Orion，可接入其他系统；(2) 完美融入 Orion 并有合理的启用/关闭入口。  
+> **补充文档**: `V2.9-extensible-indexing-and-integration.md`
+
+### 能力提升一：多系统索引（Adapter 抽象层）
+
+```
+RAG Indexer
+├── Indexer Core（通用: Chunking / Embedding / Milvus Upsert / BM25）
+└── Adapter Registry（可插拔）
+    ├── orion-handler  / orion-runbook / orion-alert  / orion-frontend  / orion-migration
+    ├── gitlab-code    / prometheus-rules / servicenow / grafana-dashboard / jenkins-pipeline
+    └── 任意系统 → 实现 IIndexAdapter 接口即可接入
+```
+
+IIndexAdapter 接口: `Name()` / `SourceType()` / `Discover()` / `Watch()` / `Health()` / `Schema()`
+
+### 能力提升二：Orion 原生集成（三层开关）
+
+| 层级 | 入口 | 影响范围 | 存储 |
+|------|------|---------|------|
+| Level 1: 系统级 | 控制台 → AI 平台 → RAG 引擎配置 | 全局 | `unified_config("rag.enabled")` |
+| Level 2: 租户级 | 租户管理 → 功能订阅 → RAG | 单租户 | `rag_tenant_quota.enabled` |
+| Level 3: 适配器级 | RAG 引擎配置 → 数据源管理 | 单数据源 | `rag_adapter_registry.status` |
+
+三级开关联动: 系统级关闭 → 所有请求返回"已停用"；租户级关闭 → 仅该租户不可用；适配器级关闭 → 该数据源不进入索引。
 | **合计** | **20** | **17** | **37 项改进** |
