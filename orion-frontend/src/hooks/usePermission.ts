@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState, useCallback } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import type { User } from '@/types/api';
 
@@ -173,6 +173,22 @@ export function usePermission() {
       setRolePermissions(map);
     });
   }, []);
+
+  // 当用户角色或用户 ID 变化时，清除模块级缓存，触发重新获取。
+  // 这是 SEC-02 修复：之前的实现只在组件卸载时清除缓存，角色变更后所有 usePermission 调用者
+  // 会继续使用过期数据直到下次页面刷新。
+  const prevUserRef = useRef<string>('');
+  useEffect(() => {
+    const key = `${user?.roles || user?.role || 'anonymous'}|${user?.id || 'none'}`;
+    if (key !== prevUserRef.current) {
+      prevUserRef.current = key;
+      clearPermissionsCache();
+      // 角色变更时立即重新拉取后端权限映射
+      fetchPermissionsMap().then(map => {
+        setRolePermissions(map);
+      });
+    }
+  }, [user?.roles, user?.role, user?.id]);
 
   // 支持多角色（从 authStore 读取 roles 数组或单角色）
   const userRoles = useMemo(() => {
