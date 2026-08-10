@@ -572,22 +572,76 @@ CREATE INDEX idx_rag_edges_type ON rag_knowledge_edges(edge_type);
 ### 7.3 向量嵌入表
 
 ```sql
+-- ============================================================
+-- 向量嵌入表
+-- 【算法专家 P0 修复】
+--   • 向量维度不再硬编码（VECTOR 不限定维度）
+--   • tenant_id / node_type 独立列 + B-tree 索引（预过滤性能）
+--   • embedding_model / model_version 支持模型升级多版本共存
+--   • HNSW 向量索引 + cosine 距离 + L2 归一化
+-- ============================================================
+
 CREATE TABLE rag_embeddings (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    node_id      UUID NOT NULL REFERENCES rag_knowledge_nodes(id),
-    embedding    VECTOR(1536),
-    text         TEXT NOT NULL,
-    metadata     JSONB,
-    bm25_tokens  TSVECTOR,  -- 【新增】BM25 全文索引
-    chunk_index  INT,       -- 【新增】分块序号
-    synced_at    TIMESTAMPTZ DEFAULT NOW(),
-    status       VARCHAR(20) DEFAULT 'active'
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    node_id         UUID NOT NULL REFERENCES rag_knowledge_nodes(id),
+    embedding       VECTOR,                        -- 不限定维度，由 embedding_model 决定
+    text            TEXT NOT NULL,
+    metadata        JSONB,
+    bm25_tokens     TSVECTOR,
+    chunk_index     INT,
+    -- 高频过滤字段独立列（避免 JSONB 索引退化）
+    tenant_id       VARCHAR(255) NOT NULL DEFAULT '',
+    node_type       VARCHAR(30) NOT NULL DEFAULT '',
+    -- Embedding 模型版本管理
+    embedding_model VARCHAR(50) NOT NULL DEFAULT 'text-embedding-3-large',
+    embedding_dim   INT NOT NULL DEFAULT 3072,
+    model_version   VARCHAR(20) DEFAULT '1.0',
+    synced_at       TIMESTAMPTZ DEFAULT NOW(),
+    status          VARCHAR(20) DEFAULT 'active'   -- active / orphan / stale / deprecated
 );
 
-CREATE INDEX idx_rag_embeddings_node ON rag_embeddings(node_id);
-CREATE INDEX idx_rag_embeddings_synced ON rag_embeddings(synced_at);
-CREATE INDEX idx_rag_embeddings_bm25 ON rag_embeddings USING GIN(bm25_tokens);  -- 【新增】
+-- B-tree 索引：支撑 RBAC 预过滤
+CREATE INDEX idx_rag_emb_node      ON rag_embeddings(node_id);
+CREATE INDEX idx_rag_emb_synced    ON rag_embeddings(synced_at);
+CREATE INDEX idx_rag_emb_tenant    ON rag_embeddings(tenant_id);
+CREATE INDEX idx_rag_emb_nodetype  ON rag_embeddings(node_type);
+CREATE INDEX idx_rag_emb_model     ON rag_embeddings(embedding_model);
+
+-- BM25 全文索引
+CREATE INDEX idx_rag_emb_bm25      ON rag_embeddings USING GIN(bm25_tokens);
+
+-- 【P0 修复】HNSW 向量索引
+-- 参数: m=16 (连接数), ef_construction=64 (构建精度)
+-- 适用规模: 万级向量, P99 < 50ms, 召回率 > 99%
+CREATE INDEX idx_rag_emb_hnsw      ON rag_embeddings
+    USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+-- 【P1 修复】多租户分区（>100 租户时启用）:
+-- CREATE TABLE rag_embeddings_tenant_XXX (LIKE rag_embeddings)
+--   PARTITION OF rag_embeddings WHERE (tenant_id = 'xxx');
 ```
+
+**索引与检索策略**:
+
+| 维度 | 选择 | 理由 |
+|------|------|------|
+| 索引类型 | HNSW | 在线查询最优，精度 >99%，延迟 <10ms（万级） |
+| 距离度量 | cosine (`vector_cosine_ops`) | 向量存储前 L2 归一化，cosine = 内积 |
+| m 参数 | 16 | 平衡索引大小与查询精度 |
+| ef_construction | 64 | 构建精度，越大索引质量越高 |
+| 过滤策略 | **预过滤（Pre-filter）** | `WHERE tenant_id=X` B-tree 缩小候选集 → HNSW 搜索 |
+| 量化策略 | float32（当前）→ PQ（百万级） | 3072维×float32=12KB/向量，10万=1.2GB |
+| 向量归一化 | 存储前 L2 归一化 | 消除向量长度偏见，cosine 与内积等价 |
+
+**Embedding 模型版本管理**:
+
+| 场景 | 策略 |
+|------|------|
+| 模型升级 | 新版本向量写入 `model_version='2.0'`，旧版本标记 `deprecated` |
+| 查询 | 仅检索当前 `model_version` 的向量 |
+| 迁移窗口 | 新旧版本共存 7 天，对账无误后 GC 清理旧版本 |
+| 维度变化 | 不同版本可能维度不同，`embedding_dim` 字段确保不混淆 |
 
 ### 7.4 同步状态追踪表
 
@@ -1018,6 +1072,52 @@ GET  /rag/eval/ground-truth     — 查看评估基准集
 └─────────────────────────────────────────────────────────────┘
 ```
 
+#### 【新增】多意图查询分解（Query Decomposition）
+
+当用户提问包含多个独立子意图时，系统自动分解为多个子查询并行检索：
+
+```
+原始查询: "告警频繁触发，回滚最近发布，查看受影响的服务"
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Intent Decomposer                                            │
+│                                                             │
+│ 检测: 3 个独立子意图                                         │
+│   • 子查询 1: "告警频繁触发原因" → 领域: observability       │
+│   • 子查询 2: "如何回滚最近发布" → 领域: ci_cd               │
+│   • 子查询 3: "查看受影响服务" → 领域: cmdb                 │
+│                                                             │
+│ 子查询间依赖关系:                                             │
+│   子查询 3 依赖子查询 2 的结果（"受影响服务"中的"发布"指同一发布）│
+│   → 子查询 1、2 并行执行，子查询 3 在 2 完成后执行             │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ├──▶ 子查询 1 → Hybrid Search → 告警排查结果
+    ├──▶ 子查询 2 → Hybrid Search → 回滚操作步骤
+    │        │
+    │        ▼
+    │   子查询 3 (携带子查询2上下文) → Hybrid Search → 受影响服务列表
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Sub-Query Result Merger                                      │
+│                                                             │
+│ 按子意图分组组织最终答案:                                      │
+│   1. 告警频繁触发 → [排查步骤 + 相关API]                     │
+│   2. 回滚发布 → [操作步骤 + 可跳转链接]                      │
+│   3. 受影响服务 → [CMDB 资产列表 + 依赖关系]                 │
+│                                                             │
+│ 每组答案独立附引用来源                                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**分解规则**:
+- 检测连接词："和"、"以及"、"，"、"；" → 可能为多意图
+- 检测独立动词短语："回滚 X" + "查看 Y" → 两个独立操作意图
+- 检测指代依赖："最近的发布"在子查询 3 中指代子查询 2 的目标
+- 最多分解为 5 个子查询，超过则提示用户拆分提问
+
 ### 13.2 Hybrid Search（Vector + BM25 融合）
 
 ```
@@ -1395,6 +1495,62 @@ Ground Truth 集构建:
 当查询量达到 10 RPS 时需要水平扩展（约 10 万 DAU）。
 ```
 
+### 16.2b 【新增】语义缓存层（Semantic Cache）
+
+```
+用户查询
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Semantic Cache Lookup                                            │
+│                                                                  │
+│ 1. 将用户查询向量化（使用与 RAG 相同的 text embedding 模型）       │
+│ 2. 在缓存索引中查找 cosine similarity > 0.92 的最近查询          │
+│ 3. 如果命中且缓存未过期（TTL=24h）→ 直接返回缓存答案              │
+│ 4. 如果未命中 → 继续完整 RAG 流程 → 缓存结果                     │
+│                                                                  │
+│ 预期缓存命中率: ≥ 15%（运维问题高度重复）                        │
+│ 延迟节省: 命中时 < 50ms（跳过检索 + LLM 推理）                  │
+│ 成本节省: 每次命中节省 ~$0.001（LLM 调用费用）                   │
+└─────────────────────────────────────────────────────────────────┘
+    │
+    ├── 命中 → 返回缓存（标注 source: "cache"）
+    │
+    └── 未命中 → 完整 RAG 流程 → 写入缓存
+```
+
+**缓存表设计**:
+
+```sql
+CREATE TABLE rag_semantic_cache (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    query_text      TEXT NOT NULL,
+    query_embedding VECTOR,          -- 用于相似度查找
+    answer          TEXT NOT NULL,
+    citations       JSONB,
+    graph_links     JSONB,
+    tenant_id       VARCHAR(255),
+    similarity_threshold NUMERIC(3,2) DEFAULT 0.92,
+    hit_count       INT DEFAULT 0,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ DEFAULT NOW() + INTERVAL '24 hours'
+);
+
+CREATE INDEX idx_rag_cache_hnsw ON rag_semantic_cache
+    USING hnsw (query_embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 32);
+
+CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
+```
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| 相似度阈值 | 0.92 | cosine similarity，过高命中率低，过低可能返回不相关答案 |
+| TTL | 24h | 知识更新周期，超时后缓存失效 |
+| 存储上限 | 10,000 条 | LRU 淘汰最旧条目 |
+| 命中率目标 | ≥ 15% | 运维场景高频重复问题占比高 |
+| 不缓存条件 | 包含实时数据的问题（如"当前告警状态"） | 此类问题答案随时间变化 |
+
 ### 16.3 可观测性设计
 
 | 指标 | 类型 | 说明 | 告警阈值 |
@@ -1409,6 +1565,8 @@ Ground Truth 集构建:
 | `rag_context_truncated` | Counter | 上下文截断次数 | > 10% 查询 |
 | `rag_embedding_errors` | Counter | Embedding 生成失败次数 | > 0 |
 | `rag_user_feedback_positive_rate` | Gauge | 用户正面反馈率 | < 60% |
+| `rag_cache_hit_rate` | Gauge | 语义缓存命中率 | < 10% |
+| `rag_cache_hit_total` | Counter | 缓存命中次数 | - |
 
 ### 16.4 降级策略
 
