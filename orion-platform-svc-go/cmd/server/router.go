@@ -2,6 +2,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 
@@ -999,6 +1001,20 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if ticketSourceTicketH != nil {
     ticketSourceTicketH.RegisterRoutes(api)
   }
+
+	// Route discovery endpoint — returns all registered routes for DocumentationGenerator
+	api.GET("/routes", func(c *gin.Context) {
+		var routes []gin.RouteInfo
+		for _, route := range r.Routes() {
+			if strings.HasPrefix(route.Path, "/api/v1") {
+				routes = append(routes, route)
+			}
+		}
+		c.JSON(200, gin.H{
+			"data":  routes,
+			"total": len(routes),
+		})
+	})
 	}
 
 	return r

@@ -1,9 +1,9 @@
 /**
  * Documentation Auto-Generation Page (P4-10)
- * API documentation generation, code comments, and interface descriptions
- * Pure frontend with mock data
+ * API documentation generation — auto-discovers registered API routes
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Row,
   Col,
@@ -38,7 +38,7 @@ const { Option } = Select;
 interface ApiRecord {
   key: string;
   path: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   description: string;
   status: 'generated' | 'pending' | 'needsUpdate';
   updateTime: string;
@@ -52,90 +52,10 @@ interface HistoryRecord {
   status: 'success' | 'failed' | 'running';
 }
 
-// ============ Mock Data ============
+// ============ Route Discovery ============
 
-const mockApis: ApiRecord[] = [
-  {
-    key: '1',
-    path: '/api/v1/pipelines',
-    method: 'GET',
-    description: '获取流水线列表',
-    status: 'generated',
-    updateTime: '2026-08-07 14:30:00',
-  },
-  {
-    key: '2',
-    path: '/api/v1/pipelines',
-    method: 'POST',
-    description: '创建新流水线',
-    status: 'generated',
-    updateTime: '2026-08-07 14:28:00',
-  },
-  {
-    key: '3',
-    path: '/api/v1/pipelines/:id',
-    method: 'PUT',
-    description: '更新流水线配置',
-    status: 'needsUpdate',
-    updateTime: '2026-08-06 10:15:00',
-  },
-  {
-    key: '4',
-    path: '/api/v1/pipelines/:id',
-    method: 'DELETE',
-    description: '删除指定流水线',
-    status: 'generated',
-    updateTime: '2026-08-07 09:00:00',
-  },
-  {
-    key: '5',
-    path: '/api/v1/alerts/rules',
-    method: 'GET',
-    description: '查询告警规则列表',
-    status: 'generated',
-    updateTime: '2026-08-05 16:45:00',
-  },
-  {
-    key: '6',
-    path: '/api/v1/alerts/rules',
-    method: 'POST',
-    description: '创建告警规则',
-    status: 'pending',
-    updateTime: '2026-08-04 11:20:00',
-  },
-  {
-    key: '7',
-    path: '/api/v1/deployments/:id',
-    method: 'PUT',
-    description: '更新部署配置',
-    status: 'needsUpdate',
-    updateTime: '2026-08-03 08:30:00',
-  },
-  {
-    key: '8',
-    path: '/api/v1/artifacts/versions',
-    method: 'GET',
-    description: '获取制品版本列表',
-    status: 'generated',
-    updateTime: '2026-08-02 13:10:00',
-  },
-  {
-    key: '9',
-    path: '/api/v1/tickets',
-    method: 'POST',
-    description: '提交新工单',
-    status: 'pending',
-    updateTime: '2026-08-01 10:00:00',
-  },
-  {
-    key: '10',
-    path: '/api/v1/tickets/:id',
-    method: 'DELETE',
-    description: '删除工单',
-    status: 'generated',
-    updateTime: '2026-07-31 15:20:00',
-  },
-];
+// API routes are loaded at runtime from /api/v1/routes endpoint.
+// See useEffect + loadRoutes() in the component below.
 
 const mockHistory: HistoryRecord[] = [
   { key: '1', time: '2026-08-07 14:30', format: 'Markdown', endpointCount: 156, status: 'success' },
@@ -152,6 +72,7 @@ const methodColorMap: Record<string, string> = {
   POST: colors.primary[500],
   PUT: colors.warning[500],
   DELETE: colors.error[500],
+  PATCH: colors.info[500],
 };
 
 // ============ Status Tag Color Map ============
@@ -174,8 +95,33 @@ const DocumentationGenerator: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [methodFilter, setMethodFilter] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  const [apiData, setApiData] = useState<ApiRecord[]>([]);
 
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    loadRoutes();
+  }, []);
+
+  const loadRoutes = async () => {
+    try {
+      const res = await axios.get('/api/v1/routes');
+      const raw = (res.data as { data?: Array<{ method: string; path: string }>; total?: number })?.data || [];
+      if (raw.length > 0) {
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        setApiData(raw.map((r, i) => ({
+          key: String(i + 1),
+          path: r.path,
+          method: (r.method || 'GET').toUpperCase() as ApiRecord['method'],
+          description: `${r.method} ${r.path}`,
+          status: 'generated',
+          updateTime: now,
+        })));
+      }
+    } catch {
+      // Fallback: keep empty state
+    }
+  };
 
   const handleGenerate = () => {
     setLoading(true);
@@ -193,7 +139,7 @@ const DocumentationGenerator: React.FC = () => {
     message.success(`已生成: ${record.method} ${record.path}`);
   };
 
-  const filteredApis = mockApis.filter((api) => {
+  const filteredApis = apiData.filter((api) => {
     const matchSearch =
       !searchText ||
       api.path.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -217,7 +163,7 @@ const DocumentationGenerator: React.FC = () => {
       dataIndex: 'method',
       key: 'method',
       width: 80,
-      render: (method: 'GET' | 'POST' | 'PUT' | 'DELETE') => (
+      render: (method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH') => (
         <Tag color={methodColorMap[method]} style={{ fontWeight: 600 }}>
           {method}
         </Tag>
@@ -329,7 +275,7 @@ const DocumentationGenerator: React.FC = () => {
           >
             <Statistic
               title="已生成文档数"
-              value={246}
+              value={apiData.filter((a) => a.status === 'generated').length}
               prefix={<FileOutlined />}
               valueStyle={{ color: colors.primary[500] }}
               suffix="篇"
@@ -345,7 +291,7 @@ const DocumentationGenerator: React.FC = () => {
           >
             <Statistic
               title="API 端点数"
-              value={158}
+              value={apiData.length}
               valueStyle={{ color: colors.success[500] }}
               suffix="个"
             />
@@ -360,7 +306,7 @@ const DocumentationGenerator: React.FC = () => {
           >
             <Statistic
               title="覆盖率"
-              value={92.4}
+              value={apiData.length > 0 ? Math.round(apiData.filter((a) => a.status === 'generated').length / apiData.length * 100) : 0}
               valueStyle={{ color: colors.warning[500] }}
               suffix="%"
               precision={1}
@@ -376,7 +322,7 @@ const DocumentationGenerator: React.FC = () => {
           >
             <Statistic
               title="待同步"
-              value={12}
+              value={apiData.filter((a) => a.status !== 'generated').length}
               valueStyle={{ color: colors.info[500] }}
               suffix="项"
             />
