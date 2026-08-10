@@ -1940,4 +1940,47 @@ Week 1: +3pp → 65% (缓存生效)
 Week 2: +3pp → 68% (权重调整生效)
 Week 4: +13pp → 75% ✅ 自优化闭环有效
 ```
+
+## 附录 G：V2.5 补丁 — 综合评估修复（代码库校正 + 双层防幻觉）
+
+> **触发原因**: 逐行验证代码库后发现上一轮评估关键遗漏（handler-registry 误判为不存在），防幻觉机制缺少后端状态校验层。  
+> **补充文档**: `V2.5-comprehensive-review-fixes.md`
+
+### P0 修正项
+
+| # | 修正内容 | 影响 |
+|---|---------|------|
+| 1 | `handler_registry_entries` 表**真实存在**（`handler-registry/repository.go:87`），含 9 字段 + 11 CRUD + 9 API 路由 | §5 增量同步核心依赖项成立，无需新建 |
+| 2 | `semantic-search` 模块**真实存在**（`POST /semantic-search` + `POST /semantic-search/index`），使用 `ILIKE` 模糊匹配 | §3 BM25 层直接在其上扩展（`ILIKE`→`to_tsvector`+GIN） |
+| 3 | `code-embedding` 使用**内存 Map** 存储，非持久化 | 从"可复用"降级为"需迁移到 PostgreSQL" |
+| 4 | `llm` 模块是 **Trace**（调用追踪），非 LLM 推理 | 需新建独立 `internal/llm-gateway` 模块 |
+
+### 新增架构能力
+
+| 能力 | 说明 |
+|------|------|
+| **双层防幻觉** | Layer A: 后端状态实时校验（handler_registry 状态查询）+ Layer B: 前端路由校验（V2.2） |
+| **回滚即时防幻觉** | 回滚后 0 秒即可通过 Layer A（< 2ms 查询）阻止过时 API 进入答案，不依赖 1h 增量同步窗口 |
+| **handler-registry config 复用** | `config` 字段（JSONB）存储 required_role/frontend_link/service_method，RAG 索引时直接提取 |
+| **vector 模块改造** | `vector_record` 表从 JSON 存储升级为 pgvector 原生 VECTOR 类型 + HNSW 索引 |
+| **LLM Gateway** | 新建 `internal/llm-gateway` 统一 LLM API 抽象层，与现有 `llm` Trace 模块解耦 |
+
+### 修正后落地就绪度
+
+| 维度 | 旧评分 | 新评分 |
+|------|--------|--------|
+| 基础设施就绪度 | 5.5/10 | **6/10** |
+| 检索层就绪度 | 1.5/10 | **3/10** |
+| 感知层就绪度 | 7/10 | **8/10** |
+| 生成层就绪度 | 1/10 | **1/10** |
+| 安全层就绪度 | 7/10 | **7/10** |
+| **总落地就绪度** | **4/10** | **5/10** |
+
+### 防幻觉双层保障时间窗口
+
+| 阶段 | 延迟 | 保障层 |
+|------|------|--------|
+| 回滚 → handler-registry 状态变更 | < 1s | API 调用 |
+| 状态变更 → 用户提问（实时校验） | **0 秒** | **Layer A**（< 2ms 查询） |
+| 状态变更 → 索引更新 | < 1h | 增量同步（兜底） |
 | **合计** | **20** | **17** | **37 项改进** |
