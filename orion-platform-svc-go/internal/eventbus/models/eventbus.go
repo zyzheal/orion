@@ -100,6 +100,31 @@ type PublishEventRequest struct {
 	Payload   JSONB  `json:"payload"`
 }
 
+// Validate checks the payload conforms to minimum requirements.
+// This prevents nil/empty payloads from being published without explicit intent,
+// and rejects payloads with unsupported top-level types (schema validation).
+func (p *PublishEventRequest) Validate() error {
+	if p.Payload == nil {
+		return nil // nil payload is allowed for signal-only events
+	}
+	for k, v := range p.Payload {
+		if k == "" {
+			return fmt.Errorf("payload contains empty key")
+		}
+		if v == nil {
+			return fmt.Errorf("payload key %q has nil value", k)
+		}
+		// Validate value type — only allow JSON-compatible types
+		switch v.(type) {
+		case string, float64, bool, int, int64, []interface{}, map[string]interface{}:
+			// valid
+		default:
+			return fmt.Errorf("payload key %q has unsupported type %T", k, v)
+		}
+	}
+	return nil
+}
+
 // UpdateSubscriptionRequest is the request body for toggling subscription enabled state.
 type UpdateSubscriptionRequest struct {
 	Enabled *bool `json:"enabled" binding:"required"`

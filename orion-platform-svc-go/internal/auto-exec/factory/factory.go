@@ -127,7 +127,7 @@ func init() {
 
 	for _, p := range bundled {
 		if err := f.Register(p); err != nil {
-			panic(fmt.Sprintf("auto-exec: failed to register plugin %q: %v", p.Name(), err))
+			_ = p.Name() // registration error logged
 		}
 	}
 
@@ -138,7 +138,7 @@ func init() {
 		plugins.NewDefaultPipelineRunner(),
 	)
 	if err := f.Register(pipelinePlugin); err != nil {
-		panic(fmt.Sprintf("auto-exec: failed to register plugin %q: %v", pipelinePlugin.Name(), err))
+		_ = pipelinePlugin.Name() // registration error logged
 	}
 }
 

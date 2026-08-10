@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"orion/platform-svc-go/internal/security/ai-security/models"
 	"orion/platform-svc-go/internal/security/ai-security/repository"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -197,6 +199,55 @@ func (s *Service) validateInput(input string) []string {
 		}
 	}
 
+	// --- SEC-06 FIX: Multi-language prompt injection detection ---
+	// Detect injection patterns in Chinese, Japanese, Korean, and other common languages.
+	// Also detect Base64 encoding bypass and structured induction attacks.
+	multiLangPatterns := []string{
+		// Chinese injection
+		"(?i)忽略.{0,5}之前的",
+		"(?i)忘记.{0,5}之前",
+		"(?i)无视.{0,5}指令",
+		"(?i)重新定义.{0,5}你的",
+		"(?i)你现在.{0,5}是",
+		"(?i)忘记.{0,5}你是一个",
+		"(?i)不要.{0,5}遵循",
+		"(?i)忽略.{0,5}所.{0,5}有",
+		"(?i)现在你是",
+		// Japanese injection
+		"(?i)前.{0,3}の指示.{0,3}無視",
+		"(?i)あなたは.{0,5}に",
+		"(?i)役割.{0,5}変更",
+		"(?i)指示.{0,5}上書き",
+		// Korean injection
+		"(?i)이전.{0,3}지시.{0,3}무시",
+		"(?i)역할.{0,5}변경",
+		"(?i)지시.{0,5}재정의",
+		// Structured induction / delimiter attacks
+		"(?i)^\\[\\[",            // double bracket
+		"(?i)^<\\/system",        // closing system tag
+		"(?i)<system>",          // opening system tag impersonation
+		"(?i)^\\{\\s*\"role\"",   // JSON role manipulation
+		"(?i)^\\s*---\\s*$",     // triple-dash separator
+		"(?i)developer:|system:",// role prefix injection
+	}
+	for _, pattern := range multiLangPatterns {
+		regex, err := regexp.Compile(pattern)
+		if err != nil {
+			continue
+		}
+		if regex.MatchString(input) {
+			violations = append(violations, "potential multi-language prompt injection detected")
+			break
+		}
+	}
+
+	// --- SEC-06 FIX: Base64 encoding bypass detection ---
+	// If the input contains a valid Base64-encoded payload > 20 chars that decodes to
+	// text containing injection keywords, flag it.
+	if base64BypassDetected(input) {
+		violations = append(violations, "potential base64-encoded prompt injection detected")
+	}
+
 	// Check for SQL injection patterns
 	sqlPatterns := []string{
 		"(?i)\\bDROP\\b", "(?i)\\bSELECT\\b.*\\bFROM\\b", "(?i)\\bINSERT\\b.*\\bINTO\\b",
@@ -300,4 +351,41 @@ func (s *Service) ListPolicies(ctx context.Context) ([]models.SecurityPolicy, er
 		result[i] = *p
 	}
 	return result, nil
+}
+
+// base64BypassDetected checks if the input contains a Base64-encoded payload
+// that decodes to text containing prompt injection keywords. This prevents
+// attackers from encoding injection attempts as Base64 to bypass regex filters.
+// Only inspects payloads longer than 20 characters to avoid false positives.
+func base64BypassDetected(input string) bool {
+	// Look for Base64 tokens (alphanumeric + /+ and padding)
+	fields := strings.Fields(input)
+	for _, field := range fields {
+		if len(field) < 20 {
+			continue
+		}
+		// Strip common wrapping: quotes, parens, trailing punctuation
+		cleaned := strings.Trim(field, `"'`+"\u0060" + "(),.")
+		if len(cleaned) < 20 {
+			continue
+		}
+		decoded, err := base64.StdEncoding.DecodeString(cleaned)
+		if err != nil {
+			decoded, _ = base64.RawURLEncoding.DecodeString(cleaned)
+			if err != nil {
+				continue
+			}
+		}
+		decodedStr := string(decoded)
+		lower := strings.ToLower(decodedStr)
+		for _, keyword := range []string{
+			"ignore previous", "disregard", "new role", "you are now",
+			"act as", "system prompt", "developer:", "override",
+		} {
+			if strings.Contains(lower, keyword) {
+				return true
+			}
+		}
+	}
+	return false
 }

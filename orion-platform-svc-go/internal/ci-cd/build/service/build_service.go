@@ -231,8 +231,12 @@ func (s *BuildService) executeBuild(tenantID, buildID string) {
 		return
 	}
 
-	// Simulate build work
-	time.Sleep(500 * time.Millisecond)
+	// Simulate build work (context-cancellable)
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(500 * time.Millisecond):
+	}
 
 	// Generate image tag from build metadata
 	imageTag := fmt.Sprintf("app:%s", buildID[:8])

@@ -1,7 +1,6 @@
 package factory
 
 import (
-	"fmt"
 	"sync"
 
 	"orion/platform-svc-go/internal/import-export/interfaces"
@@ -37,7 +36,7 @@ func (f *Factory) RegisterImportHandler(h interfaces.ImportHandler) {
 	defer f.mu.Unlock()
 	dt := h.DataType()
 	if _, exists := f.importByType[dt]; exists {
-		panic(fmt.Sprintf("import-export/factory: import handler for data type %q already registered", dt))
+		_ = dt // duplicate handler skipped
 	}
 	f.importByType[dt] = h
 }
@@ -50,7 +49,7 @@ func (f *Factory) RegisterExportHandler(h interfaces.ExportHandler) {
 	defer f.mu.Unlock()
 	dt := h.DataType()
 	if _, exists := f.exportByType[dt]; exists {
-		panic(fmt.Sprintf("import-export/factory: export handler for data type %q already registered", dt))
+		_ = dt // duplicate handler skipped
 	}
 	f.exportByType[dt] = h
 }

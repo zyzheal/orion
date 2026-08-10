@@ -149,8 +149,12 @@ func (s *Service) DeleteBuild(ctx context.Context, tenantID, id string) (bool, e
 
 // executeBuild simulates build execution
 func (s *Service) executeBuild(ctx context.Context, tenantID, id string) {
-	// Simulate build time
-	time.Sleep(500 * time.Millisecond)
+	// Simulate build time (context-cancellable)
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(500 * time.Millisecond):
+	}
 
 	// Simulate success with generated image tag
 	_, err := s.repo.CompleteBuild(ctx, tenantID, id, models.BuildStatusSuccess, "")

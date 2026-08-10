@@ -106,6 +106,9 @@ func (s *EventBusService) PublishEvent(ctx context.Context, tenantID string, req
 	if tenantID == "" || req.EventType == "" {
 		return nil, fmt.Errorf("%w: tenant_id and event_type are required", ErrInvalidInput)
 	}
+	if err := req.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidInput, err)
+	}
 	payload := req.Payload
 	if payload == nil {
 		payload = models.JSONB{}

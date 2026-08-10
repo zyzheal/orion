@@ -13,10 +13,25 @@ import (
 type EventType string
 
 const (
-	EventAlertTriggered   EventType = "alert.triggered"
-	EventPipelineComplete EventType = "pipeline.completed"
-	EventIncidentCreated  EventType = "incident.created"
-	EventChangeApproved   EventType = "change.approved"
+	EventAlertTriggered       EventType = "alert.triggered"
+	EventAlertAcked           EventType = "alert.acknowledged"
+	EventAlertResolved        EventType = "alert.resolved"
+	EventPipelineComplete     EventType = "pipeline.completed"
+	EventPipelineFailed       EventType = "pipeline.failed"
+	EventPipelineStarted      EventType = "pipeline.started"
+	EventIncidentCreated      EventType = "incident.created"
+	EventIncidentEscalated    EventType = "incident.escalated"
+	EventIncidentResolved     EventType = "incident.resolved"
+	EventChangeApproved       EventType = "change.approved"
+	EventChangeRejected       EventType = "change.rejected"
+	EventChangeImplemented    EventType = "change.implemented"
+	EventConfigChanged        EventType = "config.changed"
+	EventUserLogin            EventType = "user.login"
+	EventRoleAssigned         EventType = "user.role_assigned"
+	EventResourceCreated      EventType = "resource.created"
+	EventResourceDeleted      EventType = "resource.deleted"
+	EventDeploymentSucceeded  EventType = "deployment.succeeded"
+	EventDeploymentRolledBack EventType = "deployment.rolled_back"
 )
 
 // BusinessEvent carries structured data from business modules to the CQRS layer.

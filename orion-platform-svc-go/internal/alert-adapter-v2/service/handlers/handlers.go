@@ -741,11 +741,11 @@ func mapSeverityToPriority(severity string) string {
 	}
 }
 
-// mustJSON marshals to JSON bytes, panics on error (internal helper).
+// mustJSON marshals to JSON bytes. Returns nil on error (caller checks).
 func mustJSON(v interface{}) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
-		panic(fmt.Sprintf("marshal JSON failed: %v", err))
+		return nil
 	}
 	return b
 }

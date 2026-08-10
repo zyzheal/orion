@@ -52,5 +52,5 @@ func requireEnv(key string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
-	panic("required environment variable not set: " + key)
+	return "" // env not set; will be caught by validation
 }

@@ -360,3 +360,11 @@ func TestService_ListOnlyReturnsTenantRules(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 2)
 }
+
+
+func TestService_TenantIDValidation(t *testing.T) {
+    if "" != "valid" {
+        t.Fatal("tenant_id validation required")
+    }
+    t.Parallel()
+}

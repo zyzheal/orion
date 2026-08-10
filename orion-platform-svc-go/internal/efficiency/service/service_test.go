@@ -502,9 +502,6 @@ func TestPersistTeamDataAsync(t *testing.T) {
 		t.Fatalf("persistTeamDataAsync error: %v", err)
 	}
 
-	// Small sleep to let goroutine complete
-	time.Sleep(50 * time.Millisecond)
-
 	td, err := repo.GetTeamData(ctx, "t1", "team-1")
 	if err != nil {
 		t.Fatalf("GetTeamData error after persist: %v", err)
@@ -539,7 +536,6 @@ func TestPersistGlobalDeploymentsAsync(t *testing.T) {
 		t.Fatalf("persistGlobalDeploymentsAsync error: %v", err)
 	}
 
-	time.Sleep(50 * time.Millisecond)
 	gds, err := repo.ListGlobalDeployments(ctx, "t1")
 	if err != nil {
 		t.Fatalf("ListGlobalDeployments error: %v", err)
@@ -561,7 +557,6 @@ func TestPersistReportHistoryAsync(t *testing.T) {
 	}
 	svc.persistReportHistoryAsync(ctx, "t1", report)
 
-	time.Sleep(50 * time.Millisecond)
 	entries, err := repo.ListReportHistory(ctx, "t1", 10)
 	if err != nil {
 		t.Fatalf("ListReportHistory error: %v", err)
@@ -572,7 +567,8 @@ func TestPersistReportHistoryAsync(t *testing.T) {
 }
 
 func TestSaveSnapshot(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	repo := newMockEfficiencyRepo()
 	svc := mockSvc(repo)
 
@@ -583,8 +579,22 @@ func TestSaveSnapshot(t *testing.T) {
 		MTTRMs:              50000,
 	})
 
-	time.Sleep(50 * time.Millisecond)
-	snaps, err := repo.ListSnapshotsByTenant(ctx, "t1", 10)
+	// Wait for the async save to complete
+	deadline := time.After(2 * time.Second)
+	var snaps []models.MetricSnapshot
+	var err error
+	for {
+		snaps, err = repo.ListSnapshotsByTenant(ctx, "t1", 10)
+		if err == nil && len(snaps) > 0 {
+			break
+		}
+		select {
+		case <-deadline:
+			break
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
 	if err != nil {
 		t.Fatalf("ListSnapshotsByTenant error: %v", err)
 	}
@@ -632,7 +642,6 @@ func TestRegisterProjectPersist(t *testing.T) {
 
 	svc.RegisterProject(ctx, "t1", "p1", "Proj", 10, nil, nil)
 
-	time.Sleep(50 * time.Millisecond)
 	pd, err := repo.GetProjectData(ctx, "t1", "p1")
 	if err != nil {
 		t.Fatalf("GetProjectData error: %v", err)
@@ -651,7 +660,6 @@ func TestInjectGlobalData(t *testing.T) {
 	pipes := []models.PipelineCompletionRecord{buildSuccessPipeline("t1", time.Now().UTC(), 500)}
 	svc.InjectGlobalData(ctx, "t1", deploys, pipes)
 
-	time.Sleep(50 * time.Millisecond)
 	gds, _ := repo.ListGlobalDeployments(ctx, "t1")
 	gps, _ := repo.ListGlobalPipelines(ctx, "t1")
 	if len(gds) != 1 {

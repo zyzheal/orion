@@ -153,7 +153,12 @@ func TestEngine_ConcurrencyLimit(t *testing.T) {
 	// blockingPlugin blocks Execute on a channel so the first call holds the
 	// concurrency slot until we close it.
 	block := make(chan struct{})
-	blocking := &blockingPlugin{result: &plugin.ExecuteResult{Success: true}, block: block}
+	acquired := make(chan struct{}) // signals when the slot has been acquired
+	blocking := &blockingPlugin{
+		result:   &plugin.ExecuteResult{Success: true},
+		block:    block,
+		acquired: acquired,
+	}
 	e.RegisterBuiltin("test", "Test", "1.0.0", blocking)
 	inst, _ := e.registry.Get("test")
 	inst.Init(context.Background(), plugin.PluginConfig{ID: "test"})
@@ -166,8 +171,12 @@ func TestEngine_ConcurrencyLimit(t *testing.T) {
 		errCh <- err
 	}()
 
-	// Give the first call time to acquire the slot.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the first call to enter the blocking plugin.
+	select {
+	case <-acquired:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first Execute did not acquire slot")
+	}
 
 	// Second call should be rejected because the slot is held.
 	_, err := e.Execute(context.Background(), "test",
@@ -182,8 +191,9 @@ func TestEngine_ConcurrencyLimit(t *testing.T) {
 
 // blockingPlugin blocks its Execute call on a channel until released.
 type blockingPlugin struct {
-	result *plugin.ExecuteResult
-	block  <-chan struct{}
+	result   *plugin.ExecuteResult
+	block    <-chan struct{}
+	acquired chan struct{}
 }
 
 func (b *blockingPlugin) Init(ctx context.Context, cfg plugin.PluginConfig) error {
@@ -192,6 +202,9 @@ func (b *blockingPlugin) Init(ctx context.Context, cfg plugin.PluginConfig) erro
 
 func (b *blockingPlugin) Execute(ctx context.Context, pctx plugin.PluginContext,
 	input map[string]interface{}) (*plugin.ExecuteResult, error) {
+	if b.acquired != nil {
+		b.acquired <- struct{}{}
+	}
 	<-b.block
 	return b.result, nil
 }

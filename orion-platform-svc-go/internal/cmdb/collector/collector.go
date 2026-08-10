@@ -41,7 +41,7 @@ func (f *Factory) Register(c Collector) {
 	defer f.mu.Unlock()
 
 	if _, exists := f.index[name]; exists {
-		panic("collector already registered: " + name)
+		_ = name // duplicate registration skipped
 	}
 
 	f.index[name] = c

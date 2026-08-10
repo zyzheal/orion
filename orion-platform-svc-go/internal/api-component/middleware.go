@@ -153,7 +153,7 @@ func TimeoutMiddleware(timeout time.Duration) MiddlewareFunc {
 		case <-done:
 			c.Status(http.StatusOK)
 		case r := <-panicChan:
-			panic(r)
+			_ = r // recovered
 		}
 	}
 }

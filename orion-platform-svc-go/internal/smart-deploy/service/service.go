@@ -298,19 +298,35 @@ func (s *Service) GetAuditTrail(ctx context.Context, tenantID, deploymentID stri
 // simulateDeploymentProgress simulates the deployment stages completing over time.
 func (s *Service) simulateDeploymentProgress(ctx context.Context, tenantID string, deployment *models.Deployment) {
 	// Simulate pre-deployment checks completing
-	time.Sleep(200 * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(200 * time.Millisecond):
+	}
 	_, _ = s.repo.UpdateStatus(ctx, tenantID, deployment.ID, models.DeploymentStatusPreparing)
 
 	// Simulate deployment running
-	time.Sleep(500 * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(500 * time.Millisecond):
+	}
 	_, _ = s.repo.UpdateStatus(ctx, tenantID, deployment.ID, models.DeploymentStatusDeploying)
 
 	// Simulate verification
-	time.Sleep(300 * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(300 * time.Millisecond):
+	}
 	_, _ = s.repo.UpdateStatus(ctx, tenantID, deployment.ID, models.DeploymentStatusVerifying)
 
 	// Simulate completion
-	time.Sleep(200 * time.Millisecond)
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(200 * time.Millisecond):
+	}
 	_, _ = s.repo.UpdateStatus(ctx, tenantID, deployment.ID, models.DeploymentStatusCompleted)
 
 	// Audit: deployment completed

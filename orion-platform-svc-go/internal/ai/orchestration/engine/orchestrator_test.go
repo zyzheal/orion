@@ -564,14 +564,20 @@ func TestOrchestratorCancel(t *testing.T) {
 	orch := NewOrchestrator(nil, testLogger())
 	dag := buildLinearDAG(100)
 
+	started := make(chan struct{})
 	done := make(chan *RunResult, 1)
 	go func() {
+		close(started)
 		result := orch.Execute(context.Background(), dag, map[string]interface{}{}, NewRunOptions(0, 0, false, true))
 		done <- result
 	}()
 
-	// Give goroutine time to start.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for goroutine to start instead of sleeping a fixed duration.
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("goroutine did not start in time")
+	}
 
 	// We can't cancel the dry-run easily (no state tracking), so just verify
 	// the run completes.

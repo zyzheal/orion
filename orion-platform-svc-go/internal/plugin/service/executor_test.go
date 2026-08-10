@@ -130,9 +130,16 @@ func TestSubprocessExecutor_ActiveCountDuringExecution(t *testing.T) {
 		close(done)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Poll for active count instead of sleeping a fixed duration.
+	count := 0
+	for i := 0; i < 50; i++ {
+		count = e.GetActiveCount()
+		if count > 0 {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
 
-	count := e.GetActiveCount()
 	if count == 0 {
 		t.Log("active count was 0 (process may have exited quickly)")
 	} else {

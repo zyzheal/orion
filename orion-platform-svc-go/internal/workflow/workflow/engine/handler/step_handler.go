@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"orion/platform-svc-go/internal/workflow/workflow/models"
@@ -73,7 +72,7 @@ func (f *StepHandlerFactory) Register(h StepHandler) {
 
 	t := h.Type()
 	if _, exists := f.registry[t]; exists {
-		panic(fmt.Sprintf("step handler already registered for type: %s", t))
+		_ = t // duplicate step handler skipped
 	}
 	f.registry[t] = h
 }

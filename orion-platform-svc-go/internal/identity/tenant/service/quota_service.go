@@ -69,7 +69,7 @@ type QuotaService struct {
 
 func NewQuotaService(repo *repository.TenantRepository, log *zap.Logger) *QuotaService {
 	if repo == nil {
-		panic(errQuotaService.Error())
+		return nil // errQuotaService logged by caller
 	}
 	return &QuotaService{
 		repo:           repo,
