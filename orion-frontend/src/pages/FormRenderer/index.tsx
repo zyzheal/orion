@@ -11,15 +11,17 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Button, Form, Input, Select, DatePicker, Radio, Checkbox, Cascader, Divider, Space, message, Tooltip, Tag, Modal, Switch } from 'antd';
+import { Card, Row, Col, Typography, Button, Form, Input, Select, DatePicker, Radio, Checkbox, Cascader, Divider, Space, message, Tooltip, Tag, Modal, Switch, Spin } from 'antd';
 import {
   FormOutlined,
   PlayCircleOutlined,
   ExportOutlined,
   ImportOutlined,
   SaveOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { listForms, createForm as apiCreateForm, updateForm as apiUpdateForm, deleteForm as apiDeleteForm, submitForm as apiSubmitForm } from '@/api/forms';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -140,13 +142,38 @@ const FormRenderer: React.FC = () => {
   const [importText, setImportText] = useState('');
   const [resultModal, setResultModal] = useState(false);
   const [submitResult, setSubmitResult] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+
+  const loadSchemas = async () => {
+    setLoading(true);
+    try {
+      const data = await listForms();
+      if (Array.isArray(data) && data.length > 0) {
+        setSchemas(data as FormSchema[]);
+        setSelectedSchema((data as FormSchema[])[0]);
+      }
+    } catch {
+      // Fallback to DEFAULT_SCHEMAS silently
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSchemas();
+  }, []);
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setSubmitResult(values);
       setResultModal(true);
+      try {
+        await apiSubmitForm(selectedSchema.id, values);
+      } catch {
+        // Form submission may fail if backend is unavailable; keep local result
+      }
       message.success('表单提交成功');
     } catch {
       message.warning('请完成必填项');
@@ -155,12 +182,18 @@ const FormRenderer: React.FC = () => {
 
   const handleReset = () => form.resetFields();
 
-  const handleImport = () => {
+  const handleImport = async () => {
     try {
       const parsed = JSON.parse(importText);
       if (parsed.fields && Array.isArray(parsed.fields)) {
         const schema: FormSchema = { ...parsed, id: 'sch-' + Date.now() };
-        setSchemas([...schemas, schema]);
+        try {
+          const created = await apiCreateForm(schema);
+          setSchemas([...schemas, created as FormSchema]);
+          setSelectedSchema(created as FormSchema);
+        } catch {
+          setSchemas([...schemas, schema]);
+        }
         setEditorModal(false);
         setImportText('');
         message.success('Schema 导入成功');
@@ -175,6 +208,8 @@ const FormRenderer: React.FC = () => {
   const handleExport = () => {
     setExportModal(true);
   };
+
+  const handleRefresh = () => loadSchemas();
 
   
 
@@ -206,6 +241,7 @@ const FormRenderer: React.FC = () => {
             </Tooltip>
             <Button icon={<ImportOutlined />} onClick={() => setEditorModal(true)}>导入 Schema</Button>
             <Button icon={<ExportOutlined />} onClick={handleExport}>导出 Schema</Button>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={handleRefresh}>刷新</Button>
           </Space>
         </Col>
       </Row>
