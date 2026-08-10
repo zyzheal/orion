@@ -1983,4 +1983,50 @@ Week 4: +13pp → 75% ✅ 自优化闭环有效
 | 回滚 → handler-registry 状态变更 | < 1s | API 调用 |
 | 状态变更 → 用户提问（实时校验） | **0 秒** | **Layer A**（< 2ms 查询） |
 | 状态变更 → 索引更新 | < 1h | 增量同步（兜底） |
+
+## 附录 H：V2.6 补丁 — 专家二次评审修复（三层防幻觉 + CDC + 可观测性）
+
+> **触发原因**: 三位专家（AIGC 架构师/安全运维/算法）二次评审发现 9 个 P0 漏洞。  
+> **补充文档**: `V2.6-expert-review-round2.md`
+
+### 9 个 P0 问题与修复
+
+| # | 问题 | 来源 | 修复 |
+|---|------|------|------|
+| P0-1 | 答案文本层无校验 — LLM 自由文本可提及白名单外 API | AIGC | 新增 Layer C：regex 提取 + 白名单比对 |
+| P0-2 | 缺运行时健康检查 — API 注册 active 但服务宕机 | AIGC | HTTP HEAD /health 探测（500ms） |
+| P0-3 | handler_registry 投毒无防御 — 假记录通过 status 校验 | AIGC | handler_file 路径存在性 + registered_by 审计 |
+| P0-4 | 向量检索缺 tenant_id — 多租户数据泄漏 | 安全 | WHERE 增加 `AND tenant_id = $2` |
+| P0-5 | 投影消费者无 CDC — 轮询存在数据竞争 | AIGC | LISTEN/NOTIFY 替代轮询 |
+| P0-6 | 零可观测性 — 无 metrics/logging/tracing | 安全 | 12 项 Prometheus 指标 + structured logging |
+| P0-7 | ON CONFLICT 语法错误 — 表达式不能作为冲突目标 | 算法 | 新增 `entity_id` 列作为唯一键 |
+| P0-8 | HNSW 索引定义缺失 — 无 CREATE INDEX 语句 | 算法 | `USING hnsw (vector vector_ip_ops) WITH (m=16)` |
+| P0-9 | 中文 BM25 完全失效 — simple 分词器不拆分中文 | 算法 | jieba 预分词（Go 端），无需数据库扩展 |
+
+### 架构升级
+
+双层防幻觉（V2.5）→ **三层防幻觉（V2.6）**
+
+```
+Layer A: 检索前 — 后端状态校验 + 投毒防御 + 健康检查 + RBAC
+Layer B: 检索后 — 前端路由校验（V2.2 已有）
+Layer C: 输出后 — 答案文本 API 引用扫描 + 白名单比对【新增】
+```
+
+CDC 升级: 每小时轮询 → PostgreSQL LISTEN/NOTIFY（< 10ms 实时通知）
+
+中文检索修复: jieba 预分词（应用层）替代 `to_tsvector('simple')`，零数据库扩展依赖
+
+### 轻量化方案（V2.6 §6）
+
+| 维度 | 原方案 | 轻量化方案 | 效果 |
+|------|--------|-----------|------|
+| Embedding | 外部 API 3072 维 | 本地 bge-base-zh ONNX 768 维 | 延迟 100x↓，成本 $0 |
+| LLM | 全量外部 API | 本地 Qwen2.5-3B + API 兜底（混合路由） | 成本 58%↓，降级可用 |
+| Re-rank | 外部 API | 本地 bge-reranker-v2-m3 ONNX | 成本 $0 |
+| 索引 | 全量 embedding | Parent Retrieval（小 chunk 索引，返全文） | 精度↑，上下文完整 |
+| 外部依赖 | 3 处 | **1 处**（仅 LLM 兜底） | 依赖 67%↓ |
+| 月度成本 | $16.20 | **$6.75** | 58% 节省 |
+
+**推荐组合**: bge-base-zh（768 维，本地）+ Qwen2.5-3B（本地）+ Claude API（兜底），零外部依赖时系统仍可全功能运行。
 | **合计** | **20** | **17** | **37 项改进** |
