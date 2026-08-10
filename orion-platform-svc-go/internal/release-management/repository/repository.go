@@ -2,12 +2,17 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
-	"sync"
+	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/release-management/models"
+
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 type RepositoryInterface interface {
@@ -21,21 +26,15 @@ type RepositoryInterface interface {
 }
 
 type Repository struct {
-	mu    sync.RWMutex
-	store map[string]*models.Release
+	db *sqlx.DB
 }
 
-func NewRepository() *Repository {
-	return &Repository{
-		store: make(map[string]*models.Release),
-	}
+func NewRepository(db *sqlx.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, tenantID string, req *models.CreateReleaseRequest) (*models.Release, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	now := time.Now()
+	now := time.Now().UTC()
 	release := &models.Release{
 		ID:           uuid.New().String(),
 		TenantID:     tenantID,
@@ -49,37 +48,27 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req *models.Cr
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	r.store[release.ID] = release
-	return release, nil
+	_, err := r.db.NamedExecContext(ctx, `
+		INSERT INTO releases (id, tenant_id, name, version, description, status, artifact_id, pipeline_id, release_notes, created_at, updated_at)
+		VALUES (:id, :tenant_id, :name, :version, :description, :status, :artifact_id, :pipeline_id, :release_notes, :created_at, :updated_at)`,
+		release)
+	return release, err
 }
 
 func (r *Repository) Get(ctx context.Context, tenantID, id string) (*models.Release, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	release, ok := r.store[id]
-	if !ok || release.TenantID != tenantID {
-		return nil, fmt.Errorf("release not found: %s", id)
+	var release models.Release
+	err := r.db.GetContext(ctx, &release, `SELECT * FROM releases WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sentinel.NotFound
 	}
-	return release, nil
+	return &release, err
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string, q models.ListReleasesQuery) (*models.ReleaseListResponse, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var items []models.Release
-	for _, release := range r.store {
-		if release.TenantID != tenantID {
-			continue
-		}
-		if q.Status != nil && release.Status != *q.Status {
-			continue
-		}
-		if q.PipelineID != "" && release.PipelineID != q.PipelineID {
-			continue
-		}
-		items = append(items, *release)
+	var total int
+	err := r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM releases WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return nil, err
 	}
 
 	page := q.Page
@@ -91,93 +80,103 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListRel
 		pageSize = 20
 	}
 
-	start := (page - 1) * pageSize
-	if start > len(items) {
-		start = len(items)
+	var items []models.Release
+	offset := (page - 1) * pageSize
+
+	switch {
+	case q.Status != nil && q.PipelineID != "":
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM releases WHERE tenant_id=$1 AND status=$2 AND pipeline_id=$3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`, tenantID, string(*q.Status), q.PipelineID, pageSize, offset)
+	case q.Status != nil:
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM releases WHERE tenant_id=$1 AND status=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`, tenantID, string(*q.Status), pageSize, offset)
+	case q.PipelineID != "":
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM releases WHERE tenant_id=$1 AND pipeline_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`, tenantID, q.PipelineID, pageSize, offset)
+	default:
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM releases WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, pageSize, offset)
 	}
-	end := start + pageSize
-	if end > len(items) {
-		end = len(items)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []models.Release{}
 	}
 
 	return &models.ReleaseListResponse{
-		Items:    items[start:end],
-		Total:    len(items),
+		Items:    items,
+		Total:    total,
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
 }
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, req *models.UpdateReleaseRequest) (*models.Release, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	release, ok := r.store[id]
-	if !ok || release.TenantID != tenantID {
-		return nil, fmt.Errorf("release not found: %s", id)
-	}
+	sets, args := []string{}, []interface{}{}
+	i := 1
 
 	if req.Name != nil {
-		release.Name = *req.Name
+		sets = append(sets, fmt.Sprintf("name=$%d", i))
+		args = append(args, *req.Name)
+		i++
 	}
 	if req.Description != nil {
-		release.Description = *req.Description
+		sets = append(sets, fmt.Sprintf("description=$%d", i))
+		args = append(args, *req.Description)
+		i++
 	}
 	if req.ReleaseNotes != nil {
-		release.ReleaseNotes = *req.ReleaseNotes
+		sets = append(sets, fmt.Sprintf("release_notes=$%d", i))
+		args = append(args, *req.ReleaseNotes)
+		i++
 	}
 	if req.Status != nil {
-		release.Status = *req.Status
+		sets = append(sets, fmt.Sprintf("status=$%d", i))
+		args = append(args, string(*req.Status))
+		i++
 	}
-	release.UpdatedAt = time.Now()
-	return release, nil
+	if len(sets) == 0 {
+		return r.Get(ctx, tenantID, id)
+	}
+
+	args = append(args, time.Now().UTC(), id, tenantID)
+	query := fmt.Sprintf("UPDATE releases SET %s, updated_at=$%d WHERE id=$%d AND tenant_id=$%d RETURNING *",
+		strings.Join(sets, ", "), i, i+1, i+2)
+
+	var release models.Release
+	err := r.db.GetContext(ctx, &release, query, args...)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sentinel.NotFound
+	}
+	return &release, err
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	release, ok := r.store[id]
-	if !ok || release.TenantID != tenantID {
-		return fmt.Errorf("release not found: %s", id)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM releases WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if err != nil {
+		return err
 	}
-	delete(r.store, id)
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sentinel.NotFound
+	}
 	return nil
 }
 
 func (r *Repository) Approve(ctx context.Context, releaseID, approvedBy, comment string) (*models.ReleaseApproval, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	release, ok := r.store[releaseID]
-	if !ok {
-		return nil, fmt.Errorf("release not found: %s", releaseID)
+	_, err := r.db.ExecContext(ctx, `UPDATE releases SET status=$1, approved_by=$2, updated_at=$3 WHERE id=$4`,
+		string(models.ReleaseStatusApproved), approvedBy, time.Now().UTC(), releaseID)
+	if err != nil {
+		return nil, err
 	}
-
-	release.Status = models.ReleaseStatusApproved
-	release.ApprovedBy = approvedBy
-	release.UpdatedAt = time.Now()
-
 	return &models.ReleaseApproval{
 		ID:         uuid.New().String(),
 		ReleaseID:  releaseID,
 		ApprovedBy: approvedBy,
 		Comment:    comment,
-		CreatedAt:  time.Now(),
+		CreatedAt:  time.Now().UTC(),
 	}, nil
 }
 
 func (r *Repository) RecordRollback(ctx context.Context, releaseID, reason, performedBy string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	release, ok := r.store[releaseID]
-	if !ok {
-		return fmt.Errorf("release not found: %s", releaseID)
-	}
-
-	release.Status = models.ReleaseStatusRolledBack
-	release.RollbackID = uuid.New().String()
-	release.UpdatedAt = time.Now()
-	return nil
+	_, err := r.db.ExecContext(ctx, `UPDATE releases SET status=$1, rollback_id=$2, deployed_by=$3, updated_at=$4 WHERE id=$5`,
+		string(models.ReleaseStatusRolledBack), uuid.New().String(), performedBy, time.Now().UTC(), releaseID)
+	return err
 }

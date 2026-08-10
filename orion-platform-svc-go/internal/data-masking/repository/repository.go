@@ -2,61 +2,59 @@ package repository
 
 import (
 	"context"
-	"sync"
+	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/data-masking/models"
 
-	"orion/go-common/pkg/sentinel"
-
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
-// Repository provides in-memory CRUD operations for masking rules.
+// Repository provides PostgreSQL-backed CRUD operations for masking rules.
 type Repository struct {
-	mu    sync.RWMutex
-	rules map[string]*models.MaskingRule
+	db *sqlx.DB
 }
 
-// NewRepository creates a new Map-based Repository.
-func NewRepository() *Repository {
-	return &Repository{
-		rules: make(map[string]*models.MaskingRule),
-	}
+// NewRepository creates a new PostgreSQL Repository.
+func NewRepository(db *sqlx.DB) *Repository {
+	return &Repository{db: db}
 }
 
 // Create inserts a new masking rule.
 func (r *Repository) Create(ctx context.Context, rule *models.MaskingRule) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	rule.ID = uuid.New().String()
+	if rule.ID == "" {
+		rule.ID = uuid.New().String()
+	}
 	now := time.Now().UTC()
 	rule.CreatedAt = now
 	rule.UpdatedAt = now
-	r.rules[rule.ID] = rule
-	return nil
+	_, err := r.db.NamedExecContext(ctx, `
+		INSERT INTO masking_rules (id, tenant_id, name, description, strategy, field_pattern, resource_type, replacement, classification_level, enabled, created_at, updated_at)
+		VALUES (:id, :tenant_id, :name, :description, :strategy, :field_pattern, :resource_type, :replacement, :classification_level, :enabled, :created_at, :updated_at)`,
+		rule)
+	return err
 }
 
 // GetByID retrieves a masking rule by ID and tenant ID.
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.MaskingRule, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	rule, ok := r.rules[id]
-	if !ok || rule.TenantID != tenantID {
+	var rule models.MaskingRule
+	err := r.db.GetContext(ctx, &rule, `SELECT * FROM masking_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
-	return rule, nil
+	return &rule, err
 }
 
 // List returns all masking rules for a tenant.
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.MaskingRule, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	var result []models.MaskingRule
-	for _, rule := range r.rules {
-		if rule.TenantID == tenantID {
-			result = append(result, *rule)
-		}
+	err := r.db.SelectContext(ctx, &result, `SELECT * FROM masking_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	if err != nil {
+		return nil, err
 	}
 	if result == nil {
 		result = []models.MaskingRule{}
@@ -66,13 +64,10 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Maskin
 
 // ListByResourceType returns all enabled rules for a tenant filtered by resource type.
 func (r *Repository) ListByResourceType(ctx context.Context, tenantID, resourceType string) ([]models.MaskingRule, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	var result []models.MaskingRule
-	for _, rule := range r.rules {
-		if rule.TenantID == tenantID && rule.ResourceType == resourceType && rule.Enabled {
-			result = append(result, *rule)
-		}
+	err := r.db.SelectContext(ctx, &result, `SELECT * FROM masking_rules WHERE tenant_id=$1 AND resource_type=$2 AND enabled=$3 ORDER BY created_at DESC`, tenantID, resourceType, true)
+	if err != nil {
+		return nil, err
 	}
 	if result == nil {
 		result = []models.MaskingRule{}
@@ -82,57 +77,82 @@ func (r *Repository) ListByResourceType(ctx context.Context, tenantID, resourceT
 
 // Update applies partial updates to a masking rule.
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.MaskingRule, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	rule, ok := r.rules[id]
-	if !ok || rule.TenantID != tenantID {
-		return nil, sentinel.NotFound
-	}
+	sets, args := []string{}, []interface{}{}
+	i := 1
+
 	if v, ok := updates["name"]; ok {
-		rule.Name = v.(string)
+		sets = append(sets, fmt.Sprintf("name=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["description"]; ok {
-		rule.Description = v.(string)
+		sets = append(sets, fmt.Sprintf("description=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["strategy"]; ok {
-		rule.Strategy = models.MaskingStrategy(v.(string))
+		sets = append(sets, fmt.Sprintf("strategy=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["fieldPattern"]; ok {
-		rule.FieldPattern = v.(string)
+		sets = append(sets, fmt.Sprintf("field_pattern=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["resourceType"]; ok {
-		rule.ResourceType = v.(string)
+		sets = append(sets, fmt.Sprintf("resource_type=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["replacement"]; ok {
-		rule.Replacement = v.(string)
+		sets = append(sets, fmt.Sprintf("replacement=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["classificationLevel"]; ok {
-		rule.ClassificationLevel = v.(string)
+		sets = append(sets, fmt.Sprintf("classification_level=$%d", i))
+		args = append(args, v.(string))
+		i++
 	}
 	if v, ok := updates["enabled"]; ok {
-		rule.Enabled = v.(bool)
+		sets = append(sets, fmt.Sprintf("enabled=$%d", i))
+		args = append(args, v.(bool))
+		i++
 	}
-	rule.UpdatedAt = time.Now().UTC()
-	return rule, nil
+
+	if len(sets) == 0 {
+		return r.GetByID(ctx, tenantID, id)
+	}
+
+	args = append(args, time.Now().UTC(), id, tenantID)
+	query := "UPDATE masking_rules SET " + sets[0]
+	for _, s := range sets[1:] {
+		query += ", " + s
+	}
+	query += fmt.Sprintf(", updated_at=$%d WHERE id=$%d AND tenant_id=$%d RETURNING *", i, i+1, i+2)
+
+	var rule models.MaskingRule
+	err := r.db.GetContext(ctx, &rule, query, args...)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sentinel.NotFound
+	}
+	return &rule, err
 }
 
 // Delete removes a masking rule by ID and tenant ID.
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	rule, ok := r.rules[id]
-	if !ok || rule.TenantID != tenantID {
-		return false, nil
+	res, err := r.db.ExecContext(ctx, `DELETE FROM masking_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if err != nil {
+		return false, err
 	}
-	delete(r.rules, id)
-	return true, nil
+	rows, _ := res.RowsAffected()
+	return rows > 0, nil
 }
 
 // Mask applies a set of masking rules to the provided data map.
 // Returns the masked data and a list of field names that were masked.
 func (r *Repository) Mask(ctx context.Context, data map[string]interface{}, rules []models.MaskingRule) (map[string]interface{}, []string, error) {
-	// Masking algorithm logic is delegated to the service layer.
-	// This method exists as a repository-level signature for future persistence.
 	maskedData := make(map[string]interface{}, len(data))
 	for k, v := range data {
 		maskedData[k] = v

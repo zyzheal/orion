@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS test_executions (
     duration_ms BIGINT DEFAULT 0,
     report_url TEXT,
     triggered_by VARCHAR(128),
+    pipeline_id VARCHAR(36),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE
 );
 CREATE INDEX idx_test_executions_tenant ON test_executions(tenant_id);
 
@@ -24,7 +26,10 @@ CREATE TABLE IF NOT EXISTS test_cases (
     name VARCHAR(256) NOT NULL,
     suite_id VARCHAR(256),
     status VARCHAR(32),
-    duration_ms BIGINT
+    duration_ms BIGINT,
+    class_name VARCHAR(256),
+    error_msg TEXT,
+    stack_trace TEXT
 );
 CREATE INDEX idx_test_cases_tenant ON test_cases(tenant_id);
 CREATE INDEX idx_test_cases_suite ON test_cases(tenant_id, suite_id);

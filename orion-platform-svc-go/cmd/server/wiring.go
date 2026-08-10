@@ -367,7 +367,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireEventTriggerRegistry(db, logger)
 	wireExecutionModeEngine(db, logger)
 	wireJobProcessor(db, logger)
-	wireDataMasking(logger)
+	wireDataMasking(db, logger)
 	// ---- P0-41~47: Community/User/Security/Infra modules ----
 	wireUcommunity(db, logger)
 	wireCommunityAdvanced(db, logger)

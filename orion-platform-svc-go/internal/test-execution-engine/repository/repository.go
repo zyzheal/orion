@@ -2,12 +2,15 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"sync"
+	"database/sql"
+	"errors"
 	"time"
 
-	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/test-execution-engine/models"
+
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 type RepositoryInterface interface {
@@ -21,133 +24,173 @@ type RepositoryInterface interface {
 }
 
 type Repository struct {
-	mu       sync.RWMutex
-	execs    map[string]*models.TestExecution
-	suites   map[string][]*models.TestSuite
-	cases    map[string][]*models.TestCase
+	db *sqlx.DB
 }
 
-func NewRepository() *Repository {
-	return &Repository{
-		execs:  make(map[string]*models.TestExecution),
-		suites: make(map[string][]*models.TestSuite),
-		cases:  make(map[string][]*models.TestCase),
-	}
+func NewRepository(db *sqlx.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, tenantID string, req *models.CreateExecutionRequest) (*models.TestExecution, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	now := time.Now()
+	now := time.Now().UTC()
 	exec := &models.TestExecution{
 		ID:          uuid.New().String(),
 		TenantID:    tenantID,
 		Name:        req.Name,
 		Framework:   req.Framework,
 		Status:      models.TestStatusPending,
-		TriggeredBy: "",
 		PipelineID:  req.PipelineID,
 		CreatedAt:   now,
 	}
-	r.execs[exec.ID] = exec
+	_, err := r.db.NamedExecContext(ctx, `
+		INSERT INTO test_executions (id, tenant_id, name, framework, status, pipeline_id, created_at, updated_at)
+		VALUES (:id, :tenant_id, :name, :framework, :status, :pipeline_id, :created_at, NOW())`,
+		exec)
+	if err != nil {
+		return nil, err
+	}
 	return exec, nil
 }
 
 func (r *Repository) Get(ctx context.Context, tenantID, id string) (*models.TestExecution, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	exec, ok := r.execs[id]
-	if !ok || exec.TenantID != tenantID {
-		return nil, fmt.Errorf("execution not found: %s", id)
+	var exec models.TestExecution
+	err := r.db.GetContext(ctx, &exec, `SELECT * FROM test_executions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sentinel.NotFound
 	}
-	return exec, nil
+	return &exec, err
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string, q models.ListExecutionsQuery) (*models.ExecutionListResponse, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	var items []models.TestExecution
-	for _, exec := range r.execs {
-		if exec.TenantID != tenantID {
-			continue
-		}
-		items = append(items, *exec)
+	var total int
+	err := r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM test_executions WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return nil, err
 	}
+
 	page := q.Page
-	if page < 1 { page = 1 }
+	if page < 1 {
+		page = 1
+	}
 	pageSize := q.PageSize
-	if pageSize < 1 { pageSize = 20 }
-	start := (page - 1) * pageSize
-	if start > len(items) { start = len(items) }
-	end := start + pageSize
-	if end > len(items) { end = len(items) }
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	var items []models.TestExecution
+	offset := (page - 1) * pageSize
+
+	switch {
+	case q.Status != nil && q.PipelineID != "":
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM test_executions WHERE tenant_id=$1 AND status=$2 AND pipeline_id=$3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`, tenantID, string(*q.Status), q.PipelineID, pageSize, offset)
+	case q.Status != nil:
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM test_executions WHERE tenant_id=$1 AND status=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`, tenantID, string(*q.Status), pageSize, offset)
+	case q.PipelineID != "":
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM test_executions WHERE tenant_id=$1 AND pipeline_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`, tenantID, q.PipelineID, pageSize, offset)
+	default:
+		err = r.db.SelectContext(ctx, &items, `SELECT * FROM test_executions WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, pageSize, offset)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []models.TestExecution{}
+	}
+
 	return &models.ExecutionListResponse{
-		Items: items[start:end], Total: len(items), Page: page, PageSize: pageSize,
+		Items:    items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
 	}, nil
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, id string, status models.TestStatus) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	exec, ok := r.execs[id]
-	if !ok {
-		return fmt.Errorf("execution not found: %s", id)
-	}
-	exec.Status = status
+	now := time.Now().UTC()
+	completedAt := sql.NullTime{}
 	if status == models.TestStatusPassed || status == models.TestStatusFailed || status == models.TestStatusCancelled {
-		now := time.Now()
-		exec.CompletedAt = &now
+		completedAt = sql.NullTime{Time: now, Valid: true}
 	}
+	_, err := r.db.ExecContext(ctx, `UPDATE test_executions SET status=$1, completed_at=$2, updated_at=$3 WHERE id=$4`,
+		string(status), completedAt, now, id)
+	if err != nil {
+		return err
+	}
+	res, _ := r.db.ExecContext(ctx, `SELECT 1 FROM test_executions WHERE id=$1`, id)
+	_ = res
 	return nil
 }
 
 func (r *Repository) SubmitResults(ctx context.Context, id string, req *models.SubmitResultRequest) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	exec, ok := r.execs[id]
-	if !ok {
-		return fmt.Errorf("execution not found: %s", id)
-	}
-	exec.Status = models.TestStatusPassed
+	now := time.Now().UTC()
+	var status models.TestStatus
 	if req.Failed > 0 || req.Errors > 0 {
-		exec.Status = models.TestStatusFailed
+		status = models.TestStatusFailed
+	} else {
+		status = models.TestStatusPassed
 	}
-	exec.TotalTests = req.TotalTests
-	exec.Passed = req.Passed
-	exec.Failed = req.Failed
-	exec.Skipped = req.Skipped
-	exec.Errors = req.Errors
-	exec.DurationMS = req.DurationMS
-	exec.ReportURL = req.ReportURL
-	now := time.Now()
-	exec.CompletedAt = &now
+	completedAt := sql.NullTime{Time: now, Valid: true}
+
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE test_executions SET
+			status=$1, total_tests=$2, passed=$3, failed=$4, skipped=$5, errors=$6,
+			duration_ms=$7, report_url=$8, completed_at=$9, updated_at=$10
+		WHERE id=$11`,
+		string(status), req.TotalTests, req.Passed, req.Failed, req.Skipped, req.Errors,
+		req.DurationMS, req.ReportURL, completedAt, now, id)
+	if err != nil {
+		return err
+	}
+
+	// Insert suites
+	for i := range req.Suites {
+		suite := req.Suites[i]
+		sID := uuid.New().String()
+		_, err := r.db.ExecContext(ctx, `
+			INSERT INTO test_suites (id, execution_id, name, tests, passed, failed, skipped, duration_ms)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			sID, id, suite.Name, suite.Tests, suite.Passed, suite.Failed, suite.Skipped, suite.DurationMS)
+		if err != nil {
+			return err
+		}
+
+		// Insert test cases for each suite
+		for j := range suite.TestCases {
+			tc := suite.TestCases[j]
+			tcID := uuid.New().String()
+			_, err := r.db.ExecContext(ctx, `
+				INSERT INTO test_cases (id, suite_id, name, class_name, status, duration_ms, error_msg, stack_trace)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+				tcID, sID, tc.Name, tc.ClassName, string(tc.Status), tc.DurationMS, tc.ErrorMsg, tc.StackTrace)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
 func (r *Repository) GetSuites(ctx context.Context, executionID string) ([]models.TestSuite, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	suites, ok := r.suites[executionID]
-	if !ok {
-		return []models.TestSuite{}, nil
+	var suites []models.TestSuite
+	err := r.db.SelectContext(ctx, &suites, `SELECT * FROM test_suites WHERE execution_id=$1 ORDER BY id`, executionID)
+	if err != nil {
+		return nil, err
 	}
-	result := make([]models.TestSuite, len(suites))
-	for i, s := range suites {
-		result[i] = *s
+	if suites == nil {
+		suites = []models.TestSuite{}
 	}
-	return result, nil
+	return suites, nil
 }
 
 func (r *Repository) GetTestCases(ctx context.Context, suiteID string) ([]models.TestCase, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	cases, ok := r.cases[suiteID]
-	if !ok {
-		return []models.TestCase{}, nil
+	var cases []models.TestCase
+	err := r.db.SelectContext(ctx, &cases, `SELECT * FROM test_cases WHERE suite_id=$1 ORDER BY id`, suiteID)
+	if err != nil {
+		return nil, err
 	}
-	result := make([]models.TestCase, len(cases))
-	for i, c := range cases {
-		result[i] = *c
+	if cases == nil {
+		cases = []models.TestCase{}
 	}
-	return result, nil
+	return cases, nil
 }
