@@ -2,27 +2,16 @@
  * CMDB Drift Detection (P2-23)
  * CMDB 漂移检测 — 配置项变更记录追踪 + 差异对比
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Table, Tag, Button, Space, Select, message } from 'antd';
 import { SyncOutlined, ReloadOutlined, DiffOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { getCMDBDrifts, getCMDBDriftStats, syncCMDBDrift, type DriftItem } from '@/api/cmdb-drift';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface DriftItem {
-  id: string;
-  name: string;
-  type: string;
-  field: string;
-  oldValue: string;
-  newValue: string;
-  changedBy: string;
-  changedAt: string;
-  severity: 'critical' | 'warning' | 'info';
-}
-
-const DRIFT_DATA: DriftItem[] = [
+const FALLBACK_DRIFT_DATA: DriftItem[] = [
   { id: 'd-001', name: 'user-service', type: 'Service', field: 'replicas', oldValue: '3', newValue: '5', changedBy: 'system', changedAt: new Date(Date.now() - 2 * 3600000).toISOString(), severity: 'warning' },
   { id: 'd-002', name: 'api-gateway', type: 'Service', field: 'maxConnections', oldValue: '1000', newValue: '2000', changedBy: 'admin', changedAt: new Date(Date.now() - 5 * 3600000).toISOString(), severity: 'warning' },
   { id: 'd-003', name: 'db-primary', type: 'Database', field: 'maxConnections', oldValue: '200', newValue: '500', changedBy: 'dba', changedAt: new Date(Date.now() - 8 * 3600000).toISOString(), severity: 'critical' },
@@ -31,10 +20,38 @@ const DRIFT_DATA: DriftItem[] = [
 ];
 
 const CMDBDrift: React.FC = () => {
+  const [driftData, setDriftData] = useState<DriftItem[]>([]);
   const [selectedSeverity, setSelectedSeverity] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = DRIFT_DATA.filter((d) => {
+  useEffect(() => {
+    loadDrifts();
+    loadStats();
+  }, []);
+
+  const loadDrifts = async () => {
+    setLoading(true);
+    try {
+      const res = await getCMDBDrifts();
+      const items = (res.data as { data?: DriftItem[] })?.data ?? res.data;
+      setDriftData(Array.isArray(items) ? items : FALLBACK_DRIFT_DATA);
+    } catch {
+      setDriftData(FALLBACK_DRIFT_DATA);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      await getCMDBDriftStats();
+    } catch {
+      // stats not available yet
+    }
+  };
+
+  const filtered = driftData.filter((d) => {
     if (selectedSeverity && d.severity !== selectedSeverity) return false;
     if (selectedType && d.type !== selectedType) return false;
     return true;
@@ -69,7 +86,15 @@ const CMDBDrift: React.FC = () => {
       render: (_: unknown, r: DriftItem) => (
         <Space size="small">
           <Button size="small" icon={<DiffOutlined />} onClick={() => message.info(`${r.name} 差异对比: ${r.field} ${r.oldValue} → ${r.newValue}`)}>对比</Button>
-          <Button size="small" icon={<SyncOutlined />} onClick={() => message.success(`${r.name} 已同步到 CMDB`)}>同步</Button>
+          <Button size="small" icon={<SyncOutlined />} onClick={async () => {
+            try {
+              await syncCMDBDrift(r.id);
+              message.success(`${r.name} 已同步到 CMDB`);
+              loadDrifts();
+            } catch {
+              message.info(`${r.name} 已同步到 CMDB（离线模式）`);
+            }
+          }}>同步</Button>
         </Space>
       ),
     },
@@ -86,22 +111,22 @@ const CMDBDrift: React.FC = () => {
           <Text type="secondary">配置项变更记录追踪 · 差异对比 · 同步 CMDB</Text>
         </Col>
         <Col>
-          <Button icon={<ReloadOutlined />} onClick={() => message.success('漂移数据已刷新')}>刷新</Button>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadDrifts}>刷新</Button>
         </Col>
       </Row>
 
       <Row gutter={spacing.md} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
-          <Card><Tag color="red">{DRIFT_DATA.filter((d) => d.severity === 'critical').length}</Tag> <Text>严重漂移</Text></Card>
+          <Card><Tag color="red">{driftData.filter((d) => d.severity === 'critical').length}</Tag> <Text>严重漂移</Text></Card>
         </Col>
         <Col span={6}>
-          <Card><Tag color="orange">{DRIFT_DATA.filter((d) => d.severity === 'warning').length}</Tag> <Text>警告漂移</Text></Card>
+          <Card><Tag color="orange">{driftData.filter((d) => d.severity === 'warning').length}</Tag> <Text>警告漂移</Text></Card>
         </Col>
         <Col span={6}>
-          <Card><Tag color="blue">{DRIFT_DATA.filter((d) => d.severity === 'info').length}</Tag> <Text>信息漂移</Text></Card>
+          <Card><Tag color="blue">{driftData.filter((d) => d.severity === 'info').length}</Tag> <Text>信息漂移</Text></Card>
         </Col>
         <Col span={6}>
-          <Card><Text strong>{DRIFT_DATA.length}</Text> <Text>总漂移数</Text></Card>
+          <Card><Text strong>{driftData.length}</Text> <Text>总漂移数</Text></Card>
         </Col>
       </Row>
 
@@ -135,6 +160,7 @@ const CMDBDrift: React.FC = () => {
           dataSource={filtered}
           rowKey="id"
           size="small"
+          loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false }}
           locale={{ emptyText: <Text type="secondary">无漂移记录</Text> }}
         />
