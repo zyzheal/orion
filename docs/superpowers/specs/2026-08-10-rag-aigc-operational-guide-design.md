@@ -536,13 +536,14 @@ CREATE TABLE rag_knowledge_nodes (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     node_type    VARCHAR(30) NOT NULL,
     entity_id    VARCHAR(500) NOT NULL,
+    tenant_id    VARCHAR(255) NOT NULL DEFAULT '',  -- 【V2.3 修复】多租户存储层隔离
     title        VARCHAR(500),
     description  TEXT,
     metadata     JSONB,
     source_file  TEXT,
     version      BIGINT,
-    embedding_model VARCHAR(50),  -- 【新增】记录使用的 embedding 模型
-    chunk_count  INT DEFAULT 1,  -- 【新增】该节点被拆分为多少个 chunk
+    embedding_model VARCHAR(50),
+    chunk_count  INT DEFAULT 1,
     created_at   TIMESTAMPTZ DEFAULT NOW(),
     updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
@@ -550,6 +551,9 @@ CREATE TABLE rag_knowledge_nodes (
 CREATE INDEX idx_rag_nodes_type_entity ON rag_knowledge_nodes(node_type, entity_id);
 CREATE UNIQUE INDEX uq_rag_nodes_type_entity ON rag_knowledge_nodes(node_type, entity_id);
 CREATE INDEX idx_rag_nodes_type ON rag_knowledge_nodes(node_type);
+CREATE INDEX idx_rag_nodes_tenant ON rag_knowledge_nodes(tenant_id);
+CREATE INDEX idx_rag_nodes_tenant_type ON rag_knowledge_nodes(tenant_id, node_type);
+-- 所有 RAG 查询必须经过 TenantScope 拦截器，强制 WHERE tenant_id = $1
 ```
 
 ### 7.2 知识图谱边表
@@ -1866,5 +1870,47 @@ CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
 | 视觉专家 | 2 | 3 | 答案展示 UI, 引用可信度可视化, 图谱可视化, 权限视觉设计 |
 | 用户体验专家 | 4 | 3 | Onboarding, 零结果 UX, 反馈闭环, 多轮对话, 角色差异化 |
 | 产品专家 | 3 | 2 | 成功指标, 成本模型, 竞品分析, MVP 精调 |
-| 系统架构师 | 4 | 3 | 性能预算, 降级策略, 可扩展性路径, 可观测性, 数据生命周期 |
+| 系统架构师 | 5 | 6 | 系统边界契约, 多租户存储层漏洞, 版本仲裁, 降级矛盾, 部署拓扑, 分片策略, 索引健康度, ACL统一, 语义缓存隔离, 灾备, 审计合规, 测试框架 |
+
+## 附录 D：V2.2 补丁 — 链接可执行性验证 + 反馈闭环
+
+> **触发原因**: Demo 验证发现 `/infrastructure`、`/tickets/new` 路由不存在，`contact_team` 功能不存在。  
+> **补充文档**: `V2.2-link-verification-feedback-loop.md`
+
+### 核心变更
+
+| 变更 | 说明 |
+|------|------|
+| **Link Verifiability Engine** | 答案中的每个链接在返回前经过 3 层验证（路由存在/交互模式/Action可执行性），无效链接移除 |
+| **前端感知层增强** | 部署时提取 interaction_mode（direct/modal/drawer/inline）和 available_actions，避免虚构路由 |
+| **Feedback-Driven Learning Loop** | 👍 → 强化节点权重+缓存；👎 → 分类诊断+自动优化（stale_data/wrong_answer/incomplete/wrong_link/permission） |
+| **反馈聚合表** | `rag_feedback_actions` + `rag_feedback_daily_stats`，支持自动调优检索策略和扩充 ground_truth |
+| **跳转指令协议** | 标准化 `interaction_mode` + `action` + `action_params`，前端 `RAGFrontendLink` 组件统一处理 |
+
+## 附录 E：V2.3 补丁 — 系统架构师评审修复
+
+> **触发原因**: 系统架构师评审发现 5 个 P0 架构缺陷，架构健康度 7.5/10。  
+> **补充文档**: `V2.3-architect-review-fixes.md`
+
+### P0 修复清单
+
+| # | 问题 | 修复 |
+|---|------|------|
+| 1 | RAG Agent 与 AI Gateway 耦合度未定义，索引构建可能拖垮 Gateway | 定义系统边界契约 + 独立 Indexer Worker 进程 + Circuit Breaker |
+| 2 | `rag_knowledge_nodes` 表缺少 `tenant_id`，多租户隔离在存储层失效 | 增加 `tenant_id` 列 + B-tree 索引 + TenantScope 拦截器 |
+| 3 | 最终一致性模型缺少版本仲裁，并发 Upsert 可能覆盖新版本 | LWW + Vector Clock + PostgreSQL Advisory Lock |
+| 4 | Embedding 服务宕机时降级策略存在逻辑矛盾（语义缓存也需要 Embedding） | 降级时跳过语义缓存 + BM25 别名词典增强 + 黄色警告横幅 |
+| 5 | 部署拓扑完全空白 | K8s 部署图 + 网络延迟预算 + 资源隔离矩阵 |
+
+### 新增架构能力
+
+| 能力 | 说明 |
+|------|------|
+| **灾备策略** | RTO ≤ 4h / RPO ≤ 1h / WAL 归档 + 跨 AZ 流复制 |
+| **成本熔断** | 月度 $500 预算 + 三级告警 + 自动熔断降级 |
+| **构建幂等性** | `rag_build_state` 表 + 断点续建 |
+| **索引健康度监控** | 6 项新增指标（新鲜度/漂移/BM25覆盖度/孤立节点/召回基准/stale计数） |
+| **审计合规** | 12 月保留 + AES-256 加密 + 防滥用限流 |
+| **RAG 测试框架** | 6 层测试（单元/集成/E2E/回归/对抗/性能） |
+| **ACL 统一** | 从 handler_registry 直接提取 ACL → RAG 元数据映射 |
 | **合计** | **20** | **17** | **37 项改进** |
