@@ -1913,4 +1913,31 @@ CREATE INDEX idx_rag_cache_expires ON rag_semantic_cache(expires_at);
 | **审计合规** | 12 月保留 + AES-256 加密 + 防滥用限流 |
 | **RAG 测试框架** | 6 层测试（单元/集成/E2E/回归/对抗/性能） |
 | **ACL 统一** | 从 handler_registry 直接提取 ACL → RAG 元数据映射 |
+
+## 附录 F：V2.4 补丁 — AIGC 自反馈闭环（可量化验证）
+
+> **触发原因**: 系统搜索确认当前零 RAG 反馈能力，👍👎 仅有 UI 无后端闭环。  
+> **补充文档**: `V2.4-feedback-self-optimization.md`
+
+### 核心设计
+
+| 能力 | 说明 |
+|------|------|
+| **Phase 1: 反馈采集** | `rag_feedback_events` 表，实时写入 < 100ms |
+| **Phase 2: 信号处理** | 👍 → 提升节点权重+缓存+扩充 ground_truth；👎 → LLM 分类6种问题+即时优化动作 |
+| **Phase 3: 聚合分析** | 每日统计 + 批量优化（节点降权/索引重建/检索策略调优） |
+| **Phase 4: 效果验证** | 每周对比 positive_rate 变化，≥3pp 判定生效，下降则自动回滚 |
+| **5 张表** | events / actions / node_weights / daily_stats / weekly_optimization |
+| **防作弊** | 每 token 仅 1 次 / 新注册用户 0.5x 权重 / corrected_answer 需人工审核 |
+| **4 周实验** | 对照组 vs 实验组，目标 positive_rate +13pp，t-test p<0.05 |
+| **回滚机制** | positive_rate 下降 > 2pp → 自动回滚所有优化动作 |
+
+### 验证路径
+
+```
+Week 0: 基线 positive_rate=62%
+Week 1: +3pp → 65% (缓存生效)
+Week 2: +3pp → 68% (权重调整生效)
+Week 4: +13pp → 75% ✅ 自优化闭环有效
+```
 | **合计** | **20** | **17** | **37 项改进** |
