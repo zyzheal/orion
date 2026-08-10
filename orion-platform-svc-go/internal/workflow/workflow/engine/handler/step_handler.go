@@ -72,7 +72,7 @@ func (f *StepHandlerFactory) Register(h StepHandler) {
 
 	t := h.Type()
 	if _, exists := f.registry[t]; exists {
-		_ = t // duplicate step handler skipped
+		panic("step handler already registered: " + t)
 	}
 	f.registry[t] = h
 }
