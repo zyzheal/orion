@@ -9,7 +9,7 @@
  * - Delete with Popconfirm confirmation
  * - Mock data with 10 rules covering various combinations
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -35,6 +35,13 @@ import {
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { colors, spacing } from '@/tokens';
+import {
+  getFirewallRules,
+  createFirewallRule,
+  updateFirewallRule,
+  deleteFirewallRule,
+  toggleFirewallRule,
+} from '@/api/firewall-policies';
 
 const { Title, Text } = Typography;
 
@@ -189,6 +196,22 @@ const FirewallPolicy: React.FC = () => {
   const [editingRule, setEditingRule] = useState<FirewallRule | null>(null);
   const [form] = Form.useForm();
 
+  useEffect(() => {
+    loadRules();
+  }, []);
+
+  const loadRules = async () => {
+    try {
+      const res = await getFirewallRules();
+      const data = res.data as FirewallRule[];
+      if (Array.isArray(data) && data.length > 0) {
+        setRules(data);
+      }
+    } catch {
+      setRules(MOCK_RULES);
+    }
+  };
+
   // ---- Stats ----
   const stats = useMemo(() => {
     const total = rules.length;
@@ -199,16 +222,26 @@ const FirewallPolicy: React.FC = () => {
   }, [rules]);
 
   // ---- Handlers ----
-  const handleToggle = (id: string, enabled: boolean) => {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, enabled } : r))
-    );
-    message.success(enabled ? '规则已启用' : '规则已禁用');
+  const handleToggle = async (id: string, enabled: boolean) => {
+    try {
+      await toggleFirewallRule(id, enabled);
+      setRules((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, enabled } : r))
+      );
+      message.success(enabled ? '规则已启用' : '规则已禁用');
+    } catch {
+      message.error(enabled ? '启用规则失败' : '禁用规则失败');
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setRules((prev) => prev.filter((r) => r.id !== id));
-    message.success('规则已删除');
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteFirewallRule(id);
+      setRules((prev) => prev.filter((r) => r.id !== id));
+      message.success('规则已删除');
+    } catch {
+      message.error('删除规则失败');
+    }
   };
 
   const handleEdit = (rule: FirewallRule) => {
@@ -242,28 +275,19 @@ const FirewallPolicy: React.FC = () => {
     try {
       const values = await form.validateFields();
       const { name, direction, sourceIp, destPort, protocol, action, priority } = values;
+      const data = { name, direction, sourceIp, destPort, protocol, action, priority };
 
       if (editingRule) {
+        await updateFirewallRule(editingRule.id, data);
         setRules((prev) =>
           prev.map((r) =>
-            r.id === editingRule.id
-              ? { ...r, name, direction, sourceIp, destPort, protocol, action, priority }
-              : r
+            r.id === editingRule.id ? { ...r, ...data } : r
           )
         );
         message.success('规则已更新');
       } else {
-        const newRule: FirewallRule = {
-          id: `fw-${Date.now().toString(36)}`,
-          name,
-          direction,
-          sourceIp,
-          destPort,
-          protocol,
-          action,
-          priority,
-          enabled: true,
-        };
+        const res = await createFirewallRule({ ...data, enabled: true });
+        const newRule = res.data as FirewallRule;
         setRules((prev) => [...prev, newRule]);
         message.success('规则已创建');
       }
@@ -271,7 +295,7 @@ const FirewallPolicy: React.FC = () => {
       setEditingRule(null);
       form.resetFields();
     } catch {
-      // Validation failed
+      // Validation failed or API error
     }
   };
 

@@ -5,7 +5,7 @@
  * - Middle: Orchestration task table (left) + Agent registry (right)
  * - Bottom: Recent execution history
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Typography,
   Row,
@@ -34,6 +34,15 @@ import {
   BranchesOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
+import {
+  getAgentProfiles,
+  getAgentRuns,
+  createAgentProfile,
+  cancelAgentRun,
+  toggleAgentProfile,
+  type AgentProfile,
+  type AgentRun,
+} from '@/api/agents';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -331,6 +340,62 @@ const AgentOrchestrator: React.FC = () => {
   const [selectedOrchestration, setSelectedOrchestration] = useState<OrchestrationTask | null>(null);
   const [form] = Form.useForm();
 
+  // ---- Load data from API ----
+  useEffect(() => {
+    loadAgents();
+    loadRuns();
+  }, []);
+
+  const loadAgents = async () => {
+    try {
+      const res = await getAgentProfiles();
+      const profiles = res.data as AgentProfile[];
+      if (Array.isArray(profiles) && profiles.length > 0) {
+        const mapped: AgentRecord[] = profiles.map((p) => ({
+          id: p.id,
+          name: p.name,
+          role: p.role as AgentRole,
+          status: p.enabled ? 'active' : 'idle',
+          specialization: p.description || '-',
+          enabled: p.enabled,
+        }));
+        setAgents(mapped);
+      }
+    } catch {
+      setAgents(MOCK_AGENTS);
+    }
+  };
+
+  const loadRuns = async () => {
+    try {
+      const res = await getAgentRuns();
+      const runs = res.data as AgentRun[];
+      if (Array.isArray(runs) && runs.length > 0) {
+        const mapped: OrchestrationTask[] = runs.map((r) => ({
+          id: r.id,
+          name: r.workflowId || r.id,
+          agentCount: r.totalSteps,
+          status: mapRunStatus(r.status),
+          currentStep: `步骤 ${r.currentStep + 1}`,
+          totalSteps: r.totalSteps,
+          startedAt: r.startedAt,
+          duration: r.completedAt
+            ? Math.round((new Date(r.completedAt).getTime() - new Date(r.startedAt).getTime()) / 1000)
+            : 0,
+        }));
+        setOrchestrations(mapped);
+      }
+    } catch {
+    }
+  };
+
+  const mapRunStatus = (status: string): OrchestrationStatus => {
+    if (status === 'running' || status === 'waiting_approval') return 'running';
+    if (status === 'completed') return 'success';
+    if (status === 'failed' || status === 'cancelled') return 'failed';
+    return 'waiting';
+  };
+
   // ---- Derived stats ----
   const registeredAgentCount = agents.length;
   const activeOrchestrationCount = orchestrations.filter((o) => o.status === 'running').length;
@@ -441,36 +506,59 @@ const AgentOrchestrator: React.FC = () => {
       okText: '停止',
       okButtonProps: { danger: true },
       cancelText: '取消',
-      onOk: () => {
-        setOrchestrations((prev) =>
-          prev.map((o) => (o.id === orch.id ? { ...o, status: 'failed' } : o))
-        );
-        message.warning(`编排 ${orch.name} 已停止`);
+      onOk: async () => {
+        try {
+          await cancelAgentRun(orch.id);
+          setOrchestrations((prev) =>
+            prev.map((o) => (o.id === orch.id ? { ...o, status: 'failed' } : o))
+          );
+          message.warning(`编排 ${orch.name} 已停止`);
+        } catch {
+          message.error('停止编排失败');
+        }
       },
     });
   };
 
-  const handleToggleAgent = (agent: AgentRecord) => {
-    setAgents((prev) =>
-      prev.map((a) => (a.id === agent.id ? { ...a, enabled: !a.enabled } : a))
-    );
-    message.success(`Agent ${agent.name} 已${agent.enabled ? '禁用' : '启用'}`);
+  const handleToggleAgent = async (agent: AgentRecord) => {
+    try {
+      await toggleAgentProfile(agent.id);
+      setAgents((prev) =>
+        prev.map((a) => (a.id === agent.id ? { ...a, enabled: !a.enabled } : a))
+      );
+      message.success(`Agent ${agent.name} 已${agent.enabled ? '禁用' : '启用'}`);
+    } catch {
+      message.error('切换 Agent 状态失败');
+    }
   };
 
-  const handleAddAgent = () => {
-    form.validateFields().then((values) => {
-      const newAgent: AgentRecord = {
-        id: `agent-${Date.now()}`,
-        name: values.name,
-        role: values.role,
-        status: 'idle',
-        specialization: values.specialization || '-',
-        enabled: true,
-      };
-      setAgents((prev) => [...prev, newAgent]);
-      setAddAgentModalOpen(false);
-      form.resetFields();
-      message.success(`Agent ${newAgent.name} 已添加`);
+  const handleAddAgent = async () => {
+    form.validateFields().then(async (values) => {
+      try {
+        const profileData = {
+          name: values.name,
+          role: values.role,
+          description: values.specialization || '',
+          tools: [],
+          enabled: true,
+        };
+        const res = await createAgentProfile(profileData);
+        const created = res.data as AgentProfile;
+        const newAgent: AgentRecord = {
+          id: created.id,
+          name: created.name,
+          role: created.role as AgentRole,
+          status: 'idle',
+          specialization: created.description || '-',
+          enabled: created.enabled,
+        };
+        setAgents((prev) => [...prev, newAgent]);
+        setAddAgentModalOpen(false);
+        form.resetFields();
+        message.success(`Agent ${newAgent.name} 已添加`);
+      } catch {
+        message.error('添加 Agent 失败');
+      }
     });
   };
 

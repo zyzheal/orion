@@ -1,7 +1,7 @@
 /**
- * Test Micro-Frontend - 重定向到 TestMFLoader
+ * test-mf 入口 — 直接渲染 TestMFLoader
+ * 路由: routes.tsx line 1232 → import('@/pages/test-mf/TestMFLoader')
  */
-import { Navigate } from 'react-router-dom';
+import TestMFLoader from './TestMFLoader';
 
-const TestMFIndex = () => <Navigate to="/test-mf" replace />;
-export default TestMFIndex;
+export default TestMFLoader;
