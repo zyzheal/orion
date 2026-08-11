@@ -100,14 +100,21 @@ func (h *Handler) ListTargets(c *gin.Context) {
 	defer span.End()
 	tenantID := h.tenantID(c)
 	collectorName := c.Param("name")
-	// In a production service the service layer would expose a ListTargets()
-	// method that filters by collector.  For the stub we list all targets.
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	targets, err := h.svc.ListTargets(c.Request.Context(), tenantID, collectorName, offset, limit)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, gin.H{
-		"message": "list targets for " + collectorName,
-		"tenant_id": tenantID,
+		"targets": targets,
+		"total":   len(targets),
 		"collector": collectorName,
-	})
-}
+	})}
 
 func (h *Handler) CreateTarget(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTarget")

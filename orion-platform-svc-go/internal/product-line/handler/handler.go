@@ -204,10 +204,10 @@ func (h *Handler) ResolveEnvironment(c *gin.Context) {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	environment := "dev"
-	if branch != "" {
-		// TODO: resolve via environmentMappings in the full model
-		environment = "dev"
+	environment, _, err := h.svc.ResolveEnvironmentMapping(ctx, tenantID, id, branch)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
 	}
 	middleware.RespondSuccess(c, gin.H{"environment": environment})
 }

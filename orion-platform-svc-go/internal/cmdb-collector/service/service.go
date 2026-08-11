@@ -267,6 +267,14 @@ type CollectorInfo struct {
 	Schema map[string]interface{} `json:"schema"`
 }
 
+// ListTargets returns targets for a tenant, optionally filtered by collector name.
+func (s *Service) ListTargets(ctx context.Context, tenantID, targetType string, offset, limit int) ([]models.Target, error) {
+	if s.repo == nil {
+		return nil, nil
+	}
+	return s.repo.ListTargets(ctx, tenantID, targetType, offset, limit)
+}
+
 // ---------- Persistence helpers ----------
 
 func (s *Service) persistCollection(ctx context.Context, c *models.Collection) {
