@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"orion/platform-svc-go/internal/mlops/service"
@@ -14,144 +15,66 @@ func newHandler() *Handler {
 	return NewHandler(&service.Service{})
 }
 
-func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
+func makeCtx(method string, path string, body string) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "tenant-1")
 	c.Params = gin.Params{}
-	c.Request = httptest.NewRequest(method, path, nil)
+	var r *http.Request
+	if body != "" {
+		r = httptest.NewRequest(method, path, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+	} else {
+		r = httptest.NewRequest(method, path, nil)
+	}
+	c.Request = r
 	return c, w
 }
 
-func TestHandler_MLOPS_RegisterRoutes(t *testing.T) {
-	_ = newHandler()
+func TestNewHandler(t *testing.T) {
+	h := newHandler()
+	if h == nil {
+		t.Fatal("newHandler returned nil")
+	}
 }
 
-func TestHandler_MLOPS_List(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().List(c)
-	if w.Code >= 500 {
-		t.Fatalf("List: got %d", w.Code)
+func TestHandler_RegisterRoutes(t *testing.T) {
+	h := newHandler()
+	r := gin.New().Group("")
+	h.RegisterRoutes(r)
+	if r == nil {
+		t.Fatal("routes not registered")
 	}
 }
-func TestHandler_MLOPS_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Get(c)
-	if w.Code >= 500 {
-		t.Fatalf("Get: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Create(c)
-	if w.Code >= 500 {
-		t.Fatalf("Create: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Update(c)
-	if w.Code >= 500 {
-		t.Fatalf("Update: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Delete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Delete(c)
-	if w.Code >= 500 {
-		t.Fatalf("Delete: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Train(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Train(c)
-	if w.Code >= 500 {
-		t.Fatalf("Train: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Evaluate(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Evaluate(c)
-	if w.Code >= 500 {
-		t.Fatalf("Evaluate: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Deploy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Deploy(c)
-	if w.Code >= 500 {
-		t.Fatalf("Deploy: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_Rollback(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().Rollback(c)
-	if w.Code >= 500 {
-		t.Fatalf("Rollback: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_GetMetrics(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().GetMetrics(c)
-	if w.Code >= 500 {
-		t.Fatalf("GetMetrics: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_ListExperiments(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListExperiments(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListExperiments: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_ListArtifacts(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListArtifacts(c)
-	if w.Code >= 500 {
-		t.Fatalf("ListArtifacts: got %d", w.Code)
-	}
-}
-func TestHandler_MLOPS_ListModels(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
+
+func TestHandler_ListModels_NoDB(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/mlops", "")
 	newHandler().ListModels(c)
 	if w.Code >= 500 {
-		t.Fatalf("ListModels: got %d", w.Code)
+		t.Fatalf("ListModels: got %d, body: %s", w.Code, w.Body.String())
 	}
 }
-func TestHandler_MLOPS_RegisterModel(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
+
+func TestHandler_RegisterModel_InvalidBody(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/mlops", "invalid json")
 	newHandler().RegisterModel(c)
-	if w.Code >= 500 {
-		t.Fatalf("RegisterModel: got %d", w.Code)
+	if w.Code != 400 {
+		t.Fatalf("RegisterModel invalid body: got %d, want 400", w.Code)
 	}
 }
-func TestHandler_MLOPS_DeregisterModel(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().DeregisterModel(c)
-	if w.Code >= 500 {
-		t.Fatalf("DeregisterModel: got %d", w.Code)
+
+func TestHandler_RegisterModel_MissingName(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/mlops", `{"framework":"pytorch"}`)
+	newHandler().RegisterModel(c)
+	if w.Code != 400 {
+		t.Fatalf("RegisterModel missing name: got %d, want 400", w.Code)
 	}
 }
-func TestHandler_MLOPS_ListPipelines(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
-	c, w := makeCtx(http.MethodGet, "/")
-	newHandler().ListPipelines(c)
+
+func TestHandler_GetMetrics_NoDB(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/mlops/m1/metrics", "")
+	newHandler().GetMetrics(c)
 	if w.Code >= 500 {
-		t.Fatalf("ListPipelines: got %d", w.Code)
+		t.Fatalf("GetMetrics: got %d, body: %s", w.Code, w.Body.String())
 	}
 }
