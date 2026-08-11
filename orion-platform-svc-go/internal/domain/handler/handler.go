@@ -104,7 +104,8 @@ func (h *Handler) GetAggregate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	commandType := c.Query("command_type")
 	if commandType == "" {
-		commandType = aggregateID
+		middleware.RespondBadRequest(c, "command_type query parameter is required")
+		return
 	}
 
 	if h.svc == nil {
@@ -131,7 +132,8 @@ func (h *Handler) GetEventHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	commandType := c.Query("command_type")
 	if commandType == "" {
-		commandType = aggregateID
+		middleware.RespondBadRequest(c, "command_type query parameter is required")
+		return
 	}
 
 	if h.svc == nil {

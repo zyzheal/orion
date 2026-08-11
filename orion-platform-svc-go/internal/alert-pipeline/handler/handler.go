@@ -2,10 +2,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"strings"
 
-	"orion/go-common/pkg/errors"
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/alert-pipeline/models"
 	"orion/platform-svc-go/internal/alert-pipeline/repository"
 	"orion/platform-svc-go/internal/alert-pipeline/service"
@@ -124,7 +125,9 @@ func (h *Handler) GetResult(c *gin.Context) {
 
 	stages := make([]string, 0)
 	if row.StagesJSON != nil {
-		stages = strings.Split(string(row.StagesJSON), ",")
+		if err := json.Unmarshal(row.StagesJSON, &stages); err != nil {
+			stages = strings.Split(string(row.StagesJSON), ",")
+		}
 	}
 
 	result := map[string]any{
@@ -157,7 +160,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	rows, err := h.repo.List(c.Request.Context(), tenantID, 50, 0)
 	if err != nil {
-		middleware.RespondSuccess(c, gin.H{"results": []string{}, "total": 0})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 

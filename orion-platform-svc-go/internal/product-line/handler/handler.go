@@ -27,6 +27,7 @@ type Service interface {
 	CreateHotfixChannel(ctx context.Context, tenantID, productLineID string, req models.CreateHotfixChannelRequest) (*models.HotfixChannel, error)
 	GetHotfixChannels(ctx context.Context, tenantID, productLineID string) ([]models.HotfixChannel, error)
 	IsHotfixBranch(ctx context.Context, tenantID, productLineID, branchName string) (bool, error)
+	ResolveEnvironmentMapping(ctx context.Context, tenantID, productLineID, branch string) (environment string, matchedBranch string, err error)
 }
 
 type Handler struct {

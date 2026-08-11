@@ -5,18 +5,19 @@
 // with the platform's middleware helpers.
 //
 // API contract:
-//   GET    /collectors            — list registered adapters
-//   GET    /collectors/:name      — adapter info (name + schema)
-//   GET    /collectors/:name/targets     — list targets for an adapter
-//   POST   /collectors/:name/targets     — register a target
-//   DELETE /collectors/:name/targets/:id — delete a target
-//   POST   /collectors/:name/discover     — run discovery on a target
-//   POST   /collectors/:name/collect      — collect attributes from a device
-//   GET    /collections                  — list recent collection results
-//   GET    /collections/:collectionId    — single collection result
-//   GET    /devices                      — list discovered devices
-//   GET    /devices/:id                  — device details
-//   GET    /health                       — health check (no auth)
+//
+//	GET    /collectors            — list registered adapters
+//	GET    /collectors/:name      — adapter info (name + schema)
+//	GET    /collectors/:name/targets     — list targets for an adapter
+//	POST   /collectors/:name/targets     — register a target
+//	DELETE /collectors/:name/targets/:id — delete a target
+//	POST   /collectors/:name/discover     — run discovery on a target
+//	POST   /collectors/:name/collect      — collect attributes from a device
+//	GET    /collections                  — list recent collection results
+//	GET    /collections/:collectionId    — single collection result
+//	GET    /devices                      — list discovered devices
+//	GET    /devices/:id                  — device details
+//	GET    /health                       — health check (no auth)
 package handler
 
 import (
@@ -111,22 +112,23 @@ func (h *Handler) ListTargets(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"targets": targets,
-		"total":   len(targets),
+		"targets":   targets,
+		"total":     len(targets),
 		"collector": collectorName,
-	})}
+	})
+}
 
 func (h *Handler) CreateTarget(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTarget")
 	defer span.End()
 	var req struct {
-		Name       string                 `json:"name" binding:"required"`
-		Host       string                 `json:"host" binding:"required"`
-		Port       int                    `json:"port"`
-		Type       string                 `json:"type"`
-		Protocol   string                 `json:"protocol"`
-		Config     map[string]interface{} `json:"config"`
-		Metadata   map[string]interface{} `json:"metadata"`
+		Name     string                 `json:"name" binding:"required"`
+		Host     string                 `json:"host" binding:"required"`
+		Port     int                    `json:"port"`
+		Type     string                 `json:"type"`
+		Protocol string                 `json:"protocol"`
+		Config   map[string]interface{} `json:"config"`
+		Metadata map[string]interface{} `json:"metadata"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())

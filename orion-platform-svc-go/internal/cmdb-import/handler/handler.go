@@ -2,13 +2,14 @@
 // All endpoints are mounted under the api.RouterGroup via RegisterRoutes.
 //
 // API contract:
-//   POST   /api/cmdb/import/jobs           - Create import job
-//   GET    /api/cmdb/import/jobs           - List jobs (paginated)
-//   GET    /api/cmdb/import/jobs/:id       - Get job details
-//   POST   /api/cmdb/import/jobs/:id/start - Start job
-//   POST   /api/cmdb/import/jobs/:id/cancel - Cancel job
-//   GET    /api/cmdb/import/jobs/:id/records - Get import records
-//   POST   /api/cmdb/import/validate       - Validate source before import
+//
+//	POST   /api/cmdb/import/jobs           - Create import job
+//	GET    /api/cmdb/import/jobs           - List jobs (paginated)
+//	GET    /api/cmdb/import/jobs/:id       - Get job details
+//	POST   /api/cmdb/import/jobs/:id/start - Start job
+//	POST   /api/cmdb/import/jobs/:id/cancel - Cancel job
+//	GET    /api/cmdb/import/jobs/:id/records - Get import records
+//	POST   /api/cmdb/import/validate       - Validate source before import
 package handler
 
 import (
@@ -73,12 +74,12 @@ func (h *Handler) CreateJob(c *gin.Context) {
 	}
 
 	middleware.RespondCreated(c, gin.H{
-		"id":         job.ID,
+		"id":          job.ID,
 		"source_type": job.SourceType,
-		"status":     job.Status,
+		"status":      job.Status,
 		"target_type": job.TargetType,
-		"mode":       job.Mode,
-		"name":       job.Name,
+		"mode":        job.Mode,
+		"name":        job.Name,
 	})
 }
 
@@ -142,9 +143,9 @@ func (h *Handler) StartJob(c *gin.Context) {
 	}
 
 	middleware.RespondSuccess(c, gin.H{
-		"status":   "started",
-		"job_id":   jobID,
-		"message":  "import job started",
+		"status":  "started",
+		"job_id":  jobID,
+		"message": "import job started",
 	})
 }
 
@@ -185,16 +186,16 @@ func (h *Handler) GetRecords(c *gin.Context) {
 	}
 
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-		if limit <= 0 || limit > 500 {
-			limit = 50
-		}
-		records, err := h.svc.ListRecordsByJob(ctx, jobID, offset, limit)
-		if err != nil {
-			middleware.RespondInternalError(c, err.Error())
-			return
-		}
-		middleware.RespondSuccess(c, gin.H{
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	records, err := h.svc.ListRecordsByJob(ctx, jobID, offset, limit)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{
 		"job_id":  jobID,
 		"records": records,
 	})
