@@ -55,22 +55,22 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 		`INSERT INTO records (id, tenant_id, name, status, metadata, created_at, updated_at)
 		 VALUES (:id, :tenantId, :name, :status, :metadata, :createdAt, :updatedAt)`,
 		map[string]interface{}{
-			"id":         id,
-			"tenantId":   tenantID,
-			"name":       req.Name,
-			"status":     req.Status,
-			"metadata":   metadataJSON,
-			"createdAt":  now,
-			"updatedAt":  now,
+			"id":        id,
+			"tenantId":  tenantID,
+			"name":      req.Name,
+			"status":    req.Status,
+			"metadata":  metadataJSON,
+			"createdAt": now,
+			"updatedAt": now,
 		})
 	if err != nil {
 		return nil, err
 	}
 	rec := &models.Record{
-		ID:       id,
-		TenantID: tenantID,
-		Name:     req.Name,
-		Status:   req.Status,
+		ID:        id,
+		TenantID:  tenantID,
+		Name:      req.Name,
+		Status:    req.Status,
 		CreatedAt: now,
 	}
 	return rec, nil
@@ -82,18 +82,18 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 	idx := 2
 
 	if req.Name != "" {
-		setParts = append(setParts, "name = $"+string(rune('0'+idx)))
+		setParts = append(setParts, fmt.Sprintf("name = $%d", idx))
 		args = append(args, req.Name)
 		idx++
 	}
 	if req.Status != "" {
-		setParts = append(setParts, "status = $"+string(rune('0'+idx)))
+		setParts = append(setParts, fmt.Sprintf("status = $%d", idx))
 		args = append(args, req.Status)
 		idx++
 	}
 	if len(req.Config) > 0 {
 		metadataJSON, _ := json.Marshal(req.Config)
-		setParts = append(setParts, "metadata = $"+string(rune('0'+idx)))
+		setParts = append(setParts, fmt.Sprintf("metadata = $%d", idx))
 		args = append(args, string(metadataJSON))
 		idx++
 	}
@@ -102,8 +102,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 	tenantIdx := idx + 1
 
 	query := "UPDATE records SET " + joinSetParts(setParts) +
-		" WHERE id = $" + fmt.Sprintf("%d", nameIdx) + " AND tenant_id = $" + fmt.Sprintf("%d", tenantIdx) +
-		" AND deleted_at IS NULL"
+		fmt.Sprintf(" WHERE id = $%d AND tenant_id = $%d AND deleted_at IS NULL", nameIdx, tenantIdx)
 	res, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -128,8 +127,6 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	}
 	return nil
 }
-
-// --- Helpers ---
 
 func joinSetParts(parts []string) string {
 	result := ""
