@@ -36,7 +36,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, e *models.LILN
 	e.TenantID = tenantID
 
 	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO incident-action (id, tenant_id, name, value, enabled, created_at, updated_at)
+		INSERT INTO incident_actions (id, tenant_id, name, value, enabled, created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :value, :enabled, :created_at, :updated_at)`, e)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, e *models.LILN
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
 	var e models.LILNLCLILDLELNLTLuLALCLTLILOLN
 	err := r.db.GetContext(ctx, &e,
-		"SELECT * FROM incident-action WHERE id = $1 AND tenant_id = $2", id, tenantID)
+		"SELECT * FROM incident_actions WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, ErrLILNLCLILDLELNLTLuLALCLTLILOLNNotFound
 	}
@@ -60,7 +60,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
 	var entities []models.LILNLCLILDLELNLTLuLALCLTLILOLN
 	err := r.db.SelectContext(ctx, &entities,
-		"SELECT * FROM incident-action WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
+		"SELECT * FROM incident_actions WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	}
 	args = append(args, id, tenantID)
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE incident-action SET "+strings.Join(setParts, ", ")+
+		"UPDATE incident_actions SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1), args...)
 	if err != nil {
 		return nil, err
@@ -92,6 +92,6 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		"DELETE FROM incident-action WHERE id = $1 AND tenant_id = $2", id, tenantID)
+		"DELETE FROM incident_actions WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
