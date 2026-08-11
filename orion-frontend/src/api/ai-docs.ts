@@ -122,6 +122,15 @@ export interface RAGResponse {
   answer: string;
   sources: RAGResult[];
   confidence: number;
+  feedback_token?: string;
+  query_type?: string;
+  latency_ms?: number;
+}
+
+// SSE stream response type
+export interface SSEMessage {
+  event: 'chunk' | 'complete' | 'error';
+  data?: string;
 }
 
 // ============================================================================
@@ -194,11 +203,43 @@ export const getDocVersions = async (id: string) => {
 // ============================================================================
 
 export const ragRetrieve = async (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<RagRetrieveResponse>('/api/v1/knowledge/api/v1/rag/retrieve', data);
+  return api.post<RagRetrieveResponse>('/api/v1/knowledge/rag/retrieve', data);
 };
 
 export const ragQuery = async (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<RAGResponse>('/api/v1/knowledge/api/v1/rag/query', data);
+  return api.post<RAGResponse>('/api/v1/knowledge/rag/query', data);
+};
+
+export const ragFeedback = async (data: { token: string; is_positive: boolean; corrected_answer?: string }) => {
+  return api.post('/api/v1/knowledge/rag/feedback', data);
+};
+
+export const ragQueryStream = (data: { query: string; spaceId?: string; topK?: number }) => {
+  return api.post<EventSource>('/api/v1/knowledge/rag/query/stream', data);
+};
+
+export const getRAGPromptTemplates = async () => {
+  return api.get('/api/v1/knowledge/rag/prompt/templates');
+};
+
+export const saveRAGPromptTemplate = async (data: { name: string; version: string; content: string }) => {
+  return api.post('/api/v1/knowledge/rag/prompt/templates', data);
+};
+
+export const triggerRAGIndex = async () => {
+  return api.post('/api/v1/knowledge/rag/index', {});
+};
+
+export const getRAGAdminConfig = async () => {
+  return api.get('/api/v1/knowledge/rag/admin/config');
+};
+
+export const updateRAGAdminConfig = async (data: Record<string, unknown>) => {
+  return api.post('/api/v1/knowledge/rag/admin/config', data);
+};
+
+export const getRAGEvalMetrics = async () => {
+  return api.get('/api/v1/knowledge/rag/eval/metrics');
 };
 
 // ============================================================================
@@ -206,5 +247,5 @@ export const ragQuery = async (data: { query: string; spaceId?: string; topK?: n
 // ============================================================================
 
 export const getKnowledgeGraph = async (params?: { spaceId?: string }) => {
-  return api.get('/api/v1/knowledge/api/v1/graph', { params });
+  return api.get('/api/v1/knowledge/graph', { params });
 };

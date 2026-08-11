@@ -7,7 +7,6 @@ import { BrowserRouter } from 'react-router-dom';
 import Console from '@/pages/Console';
 import { server } from '@/tests/mocks/server';
 
-// Mock antd message
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');
   return {
@@ -24,6 +23,11 @@ beforeEach(() => {
   server.resetHandlers();
 });
 
+afterEach(() => {
+  server.resetHandlers();
+});
+
+describe('Console Phase 6 service governance', () => {
   it('renders Phase 6 service governance section', async () => {
     renderWithProviders(<Console />);
     await waitFor(() => {
@@ -62,7 +66,6 @@ beforeEach(() => {
   it('Phase 6 cards have correct navigation links', async () => {
     renderWithProviders(<Console />);
     await waitFor(() => {
-      // Phase 6 cards use onClick navigation; verify the target URLs are in the DOM
       expect(screen.getByText('服务注册中心')).toBeInTheDocument();
       expect(screen.getByText('网关路由管理')).toBeInTheDocument();
       expect(screen.getByText('健康仪表盘')).toBeInTheDocument();

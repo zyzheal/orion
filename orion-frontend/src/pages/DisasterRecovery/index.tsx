@@ -251,8 +251,8 @@ const DisasterRecovery: React.FC = () => {
   const [createForm] = Form.useForm();
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [testingType, setTestingType] = useState<'rto' | 'rpo' | null>(null);
-  const [rtoTarget, setRtoTarget] = useState(DEFAULT_RTO_TARGET);
-  const [rpoTarget, setRpoTarget] = useState(DEFAULT_RPO_TARGET);
+  const [rtoTarget, _setRtoTarget] = useState(DEFAULT_RTO_TARGET);
+  const [rpoTarget, _setRpoTarget] = useState(DEFAULT_RPO_TARGET);
   const [lastDrill, setLastDrill] = useState(DEFAULT_LAST_DRILL);
   const [coverage, setCoverage] = useState(DEFAULT_COVERAGE);
 
@@ -418,6 +418,7 @@ const DisasterRecovery: React.FC = () => {
       setLoading(true);
       await disasterRecoveryApi.createDRPlan({
         name: values.serviceName,
+        description: values.serviceName + ' 灾备计划',
         rpo: values.rpo,
         rto: values.rto,
         services: [values.serviceName],

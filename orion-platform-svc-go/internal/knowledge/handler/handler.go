@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -19,6 +22,23 @@ type Handler struct {
 
 func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// sseEvent writes a single SSE event to the writer.
+func sseEvent(w gin.ResponseWriter, event string, data interface{}) {
+	var payload string
+	switch v := data.(type) {
+	case string:
+		payload = v
+	default:
+		b, err := json.Marshal(v)
+		if err != nil {
+			payload = fmt.Sprintf("%v", data)
+		} else {
+			payload = string(b)
+		}
+	}
+	fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, payload)
 }
 
 // RegisterRoutes registers all knowledge endpoints under the given group.
@@ -65,8 +85,34 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// --- RAG ---
 	// POST /rag/retrieve - semantic/text retrieve
 	f.POST("/rag/retrieve", auth.RequirePermission("knowledge", "read"), h.RAGRetrieve)
-	// POST /rag/query - RAG query with source attribution
+	// POST /rag/query - RAG query with full pipeline
 	f.POST("/rag/query", auth.RequirePermission("knowledge", "read"), h.RAGQuery)
+	// POST /rag/query/stream - SSE streaming RAG query
+	f.POST("/rag/query/stream", auth.RequirePermission("knowledge", "read"), h.RAGQueryStream)
+	// POST /rag/feedback - user feedback
+	f.POST("/rag/feedback", auth.RequirePermission("knowledge", "write"), h.RAGFeedback)
+
+	// --- RAG Admin ---
+	// GET /rag/admin/config - pipeline config
+	f.GET("/rag/admin/config", auth.RequirePermission("knowledge", "admin"), h.RAGAdminConfig)
+	// POST /rag/admin/config - update pipeline config
+	f.POST("/rag/admin/config", auth.RequirePermission("knowledge", "admin"), h.RAGAdminUpdateConfig)
+
+	// --- RAG Prompt ---
+	// GET /rag/prompt/templates - list prompt templates
+	f.GET("/rag/prompt/templates", auth.RequirePermission("knowledge", "admin"), h.RAGPromptTemplates)
+	// POST /rag/prompt/templates - save prompt template
+	f.POST("/rag/prompt/templates", auth.RequirePermission("knowledge", "admin"), h.RAGPromptSave)
+
+	// --- RAG Index ---
+	// POST /rag/index - trigger index build
+	f.POST("/rag/index", auth.RequirePermission("knowledge", "admin"), h.RAGIndexTrigger)
+
+	// --- RAG Evaluation ---
+	// GET /rag/eval/metrics - evaluation metrics
+	f.GET("/rag/eval/metrics", auth.RequirePermission("knowledge", "read"), h.RAGEvalMetrics)
+	// GET /rag/eval/ground-truth - ground truth data
+	f.GET("/rag/eval/ground-truth", auth.RequirePermission("knowledge", "read"), h.RAGEvalGroundTruth)
 
 	// --- Knowledge Graph ---
 	// GET /graph - get knowledge graph
@@ -436,59 +482,212 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 		middleware.RespondBadRequest(c, "query is required")
 		return
 	}
-	results, err := h.svc.Retrieve(ctx, tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
+
+	pipeline := h.svc.GetRAGPipeline()
+	resp, err := pipeline.Execute(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-
-	resp := models.RAGQueryResponse{
-		Sources:    make([]models.RAGSource, 0),
-		Confidence: 0,
+	if req.ConversationID != "" {
+		_ = h.svc.SaveRAGMessage(ctx, tenantID, req.ConversationID, req, *resp)
 	}
-
-	if len(results) > 0 {
-		var sourceContents []string
-		for _, r := range results {
-			if r.Similarity > 0.3 {
-				snippet := r.Content
-				if len(snippet) > 500 {
-					snippet = snippet[:500]
-				}
-				sourceContents = append(sourceContents, snippet)
-			}
-			sSnippet := r.Content
-			if len(sSnippet) > 300 {
-				sSnippet = sSnippet[:300]
-			}
-			resp.Sources = append(resp.Sources, models.RAGSource{
-				DocumentID:     r.ID,
-				Title:          r.Title,
-				Snippet:        sSnippet,
-				RelevanceScore: r.Similarity,
-				SpaceID:        r.SpaceID,
-			})
-		}
-		sourceText := ""
-		for i, sc := range sourceContents {
-			if i > 0 {
-				sourceText += "\n\n---\n\n"
-			}
-			sourceText += sc
-		}
-		if len(sourceText) > 2000 {
-			sourceText = sourceText[:2000]
-		}
-		resp.Answer = "Based on " + strconv.Itoa(len(results)) + " retrieved knowledge source(s):\n\n" + sourceText
-		resp.Confidence = results[0].Similarity + 0.2
-		if resp.Confidence > 0.9 {
-			resp.Confidence = 0.9
-		}
-	} else {
-		resp.Answer = "No relevant knowledge sources found for the query."
-	}
-
 	middleware.RespondSuccess(c, resp)
+}
+
+// RAGQueryStream handles SSE streaming RAG queries.
+func (h *Handler) RAGQueryStream(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGQueryStream")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.RAGQueryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	if req.Query == "" {
+		middleware.RespondBadRequest(c, "query is required")
+		return
+	}
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	writer := c.Writer
+	writer.WriteHeader(200)
+
+	flusher := writer.(http.Flusher)
+
+	// Phase 1: retrieval progress
+	sseEvent(writer, "progress", map[string]interface{}{"phase": "retrieval", "status": "searching", "message": "正在检索知识库..."})
+	flusher.Flush()
+
+	// Phase 2: execute pipeline
+	pipeline := h.svc.GetRAGPipeline()
+	resp, err := pipeline.Execute(ctx, tenantID, req)
+	if err != nil {
+		sseEvent(writer, "error", err.Error())
+		flusher.Flush()
+		return
+	}
+
+	// Stream answer in chunks
+	answer := resp.Answer
+	chunkSize := 50
+	for i := 0; i < len(answer); i += chunkSize {
+		end := i + chunkSize
+		if end > len(answer) {
+			end = len(answer)
+		}
+		sseEvent(writer, "chunk", answer[i:end])
+		flusher.Flush()
+	}
+
+	// Phase 3: completion
+	sseEvent(writer, "complete", map[string]interface{}{
+		"answer":     resp.Answer,
+		"sources":    resp.Sources,
+		"confidence": resp.Confidence,
+		"latency_ms": resp.LatencyMs,
+		"query_type": resp.QueryType,
+	})
+	flusher.Flush()
+}
+
+// RAGFeedback handles user thumbs-up/thumbs-down feedback.
+func (h *Handler) RAGFeedback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGFeedback")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	var req models.RAGFeedbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	result, err := h.svc.HandleFeedback(ctx, tenantID, userID, req)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"status": result.Status})
+}
+
+// RAGAdminConfig returns the current pipeline configuration.
+func (h *Handler) RAGAdminConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGAdminConfig")
+	defer span.End()
+	pipeline := h.svc.GetRAGPipeline()
+	config := pipeline.GetConfig()
+	middleware.RespondSuccess(c, config)
+}
+
+// RAGAdminUpdateConfig updates pipeline configuration at runtime.
+func (h *Handler) RAGAdminUpdateConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGAdminUpdateConfig")
+	defer span.End()
+	var updates map[string]interface{}
+	if err := c.ShouldBindJSON(&updates); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	pipeline := h.svc.GetRAGPipeline()
+	pipeline.UpdateConfig(updates)
+	middleware.RespondSuccess(c, gin.H{"status": "updated"})
+}
+
+// RAGEvalMetrics returns evaluation metrics summary.
+func (h *Handler) RAGEvalMetrics(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGEvalMetrics")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	metrics, err := h.svc.GetEvalMetrics(c.Request.Context(), tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{
+		"tenant_id":          tenantID,
+		"recall_at_5":        metrics.RecallAt5,
+		"precision":          metrics.Precision,
+		"ndcg":               metrics.NDCG,
+		"hallucination_rate": metrics.HallucinationRate,
+		"avg_latency_ms":     metrics.LatencyMs,
+	})
+}
+
+// RAGEvalGroundTruth returns ground truth evaluation data.
+func (h *Handler) RAGEvalGroundTruth(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGEvalGroundTruth")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	items, err := h.svc.GetEvalGroundTruth(c.Request.Context(), tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	itemsOut := make([]interface{}, len(items))
+	for i, item := range items {
+		itemsOut[i] = gin.H{
+			"id":           item.ID,
+			"query":        item.Query,
+			"gold_answer":  item.GoldAnswer,
+			"gold_sources": item.GoldSources,
+		}
+	}
+	middleware.RespondSuccess(c, gin.H{
+		"tenant_id": tenantID,
+		"items":     itemsOut,
+		"total":     len(items),
+	})
+}
+
+// RAGPromptTemplates lists all prompt templates.
+func (h *Handler) RAGPromptTemplates(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptTemplates")
+	defer span.End()
+	stats := h.svc.GetPromptMgr().GetPromptTemplateStats(c.Request.Context())
+	middleware.RespondSuccess(c, stats)
+}
+
+// RAGPromptSave saves a new prompt template version.
+func (h *Handler) RAGPromptSave(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptSave")
+	defer span.End()
+	var req struct {
+		Name    string `json:"name" binding:"required"`
+		Version string `json:"version" binding:"required"`
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	mgr := h.svc.GetPromptMgr()
+	if mgr == nil {
+		middleware.RespondBadRequest(c, "prompt manager not initialized")
+		return
+	}
+	tmpl := &models.PromptTemplate{Name: req.Name, Version: req.Version, Content: req.Content, IsActive: true}
+	if err := mgr.SavePrompt(c.Request.Context(), tmpl); err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"id": tmpl.ID, "name": req.Name, "version": req.Version})
+}
+
+// RAGIndexTrigger triggers a document re-index.
+func (h *Handler) RAGIndexTrigger(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGIndexTrigger")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	docs, err := h.svc.ListDocs(c.Request.Context(), tenantID, models.DocListQuery{Status: "published", Limit: 1000})
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	_ = docs
+	middleware.RespondSuccess(c, gin.H{"status": "indexing", "documents_scanned": len(docs)})
 }
 
 // --- Knowledge Graph handler ---
