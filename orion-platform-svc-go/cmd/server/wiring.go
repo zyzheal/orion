@@ -184,6 +184,12 @@ import (
 	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
 	// ---- Prompt Security + remaining un-wired modules ----
 	ps_handler "orion/platform-svc-go/internal/prompt-security/handler"
+	// P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
+	agents_handler "orion/platform-svc-go/internal/agents/handler"
+	dbdevops_handler "orion/platform-svc-go/internal/database-devops/handler"
+	gw_routes_handler "orion/platform-svc-go/internal/gateway-routes/handler"
+	rate_limit_handler "orion/platform-svc-go/internal/rate-limiting/handler"
+	test_reports_handler "orion/platform-svc-go/internal/test-reports/handler"
 	)
 var (
 	gsH                 *gs_handler.Handler // Global search service
@@ -247,6 +253,12 @@ var (
 	// ---- AI module handlers (internal/ai/) ----
 	ai_knowledgeH     *ai_knowledge_handler.KnowledgeHandler
 	psH *ps_handler.PromptSecurityHandler
+	// P1: handlers for agents, database-devops, gateway-routes, rate-limiting, test-reports
+	agentsH     *agents_handler.Handler
+	dbdevopsH   *dbdevops_handler.Handler
+	gwRoutesH   *gw_routes_handler.Handler
+	rateLimitH  *rate_limit_handler.Handler
+	testReportsH *test_reports_handler.Handler
 )
 func initWiring(infra *infrastructure, logger *zap.Logger) {
 	db := infra.db
@@ -613,7 +625,13 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		infraCapH = infraCap_handler.NewHandler(infraCapSvc)
 		// Group C: Duplicate - psH shares the same handler as promptSecurityH
 		psH = promptSecurityH
-	
+		// P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
+		agentsH = agents_handler.NewHandler(infra.db.DB)
+		dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB)
+		gwRoutesH = gw_routes_handler.NewHandler(infra.db.DB)
+		rateLimitH = rate_limit_handler.NewHandler(infra.db.DB)
+		testReportsH = test_reports_handler.NewHandler(infra.db.DB)
+
 }
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
 // subscribers. Graceful no-op when NATS is unreachable (async event-driven pipeline).

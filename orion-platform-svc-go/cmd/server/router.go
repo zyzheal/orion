@@ -998,8 +998,24 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if slaPolicyTicketH != nil {
     slaPolicyTicketH.RegisterRoutes(api)
   }
-  if ticketSourceTicketH != nil {
+	if ticketSourceTicketH != nil {
     ticketSourceTicketH.RegisterRoutes(api)
+  }
+  // P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
+  if agentsH != nil {
+    agentsH.RegisterRoutes(api)
+  }
+  if dbdevopsH != nil {
+    dbdevopsH.RegisterRoutes(api)
+  }
+  if gwRoutesH != nil {
+    gwRoutesH.RegisterRoutes(api)
+  }
+  if rateLimitH != nil {
+    rateLimitH.RegisterRoutes(api)
+  }
+  if testReportsH != nil {
+    testReportsH.RegisterRoutes(api)
   }
 
 	// Route discovery endpoint — returns all registered routes for DocumentationGenerator
