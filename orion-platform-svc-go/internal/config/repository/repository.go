@@ -473,3 +473,23 @@ func isNotFoundError(err error) bool {
 	// Check for pgx "no rows" error pattern
 	return strings.Contains(err.Error(), "no rows in result set") || strings.Contains(err.Error(), "not found")
 }
+
+// FindDependencyNodesByConfigID queries config_dependencies to build a dependency graph.
+type configDependencyEdge struct {
+	TenantID string `db:"tenant_id"`
+	ConfigID string `db:"config_id"`
+	DependsOn string `db:"depends_on"`
+}
+
+func (r *Repository) FindDependencyNodesByConfigID(ctx context.Context, tenantID, configID string) ([]configDependencyEdge, error) {
+	var edges []configDependencyEdge
+	err := r.db.SelectContext(ctx, &edges,
+		`SELECT tenant_id, config_id, depends_on FROM config_dependencies
+		 WHERE config_id = $1 AND tenant_id = $2
+		 ORDER BY config_id, depends_on`,
+		configID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return edges, nil
+}

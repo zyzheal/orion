@@ -156,15 +156,10 @@ func (s *RCAService) GetTimeline(ctx context.Context, tenantID uuid.UUID, incide
 
 // SuggestFixes returns suggested fixes for a root cause.
 func (s *RCAService) SuggestFixes(ctx context.Context, tenantID uuid.UUID, rootCauseID string) ([]models.Fix, error) {
-	// In a real implementation, this would query the root cause and suggest fixes
-	// For now, return a basic suggestion
 	s.logger.Info("suggesting fixes",
 		zap.String("rootCauseId", rootCauseID),
 	)
-	return []models.Fix{
-		{Title: "Investigate logs", Description: "Check application and system logs", Priority: 1, Status: "suggested"},
-		{Title: "Review metrics", Description: "Analyze relevant metrics in monitoring dashboard", Priority: 2, Status: "suggested"},
-	}, nil
+	return s.repo.GetFixSuggestionsByRootCauseID(ctx, tenantID, rootCauseID)
 }
 
 // QueryAnalysisHistory returns paginated analysis history.

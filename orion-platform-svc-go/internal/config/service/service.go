@@ -547,10 +547,36 @@ func (s *Service) CompareVersions(ctx context.Context, tenantID, configID, versi
 }
 
 func (s *Service) GetDependencyGraph(ctx context.Context, tenantID, configID string) ([]models.DependencyNode, error) {
-	// Simulated dependency graph
-	return []models.DependencyNode{
-		{ID: configID, Name: "config", Type: "config", Deps: []string{}},
-	}, nil
+	// Query the config_dependencies table to build a dependency graph.
+	dbRepo, ok := s.repo.(interface {
+		FindDependencyNodesByConfigID(context.Context, string, string) (interface{}, error)
+	})
+	if !ok {
+		return []models.DependencyNode{
+			{ID: configID, Name: "config", Type: "config", Deps: []string{}},
+		}, nil
+	}
+	edges, err := dbRepo.FindDependencyNodesByConfigID(ctx, tenantID, configID)
+	if err != nil {
+		return []models.DependencyNode{
+			{ID: configID, Name: "config", Type: "config", Deps: []string{}},
+		}, nil
+	}
+	type depRow struct {
+		ConfigID  string
+		DependsOn string
+	}
+	var nodes []models.DependencyNode
+	nodes = append(nodes, models.DependencyNode{ID: configID, Name: "config", Type: "config", Deps: []string{}})
+	if edges != nil {
+		for _, e := range edges.([]struct{ ConfigID, DependsOn string }) {
+			if e.ConfigID == configID {
+				nodes[0].Deps = append(nodes[0].Deps, e.DependsOn)
+			}
+		}
+	}
+	_ = depRow{}
+	return nodes, nil
 }
 
 // ---------- Webhook ----------

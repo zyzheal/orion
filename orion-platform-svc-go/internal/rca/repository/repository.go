@@ -265,3 +265,27 @@ func joinStrings(parts []string, sep string) string {
 	}
 	return result
 }
+
+// GetFixSuggestionsByRootCauseID returns suggested fixes from the rca_root_causes.fixes column.
+func (r *RCARespository) GetFixSuggestionsByRootCauseID(ctx context.Context, tenantID uuid.UUID, rootCauseID string) ([]models.Fix, error) {
+	r.logger.Debug("fetching fix suggestions",
+		zap.String("rootCauseId", rootCauseID),
+	)
+	var fixesJSON string
+	err := r.db.GetContext(ctx, &fixesJSON,
+		`SELECT fixes FROM rca_root_causes WHERE id = $1`, rootCauseID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []models.Fix{}, nil
+		}
+		return nil, fmt.Errorf("get fix suggestions: %w", err)
+	}
+	if fixesJSON == "" || fixesJSON == "[]" {
+		return []models.Fix{}, nil
+	}
+	var fixes []models.Fix
+	if err := json.Unmarshal([]byte(fixesJSON), &fixes); err != nil {
+		return nil, fmt.Errorf("unmarshal fix suggestions: %w", err)
+	}
+	return fixes, nil
+}

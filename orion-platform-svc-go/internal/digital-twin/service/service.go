@@ -22,6 +22,7 @@ type RepositoryInterface interface {
 	FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
 	FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error)
 	FindReplaySessionsByTwinID(ctx context.Context, tenantID string, twinID string) ([]models.ReplaySession, error)
+	GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error)
 	FindTrafficRecordsByTwinID(ctx context.Context, tenantID string, twinID string) ([]models.TrafficRecord, error)
 	FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
 	UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error)
@@ -220,15 +221,32 @@ func (s *Service) PauseRecording(recordingID string) *RecordingResult {
 }
 
 func (s *Service) GetRecordingDetail(recordingID string) *RecordingDetail {
+	// Try in-memory store first, then fall back to DB.
+	if session, ok := s.recordingStore[recordingID]; ok {
+		return &RecordingDetail{
+			ID:          recordingID,
+			RecordCount: len(session.Records),
+			Records:     session.Records,
+		}
+	}
+	// Query the recording_sessions.records JSONB column.
+	records, err := s.repo.GetRecordingRecordsBySessionID(context.Background(), recordingID)
+	if err != nil {
+		return &RecordingDetail{ID: recordingID, RecordCount: 0, Records: []any{}}
+	}
 	return &RecordingDetail{
 		ID:          recordingID,
-		RecordCount: 0,
-		Records:     []any{},
+		RecordCount: len(records),
+		Records:     records,
 	}
 }
 
 func (s *Service) GetRecordingRecords(recordingID string) []any {
-	return []any{}
+	detail := s.GetRecordingDetail(recordingID)
+	if detail == nil {
+		return []any{}
+	}
+	return detail.Records
 }
 
 // --- Traffic Replay ---

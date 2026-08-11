@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -176,4 +177,46 @@ func (r *Repository) UpdateReplaySession(ctx context.Context, tenantID, id, stat
 
 func ErrNotFoundMsg(msg string) error {
 	return fmt.Errorf("%s: %w", msg, sentinel.NotFound)
+}
+
+// FindRecordingSessionByID reads a recording session by id, scanning the JSONB records column.
+type recordingSessionRow struct {
+	ID          string          `db:"id"`
+	TwinID      string          `db:"twin_id"`
+	Name        string          `db:"name"`
+	Status      string          `db:"status"`
+	RecordCount int64           `db:"record_count"`
+	RecordsJSON []byte          `db:"records"`
+	StartedAt   time.Time       `db:"started_at"`
+	CompletedAt *time.Time      `db:"completed_at"`
+	UpdatedAt   time.Time       `db:"updated_at"`
+}
+
+func (r *Repository) FindRecordingSessionByID(ctx context.Context, id string) (*recordingSessionRow, error) {
+	var row recordingSessionRow
+	err := r.db.GetContext(ctx, &row,
+		`SELECT id, twin_id, name, status, record_count, records, started_at, completed_at, updated_at
+		 FROM recording_sessions WHERE id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+// GetRecordingRecordsBySessionID returns the parsed records array for a recording session.
+func (r *Repository) GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error) {
+	var recordsJSON []byte
+	err := r.db.GetContext(ctx, &recordsJSON,
+		`SELECT records FROM recording_sessions WHERE id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	if recordsJSON == nil || len(recordsJSON) == 0 {
+		return []interface{}{}, nil
+	}
+	var records []interface{}
+	if err := json.Unmarshal(recordsJSON, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
 }

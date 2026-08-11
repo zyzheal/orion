@@ -109,6 +109,13 @@ func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, te
 	return m.records[twinID], nil
 }
 
+func (m *mockDigitalTwinRepo) GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error) {
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
+	return []interface{}{}, nil
+}
+
 func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr

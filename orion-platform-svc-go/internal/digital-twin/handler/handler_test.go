@@ -84,6 +84,11 @@ func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, tenantID,
 	return &models.ReplaySession{ID: id, Status: status}, nil
 }
 
+func (m *mockDigitalTwinRepo) GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error) {
+	if m.dbErr != nil { return nil, m.dbErr }
+	return nil, nil
+}
+
 // --- helpers ---
 
 func newHandlerWithSvc(svc *dt_service.Service) *Handler {

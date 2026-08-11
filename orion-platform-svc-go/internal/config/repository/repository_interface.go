@@ -50,6 +50,7 @@ type RepositoryInterface interface {
 	GetWebhook(ctx context.Context, tenantID, id string) (*models.ConfigWebhook, error)
 	UpdateWebhook(ctx context.Context, tenantID string, m *models.ConfigWebhook) error
 	DeleteWebhook(ctx context.Context, tenantID, id string) error
+	FindDependencyNodesByConfigID(ctx context.Context, tenantID, configID string) ([]configDependencyEdge, error)
 }
 
 // Ensure Repository implements RepositoryInterface.
