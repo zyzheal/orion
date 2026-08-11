@@ -92,7 +92,7 @@ const EphemeralEnvDetail: React.FC = () => {
     setLoading(true);
     try {
       const envRes = await getEphemeralEnv(envId).catch(() => null);
-      setEnv(envRes || null);
+      setEnv(envRes ? envRes.data : null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error(`加载环境详情失败：${err.message}`);
@@ -108,7 +108,7 @@ const EphemeralEnvDetail: React.FC = () => {
     setCostLoading(true);
     try {
       const costRes = await getEphemeralEnvCost(envId).catch(() => null);
-      setCost(costRes || null);
+      setCost(costRes ? costRes.data : null);
     } catch (error: unknown) {
       setCost(null);
     } finally {

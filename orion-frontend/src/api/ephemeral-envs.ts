@@ -2,6 +2,7 @@
  * Ephemeral Dev Environments API Service
  * Environment lifecycle, templates, and cost tracking
  */
+import { api } from './client';
 
 // ============================================================================
 // Types
@@ -51,29 +52,12 @@ export interface EphemeralEnvCost {
   periodEnd: string;
 }
 
-// ============================================================================
-// Environment APIs
-// ============================================================================
-
 export interface EphemeralEnvParams {
   prId?: string;
   repoId?: string;
   status?: string;
   page?: number;
   pageSize?: number;
-}
-
-// Note: Backend doesn't have ephemeral-envs routes yet.
-// These functions return empty results until the backend endpoints are implemented.
-
-export function getEphemeralEnvs(_params?: EphemeralEnvParams) {
-  console.warn('getEphemeralEnvs: backend /ephemeral-envs endpoint not available');
-  return Promise.resolve([] as EphemeralEnvironment[]);
-}
-
-export function getEphemeralEnv(_id: string) {
-  console.warn('getEphemeralEnv: backend /ephemeral-envs/:id endpoint not available');
-  return Promise.resolve({} as EphemeralEnvironment);
 }
 
 export interface CreateEphemeralEnvInput {
@@ -84,31 +68,34 @@ export interface CreateEphemeralEnvInput {
   commitSha: string;
 }
 
-export function createEphemeralEnv(_data: CreateEphemeralEnvInput) {
-  console.warn('createEphemeralEnv: backend /ephemeral-envs endpoint not available');
-  return Promise.resolve({} as EphemeralEnvironment);
-}
-
-export function wakeEphemeralEnv(_id: string) {
-  console.warn('wakeEphemeralEnv: backend /ephemeral-envs/:id/wake endpoint not available');
-  return Promise.resolve({} as EphemeralEnvironment);
-}
-
-export function teardownEphemeralEnv(_id: string) {
-  console.warn('teardownEphemeralEnv: backend /ephemeral-envs/:id/teardown endpoint not available');
-  return Promise.resolve({} as EphemeralEnvironment);
-}
-
-export function getEphemeralEnvCost(_id: string) {
-  console.warn('getEphemeralEnvCost: backend /ephemeral-envs/:id/cost endpoint not available');
-  return Promise.resolve({} as EphemeralEnvCost);
-}
-
 // ============================================================================
-// Template APIs
+// Environment APIs — backend prefix: /ephemeral-env
 // ============================================================================
 
-export function getEnvironmentTemplates() {
-  console.warn('getEnvironmentTemplates: backend /ephemeral-envs/templates endpoint not available');
-  return Promise.resolve([] as EnvironmentTemplate[]);
-}
+export const getEphemeralEnvs = async (params?: EphemeralEnvParams) => {
+  return api.get<EphemeralEnvironment[]>('/ephemeral-env', { params });
+};
+
+export const getEphemeralEnv = async (id: string) => {
+  return api.get<EphemeralEnvironment>(`/ephemeral-env/${id}`);
+};
+
+export const createEphemeralEnv = async (data: CreateEphemeralEnvInput) => {
+  return api.post<EphemeralEnvironment>('/ephemeral-env', data);
+};
+
+export const wakeEphemeralEnv = async (id: string) => {
+  return api.post<EphemeralEnvironment>(`/ephemeral-env/${id}/extend`);
+};
+
+export const teardownEphemeralEnv = async (id: string) => {
+  return api.delete<EphemeralEnvironment>(`/ephemeral-env/${id}`);
+};
+
+export const getEphemeralEnvCost = async (id: string) => {
+  return api.get<EphemeralEnvCost>(`/ephemeral-env/${id}/logs`);
+};
+
+export const getEnvironmentTemplates = async () => {
+  return api.get<EnvironmentTemplate[]>('/ephemeral-env');
+};

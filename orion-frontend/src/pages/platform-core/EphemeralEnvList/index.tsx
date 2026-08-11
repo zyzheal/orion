@@ -97,7 +97,7 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
       setLoading(true);
       getEphemeralEnvCost(env.id)
         .then((res) => {
-          setCost(res || null);
+          setCost(res ? res.data : null);
         })
         .catch(() => setCost(null))
         .finally(() => setLoading(false));
@@ -305,7 +305,7 @@ const EphemeralEnvList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getEphemeralEnvs({});
-      setEnvs(Array.isArray(response) ? response : []);
+      setEnvs(response.data || []);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载环境列表失败';
       message.error(msg);

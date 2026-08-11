@@ -69,7 +69,7 @@ const AgentDashboard: React.FC = () => {
       setRuns(runsRes.data || []);
       // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
       const approvalsData = await getAgentApprovals({ status: 'pending' });
-      setApprovals(approvalsData);
+      setApprovals(approvalsData.data);
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.includes('403')) {

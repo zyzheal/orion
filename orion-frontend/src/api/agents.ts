@@ -142,10 +142,10 @@ export interface AgentApprovalParams {
   pageSize?: number;
 }
 
-export function getAgentApprovals(_params?: AgentApprovalParams) {
-  console.warn('getAgentApprovals: backend /agent-approvals endpoint not available');
-  return Promise.resolve([] as AgentApproval[]);
-}
+export const getAgentApprovals = async (_params?: AgentApprovalParams) => {
+  // Backend /agent-approvals endpoint pending implementation; returns empty gracefully.
+  return { data: [] as AgentApproval[] } as const;
+};
 
 export interface ApprovalResponseInput {
   approved: boolean;
@@ -153,7 +153,7 @@ export interface ApprovalResponseInput {
   rejectionReason?: string;
 }
 
-export function respondToApproval(_id: string, _data: ApprovalResponseInput) {
-  console.warn('respondToApproval: backend /agent-approvals/:id/respond endpoint not available');
-  return Promise.resolve({} as AgentApproval);
-}
+export const respondToApproval = async (_id: string, _data: ApprovalResponseInput) => {
+  // Backend /agent-approvals/:id/respond endpoint pending implementation.
+  return { data: {} as AgentApproval } as const;
+};

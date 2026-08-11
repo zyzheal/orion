@@ -81,10 +81,8 @@ export function resolveAlert(_id: string, _data?: { resolvedBy?: string; resolut
   return api.post(`/api/v1/alert/correlate`, { alerts: [{ id: _id }] });
 }
 
-export function deleteAlert(_id: string) {
-  // Backend doesn't have delete endpoint
-  console.warn('deleteAlert: backend endpoint not available');
-  return Promise.resolve();
+export function deleteAlert(id: string) {
+  return api.delete(`/api/v1/alert/${id}`);
 }
 
 export function getActiveAlerts() {
