@@ -33,7 +33,7 @@ var ErrPipelineDisabled = errors.New("alert pipeline is disabled for this tenant
 // Only Save is used at runtime; the full interface is kept for future query methods.
 type RepositoryInterface interface {
 	Save(ctx context.Context, tenantID string, result *models.PipelineResult, alertName, severity string) error
-	GetByResultID(ctx context.Context, resultID interface{}) (*repository.Result, error)
+	GetByResultID(ctx context.Context, resultID uuid.UUID) (*repository.Result, error)
 	GetByAlertID(ctx context.Context, alertID string) (*repository.Result, error)
 	List(ctx context.Context, tenantID string, limit, offset int) ([]*repository.Result, error)
 	Count(ctx context.Context, tenantID string) (int, error)

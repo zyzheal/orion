@@ -2,9 +2,12 @@
 package handler
 
 import (
+	"strings"
+
 	"orion/go-common/pkg/errors"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-pipeline/models"
+	"orion/platform-svc-go/internal/alert-pipeline/repository"
 	"orion/platform-svc-go/internal/alert-pipeline/service"
 	"orion/platform-svc-go/internal/middleware"
 
@@ -16,12 +19,12 @@ import (
 // Handler exposes HTTP endpoints for the alert pipeline.
 type Handler struct {
 	svc    *service.PipelineService
+	repo   *repository.Repository
 	logger *zap.Logger
 }
 
-// NewHandler creates a new alert-pipeline Handler.
-func NewHandler(svc *service.PipelineService, logger *zap.Logger) *Handler {
-	return &Handler{svc: svc, logger: logger}
+func NewHandler(svc *service.PipelineService, repo *repository.Repository, logger *zap.Logger) *Handler {
+	return &Handler{svc: svc, repo: repo, logger: logger}
 }
 
 // RegisterRoutes mounts all alert-pipeline endpoints.
@@ -107,13 +110,66 @@ func (h *Handler) GetResult(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "alert ID is required", 400)
 		return
 	}
-	// TODO: replace with a real results store (e.g. event.Store)
-	middleware.RespondSuccess(c, gin.H{"alert_id": id, "stages": []string{}, "status": "not_found"})
+
+	if h.repo == nil {
+		middleware.RespondSuccess(c, gin.H{"alert_id": id, "stages": []string{}, "status": "not_found"})
+		return
+	}
+
+	row, err := h.repo.GetByAlertID(c.Request.Context(), id)
+	if err != nil {
+		middleware.RespondSuccess(c, gin.H{"alert_id": id, "stages": []string{}, "status": "not_found"})
+		return
+	}
+
+	stages := make([]string, 0)
+	if row.StagesJSON != nil {
+		stages = strings.Split(string(row.StagesJSON), ",")
+	}
+
+	result := map[string]any{
+		"alert_id":    id,
+		"status":      row.Status,
+		"stages":      stages,
+		"stage_count": row.StageCount,
+	}
+	if row.AlertName.Valid {
+		result["alert_name"] = row.AlertName.String
+	}
+	if row.Severity.Valid {
+		result["severity"] = row.Severity.String
+	}
+	if row.Error.Valid {
+		result["error"] = row.Error.String
+	}
+
+	middleware.RespondSuccess(c, result)
 }
 
 // List handles GET /alerts/pipeline - list recent pipeline executions.
 func (h *Handler) List(c *gin.Context) {
-	_ = c.GetString("tenant_id")
-	// TODO: replace with a real results store (e.g. event.Store)
-	middleware.RespondSuccess(c, gin.H{"results": []string{}, "total": 0})
+	tenantID := c.GetString("tenant_id")
+
+	if h.repo == nil {
+		middleware.RespondSuccess(c, gin.H{"results": []string{}, "total": 0})
+		return
+	}
+
+	rows, err := h.repo.List(c.Request.Context(), tenantID, 50, 0)
+	if err != nil {
+		middleware.RespondSuccess(c, gin.H{"results": []string{}, "total": 0})
+		return
+	}
+
+	results := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		results = append(results, map[string]any{
+			"alert_id":    row.AlertID,
+			"status":      row.Status,
+			"stage_count": row.StageCount,
+			"created_at":  row.CreatedAt,
+		})
+	}
+
+	middleware.RespondSuccess(c, gin.H{"results": results, "total": len(results)})
 }

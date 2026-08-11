@@ -164,12 +164,16 @@ func (h *Handler) ListCapabilities(c *gin.Context) {
 }
 
 func (h *Handler) GetCapabilitiesByWorker(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "worker-dispatcher.GetCapabilitiesByWorker")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "worker-dispatcher.GetCapabilitiesByWorker")
 	defer span.End()
-	_ = c.GetString("tenant_id")
+	tenantID := c.GetString("tenant_id")
 	workerID := c.Param("workerId")
-	// NOTE: GetCapabilitiesByWorker not on service; stubbed here for handler.
-	middleware.RespondSuccess(c, gin.H{"worker_id": workerID, "message": "capability lookup stub"})
+	items, err := h.svc.GetCapabilitiesByWorker(ctx, tenantID, workerID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) DeleteCapability(c *gin.Context) {
@@ -182,8 +186,10 @@ func (h *Handler) DeleteCapability(c *gin.Context) {
 		middleware.RespondBadRequest(c, "skill query parameter required")
 		return
 	}
-	_ = tenantID
-	_ = ctx
+	if err := h.svc.DeleteCapability(ctx, tenantID, workerID, skill); err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, gin.H{"message": "capability deleted", "worker_id": workerID, "skill": skill})
 }
 

@@ -5,11 +5,13 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/domain/commands"
 	"orion/platform-svc-go/internal/domain/events"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/domain/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -19,15 +21,15 @@ import (
 type Handler struct {
 	bus       commands.CommandBus
 	publisher events.EventPublisher
+	svc       *service.Service
 	logger    *zap.Logger
 }
 
-// NewHandler creates a CQRS handler wired to the given command bus, event
-// publisher, and structured logger.
-func NewHandler(bus commands.CommandBus, publisher events.EventPublisher, logger *zap.Logger) *Handler {
+func NewHandler(bus commands.CommandBus, publisher events.EventPublisher, svc *service.Service, logger *zap.Logger) *Handler {
 	return &Handler{
 		bus:       bus,
 		publisher: publisher,
+		svc:       svc,
 		logger:    logger,
 	}
 }
@@ -51,8 +53,7 @@ type dispatchRequest struct {
 }
 
 // DispatchCommand accepts {command_type, aggregate_id, tenant_id?, data} and
-// sends the command through the command bus.  The bus returns
-// ErrHandlerNotFound when no handler is registered for the command type.
+// sends the command through the command bus.
 func (h *Handler) DispatchCommand(c *gin.Context) {
 	var req dispatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -62,11 +63,9 @@ func (h *Handler) DispatchCommand(c *gin.Context) {
 
 	tenantID := req.TenantID
 	if tenantID == "" {
-		// Fall back to tenant propagated by auth middleware if available.
 		tenantID = c.GetString("tenant_id")
 	}
 
-	// Marshal arbitrary payload into json.RawMessage for the Command struct.
 	var data json.RawMessage
 	if req.Data != nil {
 		payload, err := json.Marshal(req.Data)
@@ -91,25 +90,83 @@ func (h *Handler) DispatchCommand(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"command_id":  cmd.CommandID,
+		"command_id":   cmd.CommandID,
 		"command_type": cmd.CommandType,
 		"aggregate_id": cmd.AggregateID,
-		"status":      "dispatched",
+		"status":       "dispatched",
 	})
 }
 
-// GetAggregate returns an empty map (stub — no aggregate store is wired yet).
+// GetAggregate returns the latest event version for the given aggregate.
 func (h *Handler) GetAggregate(c *gin.Context) {
+	ctx := c.Request.Context()
 	aggregateID := c.Param("aggregateID")
-	h.logger.Debug("get aggregate (stub)", zap.String("aggregate_id", aggregateID))
-	middleware.RespondSuccess(c, map[string]any{})
+	tenantID := c.GetString("tenant_id")
+	commandType := c.Query("command_type")
+	if commandType == "" {
+		commandType = aggregateID
+	}
+
+	if h.svc == nil {
+		middleware.RespondSuccess(c, map[string]any{})
+		return
+	}
+	version, err := h.svc.GetLatestVersion(ctx, tenantID, commandType, aggregateID)
+	if err != nil {
+		h.logger.Error("get aggregate version failed", zap.Error(err))
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, map[string]any{
+		"aggregate_id": aggregateID,
+		"version":      version,
+		"status":       "active",
+	})
 }
 
-// GetEventHistory returns an empty array (stub — no event store is wired yet).
+// GetEventHistory returns the event stream for the given aggregate.
 func (h *Handler) GetEventHistory(c *gin.Context) {
+	ctx := c.Request.Context()
 	aggregateID := c.Param("aggregateID")
-	h.logger.Debug("get event history (stub)", zap.String("aggregate_id", aggregateID))
-	middleware.RespondSuccess(c, []any{})
+	tenantID := c.GetString("tenant_id")
+	commandType := c.Query("command_type")
+	if commandType == "" {
+		commandType = aggregateID
+	}
+
+	if h.svc == nil {
+		middleware.RespondSuccess(c, []any{})
+		return
+	}
+	eventList, err := h.svc.GetEventHistory(ctx, tenantID, commandType, aggregateID)
+	if err != nil {
+		h.logger.Error("get event history failed", zap.Error(err))
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	if eventList == nil {
+		eventList = []events.DomainEvent{}
+	}
+
+	type eventDTO struct {
+		EventType     string `json:"event_type"`
+		AggregateID   string `json:"aggregate_id"`
+		AggregateType string `json:"aggregate_type"`
+		Version       int    `json:"version"`
+		CreatedAt     string `json:"created_at"`
+	}
+
+	dto := make([]eventDTO, len(eventList))
+	for i, e := range eventList {
+		dto[i] = eventDTO{
+			EventType:     e.EventType(),
+			AggregateID:   e.AggregateID(),
+			AggregateType: e.AggregateType(),
+			Version:       e.Version(),
+			CreatedAt:     e.OccurredAt().UTC().Format(time.RFC3339),
+		}
+	}
+	middleware.RespondSuccess(c, dto)
 }
 
 // Health returns a lightweight health indicator for the CQRS layer.

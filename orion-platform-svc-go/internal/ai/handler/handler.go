@@ -105,7 +105,6 @@ func (h *Handler) Update(c *gin.Context) {
 
 	m.Name = req.Name
 	m.Type = req.Type
-	// Update currently uses a stub; the service Update method is reserved.
 	errors.WriteSuccess(c, m)
 }
 

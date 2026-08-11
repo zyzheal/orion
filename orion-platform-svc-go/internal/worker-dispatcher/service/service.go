@@ -216,6 +216,16 @@ func (d *WorkerDispatcher) CreateCapability(ctx context.Context, tenantID string
 	return m, nil
 }
 
+// GetCapabilitiesByWorker returns capabilities for a specific worker.
+func (d *WorkerDispatcher) GetCapabilitiesByWorker(ctx context.Context, tenantID, workerID string) ([]models.WorkerCapability, error) {
+	return d.repo.GetCapabilitiesByWorker(ctx, tenantID, workerID)
+}
+
+// DeleteCapability removes a worker capability by worker and skill.
+func (d *WorkerDispatcher) DeleteCapability(ctx context.Context, tenantID, workerID, skill string) error {
+	return d.repo.DeleteCapability(ctx, tenantID, workerID, skill)
+}
+
 // CreatePolicy persists a new dispatch policy definition.
 func (d *WorkerDispatcher) CreatePolicy(ctx context.Context, tenantID string, req models.CreatePolicyRequest) (*models.WorkerPolicy, error) {
 	m := &models.WorkerPolicy{
