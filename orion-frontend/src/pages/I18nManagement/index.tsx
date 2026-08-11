@@ -30,7 +30,7 @@ import {
   ReloadOutlined,
   DeleteOutlined,
   GlobalOutlined,
-
+  EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -54,6 +54,7 @@ export default function I18nManagementPage() {
   const [selectedLocale, setSelectedLocale] = useState<string>('');
   const [localeModalVisible, setLocaleModalVisible] = useState(false);
   const [translationModalVisible, setTranslationModalVisible] = useState(false);
+  const [editingTranslation, setEditingTranslation] = useState<{ key: string; value: string } | null>(null);
   const [activeTab, setActiveTab] = useState('locales');
   const [localeForm] = Form.useForm();
   const [translationForm] = Form.useForm();
@@ -140,6 +141,16 @@ export default function I18nManagementPage() {
     }
   };
 
+  const handleEditTranslation = (key: string, value: string) => {
+    setEditingTranslation({ key, value });
+    translationForm.setFieldsValue({
+      namespace: key.split('.').length > 1 ? key.split('.')[0] : 'default',
+      key: key.split('.').length > 1 ? key.split('.').slice(1).join('.') : key,
+      value,
+    });
+    setTranslationModalVisible(true);
+  };
+
   const localeColumns: ColumnsType<I18nLocale> = [
     {
       title: '语言代码',
@@ -189,11 +200,21 @@ export default function I18nManagementPage() {
       title: '操作',
       key: 'actions',
       render: (_, record) => (
-        <Popconfirm title="确认删除？" onConfirm={() => handleDeleteTranslation(record.key)}>
-          <Button type="link" danger icon={<DeleteOutlined />} size="small">
-            删除
+        <Space>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditTranslation(record.key, record.value)}
+          >
+            编辑
           </Button>
-        </Popconfirm>
+          <Popconfirm title="确认删除？" onConfirm={() => handleDeleteTranslation(record.key)}>
+            <Button type="link" danger icon={<DeleteOutlined />} size="small">
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
