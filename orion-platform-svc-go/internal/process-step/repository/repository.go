@@ -27,14 +27,14 @@ func (r *Repository) Create(ctx context.Context, m *models.ProcessStep) error {
 	m.CreatedAt = time.Now().UTC()
 	m.UpdatedAt = m.CreatedAt
 	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO process-step (id, tenant_id, name, value, enabled, created_at, updated_at)
+		INSERT INTO process_steps (id, tenant_id, name, value, enabled, created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :value, :enabled, :created_at, :updated_at)`, m)
 	return err
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ProcessStep, error) {
 	var m models.ProcessStep
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM process-step WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.db.GetContext(ctx, &m, `SELECT * FROM process_steps WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -43,7 +43,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.ProcessStep, error) {
 	var items []models.ProcessStep
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM process-step WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
+	err := r.db.SelectContext(ctx, &items, `SELECT * FROM process_steps WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
 
@@ -64,7 +64,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	idx++
 	args = append(args, id, tenantID)
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE process-step SET "+strings.Join(setParts, ", ")+
+		"UPDATE process_steps SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1),
 		args...,
 	)
@@ -75,51 +75,92 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM process-step WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM process_steps WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }
 
-// GetStep is an alias for GetByID, matching the service-layer signature.
 func (r *Repository) GetStep(ctx context.Context, tenantID, id string) (*models.ProcessStep, error) {
 	return r.GetByID(ctx, tenantID, id)
 }
 
-// ListSteps is an alias for List.
 func (r *Repository) ListSteps(ctx context.Context, tenantID string) ([]models.ProcessStep, error) {
 	return r.List(ctx, tenantID)
 }
 
-// ListStepsByProcess lists steps filtered by process ID. (Stub: no process_id column yet.)
 func (r *Repository) ListStepsByProcess(ctx context.Context, tenantID, processID string) ([]models.ProcessStep, error) {
 	return r.List(ctx, tenantID)
 }
 
-// UpdateStep is an alias for Update.
 func (r *Repository) UpdateStep(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ProcessStep, error) {
 	return r.Update(ctx, tenantID, id, updates)
 }
 
-// CreateEvent records a lifecycle event for a step. (Stub: no backing table yet.)
+// --- Process step lifecycle events ---
+
 func (r *Repository) CreateEvent(ctx context.Context, event *models.ProcessStepEvent) error {
-	return nil
+	event.ID = uuid.New().String()
+	event.CreatedAt = time.Now().UTC()
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO process_step_events (id, step_id, event_type, details, created_at)
+		 VALUES (:id, :step_id, :event_type, :details, :created_at)`, event)
+	return err
 }
 
-// ListEventsByStep returns lifecycle events for a step. (Stub: no backing table yet.)
 func (r *Repository) ListEventsByStep(ctx context.Context, stepID string) ([]models.ProcessStepEvent, error) {
-	return []models.ProcessStepEvent{}, nil
+	var events []models.ProcessStepEvent
+	err := r.db.SelectContext(ctx, &events,
+		`SELECT * FROM process_step_events WHERE step_id=$1 ORDER BY created_at DESC`, stepID)
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
-// CreateExecution records a step execution. (Stub: no backing table yet.)
+// --- Process step executions ---
+
 func (r *Repository) CreateExecution(ctx context.Context, exec *models.ProcessStepExecution) error {
-	return nil
+	exec.ID = uuid.New().String()
+	if exec.StartedAt.IsZero() {
+		exec.StartedAt = time.Now().UTC()
+	}
+	exec.CreatedAt = time.Now().UTC()
+	if exec.Status == "" {
+		exec.Status = models.ExecStatusPending
+	}
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO process_step_executions (id, step_id, instance_id, input, status, output, error, duration_ms, started_at, finished_at, created_at)
+		 VALUES (:id, :step_id, :instance_id, :input, :status, :output, :error, :duration_ms, :started_at, :finished_at, :created_at)`, exec)
+	return err
 }
 
-// UpdateExecution updates a step execution record. (Stub: no backing table yet.)
 func (r *Repository) UpdateExecution(ctx context.Context, id string, updates map[string]interface{}) (int64, error) {
-	return 0, nil
+	if len(updates) == 0 {
+		return 0, nil
+	}
+	setParts := make([]string, 0, len(updates)+1)
+	args := make([]interface{}, 0, len(updates)+1)
+	idx := 1
+	for k, v := range updates {
+		setParts = append(setParts, k+" = $"+strconv.Itoa(idx))
+		args = append(args, v)
+		idx++
+	}
+	args = append(args, id)
+	res, err := r.db.ExecContext(ctx,
+		"UPDATE process_step_executions SET "+strings.Join(setParts, ", ")+
+			" WHERE id = $"+strconv.Itoa(idx), args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
-// ListExecutionsByStep returns executions for a step. (Stub: no backing table yet.)
 func (r *Repository) ListExecutionsByStep(ctx context.Context, stepID string) ([]models.ProcessStepExecution, error) {
-	return []models.ProcessStepExecution{}, nil
+	var execs []models.ProcessStepExecution
+	err := r.db.SelectContext(ctx, &execs,
+		`SELECT * FROM process_step_executions WHERE step_id=$1 ORDER BY created_at DESC`, stepID)
+	if err != nil {
+		return nil, err
+	}
+	return execs, nil
 }
