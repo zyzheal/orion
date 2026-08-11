@@ -29,6 +29,7 @@ type Service interface {
 	StartJob(ctx context.Context, jobID string) error
 	GetJob(ctx context.Context, tenantID, jobID string) (*models.CMDBImportJob, error)
 	ListJobs(ctx context.Context, tenantID, status string, offset, limit int) ([]models.CMDBImportJob, error)
+	ListRecordsByJob(ctx context.Context, jobID string, offset, limit int) ([]models.CMDBImportRecord, error)
 	CancelJob(ctx context.Context, tenantID, jobID string) error
 	ValidateSource(ctx context.Context, sourceType, sourcePath string, mapping, config map[string]string) (*models.ValidateImportResponse, error)
 }
@@ -183,11 +184,19 @@ func (h *Handler) GetRecords(c *gin.Context) {
 		return
 	}
 
-	// TODO: when repository exposes ListRecordsByJob, wire it through
-	//       service layer. For now return success with empty records.
-	middleware.RespondSuccess(c, gin.H{
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		if limit <= 0 || limit > 500 {
+			limit = 50
+		}
+		records, err := h.svc.ListRecordsByJob(ctx, jobID, offset, limit)
+		if err != nil {
+			middleware.RespondInternalError(c, err.Error())
+			return
+		}
+		middleware.RespondSuccess(c, gin.H{
 		"job_id":  jobID,
-		"records": []interface{}{},
+		"records": records,
 	})
 }
 

@@ -642,6 +642,11 @@ func (m *CMDBImportManager) GetJob(ctx context.Context, tenantID, jobID string) 
 	return j, nil
 }
 
+// ListRecordsByJob returns import records for a job, paginated.
+func (m *CMDBImportManager) ListRecordsByJob(ctx context.Context, jobID string, offset, limit int) ([]models.CMDBImportRecord, error) {
+	return m.repo.ListRecordsByJob(ctx, jobID, offset, limit)
+}
+
 // ListJobs returns paginated jobs for a tenant.
 func (m *CMDBImportManager) ListJobs(ctx context.Context, tenantID, status string, offset, limit int) ([]models.CMDBImportJob, error) {
 	return m.repo.ListJobs(ctx, tenantID, status, offset, limit)
