@@ -97,7 +97,7 @@ func (s *Service) GetStats(ctx context.Context, tenantID string) (map[string]int
 	}
 	for _, r := range records {
 		switch r.Status {
-		case "passed", "passed":
+		case "passed":
 			stats["passed"] = stats["passed"].(int) + 1
 		case "failed":
 			stats["failed"] = stats["failed"].(int) + 1
