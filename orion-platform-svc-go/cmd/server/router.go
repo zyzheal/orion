@@ -1032,6 +1032,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if alertRuleEngineH != nil {
     alertRuleEngineH.RegisterRoutes(api)
   }
+  if serviceCatalogH != nil {
+    serviceCatalogH.RegisterRoutes(api)
+  }
 
 	// Route discovery endpoint — returns all registered routes for DocumentationGenerator
 	api.GET("/routes", func(c *gin.Context) {

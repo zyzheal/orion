@@ -637,6 +637,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		wireRoweditor(db, logger)
 		wireAPIComponent(db, logger)
 		wireAlertRuleEngine(db, logger)
+		// P3-02: Service Catalog
+		wireServiceCatalog(db, logger)
 
 }
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
