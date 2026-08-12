@@ -7,6 +7,9 @@ import {
   FileOutlined,
   QuestionCircleOutlined,
   ApartmentOutlined,
+  BarChartOutlined,
+  SafetyCertificateOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
@@ -17,6 +20,9 @@ const menuItems = [
   { key: '/console/ai-docs/documents', icon: <FileOutlined />, label: '文档管理' },
   { key: '/console/ai-docs/rag', icon: <QuestionCircleOutlined />, label: 'RAG 查询' },
   { key: '/console/ai-docs/graph', icon: <ApartmentOutlined />, label: '知识图谱' },
+  { key: '/console/ai-docs/eval', icon: <BarChartOutlined />, label: '评估指标' },
+  { key: '/console/ai-docs/audit', icon: <SafetyCertificateOutlined />, label: '审计日志' },
+  { key: '/console/ai-docs/rag-admin', icon: <SettingOutlined />, label: 'RAG 管理' },
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
@@ -24,6 +30,9 @@ const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subti
   '/console/ai-docs/documents': { icon: <FileOutlined />, title: '文档管理', subtitle: '上传和管理文档' },
   '/console/ai-docs/rag': { icon: <QuestionCircleOutlined />, title: 'RAG 查询', subtitle: '检索增强生成查询' },
   '/console/ai-docs/graph': { icon: <ApartmentOutlined />, title: '知识图谱', subtitle: '可视化知识关系图谱' },
+  '/console/ai-docs/eval': { icon: <BarChartOutlined />, title: '评估指标', subtitle: 'RAG 系统评估数据' },
+  '/console/ai-docs/audit': { icon: <SafetyCertificateOutlined />, title: '审计日志', subtitle: 'RAG 查询安全审计' },
+  '/console/ai-docs/rag-admin': { icon: <SettingOutlined />, title: 'RAG 管理', subtitle: '管道配置与提示词模板' },
 };
 
 const AIDocManagementLayout: React.FC = () => {

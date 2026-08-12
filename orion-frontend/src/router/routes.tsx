@@ -693,8 +693,26 @@ export const routes: AppRoute[] = [
         requiredPermission: { resource: '*', action: 'manage' },
       },
       {
+        path: '/console/ai-docs/rag-admin',
+        element: React.lazy(() => import('@/pages/AIDocManagement/RAGAdmin')),
+        protected: true,
+        requiredPermission: { resource: '*', action: 'manage' },
+      },
+      {
+        path: '/console/ai-docs/eval',
+        element: React.lazy(() => import('@/pages/AIDocManagement/RAGEval')),
+        protected: true,
+        requiredPermission: { resource: '*', action: 'manage' },
+      },
+      {
+        path: '/console/ai-docs/audit',
+        element: React.lazy(() => import('@/pages/AIDocManagement/RAGAudit')),
+        protected: true,
+        requiredPermission: { resource: '*', action: 'manage' },
+      },
+      {
         path: '/console/ai-docs/graph',
-        element: React.lazy(() => import('@/pages/AIDocManagement/DocumentList')), // TODO: 替换为知识图谱组件
+        element: React.lazy(() => import('@/pages/AIDocManagement/KnowledgeGraph')),
         protected: true,
         requiredPermission: { resource: '*', action: 'manage' },
       },

@@ -195,7 +195,7 @@ export const deleteDoc = async (id: string) => {
 };
 
 export const getDocVersions = async (id: string) => {
-  return api.get(`/api/v1/knowledge/api/v1/docs/${id}/versions`);
+  return api.get(`/api/v1/knowledge/docs/${id}/versions`);
 };
 
 // ============================================================================
@@ -240,6 +240,39 @@ export const updateRAGAdminConfig = async (data: Record<string, unknown>) => {
 
 export const getRAGEvalMetrics = async () => {
   return api.get('/api/v1/knowledge/rag/eval/metrics');
+};
+
+// ============================================================================
+// RAG Audit
+// ============================================================================
+
+export interface RAGAuditLog {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  query_text: string;
+  query_hash: string;
+  query_type: string;
+  confidence: number;
+  latency_ms: number;
+  source_count: number;
+  answer_length: number;
+  has_feedback: boolean;
+  feedback_positive?: boolean;
+  has_correction: boolean;
+  safety_flagged: boolean;
+  safety_reason?: string;
+  ip_address: string;
+  user_agent?: string;
+  created_at: string;
+}
+
+export const getRAGAuditLogs = async (params?: { limit?: number; offset?: number }) => {
+  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/logs', { params });
+};
+
+export const getRAGFlaggedQueries = async (params?: { limit?: number; offset?: number }) => {
+  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/flagged', { params });
 };
 
 // ============================================================================
