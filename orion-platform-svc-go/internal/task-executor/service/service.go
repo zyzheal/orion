@@ -3,40 +3,35 @@ package service
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"orion/platform-svc-go/internal/task-executor/models"
+	"orion/platform-svc-go/internal/task-executor/repository"
 	"go.uber.org/zap"
 )
 
 type TaskExecutorService struct {
-	tasks  map[string]*models.Task
-	mu     sync.RWMutex
+	repo   *repository.Repository
 	logger *zap.Logger
 }
 
-func NewTaskExecutorService(logger *zap.Logger) *TaskExecutorService {
+func NewTaskExecutorService(repo *repository.Repository, logger *zap.Logger) *TaskExecutorService {
 	return &TaskExecutorService{
-		tasks:  make(map[string]*models.Task),
+		repo:   repo,
 		logger: logger,
 	}
 }
 
 // CreateTask creates a new task.
 func (s *TaskExecutorService) CreateTask(ctx context.Context, tenantID string, req *models.CreateTaskRequest) (*models.Task, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	now := time.Now()
-	id := fmt.Sprintf("task_%d", time.Now().UnixNano())
 	timeout := req.TimeoutSec
 	if timeout <= 0 {
 		timeout = 300
 	}
 
 	task := &models.Task{
-		ID:          id,
+		ID:          fmt.Sprintf("task_%d", time.Now().UnixNano()),
 		TenantID:    tenantID,
 		Type:        req.Type,
 		Name:        req.Name,
@@ -47,10 +42,12 @@ func (s *TaskExecutorService) CreateTask(ctx context.Context, tenantID string, r
 		CreatedAt:   now,
 	}
 
-	s.tasks[id] = task
+	if err := s.repo.Create(ctx, task); err != nil {
+		return nil, err
+	}
 
 	s.logger.Info("task created",
-		zap.String("taskId", id),
+		zap.String("taskId", task.ID),
 		zap.String("type", req.Type),
 	)
 	return task, nil
@@ -58,25 +55,16 @@ func (s *TaskExecutorService) CreateTask(ctx context.Context, tenantID string, r
 
 // ExecuteTask executes a task.
 func (s *TaskExecutorService) ExecuteTask(ctx context.Context, tenantID string, req *models.ExecuteRequest) (*models.Task, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	task, ok := s.tasks[req.TaskID]
-	if !ok {
-		return nil, fmt.Errorf("task not found: %s", req.TaskID)
-	}
-	if task.TenantID != tenantID {
-		return nil, fmt.Errorf("task not accessible: %s", req.TaskID)
+	task, err := s.repo.GetByID(ctx, req.TaskID, tenantID)
+	if err != nil {
+		return nil, err
 	}
 	if task.Status != "pending" {
 		return nil, fmt.Errorf("task is not pending: %s", task.Status)
 	}
 
-	// Update status to running
-	task.Status = "running"
 	now := time.Now()
 
-	// Execute task with timeout
 	done := make(chan error, 1)
 	go func() {
 		result, err := s.execute(task.Type, task.Input)
@@ -88,7 +76,6 @@ func (s *TaskExecutorService) ExecuteTask(ctx context.Context, tenantID string, 
 		done <- nil
 	}()
 
-	// Wait for completion or timeout
 	select {
 	case err := <-done:
 		if err != nil {
@@ -112,6 +99,9 @@ func (s *TaskExecutorService) ExecuteTask(ctx context.Context, tenantID string, 
 	}
 
 	task.CompletedAt = &now
+	if err := s.repo.Update(ctx, task); err != nil {
+		s.logger.Error("failed to persist task state", zap.Error(err))
+	}
 
 	s.logger.Info("task completed",
 		zap.String("taskId", task.ID),
@@ -127,16 +117,12 @@ func (s *TaskExecutorService) execute(taskType string, input map[string]interfac
 
 	switch taskType {
 	case "http_request":
-		// Simulate HTTP request
 		return map[string]interface{}{"status": 200, "data": "response"}, nil
 	case "data_processing":
-		// Simulate data processing
 		return map[string]interface{}{"processed": true, "records": 100}, nil
 	case "analysis":
-		// Simulate analysis
 		return map[string]interface{}{"result": "analysis completed"}, nil
 	case "custom":
-		// Custom task execution
 		return map[string]interface{}{"executed": true}, nil
 	default:
 		return nil, fmt.Errorf("unknown task type: %s", taskType)
@@ -145,49 +131,23 @@ func (s *TaskExecutorService) execute(taskType string, input map[string]interfac
 
 // GetTask returns a task by ID.
 func (s *TaskExecutorService) GetTask(ctx context.Context, tenantID, id string) (*models.Task, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	task, ok := s.tasks[id]
-	if !ok {
-		return nil, fmt.Errorf("task not found: %s", id)
-	}
-	if task.TenantID != tenantID {
-		return nil, fmt.Errorf("task not accessible: %s", id)
-	}
-	return task, nil
+	return s.repo.GetByID(ctx, id, tenantID)
 }
 
 // QueryTasks returns paginated tasks.
 func (s *TaskExecutorService) QueryTasks(ctx context.Context, tenantID string, status string, limit, offset int) (models.TaskResponse, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var resp models.TaskResponse
-	for _, task := range s.tasks {
-		if task.TenantID != tenantID {
-			continue
+	tasks, total, err := s.repo.GetAll(ctx, tenantID, status, limit, offset)
+	if err != nil {
+		return models.TaskResponse{}, err
 	}
-		if status != "" && task.Status != status {
-			continue
-	}
-		resp.Data = append(resp.Data, *task)
-	}
-	resp.Total = int64(len(resp.Data))
-	return resp, nil
+	return models.TaskResponse{Data: tasks, Total: total}, nil
 }
 
 // CancelTask cancels a pending or running task.
 func (s *TaskExecutorService) CancelTask(ctx context.Context, tenantID, id string) (*models.Task, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	task, ok := s.tasks[id]
-	if !ok {
-		return nil, fmt.Errorf("task not found: %s", id)
-	}
-	if task.TenantID != tenantID {
-		return nil, fmt.Errorf("task not accessible: %s", id)
+	task, err := s.repo.GetByID(ctx, id, tenantID)
+	if err != nil {
+		return nil, err
 	}
 	if task.Status != "pending" && task.Status != "running" {
 		return nil, fmt.Errorf("task cannot be cancelled: %s", task.Status)
@@ -196,6 +156,10 @@ func (s *TaskExecutorService) CancelTask(ctx context.Context, tenantID, id strin
 	task.Status = "cancelled"
 	now := time.Now()
 	task.CompletedAt = &now
+
+	if err := s.repo.Update(ctx, task); err != nil {
+		return nil, err
+	}
 
 	s.logger.Info("task cancelled",
 		zap.String("taskId", id),

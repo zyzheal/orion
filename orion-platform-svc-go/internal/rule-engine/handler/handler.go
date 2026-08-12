@@ -37,7 +37,7 @@ func (h *RuleEngineHandler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *RuleEngineHandler) ListRules(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 
-	resp, err := h.svc.QueryRules(tenantID)
+	resp, err := h.svc.QueryRules(c.Request.Context(), tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -67,7 +67,7 @@ func (h *RuleEngineHandler) GetRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	rule, err := h.svc.GetRule(tenantID, id)
+	rule, err := h.svc.GetRule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return

@@ -6,15 +6,17 @@ import (
 
         apicomponent "orion/platform-svc-go/internal/api-component"
         "orion/platform-svc-go/internal/api-component/handler/models"
+        "orion/platform-svc-go/internal/api-component/repository"
 )
 
 type Service struct {
         mu       sync.RWMutex
         registry *apicomponent.Registry
+        repo     *repository.Repository
 }
 
-func NewService() *Service {
-        return &Service{registry: apicomponent.NewRegistry()}
+func NewService(repo *repository.Repository) *Service {
+        return &Service{registry: apicomponent.NewRegistry(), repo: repo}
 }
 
 func (s *Service) RegisterComponent(ctx context.Context, req *models.RegisterComponentRequest) error {
@@ -24,10 +26,16 @@ func (s *Service) RegisterComponent(ctx context.Context, req *models.RegisterCom
                 apicomponent.WithTags(req.Tags),
         }
         comp := apicomponent.NewAPIComponent(req.Name, req.Prefix, req.Summary, opts...)
+        if s.repo != nil {
+                return s.repo.Save(ctx, comp)
+        }
         return s.registry.Register(comp)
 }
 
 func (s *Service) UnregisterComponent(ctx context.Context, name string) error {
+        if s.repo != nil {
+                return s.repo.Delete(ctx, name)
+        }
         return s.registry.Unregister(name)
 }
 

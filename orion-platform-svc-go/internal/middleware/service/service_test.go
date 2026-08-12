@@ -9,7 +9,7 @@ import (
 
 func TestService_NewService(t *testing.T) {
 	t.Parallel()
-	svc := msvc.NewService()
+	svc := msvc.NewService(nil)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}

@@ -7,15 +7,17 @@ import (
 
         "orion/platform-svc-go/internal/statistics"
         "orion/platform-svc-go/internal/statistics/handler/models"
+        "orion/platform-svc-go/internal/statistics/repository"
 )
 
 type Service struct {
-        mu          sync.RWMutex
-        processors  map[string]*statistics.Processor
+        repo       *repository.Repository
+        mu         sync.RWMutex
+        processors map[string]*statistics.Processor
 }
 
-func NewService() *Service {
-        return &Service{processors: make(map[string]*statistics.Processor)}
+func NewService(repo *repository.Repository) *Service {
+        return &Service{repo: repo, processors: make(map[string]*statistics.Processor)}
 }
 
 func (s *Service) getProcessor(tenantID string) *statistics.Processor {
@@ -39,6 +41,9 @@ func (s *Service) Ingest(ctx context.Context, tenantID string, req *models.StatM
         proc := s.getProcessor(tenantID)
         m := statistics.NewStatMetric(req.Name, req.Value, req.Unit, req.Tags)
         proc.Ingest(m)
+        if s.repo != nil {
+                return s.repo.Store(ctx, tenantID, m)
+        }
         return nil
 }
 
@@ -49,6 +54,9 @@ func (s *Service) IngestBatch(ctx context.Context, tenantID string, metrics []mo
                 ms = append(ms, statistics.NewStatMetric(m.Name, m.Value, m.Unit, m.Tags))
         }
         proc.IngestBatch(ms)
+        if s.repo != nil {
+                return s.repo.StoreBatch(ctx, tenantID, ms)
+        }
         return nil
 }
 

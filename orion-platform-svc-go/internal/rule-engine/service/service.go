@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/rule-engine/models"
+	"orion/platform-svc-go/internal/rule-engine/repository"
 	"go.uber.org/zap"
 )
 
 type RuleEngineService struct {
-	rules  map[string]*models.Rule
+	repo   *repository.Repository
 	logger *zap.Logger
 }
 
-func NewRuleEngineService(logger *zap.Logger) *RuleEngineService {
+func NewRuleEngineService(repo *repository.Repository, logger *zap.Logger) *RuleEngineService {
 	return &RuleEngineService{
-		rules:  make(map[string]*models.Rule),
+		repo:   repo,
 		logger: logger,
 	}
 }
@@ -25,10 +26,9 @@ func NewRuleEngineService(logger *zap.Logger) *RuleEngineService {
 // CreateRule creates a new rule.
 func (s *RuleEngineService) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.Rule, error) {
 	now := time.Now()
-	id := fmt.Sprintf("rule_%d", time.Now().UnixNano())
 
 	rule := &models.Rule{
-		ID:          id,
+		ID:          fmt.Sprintf("rule_%d", time.Now().UnixNano()),
 		TenantID:    tenantID,
 		Name:        req.Name,
 		Description: req.Description,
@@ -40,10 +40,12 @@ func (s *RuleEngineService) CreateRule(ctx context.Context, tenantID string, req
 		UpdatedAt:   now,
 	}
 
-	s.rules[id] = rule
+	if err := s.repo.Create(ctx, rule); err != nil {
+		return nil, err
+	}
 
 	s.logger.Info("rule created",
-		zap.String("ruleId", id),
+		zap.String("ruleId", rule.ID),
 		zap.String("name", req.Name),
 		zap.Int("priority", req.Priority),
 	)
@@ -52,12 +54,9 @@ func (s *RuleEngineService) CreateRule(ctx context.Context, tenantID string, req
 
 // Evaluate evaluates a rule against input data.
 func (s *RuleEngineService) Evaluate(ctx context.Context, tenantID string, req *models.EvaluateRequest) (*models.EvaluateResult, error) {
-	rule, ok := s.rules[req.RuleID]
-	if !ok {
-		return nil, fmt.Errorf("rule not found: %s", req.RuleID)
-	}
-	if rule.TenantID != tenantID {
-		return nil, fmt.Errorf("rule not accessible: %s", req.RuleID)
+	rule, err := s.repo.GetByID(ctx, tenantID, req.RuleID)
+	if err != nil {
+		return nil, err
 	}
 	if !rule.IsEnabled {
 		return &models.EvaluateResult{
@@ -89,13 +88,10 @@ func (s *RuleEngineService) Evaluate(ctx context.Context, tenantID string, req *
 
 // evaluateConditions evaluates rule conditions.
 func (s *RuleEngineService) evaluateConditions(conditionsStr string, data map[string]interface{}) bool {
-	// Simple evaluation: check if conditions are met
-	// In a real implementation, this would parse JSON conditions
 	conditions := strings.Split(conditionsStr, ",")
 	for _, cond := range conditions {
 		cond = strings.TrimSpace(cond)
 		if !strings.HasPrefix(cond, "[") && !strings.HasPrefix(cond, "{") {
-			// Simple key=value condition
 			parts := strings.SplitN(cond, "=", 2)
 			if len(parts) == 2 {
 				key := strings.TrimSpace(parts[0])
@@ -110,7 +106,7 @@ func (s *RuleEngineService) evaluateConditions(conditionsStr string, data map[st
 			}
 		}
 	}
-	return len(conditions) == 0 // If no conditions, rule always triggers
+	return len(conditions) == 0
 }
 
 // evaluateActions executes rule actions.
@@ -122,8 +118,8 @@ func (s *RuleEngineService) evaluateActions(actionsStr string, data map[string]i
 		action = strings.TrimSpace(action)
 		if !strings.HasPrefix(action, "[") && !strings.HasPrefix(action, "{") {
 			actions = append(actions, map[string]string{
-				"type":     action,
-				"status":   "executed",
+				"type":      action,
+				"status":    "executed",
 				"timestamp": time.Now().Format(time.RFC3339),
 			})
 		}
@@ -132,71 +128,51 @@ func (s *RuleEngineService) evaluateActions(actionsStr string, data map[string]i
 }
 
 // QueryRules returns all rules for a tenant.
-func (s *RuleEngineService) QueryRules(tenantID string) (models.RuleResponse, error) {
-	var resp models.RuleResponse
-	for _, rule := range s.rules {
-		if rule.TenantID == tenantID {
-			resp.Data = append(resp.Data, *rule)
-		}
+func (s *RuleEngineService) QueryRules(ctx context.Context, tenantID string) (models.RuleResponse, error) {
+	rules, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return models.RuleResponse{}, err
 	}
-	resp.Total = int64(len(resp.Data))
-	return resp, nil
+	return models.RuleResponse{Data: rules, Total: int64(len(rules))}, nil
 }
 
 // GetRule returns a rule by ID.
-func (s *RuleEngineService) GetRule(tenantID, id string) (*models.Rule, error) {
-	rule, ok := s.rules[id]
-	if !ok {
-		return nil, fmt.Errorf("rule not found: %s", id)
-	}
-	if rule.TenantID != tenantID {
-		return nil, fmt.Errorf("rule not accessible: %s", id)
-	}
-	return rule, nil
+func (s *RuleEngineService) GetRule(ctx context.Context, tenantID, id string) (*models.Rule, error) {
+	return s.repo.GetByID(ctx, tenantID, id)
 }
 
 // UpdateRule updates a rule.
 func (s *RuleEngineService) UpdateRule(ctx context.Context, tenantID, id string, name, description *string, priority *int, isEnabled *bool) (*models.Rule, error) {
-	rule, ok := s.rules[id]
-	if !ok {
-		return nil, fmt.Errorf("rule not found: %s", id)
-	}
-	if rule.TenantID != tenantID {
-		return nil, fmt.Errorf("rule not accessible: %s", id)
-	}
-
+	updates := map[string]interface{}{}
 	if name != nil {
-		rule.Name = *name
+		updates["name"] = *name
 	}
 	if description != nil {
-		rule.Description = *description
+		updates["description"] = *description
 	}
 	if priority != nil {
-		rule.Priority = *priority
+		updates["priority"] = *priority
 	}
 	if isEnabled != nil {
-		rule.IsEnabled = *isEnabled
+		updates["is_enabled"] = *isEnabled
 	}
-	rule.UpdatedAt = time.Now()
+
+	rule, err := s.repo.Update(ctx, tenantID, id, updates)
+	if err != nil {
+		return nil, err
+	}
 
 	s.logger.Info("rule updated",
 		zap.String("ruleId", id),
-		zap.String("name", rule.Name),
 	)
 	return rule, nil
 }
 
 // DeleteRule removes a rule.
 func (s *RuleEngineService) DeleteRule(ctx context.Context, tenantID, id string) error {
-	rule, ok := s.rules[id]
-	if !ok {
-		return fmt.Errorf("rule not found: %s", id)
+	if err := s.repo.Delete(ctx, tenantID, id); err != nil {
+		return err
 	}
-	if rule.TenantID != tenantID {
-		return fmt.Errorf("rule not accessible: %s", id)
-	}
-
-	delete(s.rules, id)
 	s.logger.Info("rule deleted", zap.String("ruleId", id))
 	return nil
 }

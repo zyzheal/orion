@@ -8,11 +8,13 @@ import (
 
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/middleware/handler/models"
+	"orion/platform-svc-go/internal/middleware/repository"
 )
 
 var ErrConfigNotFound = errors.New("middleware: config not found")
 
 type Service struct {
+	repo           *repository.Repository
 	mu             sync.RWMutex
 	rateLimitStore *middleware.RateLimitStore
 	defaultTimeout time.Duration
@@ -20,8 +22,9 @@ type Service struct {
 	tenantConfig   map[string]*models.RateLimitConfig
 }
 
-func NewService() *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{
+		repo:           repo,
 		rateLimitStore: middleware.NewRateLimitStore(),
 		defaultTimeout: 30 * time.Second,
 		tracingEnabled: true,
@@ -47,6 +50,15 @@ func (s *Service) RegisterRateLimit(ctx context.Context, tenantID string, req *m
 		EndpointLimits: endpointLimits,
 	}
 	s.rateLimitStore.RegisterConfig(tenantID, cfg)
+
+	if s.repo != nil {
+		_ = s.repo.SaveConfig(ctx, tenantID, &repository.TenantConfig{
+			TenantID:       tenantID,
+			Name:           "rate-limit",
+			DefaultTimeout: int64(s.defaultTimeout / time.Millisecond),
+			TracingEnabled: s.tracingEnabled,
+		})
+	}
 	return nil
 }
 

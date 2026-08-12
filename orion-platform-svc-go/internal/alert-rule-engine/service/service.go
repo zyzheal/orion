@@ -7,15 +7,17 @@ import (
 
         alertruleengine "orion/platform-svc-go/internal/alert-rule-engine"
         "orion/platform-svc-go/internal/alert-rule-engine/handler/models"
+        "orion/platform-svc-go/internal/alert-rule-engine/repository"
 )
 
 type Service struct {
         mu      sync.RWMutex
         engines map[string]*alertruleengine.Engine
+        repo    *repository.Repository
 }
 
-func NewService() *Service {
-        return &Service{engines: make(map[string]*alertruleengine.Engine)}
+func NewService(repo *repository.Repository) *Service {
+        return &Service{engines: make(map[string]*alertruleengine.Engine), repo: repo}
 }
 
 func (s *Service) getEngine(tenantID string) *alertruleengine.Engine {
@@ -53,11 +55,17 @@ func (s *Service) CompileRule(ctx context.Context, tenantID string, req *models.
         if err := eng.Register(compiled); err != nil {
                 return nil, err
         }
+        if s.repo != nil {
+                _ = s.repo.Save(ctx, tenantID, compiled)
+        }
         return toResponse(compiled), nil
 }
 
 func (s *Service) UnregisterRule(ctx context.Context, tenantID, id string) error {
         eng := s.getEngine(tenantID)
+        if s.repo != nil {
+                _ = s.repo.Delete(ctx, tenantID, id)
+        }
         return eng.Unregister(id)
 }
 

@@ -7,15 +7,17 @@ import (
 
 	"orion/platform-svc-go/internal/roweditor"
 	"orion/platform-svc-go/internal/roweditor/handler/models"
+	"orion/platform-svc-go/internal/roweditor/repository"
 )
 
 type Service struct {
 	mu      sync.RWMutex
 	editors map[string]*roweditor.RowEditor
+	repo    *repository.Repository
 }
 
-func NewService() *Service {
-	return &Service{editors: make(map[string]*roweditor.RowEditor)}
+func NewService(repo *repository.Repository) *Service {
+	return &Service{editors: make(map[string]*roweditor.RowEditor), repo: repo}
 }
 
 func (s *Service) RegisterEditor(ctx context.Context, name string, req *models.RowEditorSpecRequest) error {
@@ -40,6 +42,9 @@ func (s *Service) RegisterEditor(ctx context.Context, name string, req *models.R
 	s.mu.Lock()
 	s.editors[name] = editor
 	s.mu.Unlock()
+	if s.repo != nil {
+		return s.repo.Save(ctx, name, spec)
+	}
 	return nil
 }
 

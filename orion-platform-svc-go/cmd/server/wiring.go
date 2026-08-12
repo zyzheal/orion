@@ -631,6 +631,12 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		gwRoutesH = gw_routes_handler.NewHandler(infra.db.DB)
 		rateLimitH = rate_limit_handler.NewHandler(infra.db.DB)
 		testReportsH = test_reports_handler.NewHandler(infra.db.DB)
+		// Blueprint modules: middleware, statistics, roweditor, api-component, alert-rule-engine
+		wireMiddleware(db, logger)
+		wireStatistics(db, logger)
+		wireRoweditor(db, logger)
+		wireAPIComponent(db, logger)
+		wireAlertRuleEngine(db, logger)
 
 }
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
