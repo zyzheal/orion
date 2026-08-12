@@ -832,6 +832,21 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if vulnerabilityH != nil {
     vulnerabilityH.RegisterRoutes(api)
   }
+  if alertAdapterV2H != nil {
+    alertAdapterV2H.RegisterRoutes(api)
+  }
+  if autoRecoveryH != nil {
+    autoRecoveryH.RegisterRoutes(api)
+  }
+  if capacityH != nil {
+    capacityH.RegisterRoutes(api)
+  }
+  if middlewareOpsH != nil {
+    middlewareOpsH.RegisterRoutes(api)
+  }
+  if orchestrationH != nil {
+    orchestrationH.RegisterRoutes(api)
+  }
 
   // ---- Wired but unregistered handlers (Wave 2 parallel execution) ----
   if serviceControlH != nil {

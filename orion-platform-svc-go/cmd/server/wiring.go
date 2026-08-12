@@ -639,6 +639,12 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		wireAlertRuleEngine(db, logger)
 		// P3-02: Service Catalog
 		wireServiceCatalog(db, logger)
+		// Wave 4: wire 6 previously unwired SQL-repo modules
+		wireAlertAdapterV2(db, logger)
+		wireAutoRecovery(db, logger)
+		wireCapacity(db, logger)
+		wireMiddlewareOps(db, logger)
+		wireOrchestration(db, logger)
 
 }
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
