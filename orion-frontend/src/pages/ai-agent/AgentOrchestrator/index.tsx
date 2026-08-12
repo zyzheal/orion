@@ -360,9 +360,11 @@ const AgentOrchestrator: React.FC = () => {
           enabled: p.enabled,
         }));
         setAgents(mapped);
+      } else {
+        setAgents([]);
       }
     } catch {
-      setAgents(MOCK_AGENTS);
+      setAgents([]);
     }
   };
 
