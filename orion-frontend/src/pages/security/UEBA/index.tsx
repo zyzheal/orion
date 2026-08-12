@@ -102,109 +102,12 @@ interface DetectionConfig {
 /**
  * Mock 异常事件数据（10条记录）
  */
-const mockEvents: AnomalyEvent[] = [
-  {
-    key: '1',
-    username: 'zhang.san',
-    type: '异常登录',
-    score: 92,
-    method: 'Z-Score',
-    time: '2026-08-08 03:24:17',
-    status: '待调查',
-  },
-  {
-    key: '2',
-    username: 'li.si',
-    type: '权限滥用',
-    score: 85,
-    method: 'IQR',
-    time: '2026-08-08 02:10:44',
-    status: '已确认',
-  },
-  {
-    key: '3',
-    username: 'wang.wu',
-    type: '数据外泄',
-    score: 78,
-    method: '3σ',
-    time: '2026-08-07 23:55:31',
-    status: '待调查',
-  },
-  {
-    key: '4',
-    username: 'chen.liu',
-    type: '异常时间',
-    score: 65,
-    method: 'IQR',
-    time: '2026-08-07 22:18:09',
-    status: '待调查',
-  },
-  {
-    key: '5',
-    username: 'zhao.qi',
-    type: '高频操作',
-    score: 58,
-    method: 'Z-Score',
-    time: '2026-08-07 19:42:56',
-    status: '误报',
-  },
-  {
-    key: '6',
-    username: 'sun.ba',
-    type: '异常登录',
-    score: 45,
-    method: '3σ',
-    time: '2026-08-07 16:30:22',
-    status: '待调查',
-  },
-  {
-    key: '7',
-    username: 'zhu.jiu',
-    type: '权限滥用',
-    score: 38,
-    method: 'IQR',
-    time: '2026-08-07 14:15:38',
-    status: '已确认',
-  },
-  {
-    key: '8',
-    username: 'wu.shi',
-    type: '数据外泄',
-    score: 88,
-    method: 'Z-Score',
-    time: '2026-08-07 11:08:47',
-    status: '已确认',
-  },
-  {
-    key: '9',
-    username: 'zheng.yi',
-    type: '异常时间',
-    score: 52,
-    method: '3σ',
-    time: '2026-08-07 09:22:13',
-    status: '误报',
-  },
-  {
-    key: '10',
-    username: 'huo.er',
-    type: '高频操作',
-    score: 35,
-    method: 'IQR',
-    time: '2026-08-06 20:47:59',
-    status: '待调查',
-  },
-];
+const mockEvents: AnomalyEvent[] = [];
 
 /**
  * Mock 用户风险排行数据（Top 5）
  */
-const mockRiskRanks: UserRiskRank[] = [
-  { key: '1', username: 'zhang.san', score: 92, count: 15 },
-  { key: '2', username: 'wu.shi', score: 88, count: 12 },
-  { key: '3', username: 'li.si', score: 85, count: 10 },
-  { key: '4', username: 'wang.wu', score: 78, count: 8 },
-  { key: '5', username: 'chen.liu', score: 65, count: 6 },
-];
+const mockRiskRanks: UserRiskRank[] = [];
 
 /**
  * 异常类型颜色映射

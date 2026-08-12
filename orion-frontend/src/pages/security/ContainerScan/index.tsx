@@ -99,138 +99,7 @@ interface ScanPolicy {
 /**
  * Mock 镜像扫描数据（10条记录）
  */
-const mockScanData: ImageScanRecord[] = [
-  {
-    key: '1',
-    image: 'orion-platform-service',
-    tag: 'v2.3.1',
-    scanTime: '2026-08-08 06:30:12',
-    total: 3,
-    critical: 0,
-    high: 1,
-    medium: 1,
-    low: 1,
-    status: 'vulnerable',
-    engine: 'Trivy',
-  },
-  {
-    key: '2',
-    image: 'orion-frontend',
-    tag: 'latest',
-    scanTime: '2026-08-08 05:15:44',
-    total: 0,
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    status: 'passed',
-    engine: 'Trivy',
-  },
-  {
-    key: '3',
-    image: 'orion-api-gateway',
-    tag: 'v1.8.0',
-    scanTime: '2026-08-07 22:10:33',
-    total: 12,
-    critical: 2,
-    high: 5,
-    medium: 3,
-    low: 2,
-    status: 'vulnerable',
-    engine: 'Clair',
-  },
-  {
-    key: '4',
-    image: 'prometheus-node-exporter',
-    tag: 'v1.7.0',
-    scanTime: '2026-08-07 20:45:18',
-    total: 7,
-    critical: 0,
-    high: 2,
-    medium: 3,
-    low: 2,
-    status: 'vulnerable',
-    engine: 'Trivy',
-  },
-  {
-    key: '5',
-    image: 'grafana/grafana',
-    tag: '10.4.0',
-    scanTime: '2026-08-07 18:22:05',
-    total: 0,
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    status: 'passed',
-    engine: 'Trivy',
-  },
-  {
-    key: '6',
-    image: 'redis',
-    tag: '7.2-alpine',
-    scanTime: '2026-08-07 15:08:59',
-    total: 1,
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 1,
-    status: 'passed',
-    engine: 'Clair',
-  },
-  {
-    key: '7',
-    image: 'nginx',
-    tag: '1.25-alpine',
-    scanTime: '2026-08-07 12:33:47',
-    total: 0,
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    status: 'passed',
-    engine: 'Trivy',
-  },
-  {
-    key: '8',
-    image: 'postgres',
-    tag: '16.3',
-    scanTime: '2026-08-07 10:15:22',
-    total: 5,
-    critical: 1,
-    high: 2,
-    medium: 1,
-    low: 1,
-    status: 'vulnerable',
-    engine: 'Trivy',
-  },
-  {
-    key: '9',
-    image: 'orion-ai-service',
-    tag: 'v0.9.2',
-    scanTime: '2026-08-06 23:55:10',
-    total: 0,
-    critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
-    status: 'failed',
-    engine: 'Clair',
-  },
-  {
-    key: '10',
-    image: 'minio/minio',
-    tag: 'RELEASE.2025-01-20',
-    scanTime: '2026-08-06 19:40:33',
-    total: 4,
-    critical: 0,
-    high: 1,
-    medium: 2,
-    low: 1,
-    status: 'vulnerable',
-    engine: 'Trivy',
-  },
-];
+const mockScanData: ImageScanRecord[] = [];
 
 /**
  * 计算漏洞分布数据
@@ -317,7 +186,7 @@ const ContainerScanPage: React.FC = () => {
   const totalImages = mockScanData.length;
   const highVulns = mockScanData.reduce((s, r) => s + r.critical + r.high, 0);
   const passedCount = mockScanData.filter((r) => r.status === 'passed').length;
-  const fixRate = Math.round((passedCount / totalImages) * 100);
+  const fixRate = totalImages > 0 ? Math.round((passedCount / totalImages) * 100) : 0;
   const pendingScan = mockScanData.filter((r) => r.status === 'failed').length;
 
   /**

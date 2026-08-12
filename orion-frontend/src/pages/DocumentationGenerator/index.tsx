@@ -57,13 +57,7 @@ interface HistoryRecord {
 // API routes are loaded at runtime from /api/v1/routes endpoint.
 // See useEffect + loadRoutes() in the component below.
 
-const mockHistory: HistoryRecord[] = [
-  { key: '1', time: '2026-08-07 14:30', format: 'Markdown', endpointCount: 156, status: 'success' },
-  { key: '2', time: '2026-08-06 09:15', format: 'OpenAPI', endpointCount: 152, status: 'success' },
-  { key: '3', time: '2026-08-05 16:45', format: 'Swagger', endpointCount: 148, status: 'failed' },
-  { key: '4', time: '2026-08-04 11:20', format: 'Markdown', endpointCount: 145, status: 'success' },
-  { key: '5', time: '2026-08-03 08:30', format: 'OpenAPI', endpointCount: 140, status: 'running' },
-];
+const mockHistory: HistoryRecord[] = [];
 
 // ============ Method Tag Color Map ============
 

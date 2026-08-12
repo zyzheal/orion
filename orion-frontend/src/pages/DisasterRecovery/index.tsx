@@ -81,123 +81,6 @@ interface DrillRecord {
 
 // ==================== Mock Data ====================
 
-const mockRtoRpoRecords: RtoRpoRecord[] = [
-  {
-    id: '1',
-    serviceName: 'api-gateway',
-    rtoTarget: 5,
-    rtoActual: 3.2,
-    rpoTarget: 1,
-    rpoActual: 0.5,
-    status: 'pass',
-    drLevel: 'active-active',
-    lastTestedAt: '2026-08-05 14:30',
-  },
-  {
-    id: '2',
-    serviceName: 'user-service',
-    rtoTarget: 10,
-    rtoActual: 8.1,
-    rpoTarget: 5,
-    rpoActual: 3.2,
-    status: 'pass',
-    drLevel: 'active-passive',
-    lastTestedAt: '2026-08-04 10:15',
-  },
-  {
-    id: '3',
-    serviceName: 'db-primary',
-    rtoTarget: 15,
-    rtoActual: 22.4,
-    rpoTarget: 10,
-    rpoActual: 8.7,
-    status: 'fail',
-    drLevel: 'active-passive',
-    lastTestedAt: '2026-08-03 09:00',
-  },
-  {
-    id: '4',
-    serviceName: 'cache-cluster',
-    rtoTarget: 3,
-    rtoActual: 2.1,
-    rpoTarget: 0,
-    rpoActual: null,
-    status: 'pass',
-    drLevel: 'active-active',
-    lastTestedAt: '2026-08-06 16:45',
-  },
-  {
-    id: '5',
-    serviceName: 'pipeline-engine',
-    rtoTarget: 30,
-    rtoActual: null,
-    rpoTarget: 60,
-    rpoActual: null,
-    status: 'untested',
-    drLevel: 'backup-restore',
-    lastTestedAt: '-',
-  },
-  {
-    id: '6',
-    serviceName: 'monitor-svc',
-    rtoTarget: 15,
-    rtoActual: 14.2,
-    rpoTarget: 15,
-    rpoActual: 12.8,
-    status: 'pass',
-    drLevel: 'active-passive',
-    lastTestedAt: '2026-08-07 11:20',
-  },
-];
-
-const mockDrillRecords: DrillRecord[] = [
-  {
-    id: '1',
-    time: '2026-08-07 09:00',
-    drillType: '数据库切换演练',
-    result: 'success',
-    duration: 12,
-    service: 'db-primary',
-    description: '主从切换演练，自动 failover 成功，数据零丢失',
-  },
-  {
-    id: '2',
-    time: '2026-08-01 14:00',
-    drillType: '跨可用区故障演练',
-    result: 'success',
-    duration: 45,
-    service: 'user-service',
-    description: '模拟 AZ-A 完全不可用，流量切换至 AZ-B',
-  },
-  {
-    id: '3',
-    time: '2026-07-25 10:30',
-    drillType: '缓存雪崩恢复演练',
-    result: 'partial',
-    duration: 28,
-    service: 'cache-cluster',
-    description: 'Redis 集群全量故障恢复，部分热点 key 需要预热',
-  },
-  {
-    id: '4',
-    time: '2026-07-18 16:00',
-    drillType: 'API 网关降级演练',
-    result: 'success',
-    duration: 5,
-    service: 'api-gateway',
-    description: '网关实例逐步下线验证，请求自动路由至健康实例',
-  },
-  {
-    id: '5',
-    time: '2026-07-10 11:00',
-    drillType: '全量灾备恢复演练',
-    result: 'failed',
-    duration: 180,
-    service: 'pipeline-engine',
-    description: 'Pipeline 引擎从备份恢复失败，需人工介入重建任务状态',
-  },
-];
-
 const drillResultConfig: Record<DrillResult, { label: string; color: string; icon: React.ReactNode }> = {
   success: { label: '成功', color: 'success', icon: <CheckCircleOutlined /> },
   partial: { label: '部分成功', color: 'warning', icon: <ExclamationCircleOutlined /> },
@@ -245,7 +128,7 @@ async function loadDRPlans() {
 
 const DisasterRecovery: React.FC = () => {
   const [rtoRpoRecords, setRtoRpoRecords] = useState<RtoRpoRecord[]>([]);
-  const [drillRecords] = useState<DrillRecord[]>(mockDrillRecords);
+  const [drillRecords] = useState<DrillRecord[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [createForm] = Form.useForm();
@@ -286,7 +169,7 @@ const DisasterRecovery: React.FC = () => {
         }
         setLoading(false);
       } else {
-        setRtoRpoRecords(mockRtoRpoRecords);
+        setRtoRpoRecords([]);
         setCoverage(0);
         setLoading(false);
       }

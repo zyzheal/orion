@@ -99,13 +99,7 @@ const containsDictionaryWord = (password: string): boolean => {
 /**
  * Mock 密码历史数据
  */
-const mockHistoryData = [
-  { key: '1', username: 'zhangsan', updatedAt: '2026-08-07 14:23:10', oldHash: '2b$12$abcdef1234567890', status: '正常' },
-  { key: '2', username: 'lisi', updatedAt: '2026-08-06 09:45:33', oldHash: '2b$12$123456abcdef7890', status: '正常' },
-  { key: '3', username: 'wangwu', updatedAt: '2026-08-05 17:12:08', oldHash: '2b$12$fedcba0987654321', status: '正常' },
-  { key: '4', username: 'zhaoliu', updatedAt: '2026-08-04 11:30:55', oldHash: '2b$12$aabbcc1122334455', status: '过期' },
-  { key: '5', username: 'qianqi', updatedAt: '2026-08-03 08:05:22', oldHash: '2b$12$xxyyzz6677889900', status: '过期' },
-];
+const mockHistoryData: Array<{ key: string; username: string; updatedAt: string; oldHash: string; status: string }> = [];
 
 const PasswordPolicyPage: React.FC = () => {
   const [form] = Form.useForm();
