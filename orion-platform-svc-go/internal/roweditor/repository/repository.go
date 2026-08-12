@@ -31,13 +31,13 @@ type rowSpecRow struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func (r *Repository) Save(ctx context.Context, name string, spec roweditor.RowSpec) error {
+func (r *Repository) Save(ctx context.Context, tenantID, name string, spec roweditor.RowSpec) error {
 	specJSON, _ := json.Marshal(spec)
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO row_editor (id, tenant_id, key, value, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, NOW(), NOW())
-		ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
-		uuid.New().String(), "global", name, string(specJSON))
+		ON CONFLICT (tenant_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`,
+		uuid.New().String(), tenantID, name, string(specJSON))
 	return err
 }
 

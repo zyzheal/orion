@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -89,21 +91,112 @@ func (r *Repository) Get(ctx context.Context, name string) (*apicomponent.APICom
 			return comp, nil
 		}
 	}
-	return nil, sentinel.NotFound
+	// Fallback to DB on cache miss
+	comp, err := r.loadFromDB(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if comp != nil && r.registry != nil {
+		_ = r.registry.Register(comp)
+	}
+	if comp == nil {
+		return nil, sentinel.NotFound
+	}
+	return comp, nil
 }
 
 func (r *Repository) List(ctx context.Context) ([]string, error) {
-	if r.registry != nil {
+	if r.registry != nil && r.registry.Count() > 0 {
 		return r.registry.ComponentNames(), nil
+	}
+	// Fallback to DB
+	if r.db != nil {
+		rows, err := r.db.QueryContext(ctx, `SELECT name FROM api_components ORDER BY created_at`)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var names []string
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err != nil {
+				return nil, err
+			}
+			names = append(names, name)
+		}
+		return names, rows.Err()
 	}
 	return nil, nil
 }
 
 func (r *Repository) ListRoutes(ctx context.Context) []apicomponent.FullRoute {
-	if r.registry != nil {
+	if r.registry != nil && r.registry.Count() > 0 {
 		return r.registry.AllRoutes()
 	}
 	return nil
+}
+
+func (r *Repository) loadFromDB(ctx context.Context, name string) (*apicomponent.APIComponent, error) {
+	if r.db == nil {
+		return nil, nil
+	}
+	type compRow struct {
+		Name        string  `db:"name"`
+		Prefix      string  `db:"prefix"`
+		Version     string  `db:"version"`
+		Summary     string  `db:"summary"`
+		Description *string `db:"description"`
+		Tags        *string `db:"tags"`
+	}
+	var row compRow
+	err := r.db.GetContext(ctx, &row,
+		`SELECT name, prefix, version, summary, description, tags FROM api_components WHERE name=$1`, name)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	// Build component with route list from DB
+	comp := apicomponent.NewAPIComponent(row.Name, row.Prefix, row.Summary)
+	comp.Version = row.Version
+	if row.Description != nil {
+		comp.Description = *row.Description
+	}
+	if row.Tags != nil {
+		var tags []string
+		if err := json.Unmarshal([]byte(*row.Tags), &tags); err == nil {
+			comp.Tags = tags
+		}
+	}
+	// Load routes
+	type routeRow struct {
+		Path    string `db:"path"`
+		Methods string `db:"methods"`
+		Summary string `db:"summary"`
+	}
+	routeRows, err := r.db.QueryContext(ctx,
+		`SELECT path, methods, summary FROM api_component_routes WHERE component_name=$1`, name)
+	if err == nil {
+		defer routeRows.Close()
+		var routes []apicomponent.RouteComponent
+		for routeRows.Next() {
+			var rr routeRow
+			if err := routeRows.Scan(&rr.Path, &rr.Methods, &rr.Summary); err != nil {
+				continue
+			}
+			var methods []apicomponent.HTTPMethod
+			if err := json.Unmarshal([]byte(rr.Methods), &methods); err == nil {
+				routes = append(routes, apicomponent.RouteComponent{
+					Path:    rr.Path,
+					Methods: methods,
+					Summary: rr.Summary,
+				})
+			}
+		}
+		comp.Routes = routes
+	}
+	return comp, nil
 }
 
 func (r *Repository) Delete(ctx context.Context, name string) error {
@@ -121,7 +214,7 @@ func (r *Repository) Delete(ctx context.Context, name string) error {
 }
 
 func (r *Repository) FilterByTag(ctx context.Context, tag string) []string {
-	if r.registry != nil {
+	if r.registry != nil && r.registry.Count() > 0 {
 		comps := r.registry.FilterByTag(tag)
 		names := make([]string, 0, len(comps))
 		for _, c := range comps {

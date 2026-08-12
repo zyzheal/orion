@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -49,17 +50,19 @@ type cfgRow struct {
 }
 
 func (r *Repository) SaveConfig(ctx context.Context, tenantID string, cfg *TenantConfig) error {
-	cfgJSON, _ := json.Marshal(cfg.RateLimits)
+	cfgJSON, err := json.Marshal(cfg.RateLimits)
+	if err != nil {
+		return fmt.Errorf("marshal rate limits: %w", err)
+	}
 	if cfg.ID == "" {
 		cfg.ID = uuid.New().String()
 	}
-	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO middleware_configs (id, tenant_id, name, timeout_ms, enabled, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
+	_, err = r.db.ExecContext(ctx, `
+		INSERT INTO middleware_configs (id, tenant_id, name, timeout_ms, enabled, rate_limits, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (id) DO UPDATE SET tenant_id=EXCLUDED.tenant_id, name=EXCLUDED.name,
-			timeout_ms=EXCLUDED.timeout_ms, enabled=EXCLUDED.enabled`,
-		cfg.ID, tenantID, cfg.Name, cfg.DefaultTimeout, cfg.TracingEnabled)
-	_ = cfgJSON
+			timeout_ms=EXCLUDED.timeout_ms, enabled=EXCLUDED.enabled, rate_limits=EXCLUDED.rate_limits`,
+		cfg.ID, tenantID, cfg.Name, cfg.DefaultTimeout, cfg.TracingEnabled, string(cfgJSON))
 	return err
 }
 
@@ -82,17 +85,17 @@ func (r *Repository) GetConfig(ctx context.Context, tenantID string) (*TenantCon
 	}, nil
 }
 
-func (r *Repository) ListConfigs(ctx context.Context) []string {
+func (r *Repository) ListConfigs(ctx context.Context) ([]string, error) {
 	var configs []cfgRow
 	err := r.db.SelectContext(ctx, &configs, `SELECT DISTINCT tenant_id FROM middleware_configs ORDER BY tenant_id`)
 	if err != nil {
-		return []string{}
+		return nil, err
 	}
 	names := make([]string, len(configs))
 	for i, c := range configs {
 		names[i] = c.TenantID
 	}
-	return names
+	return names, nil
 }
 
 func (r *Repository) DeleteConfig(ctx context.Context, tenantID string) error {

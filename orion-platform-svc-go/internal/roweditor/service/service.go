@@ -20,7 +20,7 @@ func NewService(repo *repository.Repository) *Service {
 	return &Service{editors: make(map[string]*roweditor.RowEditor), repo: repo}
 }
 
-func (s *Service) RegisterEditor(ctx context.Context, name string, req *models.RowEditorSpecRequest) error {
+func (s *Service) RegisterEditor(ctx context.Context, tenantID, name string, req *models.RowEditorSpecRequest) error {
 	cols := make([]roweditor.ColumnSpec, 0, len(req.Columns))
 	for _, c := range req.Columns {
 		cols = append(cols, roweditor.ColumnSpec{
@@ -43,7 +43,7 @@ func (s *Service) RegisterEditor(ctx context.Context, name string, req *models.R
 	s.editors[name] = editor
 	s.mu.Unlock()
 	if s.repo != nil {
-		return s.repo.Save(ctx, name, spec)
+		return s.repo.Save(ctx, tenantID, name, spec)
 	}
 	return nil
 }

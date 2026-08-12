@@ -39,7 +39,7 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 	if name == "" {
 		name = req.TableName
 	}
-	if err := h.svc2.RegisterEditor(c.Request.Context(), name, &req); err != nil {
+	if err := h.svc2.RegisterEditor(c.Request.Context(), c.GetString("tenant_id"), name, &req); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
