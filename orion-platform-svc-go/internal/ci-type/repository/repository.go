@@ -29,8 +29,8 @@ func (r *Repository) CreateType(ctx context.Context, t *models.CIType) error {
 	t.CreatedAt = time.Now().UTC()
 	t.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO ci_types (id, tenant_id, name, display_name, description, status, created_at, updated_at)
-		 VALUES (:id, :tenantId, :name, :displayName, :description, :status, :createdAt, :updatedAt)`,
+		`INSERT INTO ci_types (id, tenant_id, name, display_name, description, icon, category, version, enabled, status, created_at, updated_at)
+		 VALUES (:id, :tenantId, :name, :displayName, :description, :icon, :category, :version, :enabled, :status, :createdAt, :updatedAt)`,
 		t)
 	return err
 }
@@ -83,6 +83,13 @@ func (r *Repository) UpdateType(ctx context.Context, id string, tenantID string,
 	args := []interface{}{}
 	i := 1
 	for key, val := range updates {
+		if key == "version" {
+			// version is always incremented, not set directly
+			setClauses = append(setClauses, fmt.Sprintf("version = COALESCE((SELECT version FROM ci_types WHERE id=$%d), 0) + 1", i))
+			args = append(args, id)
+			i++
+			continue
+		}
 		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", key, i))
 		args = append(args, val)
 		i++
@@ -140,12 +147,22 @@ func (r *Repository) UpsertAttributes(ctx context.Context, ciTypeID string, tena
 	for i := range attrs {
 		attrs[i].ID = uuid.New().String()
 		attrs[i].CITypeID = ciTypeID
+		attrs[i].TenantID = tenantID
 		attrs[i].CreatedAt = now
+		if attrs[i].Name == "" {
+			attrs[i].Name = attrs[i].AttrKey
+		}
+		if attrs[i].AttrKey == "" {
+			attrs[i].AttrKey = attrs[i].Name
+		}
+		if attrs[i].Options == "" {
+			attrs[i].Options = "[]"
+		}
 	}
 	for _, attr := range attrs {
 		_, err = r.db.NamedExecContext(ctx,
-			`INSERT INTO ci_type_attributes (id, ci_type_id, name, type, required, default_value, created_at)
-			 VALUES (:id, :ciTypeId, :name, :type, :required, :defaultValue, :createdAt)`,
+			`INSERT INTO ci_type_attributes (id, tenant_id, ci_type_id, attr_key, name, display_name, type, required, default_value, options, validation_rule, sort_order, created_at)
+			 VALUES (:id, :tenantId, :ciTypeId, :attrKey, :name, :displayName, :type, :required, :defaultValue, :options, :validationRule, :sortOrder, :createdAt)`,
 			attr)
 		if err != nil {
 			return nil, err

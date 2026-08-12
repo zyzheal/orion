@@ -12,6 +12,10 @@ type CIType struct {
 	Name        string        `db:"name" json:"name"`
 	DisplayName *string       `db:"display_name" json:"displayName"`
 	Description *string       `db:"description" json:"description"`
+	Icon        *string       `db:"icon" json:"icon"`
+	Category    *string       `db:"category" json:"category"`
+	Version     int           `db:"version" json:"version"`
+	Enabled     bool          `db:"enabled" json:"enabled"`
 	Status      string        `db:"status" json:"status"`
 	CreatedAt   time.Time     `db:"created_at" json:"createdAt"`
 	UpdatedAt   time.Time     `db:"updated_at" json:"updatedAt"`
@@ -23,6 +27,8 @@ type CreateCITypeRequest struct {
 	Name        string  `json:"name" binding:"required"`
 	DisplayName *string `json:"displayName"`
 	Description *string `json:"description"`
+	Icon        *string `json:"icon"`
+	Category    *string `json:"category"`
 	Status      *string `json:"status"`
 }
 
@@ -31,32 +37,46 @@ type UpdateCITypeRequest struct {
 	Name        *string `json:"name"`
 	DisplayName *string `json:"displayName"`
 	Description *string `json:"description"`
+	Icon        *string `json:"icon"`
+	Category    *string `json:"category"`
+	Enabled     *bool   `json:"enabled"`
 	Status      *string `json:"status"`
 }
 
 // CIAttribute represents an attribute of a CI type.
 type CIAttribute struct {
-	ID           string    `db:"id" json:"id"`
-	CITypeID     string    `db:"ci_type_id" json:"ciTypeId"`
-	Name         string    `db:"name" json:"name"`
-	Type         string    `db:"type" json:"type"`
-	Required     bool      `db:"required" json:"required"`
-	DefaultValue *string   `db:"default_value" json:"defaultValue"`
-	CreatedAt    time.Time `db:"created_at" json:"createdAt"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenantId"`
+	CITypeID       string    `db:"ci_type_id" json:"typeId"`
+	AttrKey        string    `db:"attr_key" json:"attrKey"`
+	Name           string    `db:"name" json:"name"`
+	DisplayName    *string   `db:"display_name" json:"displayName"`
+	Type           string    `db:"type" json:"attrType"`
+	Required       bool      `db:"required" json:"required"`
+	DefaultValue   *string   `db:"default_value" json:"defaultValue"`
+	Options        string    `db:"options" json:"options"`
+	ValidationRule *string   `db:"validation_rule" json:"validationRule"`
+	SortOrder      int       `db:"sort_order" json:"sortOrder"`
+	CreatedAt      time.Time `db:"created_at" json:"createdAt"`
 }
 
 // CreateCIAttributeRequest is the request body for creating/updating a CI attribute.
 type CreateCIAttributeRequest struct {
-	Name         string  `json:"name" binding:"required"`
-	Type         string  `json:"type"`
-	Required     bool    `json:"required"`
-	DefaultValue *string `json:"defaultValue"`
+	AttrKey        string   `json:"attrKey" binding:"required"`
+	DisplayName    *string  `json:"displayName"`
+	Type           string   `json:"attrType"`
+	Required       bool     `json:"required"`
+	DefaultValue   *string  `json:"defaultValue"`
+	Options        []string `json:"options"`
+	ValidationRule *string  `json:"validationRule"`
+	SortOrder      int      `json:"sortOrder"`
 }
 
 // CITypeVersion represents a version snapshot of a CI type.
 type CITypeVersion struct {
 	ID                 string         `db:"id" json:"id"`
-	CITypeID           string         `db:"ci_type_id" json:"ciTypeId"`
+	TenantID           string         `db:"tenant_id" json:"tenantId"`
+	CITypeID           string         `db:"ci_type_id" json:"typeId"`
 	Version            string         `db:"version" json:"version"`
 	ChangeSummary      sql.NullString `db:"change_summary" json:"changeSummary"`
 	AttributesSnapshot string         `db:"attributes_snapshot" json:"attributesSnapshot"`

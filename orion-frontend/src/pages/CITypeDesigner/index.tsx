@@ -281,7 +281,7 @@ export default function CITypeDesignerPage() {
       attrType: record.attrType,
       required: record.required,
       defaultValue: record.defaultValue,
-      options: record.options?.join('\n'),
+      options: (() => { try { return JSON.parse(record.options || '[]').join('\n'); } catch { return ''; } })(),
       validationRule: record.validationRule,
       sortOrder: record.sortOrder,
     });
@@ -317,7 +317,7 @@ export default function CITypeDesignerPage() {
         attrType: a.attrType,
         required: a.required,
         defaultValue: a.defaultValue ?? undefined,
-        options: a.options ?? undefined,
+        options: (() => { try { return JSON.parse(a.options || '[]'); } catch { return []; } })(),
         validationRule: a.validationRule ?? undefined,
         sortOrder: a.sortOrder,
       });
@@ -349,7 +349,7 @@ export default function CITypeDesignerPage() {
           attrType: a.attrType,
           required: a.required,
           defaultValue: a.defaultValue ?? undefined,
-          options: a.options ?? undefined,
+          options: (() => { try { return JSON.parse(a.options || '[]'); } catch { return []; } })(),
           validationRule: a.validationRule ?? undefined,
           sortOrder: a.sortOrder,
         }));
@@ -441,11 +441,11 @@ export default function CITypeDesignerPage() {
     },
     {
       title: '状态',
-      dataIndex: 'enabled',
-      key: 'enabled',
+      dataIndex: 'status',
+      key: 'status',
       width: 80,
-      render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>{enabled ? '启用' : '禁用'}</Tag>
+      render: (status: string) => (
+        <Tag color={status === 'active' ? 'green' : 'default'}>{status === 'active' ? '启用' : '禁用'}</Tag>
       ),
     },
     {
@@ -546,17 +546,21 @@ export default function CITypeDesignerPage() {
       dataIndex: 'version',
       key: 'version',
       width: 100,
-      render: (v: number) => <Tag color="blue">v{v}</Tag>,
+      render: (v: string) => <Tag color="blue">{v}</Tag>,
     },
     {
       title: '快照内容',
-      dataIndex: 'snapshot',
-      key: 'snapshot',
-      render: (snapshot: Record<string, unknown>) => (
-        <Text ellipsis style={{ maxWidth: 400, fontFamily: 'monospace', fontSize: 12 }}>
-          {JSON.stringify(snapshot)}
-        </Text>
-      ),
+      dataIndex: 'attributesSnapshot',
+      key: 'attributesSnapshot',
+      render: (snapshot: string) => {
+        let parsed = snapshot;
+        try { parsed = JSON.stringify(JSON.parse(snapshot || '[]'), null, 1); } catch { /* ignore */ }
+        return (
+          <Text ellipsis style={{ maxWidth: 400, fontFamily: 'monospace', fontSize: 12 }}>
+            {parsed}
+          </Text>
+        );
+      },
     },
     {
       title: '创建时间',
@@ -571,7 +575,7 @@ export default function CITypeDesignerPage() {
       width: 120,
       render: (_, record) => (
         <Popconfirm
-          title={`确认回滚到版本 v${record.version}？`}
+          title={`确认回滚到版本 ${record.version}？`}
           onConfirm={() => handleRollback(record)}
         >
           <Button type="link" icon={<RollbackOutlined />}>

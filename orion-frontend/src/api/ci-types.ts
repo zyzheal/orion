@@ -14,6 +14,8 @@ export interface CIType {
   category: string | null;
   version: number;
   enabled: boolean;
+  status: string;
+  attributes?: CIAttribute[];
   createdAt: string;
   updatedAt: string;
 }
@@ -23,11 +25,12 @@ export interface CIAttribute {
   tenantId: string;
   typeId: string;
   attrKey: string;
+  name: string;
   displayName: string | null;
-  attrType: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'json';
+  attrType: string;
   required: boolean;
   defaultValue: string | null;
-  options: string[] | null;
+  options: string | null;
   validationRule: string | null;
   sortOrder: number;
   createdAt: string;
@@ -37,8 +40,9 @@ export interface CITypeVersion {
   id: string;
   tenantId: string;
   typeId: string;
-  version: number;
-  snapshot: Record<string, unknown>;
+  version: string;
+  attributesSnapshot?: string;
+  changeSummary?: string | null;
   createdAt: string;
 }
 

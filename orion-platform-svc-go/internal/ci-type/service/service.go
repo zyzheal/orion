@@ -74,6 +74,10 @@ func (s *Service) CreateType(ctx context.Context, req *models.CreateCITypeReques
 		Name:        req.Name,
 		DisplayName: req.DisplayName,
 		Description: req.Description,
+		Icon:        req.Icon,
+		Category:    req.Category,
+		Version:     1,
+		Enabled:     true,
 		Status:      "active",
 	}
 	if req.Status != nil {
@@ -97,9 +101,20 @@ func (s *Service) UpdateType(ctx context.Context, id string, req *models.UpdateC
 	if req.Description != nil {
 		updates["description"] = *req.Description
 	}
+	if req.Icon != nil {
+		updates["icon"] = *req.Icon
+	}
+	if req.Category != nil {
+		updates["category"] = *req.Category
+	}
+	if req.Enabled != nil {
+		updates["enabled"] = *req.Enabled
+	}
 	if req.Status != nil {
 		updates["status"] = *req.Status
 	}
+	// Always bump version on update
+	updates["version"] = 1 // handled as increment in repo
 	if len(updates) == 0 {
 		return nil, errors.New("no fields to update")
 	}
@@ -132,13 +147,24 @@ func (s *Service) SetAttributes(ctx context.Context, ciTypeID string, tenantID s
 	attributeList := make([]models.CIAttribute, len(attrs))
 	for i, a := range attrs {
 		attributeList[i] = models.CIAttribute{
-			Name:         a.Name,
-			Type:         "string",
-			Required:     a.Required,
-			DefaultValue: a.DefaultValue,
+			TenantID:       tenantID,
+			AttrKey:        a.AttrKey,
+			Name:           a.AttrKey,
+			DisplayName:    a.DisplayName,
+			Type:           "string",
+			Required:       a.Required,
+			DefaultValue:   a.DefaultValue,
+			ValidationRule: a.ValidationRule,
+			SortOrder:      a.SortOrder,
 		}
 		if a.Type != "" {
 			attributeList[i].Type = a.Type
+		}
+		if len(a.Options) > 0 {
+			opts, _ := json.Marshal(a.Options)
+			attributeList[i].Options = string(opts)
+		} else {
+			attributeList[i].Options = "[]"
 		}
 	}
 	return s.repo.UpsertAttributes(ctx, ciTypeID, tenantID, attributeList)
