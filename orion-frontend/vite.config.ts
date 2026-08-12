@@ -48,6 +48,14 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: true,
       },
+      '/api/v1/alert-escalation': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      '/api/v1/tenant-quota': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
       // Pipeline Runs - 平台服务
       '/api/v1/pipeline-runs': {
         target: 'http://localhost:3001',

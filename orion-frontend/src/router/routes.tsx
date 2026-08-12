@@ -1153,6 +1153,18 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/lowcode-svc/FormInstancePipeline')),
     protected: true,
   },
+  // Alert Escalation & Closure
+  {
+    path: '/alert-escalation',
+    element: React.lazy(() => import('@/pages/alert-escalation/AlertClosurePage')),
+    protected: true,
+  },
+  // Tenant Quota Management
+  {
+    path: '/tenant-quota',
+    element: React.lazy(() => import('@/pages/tenant-quota/TenantQuotaPage')),
+    protected: true,
+  },
   // Workflow Tasks
   {
     path: '/workflow-tasks',
