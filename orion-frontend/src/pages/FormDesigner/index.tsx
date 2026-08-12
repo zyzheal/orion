@@ -27,7 +27,7 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import TableWrapper, { type TableColumn } from '@/components/Table';
-import apiClient from '@/api/client';
+import { listForms, createForm, updateForm, deleteForm } from '@/api/lowcode';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -57,16 +57,14 @@ interface ConditionRule {
 }
 
 // ── API helpers ──
+// Forms: real API via '@/api/lowcode' → /api/v1/lowcode
+// Conditions: mock (no Go backend yet — TODO)
 
-const listForms = () => apiClient.get<FormSchema[]>('/forms');
-const createForm = (data: Partial<FormSchema>) => apiClient.post<FormSchema>('/forms', data);
-const updateForm = (id: string, data: Partial<FormSchema>) => apiClient.put<FormSchema>(`/forms/${id}`, data);
-const deleteForm = (id: string) => apiClient.delete(`/forms/${id}`);
-
-const listConditions = () => apiClient.get<ConditionRule[]>('/conditions');
-const createCondition = (data: Partial<ConditionRule>) => apiClient.post<ConditionRule>('/conditions', data);
-const updateCondition = (id: string, data: Partial<ConditionRule>) => apiClient.put<ConditionRule>(`/conditions/${id}`, data);
-const deleteCondition = (id: string) => apiClient.delete(`/conditions/${id}`);
+// Mock API — no Go backend yet
+const listConditions = () => Promise.resolve([] as ConditionRule[]);
+const createCondition = (_: Partial<ConditionRule>) => Promise.resolve();
+const updateCondition = (_: string, __: Partial<ConditionRule>) => Promise.resolve();
+const deleteCondition = (_: string) => Promise.resolve();
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
   draft: { color: '#d9d9d9', label: '草稿' },
@@ -91,8 +89,8 @@ const FormDesigner: React.FC = () => {
     setLoading(true);
     try {
       if (activeTab === 'forms') {
-        const res = await listForms();
-        setForms(res.data ?? []);
+        const data = await listForms();
+        setForms(Array.isArray(data) ? data : (data?.data ?? []));
       } else {
         const res = await listConditions();
         setConditions(res.data ?? []);

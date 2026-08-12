@@ -77,177 +77,11 @@ interface TrendDay {
 
 // ==================== Mock Data ====================
 
-const MOCK_APPROVALS: ApprovalRecord[] = [
-  {
-    id: '1',
-    requestNo: 'APPR-20260808-001',
-    applicant: '张三',
-    approver: '李四',
-    submitTime: '2026-08-08 06:30',
-    waitMinutes: 165,
-    slaLimit: '2 小时',
-    status: 'escalated',
-    department: '研发部',
-    approvalType: '生产部署',
-  },
-  {
-    id: '2',
-    requestNo: 'APPR-20260808-002',
-    applicant: '王五',
-    approver: '赵六',
-    submitTime: '2026-08-08 07:00',
-    waitMinutes: 95,
-    slaLimit: '2 小时',
-    status: 'timeout',
-    department: '基础设施',
-    approvalType: '资源扩容',
-  },
-  {
-    id: '3',
-    requestNo: 'APPR-20260808-003',
-    applicant: '钱七',
-    approver: '孙八',
-    submitTime: '2026-08-08 07:45',
-    waitMinutes: 52,
-    slaLimit: '1 小时',
-    status: 'timeout',
-    department: '安全部',
-    approvalType: '安全审批',
-  },
-  {
-    id: '4',
-    requestNo: 'APPR-20260808-004',
-    applicant: '周九',
-    approver: '吴十',
-    submitTime: '2026-08-08 08:10',
-    waitMinutes: 42,
-    slaLimit: '30 分钟',
-    status: 'timeout',
-    department: '研发部',
-    approvalType: '代码合并',
-  },
-  {
-    id: '5',
-    requestNo: 'APPR-20260808-005',
-    applicant: '郑一',
-    approver: '陈二',
-    submitTime: '2026-08-08 08:30',
-    waitMinutes: 35,
-    slaLimit: '1 小时',
-    status: 'warning',
-    department: '运维部',
-    approvalType: '配置变更',
-  },
-  {
-    id: '6',
-    requestNo: 'APPR-20260808-006',
-    applicant: '林三',
-    approver: '黄四',
-    submitTime: '2026-08-08 08:50',
-    waitMinutes: 28,
-    slaLimit: '30 分钟',
-    status: 'warning',
-    department: '研发部',
-    approvalType: '数据库变更',
-  },
-  {
-    id: '7',
-    requestNo: 'APPR-20260808-007',
-    applicant: '何五',
-    approver: '马六',
-    submitTime: '2026-08-08 09:10',
-    waitMinutes: 22,
-    slaLimit: '1 小时',
-    status: 'normal',
-    department: '产品部',
-    approvalType: '需求变更',
-  },
-  {
-    id: '8',
-    requestNo: 'APPR-20260808-008',
-    applicant: '罗七',
-    approver: '梁八',
-    submitTime: '2026-08-08 09:20',
-    waitMinutes: 15,
-    slaLimit: '2 小时',
-    status: 'normal',
-    department: '基础设施',
-    approvalType: '证书更新',
-  },
-  {
-    id: '9',
-    requestNo: 'APPR-20260807-009',
-    applicant: '宋九',
-    approver: '谢十',
-    submitTime: '2026-08-07 18:00',
-    waitMinutes: 625,
-    slaLimit: '8 小时',
-    status: 'escalated',
-    department: '安全部',
-    approvalType: '权限提升',
-  },
-  {
-    id: '10',
-    requestNo: 'APPR-20260807-010',
-    applicant: '韩一',
-    approver: '杨二',
-    submitTime: '2026-08-07 20:00',
-    waitMinutes: 565,
-    slaLimit: '8 小时',
-    status: 'escalated',
-    department: '研发部',
-    approvalType: '生产回滚',
-  },
-];
+const MOCK_APPROVALS: ApprovalRecord[] = [];
 
-const MOCK_RULES: EscalationRule[] = [
-  {
-    id: 'r1',
-    name: '一级超时升级',
-    threshold: '超过 30 分钟',
-    thresholdMinutes: 30,
-    action: '通知直属上级',
-    enabled: true,
-    priority: 1,
-  },
-  {
-    id: 'r2',
-    name: '二级超时升级',
-    threshold: '超过 2 小时',
-    thresholdMinutes: 120,
-    action: '通知部门负责人',
-    enabled: true,
-    priority: 2,
-  },
-  {
-    id: 'r3',
-    name: '三级超时升级',
-    threshold: '超过 8 小时',
-    thresholdMinutes: 480,
-    action: '自动通过 / 通知管理层',
-    enabled: false,
-    priority: 3,
-  },
-  {
-    id: 'r4',
-    name: '高优审批加速',
-    threshold: '超过 15 分钟（P0 工单）',
-    thresholdMinutes: 15,
-    action: '同时通知审批人上级与部门负责人',
-    enabled: true,
-    priority: 4,
-  },
-];
+const MOCK_RULES: EscalationRule[] = [];
 
-const MOCK_TREND: TrendDay[] = [
-  { date: '08-02', avgDuration: 45, maxDuration: 180, slaRate: 92 },
-  { date: '08-03', avgDuration: 38, maxDuration: 155, slaRate: 94 },
-  { date: '08-04', avgDuration: 52, maxDuration: 210, slaRate: 88 },
-  { date: '08-05', avgDuration: 42, maxDuration: 195, slaRate: 91 },
-  { date: '08-06', avgDuration: 35, maxDuration: 140, slaRate: 96 },
-  { date: '08-07', avgDuration: 48, maxDuration: 220, slaRate: 89 },
-  { date: '08-08', avgDuration: 40, maxDuration: 170, slaRate: 93 },
-];
+const MOCK_TREND: TrendDay[] = [];
 
 // ==================== Helpers ====================
 
@@ -287,6 +121,7 @@ const statusTag = (status: EscalationStatus) => {
 // ==================== SVG Trend Chart ====================
 
 const TrendChart: React.FC<{ data: TrendDay[] }> = ({ data }) => {
+  if (data.length === 0) return null;
   const width = 700;
   const height = 200;
   const padding = { top: 30, right: 20, bottom: 40, left: 50 };
@@ -713,11 +548,12 @@ const EscalationRulesCard: React.FC = () => {
 // ==================== Trend Card ====================
 
 const TrendCard: React.FC = () => {
+  if (MOCK_TREND.length === 0) return null;
   const avgOfAll = MOCK_TREND.reduce((s, d) => s + d.avgDuration, 0) / MOCK_TREND.length;
   const maxOfAll = Math.max(...MOCK_TREND.map((d) => d.maxDuration));
   const slaAvg = MOCK_TREND.reduce((s, d) => s + d.slaRate, 0) / MOCK_TREND.length;
   const lastSla = MOCK_TREND[MOCK_TREND.length - 1].slaRate;
-  const prevSla = MOCK_TREND[MOCK_TREND.length - 2].slaRate;
+  const prevSla = MOCK_TREND[MOCK_TREND.length - 2]?.slaRate ?? lastSla;
   const slaChange = lastSla - prevSla;
 
   return (

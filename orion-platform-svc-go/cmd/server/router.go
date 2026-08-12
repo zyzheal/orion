@@ -34,8 +34,17 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if abacH != nil {
     abacH.RegisterRoutes(api)
   }
-  if aeH != nil {
-    aeH.RegisterRoutes(api)
+  if alertEscH != nil {
+    alertEscH.RegisterRoutes(api)
+  }
+  if dcH != nil {
+    dcH.RegisterRoutes(api)
+  }
+  if lcH != nil {
+    lcH.RegisterRoutes(api)
+  }
+  if tqH != nil {
+    tqH.RegisterRoutes(api)
   }
   if agH != nil {
     agH.RegisterRoutes(api)
@@ -574,6 +583,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if workflowH != nil {
     workflowH.RegisterRoutes(api)
+    workflowExtraH.RegisterRoutes(api)
   }
   if workflow_depH != nil {
     workflow_depH.RegisterRoutes(api)
@@ -651,8 +661,8 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if applicationH != nil {
     applicationH.RegisterRoutes(api)
   }
-  if escalationH != nil {
-    escalationH.RegisterRoutes(api)
+  if aeH != nil {
+    aeH.RegisterRoutes(api)
   }
   if runbookH != nil {
     runbookH.RegisterRoutes(api)

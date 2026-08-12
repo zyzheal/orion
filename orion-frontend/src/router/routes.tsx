@@ -1141,6 +1141,18 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/lowcode/TemplateMarket')),
     protected: true,
   },
+  // Lowcode: Component Registry
+  {
+    path: '/lowcode/components',
+    element: React.lazy(() => import('@/pages/lowcode-svc/ComponentRegistry')),
+    protected: true,
+  },
+  // Lowcode: Form Instance Pipeline
+  {
+    path: '/lowcode/instances',
+    element: React.lazy(() => import('@/pages/lowcode-svc/FormInstancePipeline')),
+    protected: true,
+  },
   // Workflow Tasks
   {
     path: '/workflow-tasks',

@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
 	"orion/platform-svc-go/internal/cmdb/models"
 	"orion/go-common/pkg/sentinel"
@@ -523,4 +525,293 @@ func parseInt64Ptr(s string) *int64 {
 		return nil
 	}
 	return &i
+}
+
+// --- AI Recommendation Engine ---
+
+// GenerateRecommendations analyzes CMDB topology and data quality to produce
+// AI-powered recommendations: auto-link suggestions, attribute fill prompts,
+// anomaly detection findings, and topology fix suggestions.
+func (s *Service) GenerateRecommendations(ctx context.Context, tenantID string, reqType *models.RecommendationType, limit int) (*models.RecommendationResult, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	var recs []models.Recommendation
+	var anomalies []models.AnomalyDetected
+
+	switch {
+	case reqType != nil && *reqType == models.RecTypeAutoLink:
+		recs = s.suggestAutoLinks(ctx, tenantID, limit)
+	case reqType != nil && *reqType == models.RecTypeAttributeFill:
+		recs = s.suggestAttributeFills(ctx, tenantID, limit)
+	case reqType != nil && *reqType == models.RecTypeAnomalyDetect:
+		anomalies = s.detectAnomalies(ctx, tenantID, limit)
+	case reqType != nil && *reqType == models.RecTypeTopologyFix:
+		recs = s.suggestTopologyFixes(ctx, tenantID, limit)
+	default:
+		recs = append(recs, s.suggestAutoLinks(ctx, tenantID, limit/2)...)
+		recs = append(recs, s.suggestAttributeFills(ctx, tenantID, limit/2)...)
+		anomalies = s.detectAnomalies(ctx, tenantID, limit/2)
+		recs = append(recs, s.suggestTopologyFixes(ctx, tenantID, limit/2)...)
+	}
+
+	total := len(recs) + len(anomalies)
+	if recs == nil {
+		recs = []models.Recommendation{}
+	}
+	if anomalies == nil {
+		anomalies = []models.AnomalyDetected{}
+	}
+
+	return &models.RecommendationResult{
+		Recommendations: recs,
+		Anomalies:       anomalies,
+		Total:           total,
+	}, nil
+}
+
+// suggestAutoLinks analyzes CIs that share the same environment but lack a relation.
+func (s *Service) suggestAutoLinks(ctx context.Context, tenantID string, limit int) []models.Recommendation {
+	var recs []models.Recommendation
+	now := time.Now()
+
+	allCIs, _, err := s.repo.ListCIs(ctx, nil, nil, tenantID, 1, limit*3)
+	if err != nil || len(allCIs) < 2 {
+		return recs
+	}
+
+	envGroups := make(map[string][]models.CI)
+	for _, ci := range allCIs {
+		env := "default"
+		if ci.Environment != nil {
+			env = *ci.Environment
+		}
+		envGroups[env] = append(envGroups[env], ci)
+	}
+
+	for env, cis := range envGroups {
+		if len(cis) < 2 {
+			continue
+		}
+		for i := 0; i < len(cis) && len(recs) < limit; i++ {
+			for j := i + 1; j < len(cis) && len(recs) < limit; j++ {
+				a, b := cis[i], cis[j]
+				if a.CIType == b.CIType {
+					continue
+				}
+				relations, _ := s.repo.GetCIRelations(ctx, a.ID)
+				alreadyLinked := false
+				for _, rel := range relations {
+					if (rel.FromCID == a.ID && rel.ToCIID == b.ID) || (rel.FromCID == b.ID && rel.ToCIID == a.ID) {
+						alreadyLinked = true
+						break
+					}
+				}
+				if alreadyLinked {
+					continue
+				}
+
+				confidence := 55.0
+				if a.Environment != nil && b.Environment != nil && *a.Environment == *b.Environment {
+					confidence += 20
+				}
+
+				recs = append(recs, models.Recommendation{
+					ID:           fmt.Sprintf("REC-%d", len(recs)+1),
+					Type:         models.RecTypeAutoLink,
+					SourceCIID:   a.CIID,
+					SourceCIName: a.Name,
+					TargetCIID:   b.CIID,
+					TargetCIName: b.Name,
+					Confidence:   confidence,
+					Status:       models.RecStatusPending,
+					RecommendAt:  now,
+					Suggestion:   fmt.Sprintf("建立 %s 与 %s 的关联关系", a.CIType, b.CIType),
+					Reason:       fmt.Sprintf("同一环境(%s)的 %s 和 %s 未建立关联，建议补充拓扑关系", env, a.Name, b.Name),
+				})
+			}
+		}
+	}
+	return recs
+}
+
+// suggestAttributeFills identifies CIs with missing critical attributes.
+func (s *Service) suggestAttributeFills(ctx context.Context, tenantID string, limit int) []models.Recommendation {
+	var recs []models.Recommendation
+	now := time.Now()
+
+	allCIs, _, err := s.repo.ListCIs(ctx, nil, nil, tenantID, 1, limit*3)
+	if err != nil {
+		return recs
+	}
+
+	for _, ci := range allCIs {
+		if len(recs) >= limit {
+			break
+		}
+		var missingFields []string
+		if ci.Description == nil || *ci.Description == "" {
+			missingFields = append(missingFields, "描述")
+		}
+		if ci.Environment == nil || *ci.Environment == "" {
+			missingFields = append(missingFields, "运行环境")
+		}
+		if ci.Tags == nil || *ci.Tags == "" {
+			missingFields = append(missingFields, "标签")
+		}
+		if len(missingFields) == 0 {
+			continue
+		}
+
+		confidence := 65.0
+		if ci.Environment == nil {
+			confidence += 15
+		}
+		if ci.Description == nil {
+			confidence += 10
+		}
+
+		recs = append(recs, models.Recommendation{
+			ID:           fmt.Sprintf("REC-%d", len(recs)+1),
+			Type:         models.RecTypeAttributeFill,
+			SourceCIID:   ci.CIID,
+			SourceCIName: ci.Name,
+			TargetCIID:   "-",
+			TargetCIName: "-",
+			Confidence:   confidence,
+			Status:       models.RecStatusPending,
+			RecommendAt:  now,
+			Suggestion:   fmt.Sprintf("补充 %s 的缺失字段: %s", ci.CIType, strings.Join(missingFields, "、")),
+			Reason:       fmt.Sprintf("CI %s (%s) 缺少关键字段，影响 CMDB 数据完整性和可检索性", ci.Name, ci.CIID),
+		})
+	}
+	return recs
+}
+
+// detectAnomalies identifies CIs with potential data quality issues.
+func (s *Service) detectAnomalies(ctx context.Context, tenantID string, limit int) []models.AnomalyDetected {
+	var anomalies []models.AnomalyDetected
+	now := time.Now()
+
+	allCIs, _, err := s.repo.ListCIs(ctx, nil, nil, tenantID, 1, limit*3)
+	if err != nil {
+		return anomalies
+	}
+
+	typeNameMap := make(map[string][]models.CI)
+	for _, ci := range allCIs {
+		key := ci.CIType + ":" + ci.Name
+		typeNameMap[key] = append(typeNameMap[key], ci)
+	}
+	for key, duplicates := range typeNameMap {
+		if len(duplicates) > 1 && len(anomalies) < limit {
+			parts := strings.SplitN(key, ":", 2)
+			anomalies = append(anomalies, models.AnomalyDetected{
+				ID:          fmt.Sprintf("AN-%d", len(anomalies)+1),
+				CIID:        duplicates[0].CIID,
+				CIName:      duplicates[0].Name,
+				AnomalyType: "数据重复",
+				Severity:    "high",
+				DetectedAt:  now,
+				Detail:      fmt.Sprintf("发现 %d 个同类型(%s)同名(%s)的 CI，可能存在重复录入", len(duplicates), parts[0], parts[1]),
+			})
+		}
+	}
+
+	for _, ci := range allCIs {
+		if len(anomalies) >= limit {
+			break
+		}
+		relations, _ := s.repo.GetCIRelations(ctx, ci.ID)
+		if len(relations) == 0 && ci.Status == "active" {
+			anomalies = append(anomalies, models.AnomalyDetected{
+				ID:          fmt.Sprintf("AN-%d", len(anomalies)+1),
+				CIID:        ci.CIID,
+				CIName:      ci.Name,
+				AnomalyType: "孤立节点",
+				Severity:    "medium",
+				DetectedAt:  now,
+				Detail:      fmt.Sprintf("CI %s (%s) 在拓扑中无任何关联关系，可能是孤立节点或遗漏关联", ci.Name, ci.CIID),
+			})
+		}
+	}
+
+	return anomalies
+}
+
+// suggestTopologyFixes identifies broken or inconsistent topology edges.
+func (s *Service) suggestTopologyFixes(ctx context.Context, tenantID string, limit int) []models.Recommendation {
+	var recs []models.Recommendation
+	now := time.Now()
+
+	edges, err := s.repo.GetTopologyEdges(ctx, tenantID, 100)
+	if err != nil {
+		return recs
+	}
+
+	allCIs, _, err := s.repo.ListCIs(ctx, nil, nil, tenantID, 1, 500)
+	if err != nil {
+		return recs
+	}
+	validIDs := make(map[string]bool)
+	idToName := make(map[string]string)
+	for _, ci := range allCIs {
+		validIDs[ci.ID] = true
+		idToName[ci.ID] = ci.Name
+	}
+
+	for _, edge := range edges {
+		if len(recs) >= limit {
+			break
+		}
+		srcValid := validIDs[edge.Source]
+		tgtValid := validIDs[edge.Target]
+		if !srcValid || !tgtValid {
+			missingSide := edge.Source
+			missingName := idToName[edge.Source]
+			if !tgtValid {
+				missingSide = edge.Target
+				missingName = idToName[edge.Target]
+			}
+			recs = append(recs, models.Recommendation{
+				ID:           fmt.Sprintf("REC-%d", len(recs)+1),
+				Type:         models.RecTypeTopologyFix,
+				SourceCIID:   edge.Source,
+				SourceCIName: idToName[edge.Source],
+				TargetCIID:   edge.Target,
+				TargetCIName: idToName[edge.Target],
+				Confidence:   90.0,
+				Status:       models.RecStatusPending,
+				RecommendAt:  now,
+				Suggestion:   fmt.Sprintf("修复拓扑中引用已不存在 CI(%s) 的边", missingSide),
+				Reason:       fmt.Sprintf("拓扑边 %s → %s 引用了不存在的 CI(%s)，建议删除或重新建立关联", edge.Source, edge.Target, missingName),
+			})
+		}
+	}
+
+	edgePairs := make(map[string][]models.TopologyEdge)
+	for _, edge := range edges {
+		pair := edge.Source + "->" + edge.Target
+		edgePairs[pair] = append(edgePairs[pair], edge)
+	}
+	for pair, dupes := range edgePairs {
+		if len(dupes) > 1 && len(recs) < limit {
+			parts := strings.Split(pair, "->")
+			recs = append(recs, models.Recommendation{
+				ID:           fmt.Sprintf("REC-%d", len(recs)+1),
+				Type:         models.RecTypeTopologyFix,
+				SourceCIID:   parts[0],
+				SourceCIName: idToName[parts[0]],
+				TargetCIID:   parts[1],
+				TargetCIName: idToName[parts[1]],
+				Confidence:   85.0,
+				Status:       models.RecStatusPending,
+				RecommendAt:  now,
+				Suggestion:   "合并重复的拓扑关系边",
+				Reason:       fmt.Sprintf("CI %s 与 %s 之间存在 %d 条重复关系边，建议合并为一条", parts[0], parts[1], len(dupes)),
+			})
+		}
+	}
+	return recs
 }

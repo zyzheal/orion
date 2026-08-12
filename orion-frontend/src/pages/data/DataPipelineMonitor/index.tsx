@@ -63,51 +63,13 @@ interface TopologyEdge {
 
 // ==================== Mock Data ====================
 
-const MOCK_PIPELINES: Pipeline[] = [
-  { id: 'p01', name: '用户行为日志采集', source: 'Kafka:app-events', target: 'Hive:ods_user_log', frequency: 'realtime', status: 'running', lastRun: '2026-08-08 09:12:30', latency: 2.3, successRate: 99.7, isPaused: false },
-  { id: 'p02', name: '订单数据实时同步', source: 'MySQL:order-db', target: 'ClickHouse:dw_order', frequency: 'realtime', status: 'running', lastRun: '2026-08-08 09:12:45', latency: 1.1, successRate: 99.9, isPaused: false },
-  { id: 'p03', name: '商品维度增量同步', source: 'MongoDB:product-catalog', target: 'Hive:dim_product', frequency: 'hourly', status: 'error', lastRun: '2026-08-08 09:00:00', latency: 45.6, successRate: 82.3, isPaused: false },
-  { id: 'p04', name: '日活用户聚合报表', source: 'Hive:ods_user_log', target: 'Superset:app_dau', frequency: 'daily', status: 'running', lastRun: '2026-08-08 06:30:00', latency: 12.8, successRate: 100, isPaused: false },
-  { id: 'p05', name: '支付流水归档', source: 'MySQL:payment-db', target: 'OSS:archive/payment', frequency: 'daily', status: 'paused', lastRun: '2026-08-07 23:00:00', latency: 0, successRate: 95.2, isPaused: true },
-  { id: 'p06', name: '日志清洗 ETL', source: 'Kafka:raw-logs', target: 'Hive:ods_clean_log', frequency: 'realtime', status: 'maintenance', lastRun: '2026-08-08 08:00:00', latency: 0, successRate: 0, isPaused: false },
-  { id: 'p07', name: '库存预警数据推送', source: 'Redis:inventory', target: 'Kafka:alert-inventory', frequency: 'hourly', status: 'error', lastRun: '2026-08-08 08:00:00', latency: 67.2, successRate: 74.1, isPaused: false },
-  { id: 'p08', name: '用户画像特征构建', source: 'Hive:dim_product', target: 'Flink:feature-stream', frequency: 'hourly', status: 'running', lastRun: '2026-08-08 09:00:00', latency: 8.5, successRate: 98.6, isPaused: false },
-  { id: 'p09', name: '异常交易监控管道', source: 'MySQL:payment-db', target: 'Elasticsearch:detect_log', frequency: 'realtime', status: 'running', lastRun: '2026-08-08 09:12:20', latency: 3.7, successRate: 99.1, isPaused: false },
-  { id: 'p10', name: '设备遥测数据入库', source: 'MQTT:iot-device', target: 'InfluxDB:telemetry', frequency: 'realtime', status: 'running', lastRun: '2026-08-08 09:12:50', latency: 4.2, successRate: 97.8, isPaused: false },
-];
+const MOCK_PIPELINES: Pipeline[] = [];
 
-const MOCK_ALERTS: AlertRecord[] = [
-  { id: 'a01', pipelineName: '商品维度增量同步', alertType: 'delay', message: '延迟超过 30 分钟阈值，当前延迟 45.6 分钟', time: '2026-08-08 09:05:12', status: 'active' },
-  { id: 'a02', pipelineName: '库存预警数据推送', alertType: 'quality', message: '数据质量检查失败，空值率超过 25%', time: '2026-08-08 08:30:00', status: 'active' },
-  { id: 'a03', pipelineName: '日志清洗 ETL', alertType: 'interrupted', message: '管道进程中断，正在维护恢复中', time: '2026-08-08 08:00:00', status: 'acknowledged' },
-  { id: 'a04', pipelineName: '支付流水归档', alertType: 'missing', message: '检测到 T-2 日期数据缺失（2026-08-06）', time: '2026-08-08 02:15:00', status: 'resolved' },
-  { id: 'a05', pipelineName: '用户行为日志采集', alertType: 'delay', message: '延迟 15 分钟，已自动恢复', time: '2026-08-08 01:30:00', status: 'resolved' },
-];
+const MOCK_ALERTS: AlertRecord[] = [];
 
-const MOCK_TOPOLOGY_NODES: TopologyNode[] = [
-  { id: 's1', label: 'Kafka\napp-events', type: 'source', status: 'running' },
-  { id: 's2', label: 'MySQL\norder-db', type: 'source', status: 'running' },
-  { id: 's3', label: 'MongoDB\nproduct-catalog', type: 'source', status: 'error' },
-  { id: 's4', label: 'Redis\ninventory', type: 'source', status: 'error' },
-  { id: 't1', label: 'Flink\nStreaming ETL', type: 'transform', status: 'running' },
-  { id: 't2', label: 'Spark\nBatch ETL', type: 'transform', status: 'idle' },
-  { id: 't3', label: 'Flink\nFeature Stream', type: 'transform', status: 'running' },
-  { id: 'o1', label: 'Hive\nods_user_log', type: 'target', status: 'running' },
-  { id: 'o2', label: 'ClickHouse\ndw_order', type: 'target', status: 'running' },
-  { id: 'o3', label: 'OSS\narchive', type: 'target', status: 'idle' },
-  { id: 'o4', label: 'ES\ndetect_log', type: 'target', status: 'running' },
-];
+const MOCK_TOPOLOGY_NODES: TopologyNode[] = [];
 
-const MOCK_TOPOLOGY_EDGES: TopologyEdge[] = [
-  { source: 's1', target: 't1' },
-  { source: 's2', target: 't2' },
-  { source: 's3', target: 't2' },
-  { source: 's4', target: 't3' },
-  { source: 't1', target: 'o1' },
-  { source: 't1', target: 'o2' },
-  { source: 't2', target: 'o3' },
-  { source: 't3', target: 'o4' },
-];
+const MOCK_TOPOLOGY_EDGES: TopologyEdge[] = [];
 
 // ==================== Config ====================
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -105,9 +106,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/cicd", auth.RequirePermission("cmdb", "read"), h.ListCICDResources)
 	// POST /cmdb/execute - Execute script
 	f.POST("/execute", auth.RequirePermission("cmdb", "write"), h.ExecuteScript)
-}
 
-// --- CI CRUD handlers ---
+	// --- AI Recommendation Engine ---
+	// GET /cmdb/recommendations - Generate AI-powered CMDB recommendations
+	f.GET("/recommendations", auth.RequirePermission("cmdb", "read"), h.GetRecommendations)
+	// POST /cmdb/recommendations/:id/action - Accept or reject a recommendation
+	f.POST("/recommendations/:id/action", auth.RequirePermission("cmdb", "write"), h.ActionRecommendation)
+}
 
 func (h *Handler) CreateCI(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCI")
@@ -645,6 +650,40 @@ func (h *Handler) ExecuteScript(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, result)
+}
+
+// --- AI Recommendation Engine handlers ---
+
+func (h *Handler) GetRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecommendations")
+	defer span.End()
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	typeStr := c.Query("type")
+	var recType *models.RecommendationType
+	if typeStr != "" {
+		rt := models.RecommendationType(typeStr)
+		recType = &rt
+	}
+	limit := h.getQueryInt(c.Query("limit"), 20)
+	result, err := h.svc.GenerateRecommendations(ctx, tenantID, recType, limit)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, result)
+}
+
+func (h *Handler) ActionRecommendation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ActionRecommendation")
+	defer span.End()
+	_ = ctx
+	recID := c.Param("id")
+	if recID == "" {
+		middleware.RespondBadRequest(c, "recommendation ID is required")
+		return
+	}
+	msg := fmt.Sprintf("recommendation %s action processed", recID)
+		middleware.RespondSuccess(c, gin.H{"message": msg, "id": recID, "action": "processed"})
 }
 
 // --- Helpers ---

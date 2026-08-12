@@ -24,6 +24,30 @@ export default defineConfig({
         target: 'http://localhost:3030',
         changeOrigin: true,
       },
+      '/api/v1/config': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      '/api/v1/lowcode': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      '/api/v1/workflows': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      '/api/v1/workflow-tasks': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      '/api/v1/workflow-triggers': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
+      '/api/v1/workflow-dependencies': {
+        target: 'http://localhost:3030',
+        changeOrigin: true,
+      },
       // Pipeline Runs - 平台服务
       '/api/v1/pipeline-runs': {
         target: 'http://localhost:3001',

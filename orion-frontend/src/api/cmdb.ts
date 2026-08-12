@@ -285,6 +285,53 @@ export const getCIDependencies = async (ciId: string) => {
 // Health
 // ============================================================================
 
+// ============================================================================
+// AI Recommendations
+// ============================================================================
+
+export type RecommendationType = 'auto-link' | 'attribute-fill' | 'anomaly-detect' | 'topology-fix';
+export type RecommendationStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface RecommendationItem {
+  id: string;
+  type: RecommendationType;
+  sourceCi: string;
+  sourceCiName: string;
+  targetCi: string;
+  targetCIName: string;
+  confidence: number;
+  status: RecommendationStatus;
+  recommendTime: string;
+  suggestion: string;
+  reason: string;
+}
+
+export interface AnomalyDetected {
+  id: string;
+  ciId: string;
+  ciName: string;
+  anomalyType: string;
+  severity: string;
+  detectedTime: string;
+  detail: string;
+}
+
+export interface RecommendationResult {
+  recommendations: RecommendationItem[];
+  anomalies: AnomalyDetected[];
+  total: number;
+}
+
+export const getRecommendations = async (params?: { type?: RecommendationType; limit?: number }) => {
+  const response = await apiClient.get('/api/v1/cmdb/recommendations', { params });
+  return response.data as { data?: RecommendationResult };
+};
+
+export const actionRecommendation = async (id: string, action: 'accept' | 'reject') => {
+  const response = await apiClient.post(`/api/v1/cmdb/recommendations/${id}/action`, { action });
+  return response.data;
+};
+
 export const getCMDBHealth = async () => {
   const response = await apiClient.get('/api/v1/cmdb/health');
   return response.data;

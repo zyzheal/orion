@@ -1,360 +1,243 @@
 /**
- * Lowcode API Service
- * Low-code workflow/flow CRUD and execution
+ * Low-Code Designer API Service
+ * /api/v1/lowcode — Forms / Fields / Templates / Instances / Components
  */
-
 import { api } from './client';
 
-// ==================== Types ====================
-
-export interface LowcodeFlow {
+export interface FormDefinition {
   id: string;
+  tenantId: string;
   name: string;
-  description?: string;
-  version: string;
+  title: string;
+  description: string;
+  version: number;
   status: 'draft' | 'published' | 'archived';
-  nodes: Array<Record<string, unknown>>;
-  edges: Array<Record<string, unknown>>;
-  nodeCount: number;
+  category: string;
+  moduleName: string;
+  tags?: string[];
+  layout?: Record<string, unknown>;
+  fields?: FormField[];
+  meta?: Record<string, unknown>;
   createdBy: string;
+  updatedBy: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface LowcodeWorkflowVersion {
+export interface FormField {
   id: string;
-  workflowId: string;
+  formId: string;
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  visible: boolean;
+  disabled: boolean;
+  placeholder: string;
+  defaultVal?: unknown;
+  options?: unknown[];
+  rules?: unknown[];
+  meta?: Record<string, unknown>;
+  sortableIndex: number;
+  parentKey?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  isBuiltin: boolean;
+  formSchema?: Record<string, unknown>;
+  previewUrl: string;
+  usageCount: number;
+  createdAt: string;
+}
+
+export interface FormInstance {
+  id: string;
+  formId: string;
+  data?: Record<string, unknown>;
+  status: string;
+  submittedBy: string;
+  submittedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  createdAt: string;
+}
+
+export interface ComponentRegistry {
+  id: string;
+  name: string;
+  displayName: string;
+  category: string;
   version: string;
-  changeLog?: string;
-  snapshot?: Record<string, unknown>;
-  createdBy: string;
+  propsSchema?: Record<string, unknown>;
+  defaultConfig?: Record<string, unknown>;
+  icon: string;
+  isBuiltin: boolean;
   createdAt: string;
 }
 
-export interface LowcodeTemplate {
+// Legacy types used by TemplateMarket and Flow pages
+export type LowcodeTemplate = FormTemplate;
+export interface LowcodeFlow {
   id: string;
   name: string;
-  description?: string;
+  description: string;
+  category: string;
+  status: 'draft' | 'published' | 'archived';
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Forms ---
+
+export const listForms = async (category?: string, status?: string) => {
+  const params: Record<string, string> = {};
+  if (category) params.category = category;
+  if (status) params.status = status;
+  const res = await api.get('/api/v1/lowcode/forms', { params });
+  return res.data;
+};
+
+export const getForm = async (id: string) => {
+  const res = await api.get(`/api/v1/lowcode/forms/${id}`);
+  return res.data;
+};
+
+export const createForm = async (data: Partial<FormDefinition> & { name: string; fields?: FormField[] }) => {
+  const res = await api.post('/api/v1/lowcode/forms', data);
+  return res.data;
+};
+
+export const updateForm = async (id: string, data: Partial<FormDefinition>) => {
+  const res = await api.put(`/api/v1/lowcode/forms/${id}`, data);
+  return res.data;
+};
+
+export const deleteForm = async (id: string) => {
+  const res = await api.delete(`/api/v1/lowcode/forms/${id}`);
+  return res.data;
+};
+
+// --- Fields ---
+
+export const createField = async (formId: string, data: Partial<FormField> & { key: string; label: string; type: string }) => {
+  const res = await api.post(`/api/v1/lowcode/forms/${formId}/fields`, data);
+  return res.data;
+};
+
+export const getFieldsByForm = async (formId: string) => {
+  const res = await api.get(`/api/v1/lowcode/forms/${formId}/fields`);
+  return res.data;
+};
+
+export const updateField = async (id: string, data: Partial<FormField>) => {
+  const res = await api.put(`/api/v1/lowcode/fields/${id}`, data);
+  return res.data;
+};
+
+export const deleteField = async (id: string) => {
+  const res = await api.delete(`/api/v1/lowcode/fields/${id}`);
+  return res.data;
+};
+
+// --- Templates ---
+
+export const listTemplates = async (category?: string) => {
+  const params: Record<string, string> = {};
+  if (category) params.category = category;
+  const res = await api.get('/api/v1/lowcode/templates', { params });
+  return res.data;
+};
+
+export const getTemplate = async (id: string) => {
+  const res = await api.get(`/api/v1/lowcode/templates/${id}`);
+  return res.data;
+};
+
+export const createTemplate = async (data: { name: string; description?: string; category?: string; schema?: Record<string, unknown>; tags?: string[] }) => {
+  const res = await api.post('/api/v1/lowcode/templates', data);
+  return res.data;
+};
+
+// --- Instances ---
+
+export const submitInstance = async (formId: string, data: { data: Record<string, unknown>; submitBy: string }) => {
+  const res = await api.post(`/api/v1/lowcode/forms/${formId}/instances`, data);
+  return res.data;
+};
+
+export const listInstances = async (formId?: string, status?: string) => {
+  const params: Record<string, string> = {};
+  if (formId) params.formId = formId;
+  if (status) params.status = status;
+  const res = await api.get('/api/v1/lowcode/instances', { params });
+  return res.data;
+};
+
+export const getInstance = async (id: string) => {
+  const res = await api.get(`/api/v1/lowcode/instances/${id}`);
+  return res.data;
+};
+
+export const approveInstance = async (id: string, action: 'approve' | 'reject', approver: string) => {
+  const res = await api.post(`/api/v1/lowcode/instances/${id}/approve`, { approver, action });
+  return res.data;
+};
+
+// --- Components ---
+
+export const listComponents = async (category?: string) => {
+  const params: Record<string, string> = {};
+  if (category) params.category = category;
+  const res = await api.get('/api/v1/lowcode/components', { params });
+  return res.data;
+};
+
+export const getComponent = async (id: string) => {
+  const res = await api.get(`/api/v1/lowcode/components/${id}`);
+  return res.data;
+};
+
+export const createComponent = async (data: {
+  name: string;
+  displayName: string;
   category?: string;
-  thumbnail?: string;
-  definition: {
-    nodes: Array<Record<string, unknown>>;
-    edges: Array<Record<string, unknown>>;
-  };
-  tags?: string[];
-  usageCount?: number;
-  createdBy: string;
-  createdAt: string;
-}
-
-export interface LowcodeFlowExecution {
-  id: string;
-  workflowId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  input: Record<string, unknown>;
-  output?: Record<string, unknown>;
-  error?: string;
-  triggeredBy: string;
-  startedAt: string;
-  completedAt?: string;
-}
-
-export interface CreateFlowInput {
-  name: string;
-  description?: string;
   version?: string;
-  nodes?: Array<Record<string, unknown>>;
-  edges?: Array<Record<string, unknown>>;
-}
+  propsSchema: Record<string, unknown>;
+  defaultConfig?: Record<string, unknown>;
+  icon?: string;
+}) => {
+  const res = await api.post('/api/v1/lowcode/components', data);
+  return res.data;
+};
 
-export interface UpdateFlowInput {
-  name?: string;
-  description?: string;
-  version?: string;
-  nodes?: Array<Record<string, unknown>>;
-  edges?: Array<Record<string, unknown>>;
-  enabled?: boolean;
-}
-
-// ==================== LowcodeApi Object (for page components) ====================
-
-/** 后端列表响应解包后的形状（axios interceptor 已解包 success.data） */
-interface ListFlowsUnwrapped {
-  data: LowcodeFlow[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-/** 执行流程响应 */
-interface ExecuteFlowUnwrapped {
-  success: boolean;
-  data: LowcodeFlowExecution;
-  message: string;
-}
+// --- LowcodeApi namespace (legacy compat for TemplateMarket) ---
 
 export const lowcodeApi = {
-  /**
-   * 列出所有流程
-   * GET /api/v1/lowcode/flows
-   * 返回 { flows: LowcodeFlow[] }
-   */
-  listFlows: async (): Promise<{ flows: LowcodeFlow[] }> => {
-    const response = await api.get<ListFlowsUnwrapped>('/api/v1/lowcode/flows');
-    return { flows: response.data.data || [] };
+  listTemplates,
+  getTemplate,
+  createTemplate,
+  listForms,
+  getForm,
+  createForm,
+  updateForm,
+  deleteForm,
+  listFlows: async () => {
+    // No dedicated flow backend yet — returns forms as flows
+    const res = await listForms();
+    return (Array.isArray(res) ? res : (res?.data ?? [])) as LowcodeFlow[];
   },
-
-  /**
-   * 获取流程详情
-   * GET /api/v1/lowcode/flows/:id
-   */
-  getFlow: async (id: string): Promise<LowcodeFlow> => {
-    const response = await api.get<{ data: LowcodeFlow }>(`/api/v1/lowcode/flows/${id}`);
-    return response.data.data;
-  },
-
-  /**
-   * 创建流程
-   * POST /api/v1/lowcode/flows
-   */
-  createFlow: async (data: { name: string; description?: string; type?: string }): Promise<LowcodeFlow> => {
-    const response = await api.post<{ data: LowcodeFlow }>('/api/v1/lowcode/flows', {
-      name: data.name,
-      description: data.description || '',
-      version: '1.0.0',
-      nodes: [],
-      edges: [],
-    });
-    return response.data.data;
-  },
-
-  /**
-   * 更新流程
-   * PUT /api/v1/lowcode/flows/:id
-   */
-  updateFlow: async (id: string, data: Record<string, unknown>): Promise<LowcodeFlow> => {
-    const response = await api.put<{ data: LowcodeFlow }>(`/api/v1/lowcode/flows/${id}`, data);
-    return response.data.data;
-  },
-
-  /**
-   * 删除流程
-   * DELETE /api/v1/lowcode/flows/:id
-   */
-  deleteFlow: async (id: string): Promise<void> => {
-    await api.delete(`/api/v1/lowcode/flows/${id}`);
-  },
-
-  /**
-   * 发布流程
-   * POST /api/v1/lowcode/flows/:id/publish
-   */
-  publishFlow: async (id: string): Promise<LowcodeFlow> => {
-    const response = await api.post<{ data: LowcodeFlow }>(`/api/v1/lowcode/flows/${id}/publish`);
-    return response.data.data;
-  },
-
-  /**
-   * 执行流程
-   * POST /api/v1/lowcode/flows/:id/execute
-   * 返回执行结果摘要
-   */
-  executeFlow: async (id: string, input: Record<string, unknown> = {}): Promise<{ result: Record<string, unknown> }> => {
-    const response = await api.post<ExecuteFlowUnwrapped>(`/api/v1/lowcode/flows/${id}/execute`, { input });
-    const instance = response.data.data;
-    return {
-      result: {
-        instanceId: instance.id,
-        status: instance.status,
-        output: instance.output || {},
-      },
-    };
-  },
-
-  /**
-   * 创建版本快照
-   * POST /api/v1/lowcode/workflows/:id/versions
-   */
-  createWorkflowVersion: async (workflowId: string, data?: { changeLog?: string; snapshot?: Record<string, unknown> }): Promise<LowcodeWorkflowVersion> => {
-    const response = await api.post<{ data: LowcodeWorkflowVersion }>(`/api/v1/lowcode/workflows/${workflowId}/versions`, data);
-    return response.data.data;
-  },
-
-  /**
-   * 列出版本历史
-   * GET /api/v1/lowcode/workflows/:id/versions
-   * 返回 { versions: LowcodeWorkflowVersion[], total: number }
-   */
-  listWorkflowVersions: async (workflowId: string, params?: { limit?: number; offset?: number }): Promise<{ versions: LowcodeWorkflowVersion[]; total: number }> => {
-    const response = await api.get<{ data: { versions: LowcodeWorkflowVersion[]; total: number; limit: number; offset: number } }>(`/api/v1/lowcode/workflows/${workflowId}/versions`, { params });
-    const unwrapped = response.data.data;
-    return { versions: unwrapped.versions || [], total: unwrapped.total || 0 };
-  },
-
-  /**
-   * 导出流程
-   * POST /api/v1/lowcode/workflows/:id/export
-   */
-  exportWorkflow: async (id: string): Promise<ExportWorkflowResponse> => {
-    const response = await api.post<{ data: ExportWorkflowResponse }>(`/api/v1/lowcode/workflows/${id}/export`);
-    return response.data.data;
-  },
-
-  /**
-   * 导入流程
-   * POST /api/v1/lowcode/workflows/import
-   */
-  importWorkflow: async (data: {
-    name: string;
-    description?: string;
-    exportedAt: string;
-    versions: LowcodeWorkflowVersion[];
-    currentDefinition: {
-      nodes: Array<Record<string, unknown>>;
-      edges: Array<Record<string, unknown>>;
-    };
-  }): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post<{ success: boolean; message: string; data: LowcodeFlow }>('/api/v1/lowcode/workflows/import', data);
-    return { success: response.data.success, message: response.data.message };
-  },
-
-  /**
-   * 列出模板
-   * GET /api/v1/lowcode/templates
-   * 返回模板数组（interceptor 已解包 success.data）
-   */
-  listTemplates: async (): Promise<LowcodeTemplate[]> => {
-    const response = await api.get<LowcodeTemplate[]>('/api/v1/lowcode/templates');
-    return response.data || [];
-  },
-
-  /**
-   * 创建模板
-   * POST /api/v1/lowcode/templates
-   */
-  createTemplate: async (data: {
-    name: string;
-    description?: string;
-    category?: string;
-    thumbnail?: string;
-    definition: {
-      nodes: Array<Record<string, unknown>>;
-      edges: Array<Record<string, unknown>>;
-    };
-    tags?: string[];
-  }): Promise<LowcodeTemplate> => {
-    const response = await api.post<{ data: LowcodeTemplate }>('/api/v1/lowcode/templates', data);
-    return response.data.data;
-  },
-
-  /**
-   * 应用模板创建流程
-   * POST /api/v1/lowcode/templates/:id/apply
-   */
-  applyTemplate: async (templateId: string, data: { workflowName: string; description?: string; variables?: Record<string, string> }): Promise<LowcodeFlow> => {
-    const response = await api.post<{ data: LowcodeFlow; message: string }>(`/api/v1/lowcode/templates/${templateId}/apply`, data);
-    return response.data.data;
+  applyTemplate: async (templateId: string, data: Record<string, unknown>) => {
+    // Apply a template by creating a form from it
+    const tpl = await getTemplate(templateId);
+    return createForm({ ...tpl, ...data, name: data.workflowName || tpl.name });
   },
 };
 
-// ==================== Named exports (backward compatibility) ====================
-
-export function listFlows(params?: { limit?: number; offset?: number; search?: string; enabled?: boolean }) {
-  return api.get('/api/v1/lowcode/flows', { params });
-}
-
-export function getFlow(id: string) {
-  return api.get(`/api/v1/lowcode/flows/${id}`);
-}
-
-export function createFlow(data: CreateFlowInput) {
-  return api.post('/api/v1/lowcode/flows', data);
-}
-
-export function updateFlow(id: string, data: UpdateFlowInput) {
-  return api.put(`/api/v1/lowcode/flows/${id}`, data);
-}
-
-export function deleteFlow(id: string) {
-  return api.delete(`/api/v1/lowcode/flows/${id}`);
-}
-
-export function publishFlow(id: string) {
-  return api.post(`/api/v1/lowcode/flows/${id}/publish`);
-}
-
-// ==================== Execution ====================
-
-export function executeFlow(id: string, input?: Record<string, unknown>, triggeredBy?: string) {
-  return api.post(`/api/v1/lowcode/flows/${id}/execute`, { input, triggeredBy });
-}
-
-export function getFlowExecution(executionId: string) {
-  return api.get(`/api/v1/lowcode/executions/${executionId}`);
-}
-
-// ==================== Versions ====================
-
-export function createWorkflowVersion(workflowId: string, data?: { changeLog?: string; snapshot?: Record<string, unknown> }) {
-  return api.post(`/api/v1/lowcode/workflows/${workflowId}/versions`, data);
-}
-
-export function listWorkflowVersions(workflowId: string, params?: { limit?: number; offset?: number }) {
-  return api.get(`/api/v1/lowcode/workflows/${workflowId}/versions`, { params });
-}
-
-// ==================== Import/Export ====================
-
-export interface ExportWorkflowResponse {
-  workflow: {
-    id: string;
-    name: string;
-    description?: string;
-    version: string;
-    nodes: Array<Record<string, unknown>>;
-    edges: Array<Record<string, unknown>>;
-  };
-  exportedAt: string;
-  versions: LowcodeWorkflowVersion[];
-}
-
-export function exportWorkflow(id: string) {
-  return api.post<ExportWorkflowResponse>(`/api/v1/lowcode/workflows/${id}/export`);
-}
-
-export function importWorkflow(data: {
-  name: string;
-  description?: string;
-  exportedAt: string;
-  versions: LowcodeWorkflowVersion[];
-  currentDefinition: {
-    nodes: Array<Record<string, unknown>>;
-    edges: Array<Record<string, unknown>>;
-  };
-}) {
-  return api.post('/api/v1/lowcode/workflows/import', data);
-}
-
-// ==================== Templates ====================
-
-export function listTemplates() {
-  return api.get('/api/v1/lowcode/templates');
-}
-
-export function createTemplate(data: {
-  name: string;
-  description?: string;
-  category?: string;
-  thumbnail?: string;
-  definition: {
-    nodes: Array<Record<string, unknown>>;
-    edges: Array<Record<string, unknown>>;
-  };
-  tags?: string[];
-}) {
-  return api.post('/api/v1/lowcode/templates', data);
-}
-
-export function applyTemplate(templateId: string, data: { workflowName: string; description?: string; variables?: Record<string, string> }) {
-  return api.post(`/api/v1/lowcode/templates/${templateId}/apply`, data);
-}
+export default lowcodeApi;

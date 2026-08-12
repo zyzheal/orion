@@ -51,34 +51,11 @@ interface Bottleneck {
 // Mock Data
 // ============================================================================
 
-const MOCK_PIPELINES: PipelineRecord[] = [
-  { id: '1', pipelineName: 'frontend-build', buildDuration: 4.2, p95Duration: 6.8, queueWait: 1.2, cpuPeak: 72, memoryPeak: 3.1, trend: 'down' },
-  { id: '2', pipelineName: 'backend-api-deploy', buildDuration: 8.5, p95Duration: 12.3, queueWait: 2.8, cpuPeak: 88, memoryPeak: 4.7, trend: 'up' },
-  { id: '3', pipelineName: 'integration-tests', buildDuration: 12.1, p95Duration: 18.5, queueWait: 3.5, cpuPeak: 95, memoryPeak: 6.2, trend: 'up' },
-  { id: '4', pipelineName: 'security-scan', buildDuration: 3.8, p95Duration: 5.1, queueWait: 0.8, cpuPeak: 45, memoryPeak: 2.0, trend: 'stable' },
-  { id: '5', pipelineName: 'docker-image-build', buildDuration: 15.6, p95Duration: 22.4, queueWait: 4.2, cpuPeak: 92, memoryPeak: 8.5, trend: 'up' },
-  { id: '6', pipelineName: 'data-pipeline-etl', buildDuration: 22.3, p95Duration: 31.7, queueWait: 5.1, cpuPeak: 78, memoryPeak: 12.0, trend: 'stable' },
-  { id: '7', pipelineName: 'microservice-deploy', buildDuration: 6.7, p95Duration: 9.2, queueWait: 1.9, cpuPeak: 65, memoryPeak: 3.8, trend: 'down' },
-  { id: '8', pipelineName: 'docs-publish', buildDuration: 2.1, p95Duration: 3.5, queueWait: 0.3, cpuPeak: 30, memoryPeak: 1.2, trend: 'stable' },
-  { id: '9', pipelineName: 'api-gateway-update', buildDuration: 5.4, p95Duration: 7.8, queueWait: 1.5, cpuPeak: 55, memoryPeak: 2.8, trend: 'down' },
-  { id: '10', pipelineName: 'ml-model-training', buildDuration: 45.2, p95Duration: 68.9, queueWait: 8.7, cpuPeak: 98, memoryPeak: 24.0, trend: 'up' },
-];
+const MOCK_PIPELINES: PipelineRecord[] = [];
 
-const MOCK_COMPARE: CompareMetric[] = [
-  { metric: '平均构建时长', thisWeek: 12.8, lastWeek: 14.5, unit: '分钟' },
-  { metric: 'P95 构建时长', thisWeek: 19.2, lastWeek: 21.8, unit: '分钟' },
-  { metric: 'CPU 平均使用率', thisWeek: 72.3, lastWeek: 68.1, unit: '%' },
-  { metric: '内存峰值', thisWeek: 5.8, lastWeek: 6.2, unit: 'GB' },
-  { metric: '队列等待', thisWeek: 2.4, lastWeek: 3.1, unit: '分钟' },
-];
+const MOCK_COMPARE: CompareMetric[] = [];
 
-const MOCK_BOTTLENECKS: Bottleneck[] = [
-  { id: '1', stage: '镜像构建 (Docker Build)', duration: 15.6, percent: 34 },
-  { id: '2', stage: '依赖安装 (npm install)', duration: 8.2, percent: 18 },
-  { id: '3', stage: '单元测试 (Unit Tests)', duration: 7.5, percent: 16 },
-  { id: '4', stage: '代码编译 (TypeScript)', duration: 6.1, percent: 13 },
-  { id: '5', stage: '部署 (Deploy)', duration: 9.0, percent: 19 },
-];
+const MOCK_BOTTLENECKS: Bottleneck[] = [];
 
 // ============================================================================
 // Helper Components

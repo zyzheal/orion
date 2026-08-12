@@ -54,36 +54,14 @@ interface DimensionScore {
 // Mock Data
 // ============================================================================
 
-const MOCK_ISSUES: QualityIssue[] = [
-  { id: 'DQ-001', tableField: 'users.email', problemType: 'null', severity: 'critical', affectedRows: 1243, discoveredAt: '2026-08-07 09:15', status: 'pending' },
-  { id: 'DQ-002', tableField: 'orders.order_id', problemType: 'duplicate', severity: 'high', affectedRows: 567, discoveredAt: '2026-08-07 10:30', status: 'processing' },
-  { id: 'DQ-003', tableField: 'transactions.amount', problemType: 'out_of_range', severity: 'critical', affectedRows: 89, discoveredAt: '2026-08-07 11:00', status: 'pending' },
-  { id: 'DQ-004', tableField: 'products.sku', problemType: 'format', severity: 'medium', affectedRows: 234, discoveredAt: '2026-08-06 14:20', status: 'fixed' },
-  { id: 'DQ-005', tableField: 'inventory.stock_qty', problemType: 'inconsistent', severity: 'high', affectedRows: 412, discoveredAt: '2026-08-06 16:45', status: 'pending' },
-  { id: 'DQ-006', tableField: 'customers.phone', problemType: 'format', severity: 'medium', affectedRows: 678, discoveredAt: '2026-08-06 08:00', status: 'ignored' },
-  { id: 'DQ-007', tableField: 'logs.timestamp', problemType: 'null', severity: 'low', affectedRows: 1024, discoveredAt: '2026-08-05 22:10', status: 'processing' },
-  { id: 'DQ-008', tableField: 'payments.status', problemType: 'inconsistent', severity: 'high', affectedRows: 156, discoveredAt: '2026-08-05 18:30', status: 'pending' },
-  { id: 'DQ-009', tableField: 'metrics.value', problemType: 'out_of_range', severity: 'medium', affectedRows: 890, discoveredAt: '2026-08-05 07:55', status: 'fixed' },
-  { id: 'DQ-010', tableField: 'deployments.version', problemType: 'duplicate', severity: 'low', affectedRows: 34, discoveredAt: '2026-08-04 12:00', status: 'ignored' },
-];
+const MOCK_ISSUES: QualityIssue[] = [];
 
-const MOCK_DIMENSIONS: DimensionScore[] = [
-  { name: '完整性 (Completeness)', score: 92 },
-  { name: '一致性 (Consistency)', score: 78 },
-  { name: '准确性 (Accuracy)', score: 85 },
-  { name: '及时性 (Timeliness)', score: 68 },
-];
+const MOCK_DIMENSIONS: DimensionScore[] = [];
 
-const MOCK_TREND: number[] = [82, 84, 81, 87, 85, 89, 91];
-const TREND_LABELS: string[] = ['08-01', '08-02', '08-03', '08-04', '08-05', '08-06', '08-07'];
+const MOCK_TREND: number[] = [];
+const TREND_LABELS: string[] = [];
 
-const MOCK_REPAIR_HISTORY: RepairHistory[] = [
-  { id: 'R-001', time: '2026-08-07 10:45', issue: 'DQ-002 orders.order_id 重复值', operator: '张三', result: 'success' },
-  { id: 'R-002', time: '2026-08-06 14:30', issue: 'DQ-004 products.sku 格式错误', operator: '李四', result: 'success' },
-  { id: 'R-003', time: '2026-08-05 08:20', issue: 'DQ-009 metrics.value 越界', operator: '王五', result: 'success' },
-  { id: 'R-004', time: '2026-08-04 16:00', issue: 'DQ-010 deployments.version 重复', operator: '赵六', result: 'failed' },
-  { id: 'R-005', time: '2026-08-03 09:15', issue: 'DQ-007 logs.timestamp 空值', operator: '张三', result: 'success' },
-];
+const MOCK_REPAIR_HISTORY: RepairHistory[] = [];
 
 // ============================================================================
 // Constants
@@ -116,6 +94,7 @@ const STATUS_CONFIG: Record<Status, { label: string; color: string }> = {
 // ============================================================================
 
 function getOverallScore(): number {
+  if (MOCK_DIMENSIONS.length === 0) return 0;
   const total = MOCK_DIMENSIONS.reduce((s, d) => s + d.score, 0);
   return Math.round(total / MOCK_DIMENSIONS.length);
 }
@@ -132,6 +111,7 @@ function getScoreColor(score: number): string {
 // ============================================================================
 
 const QualityTrendChart: React.FC = () => {
+  if (MOCK_TREND.length === 0) return null;
   const width = 300;
   const height = 80;
   const padding = 10;

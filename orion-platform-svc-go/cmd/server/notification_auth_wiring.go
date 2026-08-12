@@ -131,6 +131,7 @@ func wireWorkflowModules(db *database.DB) {
 	workflowRepo := workflow_repo.NewRepository(db.DB)
 	workflowSvc := workflow_service.NewService(workflowRepo)
 	workflowH = workflow_handler.NewHandler(workflowSvc)
+	workflowExtraH = workflow_handler.NewExtraHandler(workflowSvc)
 
 	// workflow-trigger services
 	workflow_triggerRepo := workflow_trigger_repo.NewRepository(db.DB)
@@ -221,4 +222,5 @@ var (
 	workflow_triggerH   *workflow_trigger_handler.Handler
 	workflow_webhookH   *workflow_webhook_handler.Handler
 	workflowH           *workflow_handler.Handler
+	workflowExtraH      *workflow_handler.ExtraHandler
 )

@@ -370,6 +370,10 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// ---- P0-31~40: Tool/Platform modules ----
 	wirePandawiki(db, logger)
 	wirecachemgmt(db, logger)
+	wiredistributedconfig(db, logger)
+	wirelowcodesigner(db, logger)
+	wirealertescalation(db, logger)
+	wiretenantquota(db, logger)
 	wiresmartdeploy(db, logger)
 	wirePipelineErrorDetail(db, logger)
 	wireStartup(db, logger)
