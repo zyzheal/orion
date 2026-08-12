@@ -65,7 +65,7 @@ export interface UpdateCITypeInput {
 export interface CreateCIAttributeInput {
   attrKey: string;
   displayName?: string;
-  attrType: 'string' | 'number' | 'boolean' | 'date' | 'select' | 'multiselect' | 'json';
+  attrType?: string;
   required?: boolean;
   defaultValue?: string;
   options?: string[];

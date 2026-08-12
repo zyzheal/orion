@@ -7,7 +7,7 @@
  * - Rule table with direction/protocol/action tags and status switch
  * - Create/edit modal with full form (name, direction, source, port, protocol, action, priority)
  * - Delete with Popconfirm confirmation
- * - Mock data with 10 rules covering various combinations
+ * - CRUD operations with API integration
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
@@ -26,6 +26,7 @@ import {
   Card,
   Statistic,
   Radio,
+  Alert,
 } from 'antd';
 import {
   SecurityScanOutlined,
@@ -58,119 +59,9 @@ interface FirewallRule {
   enabled: boolean;
 }
 
-// ---- Mock Data ----
-const MOCK_RULES: FirewallRule[] = [
-  {
-    id: 'fw-001',
-    name: '允许 HTTP 入站',
-    direction: 'inbound',
-    sourceIp: '0.0.0.0/0',
-    destPort: '80',
-    protocol: 'TCP',
-    action: 'allow',
-    priority: 10,
-    enabled: true,
-  },
-  {
-    id: 'fw-002',
-    name: '允许 HTTPS 入站',
-    direction: 'inbound',
-    sourceIp: '0.0.0.0/0',
-    destPort: '443',
-    protocol: 'TCP',
-    action: 'allow',
-    priority: 10,
-    enabled: true,
-  },
-  {
-    id: 'fw-003',
-    name: '允许 SSH 管理网段',
-    direction: 'inbound',
-    sourceIp: '10.0.0.0/8',
-    destPort: '22',
-    protocol: 'TCP',
-    action: 'allow',
-    priority: 5,
-    enabled: true,
-  },
-  {
-    id: 'fw-004',
-    name: '拒绝外部 Telnet',
-    direction: 'inbound',
-    sourceIp: '0.0.0.0/0',
-    destPort: '23',
-    protocol: 'TCP',
-    action: 'deny',
-    priority: 1,
-    enabled: true,
-  },
-  {
-    id: 'fw-005',
-    name: '允许 DNS 出站',
-    direction: 'outbound',
-    sourceIp: '10.0.0.0/8',
-    destPort: '53',
-    protocol: 'UDP',
-    action: 'allow',
-    priority: 10,
-    enabled: true,
-  },
-  {
-    id: 'fw-006',
-    name: '拒绝外网数据库访问',
-    direction: 'outbound',
-    sourceIp: '172.16.0.0/12',
-    destPort: '3306',
-    protocol: 'TCP',
-    action: 'deny',
-    priority: 2,
-    enabled: true,
-  },
-  {
-    id: 'fw-007',
-    name: '允许容器间通信',
-    direction: 'inbound',
-    sourceIp: '192.168.0.0/16',
-    destPort: '8080-8090',
-    protocol: 'TCP',
-    action: 'allow',
-    priority: 15,
-    enabled: false,
-  },
-  {
-    id: 'fw-008',
-    name: '日志记录 NTP 流量',
-    direction: 'outbound',
-    sourceIp: '10.10.0.0/16',
-    destPort: '123',
-    protocol: 'UDP',
-    action: 'log',
-    priority: 50,
-    enabled: true,
-  },
-  {
-    id: 'fw-009',
-    name: '拒绝 ICMP 外部探测',
-    direction: 'inbound',
-    sourceIp: '203.0.113.0/24',
-    destPort: '0',
-    protocol: 'ICMP',
-    action: 'deny',
-    priority: 3,
-    enabled: true,
-  },
-  {
-    id: 'fw-010',
-    name: '允许内部 ICMP 探测',
-    direction: 'inbound',
-    sourceIp: '10.0.0.0/8',
-    destPort: '0',
-    protocol: 'ICMP',
-    action: 'allow',
-    priority: 20,
-    enabled: false,
-  },
-];
+// ---- Empty / Error State ----
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
 
 // ---- Tag Color Configs ----
 const directionTagColor: Record<string, string> = {
@@ -191,7 +82,7 @@ const actionTagColor: Record<string, string> = {
 };
 
 const FirewallPolicy: React.FC = () => {
-  const [rules, setRules] = useState<FirewallRule[]>(MOCK_RULES);
+  const [rules, setRules] = useState<FirewallRule[]>([]);
   const [openModal, setOpenModal] = useState(false);
   const [editingRule, setEditingRule] = useState<FirewallRule | null>(null);
   const [form] = Form.useForm();
@@ -201,14 +92,17 @@ const FirewallPolicy: React.FC = () => {
   }, []);
 
   const loadRules = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await getFirewallRules();
       const data = res.data as FirewallRule[];
-      if (Array.isArray(data) && data.length > 0) {
-        setRules(data);
-      }
+      setRules(Array.isArray(data) ? data : []);
     } catch {
-      setRules(MOCK_RULES);
+      setError('加载防火墙规则失败');
+      setRules([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -497,8 +391,12 @@ const FirewallPolicy: React.FC = () => {
           dataSource={rules}
           rowKey="id"
           size="middle"
+          loading={loading}
           pagination={{ current: 1, pageSize: 10, total: rules.length }}
         />
+        {error && !loading && (
+          <Alert type="error" message={error} style={{ marginTop: spacing.md }} />
+        )}
       </Card>
 
       {/* Create/Edit Modal */}

@@ -74,128 +74,6 @@ const EXEC_STATUS_MAP: Record<string, { color: string; label: string }> = {
 const JOB_TYPE_OPTIONS = Object.entries(JOB_TYPE_MAP).map(([value, { label }]) => ({ label, value }));
 const JOB_STATUS_OPTIONS = Object.entries(JOB_STATUS_MAP).map(([value, { label }]) => ({ label, value }));
 
-// ==================== Mock Data (development fallback) ====================
-
-const mockJobs: AutoJob[] = [
-  {
-    id: 'job-001',
-    tenantId: 'tenant-1',
-    name: '部署后健康检查',
-    description: '服务部署完成后自动执行健康检查，验证服务可用性',
-    type: 'script',
-    config: { scriptId: 'script-health', timeout: 300 },
-    enabled: true,
-    schedule: null,
-    status: 'succeeded',
-    owner: 'admin',
-    tags: ['deployment', 'healthcheck'],
-    createdAt: '2026-07-20T10:00:00Z',
-    updatedAt: '2026-07-25T08:30:00Z',
-  },
-  {
-    id: 'job-002',
-    tenantId: 'tenant-1',
-    name: '日志轮转清理',
-    description: '定期清理过期日志文件，释放磁盘空间',
-    type: 'script',
-    config: { scriptId: 'script-log-rotate', retentionDays: 7 },
-    enabled: true,
-    schedule: '0 2 * * *',
-    status: 'idle',
-    owner: 'ops',
-    tags: ['maintenance', 'cleanup'],
-    createdAt: '2026-07-18T14:00:00Z',
-    updatedAt: '2026-07-24T02:00:00Z',
-  },
-  {
-    id: 'job-003',
-    tenantId: 'tenant-1',
-    name: '构建制品同步',
-    description: '将构建产物同步到制品仓库',
-    type: 'tool',
-    config: { toolId: 'artifact-sync', target: 'harbor-registry' },
-    enabled: false,
-    schedule: null,
-    status: 'failed',
-    owner: 'dev',
-    tags: ['ci', 'artifact'],
-    createdAt: '2026-07-15T09:00:00Z',
-    updatedAt: '2026-07-23T16:45:00Z',
-  },
-  {
-    id: 'job-004',
-    tenantId: 'tenant-1',
-    name: '配置合规检测',
-    description: '检测 Kubernetes 资源配置是否符合安全基线',
-    type: 'api',
-    config: { apiUrl: '/api/v1/compliance/check', method: 'POST' },
-    enabled: true,
-    schedule: '0 */6 * * *',
-    status: 'running',
-    owner: 'security',
-    tags: ['compliance', 'security'],
-    createdAt: '2026-07-10T11:00:00Z',
-    updatedAt: '2026-07-25T09:00:00Z',
-  },
-  {
-    id: 'job-005',
-    tenantId: 'tenant-1',
-    name: '故障恢复编排',
-    description: '检测到故障后自动执行恢复流程：重启服务 → 验证 → 通知',
-    type: 'composite',
-    config: { steps: [{ action: 'restart' }, { action: 'verify' }, { action: 'notify' }] },
-    enabled: true,
-    schedule: null,
-    status: 'succeeded',
-    owner: 'sre',
-    tags: ['recovery', 'automation'],
-    createdAt: '2026-07-05T08:00:00Z',
-    updatedAt: '2026-07-22T12:00:00Z',
-  },
-];
-
-const mockExecutions: JobExecutionRecord[] = [
-  {
-    id: 'exec-001',
-    tenantId: 'tenant-1',
-    jobId: 'job-001',
-    status: 'completed',
-    params: {},
-    output: 'Health check passed: 3/3 services healthy',
-    error: null,
-    durationMs: 4520,
-    startedBy: 'admin',
-    startedAt: '2026-07-25T08:30:00Z',
-    finishedAt: '2026-07-25T08:30:04Z',
-  },
-  {
-    id: 'exec-002',
-    tenantId: 'tenant-1',
-    jobId: 'job-001',
-    status: 'completed',
-    params: {},
-    output: 'Health check passed: 3/3 services healthy',
-    error: null,
-    durationMs: 3890,
-    startedBy: 'system',
-    startedAt: '2026-07-24T08:30:00Z',
-    finishedAt: '2026-07-24T08:30:03Z',
-  },
-  {
-    id: 'exec-003',
-    tenantId: 'tenant-1',
-    jobId: 'job-001',
-    status: 'failed',
-    params: {},
-    output: null,
-    error: 'Service api-gateway unhealthy after 3 retries',
-    durationMs: 12000,
-    startedBy: 'admin',
-    startedAt: '2026-07-23T08:30:00Z',
-    finishedAt: '2026-07-23T08:30:12Z',
-  },
-];
-
 // ==================== Utility ====================
 
 /** Parse a JSON string safely; returns empty object on failure. */
@@ -247,11 +125,10 @@ const Automation: React.FC = () => {
       if (statusFilter) params.status = statusFilter;
 
       const response = await listJobs(params);
-      setJobs(response.data);
+      setJobs(response.data || []);
     } catch {
-      // Fallback to mock data for development (API may not be deployed)
-      message.warning('API 暂不可用，显示模拟数据');
-      setJobs(mockJobs);
+      message.error('加载自动化作业失败');
+      setJobs([]);
     } finally {
       setLoading(false);
     }
@@ -400,7 +277,7 @@ const Automation: React.FC = () => {
       setExecutions(response.data);
     } catch {
       message.error('加载执行历史失败');
-      setExecutions(mockExecutions);
+      setExecutions([]);
     } finally {
       setExecLoading(false);
     }

@@ -314,7 +314,7 @@ export default function CITypeDesignerPage() {
       const toInput = (a: CIAttribute): CreateCIAttributeInput => ({
         attrKey: a.attrKey,
         displayName: a.displayName ?? undefined,
-        attrType: a.attrType,
+        attrType: a.attrType ?? undefined,
         required: a.required,
         defaultValue: a.defaultValue ?? undefined,
         options: (() => { try { return JSON.parse(a.options || '[]'); } catch { return []; } })(),
