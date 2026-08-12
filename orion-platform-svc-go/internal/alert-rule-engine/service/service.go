@@ -2,6 +2,7 @@ package service
 
 import (
         "context"
+        "fmt"
         "sync"
         "time"
 
@@ -56,7 +57,9 @@ func (s *Service) CompileRule(ctx context.Context, tenantID string, req *models.
                 return nil, err
         }
         if s.repo != nil {
-                _ = s.repo.Save(ctx, tenantID, compiled)
+                if err := s.repo.Save(ctx, tenantID, compiled); err != nil {
+                        return nil, fmt.Errorf("persist rule: %w", err)
+                }
         }
         return toResponse(compiled), nil
 }
@@ -64,7 +67,9 @@ func (s *Service) CompileRule(ctx context.Context, tenantID string, req *models.
 func (s *Service) UnregisterRule(ctx context.Context, tenantID, id string) error {
         eng := s.getEngine(tenantID)
         if s.repo != nil {
-                _ = s.repo.Delete(ctx, tenantID, id)
+                if err := s.repo.Delete(ctx, tenantID, id); err != nil {
+                        return fmt.Errorf("delete rule: %w", err)
+                }
         }
         return eng.Unregister(id)
 }

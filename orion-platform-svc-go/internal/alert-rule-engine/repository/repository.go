@@ -47,7 +47,7 @@ func (r *Repository) Save(ctx context.Context, tenantID string, rule *alertrulee
 		INSERT INTO alert_rules (id, tenant_id, name, expression, priority, enabled, "group", created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :expression, :priority, :enabled, :group, :created_at, :updated_at)
 		ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, expression=EXCLUDED.expression,
-			priority=EXCLUDED.priority, enabled=EXCLUDED.enabled, "group"]=EXCLUDED."group", updated_at=NOW()`,
+			priority=EXCLUDED.priority, enabled=EXCLUDED.enabled, "group"=EXCLUDED."group", updated_at=NOW()`,
 		ruleMap(rule, tenantID))
 	return err
 }
@@ -56,7 +56,7 @@ func (r *Repository) Get(ctx context.Context, tenantID, ruleID string) (*alertru
 	var row ruleRow
 	err := r.db.GetContext(ctx, &row, `SELECT * FROM alert_rules WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+		return nil, sentinel.NotFound
 	}
 	if err != nil {
 		return nil, err

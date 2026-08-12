@@ -63,26 +63,33 @@ func (s *TaskExecutorService) ExecuteTask(ctx context.Context, tenantID string, 
 		return nil, fmt.Errorf("task is not pending: %s", task.Status)
 	}
 
+	// Mark the task as running and persist the transition before executing.
+	task.Status = "running"
+	if err := s.repo.UpdateStatus(ctx, task.ID, tenantID, "running"); err != nil {
+		return nil, fmt.Errorf("mark task running: %w", err)
+	}
+
 	now := time.Now()
 
-	done := make(chan error, 1)
+	// Use a result channel to avoid concurrent access to task in the goroutine.
+	type execResult struct {
+		output map[string]interface{}
+		err    error
+	}
+	done := make(chan execResult, 1)
 	go func() {
-		result, err := s.execute(task.Type, task.Input)
-		if err != nil {
-			done <- err
-			return
-		}
-		task.Output = result
-		done <- nil
+		result, execErr := s.execute(ctx, task.Type, task.Input)
+		done <- execResult{output: result, err: execErr}
 	}()
 
 	select {
-	case err := <-done:
-		if err != nil {
+	case res := <-done:
+		if res.err != nil {
 			task.Status = "failed"
-			task.Output = map[string]interface{}{"error": err.Error()}
+			task.Output = map[string]interface{}{"error": res.err.Error()}
 		} else {
 			task.Status = "completed"
+			task.Output = res.output
 		}
 	case <-time.After(time.Duration(task.TimeoutSec) * time.Second):
 		task.Status = "failed"
@@ -110,10 +117,17 @@ func (s *TaskExecutorService) ExecuteTask(ctx context.Context, tenantID string, 
 	return task, nil
 }
 
-func (s *TaskExecutorService) execute(taskType string, input map[string]interface{}) (map[string]interface{}, error) {
+// execute runs the task's logic, honoring context cancellation.
+func (s *TaskExecutorService) execute(ctx context.Context, taskType string, input map[string]interface{}) (map[string]interface{}, error) {
 	s.logger.Debug("executing task",
 		zap.String("type", taskType),
 	)
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 
 	switch taskType {
 	case "http_request":

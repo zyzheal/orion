@@ -86,7 +86,12 @@ func (s *Service) AggregateAll(ctx context.Context, tenantID string, windowStr s
 
 func (s *Service) Prune(ctx context.Context, tenantID string) (int, error) {
         proc := s.getProcessor(tenantID)
-        return proc.Prune(ctx), nil
+        memPruned := proc.Prune(ctx)
+        if s.repo != nil {
+                dbPruned := s.repo.Prune(ctx, tenantID, 24*time.Hour)
+                return memPruned + dbPruned, nil
+        }
+        return memPruned, nil
 }
 
 func (s *Service) Stats(ctx context.Context, tenantID string) *models.ProcessorStats {

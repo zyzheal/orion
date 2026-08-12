@@ -106,7 +106,7 @@ func (s *RuleEngineService) evaluateConditions(conditionsStr string, data map[st
 			}
 		}
 	}
-	return len(conditions) == 0
+	return true
 }
 
 // evaluateActions executes rule actions.

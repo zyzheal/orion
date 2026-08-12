@@ -10,7 +10,6 @@ import (
 
 	"orion/go-common/pkg/sentinel"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -26,7 +25,6 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 // Create inserts a new task record.
 func (r *Repository) Create(ctx context.Context, task *models.Task) error {
-	task.ID = uuid.New().String()
 	now := time.Now().UTC()
 	task.CreatedAt = now
 	_, err := r.db.NamedExecContext(ctx,

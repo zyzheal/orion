@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -52,12 +53,14 @@ func (s *Service) RegisterRateLimit(ctx context.Context, tenantID string, req *m
 	s.rateLimitStore.RegisterConfig(tenantID, cfg)
 
 	if s.repo != nil {
-		_ = s.repo.SaveConfig(ctx, tenantID, &repository.TenantConfig{
+		if err := s.repo.SaveConfig(ctx, tenantID, &repository.TenantConfig{
 			TenantID:       tenantID,
 			Name:           "rate-limit",
 			DefaultTimeout: int64(s.defaultTimeout / time.Millisecond),
 			TracingEnabled: s.tracingEnabled,
-		})
+		}); err != nil {
+			return fmt.Errorf("persist rate limit config: %w", err)
+		}
 	}
 	return nil
 }

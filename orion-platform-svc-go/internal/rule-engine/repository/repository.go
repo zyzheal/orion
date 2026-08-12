@@ -10,7 +10,6 @@ import (
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/rule-engine/models"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -34,9 +33,8 @@ func NewRepository(db *sqlx.DB) *Repository {
 // Ensure Repository implements RepositoryInterface.
 var _ RepositoryInterface = (*Repository)(nil)
 
-// Create inserts a new rule and assigns a UUID and timestamps.
+// Create inserts a new rule and assigns timestamps.
 func (r *Repository) Create(ctx context.Context, m *models.Rule) error {
-	m.ID = uuid.New().String()
 	m.CreatedAt = time.Now().UTC()
 	m.UpdatedAt = time.Now().UTC()
 	if m.Priority == 0 {

@@ -27,14 +27,18 @@ func (s *Service) RegisterComponent(ctx context.Context, req *models.RegisterCom
         }
         comp := apicomponent.NewAPIComponent(req.Name, req.Prefix, req.Summary, opts...)
         if s.repo != nil {
-                return s.repo.Save(ctx, comp)
+                if err := s.repo.Save(ctx, comp); err != nil {
+                        return err
+                }
         }
         return s.registry.Register(comp)
 }
 
 func (s *Service) UnregisterComponent(ctx context.Context, name string) error {
         if s.repo != nil {
-                return s.repo.Delete(ctx, name)
+                if err := s.repo.Delete(ctx, name); err != nil {
+                        return err
+                }
         }
         return s.registry.Unregister(name)
 }
