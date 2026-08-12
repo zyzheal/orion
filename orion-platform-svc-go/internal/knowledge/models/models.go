@@ -258,6 +258,36 @@ type RAGSource struct {
 	SpaceID        string  `json:"space_id"`
 }
 
+// RAGQueryAuditLog records a RAG query for security auditing.
+type RAGQueryAuditLog struct {
+	ID               string     `json:"id" db:"id"`
+	TenantID         string     `json:"tenant_id" db:"tenant_id"`
+	UserID           string     `json:"user_id" db:"user_id"`
+	QueryText        string     `json:"query_text" db:"query_text"`
+	QueryHash        string     `json:"query_hash" db:"query_hash"`
+	QueryType        string     `json:"query_type" db:"query_type"`
+	Confidence       float64    `json:"confidence" db:"confidence"`
+	LatencyMs        int        `json:"latency_ms" db:"latency_ms"`
+	SourceCount      int        `json:"source_count" db:"source_count"`
+	AnswerLength     int        `json:"answer_length" db:"answer_length"`
+	HasFeedback      bool       `json:"has_feedback" db:"has_feedback"`
+	FeedbackPositive *bool      `json:"feedback_positive,omitempty" db:"feedback_positive"`
+	HasCorrection    bool       `json:"has_correction" db:"has_correction"`
+	CorrectionText   string     `json:"correction_text,omitempty" db:"correction_text"`
+	SafetyFlagged    bool       `json:"safety_flagged" db:"safety_flagged"`
+	SafetyReason     string     `json:"safety_reason,omitempty" db:"safety_reason"`
+	IPAddress        string     `json:"ip_address" db:"ip_address"`
+	UserAgent        string     `json:"user_agent" db:"user_agent"`
+	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
+}
+
+// SafetyFilterResult holds the result of content safety filtering.
+type SafetyFilterResult struct {
+	IsSafe  bool
+	Reason  string
+	Flagged bool
+}
+
 // --- Knowledge Graph models ---
 
 type GraphNode struct {

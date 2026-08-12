@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/knowledge/models"
@@ -113,6 +117,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/rag/eval/metrics", auth.RequirePermission("knowledge", "read"), h.RAGEvalMetrics)
 	// GET /rag/eval/ground-truth - ground truth data
 	f.GET("/rag/eval/ground-truth", auth.RequirePermission("knowledge", "read"), h.RAGEvalGroundTruth)
+
+	// --- RAG Security Audit ---
+	// GET /rag/audit/logs - query audit logs
+	f.GET("/rag/audit/logs", auth.RequirePermission("knowledge", "admin"), h.RAGAuditLogs)
+	// GET /rag/audit/flagged - flagged queries
+	f.GET("/rag/audit/flagged", auth.RequirePermission("knowledge", "admin"), h.RAGFlaggedQueries)
 
 	// --- Knowledge Graph ---
 	// GET /graph - get knowledge graph
@@ -473,6 +483,7 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGQuery")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
 	var req models.RAGQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -480,6 +491,29 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 	}
 	if req.Query == "" {
 		middleware.RespondBadRequest(c, "query is required")
+		return
+	}
+
+	// Safety filter: check query for injections / PII
+	safety := h.svc.GetSafetyFilter()
+	safetyResult := safety.CheckQuery(req.Query)
+	if !safetyResult.IsSafe {
+		if h.svc.GetRAGRepo() != nil {
+			_ = h.svc.SaveQueryAuditLog(ctx, &models.RAGQueryAuditLog{
+				ID:            fmt.Sprintf("audit_%d", time.Now().UnixNano()),
+				TenantID:      tenantID,
+				UserID:        userID,
+				QueryText:     safety.Sanitize(req.Query),
+				QueryHash:     computeQueryHash(req.Query),
+				QueryType:     "blocked",
+				SafetyFlagged: true,
+				SafetyReason:  safetyResult.Reason,
+				IPAddress:     c.ClientIP(),
+				UserAgent:     c.GetHeader("User-Agent"),
+				CreatedAt:     time.Now().UTC(),
+			})
+		}
+		middleware.RespondForbidden(c, safetyResult.Reason)
 		return
 	}
 
@@ -492,6 +526,27 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 	if req.ConversationID != "" {
 		_ = h.svc.SaveRAGMessage(ctx, tenantID, req.ConversationID, req, *resp)
 	}
+
+	// Audit log the query
+	if h.svc.GetRAGRepo() != nil {
+		auditLog := &models.RAGQueryAuditLog{
+			ID:           fmt.Sprintf("audit_%d", time.Now().UnixNano()),
+			TenantID:     tenantID,
+			UserID:       userID,
+			QueryText:    safety.Sanitize(req.Query),
+			QueryHash:    computeQueryHash(req.Query),
+			QueryType:    resp.QueryType,
+			Confidence:   resp.Confidence,
+			LatencyMs:    resp.LatencyMs,
+			SourceCount:  len(resp.Sources),
+			AnswerLength: len(resp.Answer),
+			IPAddress:    c.ClientIP(),
+			UserAgent:    c.GetHeader("User-Agent"),
+			CreatedAt:    time.Now().UTC(),
+		}
+		_ = h.svc.SaveQueryAuditLog(ctx, auditLog)
+	}
+
 	middleware.RespondSuccess(c, resp)
 }
 
@@ -751,4 +806,41 @@ func (h *Handler) GetGraph(c *gin.Context) {
 	}
 
 	middleware.RespondSuccess(c, models.GraphResponse{Nodes: nodes, Edges: edges})
+}
+
+// --- RAG Security Audit Handlers ---
+
+func (h *Handler) RAGAuditLogs(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	logs, err := h.svc.ListQueryAuditLogs(c.Request.Context(), tenantID, limit, offset)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	total, err := h.svc.CountQueryAuditLogs(c.Request.Context(), tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"data": logs, "total": total})
+}
+
+func (h *Handler) RAGFlaggedQueries(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	logs, err := h.svc.ListFlaggedQueryAuditLogs(c.Request.Context(), tenantID, limit, offset)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"data": logs, "total": len(logs)})
+}
+
+// computeQueryHash computes a deterministic hash of a query string.
+func computeQueryHash(query string) string {
+	h := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(query))))
+	return hex.EncodeToString(h[:32])
 }

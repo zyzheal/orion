@@ -347,6 +347,80 @@ func (r *Repository) DeleteEvalGroundTruth(ctx context.Context, id string) error
 }
 
 // ============================================================================
+// RAG Query Audit
+// ============================================================================
+
+func (r *Repository) SaveQueryAuditLog(ctx context.Context, log *models.RAGQueryAuditLog) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO rag_query_audit
+			(id, tenant_id, user_id, query_text, query_hash, query_type, confidence,
+			 latency_ms, source_count, answer_length,
+			 has_feedback, feedback_positive, has_correction, correction_text,
+			 safety_flagged, safety_reason, ip_address, user_agent, created_at)
+		VALUES
+			($1, $2, $3, $4, $5, $6, $7,
+			 $8, $9, $10,
+			 $11, $12, $13, $14,
+			 $15, $16, $17, $18, $19)`,
+		log.ID, log.TenantID, log.UserID, log.QueryText, log.QueryHash, log.QueryType, log.Confidence,
+		log.LatencyMs, log.SourceCount, log.AnswerLength,
+		log.HasFeedback, log.FeedbackPositive, log.HasCorrection, log.CorrectionText,
+		log.SafetyFlagged, log.SafetyReason, log.IPAddress, log.UserAgent, log.CreatedAt)
+	return err
+}
+
+func (r *Repository) ListQueryAuditLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.RAGQueryAuditLog, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, tenant_id, user_id, query_text, query_hash, query_type, confidence,
+			latency_ms, source_count, answer_length,
+			has_feedback, feedback_positive, has_correction, correction_text,
+			safety_flagged, safety_reason, ip_address, user_agent, created_at
+		 FROM rag_query_audit WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+		tenantID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanAuditRows(rows)
+}
+
+func (r *Repository) ListFlaggedQueryAuditLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.RAGQueryAuditLog, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, tenant_id, user_id, query_text, query_hash, query_type, confidence,
+			latency_ms, source_count, answer_length,
+			has_feedback, feedback_positive, has_correction, correction_text,
+			safety_flagged, safety_reason, ip_address, user_agent, created_at
+		 FROM rag_query_audit WHERE tenant_id = $1 AND safety_flagged = true ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+		tenantID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanAuditRows(rows)
+}
+
+func (r *Repository) CountQueryAuditLogs(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM rag_query_audit WHERE tenant_id = $1`, tenantID).Scan(&count)
+	return count, err
+}
+
+func scanAuditRows(rows *sql.Rows) ([]models.RAGQueryAuditLog, error) {
+	var logs []models.RAGQueryAuditLog
+	for rows.Next() {
+		var l models.RAGQueryAuditLog
+		if err := rows.Scan(
+			&l.ID, &l.TenantID, &l.UserID, &l.QueryText, &l.QueryHash, &l.QueryType, &l.Confidence,
+			&l.LatencyMs, &l.SourceCount, &l.AnswerLength,
+			&l.HasFeedback, &l.FeedbackPositive, &l.HasCorrection, &l.CorrectionText,
+			&l.SafetyFlagged, &l.SafetyReason, &l.IPAddress, &l.UserAgent, &l.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		logs = append(logs, l)
+	}
+	return logs, rows.Err()
+}
 // Eval metric repository
 // ============================================================================
 

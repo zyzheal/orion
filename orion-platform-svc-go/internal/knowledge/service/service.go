@@ -54,6 +54,10 @@ type RAGRepositoryInterface interface {
 	SavePromptTemplate(ctx context.Context, tmpl *models.PromptTemplate) error
 	GetActivePromptTemplate(ctx context.Context, name string) (*models.PromptTemplate, error)
 	ListPromptTemplates(ctx context.Context) ([]models.PromptTemplate, error)
+	SaveQueryAuditLog(ctx context.Context, log *models.RAGQueryAuditLog) error
+	ListQueryAuditLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.RAGQueryAuditLog, error)
+	ListFlaggedQueryAuditLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.RAGQueryAuditLog, error)
+	CountQueryAuditLogs(ctx context.Context, tenantID string) (int, error)
 }
 
 type Service struct {
@@ -61,10 +65,11 @@ type Service struct {
 	ragRepo     RAGRepositoryInterface
 	rag         *RAGPipelineService
 	promptMgr   *PromptTemplateManager
+	safety      *SafetyFilter
 }
 
 func NewService(repo RepositoryInterface) *Service {
-	s := &Service{repo: repo, rag: NewRAGPipelineService(repo, DefaultPipelineConfig())}
+	s := &Service{repo: repo, rag: NewRAGPipelineService(repo, DefaultPipelineConfig()), safety: NewSafetyFilter()}
 	if r, ok := repo.(RAGRepositoryInterface); ok {
 		s.ragRepo = r
 		s.rag.SetRAGRepo(r)
@@ -180,6 +185,38 @@ func (s *Service) DeleteEvalGroundTruth(ctx context.Context, id string) error {
 		return nil
 	}
 	return s.ragRepo.DeleteEvalGroundTruth(ctx, id)
+}
+
+// --- RAG Security Audit ---
+
+func (s *Service) GetSafetyFilter() *SafetyFilter { return s.safety }
+
+func (s *Service) SaveQueryAuditLog(ctx context.Context, log *models.RAGQueryAuditLog) error {
+	if s.ragRepo == nil {
+		return nil
+	}
+	return s.ragRepo.SaveQueryAuditLog(ctx, log)
+}
+
+func (s *Service) ListQueryAuditLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.RAGQueryAuditLog, error) {
+	if s.ragRepo == nil {
+		return nil, nil
+	}
+	return s.ragRepo.ListQueryAuditLogs(ctx, tenantID, limit, offset)
+}
+
+func (s *Service) ListFlaggedQueryAuditLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.RAGQueryAuditLog, error) {
+	if s.ragRepo == nil {
+		return nil, nil
+	}
+	return s.ragRepo.ListFlaggedQueryAuditLogs(ctx, tenantID, limit, offset)
+}
+
+func (s *Service) CountQueryAuditLogs(ctx context.Context, tenantID string) (int, error) {
+	if s.ragRepo == nil {
+		return 0, nil
+	}
+	return s.ragRepo.CountQueryAuditLogs(ctx, tenantID)
 }
 
 // --- Space operations ---
