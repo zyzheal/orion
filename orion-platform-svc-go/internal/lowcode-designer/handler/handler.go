@@ -10,10 +10,10 @@ import (
 )
 
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -26,8 +26,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.PUT("/forms/:id", auth.RequirePermission("lowcode", "write"), h.UpdateForm)
 	f.DELETE("/forms/:id", auth.RequirePermission("lowcode", "delete"), h.DeleteForm)
 
-	f.POST("/forms/:formId/fields", auth.RequirePermission("lowcode", "write"), h.CreateField)
-	f.GET("/forms/:formId/fields", auth.RequirePermission("lowcode", "read"), h.GetFieldsByForm)
+	f.POST("/forms/:id/fields", auth.RequirePermission("lowcode", "write"), h.CreateField)
+	f.GET("/forms/:id/fields", auth.RequirePermission("lowcode", "read"), h.GetFieldsByForm)
 	f.PUT("/fields/:id", auth.RequirePermission("lowcode", "write"), h.UpdateField)
 	f.DELETE("/fields/:id", auth.RequirePermission("lowcode", "delete"), h.DeleteField)
 
@@ -35,7 +35,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/templates/:id", auth.RequirePermission("lowcode", "read"), h.GetTemplate)
 	f.POST("/templates", auth.RequirePermission("lowcode", "write"), h.CreateTemplate)
 
-	f.POST("/forms/:formId/instances", auth.RequirePermission("lowcode", "write"), h.SubmitInstance)
+	f.POST("/forms/:id/instances", auth.RequirePermission("lowcode", "write"), h.SubmitInstance)
 	f.GET("/instances", auth.RequirePermission("lowcode", "read"), h.ListInstances)
 	f.GET("/instances/:id", auth.RequirePermission("lowcode", "read"), h.GetInstance)
 	f.POST("/instances/:id/approve", auth.RequirePermission("lowcode", "write"), h.ApproveInstance)
@@ -129,7 +129,7 @@ func (h *Handler) CreateField(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	field, err := h.svc.CreateField(c.Request.Context(), c.Param("formId"), h.getTenantID(c), &req)
+	field, err := h.svc.CreateField(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -138,7 +138,7 @@ func (h *Handler) CreateField(c *gin.Context) {
 }
 
 func (h *Handler) GetFieldsByForm(c *gin.Context) {
-	fields, err := h.svc.GetFieldsByForm(c.Request.Context(), c.Param("formId"), h.getTenantID(c))
+	fields, err := h.svc.GetFieldsByForm(c.Request.Context(), c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -217,7 +217,7 @@ func (h *Handler) SubmitInstance(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	inst, err := h.svc.SubmitInstance(c.Request.Context(), c.Param("formId"), h.getTenantID(c), &req)
+	inst, err := h.svc.SubmitInstance(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
