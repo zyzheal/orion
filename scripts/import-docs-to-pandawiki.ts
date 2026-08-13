@@ -56,7 +56,7 @@ async function apiRequest(endpoint: string, method = 'GET', body?: any) {
 async function getOrCreateNav(name: string, position: number): Promise<string> {
   // 查找现有分类
   const listRes = await apiRequest(`/api/v1/nav/list?kb_id=${KB_ID}`);
-  const navs = listRes.data || [];
+  const navs = (listRes as any).data || [];
   const existing = navs.find((n: any) => n.name === name);
 
   if (existing) {
@@ -71,11 +71,11 @@ async function getOrCreateNav(name: string, position: number): Promise<string> {
     position,
   });
 
-  if (createRes.success) {
+  if ((createRes as any).success) {
     console.log(`  创建分类: ${name}`);
     // 获取新创建的分类ID
     const newList = await apiRequest(`/api/v1/nav/list?kb_id=${KB_ID}`);
-    const newNav = newList.data?.find((n: any) => n.name === name);
+    const newNav = (newList as any).data?.find((n: any) => n.name === name);
     return newNav?.id;
   }
 
@@ -141,7 +141,7 @@ async function main() {
 
   // 确保知识库存在
   const kbList = await apiRequest('/api/v1/knowledge_base/list');
-  if (!kbList.data?.find((kb: any) => kb.id === KB_ID)) {
+  if (!(kbList as any).data?.find((kb: any) => kb.id === KB_ID)) {
     console.error('知识库不存在，请先创建');
     process.exit(1);
   }
@@ -149,7 +149,7 @@ async function main() {
 
   // 获取所有分类
   const navList = await apiRequest(`/api/v1/nav/list?kb_id=${KB_ID}`);
-  const existingNavs = navList.data || [];
+  const existingNavs = (navList as any).data || [];
 
   // 创建目录到分类ID的映射
   const navIdMap: Record<string, string> = {};
