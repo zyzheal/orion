@@ -21,7 +21,6 @@ import {
 
 const { Title } = Typography;
 const { TextArea } = Input;
-const { Option } = Select;
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   pending: { color: 'default', label: '待处理' },

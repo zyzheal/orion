@@ -108,7 +108,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadNamespaces = useCallback(async () => {
     try {
       const res = await listNamespaces();
-      setNamespaces(Array.isArray(res) ? res : (res?.data || []));
+      setNamespaces(Array.isArray(res) ? res : ([]));
     } catch {
       setNamespaces([]);
     }
@@ -117,7 +117,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadGroups = useCallback(async (nsId?: string) => {
     try {
       const res = await listGroups(nsId);
-      setGroups(Array.isArray(res) ? res : (res?.data || []));
+      setGroups(Array.isArray(res) ? res : ([]));
     } catch {
       setGroups([]);
     }
@@ -127,7 +127,7 @@ const ConfigCenterPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await listItems(selectedGroup || undefined);
-      setItems(Array.isArray(res) ? res : (res?.data || []));
+      setItems(Array.isArray(res) ? res : ([]));
     } catch {
       setItems([]);
     } finally {
@@ -138,7 +138,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadSnapshots = useCallback(async () => {
     try {
       const res = await listSnapshots(selectedGroup || undefined, selectedEnv || undefined);
-      setSnapshots(Array.isArray(res) ? res : (res?.data || []));
+      setSnapshots(Array.isArray(res) ? res : ([]));
     } catch {
       setSnapshots([]);
     }
@@ -147,7 +147,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadReleases = useCallback(async () => {
     try {
       const res = await listReleases(selectedEnv || undefined);
-      setReleases(Array.isArray(res) ? res : (res?.data || []));
+      setReleases(Array.isArray(res) ? res : ([]));
     } catch {
       setReleases([]);
     }
@@ -156,7 +156,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadAudit = useCallback(async () => {
     try {
       const res = await listAudit(100);
-      setAudits(Array.isArray(res) ? res : (res?.data || []));
+      setAudits(Array.isArray(res) ? res : ([]));
     } catch {
       setAudits([]);
     }
@@ -192,7 +192,7 @@ const ConfigCenterPage: React.FC = () => {
   const handleCreateNamespace = async (values: { name: string; description?: string }) => {
     try {
       const res = await createNamespace(values);
-      const ns = res?.data || res;
+      const ns = res;
       if (ns) setNamespaces((prev) => [...prev, ns]);
       message.success('命名空间创建成功');
       setNsModalOpen(false);
@@ -205,7 +205,7 @@ const ConfigCenterPage: React.FC = () => {
   const handleCreateGroup = async (values: { namespaceId: string; name: string; description?: string }) => {
     try {
       const res = await createGroup(values);
-      const g = res?.data || res;
+      const g = res;
       if (g) {
         setGroups((prev) => [...prev, g]);
         setSelectedGroup(g.id);
@@ -235,7 +235,7 @@ const ConfigCenterPage: React.FC = () => {
         encrypted: values.encrypted || false,
         description: values.description,
       });
-      const item = res?.data || res;
+      const item = res;
       if (item) setItems((prev) => [...prev, item]);
       message.success('配置项创建成功');
       setItemModalOpen(false);
@@ -277,7 +277,7 @@ const ConfigCenterPage: React.FC = () => {
   const handleViewHistory = async (item: ConfigItem) => {
     try {
       const res = await getItemHistory(item.id);
-      const data = Array.isArray(res) ? res : (res?.data || []);
+      const data = Array.isArray(res) ? res : ([]);
       setHistoryData(data);
       setHistoryOpen(true);
     } catch {
@@ -290,7 +290,7 @@ const ConfigCenterPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await publishSnapshot(selectedGroup, { environment: selectedEnv, operator });
-      const snap = res?.data || res;
+      const snap = res;
       if (snap) setSnapshots((prev) => [snap, ...prev]);
       message.success('快照发布成功');
       loadSnapshots();
@@ -310,7 +310,7 @@ const ConfigCenterPage: React.FC = () => {
         operator,
         releaseNote: values.releaseNote,
       });
-      const rel = res?.data || res;
+      const rel = res;
       if (rel) setReleases((prev) => [rel, ...prev]);
       message.success('发布成功');
       releaseForm.resetFields();
@@ -326,7 +326,7 @@ const ConfigCenterPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await rollbackRelease({ snapshotId: values.snapshotId, operator, reason: values.reason });
-      const rel = res?.data || res;
+      const rel = res;
       if (rel) setReleases((prev) => [rel, ...prev]);
       message.success('回滚成功');
       rollbackForm.resetFields();
