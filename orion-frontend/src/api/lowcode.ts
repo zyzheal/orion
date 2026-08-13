@@ -309,7 +309,8 @@ export const createComponent = async (data: {
 
 // --- Flows (internal/lowcode) ---
 
-export const listFlows = async () => {
+// Raw flow list fetch (wrapped by lowcodeApi.listFlows for computed fields)
+export const fetchFlowsRaw = async () => {
   const res = await api.get('/api/v1/lowcode/flows');
   return res.data; // { data: LowcodeFlow[], total, page, page_size }
 };
@@ -424,7 +425,7 @@ export const lowcodeApi = {
   updateForm,
   deleteForm,
   listFlows: async () => {
-    const res = (await listFlows()) as { data?: { data?: unknown[]; total?: number } };
+    const res = (await fetchFlowsRaw()) as { data?: { data?: unknown[]; total?: number } };
     const data = res?.data || {};
     const items = (data.data || []) as unknown as LowcodeFlow[];
     return {
