@@ -65,8 +65,8 @@ export default function FlowDesigner() {
           return;
         }
       }
-      const result = await lowcodeApi.executeFlow(selectedFlow.id, input);
-      message.success(`流程执行成功，实例ID: ${(result.result as Record<string, unknown>).instanceId}`);
+      const result = (await lowcodeApi.executeFlow(selectedFlow.id, input)) as { result?: { instanceId?: string } };
+      message.success(`流程执行成功，实例ID: ${result?.result?.instanceId || 'unknown'}`);
       setExecuteVisible(false);
     } catch (e: any) {
       message.error(e?.message || '执行失败');

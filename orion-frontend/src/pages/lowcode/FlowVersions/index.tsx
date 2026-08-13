@@ -16,7 +16,7 @@ import {
   PlusOutlined, ReloadOutlined, EyeOutlined, RollbackOutlined, HistoryOutlined, SaveOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
-import { lowcodeApi, type LowcodeFlow, type LowcodeWorkflowVersion } from '@/api/lowcode';
+import { lowcodeApi, type LowcodeFlow, type LowcodeFlowVersion } from '@/api/lowcode';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -34,14 +34,14 @@ interface VersionCreateInput {
 const FlowVersionsPage: React.FC = () => {
   const [flows, setFlows] = useState<LowcodeFlow[]>([]);
   const [selectedFlow, setSelectedFlow] = useState<LowcodeFlow | null>(null);
-  const [versions, setVersions] = useState<LowcodeWorkflowVersion[]>([]);
+  const [versions, setVersions] = useState<LowcodeFlowVersion[]>([]);
   const [totalVersions, setTotalVersions] = useState(0);
   const [loading, setLoading] = useState(false);
   const [versionLoading, setVersionLoading] = useState(false);
 
   const [createVisible, setCreateVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
-  const [selectedVersion, setSelectedVersion] = useState<LowcodeWorkflowVersion | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<LowcodeFlowVersion | null>(null);
 
   const [createForm] = Form.useForm();
 
@@ -69,7 +69,10 @@ const FlowVersionsPage: React.FC = () => {
   const loadVersions = async (flowId: string) => {
     setVersionLoading(true);
     try {
-      const res = await lowcodeApi.listWorkflowVersions(flowId, { limit: 50, offset: 0 });
+      const res = (await lowcodeApi.listWorkflowVersions(flowId)) as unknown as {
+        versions?: LowcodeFlowVersion[];
+        total?: number;
+      };
       setVersions(res.versions || []);
       setTotalVersions(res.total || 0);
     } catch (e: unknown) {
@@ -87,12 +90,10 @@ const FlowVersionsPage: React.FC = () => {
 
   // ==================== Create version ====================
 
-  const handleCreateVersion = async (values: VersionCreateInput) => {
+  const handleCreateVersion = async (_values: VersionCreateInput) => {
     if (!selectedFlow) return;
     try {
-      await lowcodeApi.createWorkflowVersion(selectedFlow.id, {
-        changeLog: values.changeLog,
-      });
+      await lowcodeApi.createWorkflowVersion(selectedFlow.id);
       message.success('版本快照创建成功');
       setCreateVisible(false);
       createForm.resetFields();
@@ -105,19 +106,21 @@ const FlowVersionsPage: React.FC = () => {
 
   // ==================== View version detail ====================
 
-  const handleViewVersion = (version: LowcodeWorkflowVersion) => {
+  const handleViewVersion = (version: LowcodeFlowVersion) => {
     setSelectedVersion(version);
     setDetailVisible(true);
   };
 
   // ==================== Restore version ====================
 
-  const handleRestoreVersion = async (version: LowcodeWorkflowVersion) => {
+  const handleRestoreVersion = async (version: LowcodeFlowVersion) => {
     if (!selectedFlow) return;
     try {
+      const nodes = version.snapshot?.nodes || [];
+      const edges = version.snapshot?.edges || [];
       await lowcodeApi.updateFlow(selectedFlow.id, {
-        nodes: version.snapshot?.nodes || [],
-        edges: version.snapshot?.edges || [],
+        nodes: JSON.stringify(nodes),
+        edges: JSON.stringify(edges),
       });
       message.success(`已恢复到版本 ${version.version}`);
     } catch (e: unknown) {
@@ -155,7 +158,7 @@ const FlowVersionsPage: React.FC = () => {
       key: 'createdAt',
       width: 180,
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
-      sorter: (a: LowcodeWorkflowVersion, b: LowcodeWorkflowVersion) =>
+      sorter: (a: LowcodeFlowVersion, b: LowcodeFlowVersion) =>
         dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix(),
     },
     {
@@ -163,7 +166,7 @@ const FlowVersionsPage: React.FC = () => {
       key: 'actions',
       width: 160,
       fixed: 'right' as const,
-      render: (_: unknown, record: LowcodeWorkflowVersion) => (
+      render: (_: unknown, record: LowcodeFlowVersion) => (
         <Space size="small">
           <Tooltip title="查看快照">
             <Button

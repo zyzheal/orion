@@ -71,19 +71,17 @@ const TemplateMarketPage: React.FC = () => {
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const data = await lowcodeApi.listTemplates();
+      const data = (await lowcodeApi.listTemplates()) as unknown as LowcodeTemplate[];
       let templates = data || [];
-      // Apply filters client-side
       if (categoryFilter) {
-        templates = templates.filter((t) => t.category === categoryFilter);
+        templates = templates.filter((t: LowcodeTemplate) => t.category === categoryFilter);
       }
       if (searchText) {
         const lower = searchText.toLowerCase();
         templates = templates.filter(
-          (t) =>
+          (t: LowcodeTemplate) =>
             t.name.toLowerCase().includes(lower) ||
-            t.description?.toLowerCase().includes(lower) ||
-            t.tags?.some((tag) => tag.toLowerCase().includes(lower))
+            t.description?.toLowerCase().includes(lower)
         );
       }
       setTemplates(templates);
@@ -167,11 +165,6 @@ const TemplateMarketPage: React.FC = () => {
         name: values.name,
         description: values.description || flow.description,
         category: values.category || 'custom',
-        definition: {
-          nodes: flow.nodes,
-          edges: flow.edges,
-        },
-        tags: values.tags,
       });
 
       message.success(`模板 "${values.name}" 发布成功`);
@@ -234,15 +227,13 @@ const TemplateMarketPage: React.FC = () => {
               {template.description || '无描述'}
             </Typography.Text>
             <Space size="small">
-              {template.tags?.map((tag) => (
-                <Tag key={tag} style={{ fontSize: 11 }}>{tag}</Tag>
+              {template.tags && template.tags.split(',').filter(Boolean).map((tag) => (
+                <Tag key={tag} style={{ fontSize: 11 }}>{tag.trim()}</Tag>
               ))}
             </Space>
             <Divider style={{ margin: '8px 0' }} />
             <Space size="large" style={{ fontSize: 12, color: colors.neutral[500] }}>
               <span>使用 {template.usageCount || 0} 次</span>
-              <span>节点 {(template.definition.nodes || []).length}</span>
-              <span>连线 {(template.definition.edges || []).length}</span>
             </Space>
           </div>
         }
@@ -351,7 +342,8 @@ const TemplateMarketPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="标签">
               <Space>
-                {selectedTemplate.tags?.map((tag) => <Tag key={tag}>{tag}</Tag>) || '无'}
+                {selectedTemplate.tags && selectedTemplate.tags.split(',').filter(Boolean).map((tag) => <Tag key={tag}>{tag.trim()}</Tag>)}
+                {!selectedTemplate.tags && '无'}
               </Space>
             </Descriptions.Item>
             <Descriptions.Item label="使用次数">{selectedTemplate.usageCount || 0}</Descriptions.Item>
@@ -364,7 +356,7 @@ const TemplateMarketPage: React.FC = () => {
                 maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
                 padding: spacing.sm, borderRadius: 8, fontSize: 12,
               }}>
-                {JSON.stringify(selectedTemplate.definition.nodes, null, 2)}
+                {selectedTemplate.definition ? JSON.stringify(JSON.parse(selectedTemplate.definition), null, 2) : '无'}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="连线定义">
@@ -372,7 +364,7 @@ const TemplateMarketPage: React.FC = () => {
                 maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
                 padding: spacing.sm, borderRadius: 8, fontSize: 12,
               }}>
-                {JSON.stringify(selectedTemplate.definition.edges, null, 2)}
+                {'无'}
               </pre>
             </Descriptions.Item>
           </Descriptions>

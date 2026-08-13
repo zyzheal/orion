@@ -188,19 +188,9 @@ const FlowImportExportPage: React.FC = () => {
       await lowcodeApi.importWorkflow({
         name: importName || json.definition?.name || 'Imported Workflow',
         description: importDescription || json.definition?.description || '',
-        exportedAt: json.exportedAt || new Date().toISOString(),
-        versions: json.versionHistory?.map((v) => ({
-          id: v.version,
-          workflowId: '',
-          version: v.version,
-          changeLog: v.commitMessage,
-          snapshot: { nodes: v.nodes, edges: v.edges },
-          createdBy: v.createdBy,
-          createdAt: v.createdAt,
-        })) || [],
         currentDefinition: {
-          nodes: json.definition?.nodes || [],
-          edges: json.definition?.edges || [],
+          nodes: JSON.stringify(json.definition?.nodes || []),
+          edges: JSON.stringify(json.definition?.edges || []),
         },
       });
 

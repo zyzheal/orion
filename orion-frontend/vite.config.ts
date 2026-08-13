@@ -32,6 +32,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/api/v1/lowcode-designer': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/api/v1/workflows': {
         target: 'http://localhost:8080',
         changeOrigin: true,

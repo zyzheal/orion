@@ -1,6 +1,10 @@
 /**
  * Low-Code Designer API Service
- * /api/v1/lowcode — Forms / Fields / Templates / Instances / Components
+ * /api/v1/lowcode — Forms / Fields / Templates / Instances / Components / Flows
+ *
+ * 后端模块：
+ * - internal/lowcode-designer: Forms/Fields/Templates/Instances/Components
+ * - internal/lowcode: Flows/WorkflowVersions/ImportExport
  */
 import { api } from './client';
 
@@ -81,127 +85,193 @@ export interface ComponentRegistry {
   createdAt: string;
 }
 
-// Legacy types used by TemplateMarket and Flow pages
-export type LowcodeTemplate = FormTemplate;
+// --- LowcodeFlow (internal/lowcode backend) ---
+
 export interface LowcodeFlow {
   id: string;
   name: string;
-  description: string;
-  category: string;
-  status: 'draft' | 'published' | 'archived';
-  version: number;
-  createdAt: string;
-  updatedAt: string;
+  description?: string;
+  version: string;
+  enabled?: boolean;
+  nodes?: string;
+  edges?: string;
+  nodeCount?: number;
+  edgesCount?: number;
+  tags?: string[];
+  category?: string;
+  status?: 'draft' | 'published' | 'archived';
+  // backend snake_case fields
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  // camelCase aliases for frontend pages
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // used by FlowDesigner detail modal
+  nodeDef?: unknown[];
+  edgeDef?: unknown[];
 }
 
-// --- Forms ---
+export interface LowcodeFlowInstance {
+  id: string;
+  workflowId: string;
+  status: string;
+  input?: string;
+  output?: string;
+  triggeredBy?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+}
 
-export const listForms = async (category?: string, status?: string) => {
+export interface LowcodeWorkflowVersion {
+  id: string;
+  workflowId: string;
+  version: string;
+  definition?: string;
+  changeLog?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface VersionSnapshot {
+  nodes: Record<string, unknown>[];
+  edges: Record<string, unknown>[];
+}
+
+export interface LowcodeFlowVersion {
+  id: string;
+  workflowId: string;
+  version: string;
+  definition?: string;
+  changeLog?: string;
+  snapshot?: VersionSnapshot;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface LowcodeTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  thumbnail?: string;
+  definition?: string;
+  tags?: string;
+  usageCount?: number;
+  createdBy?: string;
+  createdAt: string;
+}
+
+// --- Forms (lowcode-designer) ---
+
+export const listForms = async (category?: string, status?: string): Promise<FormDefinition[]> => {
   const params: Record<string, string> = {};
   if (category) params.category = category;
   if (status) params.status = status;
-  const res = await api.get('/api/v1/lowcode/forms', { params });
-  return res.data;
+  const res = await api.get('/api/v1/lowcode-designer/forms', { params });
+  return res.data as FormDefinition[];
 };
 
-export const getForm = async (id: string) => {
-  const res = await api.get(`/api/v1/lowcode/forms/${id}`);
-  return res.data;
+export const getForm = async (id: string): Promise<FormDefinition> => {
+  const res = await api.get(`/api/v1/lowcode-designer/forms/${id}`);
+  return res.data as FormDefinition;
 };
 
-export const createForm = async (data: Partial<FormDefinition> & { name: string; fields?: FormField[] }) => {
-  const res = await api.post('/api/v1/lowcode/forms', data);
-  return res.data;
+export const createForm = async (data: Partial<FormDefinition> & { name: string; fields?: FormField[] }): Promise<FormDefinition> => {
+  const res = await api.post('/api/v1/lowcode-designer/forms', data);
+  return res.data as FormDefinition;
 };
 
-export const updateForm = async (id: string, data: Partial<FormDefinition>) => {
-  const res = await api.put(`/api/v1/lowcode/forms/${id}`, data);
-  return res.data;
+export const updateForm = async (id: string, data: Partial<FormDefinition>): Promise<FormDefinition> => {
+  const res = await api.put(`/api/v1/lowcode-designer/forms/${id}`, data);
+  return res.data as FormDefinition;
 };
 
 export const deleteForm = async (id: string) => {
-  const res = await api.delete(`/api/v1/lowcode/forms/${id}`);
+  const res = await api.delete(`/api/v1/lowcode-designer/forms/${id}`);
   return res.data;
 };
 
-// --- Fields ---
+// --- Fields (lowcode-designer) ---
 
-export const createField = async (formId: string, data: Partial<FormField> & { key: string; label: string; type: string }) => {
-  const res = await api.post(`/api/v1/lowcode/forms/${formId}/fields`, data);
-  return res.data;
+export const createField = async (formId: string, data: Partial<FormField> & { key: string; label: string; type: string }): Promise<FormField> => {
+  const res = await api.post(`/api/v1/lowcode-designer/forms/${formId}/fields`, data);
+  return res.data as FormField;
 };
 
-export const getFieldsByForm = async (formId: string) => {
-  const res = await api.get(`/api/v1/lowcode/forms/${formId}/fields`);
-  return res.data;
+export const getFieldsByForm = async (formId: string): Promise<FormField[]> => {
+  const res = await api.get(`/api/v1/lowcode-designer/forms/${formId}/fields`);
+  return res.data as FormField[];
 };
 
-export const updateField = async (id: string, data: Partial<FormField>) => {
-  const res = await api.put(`/api/v1/lowcode/fields/${id}`, data);
-  return res.data;
+export const updateField = async (id: string, data: Partial<FormField>): Promise<FormField> => {
+  const res = await api.put(`/api/v1/lowcode-designer/fields/${id}`, data);
+  return res.data as FormField;
 };
 
 export const deleteField = async (id: string) => {
-  const res = await api.delete(`/api/v1/lowcode/fields/${id}`);
+  const res = await api.delete(`/api/v1/lowcode-designer/fields/${id}`);
   return res.data;
 };
 
-// --- Templates ---
+// --- Templates (lowcode-designer) ---
 
-export const listTemplates = async (category?: string) => {
+export const listTemplates = async (category?: string): Promise<LowcodeTemplate[]> => {
   const params: Record<string, string> = {};
   if (category) params.category = category;
-  const res = await api.get('/api/v1/lowcode/templates', { params });
-  return res.data;
+  const res = await api.get('/api/v1/lowcode-designer/templates', { params });
+  return res.data as LowcodeTemplate[];
 };
 
-export const getTemplate = async (id: string) => {
-  const res = await api.get(`/api/v1/lowcode/templates/${id}`);
-  return res.data;
+export const getTemplate = async (id: string): Promise<LowcodeTemplate> => {
+  const res = await api.get(`/api/v1/lowcode-designer/templates/${id}`);
+  return res.data as LowcodeTemplate;
 };
 
 export const createTemplate = async (data: { name: string; description?: string; category?: string; schema?: Record<string, unknown>; tags?: string[] }) => {
-  const res = await api.post('/api/v1/lowcode/templates', data);
+  const res = await api.post('/api/v1/lowcode-designer/templates', data);
   return res.data;
 };
 
-// --- Instances ---
+// --- Instances (lowcode-designer) ---
 
 export const submitInstance = async (formId: string, data: { data: Record<string, unknown>; submitBy: string }) => {
-  const res = await api.post(`/api/v1/lowcode/forms/${formId}/instances`, data);
-  return res.data;
+  const res = await api.post(`/api/v1/lowcode-designer/forms/${formId}/instances`, data);
+  return res.data as FormInstance;
 };
 
-export const listInstances = async (formId?: string, status?: string) => {
+export const listInstances = async (formId?: string, status?: string): Promise<FormInstance[]> => {
   const params: Record<string, string> = {};
   if (formId) params.formId = formId;
   if (status) params.status = status;
-  const res = await api.get('/api/v1/lowcode/instances', { params });
-  return res.data;
+  const res = await api.get('/api/v1/lowcode-designer/instances', { params });
+  return res.data as FormInstance[];
 };
 
-export const getInstance = async (id: string) => {
-  const res = await api.get(`/api/v1/lowcode/instances/${id}`);
-  return res.data;
+export const getInstance = async (id: string): Promise<FormInstance> => {
+  const res = await api.get(`/api/v1/lowcode-designer/instances/${id}`);
+  return res.data as FormInstance;
 };
 
 export const approveInstance = async (id: string, action: 'approve' | 'reject', approver: string) => {
-  const res = await api.post(`/api/v1/lowcode/instances/${id}/approve`, { approver, action });
+  const res = await api.post(`/api/v1/lowcode-designer/instances/${id}/approve`, { approver, action });
   return res.data;
 };
 
-// --- Components ---
+// --- Components (lowcode-designer) ---
 
-export const listComponents = async (category?: string) => {
+export const listComponents = async (category?: string): Promise<ComponentRegistry[]> => {
   const params: Record<string, string> = {};
   if (category) params.category = category;
-  const res = await api.get('/api/v1/lowcode/components', { params });
-  return res.data;
+  const res = await api.get('/api/v1/lowcode-designer/components', { params });
+  return res.data as ComponentRegistry[];
 };
 
-export const getComponent = async (id: string) => {
-  const res = await api.get(`/api/v1/lowcode/components/${id}`);
-  return res.data;
+export const getComponent = async (id: string): Promise<ComponentRegistry> => {
+  const res = await api.get(`/api/v1/lowcode-designer/components/${id}`);
+  return res.data as ComponentRegistry;
 };
 
 export const createComponent = async (data: {
@@ -213,11 +283,116 @@ export const createComponent = async (data: {
   defaultConfig?: Record<string, unknown>;
   icon?: string;
 }) => {
-  const res = await api.post('/api/v1/lowcode/components', data);
+  const res = await api.post('/api/v1/lowcode-designer/components', data);
   return res.data;
 };
 
-// --- LowcodeApi namespace (legacy compat for TemplateMarket) ---
+// --- Flows (internal/lowcode) ---
+
+export const listFlows = async () => {
+  const res = await api.get('/api/v1/lowcode/flows');
+  return res.data; // { data: LowcodeFlow[], total, page, page_size }
+};
+
+export const getFlow = async (id: string) => {
+  const res = await api.get(`/api/v1/lowcode/flows/${id}`);
+  return res.data as LowcodeFlow;
+};
+
+export const createFlow = async (data: {
+  name: string;
+  description?: string;
+  type?: string;
+  nodes?: string;
+  edges?: string;
+}) => {
+  const res = await api.post('/api/v1/lowcode/flows', data);
+  return res.data;
+};
+
+export const updateFlow = async (id: string, data: {
+  name?: string;
+  description?: string;
+  nodes?: string;
+  edges?: string;
+  enabled?: boolean;
+}) => {
+  const res = await api.put(`/api/v1/lowcode/flows/${id}`, data);
+  return res.data;
+};
+
+export const deleteFlow = async (id: string) => {
+  const res = await api.delete(`/api/v1/lowcode/flows/${id}`);
+  return res.data;
+};
+
+export const publishFlow = async (id: string) => {
+  const res = await api.post(`/api/v1/lowcode/flows/${id}/publish`);
+  return res.data;
+};
+
+export const executeFlow = async (id: string, input: Record<string, unknown> = {}) => {
+  const res = await api.post(`/api/v1/lowcode/flows/${id}/execute`, {
+    input: JSON.stringify(input),
+  });
+  return res.data;
+};
+
+export const createWorkflowVersion = async (flowId: string) => {
+  const res = await api.post(`/api/v1/lowcode/workflows/${flowId}/versions`);
+  return res.data;
+};
+
+export const listWorkflowVersions = async (flowId: string) => {
+  const res = await api.get(`/api/v1/lowcode/workflows/${flowId}/versions`);
+  return res.data;
+};
+
+export const exportWorkflow = async (flowId: string) => {
+  const res = await api.post(`/api/v1/lowcode/workflows/${flowId}/export`);
+  return res.data;
+};
+
+export const importWorkflow = async (data: {
+  name: string;
+  description?: string;
+  currentDefinition: { nodes: string; edges: string };
+}) => {
+  const res = await api.post('/api/v1/lowcode/workflows/import', data);
+  return res.data;
+};
+
+export const applyTemplate = async (templateId: string, data: {
+  workflowName: string;
+  description?: string;
+}) => {
+  const res = await api.post(`/api/v1/lowcode/templates/${templateId}/apply`, data);
+  return res.data;
+};
+
+// --- Flow helper utilities ---
+
+export const parseFlowNodes = (nodesStr: string | undefined): unknown[] => {
+  if (!nodesStr) return [];
+  try { return JSON.parse(nodesStr); } catch { return []; }
+};
+
+export const parseFlowEdges = (edgesStr: string | undefined): unknown[] => {
+  if (!edgesStr) return [];
+  try { return JSON.parse(edgesStr); } catch { return []; }
+};
+
+export const countFlowNodes = (flow: LowcodeFlow): number => {
+  const nodes = parseFlowNodes(flow.nodes);
+  return Array.isArray(nodes) ? nodes.length : 0;
+};
+
+export const countFlowEdges = (flow: LowcodeFlow): number => {
+  const edges = parseFlowEdges(flow.edges);
+  return Array.isArray(edges) ? edges.length : 0;
+};
+
+// --- LowcodeApi namespace (legacy compat for pages) ---
 
 export const lowcodeApi = {
   listTemplates,
@@ -229,14 +404,33 @@ export const lowcodeApi = {
   updateForm,
   deleteForm,
   listFlows: async () => {
-    // No dedicated flow backend yet — returns forms as flows
-    const res = await listForms();
-    return (Array.isArray(res) ? res : (res?.data ?? [])) as LowcodeFlow[];
+    const res = (await listFlows()) as { data?: { data?: unknown[]; total?: number } };
+    const data = res?.data || {};
+    const items = (data.data || []) as unknown as LowcodeFlow[];
+    return {
+      flows: items.map((f: LowcodeFlow) => ({
+        ...f,
+        nodeCount: countFlowNodes(f),
+        edgesCount: countFlowEdges(f),
+      })),
+      total: data.total || items.length,
+    } as { flows: LowcodeFlow[]; total: number };
   },
+  createFlow,
+  getFlow,
+  updateFlow,
+  deleteFlow,
+  publishFlow,
+  executeFlow,
+  exportWorkflow,
+  importWorkflow,
+  listWorkflowVersions,
+  createWorkflowVersion,
   applyTemplate: async (templateId: string, data: Record<string, unknown>) => {
-    // Apply a template by creating a form from it
-    const tpl = await getTemplate(templateId);
-    return createForm({ ...tpl, ...data, name: data.workflowName || tpl.name });
+    return applyTemplate(templateId, {
+      workflowName: data.workflowName as string,
+      description: data.description as string,
+    });
   },
 };
 

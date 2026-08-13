@@ -18,7 +18,7 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	f := rg.Group("/lowcode")
+	f := rg.Group("/lowcode-designer")
 
 	f.GET("/forms", auth.RequirePermission("lowcode", "read"), h.ListForms)
 	f.POST("/forms", auth.RequirePermission("lowcode", "write"), h.CreateForm)

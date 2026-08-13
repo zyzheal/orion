@@ -28,7 +28,6 @@ import {
   CloseOutlined,
   EyeOutlined,
   ReloadOutlined,
-  FormOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
@@ -73,7 +72,7 @@ const FormInstancePipeline: React.FC = () => {
     setLoading(true);
     try {
       const data = await listInstances(selectedForm || undefined, status || undefined);
-      setInstances(Array.isArray(data) ? data : (data?.data || []));
+      setInstances(Array.isArray(data) ? data : []);
     } catch {
       setInstances([]);
     } finally {
@@ -84,7 +83,7 @@ const FormInstancePipeline: React.FC = () => {
   const loadForms = useCallback(async () => {
     try {
       const data = await listForms();
-      setForms(Array.isArray(data) ? data : (data?.data || []));
+      setForms(Array.isArray(data) ? data : []);
     } catch {
       setForms([]);
     }

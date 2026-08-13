@@ -21,11 +21,8 @@ import {
   Descriptions,
 } from 'antd';
 import {
-  BlockOutlined,
   PlusOutlined,
   ReloadOutlined,
-  EditOutlined,
-  DeleteOutlined,
   CodeOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
@@ -63,7 +60,7 @@ const ComponentRegistryPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await listComponents(category || undefined);
-      setComponents(Array.isArray(data) ? data : (data?.data || []));
+      setComponents(Array.isArray(data) ? data : []);
     } catch {
       setComponents([]);
     } finally {
