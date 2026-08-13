@@ -27,14 +27,14 @@ func (r *Repository) Create(ctx context.Context, m *models.ServiceCatalog) error
 	m.CreatedAt = time.Now().UTC()
 	m.UpdatedAt = m.CreatedAt
 	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO service-catalog (id, tenant_id, name, value, enabled, created_at, updated_at)
+		INSERT INTO service_catalogs (id, tenant_id, name, value, enabled, created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :value, :enabled, :created_at, :updated_at)`, m)
 	return err
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ServiceCatalog, error) {
 	var m models.ServiceCatalog
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM service-catalog WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.db.GetContext(ctx, &m, `SELECT * FROM service_catalogs WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -43,7 +43,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.ServiceCatalog, error) {
 	var items []models.ServiceCatalog
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM service-catalog WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
+	err := r.db.SelectContext(ctx, &items, `SELECT * FROM service_catalogs WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
 
@@ -64,7 +64,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	idx++
 	args = append(args, id, tenantID)
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE service-catalog SET "+strings.Join(setParts, ", ")+
+		"UPDATE service_catalogs SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1),
 		args...,
 	)
@@ -75,6 +75,6 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM service-catalog WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM service_catalogs WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }

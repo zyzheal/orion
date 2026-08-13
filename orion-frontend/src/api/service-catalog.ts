@@ -1,142 +1,144 @@
 /**
  * Service Catalog API Service
  *
- * Aligned with backend /api/v1/catalog/* routes (service-catalog-routes.ts)
- * Covers: catalog services CRUD, service requests workflow, statistics
+ * Aligned with backend /api/v1/service-catalog routes (handler.go)
+ * - Catalog: CRUD for {id, tenant_id, name, value, enabled, created_at, updated_at}
+ * - Requests: lifecycle management with status/timeline/sla
  */
 import { api } from './client';
 
-export interface CatalogService {
+export interface ServiceCatalog {
   id: string;
-  tenant_id: string;
+  tenantId: string;
   name: string;
-  description?: string;
-  category?: string;
-  status: 'active' | 'inactive' | 'retired';
-  owner?: string;
-  support_team?: string;
-  sla_tier?: 'gold' | 'silver' | 'bronze';
-  availability_target?: number;
-  response_time_target?: number;
-  form_schema?: Record<string, unknown>;
-  approval_flow?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-  created_by?: string;
-  created_at: string;
-  updated_at: string;
+  value: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CatalogRequest {
+export interface CreateServiceCatalogRequest {
+  name: string;
+  value?: string;
+  enabled?: boolean;
+}
+
+export interface UpdateServiceCatalogRequest {
+  name?: string;
+  value?: string;
+  enabled?: boolean;
+}
+
+export interface ServiceRequest {
   id: string;
-  tenant_id: string;
-  service_id: string;
-  requester_id: string;
+  tenantId: string;
+  serviceId: string;
   title: string;
-  description?: string;
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  status: 'pending' | 'approved' | 'in_progress' | 'fulfilled' | 'rejected' | 'cancelled';
-  assigned_to?: string;
-  approved_by?: string;
-  approved_at?: string;
-  fulfilled_at?: string;
-  sla_breach?: boolean;
-  form_data?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+  description: string;
+  priority: string;
+  status: string;
+  assignedTo?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CatalogStats {
-  totalServices: number;
-  totalRequests: number;
-  requestsByStatus: Record<string, number>;
+export interface TimelineEntry {
+  at: string;
+  action: string;
+  by: string;
+  comment: string;
 }
 
-// ==================== Catalog Services ====================
+export interface SLABreach {
+  requestId: string;
+  service: string;
+  slaTargetMs: number;
+  actualMs: number;
+  overdueMs: number;
+  status: string;
+}
 
-export const getCatalogServices = async (params?: {
-  category?: string;
-  status?: string;
+export interface SLABreachesResponse {
+  total: number;
+  breaches: SLABreach[];
+}
+
+// ==================== Catalog CRUD ====================
+
+export const listCatalogItems = async (params?: {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+}): Promise<ServiceCatalog[]> => {
+  const p: Record<string, unknown> = {};
+  if (params?.page) p.page = params.page;
+  if (params?.pageSize) p.pageSize = params.pageSize;
+  if (params?.q) p.q = params.q;
+  const qs = Object.keys(p).length > 0 ? '?' + new URLSearchParams(
+    Object.entries(p).map(([k, v]) => [k, String(v)])
+  ) : '';
+  const res = await api.get(`/api/v1/service-catalog${qs}`);
+  const data = res.data;
+  return Array.isArray(data) ? data : (data?.data || []);
+};
+
+export const getCatalogItem = async (id: string): Promise<ServiceCatalog> => {
+  const res = await api.get(`/api/v1/service-catalog/${id}`);
+  return res.data as ServiceCatalog;
+};
+
+export const createCatalogItem = async (
+  data: CreateServiceCatalogRequest
+): Promise<ServiceCatalog> => {
+  const res = await api.post('/api/v1/service-catalog', data);
+  return res.data as ServiceCatalog;
+};
+
+export const updateCatalogItem = async (
+  id: string,
+  data: UpdateServiceCatalogRequest
+): Promise<ServiceCatalog> => {
+  const res = await api.put(`/api/v1/service-catalog/${id}`, data);
+  return res.data as ServiceCatalog;
+};
+
+export const deleteCatalogItem = async (id: string): Promise<void> => {
+  await api.delete(`/api/v1/service-catalog/${id}`);
+};
+
+// ==================== Request Lifecycle ====================
+
+export const updateRequestStatus = async (
+  id: string,
+  data: {
+    status: string;
+    comment?: string;
+    assignedTo?: string;
+  }
+): Promise<ServiceRequest> => {
+  const res = await api.post(`/api/v1/service-catalog/requests/${id}/status`, data);
+  return res.data as ServiceRequest;
+};
+
+export const getRequestTimeline = async (
+  id: string
+): Promise<TimelineEntry[]> => {
+  const res = await api.get(`/api/v1/service-catalog/requests/${id}/timeline`);
+  const data = res.data;
+  return Array.isArray(data) ? data : (data?.data || []);
+};
+
+export const getSLABreaches = async (params?: {
+  service?: string;
+  from?: number;
   limit?: number;
-  offset?: number;
-}): Promise<{ data: CatalogService[]; total: number }> => {
-  const response = await api.get<{ data: CatalogService[]; total: number }>('/api/v1/catalog/services', { params });
-  return { data: response.data.data, total: response.data.total };
-};
-
-export const getCatalogService = async (id: string): Promise<CatalogService> => {
-  const response = await api.get<{ data: CatalogService }>(`/api/v1/catalog/services/${id}`);
-  return response.data.data;
-};
-
-export const createCatalogService = async (data: {
-  name: string;
-  description?: string;
-  category?: string;
-  owner?: string;
-  support_team?: string;
-  sla_tier?: string;
-  availability_target?: number;
-  response_time_target?: number;
-  form_schema?: Record<string, unknown>;
-  approval_flow?: Record<string, unknown>;
-}): Promise<CatalogService> => {
-  const response = await api.post<{ data: CatalogService }>('/api/v1/catalog/services', data);
-  return response.data.data;
-};
-
-export const updateCatalogService = async (id: string, data: Partial<CatalogService>): Promise<CatalogService> => {
-  const response = await api.put<{ data: CatalogService }>(`/api/v1/catalog/services/${id}`, data);
-  return response.data.data;
-};
-
-export const deleteCatalogService = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/catalog/services/${id}`);
-};
-
-export const searchCatalogServices = async (q: string): Promise<CatalogService[]> => {
-  const response = await api.get<{ data: CatalogService[] }>('/api/v1/catalog/services/search', { params: { q } });
-  return response.data.data;
-};
-
-// ==================== Service Requests ====================
-
-export const getServiceRequests = async (params?: {
-  serviceId?: string;
-  status?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<{ data: CatalogRequest[]; total: number }> => {
-  const response = await api.get<{ data: CatalogRequest[]; total: number }>('/api/v1/catalog/requests', { params });
-  return { data: response.data.data, total: response.data.total };
-};
-
-export const getServiceRequest = async (id: string): Promise<CatalogRequest> => {
-  const response = await api.get<{ data: CatalogRequest }>(`/api/v1/catalog/requests/${id}`);
-  return response.data.data;
-};
-
-export const submitServiceRequest = async (serviceId: string, data: {
-  title: string;
-  description?: string;
-  priority?: string;
-  form_data?: Record<string, unknown>;
-}): Promise<CatalogRequest> => {
-  const response = await api.post<{ data: CatalogRequest }>(`/api/v1/catalog/services/${serviceId}/request`, data);
-  return response.data.data;
-};
-
-export const updateServiceRequestStatus = async (id: string, action: 'approve' | 'reject' | 'fulfill' | 'cancel', data?: {
-  reason?: string;
-  assigned_to?: string;
-}): Promise<CatalogRequest> => {
-  const response = await api.patch<{ data: CatalogRequest }>(`/api/v1/catalog/requests/${id}/${action}`, data);
-  return response.data.data;
-};
-
-// ==================== Statistics ====================
-
-export const getCatalogStats = async (): Promise<CatalogStats> => {
-  const response = await api.get<{ data: CatalogStats }>('/api/v1/catalog/stats');
-  return response.data.data;
+}): Promise<SLABreachesResponse> => {
+  const p: Record<string, string> = {};
+  if (params?.service) p.service = params.service;
+  if (params?.from) p.from = String(params.from);
+  if (params?.limit) p.limit = String(params.limit);
+  const qs = Object.keys(p).length > 0 ? '?' + new URLSearchParams(p) : '';
+  const res = await api.get(`/api/v1/service-catalog/sla-breaches${qs}`);
+  const data = res.data;
+  return data as SLABreachesResponse;
 };
