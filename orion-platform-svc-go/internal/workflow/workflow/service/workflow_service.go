@@ -95,6 +95,22 @@ func (s *Service) CreateDefinition(ctx context.Context, tenantID string, req *mo
 		Nodes:       nodes,
 		Edges:       edges,
 		Enabled:     true,
+		Version:     "1.0",
+		CreatedBy:   createdBy,
+	}
+	return d, s.repo.CreateDefinition(ctx, d)
+}
+
+func (s *Service) CreateDefinitionFromNodes(ctx context.Context, tenantID string, name, description string, nodes, edges models.JSONB, createdBy string) (*models.WorkflowDefinition, error) {
+	d := &models.WorkflowDefinition{
+		ID:          uuid.New().String(),
+		TenantID:    tenantID,
+		Name:        name,
+		Description: description,
+		Nodes:       nodes,
+		Edges:       edges,
+		Enabled:     true,
+		Version:     "1.0",
 		CreatedBy:   createdBy,
 	}
 	return d, s.repo.CreateDefinition(ctx, d)
@@ -414,7 +430,7 @@ func buildEdges(nodes models.JSONB) models.JSONB {
 		n1, _ := list[i].(models.JSONB)
 		n2, _ := list[i+1].(models.JSONB)
 		edges = append(edges, models.JSONB{
-			"id":     "edge-" + string(rune(i+1)),
+			"id":     fmt.Sprintf("edge-%d", i+1),
 			"source": n1["id"],
 			"target": n2["id"],
 		})

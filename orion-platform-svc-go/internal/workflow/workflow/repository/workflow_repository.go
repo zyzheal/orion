@@ -99,9 +99,9 @@ func (r *Repository) GetDefinitionByID(ctx context.Context, tenantID, id string)
 
 func (r *Repository) CreateDefinition(ctx context.Context, d *models.WorkflowDefinition) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO workflow_definitions (id, tenant_id, name, description, nodes, edges, enabled, created_by)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		d.ID, d.TenantID, d.Name, d.Description, d.Nodes, d.Edges, d.Enabled, d.CreatedBy)
+		`INSERT INTO workflow_definitions (id, tenant_id, name, description, nodes, edges, enabled, version, created_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		d.ID, d.TenantID, d.Name, d.Description, d.Nodes, d.Edges, d.Enabled, d.Version, d.CreatedBy)
 	return err
 }
 

@@ -22,44 +22,78 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	var req models.CreateWorkflowRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
-	w, err := h.svc.CreateWorkflow(c.Request.Context(), tenantID, &req)
-	if err != nil { respondInternalError(c, err.Error()); return }
-	respondCreated(c, w)
+	userID := c.GetString("user_id")
+	if userID == "" {
+		userID = "system"
+	}
+	var req models.CreateDefinitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	d, err := h.svc.CreateDefinition(c.Request.Context(), tenantID, &req, userID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, d)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListWorkflows(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	items, err := h.svc.ListDefinitions(c.Request.Context(), tenantID, nil, (page-1)*ps, ps)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	w, err := h.svc.GetWorkflowByID(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { respondNotFound(c, err.Error()); return }
-	respondSuccess(c, w)
+	d, err := h.svc.GetDefinitionByID(c.Request.Context(), tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondSuccess(c, d)
 }
 
 func (h *Handler) StartRun(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	run, err := h.svc.StartRun(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { respondNotFound(c, err.Error()); return }
-	respondCreated(c, run)
+	var body struct {
+		TriggeredBy  string                 `json:"triggeredBy"`
+		InitialInput map[string]interface{} `json:"initialInput"`
+	}
+	c.ShouldBindJSON(&body)
+	if body.TriggeredBy == "" {
+		body.TriggeredBy = "system"
+	}
+	inst, err := h.svc.CreateInstance(c.Request.Context(), tenantID, c.Param("id"), &models.CreateInstanceRequest{
+		TriggeredBy:  body.TriggeredBy,
+		InitialInput: body.InitialInput,
+	})
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondCreated(c, inst)
 }
 
 func (h *Handler) GetRun(c *gin.Context) {
-	run, err := h.svc.GetRun(c.Request.Context(), c.Param("id"))
-	if err != nil { respondNotFound(c, err.Error()); return }
-	respondSuccess(c, run)
+	inst, err := h.svc.GetInstanceByID(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondSuccess(c, inst)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteWorkflow(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteDefinition(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -68,10 +102,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.CountWorkflows(c.Request.Context(), tenantID)
+	items, err := h.svc.ListDefinitions(c.Request.Context(), tenantID, nil, 0, 1000)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": len(items)})
 }

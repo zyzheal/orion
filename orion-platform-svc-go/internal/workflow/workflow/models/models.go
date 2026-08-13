@@ -68,16 +68,17 @@ type CreateWorkflowRequest struct {
 // ====== Workflow Definition (lowcode_workflow_definition) ======
 
 type WorkflowDefinition struct {
-	ID          string `db:"id" json:"id"`
-	TenantID    string `db:"tenant_id" json:"tenant_id"`
-	Name        string `db:"name" json:"name"`
-	Description string `db:"description" json:"description"`
-	Nodes       JSONB  `db:"nodes" json:"nodes"`
-	Edges       JSONB  `db:"edges" json:"edges"`
-	Enabled     bool   `db:"enabled" json:"enabled"`
-	CreatedBy   string `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	Nodes       JSONB     `db:"nodes" json:"nodes"`
+	Edges       JSONB     `db:"edges" json:"edges"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	Version     string    `db:"version" json:"version"`
+	CreatedBy   string    `db:"created_by" json:"createdBy"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 type CreateDefinitionRequest struct {

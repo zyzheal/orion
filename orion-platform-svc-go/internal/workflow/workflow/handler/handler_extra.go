@@ -57,7 +57,7 @@ func (h *ExtraHandler) Update(c *gin.Context) {
 	respondSuccess(c, updated)
 }
 
-// Execute — alias for StartRun (create a run)
+// Execute — create an instance (executes the workflow)
 func (h *ExtraHandler) Execute(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
@@ -66,12 +66,18 @@ func (h *ExtraHandler) Execute(c *gin.Context) {
 		InitialInput map[string]interface{} `json:"initialInput"`
 	}
 	c.ShouldBindJSON(&body)
-	run, err := h.svc.StartRun(c.Request.Context(), tenantID, id)
+	if body.TriggeredBy == "" {
+		body.TriggeredBy = "system"
+	}
+	inst, err := h.svc.CreateInstance(c.Request.Context(), tenantID, id, &models.CreateInstanceRequest{
+		TriggeredBy:  body.TriggeredBy,
+		InitialInput: body.InitialInput,
+	})
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
-	respondCreated(c, run)
+	respondCreated(c, inst)
 }
 
 // Executions — list runs for a workflow (returns instances as execution history)
