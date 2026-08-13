@@ -65,8 +65,8 @@ export default function FlowDesigner() {
           return;
         }
       }
-      const result = (await lowcodeApi.executeFlow(selectedFlow.id, input)) as { result?: { instanceId?: string } };
-      message.success(`流程执行成功，实例ID: ${result?.result?.instanceId || 'unknown'}`);
+      const result = (await lowcodeApi.executeFlow(selectedFlow.id, input)) as { id?: string; status?: string };
+      message.success(`流程执行成功，实例ID: ${result?.id || 'unknown'}，状态: ${result?.status || 'running'}`);
       setExecuteVisible(false);
     } catch (e: any) {
       message.error(e?.message || '执行失败');
@@ -232,9 +232,9 @@ export default function FlowDesigner() {
             <Descriptions.Item label="版本">{selectedFlow.version}</Descriptions.Item>
             <Descriptions.Item label="状态">{selectedFlow.status}</Descriptions.Item>
             <Descriptions.Item label="节点数">{selectedFlow.nodeCount || 0}</Descriptions.Item>
-            <Descriptions.Item label="创建人">{selectedFlow.createdBy || 'system'}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">{selectedFlow.createdAt}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{selectedFlow.updatedAt}</Descriptions.Item>
+            <Descriptions.Item label="创建人">{selectedFlow.created_by || 'system'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{selectedFlow.created_at}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">{selectedFlow.updated_at}</Descriptions.Item>
             <Descriptions.Item label="节点定义">
               <pre style={{ maxHeight: 200, overflow: 'auto', background: colors.light.bg.tertiary, padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedFlow.nodes, null, 2)}

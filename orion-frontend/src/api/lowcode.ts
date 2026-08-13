@@ -218,19 +218,39 @@ export const deleteField = async (id: string) => {
 
 // --- Templates (lowcode-designer) ---
 
+// Flow templates (internal/lowcode) — for TemplateMarket
 export const listTemplates = async (category?: string): Promise<LowcodeTemplate[]> => {
   const params: Record<string, string> = {};
   if (category) params.category = category;
-  const res = await api.get('/api/v1/lowcode-designer/templates', { params });
+  const res = await api.get('/api/v1/lowcode/templates', { params });
   return res.data as LowcodeTemplate[];
 };
 
 export const getTemplate = async (id: string): Promise<LowcodeTemplate> => {
-  const res = await api.get(`/api/v1/lowcode-designer/templates/${id}`);
+  const res = await api.get(`/api/v1/lowcode/templates/${id}`);
   return res.data as LowcodeTemplate;
 };
 
 export const createTemplate = async (data: { name: string; description?: string; category?: string; schema?: Record<string, unknown>; tags?: string[] }) => {
+  const res = await api.post('/api/v1/lowcode/templates', data);
+  return res.data;
+};
+
+// --- Form Templates (lowcode-designer) ---
+
+export const listFormTemplates = async (category?: string): Promise<FormTemplate[]> => {
+  const params: Record<string, string> = {};
+  if (category) params.category = category;
+  const res = await api.get('/api/v1/lowcode-designer/templates', { params });
+  return res.data as FormTemplate[];
+};
+
+export const getFormTemplate = async (id: string): Promise<FormTemplate> => {
+  const res = await api.get(`/api/v1/lowcode-designer/templates/${id}`);
+  return res.data as FormTemplate;
+};
+
+export const createFormTemplate = async (data: { name: string; description?: string; category?: string; schema?: Record<string, unknown>; tags?: string[] }) => {
   const res = await api.post('/api/v1/lowcode-designer/templates', data);
   return res.data;
 };
@@ -427,10 +447,12 @@ export const lowcodeApi = {
   listWorkflowVersions,
   createWorkflowVersion,
   applyTemplate: async (templateId: string, data: Record<string, unknown>) => {
-    return applyTemplate(templateId, {
-      workflowName: data.workflowName as string,
-      description: data.description as string,
+    // Apply a lowcode template to create a new workflow (internal/lowcode backend)
+    const res = await api.post(`/api/v1/lowcode/templates/${templateId}/apply`, {
+      workflowName: data.workflowName,
+      description: data.description,
     });
+    return res.data;
   },
 };
 
