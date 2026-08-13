@@ -21,39 +21,43 @@ export default defineConfig({
     proxy: {
       // CMDB Service - Go 版本 (3030)
       '/api/v1/cmdb': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/config': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/lowcode': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/workflows': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/workflow-tasks': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/workflow-triggers': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/workflow-dependencies': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/alert-escalation': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/api/v1/tenant-quota': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/api/v1/service-catalog': {
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       // Pipeline Runs - 平台服务
@@ -98,7 +102,7 @@ export default defineConfig({
       '/api/v1/federation-advanced': { target: 'http://localhost:3017', changeOrigin: true },
       '/api/v1/multi-cloud': { target: 'http://localhost:3017', changeOrigin: true },
       '/api/v1/multi-cloud-advanced': { target: 'http://localhost:3017', changeOrigin: true },
-      '/api/v1/dba': { target: 'http://localhost:3030', changeOrigin: true },
+      '/api/v1/dba': { target: 'http://localhost:8080', changeOrigin: true },
       '/api/v1/visor': { target: 'http://localhost:3003', changeOrigin: true },
       // AI 服务 (orion-ai-service Python) — 端口 8000
       '/api/v1/ai': { target: 'http://localhost:8000', changeOrigin: true },
@@ -110,7 +114,7 @@ export default defineConfig({
       },
       // DBA 子应用代理 - 解决 wujie 跨域沙箱问题
       '/orion-dba': {
-        target: 'http://localhost:3030',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path,
       },
