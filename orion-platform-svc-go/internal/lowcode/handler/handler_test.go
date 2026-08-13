@@ -145,6 +145,10 @@ func (m *mockSvc) ApplyTemplate(ctx context.Context, tenantID, userID, templateI
 	return &models.LowcodeFlow{ID: "flow-from-tmpl", Name: req.WorkflowName, Version: "1.0.0"}, nil
 }
 
+func (m *mockSvc) GenerateFlowFromPrompt(ctx context.Context, tenantID string, req *models.FlowGenerateRequest) (*models.FlowGenerateResponse, error) {
+	return nil, service.ErrInvalidPrompt
+}
+
 func makeCtx(method, path string, body interface{}) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
