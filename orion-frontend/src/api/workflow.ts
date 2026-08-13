@@ -72,6 +72,32 @@ export interface WorkflowExecution {
 /**
  * 获取工作流列表
  */
+/**
+ * Normalize a workflow definition from backend format.
+ * Backend stores nodes/edges as JSONB wrapped objects: {"nodes": [...], "edges": [...]}
+ * Frontend expects arrays.
+ */
+function normalizeWorkflow(raw: unknown): WorkflowDefinition {
+  const w = raw as Record<string, unknown>;
+  return {
+    id: (w.id || '') as string,
+    tenantId: (w.tenantId || '') as string,
+    name: (w.name || '') as string,
+    description: (w.description as string) || undefined,
+    version: typeof w.version === 'number' ? w.version : typeof w.version === 'string' ? parseInt(w.version, 10) || 1 : 1,
+    enabled: w.enabled === true,
+    nodes: Array.isArray(w.nodes) ? (w.nodes as WorkflowNode[]) :
+      w.nodes && typeof w.nodes === 'object' && 'nodes' in w.nodes ? (w.nodes as { nodes?: WorkflowNode[] }).nodes || [] :
+      [],
+    edges: Array.isArray(w.edges) ? (w.edges as WorkflowEdge[]) :
+      w.edges && typeof w.edges === 'object' && 'edges' in w.edges ? (w.edges as { edges?: WorkflowEdge[] }).edges || [] :
+      [],
+    createdBy: (w.createdBy as string) || '',
+    createdAt: (w.createdAt as string) || '',
+    updatedAt: (w.updatedAt as string) || '',
+  };
+}
+
 export async function getWorkflowList(params?: {
   status?: 'active' | 'paused' | 'completed' | 'failed';
   domain?: string;
@@ -85,8 +111,8 @@ export async function getWorkflowList(params?: {
   if (params?.offset) query.set('offset', String(params.offset));
   const qs = query.toString();
   const response = await api.get<WorkflowDefinition[]>(`/api/v1/workflows${qs ? `?${qs}` : ''}`);
-  // 拦截器已自动解包，response.data 直接是响应数据
-  return (response.data as { data?: WorkflowDefinition[] }).data ?? [];
+  const items = (response.data as { data?: WorkflowDefinition[] }).data ?? response.data;
+  return (Array.isArray(items) ? items : []).map(normalizeWorkflow);
 }
 
 /**
@@ -94,8 +120,7 @@ export async function getWorkflowList(params?: {
  */
 export async function getWorkflow(id: string): Promise<WorkflowDefinition> {
   const response = await api.get<WorkflowDefinition>(`/api/v1/workflows/${id}`);
-  // 拦截器已自动解包，response.data 直接是响应数据
-  return response.data as WorkflowDefinition;
+  return normalizeWorkflow(response.data as unknown);
 }
 
 /**
