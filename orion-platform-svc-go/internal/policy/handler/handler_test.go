@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/policy/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/policy/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakePolicyService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,116 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakePolicyService struct{}
+
+func (f *fakePolicyService) CreateOverride(ctx context.Context, tenantID string, req models.CreateOverrideRequest, overrideBy string) (*models.PolicyOverride, error) {
+	return &models.PolicyOverride{}, nil
+}
+
+func (f *fakePolicyService) CreatePolicy(ctx context.Context, tenantID string, req models.CreatePolicyRequest) (*models.Policy, error) {
+	return &models.Policy{}, nil
+}
+
+func (f *fakePolicyService) DeletePolicy(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakePolicyService) EvaluateGate(ctx context.Context, tenantID, gateID string, input map[string]any) (*models.EvaluatePolicyResponse, error) {
+	return &models.EvaluatePolicyResponse{}, nil
+}
+
+func (f *fakePolicyService) EvaluatePolicy(ctx context.Context, tenantID string, req models.EvaluatePolicyRequest) (*models.EvaluatePolicyResponse, error) {
+	return &models.EvaluatePolicyResponse{}, nil
+}
+
+func (f *fakePolicyService) GetBundle(ctx context.Context, tenantID, id string) (*models.PolicyBundle, error) {
+	return &models.PolicyBundle{}, nil
+}
+
+func (f *fakePolicyService) GetEvaluationHistory(ctx context.Context, tenantID, policyID string, limit, offset int) ([]models.PolicyEvaluation, error) {
+	return []models.PolicyEvaluation{}, nil
+}
+
+func (f *fakePolicyService) GetExemption(ctx context.Context, tenantID, id string) (*models.Exemption, error) {
+	return &models.Exemption{}, nil
+}
+
+func (f *fakePolicyService) GetPolicy(ctx context.Context, tenantID, id string) (*models.Policy, error) {
+	return &models.Policy{}, nil
+}
+
+func (f *fakePolicyService) GetViolation(ctx context.Context, tenantID, id string) (*models.Violation, error) {
+	return &models.Violation{}, nil
+}
+
+func (f *fakePolicyService) ListBundles(ctx context.Context, tenantID string) ([]models.PolicyBundle, error) {
+	return []models.PolicyBundle{}, nil
+}
+
+func (f *fakePolicyService) ListEvaluations(ctx context.Context, tenantID string, limit, offset int) ([]models.PolicyEvaluation, error) {
+	return []models.PolicyEvaluation{}, nil
+}
+
+func (f *fakePolicyService) ListExemptions(ctx context.Context, tenantID string, req models.ListExemptionsRequest) (*models.ListExemptionsResponse, error) {
+	return &models.ListExemptionsResponse{}, nil
+}
+
+func (f *fakePolicyService) ListOverrides(ctx context.Context, tenantID string, limit, offset int) ([]models.PolicyOverride, error) {
+	return []models.PolicyOverride{}, nil
+}
+
+func (f *fakePolicyService) ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.Policy, error) {
+	return []models.Policy{}, nil
+}
+
+func (f *fakePolicyService) ListViolations(ctx context.Context, tenantID string, limit, offset int) ([]models.Violation, error) {
+	return []models.Violation{}, nil
+}
+
+func (f *fakePolicyService) ResolveViolation(ctx context.Context, tenantID, id string, req models.ResolveViolationRequest) error {
+	return nil
+}
+
+func (f *fakePolicyService) ReviewExemption(ctx context.Context, tenantID, id string, req models.ReviewExemptionRequest) (*models.Exemption, error) {
+	return &models.Exemption{}, nil
+}
+
+func (f *fakePolicyService) RevokeExemption(ctx context.Context, tenantID, id string) (*models.Exemption, error) {
+	return &models.Exemption{}, nil
+}
+
+func (f *fakePolicyService) SubmitExemption(ctx context.Context, tenantID string, req models.CreateExemptionRequest) (*models.Exemption, error) {
+	return &models.Exemption{}, nil
+}
+
+func (f *fakePolicyService) SyncBundles(ctx context.Context, tenantID string, sourceURL string) (*models.SyncBundlesResponse, error) {
+	return &models.SyncBundlesResponse{}, nil
+}
+
+func (f *fakePolicyService) TestPolicy(ctx context.Context, rego string, testCases []map[string]any) ([]models.TestCaseResult, error) {
+	return []models.TestCaseResult{}, nil
+}
+
+func (f *fakePolicyService) TogglePolicy(ctx context.Context, tenantID, id string, enabled bool) (*models.Policy, error) {
+	return &models.Policy{}, nil
+}
+
+func (f *fakePolicyService) UpdatePolicy(ctx context.Context, tenantID, id string, req models.UpdatePolicyRequest) (*models.Policy, error) {
+	return &models.Policy{}, nil
+}
+
+func (f *fakePolicyService) WaiveViolation(ctx context.Context, tenantID, id string, req models.WaiveViolationRequest) error {
+	return nil
+}
+
+var _ service.ServiceInterface = (*fakePolicyService)(nil)
+
+
 func TestHandler_POLICY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_POLICY_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +142,6 @@ func TestHandler_POLICY_List(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -44,7 +149,6 @@ func TestHandler_POLICY_Create(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -52,7 +156,6 @@ func TestHandler_POLICY_Get(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +163,6 @@ func TestHandler_POLICY_Update(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +170,6 @@ func TestHandler_POLICY_Delete(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_Toggle(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Toggle(c)
 	if w.Code >= 500 {
@@ -76,7 +177,6 @@ func TestHandler_POLICY_Toggle(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_Evaluate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Evaluate(c)
 	if w.Code >= 500 {
@@ -84,7 +184,6 @@ func TestHandler_POLICY_Evaluate(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListEvaluations(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListEvaluations(c)
 	if w.Code >= 500 {
@@ -92,7 +191,6 @@ func TestHandler_POLICY_ListEvaluations(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_EvaluatePolicyRoot(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().EvaluatePolicyRoot(c)
 	if w.Code >= 500 {
@@ -100,7 +198,6 @@ func TestHandler_POLICY_EvaluatePolicyRoot(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_EvaluateRoot(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().EvaluateRoot(c)
 	if w.Code >= 500 {
@@ -108,7 +205,6 @@ func TestHandler_POLICY_EvaluateRoot(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListRootEvaluations(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListRootEvaluations(c)
 	if w.Code >= 500 {
@@ -116,7 +212,6 @@ func TestHandler_POLICY_ListRootEvaluations(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListEvaluationsRuns(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListEvaluationsRuns(c)
 	if w.Code >= 500 {
@@ -124,7 +219,6 @@ func TestHandler_POLICY_ListEvaluationsRuns(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListViolations(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListViolations(c)
 	if w.Code >= 500 {
@@ -132,7 +226,6 @@ func TestHandler_POLICY_ListViolations(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_WaiveViolation(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().WaiveViolation(c)
 	if w.Code >= 500 {
@@ -140,7 +233,6 @@ func TestHandler_POLICY_WaiveViolation(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ResolveViolation(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ResolveViolation(c)
 	if w.Code >= 500 {
@@ -148,7 +240,6 @@ func TestHandler_POLICY_ResolveViolation(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListOverrides(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListOverrides(c)
 	if w.Code >= 500 {
@@ -156,7 +247,6 @@ func TestHandler_POLICY_ListOverrides(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_CreateOverride(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateOverride(c)
 	if w.Code >= 500 {
@@ -164,7 +254,6 @@ func TestHandler_POLICY_CreateOverride(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListBundles(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListBundles(c)
 	if w.Code >= 500 {
@@ -172,7 +261,6 @@ func TestHandler_POLICY_ListBundles(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_GetBundle(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetBundle(c)
 	if w.Code >= 500 {
@@ -180,7 +268,6 @@ func TestHandler_POLICY_GetBundle(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_SyncBundles(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SyncBundles(c)
 	if w.Code >= 500 {
@@ -188,7 +275,6 @@ func TestHandler_POLICY_SyncBundles(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_TestPolicy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TestPolicy(c)
 	if w.Code >= 500 {
@@ -196,7 +282,6 @@ func TestHandler_POLICY_TestPolicy(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_CreateExemption(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateExemption(c)
 	if w.Code >= 500 {
@@ -204,7 +289,6 @@ func TestHandler_POLICY_CreateExemption(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_GetExemption(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetExemption(c)
 	if w.Code >= 500 {
@@ -212,7 +296,6 @@ func TestHandler_POLICY_GetExemption(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ListExemptions(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListExemptions(c)
 	if w.Code >= 500 {
@@ -220,7 +303,6 @@ func TestHandler_POLICY_ListExemptions(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_ApproveExemption(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ApproveExemption(c)
 	if w.Code >= 500 {
@@ -228,7 +310,6 @@ func TestHandler_POLICY_ApproveExemption(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_RejectExemption(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RejectExemption(c)
 	if w.Code >= 500 {
@@ -236,7 +317,6 @@ func TestHandler_POLICY_RejectExemption(t *testing.T) {
 	}
 }
 func TestHandler_POLICY_RevokeExemption(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RevokeExemption(c)
 	if w.Code >= 500 {

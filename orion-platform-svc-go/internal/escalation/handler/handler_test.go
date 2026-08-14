@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/escalation/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/escalation/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeEscalationService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,48 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeEscalationService struct{}
+
+func (f *fakeEscalationService) CreateRule(ctx context.Context, tenantID string, req models.TriggerRequest) (*models.EscalationRule, error) {
+	return &models.EscalationRule{}, nil
+}
+
+func (f *fakeEscalationService) DeleteRule(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeEscalationService) GetEventsByRule(ctx context.Context, tenantID, ruleID string) ([]models.TriggerEvent, error) {
+	return []models.TriggerEvent{}, nil
+}
+
+func (f *fakeEscalationService) GetRule(ctx context.Context, tenantID, id string) (*models.EscalationRule, error) {
+	return &models.EscalationRule{}, nil
+}
+
+func (f *fakeEscalationService) GetStats(ctx context.Context, tenantID string) (*models.EscalationStats, error) {
+	return &models.EscalationStats{}, nil
+}
+
+func (f *fakeEscalationService) ListRules(ctx context.Context, tenantID string, q models.ListRulesQuery) ([]models.EscalationRule, error) {
+	return []models.EscalationRule{}, nil
+}
+
+func (f *fakeEscalationService) TriggerRule(ctx context.Context, tenantID, id string, req models.TriggerRequest) (*models.TriggerEvent, error) {
+	return &models.TriggerEvent{}, nil
+}
+
+func (f *fakeEscalationService) UpdateRule(ctx context.Context, tenantID, id string, req models.TriggerRequest) (*models.EscalationRule, error) {
+	return &models.EscalationRule{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeEscalationService)(nil)
+
+
 func TestHandler_ESCALATION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_ESCALATION_CreateRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateRule(c)
 	if w.Code >= 500 {
@@ -36,7 +74,6 @@ func TestHandler_ESCALATION_CreateRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_DeleteRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteRule(c)
 	if w.Code >= 500 {
@@ -44,7 +81,6 @@ func TestHandler_ESCALATION_DeleteRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_GetRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRule(c)
 	if w.Code >= 500 {
@@ -52,7 +88,6 @@ func TestHandler_ESCALATION_GetRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {
@@ -60,7 +95,6 @@ func TestHandler_ESCALATION_GetStats(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_ListRules(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListRules(c)
 	if w.Code >= 500 {
@@ -68,7 +102,6 @@ func TestHandler_ESCALATION_ListRules(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_TriggerRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TriggerRule(c)
 	if w.Code >= 500 {
@@ -76,7 +109,6 @@ func TestHandler_ESCALATION_TriggerRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_UpdateRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateRule(c)
 	if w.Code >= 500 {

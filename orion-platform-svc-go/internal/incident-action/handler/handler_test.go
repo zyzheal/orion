@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/incident-action/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/incident-action/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeIncident_actionService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,36 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeIncident_actionService struct{}
+
+func (f *fakeIncident_actionService) Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+}
+
+func (f *fakeIncident_actionService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeIncident_actionService) Get(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+}
+
+func (f *fakeIncident_actionService) List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+	return []models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+}
+
+func (f *fakeIncident_actionService) Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeIncident_actionService)(nil)
+
+
 func TestHandler_INCIDENT_ACTIO_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_INCIDENT_ACT_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -37,7 +62,6 @@ func TestHandler_INCIDENT_ACT_Create(t *testing.T) {
 	}
 }
 func TestHandler_INCIDENT_ACT_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -45,7 +69,6 @@ func TestHandler_INCIDENT_ACT_Get(t *testing.T) {
 	}
 }
 func TestHandler_INCIDENT_ACT_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -53,7 +76,6 @@ func TestHandler_INCIDENT_ACT_List(t *testing.T) {
 	}
 }
 func TestHandler_INCIDENT_ACT_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -61,7 +83,6 @@ func TestHandler_INCIDENT_ACT_Update(t *testing.T) {
 	}
 }
 func TestHandler_INCIDENT_ACT_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

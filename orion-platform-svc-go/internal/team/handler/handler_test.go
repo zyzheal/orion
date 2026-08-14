@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/team/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/team/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandler{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,67 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeHandler struct{}
+
+func (f *fakeHandler) Create(ctx context.Context, tenantID string, req models.CreateTeamRequest) (*models.Team, error) {
+	return &models.Team{}, nil
+}
+
+func (f *fakeHandler) Get(ctx context.Context, tenantID, id string) (*models.Team, error) {
+	return &models.Team{}, nil
+}
+
+func (f *fakeHandler) List(ctx context.Context, tenantID string, limit, offset int) ([]models.Team, error) {
+	return []models.Team{}, nil
+}
+
+func (f *fakeHandler) Update(ctx context.Context, tenantID, id string, req models.UpdateTeamRequest) (*models.Team, error) {
+	return &models.Team{}, nil
+}
+
+func (f *fakeHandler) Delete(ctx context.Context, tenantID, id string) (*service.DeleteResult, error) {
+	return &service.DeleteResult{}, nil
+}
+
+func (f *fakeHandler) GetUserTeams(ctx context.Context, userID, tenantID string) ([]models.Team, error) {
+	return []models.Team{}, nil
+}
+
+func (f *fakeHandler) GetMembers(ctx context.Context, teamID, tenantID string) ([]models.TeamMember, error) {
+	return []models.TeamMember{}, nil
+}
+
+func (f *fakeHandler) AddMember(ctx context.Context, teamID, userID, tenantID, role, addedBy string) error {
+	return nil
+}
+
+func (f *fakeHandler) RemoveMember(ctx context.Context, teamID, userID, tenantID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeHandler) UpdateMemberRole(ctx context.Context, teamID, userID, tenantID, newRole string) error {
+	return nil
+}
+
+func (f *fakeHandler) GetRoles(ctx context.Context, teamID, tenantID string) ([]models.TeamRole, error) {
+	return []models.TeamRole{}, nil
+}
+
+func (f *fakeHandler) AssignRole(ctx context.Context, teamID, roleName, tenantID, grantedBy string) error {
+	return nil
+}
+
+func (f *fakeHandler) RemoveRole(ctx context.Context, teamID, roleName, tenantID string) (bool, error) {
+	return false, nil
+}
+
+
+
 func TestHandler_TEAM_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_TEAM_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +93,6 @@ func TestHandler_TEAM_List(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -44,7 +100,6 @@ func TestHandler_TEAM_Create(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -52,7 +107,6 @@ func TestHandler_TEAM_Get(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +114,6 @@ func TestHandler_TEAM_Update(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +121,6 @@ func TestHandler_TEAM_Delete(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_GetUserTeams(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetUserTeams(c)
 	if w.Code >= 500 {
@@ -76,7 +128,6 @@ func TestHandler_TEAM_GetUserTeams(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_GetMembers(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetMembers(c)
 	if w.Code >= 500 {
@@ -84,7 +135,6 @@ func TestHandler_TEAM_GetMembers(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_AddMember(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AddMember(c)
 	if w.Code >= 500 {
@@ -92,7 +142,6 @@ func TestHandler_TEAM_AddMember(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_RemoveMember(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RemoveMember(c)
 	if w.Code >= 500 {
@@ -100,7 +149,6 @@ func TestHandler_TEAM_RemoveMember(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_UpdateMemberRole(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateMemberRole(c)
 	if w.Code >= 500 {
@@ -108,7 +156,6 @@ func TestHandler_TEAM_UpdateMemberRole(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_GetRoles(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRoles(c)
 	if w.Code >= 500 {
@@ -116,7 +163,6 @@ func TestHandler_TEAM_GetRoles(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_AssignRole(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AssignRole(c)
 	if w.Code >= 500 {
@@ -124,7 +170,6 @@ func TestHandler_TEAM_AssignRole(t *testing.T) {
 	}
 }
 func TestHandler_TEAM_RemoveRole(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RemoveRole(c)
 	if w.Code >= 500 {

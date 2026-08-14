@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/runbook/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/runbook/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeRunbookService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,48 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeRunbookService struct{}
+
+func (f *fakeRunbookService) CompleteExecution(ctx context.Context, tenantID, executionID string, success bool) error {
+	return nil
+}
+
+func (f *fakeRunbookService) Create(ctx context.Context, tenantID string, req models.CreateRunbookRequest) (*models.Runbook, error) {
+	return &models.Runbook{}, nil
+}
+
+func (f *fakeRunbookService) CreateExecution(ctx context.Context, tenantID, runbookID string, req models.CreateRunbookExecutionRequest) (*models.RunbookExecution, error) {
+	return &models.RunbookExecution{}, nil
+}
+
+func (f *fakeRunbookService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeRunbookService) Get(ctx context.Context, tenantID, id string) (*models.Runbook, error) {
+	return &models.Runbook{}, nil
+}
+
+func (f *fakeRunbookService) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Runbook, int, error) {
+	return []models.Runbook{}, 0, nil
+}
+
+func (f *fakeRunbookService) ListExecutions(ctx context.Context, tenantID, runbookID string) ([]models.RunbookExecution, error) {
+	return []models.RunbookExecution{}, nil
+}
+
+func (f *fakeRunbookService) Update(ctx context.Context, tenantID, id string, req models.UpdateRunbookRequest) (*models.Runbook, error) {
+	return &models.Runbook{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeRunbookService)(nil)
+
+
 func TestHandler_RUNBOOK_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_RUNBOOK_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +74,6 @@ func TestHandler_RUNBOOK_List(t *testing.T) {
 	}
 }
 func TestHandler_RUNBOOK_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -44,7 +81,6 @@ func TestHandler_RUNBOOK_Get(t *testing.T) {
 	}
 }
 func TestHandler_RUNBOOK_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -52,7 +88,6 @@ func TestHandler_RUNBOOK_Create(t *testing.T) {
 	}
 }
 func TestHandler_RUNBOOK_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +95,6 @@ func TestHandler_RUNBOOK_Update(t *testing.T) {
 	}
 }
 func TestHandler_RUNBOOK_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +102,6 @@ func TestHandler_RUNBOOK_Delete(t *testing.T) {
 	}
 }
 func TestHandler_RUNBOOK_Execute(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Execute(c)
 	if w.Code >= 500 {
@@ -76,7 +109,6 @@ func TestHandler_RUNBOOK_Execute(t *testing.T) {
 	}
 }
 func TestHandler_RUNBOOK_ListExecutions(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListExecutions(c)
 	if w.Code >= 500 {

@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/workflow-task/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/workflow-task/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeWorkflow_taskService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,32 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeWorkflow_taskService struct{}
+
+func (f *fakeWorkflow_taskService) Claim(ctx context.Context, id string, tenantID string, assigneeID string, comment *string) (*models.WorkflowTask, error) {
+	return &models.WorkflowTask{}, nil
+}
+
+func (f *fakeWorkflow_taskService) Complete(ctx context.Context, id string, tenantID string, comment *string, formData *string) (*models.WorkflowTask, error) {
+	return &models.WorkflowTask{}, nil
+}
+
+func (f *fakeWorkflow_taskService) GetTask(ctx context.Context, id string, tenantID string) (*models.WorkflowTask, error) {
+	return &models.WorkflowTask{}, nil
+}
+
+func (f *fakeWorkflow_taskService) ListTasks(ctx context.Context, tenantID string, filter *models.ListFilter) ([]models.WorkflowTask, int, error) {
+	return []models.WorkflowTask{}, 0, nil
+}
+
+var _ service.ServiceInterface = (*fakeWorkflow_taskService)(nil)
+
+
 func TestHandler_WORKFLOW_TASK_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_WORKFLOW_TAS_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -37,7 +58,6 @@ func TestHandler_WORKFLOW_TAS_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_WORKFLOW_TAS_ListTasks(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListTasks(c)
 	if w.Code >= 500 {
@@ -45,7 +65,6 @@ func TestHandler_WORKFLOW_TAS_ListTasks(t *testing.T) {
 	}
 }
 func TestHandler_WORKFLOW_TAS_GetTask(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTask(c)
 	if w.Code >= 500 {
@@ -53,7 +72,6 @@ func TestHandler_WORKFLOW_TAS_GetTask(t *testing.T) {
 	}
 }
 func TestHandler_WORKFLOW_TAS_ClaimTask(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ClaimTask(c)
 	if w.Code >= 500 {
@@ -61,7 +79,6 @@ func TestHandler_WORKFLOW_TAS_ClaimTask(t *testing.T) {
 	}
 }
 func TestHandler_WORKFLOW_TAS_CompleteTask(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CompleteTask(c)
 	if w.Code >= 500 {

@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/infrastructure/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/infrastructure/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeInfrastructureService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,92 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeInfrastructureService struct{}
+
+func (f *fakeInfrastructureService) AllowTraffic(ctx context.Context, tenantID string, req models.AllowTrafficRequest) (*models.SandboxNetworkPolicy, error) {
+	return &models.SandboxNetworkPolicy{}, nil
+}
+
+func (f *fakeInfrastructureService) ConfigureDnsIsolation(ctx context.Context, tenantID string, req models.DnsIsolationRequest, sandboxID string) (*models.SandboxNetworkPolicy, error) {
+	return &models.SandboxNetworkPolicy{}, nil
+}
+
+func (f *fakeInfrastructureService) ConfigureEgressTraffic(ctx context.Context, tenantID string, req models.EgressTrafficRequest, sandboxID string) (*models.SandboxNetworkPolicy, error) {
+	return &models.SandboxNetworkPolicy{}, nil
+}
+
+func (f *fakeInfrastructureService) Connect(ctx context.Context, tenantID, id string) (*models.Connector, error) {
+	return &models.Connector{}, nil
+}
+
+func (f *fakeInfrastructureService) CreateSandbox(ctx context.Context, tenantID string, req models.CreateSandboxRequest) (*models.SandboxInfo, error) {
+	return &models.SandboxInfo{}, nil
+}
+
+func (f *fakeInfrastructureService) DenyTraffic(ctx context.Context, tenantID string, fromEnv, toEnv string) (*models.SandboxNetworkPolicy, error) {
+	return &models.SandboxNetworkPolicy{}, nil
+}
+
+func (f *fakeInfrastructureService) Disconnect(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeInfrastructureService) GetConnector(ctx context.Context, tenantID, id string) (*models.Connector, error) {
+	return &models.Connector{}, nil
+}
+
+func (f *fakeInfrastructureService) GetHealthMetrics(ctx context.Context, tenantID, connectorID string) (*models.HealthMetrics, error) {
+	return &models.HealthMetrics{}, nil
+}
+
+func (f *fakeInfrastructureService) GetSandbox(ctx context.Context, tenantID, id string) (*models.SandboxInfo, error) {
+	return &models.SandboxInfo{}, nil
+}
+
+func (f *fakeInfrastructureService) IsolateSandbox(ctx context.Context, tenantID, id string) (*models.SandboxInfo, error) {
+	return &models.SandboxInfo{}, nil
+}
+
+func (f *fakeInfrastructureService) ListAllHealthMetrics(ctx context.Context, tenantID string) ([]models.HealthMetrics, error) {
+	return []models.HealthMetrics{}, nil
+}
+
+func (f *fakeInfrastructureService) ListConnectors(ctx context.Context, tenantID string) ([]models.Connector, error) {
+	return []models.Connector{}, nil
+}
+
+func (f *fakeInfrastructureService) ListNetworkPolicies(ctx context.Context, tenantID string) ([]models.SandboxNetworkPolicy, error) {
+	return []models.SandboxNetworkPolicy{}, nil
+}
+
+func (f *fakeInfrastructureService) ListSandboxes(ctx context.Context, tenantID string) ([]models.SandboxInfo, error) {
+	return []models.SandboxInfo{}, nil
+}
+
+func (f *fakeInfrastructureService) Reconnect(ctx context.Context, tenantID, id string) (*models.Connector, error) {
+	return &models.Connector{}, nil
+}
+
+func (f *fakeInfrastructureService) RegisterConnector(ctx context.Context, tenantID string, req models.RegisterConnectorRequest) (*models.Connector, error) {
+	return &models.Connector{}, nil
+}
+
+func (f *fakeInfrastructureService) ReleaseSandbox(ctx context.Context, tenantID, id string) (*models.SandboxInfo, error) {
+	return &models.SandboxInfo{}, nil
+}
+
+func (f *fakeInfrastructureService) UnregisterConnector(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+var _ service.ServiceInterface = (*fakeInfrastructureService)(nil)
+
+
 func TestHandler_INFRASTRUCTURE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_INFRASTRUCTU_ListConnectors(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListConnectors(c)
 	if w.Code >= 500 {
@@ -36,7 +118,6 @@ func TestHandler_INFRASTRUCTU_ListConnectors(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_GetConnector(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetConnector(c)
 	if w.Code >= 500 {
@@ -44,7 +125,6 @@ func TestHandler_INFRASTRUCTU_GetConnector(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_RegisterConnector(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RegisterConnector(c)
 	if w.Code >= 500 {
@@ -52,7 +132,6 @@ func TestHandler_INFRASTRUCTU_RegisterConnector(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_Connect(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Connect(c)
 	if w.Code >= 500 {
@@ -60,7 +139,6 @@ func TestHandler_INFRASTRUCTU_Connect(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_Disconnect(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Disconnect(c)
 	if w.Code >= 500 {
@@ -68,7 +146,6 @@ func TestHandler_INFRASTRUCTU_Disconnect(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_Reconnect(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Reconnect(c)
 	if w.Code >= 500 {
@@ -76,7 +153,6 @@ func TestHandler_INFRASTRUCTU_Reconnect(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_UnregisterConnector(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UnregisterConnector(c)
 	if w.Code >= 500 {
@@ -84,7 +160,6 @@ func TestHandler_INFRASTRUCTU_UnregisterConnector(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_GetHealthMetrics(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetHealthMetrics(c)
 	if w.Code >= 500 {
@@ -92,7 +167,6 @@ func TestHandler_INFRASTRUCTU_GetHealthMetrics(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_ListAllHealthMetrics(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListAllHealthMetrics(c)
 	if w.Code >= 500 {
@@ -100,7 +174,6 @@ func TestHandler_INFRASTRUCTU_ListAllHealthMetrics(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_ListSandboxes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListSandboxes(c)
 	if w.Code >= 500 {
@@ -108,7 +181,6 @@ func TestHandler_INFRASTRUCTU_ListSandboxes(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_GetSandbox(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetSandbox(c)
 	if w.Code >= 500 {
@@ -116,7 +188,6 @@ func TestHandler_INFRASTRUCTU_GetSandbox(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_CreateSandbox(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateSandbox(c)
 	if w.Code >= 500 {
@@ -124,7 +195,6 @@ func TestHandler_INFRASTRUCTU_CreateSandbox(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_IsolateSandbox(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().IsolateSandbox(c)
 	if w.Code >= 500 {
@@ -132,7 +202,6 @@ func TestHandler_INFRASTRUCTU_IsolateSandbox(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_ReleaseSandbox(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ReleaseSandbox(c)
 	if w.Code >= 500 {
@@ -140,7 +209,6 @@ func TestHandler_INFRASTRUCTU_ReleaseSandbox(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_BlockAllTraffic(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().BlockAllTraffic(c)
 	if w.Code >= 500 {
@@ -148,7 +216,6 @@ func TestHandler_INFRASTRUCTU_BlockAllTraffic(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_AllowTraffic(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AllowTraffic(c)
 	if w.Code >= 500 {
@@ -156,7 +223,6 @@ func TestHandler_INFRASTRUCTU_AllowTraffic(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_DenyTraffic(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DenyTraffic(c)
 	if w.Code >= 500 {
@@ -164,7 +230,6 @@ func TestHandler_INFRASTRUCTU_DenyTraffic(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_ConfigureDnsIsolation(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ConfigureDnsIsolation(c)
 	if w.Code >= 500 {
@@ -172,7 +237,6 @@ func TestHandler_INFRASTRUCTU_ConfigureDnsIsolation(t *testing.T) {
 	}
 }
 func TestHandler_INFRASTRUCTU_ConfigureEgressTraffic(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ConfigureEgressTraffic(c)
 	if w.Code >= 500 {

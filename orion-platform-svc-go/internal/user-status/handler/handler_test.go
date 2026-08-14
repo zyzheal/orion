@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/user-status/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/user-status/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeUser_statusService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,28 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeUser_statusService struct{}
+
+func (f *fakeUser_statusService) GetStatus(ctx context.Context, tenantID, userID string) (*models.UserStatus, error) {
+	return &models.UserStatus{}, nil
+}
+
+func (f *fakeUser_statusService) ListByStatus(ctx context.Context, tenantID string, status string) ([]models.UserStatus, error) {
+	return []models.UserStatus{}, nil
+}
+
+func (f *fakeUser_statusService) SetStatus(ctx context.Context, tenantID, userID string, req models.SetStatusRequest) (*models.UserStatus, error) {
+	return &models.UserStatus{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeUser_statusService)(nil)
+
+
 func TestHandler_USER_STATUS_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_USER_STATUS_GetMyStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetMyStatus(c)
 	if w.Code >= 500 {
@@ -37,7 +54,6 @@ func TestHandler_USER_STATUS_GetMyStatus(t *testing.T) {
 	}
 }
 func TestHandler_USER_STATUS_GetStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStatus(c)
 	if w.Code >= 500 {
@@ -45,7 +61,6 @@ func TestHandler_USER_STATUS_GetStatus(t *testing.T) {
 	}
 }
 func TestHandler_USER_STATUS_SetMyStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SetMyStatus(c)
 	if w.Code >= 500 {
@@ -53,7 +68,6 @@ func TestHandler_USER_STATUS_SetMyStatus(t *testing.T) {
 	}
 }
 func TestHandler_USER_STATUS_ListOnline(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListOnline(c)
 	if w.Code >= 500 {

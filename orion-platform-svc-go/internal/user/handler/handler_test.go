@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/user/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/user/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandler{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,47 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeHandler struct{}
+
+func (f *fakeHandler) Create(ctx context.Context, tenantID, creatorID string, req *models.CreateUserRequest) (*service.CreateUserResponse, error) {
+	return &service.CreateUserResponse{}, nil
+}
+
+func (f *fakeHandler) Authenticate(ctx context.Context, req *models.AuthenticateRequest) (*models.User, error) {
+	return &models.User{}, nil
+}
+
+func (f *fakeHandler) List(ctx context.Context, tenantID string, filter *models.GetUserFilters, offset, limit int) ([]models.User, error) {
+	return []models.User{}, nil
+}
+
+func (f *fakeHandler) GetByID(ctx context.Context, tenantID, id string) (*models.User, error) {
+	return &models.User{}, nil
+}
+
+func (f *fakeHandler) Count(ctx context.Context, tenantID string) (int, error) {
+	return 0, nil
+}
+
+func (f *fakeHandler) Update(ctx context.Context, tenantID, id string, req *models.UpdateUserRequest) (*models.User, error) {
+	return &models.User{}, nil
+}
+
+func (f *fakeHandler) ChangePassword(ctx context.Context, tenantID, userID string, req *models.ChangePasswordRequest) error {
+	return nil
+}
+
+func (f *fakeHandler) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+
+
 func TestHandler_USER_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_USER_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -36,7 +73,6 @@ func TestHandler_USER_Create(t *testing.T) {
 	}
 }
 func TestHandler_USER_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -44,7 +80,6 @@ func TestHandler_USER_List(t *testing.T) {
 	}
 }
 func TestHandler_USER_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -52,7 +87,6 @@ func TestHandler_USER_Get(t *testing.T) {
 	}
 }
 func TestHandler_USER_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +94,6 @@ func TestHandler_USER_Update(t *testing.T) {
 	}
 }
 func TestHandler_USER_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +101,6 @@ func TestHandler_USER_Delete(t *testing.T) {
 	}
 }
 func TestHandler_USER_Count(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Count(c)
 	if w.Code >= 500 {
@@ -76,7 +108,6 @@ func TestHandler_USER_Count(t *testing.T) {
 	}
 }
 func TestHandler_USER_Authenticate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Authenticate(c)
 	if w.Code >= 500 {
@@ -84,7 +115,6 @@ func TestHandler_USER_Authenticate(t *testing.T) {
 	}
 }
 func TestHandler_USER_ChangePassword(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ChangePassword(c)
 	if w.Code >= 500 {

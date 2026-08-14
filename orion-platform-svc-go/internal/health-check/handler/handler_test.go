@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/health-check/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/health-check/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHealth_checkService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,48 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeHealth_checkService struct{}
+
+func (f *fakeHealth_checkService) Create(ctx context.Context, tenantID string, req models.CreateHealthCheckRequest) (string, error) {
+	return "", nil
+}
+
+func (f *fakeHealth_checkService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeHealth_checkService) ExecuteAll(ctx context.Context, tenantID string) (*models.HealthCheckResult, error) {
+	return &models.HealthCheckResult{}, nil
+}
+
+func (f *fakeHealth_checkService) ExecuteCheck(ctx context.Context, tenantID, id string, req models.ExecuteHealthCheckRequest) (*models.HealthCheckResult, error) {
+	return &models.HealthCheckResult{}, nil
+}
+
+func (f *fakeHealth_checkService) Get(ctx context.Context, tenantID, id string) (*models.HealthCheck, error) {
+	return &models.HealthCheck{}, nil
+}
+
+func (f *fakeHealth_checkService) List(ctx context.Context, tenantID string) ([]models.HealthCheck, error) {
+	return []models.HealthCheck{}, nil
+}
+
+func (f *fakeHealth_checkService) QuickCheck(ctx context.Context, req models.QuickHealthCheckRequest) (*models.HealthCheckResult, error) {
+	return &models.HealthCheckResult{}, nil
+}
+
+func (f *fakeHealth_checkService) Update(ctx context.Context, tenantID, id string, req models.CreateHealthCheckRequest) error {
+	return nil
+}
+
+var _ service.ServiceInterface = (*fakeHealth_checkService)(nil)
+
+
 func TestHandler_HEALTH_CHECK_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_HEALTH_CHECK_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -37,7 +74,6 @@ func TestHandler_HEALTH_CHECK_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_ListChecks(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListChecks(c)
 	if w.Code >= 500 {
@@ -45,7 +81,6 @@ func TestHandler_HEALTH_CHECK_ListChecks(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_GetCheck(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCheck(c)
 	if w.Code >= 500 {
@@ -53,7 +88,6 @@ func TestHandler_HEALTH_CHECK_GetCheck(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_CreateCheck(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateCheck(c)
 	if w.Code >= 500 {
@@ -61,7 +95,6 @@ func TestHandler_HEALTH_CHECK_CreateCheck(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_UpdateCheck(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateCheck(c)
 	if w.Code >= 500 {
@@ -69,7 +102,6 @@ func TestHandler_HEALTH_CHECK_UpdateCheck(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_DeleteCheck(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteCheck(c)
 	if w.Code >= 500 {
@@ -77,7 +109,6 @@ func TestHandler_HEALTH_CHECK_DeleteCheck(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_ExecuteCheck(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExecuteCheck(c)
 	if w.Code >= 500 {
@@ -85,7 +116,6 @@ func TestHandler_HEALTH_CHECK_ExecuteCheck(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_ExecuteAll(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExecuteAll(c)
 	if w.Code >= 500 {
@@ -93,7 +123,6 @@ func TestHandler_HEALTH_CHECK_ExecuteAll(t *testing.T) {
 	}
 }
 func TestHandler_HEALTH_CHECK_QuickCheck(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().QuickCheck(c)
 	if w.Code >= 500 {

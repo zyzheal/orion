@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/decision-explanation/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/decision-explanation/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeDecision_explanationService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,36 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeDecision_explanationService struct{}
+
+func (f *fakeDecision_explanationService) Create(ctx context.Context, tenantID string, req *models.CreateDecisionExplanationRequest) (*models.DecisionExplanation, error) {
+	return &models.DecisionExplanation{}, nil
+}
+
+func (f *fakeDecision_explanationService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeDecision_explanationService) Get(ctx context.Context, tenantID, id string) (*models.DecisionExplanation, error) {
+	return &models.DecisionExplanation{}, nil
+}
+
+func (f *fakeDecision_explanationService) List(ctx context.Context, tenantID string) ([]models.DecisionExplanation, error) {
+	return []models.DecisionExplanation{}, nil
+}
+
+func (f *fakeDecision_explanationService) Update(ctx context.Context, tenantID, id string, req *models.UpdateDecisionExplanationRequest) (*models.DecisionExplanation, error) {
+	return &models.DecisionExplanation{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeDecision_explanationService)(nil)
+
+
 func TestHandler_DECISION_EXPLA_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DECISION_EXP_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +62,6 @@ func TestHandler_DECISION_EXP_List(t *testing.T) {
 	}
 }
 func TestHandler_DECISION_EXP_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -45,7 +69,6 @@ func TestHandler_DECISION_EXP_Create(t *testing.T) {
 	}
 }
 func TestHandler_DECISION_EXP_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -53,7 +76,6 @@ func TestHandler_DECISION_EXP_Get(t *testing.T) {
 	}
 }
 func TestHandler_DECISION_EXP_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -61,7 +83,6 @@ func TestHandler_DECISION_EXP_Update(t *testing.T) {
 	}
 }
 func TestHandler_DECISION_EXP_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/event-trigger/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/event-trigger/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeEvent_triggerService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,40 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeEvent_triggerService struct{}
+
+func (f *fakeEvent_triggerService) Count(ctx context.Context, tenantID string) (int, error) {
+	return 0, nil
+}
+
+func (f *fakeEvent_triggerService) Create(ctx context.Context, tenantID, userID string, req *models.CreateTriggerRequest) (*models.EventTrigger, error) {
+	return &models.EventTrigger{}, nil
+}
+
+func (f *fakeEvent_triggerService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeEvent_triggerService) GetByID(ctx context.Context, tenantID, id string) (*models.EventTrigger, error) {
+	return &models.EventTrigger{}, nil
+}
+
+func (f *fakeEvent_triggerService) List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.EventTrigger, error) {
+	return []models.EventTrigger{}, nil
+}
+
+func (f *fakeEvent_triggerService) Update(ctx context.Context, tenantID, id string, req *models.UpdateTriggerRequest) (*models.EventTrigger, error) {
+	return &models.EventTrigger{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeEvent_triggerService)(nil)
+
+
 func TestHandler_EVENT_TRIGGER_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_EVENT_TRIGGE_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -37,7 +66,6 @@ func TestHandler_EVENT_TRIGGE_Create(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -45,7 +73,6 @@ func TestHandler_EVENT_TRIGGE_List(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_Count(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Count(c)
 	if w.Code >= 500 {
@@ -53,7 +80,6 @@ func TestHandler_EVENT_TRIGGE_Count(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -61,7 +87,6 @@ func TestHandler_EVENT_TRIGGE_Get(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -69,7 +94,6 @@ func TestHandler_EVENT_TRIGGE_Update(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

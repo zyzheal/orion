@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/report-designer/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/report-designer/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeReport_designerService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,88 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeReport_designerService struct{}
+
+func (f *fakeReport_designerService) CreateDatasource(ctx context.Context, req *models.CreateDatasourceRequest) (*models.ReportDatasource, error) {
+	return &models.ReportDatasource{}, nil
+}
+
+func (f *fakeReport_designerService) CreateReport(ctx context.Context, req *models.CreateReportRequest) (*models.ReportDefinition, error) {
+	return &models.ReportDefinition{}, nil
+}
+
+func (f *fakeReport_designerService) CreateSchedule(ctx context.Context, req *models.CreateScheduleRequest) (*models.ReportSchedule, error) {
+	return &models.ReportSchedule{}, nil
+}
+
+func (f *fakeReport_designerService) DeleteDatasource(ctx context.Context, id string, tenantID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeReport_designerService) DeleteReport(ctx context.Context, id string, tenantID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeReport_designerService) DeleteSchedule(ctx context.Context, id string, tenantID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeReport_designerService) ExecuteReport(ctx context.Context, reportID string, tenantID string, req *models.ExecuteReportRequest) (*models.ReportExecution, error) {
+	return &models.ReportExecution{}, nil
+}
+
+func (f *fakeReport_designerService) GetDatasource(ctx context.Context, id string, tenantID string) (*models.ReportDatasource, error) {
+	return &models.ReportDatasource{}, nil
+}
+
+func (f *fakeReport_designerService) GetExecutionHistory(ctx context.Context, reportID string, tenantID string, limit int) ([]models.ReportExecution, error) {
+	return []models.ReportExecution{}, nil
+}
+
+func (f *fakeReport_designerService) GetReport(ctx context.Context, id string, tenantID string) (*models.ReportDefinition, error) {
+	return &models.ReportDefinition{}, nil
+}
+
+func (f *fakeReport_designerService) GetSchedule(ctx context.Context, id string, tenantID string) (*models.ReportSchedule, error) {
+	return &models.ReportSchedule{}, nil
+}
+
+func (f *fakeReport_designerService) ListDatasources(ctx context.Context, tenantID string) ([]models.ReportDatasource, error) {
+	return []models.ReportDatasource{}, nil
+}
+
+func (f *fakeReport_designerService) ListReports(ctx context.Context, tenantID string, req *models.ListReportsRequest) ([]models.ReportDefinition, int, error) {
+	return []models.ReportDefinition{}, 0, nil
+}
+
+func (f *fakeReport_designerService) ListSchedules(ctx context.Context, reportID string, tenantID string) ([]models.ReportSchedule, error) {
+	return []models.ReportSchedule{}, nil
+}
+
+func (f *fakeReport_designerService) PreviewReport(ctx context.Context, reportID string, tenantID string, req *models.PreviewReportRequest) (*models.PreviewReportResult, error) {
+	return &models.PreviewReportResult{}, nil
+}
+
+func (f *fakeReport_designerService) UpdateDatasource(ctx context.Context, id string, tenantID string, req *models.UpdateDatasourceRequest) (*models.ReportDatasource, error) {
+	return &models.ReportDatasource{}, nil
+}
+
+func (f *fakeReport_designerService) UpdateReport(ctx context.Context, id string, tenantID string, req *models.UpdateReportRequest) (*models.ReportDefinition, error) {
+	return &models.ReportDefinition{}, nil
+}
+
+func (f *fakeReport_designerService) UpdateSchedule(ctx context.Context, id string, tenantID string, req *models.UpdateScheduleRequest) (*models.ReportSchedule, error) {
+	return &models.ReportSchedule{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeReport_designerService)(nil)
+
+
 func TestHandler_REPORT_DESIGNE_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_REPORT_DESIG_CreateReport(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateReport(c)
 	if w.Code >= 500 {
@@ -37,7 +114,6 @@ func TestHandler_REPORT_DESIG_CreateReport(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_GetReport(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetReport(c)
 	if w.Code >= 500 {
@@ -45,7 +121,6 @@ func TestHandler_REPORT_DESIG_GetReport(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_UpdateReport(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateReport(c)
 	if w.Code >= 500 {
@@ -53,7 +128,6 @@ func TestHandler_REPORT_DESIG_UpdateReport(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_DeleteReport(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteReport(c)
 	if w.Code >= 500 {
@@ -61,7 +135,6 @@ func TestHandler_REPORT_DESIG_DeleteReport(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_ListReports(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListReports(c)
 	if w.Code >= 500 {
@@ -69,7 +142,6 @@ func TestHandler_REPORT_DESIG_ListReports(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_CreateDatasource(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateDatasource(c)
 	if w.Code >= 500 {
@@ -77,7 +149,6 @@ func TestHandler_REPORT_DESIG_CreateDatasource(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_UpdateDatasource(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateDatasource(c)
 	if w.Code >= 500 {
@@ -85,7 +156,6 @@ func TestHandler_REPORT_DESIG_UpdateDatasource(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_DeleteDatasource(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteDatasource(c)
 	if w.Code >= 500 {
@@ -93,7 +163,6 @@ func TestHandler_REPORT_DESIG_DeleteDatasource(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_ListDatasources(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListDatasources(c)
 	if w.Code >= 500 {
@@ -101,7 +170,6 @@ func TestHandler_REPORT_DESIG_ListDatasources(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_CreateSchedule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateSchedule(c)
 	if w.Code >= 500 {
@@ -109,7 +177,6 @@ func TestHandler_REPORT_DESIG_CreateSchedule(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_UpdateSchedule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateSchedule(c)
 	if w.Code >= 500 {
@@ -117,7 +184,6 @@ func TestHandler_REPORT_DESIG_UpdateSchedule(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_DeleteSchedule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteSchedule(c)
 	if w.Code >= 500 {
@@ -125,7 +191,6 @@ func TestHandler_REPORT_DESIG_DeleteSchedule(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_ListSchedules(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListSchedules(c)
 	if w.Code >= 500 {
@@ -133,7 +198,6 @@ func TestHandler_REPORT_DESIG_ListSchedules(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_PreviewReport(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().PreviewReport(c)
 	if w.Code >= 500 {
@@ -141,7 +205,6 @@ func TestHandler_REPORT_DESIG_PreviewReport(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_ExecuteReport(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExecuteReport(c)
 	if w.Code >= 500 {
@@ -149,7 +212,6 @@ func TestHandler_REPORT_DESIG_ExecuteReport(t *testing.T) {
 	}
 }
 func TestHandler_REPORT_DESIG_GetExecutionHistory(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetExecutionHistory(c)
 	if w.Code >= 500 {

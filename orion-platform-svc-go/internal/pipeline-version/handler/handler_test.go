@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/pipeline-version/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/pipeline-version/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakePipeline_versionService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,52 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakePipeline_versionService struct{}
+
+func (f *fakePipeline_versionService) AddTag(ctx context.Context, versionID string, tenantID string, tag string) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+func (f *fakePipeline_versionService) CreateVersion(ctx context.Context, pipelineID string, tenantID string, req *models.CreateVersionRequest) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+func (f *fakePipeline_versionService) DiffVersions(ctx context.Context, fromID string, toID string, tenantID string) (*models.DiffResult, error) {
+	return &models.DiffResult{}, nil
+}
+
+func (f *fakePipeline_versionService) GetVersion(ctx context.Context, id string, tenantID string) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+func (f *fakePipeline_versionService) GetVersionByPipelineAndVersion(ctx context.Context, pipelineID string, version string, tenantID string) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+func (f *fakePipeline_versionService) ListVersionsByPipeline(ctx context.Context, pipelineID string, tenantID string) ([]models.PipelineVersion, int, error) {
+	return []models.PipelineVersion{}, 0, nil
+}
+
+func (f *fakePipeline_versionService) RemoveTag(ctx context.Context, versionID string, tenantID string, tag string) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+func (f *fakePipeline_versionService) Rollback(ctx context.Context, versionID string, tenantID string) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+func (f *fakePipeline_versionService) SetBaseline(ctx context.Context, versionID string, tenantID string, set bool) (*models.PipelineVersion, error) {
+	return &models.PipelineVersion{}, nil
+}
+
+var _ service.ServiceInterface = (*fakePipeline_versionService)(nil)
+
+
 func TestHandler_PIPELINE_VERSI_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PIPELINE_VER_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -37,7 +78,6 @@ func TestHandler_PIPELINE_VER_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_VER_GetVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetVersion(c)
 	if w.Code >= 500 {
@@ -45,7 +85,6 @@ func TestHandler_PIPELINE_VER_GetVersion(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_VER_DiffVersions(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DiffVersions(c)
 	if w.Code >= 500 {
@@ -53,7 +92,6 @@ func TestHandler_PIPELINE_VER_DiffVersions(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_VER_Rollback(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Rollback(c)
 	if w.Code >= 500 {
@@ -61,7 +99,6 @@ func TestHandler_PIPELINE_VER_Rollback(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_VER_AddTag(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AddTag(c)
 	if w.Code >= 500 {
@@ -69,7 +106,6 @@ func TestHandler_PIPELINE_VER_AddTag(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_VER_RemoveTag(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RemoveTag(c)
 	if w.Code >= 500 {
@@ -77,7 +113,6 @@ func TestHandler_PIPELINE_VER_RemoveTag(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_VER_SetBaseline(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SetBaseline(c)
 	if w.Code >= 500 {

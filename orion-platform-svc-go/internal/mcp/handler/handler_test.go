@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/mcp/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/mcp/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeMcpService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,40 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeMcpService struct{}
+
+func (f *fakeMcpService) CreateServer(ctx context.Context, tenantID string, req models.CreateMCPServerRequest) (*models.MCPServer, error) {
+	return &models.MCPServer{}, nil
+}
+
+func (f *fakeMcpService) DeleteServer(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeMcpService) GetServer(ctx context.Context, tenantID, id string) (*models.MCPServer, error) {
+	return &models.MCPServer{}, nil
+}
+
+func (f *fakeMcpService) ListServers(ctx context.Context, tenantID string, q models.ListMCPServersQuery) (*models.MCPServerListResponse, error) {
+	return &models.MCPServerListResponse{}, nil
+}
+
+func (f *fakeMcpService) ListTools(ctx context.Context, q models.ListMCPToolsQuery) (*models.MCPToolListResponse, error) {
+	return &models.MCPToolListResponse{}, nil
+}
+
+func (f *fakeMcpService) UpdateServer(ctx context.Context, tenantID, id string, req models.UpdateMCPServerRequest) (*models.MCPServer, error) {
+	return &models.MCPServer{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeMcpService)(nil)
+
+
 func TestHandler_MCP_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_MCP_CreateServer(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateServer(c)
 	if w.Code >= 500 {
@@ -36,7 +66,6 @@ func TestHandler_MCP_CreateServer(t *testing.T) {
 	}
 }
 func TestHandler_MCP_DeleteServer(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteServer(c)
 	if w.Code >= 500 {
@@ -44,7 +73,6 @@ func TestHandler_MCP_DeleteServer(t *testing.T) {
 	}
 }
 func TestHandler_MCP_GetServer(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetServer(c)
 	if w.Code >= 500 {
@@ -52,7 +80,6 @@ func TestHandler_MCP_GetServer(t *testing.T) {
 	}
 }
 func TestHandler_MCP_ListServers(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListServers(c)
 	if w.Code >= 500 {
@@ -60,7 +87,6 @@ func TestHandler_MCP_ListServers(t *testing.T) {
 	}
 }
 func TestHandler_MCP_ListTools(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListTools(c)
 	if w.Code >= 500 {
@@ -68,7 +94,6 @@ func TestHandler_MCP_ListTools(t *testing.T) {
 	}
 }
 func TestHandler_MCP_UpdateServer(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateServer(c)
 	if w.Code >= 500 {

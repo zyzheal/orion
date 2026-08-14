@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/data-lineage/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/data-lineage/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeData_lineageService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,56 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeData_lineageService struct{}
+
+func (f *fakeData_lineageService) CreateLineage(ctx context.Context, tenantID string, req *models.CreateLineageRequest) (*models.Lineage, error) {
+	return &models.Lineage{}, nil
+}
+
+func (f *fakeData_lineageService) CreateNode(ctx context.Context, tenantID string, lineageID string, req *models.CreateNodeRequest) (*models.Node, error) {
+	return &models.Node{}, nil
+}
+
+func (f *fakeData_lineageService) CreateRelationship(ctx context.Context, tenantID string, lineageID string, req *models.CreateRelationshipRequest) (*models.Relationship, error) {
+	return &models.Relationship{}, nil
+}
+
+func (f *fakeData_lineageService) DeleteLineage(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeData_lineageService) GetLineage(ctx context.Context, tenantID, id string) (*models.Lineage, error) {
+	return &models.Lineage{}, nil
+}
+
+func (f *fakeData_lineageService) GetStats(ctx context.Context, tenantID string) (*models.LineageStats, error) {
+	return &models.LineageStats{}, nil
+}
+
+func (f *fakeData_lineageService) ListLineages(ctx context.Context, tenantID string, status *string) ([]models.Lineage, error) {
+	return []models.Lineage{}, nil
+}
+
+func (f *fakeData_lineageService) ListNodes(ctx context.Context, tenantID, lineageID string) ([]models.Node, error) {
+	return []models.Node{}, nil
+}
+
+func (f *fakeData_lineageService) ListRelationships(ctx context.Context, tenantID, lineageID string) ([]models.Relationship, error) {
+	return []models.Relationship{}, nil
+}
+
+func (f *fakeData_lineageService) UpdateLineage(ctx context.Context, tenantID, id string, req *models.UpdateLineageRequest) (*models.Lineage, error) {
+	return &models.Lineage{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeData_lineageService)(nil)
+
+
 func TestHandler_DATA_LINEAGE_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DATA_LINEAGE_ListLineages(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListLineages(c)
 	if w.Code >= 500 {
@@ -37,7 +82,6 @@ func TestHandler_DATA_LINEAGE_ListLineages(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_CreateLineage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateLineage(c)
 	if w.Code >= 500 {
@@ -45,7 +89,6 @@ func TestHandler_DATA_LINEAGE_CreateLineage(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_GetLineage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetLineage(c)
 	if w.Code >= 500 {
@@ -53,7 +96,6 @@ func TestHandler_DATA_LINEAGE_GetLineage(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_UpdateLineage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateLineage(c)
 	if w.Code >= 500 {
@@ -61,7 +103,6 @@ func TestHandler_DATA_LINEAGE_UpdateLineage(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_DeleteLineage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteLineage(c)
 	if w.Code >= 500 {
@@ -69,7 +110,6 @@ func TestHandler_DATA_LINEAGE_DeleteLineage(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_CreateNode(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateNode(c)
 	if w.Code >= 500 {
@@ -77,7 +117,6 @@ func TestHandler_DATA_LINEAGE_CreateNode(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_ListNodes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListNodes(c)
 	if w.Code >= 500 {
@@ -85,7 +124,6 @@ func TestHandler_DATA_LINEAGE_ListNodes(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_CreateRelationship(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateRelationship(c)
 	if w.Code >= 500 {
@@ -93,7 +131,6 @@ func TestHandler_DATA_LINEAGE_CreateRelationship(t *testing.T) {
 	}
 }
 func TestHandler_DATA_LINEAGE_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {

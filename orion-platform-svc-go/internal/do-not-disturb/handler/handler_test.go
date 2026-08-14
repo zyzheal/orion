@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/do-not-disturb/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/do-not-disturb/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeDo_not_disturbService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,32 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeDo_not_disturbService struct{}
+
+func (f *fakeDo_not_disturbService) Create(ctx context.Context, tenantID, userID string, req *models.CreateDoNotDisturbRequest) (*models.DoNotDisturb, error) {
+	return &models.DoNotDisturb{}, nil
+}
+
+func (f *fakeDo_not_disturbService) Get(ctx context.Context, tenantID, userID string) (*models.DoNotDisturb, error) {
+	return &models.DoNotDisturb{}, nil
+}
+
+func (f *fakeDo_not_disturbService) IsActive(ctx context.Context, tenantID, userID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeDo_not_disturbService) Update(ctx context.Context, tenantID, userID string, req *models.UpdateDoNotDisturbRequest) (*models.DoNotDisturb, error) {
+	return &models.DoNotDisturb{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeDo_not_disturbService)(nil)
+
+
 func TestHandler_DO_NOT_DISTURB_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DO_NOT_DISTU_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -37,7 +58,6 @@ func TestHandler_DO_NOT_DISTU_Create(t *testing.T) {
 	}
 }
 func TestHandler_DO_NOT_DISTU_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -45,7 +65,6 @@ func TestHandler_DO_NOT_DISTU_Get(t *testing.T) {
 	}
 }
 func TestHandler_DO_NOT_DISTU_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -53,7 +72,6 @@ func TestHandler_DO_NOT_DISTU_Update(t *testing.T) {
 	}
 }
 func TestHandler_DO_NOT_DISTU_IsActive(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().IsActive(c)
 	if w.Code >= 500 {

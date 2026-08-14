@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/notification-template/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/notification-template/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeNotification_templateService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,52 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeNotification_templateService struct{}
+
+func (f *fakeNotification_templateService) Count(ctx context.Context, tenantID string) (int, error) {
+	return 0, nil
+}
+
+func (f *fakeNotification_templateService) Create(ctx context.Context, tenantID, userID string, req *models.CreateTemplateRequest) (*models.NotificationTemplate, error) {
+	return &models.NotificationTemplate{}, nil
+}
+
+func (f *fakeNotification_templateService) Delete(ctx context.Context, tenantID, id string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeNotification_templateService) Duplicate(ctx context.Context, tenantID, userID, id string) (*models.NotificationTemplate, error) {
+	return &models.NotificationTemplate{}, nil
+}
+
+func (f *fakeNotification_templateService) Get(ctx context.Context, tenantID, id string) (*models.NotificationTemplate, error) {
+	return &models.NotificationTemplate{}, nil
+}
+
+func (f *fakeNotification_templateService) List(ctx context.Context, tenantID string, filter models.ListFilter, page, pageSize int) ([]models.NotificationTemplate, int, int, error) {
+	return []models.NotificationTemplate{}, 0, 0, nil
+}
+
+func (f *fakeNotification_templateService) Preview(ctx context.Context, tenantID, id string) (*models.RenderResult, error) {
+	return &models.RenderResult{}, nil
+}
+
+func (f *fakeNotification_templateService) Render(ctx context.Context, tenantID string, req *models.RenderRequest) (*models.RenderResult, error) {
+	return &models.RenderResult{}, nil
+}
+
+func (f *fakeNotification_templateService) Update(ctx context.Context, tenantID, id string, req *models.UpdateTemplateRequest) (*models.NotificationTemplate, error) {
+	return &models.NotificationTemplate{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeNotification_templateService)(nil)
+
+
 func TestHandler_NOTIFICATION_T_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_NOTIFICATION_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -37,7 +78,6 @@ func TestHandler_NOTIFICATION_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_getUserID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getUserID(c)
 	if w.Code >= 500 {
@@ -45,7 +85,6 @@ func TestHandler_NOTIFICATION_getUserID(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -53,7 +92,6 @@ func TestHandler_NOTIFICATION_List(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -61,7 +99,6 @@ func TestHandler_NOTIFICATION_Create(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -69,7 +106,6 @@ func TestHandler_NOTIFICATION_Get(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -77,7 +113,6 @@ func TestHandler_NOTIFICATION_Update(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -85,7 +120,6 @@ func TestHandler_NOTIFICATION_Delete(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Count(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Count(c)
 	if w.Code >= 500 {
@@ -93,7 +127,6 @@ func TestHandler_NOTIFICATION_Count(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Render(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Render(c)
 	if w.Code >= 500 {
@@ -101,7 +134,6 @@ func TestHandler_NOTIFICATION_Render(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Preview(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Preview(c)
 	if w.Code >= 500 {
@@ -109,7 +141,6 @@ func TestHandler_NOTIFICATION_Preview(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_Duplicate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Duplicate(c)
 	if w.Code >= 500 {
