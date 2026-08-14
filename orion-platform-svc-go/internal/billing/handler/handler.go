@@ -14,11 +14,11 @@ import (
 
 // Handler exposes the billing module's HTTP endpoints.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler bound to the billing service.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

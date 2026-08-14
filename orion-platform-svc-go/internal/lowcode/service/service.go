@@ -46,6 +46,7 @@ var (
 	ErrFlowNotFound     = errors.New("lowcode flow not found")
 	ErrTemplateNotFound = errors.New("lowcode template not found")
 	ErrFlowNotEnabled   = errors.New("lowcode flow is not enabled")
+	ErrInvalidPrompt    = errors.New("lowcode generate prompt is required")
 )
 
 // NewService creates a new Service instance.

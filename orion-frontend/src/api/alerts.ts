@@ -60,6 +60,22 @@ export function getAlert(id: string) {
   return api.get(`/api/v1/alert/${id}`);
 }
 
+/** AI explanation for a single alert (GET /api/v1/alert/:id/explain). */
+export interface AlertExplanation {
+  alertId: string;
+  summary: string;
+  severity: string;
+  likelyCause: string;
+  relation?: string;
+  evidence?: string[];
+  suggestions?: { title: string; description?: string; priority?: number }[];
+  generatedAt: string;
+}
+
+export function getAlertExplain(id: string) {
+  return api.get(`/api/v1/alert/${id}/explain`);
+}
+
 export function createAlert(data: CreateAlertInput) {
   return api.post('/api/v1/alert/ingest', data);
 }

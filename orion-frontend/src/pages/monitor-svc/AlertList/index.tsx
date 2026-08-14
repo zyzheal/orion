@@ -9,15 +9,33 @@
  * - Status filtering
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, message, Popconfirm } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  message,
+  Popconfirm,
+  Spin,
+  Alert as AntAlert,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  BellOutlined,
+  BulbOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getAlerts,
   acknowledgeAlert as apiAcknowledgeAlert,
   resolveAlert as apiResolveAlert,
+  getAlertExplain,
+  type AlertExplanation,
 } from '@/api/alerts';
 import type { Alert, AlertSeverity, AlertStatus } from '@/types/pages';
 import dayjs from 'dayjs';
@@ -50,6 +68,26 @@ const AlertList: React.FC = () => {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [explaining, setExplaining] = useState(false);
+  const [explanation, setExplanation] = useState<AlertExplanation | null>(null);
+
+  // Fetch AI explanation for the selected alert (TR-01).
+  const handleExplain = async (alertId: string) => {
+    setExplaining(true);
+    setExplanation(null);
+    try {
+      const res = await getAlertExplain(alertId);
+      const data = res?.data?.explanation ?? res?.data;
+      setExplanation(data ?? null);
+      if (!data) {
+        message.warning('该告警暂无解释内容');
+      }
+    } catch (e) {
+      message.error('获取 AI 解释失败，请稍后重试');
+    } finally {
+      setExplaining(false);
+    }
+  };
 
   // Load alerts from API
   const loadAlerts = async () => {
@@ -57,7 +95,9 @@ const AlertList: React.FC = () => {
     try {
       const response = await getAlerts();
       const apiData = response.data;
-      setAlerts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
+      setAlerts(
+        Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? [])
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);
@@ -366,7 +406,7 @@ const AlertList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 160,
+      width: 230,
       render: (_, record) => {
         const isActive = record.status === 'active';
         const isAcknowledged = record.status === 'acknowledged';
@@ -394,6 +434,15 @@ const AlertList: React.FC = () => {
             )}
             <Button type="link" size="small" onClick={() => showDetail(record)}>
               详情
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<BulbOutlined />}
+              loading={explaining}
+              onClick={() => handleExplain(record.id)}
+            >
+              AI 解释
             </Button>
           </Space>
         );
@@ -517,7 +566,7 @@ const AlertList: React.FC = () => {
             关闭
           </Button>,
         ]}
-        width={600}
+        width={680}
       >
         {selectedAlert && (
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
@@ -646,6 +695,91 @@ const AlertList: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* AI explanation panel (TR-01) */}
+            <div
+              style={{
+                borderTop: `1px solid ${colors.neutral[200]}`,
+                paddingTop: spacing.md,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <Text strong style={{ fontSize: spacing[3] }}>
+                  <BulbOutlined style={{ color: colors.primary[500], marginRight: 6 }} />
+                  AI 解释
+                </Text>
+                <Button
+                  size="small"
+                  loading={explaining}
+                  onClick={() => handleExplain(selectedAlert.id)}
+                >
+                  {explanation ? '重新解释' : '生成解释'}
+                </Button>
+              </div>
+              {explaining && (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <Spin size="small" />
+                </div>
+              )}
+              {!explaining && !explanation && (
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                  点击"生成解释"获取该告警的 AI 分析结论与建议动作。
+                </Text>
+              )}
+              {!explaining && explanation && (
+                <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                  <AntAlert
+                    type="info"
+                    showIcon
+                    message={explanation.summary}
+                    description={explanation.likelyCause}
+                  />
+                  {explanation.relation && explanation.relation !== 'standalone' && (
+                    <Tag color={explanation.relation === 'suppressed' ? 'green' : 'orange'}>
+                      关系：{explanation.relation === 'suppressed' ? '已抑制' : '重复告警'}
+                    </Tag>
+                  )}
+                  {explanation.evidence && explanation.evidence.length > 0 && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                        证据链
+                      </Text>
+                      <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
+                        {explanation.evidence.map((ev, idx) => (
+                          <li key={idx}>
+                            <Text style={{ fontSize: spacing[3] }}>{ev}</Text>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {explanation.suggestions && explanation.suggestions.length > 0 && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                        建议动作
+                      </Text>
+                      <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
+                        {explanation.suggestions.map((s, idx) => (
+                          <li key={idx}>
+                            <Text style={{ fontSize: spacing[3] }}>
+                              {s.title}
+                              {s.description ? ` — ${s.description}` : ''}
+                            </Text>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </Space>
+              )}
+            </div>
           </Space>
         )}
       </Modal>

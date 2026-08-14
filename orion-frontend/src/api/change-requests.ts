@@ -15,7 +15,14 @@ export interface ChangeRequest {
   rollbackPlan: string | null;
   scheduledStart: string | null;
   scheduledEnd: string | null;
-  status: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'implementing' | 'completed' | 'cancelled';
+  status:
+    | 'draft'
+    | 'pending_approval'
+    | 'approved'
+    | 'rejected'
+    | 'implementing'
+    | 'completed'
+    | 'cancelled';
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -79,14 +86,34 @@ export const listChangeRequests = (params?: { status?: string; changeType?: stri
 export const getChangeRequest = (id: string) =>
   apiClient.get<ChangeRequest>(`/change-requests/${id}`);
 
+// --- AI Risk Analysis (TR-03) ---
+
+export interface RiskFactor {
+  name: string;
+  weight: number;
+  reason: string;
+}
+
+export interface ChangeRiskAnalysis {
+  change_id: string;
+  title: string;
+  risk_score: number;
+  risk_level: 'low' | 'medium' | 'high';
+  factors: RiskFactor[];
+  suggestions: string[];
+  generated_at: string;
+}
+
+export const getChangeRiskAnalysis = (id: string) =>
+  apiClient.get<ChangeRiskAnalysis>(`/change/${id}/risk`);
+
 export const createChangeRequest = (data: CreateChangeRequestInput) =>
   apiClient.post<ChangeRequest>('/change-requests', data);
 
 export const updateChangeRequest = (id: string, data: UpdateChangeRequestInput) =>
   apiClient.put<ChangeRequest>(`/change-requests/${id}`, data);
 
-export const deleteChangeRequest = (id: string) =>
-  apiClient.delete(`/change-requests/${id}`);
+export const deleteChangeRequest = (id: string) => apiClient.delete(`/change-requests/${id}`);
 
 export const submitForApproval = (id: string) =>
   apiClient.post<ChangeRequest>(`/change-requests/${id}/submit`);
@@ -96,7 +123,9 @@ export const getApprovalChain = (changeRequestId: string) =>
   apiClient.get<ChangeApproval[]>(`/change-requests/${changeRequestId}/approvals`);
 
 export const approveChange = (changeRequestId: string, approvalId: string, comment?: string) =>
-  apiClient.post(`/change-requests/${changeRequestId}/approvals/${approvalId}/approve`, { comment });
+  apiClient.post(`/change-requests/${changeRequestId}/approvals/${approvalId}/approve`, {
+    comment,
+  });
 
 export const rejectChange = (changeRequestId: string, approvalId: string, comment?: string) =>
   apiClient.post(`/change-requests/${changeRequestId}/approvals/${approvalId}/reject`, { comment });
@@ -108,5 +137,7 @@ export const startExecution = (changeRequestId: string) =>
 export const getExecutionProgress = (changeRequestId: string) =>
   apiClient.get<ChangeExecution[]>(`/change-requests/${changeRequestId}/execution`);
 
-export const updateExecutionStep = (stepId: string, data: { status: string; output?: string; error?: string }) =>
-  apiClient.put(`/change-requests/execution/${stepId}`, data);
+export const updateExecutionStep = (
+  stepId: string,
+  data: { status: string; output?: string; error?: string }
+) => apiClient.put(`/change-requests/execution/${stepId}`, data);

@@ -14,11 +14,11 @@ import (
 
 // Handler handles HTTP requests for the policy module.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new policy handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

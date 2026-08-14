@@ -46,6 +46,7 @@ import {
   ExclamationCircleOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -61,10 +62,12 @@ import {
   rejectChange,
   startExecution,
   getExecutionProgress,
+  getChangeRiskAnalysis,
   type ChangeRequest,
   type ChangeApproval,
   type ChangeExecution,
   type CreateChangeRequestInput,
+  type ChangeRiskAnalysis,
 } from '@/api/change-requests';
 
 const { Title, Text } = Typography;
@@ -163,6 +166,24 @@ export default function ChangeRequestManagementPage() {
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
 
+  // AI Risk Analysis (TR-03)
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskAnalysis, setRiskAnalysis] = useState<ChangeRiskAnalysis | null>(null);
+
+  // Fetch AI risk assessment for a change request.
+  const fetchRisk = async (id: string) => {
+    setRiskLoading(true);
+    setRiskAnalysis(null);
+    try {
+      const res = await getChangeRiskAnalysis(id);
+      setRiskAnalysis(res?.data ?? null);
+    } catch {
+      message.error('获取 AI 风险评估失败，请稍后重试');
+    } finally {
+      setRiskLoading(false);
+    }
+  };
+
   // Approval chain
   const [approvalChain, setApprovalChain] = useState<ChangeApproval[]>([]);
   const [approvalLoading, setApprovalLoading] = useState(false);
@@ -178,7 +199,9 @@ export default function ChangeRequestManagementPage() {
   const [executionDrawerVisible, setExecutionDrawerVisible] = useState(false);
   const [executionSteps, setExecutionSteps] = useState<ChangeExecution[]>([]);
   const [executionLoading, setExecutionLoading] = useState(false);
-  const [selectedExecutionRequest, setSelectedExecutionRequest] = useState<ChangeRequest | null>(null);
+  const [selectedExecutionRequest, setSelectedExecutionRequest] = useState<ChangeRequest | null>(
+    null
+  );
 
   /* ==================== Data Fetching ==================== */
 
@@ -357,9 +380,7 @@ export default function ChangeRequestManagementPage() {
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
-      render: (text: string, record) => (
-        <a onClick={() => handleViewDetail(record)}>{text}</a>
-      ),
+      render: (text: string, record) => <a onClick={() => handleViewDetail(record)}>{text}</a>,
     },
     {
       title: '变更类型',
@@ -373,16 +394,14 @@ export default function ChangeRequestManagementPage() {
       dataIndex: 'riskLevel',
       key: 'riskLevel',
       width: 80,
-      render: (val: string) => (
-        <Tag color={riskLevelColor[val]}>{riskLevelLabel[val] ?? val}</Tag>
-      ),
+      render: (val: string) => <Tag color={riskLevelColor[val]}>{riskLevelLabel[val] ?? val}</Tag>,
     },
     {
       title: '影响范围',
       dataIndex: 'impactScope',
       key: 'impactScope',
       width: 80,
-      render: (val: string | null) => val ? <Tag>{impactScopeLabel[val] ?? val}</Tag> : '-',
+      render: (val: string | null) => (val ? <Tag>{impactScopeLabel[val] ?? val}</Tag> : '-'),
     },
     {
       title: '状态',
@@ -433,11 +452,7 @@ export default function ChangeRequestManagementPage() {
             </Button>
           )}
           {record.status === 'implementing' && (
-            <Button
-              type="link"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewExecution(record)}
-            >
+            <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewExecution(record)}>
               进度
             </Button>
           )}
@@ -456,7 +471,8 @@ export default function ChangeRequestManagementPage() {
   /* ==================== Approval Timeline ==================== */
 
   const renderApprovalTimeline = () => {
-    if (approvalLoading) return <div style={{ textAlign: 'center', padding: spacing.lg }}>加载中...</div>;
+    if (approvalLoading)
+      return <div style={{ textAlign: 'center', padding: spacing.lg }}>加载中...</div>;
     if (approvalChain.length === 0) return <Empty description="暂无审批链" />;
 
     return (
@@ -479,33 +495,41 @@ export default function ChangeRequestManagementPage() {
             color: dotColor,
             children: (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: spacing.xs,
+                  }}
+                >
                   <Space>
                     <Text strong>{roleLabel}</Text>
                     <Tag color={approvalStatusColor[approval.status]}>
                       {approvalStatusLabel[approval.status]}
                     </Tag>
                   </Space>
-                  {approval.status === 'pending' && selectedRequest?.status === 'pending_approval' && (
-                    <Space size={4}>
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<CheckOutlined />}
-                        onClick={() => handleOpenAction('approve', approval.id)}
-                      >
-                        通过
-                      </Button>
-                      <Button
-                        danger
-                        size="small"
-                        icon={<CloseOutlined />}
-                        onClick={() => handleOpenAction('reject', approval.id)}
-                      >
-                        拒绝
-                      </Button>
-                    </Space>
-                  )}
+                  {approval.status === 'pending' &&
+                    selectedRequest?.status === 'pending_approval' && (
+                      <Space size={4}>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<CheckOutlined />}
+                          onClick={() => handleOpenAction('approve', approval.id)}
+                        >
+                          通过
+                        </Button>
+                        <Button
+                          danger
+                          size="small"
+                          icon={<CloseOutlined />}
+                          onClick={() => handleOpenAction('reject', approval.id)}
+                        >
+                          拒绝
+                        </Button>
+                      </Space>
+                    )}
                 </div>
                 {approval.approverId && (
                   <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>
@@ -533,7 +557,8 @@ export default function ChangeRequestManagementPage() {
   /* ==================== Execution Progress ==================== */
 
   const renderExecutionProgress = () => {
-    if (executionLoading) return <div style={{ textAlign: 'center', padding: spacing.lg }}>加载中...</div>;
+    if (executionLoading)
+      return <div style={{ textAlign: 'center', padding: spacing.lg }}>加载中...</div>;
     if (executionSteps.length === 0) return <Empty description="暂无执行步骤" />;
 
     const completedCount = executionSteps.filter((s) => s.status === 'completed').length;
@@ -561,15 +586,31 @@ export default function ChangeRequestManagementPage() {
             color: executionStepStatusColor[step.status] ?? colors.neutral[400],
             children: (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <Space>
                     <Text strong>{step.stepName}</Text>
-                    <Tag color={step.status === 'completed' ? 'success' : step.status === 'failed' ? 'error' : step.status === 'running' ? 'processing' : 'default'}>
+                    <Tag
+                      color={
+                        step.status === 'completed'
+                          ? 'success'
+                          : step.status === 'failed'
+                            ? 'error'
+                            : step.status === 'running'
+                              ? 'processing'
+                              : 'default'
+                      }
+                    >
                       {executionStepStatusLabel[step.status]}
                     </Tag>
                   </Space>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    {step.stepType === 'manual' ? '手动' : step.stepType === 'script' ? '脚本' : '自动'}
+                    {step.stepType === 'manual'
+                      ? '手动'
+                      : step.stepType === 'script'
+                        ? '脚本'
+                        : '自动'}
                   </Text>
                 </div>
                 {step.output && (
@@ -748,12 +789,7 @@ export default function ChangeRequestManagementPage() {
       >
         {selectedRequest && (
           <>
-            <Descriptions
-              column={2}
-              bordered
-              size="small"
-              style={{ marginBottom: spacing.lg }}
-            >
+            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
               <Descriptions.Item label="状态" span={2}>
                 <Badge
                   status={statusColor[selectedRequest.status] as any}
@@ -769,9 +805,7 @@ export default function ChangeRequestManagementPage() {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="影响范围">
-                {selectedRequest.impactScope
-                  ? impactScopeLabel[selectedRequest.impactScope]
-                  : '-'}
+                {selectedRequest.impactScope ? impactScopeLabel[selectedRequest.impactScope] : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="创建人">
                 {selectedRequest.createdBy ?? '-'}
@@ -803,6 +837,106 @@ export default function ChangeRequestManagementPage() {
               审批链
             </Title>
             {renderApprovalTimeline()}
+
+            {/* AI Risk Analysis Section (TR-03) */}
+            <div
+              style={{
+                marginTop: spacing.lg,
+                borderTop: `1px solid ${colors.neutral[200]}`,
+                paddingTop: spacing.md,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <Title level={4} style={{ marginBottom: 0 }}>
+                  <BulbOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+                  AI 风险评估
+                </Title>
+                <Button
+                  size="small"
+                  loading={riskLoading}
+                  onClick={() => fetchRisk(selectedRequest.id)}
+                >
+                  {riskAnalysis ? '重新评估' : '开始评估'}
+                </Button>
+              </div>
+
+              {riskLoading && (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <Text type="secondary">正在分析变更风险…</Text>
+                </div>
+              )}
+
+              {!riskLoading && !riskAnalysis && (
+                <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                  点击"开始评估"，基于变更类型、优先级、关键词与历史完成率生成风险评分。
+                </Text>
+              )}
+
+              {!riskLoading && riskAnalysis && (
+                <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Text strong style={{ fontSize: spacing[4] }}>
+                      {riskAnalysis.risk_score}
+                    </Text>
+                    <Tag
+                      color={
+                        riskAnalysis.risk_level === 'high'
+                          ? 'red'
+                          : riskAnalysis.risk_level === 'medium'
+                            ? 'orange'
+                            : 'green'
+                      }
+                      style={{ fontWeight: 600 }}
+                    >
+                      {riskAnalysis.risk_level === 'high'
+                        ? '高风险'
+                        : riskAnalysis.risk_level === 'medium'
+                          ? '中风险'
+                          : '低风险'}
+                    </Tag>
+                  </div>
+
+                  {riskAnalysis.factors && riskAnalysis.factors.length > 0 && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                        评估因素
+                      </Text>
+                      <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
+                        {riskAnalysis.factors.map((f, idx) => (
+                          <li key={idx}>
+                            <Text style={{ fontSize: spacing[3] }}>
+                              {f.name}（权重 {f.weight}）— {f.reason}
+                            </Text>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {riskAnalysis.suggestions && riskAnalysis.suggestions.length > 0 && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                        建议
+                      </Text>
+                      <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
+                        {riskAnalysis.suggestions.map((s, idx) => (
+                          <li key={idx}>
+                            <Text style={{ fontSize: spacing[3] }}>{s}</Text>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </Space>
+              )}
+            </div>
 
             {/* Action Buttons for draft */}
             {selectedRequest.status === 'draft' && (
@@ -848,7 +982,8 @@ export default function ChangeRequestManagementPage() {
             )}
 
             {/* View Execution for implementing/completed */}
-            {(selectedRequest.status === 'implementing' || selectedRequest.status === 'completed') && (
+            {(selectedRequest.status === 'implementing' ||
+              selectedRequest.status === 'completed') && (
               <div style={{ marginTop: spacing.lg, textAlign: 'right' }}>
                 <Button
                   type="primary"
@@ -904,12 +1039,7 @@ export default function ChangeRequestManagementPage() {
       >
         {selectedExecutionRequest && (
           <>
-            <Descriptions
-              column={2}
-              bordered
-              size="small"
-              style={{ marginBottom: spacing.lg }}
-            >
+            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
               <Descriptions.Item label="状态" span={2}>
                 <Badge
                   status={statusColor[selectedExecutionRequest.status] as any}

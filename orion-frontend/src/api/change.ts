@@ -114,6 +114,32 @@ export const getChangeRequest = async (id: string): Promise<ChangeRequest> => {
   return response.data.data;
 };
 
+// --- AI Risk Analysis (TR-03) ---
+
+export interface RiskFactor {
+  name: string;
+  weight: number;
+  reason: string;
+}
+
+export interface ChangeRiskAnalysis {
+  change_id: string;
+  title: string;
+  risk_score: number;
+  risk_level: 'low' | 'medium' | 'high';
+  factors: RiskFactor[];
+  suggestions: string[];
+  generated_at: string;
+}
+
+/** AI-assisted risk assessment for a change request (GET /api/v1/change/:id/risk). */
+export const getChangeRiskAnalysis = async (
+  id: string
+): Promise<ChangeRiskAnalysis> => {
+  const response = await api.get<{ data: ChangeRiskAnalysis }>(`/api/v1/change/${id}/risk`);
+  return response.data.data;
+};
+
 export const createChangeRequest = async (data: {
   title: string;
   description?: string;

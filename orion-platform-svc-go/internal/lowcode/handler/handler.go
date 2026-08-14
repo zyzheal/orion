@@ -40,6 +40,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/flows/:id", auth.RequirePermission("lowcode", "read"), h.GetFlow)
 	// POST /lowcode/flows - Create flow
 	f.POST("/flows", auth.RequirePermission("lowcode", "write"), h.CreateFlow)
+	// POST /lowcode/generate - AI generate flow DAG from natural language (TR-10)
+	f.POST("/generate", auth.RequirePermission("lowcode", "write"), h.GenerateFlow)
 	// PUT /lowcode/flows/:id - Update flow
 	f.PUT("/flows/:id", auth.RequirePermission("lowcode", "write"), h.UpdateFlow)
 	// DELETE /lowcode/flows/:id - Delete flow
@@ -140,6 +142,25 @@ func (h *Handler) CreateFlow(c *gin.Context) {
 		return
 	}
 	middleware.RespondCreated(c, flow)
+}
+
+// GenerateFlow handles POST /lowcode/generate — AI flow generation from a prompt.
+func (h *Handler) GenerateFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateFlow")
+	defer span.End()
+	tenantID := getTenantID(c)
+
+	var req models.FlowGenerateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	gen, err := h.svc.GenerateFlowFromPrompt(ctx, tenantID, &req)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondCreated(c, gen)
 }
 
 // UpdateFlow handles PUT /flows/:id

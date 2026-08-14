@@ -197,6 +197,21 @@ type PostmortemRecord struct {
 	UpdatedAt           time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+// PostmortemDraft is an AI-assisted draft post-mortem generated from an
+// incident's metadata and timeline. It is returned to the user for review
+// before being persisted through CreatePostmortem.
+type PostmortemDraft struct {
+	IncidentID   string   `json:"incident_id"`
+	Title        string   `json:"title"`
+	Summary      string   `json:"summary"`
+	RootCause    string   `json:"root_cause"`
+	Factors      []string `json:"contributing_factors"`
+	Timeline     string   `json:"timeline_summary"`
+	ActionItems  []string `json:"action_items"`
+	LessonsLearned string `json:"lessons_learned"`
+	GeneratedAt  time.Time `json:"generated_at"`
+}
+
 // --- SLA ---
 
 type SlaCheckResult struct {

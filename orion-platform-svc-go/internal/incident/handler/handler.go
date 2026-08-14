@@ -13,10 +13,10 @@ import (
 )
 
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -52,6 +52,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Postmortem
 	f.POST("/:id/postmortem", auth.RequirePermission("incident", "write"), h.CreatePostmortem)
 	f.GET("/:id/postmortem", auth.RequirePermission("incident", "read"), h.GetPostmortem)
+	f.GET("/:id/postmortem/draft", auth.RequirePermission("incident", "read"), h.GeneratePostmortemDraft)
 	f.PUT("/:id/postmortem", auth.RequirePermission("incident", "write"), h.UpdatePostmortem)
 	f.POST("/:id/postmortem/publish", auth.RequirePermission("incident", "write"), h.PublishPostmortem)
 	f.POST("/:id/postmortem/archive", auth.RequirePermission("incident", "write"), h.ArchivePostmortem)
@@ -419,6 +420,24 @@ func (h *Handler) GetPostmortem(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, pm)
+}
+
+// GeneratePostmortemDraft returns an AI-assisted post-mortem draft for an incident.
+func (h *Handler) GeneratePostmortemDraft(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GeneratePostmortemDraft")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	draft, err := h.svc.GeneratePostmortemDraft(ctx, tenantID, id)
+	if err != nil {
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "Incident not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, draft)
 }
 
 func (h *Handler) UpdatePostmortem(c *gin.Context) {

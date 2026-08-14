@@ -14,10 +14,10 @@ import (
 )
 
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -49,6 +49,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// ===== Alert List =====
 	rg.GET("/alert/list", read, h.ListAlerts)
 	rg.GET("/alert/:id", read, h.GetAlert)
+	rg.GET("/alert/:id/explain", read, h.ExplainAlert)
 	rg.PUT("/alert/:id", write, h.UpdateAlert)
 	rg.DELETE("/alert/:id", delete, h.DeleteAlert)
 
@@ -268,6 +269,20 @@ func (h *Handler) GetAlert(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"alert": alert})
+}
+
+// ExplainAlert returns a natural-language explanation for a single alert.
+func (h *Handler) ExplainAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExplainAlert")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	explanation, err := h.svc.ExplainAlert(ctx, tenantID, id)
+	if err != nil {
+		middleware.RespondNotFound(c, "Alert "+id+" not found")
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"explanation": explanation})
 }
 
 func (h *Handler) UpdateAlert(c *gin.Context) {

@@ -405,6 +405,111 @@ func (s *Service) GetAlert(ctx context.Context, tenantID, id string) (*models.Al
 	return alert, nil
 }
 
+// ExplainAlert generates a natural-language explanation for an alert.
+// It leverages the alert's own metadata plus context (known issues / groups)
+// to produce evidence-backed text without calling an external LLM.
+func (s *Service) ExplainAlert(ctx context.Context, tenantID, id string) (*models.AlertExplanation, error) {
+	alert, err := s.repo.GetAlertByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, errors.New("alert not found")
+	}
+
+	relation := "standalone"
+	var evidence []string
+	evidence = append(evidence, fmt.Sprintf("告警 %s %s(%s) 源 %s，严重级别 %s", alert.Name, alert.SourceName, alert.SourceType, alert.SourceID, alert.Severity))
+	evidence = append(evidence, fmt.Sprintf("指标 %s 当前值 %.2f 阈值 %.2f，状态 %s", alert.Metric, alert.Value, alert.Threshold, alert.Status))
+
+	// Detect relationship to groups (duplicate)
+	if alert.GroupID != "" {
+		now := time.Now().UTC()
+		since := now.Sub(alert.CreatedAt).Round(time.Minute)
+		relation = "duplicate"
+		evidence = append(evidence, fmt.Sprintf("属于分组 %s（自 %s 起，约 %s），指纹 %s", alert.GroupID, alert.CreatedAt.Format("15:04:05"), since, truncate(alert.Fingerprint, 24)))
+	}
+
+	// Check known issue match
+	var matchedIssue *models.KnownIssue
+	if alert.Fingerprint != "" {
+		if issue, err := s.repo.GetKnownIssueByPattern(ctx, tenantID, alert.Fingerprint); err == nil {
+			matchedIssue = issue
+			relation = "suppressed"
+			evidence = append(evidence, fmt.Sprintf("命中已知问题：%s（%s）", issue.Title, issue.Description))
+		}
+	}
+
+	// Determine likely cause from metric/source patterns
+	cause, suggestions := inferCause(alert)
+
+	if matchedIssue != nil {
+		cause = fmt.Sprintf("已知问题触发：%s（%s）", matchedIssue.Title, matchedIssue.Description)
+		suggestions = append(suggestions, models.FixSuggestion{Title: "查看已知问题详情", Description: matchedIssue.Description, Priority: 1})
+	}
+
+	return &models.AlertExplanation{
+		AlertID:     alert.ID,
+		Summary:     fmt.Sprintf("%s 触发严重级别 %s 的 %s 告警", alert.Name, alert.Severity, alert.Status),
+		Severity:    alert.Severity,
+		LikelyCause: cause,
+		Relation:    relation,
+		Evidence:    evidence,
+		Suggestions: suggestions,
+		GeneratedAt: time.Now().UTC(),
+	}, nil
+}
+
+// inferCause produces a human-readable cause + fix suggestions based on alert shape.
+func inferCause(a *models.Alert) (string, []models.FixSuggestion) {
+	metric := strings.ToLower(a.Metric)
+	name := strings.ToLower(a.Name)
+	var cause string
+	var suggestions []models.FixSuggestion
+
+	switch {
+	case strings.Contains(metric, "cpu"):
+		cause = "资源类：实例 CPU 使用率超出阈值，可能存在流量突增或实例过载"
+		suggestions = []models.FixSuggestion{
+			{Title: "检查实例负载与扩容", Description: "查看 CPU 曲线并考虑水平扩容", Priority: 1},
+			{Title: "定位热门调用方", Description: "结合 trace 识别高并发入口", Priority: 2},
+		}
+	case strings.Contains(metric, "mem") || strings.Contains(metric, "memory"):
+		cause = "资源类：内存水位过高，可能存在内存泄漏或大对象堆积"
+		suggestions = []models.FixSuggestion{
+			{Title: "检查堆/内存曲线", Description: "确认是否存在持续增长趋势", Priority: 1},
+			{Title: "触发告警的业务请求抽样", Description: "分析 GC 与大对象分配", Priority: 2},
+		}
+	case strings.Contains(metric, "latency") || strings.Contains(metric, "p99") || strings.Contains(name, "latency"):
+		cause = "性能类：链路延迟升高，可能存在慢查询、依赖超时或排队"
+		suggestions = []models.FixSuggestion{
+			{Title: "分析耗时分布", Description: "定位 P99/P95 突增的服务与接口", Priority: 1},
+			{Title: "检查下游依赖", Description: "确认 DB/缓存/外部服务是否存在超时", Priority: 2},
+		}
+	case strings.Contains(metric, "error") || strings.Contains(metric, "fail") || strings.Contains(metric, "5xx"):
+		cause = "可用性类：错误率升高，可能存在发布异常、配置变更或依赖故障"
+		suggestions = []models.FixSuggestion{
+			{Title: "检查最近发布与变更", Description: "排查是否伴随新版本上线", Priority: 1},
+			{Title: "查看错误堆栈聚合", Description: "按错误类型分组定位根因", Priority: 2},
+		}
+	default:
+		if a.Severity == "critical" {
+			cause = "高严重级别告警：建议立即排查对应服务的健康状态与依赖链路"
+		} else {
+			cause = "常规告警：建议结合指标趋势与运行日志判断是否需要介入"
+		}
+		suggestions = []models.FixSuggestion{
+			{Title: "查看服务运行状态", Description: "确认健康检查与实例状态", Priority: 1},
+		}
+	}
+	return cause, suggestions
+}
+
+// truncate shortens a fingerprint-like string for readability.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
+
 // checkSuppression checks if an alert should be suppressed.
 func (s *Service) checkSuppression(ctx context.Context, tenantID string, alert *models.Alert) (bool, string, error) {
 	// Check maintenance windows

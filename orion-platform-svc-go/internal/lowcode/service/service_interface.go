@@ -14,6 +14,7 @@ import (
 type ServiceInterface interface {
 	ApplyTemplate(ctx context.Context, tenantID, userID, templateID string, req *models.ApplyTemplateRequest) (*models.LowcodeFlow, error)
 	CreateFlow(ctx context.Context, tenantID, userID string, req *models.CreateFlowRequest) (*models.LowcodeFlow, error)
+	GenerateFlowFromPrompt(ctx context.Context, tenantID string, req *models.FlowGenerateRequest) (*models.FlowGenerateResponse, error)
 	CreateTemplate(ctx context.Context, userID string, req *models.CreateTemplateRequest) (*models.LowcodeTemplate, error)
 	CreateVersion(ctx context.Context, tenantID, userID, workflowID string) (*models.VersionSnapshot, error)
 	DeleteFlow(ctx context.Context, tenantID, id string) error

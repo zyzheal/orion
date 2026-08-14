@@ -14,6 +14,7 @@ import (
 type ServiceInterface interface {
 	AddCABDecision(ctx context.Context, tenantID, cabID string, req models.CreateCABDecisionRequest) (*models.CABDecision, error)
 	AddTimelineEvent(ctx context.Context, tenantID, changeRequestID, eventType, description string, metadata map[string]any, userID string) (*models.TimelineEvent, error)
+	AnalyzeChangeRisk(ctx context.Context, tenantID, changeID string) (*models.ChangeRiskAnalysis, error)
 	CreateCABMeeting(ctx context.Context, tenantID string, req models.CreateCABMeetingRequest, userID string) (*models.CABMeeting, error)
 	CreateChangeRequest(ctx context.Context, tenantID string, req models.CreateChangeRequestRequest, userID string) (*models.ChangeRequest, error)
 	CreateRFC(ctx context.Context, tenantID string, req models.CreateRFCRequest, userID string) (*models.RFC, error)

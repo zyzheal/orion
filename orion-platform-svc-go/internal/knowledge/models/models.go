@@ -96,6 +96,31 @@ type RAGRetrieveResult struct {
 	Similarity float64
 }
 
+// SourceIngestRequest ingests operational records (alerts/tickets/incidents/changes)
+// into the knowledge base as searchable documents.
+type SourceIngestRequest struct {
+	Source  string `json:"source" binding:"required"` // alert, ticket, incident, change
+	SpaceID string `json:"space_id"`
+	Items   []SourceIngestItem `json:"items" binding:"required"`
+}
+
+// SourceIngestItem is a single operational record to index.
+type SourceIngestItem struct {
+	ID      string   `json:"id"`
+	Title   string   `json:"title" binding:"required"`
+	Content string   `json:"content" binding:"required"`
+	Tags    []string `json:"tags,omitempty"`
+	Status  string   `json:"status,omitempty"` // firing/resolved for alert, open/closed for ticket
+}
+
+// SourceIngestResponse reports how many records were indexed.
+type SourceIngestResponse struct {
+	Source      string `json:"source"`
+	Indexed     int    `json:"indexed"`
+	SpaceID     string `json:"space_id"`
+	Destination string `json:"destination"` // kb_docs ID or name
+}
+
 type RetrieveRequest struct {
 	Query   string `json:"query" binding:"required"`
 	SpaceID string `json:"space_id"`
@@ -200,6 +225,91 @@ type EvalGroundTruth struct {
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
+// EvalSet is a versioned collection of evaluation cases.
+type EvalSet struct {
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Version     int       `json:"version" db:"version"`
+	IsActive    bool      `json:"is_active" db:"is_active"`
+	CreatedBy   string    `json:"created_by" db:"created_by"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// EvalSetCase is a single ground-truth case belonging to an eval set.
+type EvalSetCase struct {
+	ID          string    `json:"id" db:"id"`
+	SetID       string    `json:"set_id" db:"set_id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Query       string    `json:"query" db:"query"`
+	GoldAnswer  string    `json:"gold_answer" db:"gold_answer"`
+	GoldSources string    `json:"gold_sources" db:"gold_sources"`
+	Tags        string    `json:"tags" db:"tags"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+// EvalRun is one execution of an eval set against retrieval.
+type EvalRun struct {
+	ID         string    `json:"id" db:"id"`
+	SetID      string    `json:"set_id" db:"set_id"`
+	TenantID   string    `json:"tenant_id" db:"tenant_id"`
+	Model      string    `json:"model" db:"model"`
+	Status     string    `json:"status" db:"status"` // running / completed / failed
+	PassCount  int       `json:"pass_count" db:"pass_count"`
+	TotalCount int       `json:"total_count" db:"total_count"`
+	AvgRecall  float64   `json:"avg_recall" db:"avg_recall"`
+	AvgScore   float64   `json:"avg_score" db:"avg_score"`
+	Report     string    `json:"report" db:"report"`
+	CreatedBy  string    `json:"created_by" db:"created_by"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+}
+
+// CreateEvalSetRequest is the payload for creating an eval set with cases.
+type CreateEvalSetRequest struct {
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description"`
+	Cases       []EvalSetCaseInput `json:"cases" binding:"required"`
+}
+
+// EvalSetCaseInput is a raw case in a create/append request.
+type EvalSetCaseInput struct {
+	Query       string `json:"query" binding:"required"`
+	GoldAnswer  string `json:"gold_answer"`
+	GoldSources []string `json:"gold_sources"`
+	Tags        string `json:"tags"`
+}
+
+// RunEvalRequest triggers an evaluation run on a set.
+type RunEvalRequest struct {
+	SetID string `json:"set_id" binding:"required"`
+	Model string `json:"model"`
+	TopK  int    `json:"top_k"`
+}
+
+// CompareRunsRequest compares two evaluation runs.
+type CompareRunsRequest struct {
+	BaseRunID string `json:"base_run_id" binding:"required"`
+	HeadRunID string `json:"head_run_id" binding:"required"`
+}
+
+// EvalRunComparison is the regression diff between two runs.
+type EvalRunComparison struct {
+	Base   *EvalRun `json:"base"`
+	Head   *EvalRun `json:"head"`
+	Delta  EvalRunDelta `json:"delta"`
+}
+
+// EvalRunDelta shows per-metric deltas between runs.
+type EvalRunDelta struct {
+	PassRateDelta   float64 `json:"pass_rate_delta"`
+	AvgRecallDelta  float64 `json:"avg_recall_delta"`
+	AvgScoreDelta   float64 `json:"avg_score_delta"`
+	Regression      bool    `json:"regression"` // true when metrics dropped
+}
+
 // SemanticCache stores cached query-answer pairs with semantic hash.
 type SemanticCache struct {
 	ID            string        `json:"id" db:"id"`
@@ -222,6 +332,34 @@ type PromptTemplate struct {
 	Content   string    `json:"content" db:"content"`
 	IsActive  bool      `json:"is_active" db:"is_active"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}
+
+// PromptCanaryRequest publishes a new prompt version as a canary.
+type PromptCanaryRequest struct {
+	Name          string `json:"name" binding:"required"`
+	Content       string `json:"content" binding:"required"`
+	Version       string `json:"version"`             // optional; defaults to timestamp-based
+	TrafficPercent float64 `json:"traffic_percent"`    // 0-100, default 10
+}
+
+// PromptVersionInfo describes a single prompt template version.
+type PromptVersionInfo struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Version   string    `json:"version"`
+	IsActive  bool      `json:"is_active"`
+	IsCanary  bool      `json:"is_canary"`
+	Content   string    `json:"content,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// PromptCanaryStatus shows the current canary state for a prompt name.
+type PromptCanaryStatus struct {
+	Name           string             `json:"name"`
+	ActiveVersion  string             `json:"active_version"`
+	CanaryVersion  string             `json:"canary_version,omitempty"`
+	TrafficPercent float64            `json:"traffic_percent"`
+	Versions       []PromptVersionInfo `json:"versions"`
 }
 
 // RAGQueryRequest is the incoming RAG query.

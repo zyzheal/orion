@@ -31,7 +31,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new Handler instance.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

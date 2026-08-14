@@ -302,6 +302,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if internallibraryH != nil {
     internallibraryH.RegisterRoutes(api)
   }
+  if assistantH != nil {
+    assistantH.RegisterRoutes(api)
+  }
   if knowledgeH != nil {
     knowledgeH.RegisterRoutes(api)
   }

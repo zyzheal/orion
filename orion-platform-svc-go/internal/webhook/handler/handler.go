@@ -15,11 +15,11 @@ import (
 
 // Handler exposes HTTP handlers for webhook endpoints.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

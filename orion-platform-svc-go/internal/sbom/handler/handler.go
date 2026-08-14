@@ -35,7 +35,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new Handler bound to the SBOM service.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

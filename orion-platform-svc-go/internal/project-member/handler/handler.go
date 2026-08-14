@@ -12,9 +12,9 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-type Handler struct{ svc *service.Service }
+type Handler struct{ svc service.ServiceInterface }
 
-func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc service.ServiceInterface) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/project-members")

@@ -1,13 +1,13 @@
 /**
  * FlowDesigner - 低代码流程设计器页面
  *
- * 功能：流程列表展示、新建流程、执行流程、查看流程详情
- * API: /api/v1/lowcode/flows
+ * 功能：流程列表展示、新建流程、AI 生成流程、执行流程、查看流程详情
+ * API: /api/v1/lowcode/flows  +  POST /api/v1/lowcode/generate (TR-10)
  */
 
 import { useState, useEffect } from 'react';
 import { Button, Card, Form, Input, Select, Space, message, Modal, Descriptions, Empty, Typography } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, SaveOutlined, EyeOutlined } from '@ant-design/icons';
+import { PlusOutlined, PlayCircleOutlined, SaveOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
 import { lowcodeApi, type LowcodeFlow } from '@/api/lowcode';
@@ -19,7 +19,10 @@ export default function FlowDesigner() {
   const [createVisible, setCreateVisible] = useState(false);
   const [executeVisible, setExecuteVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
+  const [aiVisible, setAiVisible] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [form] = Form.useForm();
+  const [aiForm] = Form.useForm();
 
   useEffect(() => {
     loadFlows();
@@ -50,6 +53,27 @@ export default function FlowDesigner() {
       loadFlows();
     } catch (e: any) {
       message.error(e?.message || '创建失败');
+    }
+  };
+
+  // TR-10: AI 生成流程 — 用户输入自然语言描述，后端返回流程 DAG
+  const handleAiGenerate = async (values: { prompt: string; name?: string }) => {
+    setAiLoading(true);
+    try {
+      const result = await lowcodeApi.generateFlow({
+        prompt: values.prompt,
+        workflowName: values.name,
+      });
+      message.success(
+        `AI 生成成功，意图识别为「${result.intent}」`
+      );
+      setAiVisible(false);
+      aiForm.resetFields();
+      loadFlows();
+    } catch (e: any) {
+      message.error(e?.message || 'AI 生成失败');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -101,16 +125,21 @@ export default function FlowDesigner() {
       </Typography.Title>
 
       <Card>
-        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Input.Search
             placeholder="搜索流程..."
             style={{ width: 300 }}
             onSearch={loadFlows}
             disabled={loading}
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
-            新建流程
-          </Button>
+          <Space>
+            <Button icon={<ThunderboltOutlined />} onClick={() => setAiVisible(true)}>
+              AI 生成
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
+              新建流程
+            </Button>
+          </Space>
         </div>
 
         {loading ? (
@@ -118,10 +147,15 @@ export default function FlowDesigner() {
             加载中...
           </div>
         ) : flows.length === 0 ? (
-          <Empty description="暂无流程，点击右上角新建流程">
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
-              新建流程
-            </Button>
+          <Empty description="暂无流程，点击右上角新建或 AI 生成">
+            <Space>
+              <Button icon={<ThunderboltOutlined />} onClick={() => setAiVisible(true)}>
+                AI 生成
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
+                新建流程
+              </Button>
+            </Space>
           </Empty>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: spacing.md }}>
@@ -187,6 +221,50 @@ export default function FlowDesigner() {
               创建
             </Button>
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* AI Generate Modal (TR-10) */}
+      <Modal
+        title={
+          <span>
+            <ThunderboltOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
+            AI 生成流程
+          </span>
+        }
+        open={aiVisible}
+        onCancel={() => setAiVisible(false)}
+        footer={null}
+      >
+        <Form form={aiForm} layout="vertical" onFinish={handleAiGenerate}>
+          <Form.Item
+            name="prompt"
+            label="描述你想要的流程"
+            rules={[{ required: true, message: '请输入流程描述' }]}
+          >
+            <Input.TextArea
+              placeholder="例如：创建一个审批流程，包含提交、审批、通知节点"
+              rows={4}
+            />
+          </Form.Item>
+          <Form.Item name="name" label="流程名称（可选）">
+            <Input placeholder="留空则自动命名" />
+          </Form.Item>
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              icon={<ThunderboltOutlined />}
+              loading={aiLoading}
+              style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
+            >
+              AI 生成
+            </Button>
+          </Form.Item>
+          <div style={{ fontSize: 12, color: colors.neutral[400], textAlign: 'center' }}>
+            支持场景：审批 / 发布 / 通知 / 数据同步 / 定时任务
+          </div>
         </Form>
       </Modal>
 

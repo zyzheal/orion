@@ -16,6 +16,7 @@ type ServiceInterface interface {
 	AddMaintenanceWindow(ctx context.Context, tenantID string, req models.AddMaintenanceWindowRequest) (*models.MaintenanceWindow, error)
 	Correlate(ctx context.Context, tenantID string, alerts []models.Alert) (*models.CorrelationAnalysis, error)
 	DeleteAlert(ctx context.Context, tenantID, id string) error
+	ExplainAlert(ctx context.Context, tenantID, id string) (*models.AlertExplanation, error)
 	GetActiveAlerts(ctx context.Context, tenantID string) ([]models.Alert, error)
 	GetActiveGroups(ctx context.Context, tenantID string) ([]models.AlertGroup, error)
 	GetActiveMaintenanceWindows(ctx context.Context, tenantID string) ([]models.MaintenanceWindow, error)

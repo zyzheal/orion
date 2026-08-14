@@ -6,6 +6,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/knowledge/models"
@@ -449,6 +452,158 @@ func (r *Repository) GetEvalMetrics(ctx context.Context, tenantID string) (*mode
 		return nil, err
 	}
 	return &agg, nil
+}
+
+// ============================================================================
+// Eval Set / Run repository
+// ============================================================================
+
+func (r *Repository) CreateEvalSet(ctx context.Context, set *models.EvalSet) error {
+	set.ID = uuid.New().String()
+	set.CreatedAt = time.Now().UTC()
+	set.UpdatedAt = time.Now().UTC()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO eval_sets (id, tenant_id, name, description, version, is_active, created_by, created_at, updated_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		set.ID, set.TenantID, set.Name, set.Description, set.Version, set.IsActive, set.CreatedBy, set.CreatedAt, set.UpdatedAt)
+	return err
+}
+
+func (r *Repository) GetEvalSet(ctx context.Context, tenantID, id string) (*models.EvalSet, error) {
+	var s models.EvalSet
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, tenant_id, name, description, version, is_active, created_by, created_at, updated_at
+		 FROM eval_sets WHERE id=$1 AND tenant_id=$2`, id, tenantID).
+		Scan(&s.ID, &s.TenantID, &s.Name, &s.Description, &s.Version, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *Repository) ListEvalSets(ctx context.Context, tenantID string) ([]models.EvalSet, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, tenant_id, name, description, version, is_active, created_by, created_at, updated_at
+		 FROM eval_sets WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 100`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []models.EvalSet
+	for rows.Next() {
+		var s models.EvalSet
+		if err := rows.Scan(&s.ID, &s.TenantID, &s.Name, &s.Description, &s.Version, &s.IsActive, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, s)
+	}
+	return items, nil
+}
+
+func (r *Repository) DeleteEvalSet(ctx context.Context, tenantID, id string) error {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM eval_set_cases WHERE set_id=$1 AND tenant_id=$2`, id, tenantID); err != nil {
+		return err
+	}
+	_, err := r.db.ExecContext(ctx, `DELETE FROM eval_sets WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) AddEvalSetCase(ctx context.Context, c *models.EvalSetCase) error {
+	c.ID = uuid.New().String()
+	c.CreatedAt = time.Now().UTC()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO eval_set_cases (id, set_id, tenant_id, query, gold_answer, gold_sources, tags, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+		c.ID, c.SetID, c.TenantID, c.Query, c.GoldAnswer, c.GoldSources, c.Tags, c.CreatedAt)
+	return err
+}
+
+func (r *Repository) ListEvalSetCases(ctx context.Context, tenantID, setID string) ([]models.EvalSetCase, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, set_id, tenant_id, query, gold_answer, gold_sources, tags, created_at
+		 FROM eval_set_cases WHERE set_id=$1 AND tenant_id=$2 ORDER BY created_at ASC`, setID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []models.EvalSetCase
+	for rows.Next() {
+		var c models.EvalSetCase
+		if err := rows.Scan(&c.ID, &c.SetID, &c.TenantID, &c.Query, &c.GoldAnswer, &c.GoldSources, &c.Tags, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, c)
+	}
+	return items, nil
+}
+
+func (r *Repository) CreateEvalRun(ctx context.Context, run *models.EvalRun) error {
+	run.ID = uuid.New().String()
+	run.CreatedAt = time.Now().UTC()
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO eval_runs (id, set_id, tenant_id, model, status, pass_count, total_count, avg_recall, avg_score, report, created_by, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		run.ID, run.SetID, run.TenantID, run.Model, run.Status, run.PassCount, run.TotalCount, run.AvgRecall, run.AvgScore, run.Report, run.CreatedBy, run.CreatedAt)
+	return err
+}
+
+func (r *Repository) UpdateEvalRun(ctx context.Context, id string, updates map[string]interface{}) error {
+	fields := make([]string, 0, len(updates))
+	args := make([]interface{}, 0, len(updates)+1)
+	argNum := 1
+	for k, v := range updates {
+		fields = append(fields, fmt.Sprintf("%s = $%d", k, argNum))
+		args = append(args, v)
+		argNum++
+	}
+	fields = append(fields, "completed_at = NOW()")
+	args = append(args, id)
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE eval_runs SET `+strings.Join(fields, ", ")+` WHERE id = $`+strconv.Itoa(argNum), args...)
+	return err
+}
+
+func (r *Repository) GetEvalRun(ctx context.Context, tenantID, id string) (*models.EvalRun, error) {
+	var run models.EvalRun
+	var completedAt sql.NullTime
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, set_id, tenant_id, model, status, pass_count, total_count, avg_recall, avg_score, report, created_by, created_at, completed_at
+		 FROM eval_runs WHERE id=$1 AND tenant_id=$2`, id, tenantID).
+		Scan(&run.ID, &run.SetID, &run.TenantID, &run.Model, &run.Status, &run.PassCount, &run.TotalCount, &run.AvgRecall, &run.AvgScore, &run.Report, &run.CreatedBy, &run.CreatedAt, &completedAt)
+	if err != nil {
+		return nil, err
+	}
+	if completedAt.Valid {
+		run.CompletedAt = &completedAt.Time
+	}
+	return &run, nil
+}
+
+func (r *Repository) ListEvalRuns(ctx context.Context, tenantID, setID string, limit int) ([]models.EvalRun, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, set_id, tenant_id, model, status, pass_count, total_count, avg_recall, avg_score, report, created_by, created_at, completed_at
+		 FROM eval_runs WHERE tenant_id=$1 AND ($2='' OR set_id=$2) ORDER BY created_at DESC LIMIT $3`,
+		tenantID, setID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []models.EvalRun
+	for rows.Next() {
+		var run models.EvalRun
+		var completedAt sql.NullTime
+		if err := rows.Scan(&run.ID, &run.SetID, &run.TenantID, &run.Model, &run.Status, &run.PassCount, &run.TotalCount, &run.AvgRecall, &run.AvgScore, &run.Report, &run.CreatedBy, &run.CreatedAt, &completedAt); err != nil {
+			return nil, err
+		}
+		if completedAt.Valid {
+			run.CompletedAt = &completedAt.Time
+		}
+		items = append(items, run)
+	}
+	return items, nil
 }
 
 // ============================================================================

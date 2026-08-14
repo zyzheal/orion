@@ -23,6 +23,7 @@ type ServiceInterface interface {
 	Get(ctx context.Context, tenantID, id string) (*models.Incident, error)
 	GetEscalations(ctx context.Context, tenantID, incidentID string) ([]models.EscalationRecord, error)
 	GetKnowledgeRecommendations(ctx context.Context, tenantID, incidentID string, limit int) (*models.KnowledgeRecommendationResult, error)
+	GeneratePostmortemDraft(ctx context.Context, tenantID, incidentID string) (*models.PostmortemDraft, error)
 	GetPostmortem(ctx context.Context, tenantID, incidentID string) (*models.PostmortemRecord, error)
 	GetStats(ctx context.Context, tenantID string) (*models.IncidentStats, error)
 	GetTimeline(ctx context.Context, tenantID, incidentID string, q models.TimelineQuery) ([]models.TimelineEvent, error)

@@ -79,6 +79,23 @@ type UpdateFlowRequest struct {
 	Enabled     *bool   `json:"enabled"`
 }
 
+// FlowGenerateRequest asks the AI generator to produce a lowcode flow DAG
+// from a natural-language description (TR-10).
+type FlowGenerateRequest struct {
+	Prompt      string `json:"prompt" binding:"required"`
+	WorkflowName string `json:"name"`
+	Description string `json:"description"`
+}
+
+// FlowGenerateResponse is the AI-generated flow definition.
+type FlowGenerateResponse struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Nodes       string `json:"nodes"` // JSON array string
+	Edges       string `json:"edges"` // JSON array string
+	Intent      string `json:"intent"`
+}
+
 // CreateTemplateRequest for creating a template
 type CreateTemplateRequest struct {
 	Name        string `json:"name" binding:"required"`

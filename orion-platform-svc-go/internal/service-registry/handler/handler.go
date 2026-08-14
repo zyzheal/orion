@@ -22,11 +22,11 @@ const resource = "service-registry"
 
 // Handler provides HTTP handlers for the service registry.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler backed by the given Service.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

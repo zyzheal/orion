@@ -307,6 +307,20 @@ export const createComponent = async (data: {
   return res.data;
 };
 
+export interface FlowGenerateRequest {
+  prompt: string;
+  workflowName?: string;
+  description?: string;
+}
+
+export interface FlowGenerateResponse {
+  name: string;
+  description: string;
+  nodes: string;
+  edges: string;
+  intent: string;
+}
+
 // --- Flows (internal/lowcode) ---
 
 // Raw flow list fetch (wrapped by lowcodeApi.listFlows for computed fields)
@@ -357,6 +371,11 @@ export const executeFlow = async (id: string, input: Record<string, unknown> = {
     input: JSON.stringify(input),
   });
   return res.data;
+};
+
+export const generateFlow = async (req: FlowGenerateRequest) => {
+  const res = await api.post('/api/v1/lowcode/generate', req);
+  return res.data as FlowGenerateResponse;
 };
 
 export const createWorkflowVersion = async (flowId: string) => {

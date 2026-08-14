@@ -33,6 +33,7 @@ import {
   Modal,
   Row,
   Col,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -49,6 +50,7 @@ import {
   ClockCircleOutlined,
   BugOutlined,
   FireOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
 import Table, { type TableColumn } from '@/components/Table';
@@ -69,9 +71,10 @@ import {
   getPostmortem,
   createPostmortem,
   publishPostmortem,
+  getPostmortemDraft,
   getIncidentStats,
 } from '@/api/incident';
-import type { Incident, IncidentStats, TimelineEvent, Postmortem } from '@/api/incident';
+import type { Incident, IncidentStats, TimelineEvent, Postmortem, PostmortemDraft } from '@/api/incident';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -166,6 +169,8 @@ const IncidentManagement: React.FC = () => {
   // Postmortem state
   const [postmortem, setPostmortem] = useState<Postmortem | null>(null);
   const [postmortemLoading, setPostmortemLoading] = useState(false);
+  const [aiDraft, setAiDraft] = useState<PostmortemDraft | null>(null);
+  const [aiDraftLoading, setAiDraftLoading] = useState(false);
 
   // Stats state
   const [stats, setStats] = useState<IncidentStats | null>(null);
@@ -579,6 +584,39 @@ const IncidentManagement: React.FC = () => {
       message.error(`发布失败: ${msg}`);
     }
   }, [selectedIncident, loadPostmortem]);
+
+  /** AI 生成复盘草稿 (TR-07) */
+  const handleGenerateDraft = useCallback(async () => {
+    if (!selectedIncident) return;
+    setAiDraftLoading(true);
+    setAiDraft(null);
+    try {
+      const draft = await getPostmortemDraft(selectedIncident.id);
+      setAiDraft(draft);
+      message.success('AI 复盘草稿已生成');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误';
+      message.error(`生成复盘草稿失败: ${msg}`);
+    } finally {
+      setAiDraftLoading(false);
+    }
+  }, [selectedIncident]);
+
+  /** 将草稿填入创建表单 */
+  const handleFillDraftToForm = useCallback(() => {
+    if (!aiDraft) return;
+    postmortemForm.setFieldsValue({
+      title: aiDraft.title,
+      summary: aiDraft.summary,
+      root_cause: aiDraft.root_cause,
+      timeline_summary: aiDraft.timeline_summary,
+      action_items: aiDraft.action_items?.join('\n'),
+      lessons_learned: aiDraft.lessons_learned,
+    });
+    setPostmortemModalOpen(true);
+    setAiDraft(null);
+    message.info('草稿已填入表单，请审核后创建');
+  }, [aiDraft, postmortemForm]);
 
   // ============================================================================
   // Render Helpers
@@ -1041,11 +1079,24 @@ const IncidentManagement: React.FC = () => {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
             <Title level={4} style={{ margin: 0 }}>复盘文档</Title>
-            {postmortem && postmortem.status === 'draft' && (
-              <Button type="primary" icon={<CheckCircleOutlined />} onClick={handlePublishPostmortem}>
-                发布复盘
-              </Button>
-            )}
+            <Space>
+              {!postmortem && (
+                <Button
+                  type="default"
+                  icon={<RobotOutlined />}
+                  loading={aiDraftLoading}
+                  onClick={handleGenerateDraft}
+                  style={{ borderColor: colors.purple[500], color: colors.purple[500] }}
+                >
+                  AI 生成复盘草稿
+                </Button>
+              )}
+              {postmortem && postmortem.status === 'draft' && (
+                <Button type="primary" icon={<CheckCircleOutlined />} onClick={handlePublishPostmortem}>
+                  发布复盘
+                </Button>
+              )}
+            </Space>
           </div>
           {postmortemLoading ? (
             <div style={{ textAlign: 'center', padding: spacing.xl }}>
@@ -1099,11 +1150,74 @@ const IncidentManagement: React.FC = () => {
               </Descriptions>
             </div>
           ) : (
-            <Empty description="暂无复盘文档" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-              <Button type="primary" icon={<FileTextOutlined />} onClick={() => setPostmortemModalOpen(true)}>
-                创建复盘文档
-              </Button>
-            </Empty>
+            <div>
+              {aiDraftLoading && (
+                <div style={{ textAlign: 'center', padding: spacing.xl }}>
+                  <Text type="secondary">AI 正在生成复盘草稿...</Text>
+                </div>
+              )}
+              {aiDraft && (
+                <Card
+                  size="small"
+                  style={{
+                    borderRadius: 8,
+                    marginBottom: spacing.md,
+                    background: 'rgba(114, 46, 209, 0.04)',
+                    borderColor: colors.purple[500],
+                  }}
+                >
+                  <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text strong>
+                        <RobotOutlined style={{ color: colors.purple[500], marginRight: 6 }} />
+                        AI 复盘草稿
+                      </Text>
+                      <Tag color="purple">AI 生成</Tag>
+                    </div>
+                    <Descriptions column={1} bordered size="small">
+                      <Descriptions.Item label="标题">{aiDraft.title}</Descriptions.Item>
+                      <Descriptions.Item label="摘要">{aiDraft.summary}</Descriptions.Item>
+                      <Descriptions.Item label="根因分析">{aiDraft.root_cause}</Descriptions.Item>
+                      {aiDraft.contributing_factors?.length > 0 && (
+                        <Descriptions.Item label="促成因素">
+                          <ul style={{ margin: 0, paddingLeft: spacing.md }}>
+                            {aiDraft.contributing_factors.map((f, i) => <li key={i}>{f}</li>)}
+                          </ul>
+                        </Descriptions.Item>
+                      )}
+                      {aiDraft.timeline_summary && (
+                        <Descriptions.Item label="时间线摘要">{aiDraft.timeline_summary}</Descriptions.Item>
+                      )}
+                      {aiDraft.action_items?.length > 0 && (
+                        <Descriptions.Item label="行动项">
+                          <ul style={{ margin: 0, paddingLeft: spacing.md }}>
+                            {aiDraft.action_items.map((item, i) => <li key={i}>{item}</li>)}
+                          </ul>
+                        </Descriptions.Item>
+                      )}
+                      {aiDraft.lessons_learned && (
+                        <Descriptions.Item label="经验教训">{aiDraft.lessons_learned}</Descriptions.Item>
+                      )}
+                    </Descriptions>
+                    <Button
+                      type="primary"
+                      icon={<FileTextOutlined />}
+                      onClick={handleFillDraftToForm}
+                      style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
+                    >
+                      使用草稿创建复盘
+                    </Button>
+                  </Space>
+                </Card>
+              )}
+              {!aiDraft && !aiDraftLoading && (
+                <Empty description="暂无复盘文档" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                  <Button type="primary" icon={<FileTextOutlined />} onClick={() => setPostmortemModalOpen(true)}>
+                    创建复盘文档
+                  </Button>
+                </Empty>
+              )}
+            </div>
           )}
         </Card>
       </div>

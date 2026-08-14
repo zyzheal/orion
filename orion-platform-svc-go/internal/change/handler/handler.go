@@ -15,11 +15,11 @@ import (
 
 // Handler exposes the change module's HTTP endpoints.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler bound to the change service.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -37,6 +37,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.PATCH("/:id/status", auth.RequirePermission("change", "manage"), h.UpdateStatus)
 	f.GET("/:id/timeline", auth.RequirePermission("change", "read"), h.GetTimeline)
 	f.POST("/:id/timeline", auth.RequirePermission("change", "write"), h.AddTimelineEvent)
+	f.GET("/:id/risk", auth.RequirePermission("change", "read"), h.AnalyzeChangeRisk)
 
 	// === RFC ===
 	rfc := rg.Group("/change/rfc")
@@ -237,6 +238,20 @@ func (h *Handler) GetStats(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, stats)
+}
+
+// AnalyzeChangeRisk returns an AI-assisted risk assessment for a change.
+func (h *Handler) AnalyzeChangeRisk(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AnalyzeChangeRisk")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	analysis, err := h.svc.AnalyzeChangeRisk(ctx, tenantID, id)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, analysis)
 }
 
 // ==================== RFC ====================

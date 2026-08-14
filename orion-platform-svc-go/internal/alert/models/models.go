@@ -53,6 +53,25 @@ type CorrelationRequest struct {
 	Alerts []Alert `json:"alerts" binding:"required"`
 }
 
+// AlertExplanation is a natural-language explanation of an alert.
+type AlertExplanation struct {
+	AlertID     string        `json:"alertId"`
+	Summary     string        `json:"summary"`
+	Severity    string        `json:"severity"`
+	LikelyCause string        `json:"likelyCause"`
+	Relation    string        `json:"relation,omitempty"` // duplicate / suppressed / standalone
+	Evidence    []string      `json:"evidence"`
+	Suggestions []FixSuggestion `json:"suggestions"`
+	GeneratedAt time.Time     `json:"generatedAt"`
+}
+
+// FixSuggestion is an actionable suggested fix for an alert.
+type FixSuggestion struct {
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Priority    int    `json:"priority"`
+}
+
 // CorrelationAnalysis is the result of correlation analysis.
 type CorrelationAnalysis struct {
 	RootCauses       []Alert           `json:"rootCauses"`

@@ -14,11 +14,11 @@ import (
 // It replaces 30 individual webhook-* handlers with a single handler scoped
 // by the :domain path parameter.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

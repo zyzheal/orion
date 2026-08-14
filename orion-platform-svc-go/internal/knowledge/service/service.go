@@ -51,6 +51,16 @@ type RAGRepositoryInterface interface {
 	SaveEvalGroundTruth(ctx context.Context, gt *models.EvalGroundTruth) error
 	ListEvalGroundTruth(ctx context.Context, tenantID string) ([]models.EvalGroundTruth, error)
 	DeleteEvalGroundTruth(ctx context.Context, id string) error
+	CreateEvalSet(ctx context.Context, set *models.EvalSet) error
+	GetEvalSet(ctx context.Context, tenantID, id string) (*models.EvalSet, error)
+	ListEvalSets(ctx context.Context, tenantID string) ([]models.EvalSet, error)
+	DeleteEvalSet(ctx context.Context, tenantID, id string) error
+	AddEvalSetCase(ctx context.Context, c *models.EvalSetCase) error
+	ListEvalSetCases(ctx context.Context, tenantID, setID string) ([]models.EvalSetCase, error)
+	CreateEvalRun(ctx context.Context, run *models.EvalRun) error
+	UpdateEvalRun(ctx context.Context, id string, updates map[string]interface{}) error
+	GetEvalRun(ctx context.Context, tenantID, id string) (*models.EvalRun, error)
+	ListEvalRuns(ctx context.Context, tenantID, setID string, limit int) ([]models.EvalRun, error)
 	SavePromptTemplate(ctx context.Context, tmpl *models.PromptTemplate) error
 	GetActivePromptTemplate(ctx context.Context, name string) (*models.PromptTemplate, error)
 	ListPromptTemplates(ctx context.Context) ([]models.PromptTemplate, error)
@@ -310,6 +320,59 @@ func (s *Service) TriggerSync(ctx context.Context, tenantID string, source strin
 
 func (s *Service) GetSyncLogs(ctx context.Context, tenantID string, limit int) ([]models.SyncLog, error) {
 	return s.repo.GetSyncLogs(ctx, tenantID, limit)
+}
+
+// IngestFromSource indexes operational records (alerts/tickets/incidents/changes)
+// into the knowledge base as searchable documents. Each item becomes a kb_docs entry
+// tagged with the source so RAG retrieval can be scoped by source.
+func (s *Service) IngestFromSource(ctx context.Context, tenantID string, req models.SourceIngestRequest) (*models.SourceIngestResponse, error) {
+	spaceID := req.SpaceID
+	if spaceID == "" {
+		spaceID = defaultSourceSpace(req.Source)
+	}
+	indexed := 0
+	for _, item := range req.Items {
+		title := req.Source + ":" + item.Title
+		if item.ID != "" {
+			title = fmt.Sprintf("%s[%s]", title, item.ID)
+		}
+		tags := append([]string{req.Source, item.Status}, item.Tags...)
+		doc := &models.Document{
+			TenantID:  tenantID,
+			Title:     title,
+			Content:   item.Content,
+			SpaceID:   spaceID,
+			Tags:      tags,
+			Status:    "published",
+			AuthorID:  "system-ingest",
+		}
+		if err := s.repo.CreateDoc(ctx, doc); err != nil {
+			return nil, fmt.Errorf("failed to ingest %s item %q: %w", req.Source, item.Title, err)
+		}
+		indexed++
+	}
+	return &models.SourceIngestResponse{
+		Source:      req.Source,
+		Indexed:     indexed,
+		SpaceID:     spaceID,
+		Destination: "kb_docs",
+	}, nil
+}
+
+// defaultSourceSpace maps an operational source to a stable knowledge space.
+func defaultSourceSpace(source string) string {
+	switch source {
+	case "alert":
+		return "space-ops-alert"
+	case "ticket":
+		return "space-ops-ticket"
+	case "incident":
+		return "space-ops-incident"
+	case "change":
+		return "space-ops-change"
+	default:
+		return "space-ops"
+	}
 }
 
 func (s *Service) Retrieve(ctx context.Context, tenantID string, query string, req models.RetrieveRequest) ([]models.RAGRetrieveResult, error) {

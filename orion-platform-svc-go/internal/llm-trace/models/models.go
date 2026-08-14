@@ -123,6 +123,51 @@ type CostBreakdownQuery struct {
 	EndDate   *time.Time
 }
 
+// --- Usage Dashboard ---
+
+// UsageDashboard aggregates LLM usage across a time window.
+type UsageDashboard struct {
+	StartDate      string                  `json:"startDate"`
+	EndDate        string                  `json:"endDate"`
+	TotalRequests  int64                   `json:"totalRequests"`
+	TotalTokens    int64                   `json:"totalTokens"`
+	TotalCost      float64                 `json:"totalCost"`
+	Currency       string                  `json:"currency"`
+	ByModel        map[string]*ModelUsage  `json:"byModel,omitempty"`
+	ByDay          []DayUsage              `json:"byDay,omitempty"`
+	ByTenant       map[string]*TenantUsage `json:"byTenant,omitempty"`
+	Trend          *UsageTrend             `json:"trend,omitempty"`
+}
+
+// ModelUsage is per-model aggregated usage.
+type ModelUsage struct {
+	Requests    int64   `json:"requests"`
+	Tokens      int64   `json:"tokens"`
+	Cost        float64 `json:"cost"`
+	SuccessRate float64 `json:"successRate"`
+}
+
+// DayUsage is per-day aggregated usage for trend charts.
+type DayUsage struct {
+	Date     string  `json:"date"`
+	Requests int64   `json:"requests"`
+	Tokens   int64   `json:"tokens"`
+	Cost     float64 `json:"cost"`
+}
+
+// TenantUsage is per-tenant aggregated usage.
+type TenantUsage struct {
+	Requests int64   `json:"requests"`
+	Tokens   int64   `json:"tokens"`
+	Cost     float64 `json:"cost"`
+}
+
+// UsageTrend is a simple linear projection of daily cost for budgeting.
+type UsageTrend struct {
+	DailyAvgCost     float64 `json:"dailyAvgCost"`
+	ProjectedMonthly float64 `json:"projectedMonthly"`
+}
+
 // CostEstimateRequest is the body for estimating cost.
 type CostEstimateRequest struct {
 	ModelID      string `json:"modelId" binding:"required"`

@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/change/models"
@@ -182,6 +184,120 @@ func (s *Service) AddTimelineEvent(ctx context.Context, tenantID, changeRequestI
 
 func (s *Service) GetStats(ctx context.Context, tenantID string) (*models.ChangeStats, error) {
 	return s.repo.GetStats(ctx, tenantID)
+}
+
+// --- AI Risk Analysis ---
+
+// AnalyzeChangeRisk produces a lightweight, rule-based risk assessment for a
+// change request. Risk dimensions are weighted from the change's own metadata
+// plus tenant-wide historical stats. It deliberately does not require an LLM.
+func (s *Service) AnalyzeChangeRisk(ctx context.Context, tenantID, changeID string) (*models.ChangeRiskAnalysis, error) {
+	c, err := s.repo.GetChangeRequest(ctx, tenantID, changeID)
+	if err != nil {
+		return nil, err
+	}
+
+	score := 0
+	var factors []models.RiskFactor
+	add := func(name string, weight int, reason string) {
+		if weight <= 0 {
+			return
+		}
+		score += weight
+		factors = append(factors, models.RiskFactor{Name: name, Weight: weight, Reason: reason})
+	}
+
+	// 1. Change type
+	switch c.ChangeType {
+	case "emergency", "紧急":
+		add("类型", 40, "紧急变更：缺少完整审批与预发布窗口")
+	case "normal", "标准":
+		add("类型", 15, "常规变更：风险可控")
+	default:
+		add("类型", 25, "类型未明确")
+	}
+
+	// 2. Declared risk level
+	switch c.RiskLevel {
+	case "high":
+		add("声明风险", 25, "变更声明为高风险")
+	case "medium":
+		add("声明风险", 12, "变更声明为中风险")
+	}
+
+	// 3. Priority
+	switch c.Priority {
+	case "critical":
+		add("优先级", 15, "关键业务优先级，回滚窗口短")
+	case "high":
+		add("优先级", 10, "高优先级变更")
+	}
+
+	// 4. Keyword signals in title/description
+	if signals := riskKeywords(c.Title + " " + c.Description); len(signals) > 0 {
+		add("关键词", 20, "命中风险关键词："+signals)
+	}
+
+	// 5. Historical context: ratio of completed changes vs total
+	stats, statsErr := s.repo.GetStats(ctx, tenantID)
+	if statsErr == nil && stats.Total > 0 {
+		completedRatio := float64(stats.Completed) / float64(stats.Total)
+		if completedRatio < 0.5 {
+			add("历史成功率", 10, fmt.Sprintf("近期待完成变更比例低（已完成 %d/%d）", stats.Completed, stats.Total))
+		}
+	}
+
+	score = minInt(score, 100)
+	level := "low"
+	switch {
+	case score >= 70:
+		level = "high"
+	case score >= 40:
+		level = "medium"
+	}
+
+	suggestions := buildRiskSuggestions(level, c.ChangeType)
+	return &models.ChangeRiskAnalysis{
+		ChangeID:    c.ID,
+		Title:       c.Title,
+		RiskScore:   score,
+		RiskLevel:   level,
+		Factors:     factors,
+		Suggestions: suggestions,
+		GeneratedAt: time.Now().UTC(),
+	}, nil
+}
+
+func riskKeywords(text string) string {
+	fallback := []string{"db", "数据库", "migration", "迁移", "schema", "权限", "routing", "router", "核心", "主库", "生产", "prod", "ssl", "证书"}
+	var hits []string
+	for _, kw := range fallback {
+		if strings.Contains(strings.ToLower(text), strings.ToLower(kw)) {
+			hits = append(hits, kw)
+		}
+		if len(hits) >= 4 {
+			break
+		}
+	}
+	return strings.Join(hits, ",")
+}
+
+func buildRiskSuggestions(level, changeType string) []string {
+	suggestions := []string{"补充变更窗口与回滚计划", "安排审批人确认影响面"}
+	if level == "high" {
+		suggestions = append([]string{"升级为发布窗内变更并安排灰度"}, suggestions...)
+	}
+	if changeType == "emergency" || changeType == "紧急" {
+		suggestions = append(suggestions, "紧急变更需事后补全记录与复盘")
+	}
+	return suggestions
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // --- RFC ---
