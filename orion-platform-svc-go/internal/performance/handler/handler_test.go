@@ -24,7 +24,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_PERFORMANCE_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
