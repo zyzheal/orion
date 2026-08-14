@@ -74,7 +74,6 @@ func TestHandler_GATEWAY_DYNA_List(t *testing.T) {
 	}
 }
 func TestHandler_GATEWAY_DYNA_Get(t *testing.T) {
-	t.Skip("handler panics on empty result (index out of range)")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {

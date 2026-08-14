@@ -221,6 +221,9 @@ func ToRouteResponse(r *models.GatewayRoute) map[string]interface{} {
 	if err != nil {
 		methods = []string{"GET"}
 	}
+	if len(methods) == 0 {
+		methods = []string{"GET"}
+	}
 	meta := repository.ParseMetadata(r.Metadata)
 
 	resp := map[string]interface{}{
