@@ -44,10 +44,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/apps/:id", h.GetApp)
 
 	// --- API Keys ---
-	// POST /market/apps/:appId/keys - Generate API key
-	f.POST("/apps/:appId/keys", auth.RequirePermission("api_market", "write"), h.GenerateAPIKey)
-	// GET /market/apps/:appId/keys - List API keys
-	f.GET("/apps/:appId/keys", h.ListAPIKeys)
+	// POST /market/apps/:id/keys - Generate API key
+	f.POST("/apps/:id/keys", auth.RequirePermission("api_market", "write"), h.GenerateAPIKey)
+	// GET /market/apps/:id/keys - List API keys
+	f.GET("/apps/:id/keys", h.ListAPIKeys)
 
 	// --- Auth (public, no auth middleware) ---
 	// POST /market/auth/token - Validate API key (public endpoint)
@@ -220,7 +220,7 @@ func (h *Handler) GetApp(c *gin.Context) {
 func (h *Handler) GenerateAPIKey(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateAPIKey")
 	defer span.End()
-	appID := c.Param("appId")
+	appID := c.Param("id")
 	var req models.GenerateAPIKeyRequest
 	_ = c.ShouldBindJSON(&req) // scopes is optional, ignore bind errors
 	tenantID := h.getTenantID(c)
@@ -239,7 +239,7 @@ func (h *Handler) GenerateAPIKey(c *gin.Context) {
 func (h *Handler) ListAPIKeys(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAPIKeys")
 	defer span.End()
-	appID := c.Param("appId")
+	appID := c.Param("id")
 	tenantID := h.getTenantID(c)
 	keys, err := h.svc.ListAPIKeys(ctx, appID, tenantID)
 	if err != nil {
@@ -329,7 +329,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 func (h *Handler) ListSubscriptions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSubscriptions")
 	defer span.End()
-	appID := c.Param("appId")
+	appID := c.Param("id")
 	tenantID := h.getTenantID(c)
 	// Verify the user owns this app
 	ownerID := h.getOwnerID(c)

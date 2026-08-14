@@ -98,7 +98,8 @@ var _ service.ServiceInterface = (*fakeHandlerService)(nil)
 
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {
-	t.Skip("route wildcard conflicts (e.g. :id vs :somethingId); tested in integration suite")
+	// route wildcard conflicts expected (e.g. :id vs :somethingId); tested in integration suite
+	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))
 }
 
 func TestAPI_MARKET_Handler_getTenantID(t *testing.T) {

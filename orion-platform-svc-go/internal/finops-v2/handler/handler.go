@@ -285,10 +285,12 @@ func (h *Handler) GetBudgetStatus(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBudgetStatus")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	_, err := h.svc.GetBudgetStatus(ctx, tenantID, c.Param("id"))
-	middleware.RespondInternalError(c, "GetBudgetStatus not fully implemented")
-	_ = err
-	return
+	status, err := h.svc.GetBudgetStatus(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		middleware.RespondNotFound(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, status)
 }
 
 func (h *Handler) ForecastBudget(c *gin.Context) {

@@ -303,7 +303,6 @@ var _ service.ServiceInterface = (*fakeCmdbService)(nil)
 
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {
-	t.Skip("route wildcard conflicts (e.g. :id vs :somethingId); tested in integration suite")
 }
 
 func TestCMDB_Handler_CreateCI(t *testing.T) {

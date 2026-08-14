@@ -59,28 +59,28 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("/import", auth.RequirePermission("cmdb", "write"), h.ImportCIs)
 
 	// --- Relations ---
-	// GET /cmdb/cis/:ciId/relations - Get CI relations
-	f.GET("/cis/:ciId/relations", auth.RequirePermission("cmdb", "read"), h.GetRelations)
+	// GET /cmdb/cis/:ciID/relations - Get CI relations
+	f.GET("/cis/:ciID/relations", auth.RequirePermission("cmdb", "read"), h.GetRelations)
 	// POST /cmdb/relations - Create relation
 	f.POST("/relations", auth.RequirePermission("cmdb", "write"), h.CreateRelation)
 	// DELETE /cmdb/relations/:relationId - Delete relation
 	f.DELETE("/relations/:relationId", auth.RequirePermission("cmdb", "delete"), h.DeleteRelation)
 
 	// --- Versions ---
-	// GET /cmdb/cis/:ciId/versions - Get CI versions
-	f.GET("/cis/:ciId/versions", auth.RequirePermission("cmdb", "read"), h.GetVersions)
-	// GET /cmdb/cis/:ciId/versions/current - Get current version
-	f.GET("/cis/:ciId/versions/current", auth.RequirePermission("cmdb", "read"), h.GetCurrentVersion)
-	// POST /cmdb/cis/:ciId/versions/restore - Restore to version
-	f.POST("/cis/:ciId/versions/restore", auth.RequirePermission("cmdb", "write"), h.RestoreVersion)
+	// GET /cmdb/cis/:ciID/versions - Get CI versions
+	f.GET("/cis/:ciID/versions", auth.RequirePermission("cmdb", "read"), h.GetVersions)
+	// GET /cmdb/cis/:ciID/versions/current - Get current version
+	f.GET("/cis/:ciID/versions/current", auth.RequirePermission("cmdb", "read"), h.GetCurrentVersion)
+	// POST /cmdb/cis/:ciID/versions/restore - Restore to version
+	f.POST("/cis/:ciID/versions/restore", auth.RequirePermission("cmdb", "write"), h.RestoreVersion)
 
 	// --- Topology ---
 	// GET /cmdb/topology - Get topology
 	f.GET("/topology", auth.RequirePermission("cmdb", "read"), h.GetTopology)
-	// GET /cmdb/topology/:ciId/dependencies - Service dependencies
-	f.GET("/topology/:ciId/dependencies", auth.RequirePermission("cmdb", "read"), h.GetServiceDependencies)
-	// GET /cmdb/topology/:ciId/impact - Impact analysis
-	f.GET("/topology/:ciId/impact", auth.RequirePermission("cmdb", "read"), h.GetImpactAnalysis)
+	// GET /cmdb/topology/:ciID/dependencies - Service dependencies
+	f.GET("/topology/:ciID/dependencies", auth.RequirePermission("cmdb", "read"), h.GetServiceDependencies)
+	// GET /cmdb/topology/:ciID/impact - Impact analysis
+	f.GET("/topology/:ciID/impact", auth.RequirePermission("cmdb", "read"), h.GetImpactAnalysis)
 
 	// --- Health ---
 	// GET /cmdb/health - Health check
@@ -94,8 +94,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// GET /cmdb/hosts - List hosts
 	f.GET("/hosts", auth.RequirePermission("cmdb", "read"), h.ListHosts)
-	// GET /cmdb/hosts/:ciId - Get host by CI ID
-	f.GET("/hosts/:ciId", auth.RequirePermission("cmdb", "read"), h.GetHost)
+	// GET /cmdb/hosts/:ciID - Get host by CI ID
+	f.GET("/hosts/:ciID", auth.RequirePermission("cmdb", "read"), h.GetHost)
 	// GET /cmdb/k8s - List K8s resources
 	f.GET("/k8s", auth.RequirePermission("cmdb", "read"), h.ListK8sResources)
 	// POST /cmdb/k8s/sync/start - Start K8s sync
@@ -149,7 +149,7 @@ func (h *Handler) GetCI(c *gin.Context) {
 func (h *Handler) GetCIByID(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCIByID")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	tenantIDStr := c.Query("tenantId")
 	var tenantID *string
 	if tenantIDStr != "" {
@@ -362,7 +362,7 @@ func (h *Handler) ImportCIs(c *gin.Context) {
 func (h *Handler) GetRelations(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRelations")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	relations, err := h.svc.GetRelations(ctx, ciID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -409,7 +409,7 @@ func (h *Handler) DeleteRelation(c *gin.Context) {
 func (h *Handler) GetVersions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersions")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	versions, err := h.svc.GetVersions(ctx, ciID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -421,7 +421,7 @@ func (h *Handler) GetVersions(c *gin.Context) {
 func (h *Handler) GetCurrentVersion(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCurrentVersion")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	version, err := h.svc.GetCurrentVersion(ctx, ciID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -433,7 +433,7 @@ func (h *Handler) GetCurrentVersion(c *gin.Context) {
 func (h *Handler) RestoreVersion(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RestoreVersion")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	var req models.RestoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -474,7 +474,7 @@ func (h *Handler) GetTopology(c *gin.Context) {
 func (h *Handler) GetServiceDependencies(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceDependencies")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.GetServiceDependencies(ctx, tenantID, ciID)
 	if err != nil {
@@ -487,7 +487,7 @@ func (h *Handler) GetServiceDependencies(c *gin.Context) {
 func (h *Handler) GetImpactAnalysis(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetImpactAnalysis")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.GetImpactAnalysis(ctx, tenantID, ciID)
 	if err != nil {
@@ -559,7 +559,7 @@ func (h *Handler) ListHosts(c *gin.Context) {
 func (h *Handler) GetHost(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHost")
 	defer span.End()
-	ciID := c.Param("ciId")
+	ciID := c.Param("ciID")
 	host, err := h.svc.GetHost(ctx, ciID)
 	if err != nil {
 		if service.IsNotFound(err) {

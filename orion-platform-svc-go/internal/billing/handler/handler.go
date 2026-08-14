@@ -41,8 +41,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.DELETE("/invoices/:id", auth.RequirePermission("billing", "delete"), h.DeleteInvoice)
 
 	// === Line Items ===
-	f.POST("/invoices/:invoiceId/line-items", auth.RequirePermission("billing", "write"), h.CreateLineItem)
-	f.GET("/invoices/:invoiceId/line-items", auth.RequirePermission("billing", "read"), h.ListLineItems)
+	f.POST("/invoices/:id/line-items", auth.RequirePermission("billing", "write"), h.CreateLineItem)
+	f.GET("/invoices/:id/line-items", auth.RequirePermission("billing", "read"), h.ListLineItems)
 
 	// === Subscriptions ===
 	f.GET("/subscriptions", auth.RequirePermission("billing", "read"), h.ListSubscriptions)
@@ -270,7 +270,7 @@ func (h *Handler) CreateLineItem(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateLineItem")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	invoiceID := c.Param("invoiceId")
+	invoiceID := c.Param("id")
 	var req models.CreateLineItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -297,7 +297,7 @@ func (h *Handler) ListLineItems(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLineItems")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	invoiceID := c.Param("invoiceId")
+	invoiceID := c.Param("id")
 	result, err := h.svc.ListLineItems(ctx, tenantID, invoiceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -191,7 +191,6 @@ var _ service.ServiceInterface = (*fakeBillingService)(nil)
 
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {
-	t.Skip("route wildcard conflicts (e.g. :id vs :somethingId); tested in integration suite")
 }
 
 func TestBILLING_Handler_ListAccounts(t *testing.T) {

@@ -223,7 +223,6 @@ func TestHandler_FINOPS_V2_DeleteBudget(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetBudgetStatus(t *testing.T) {
-	t.Skip("handler always returns 500 due to unimplemented RespondInternalError call")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetBudgetStatus(c)
 	if w.Code >= 500 {
