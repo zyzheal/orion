@@ -11,11 +11,37 @@ import (
 	"orion/platform-svc-go/internal/abac-policy/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
 )
 
 func makeHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandlerService{})
 }
+
+type fakeHandlerService struct{}
+
+func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req *models.CreateABACPolicyRequest) (*models.ABACPolicy, error) {
+	return &models.ABACPolicy{}, nil
+}
+
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeHandlerService) GetByID(ctx context.Context, tenantID, id string) (*models.ABACPolicy, error) {
+	return &models.ABACPolicy{}, nil
+}
+
+func (f *fakeHandlerService) List(ctx context.Context, tenantID string, filter *models.ABACPolicyFilter) ([]models.ABACPolicy, int, error) {
+	return []models.ABACPolicy{}, 0, nil
+}
+
+func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, req *models.UpdateABACPolicyRequest) (*models.ABACPolicy, error) {
+	return &models.ABACPolicy{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeHandlerService)(nil)
+
 
 func strPtr(s string) *string {
 	return &s
@@ -42,7 +68,6 @@ func TestHandlerABAC_RegisterRoutes(t *testing.T) {
 }
 
 func TestHandlerABAC_ListPolicies(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/abac-policy", nil, nil)
 	makeHandler().ListPolicies(c)
 	if w.Code != http.StatusOK {
@@ -51,7 +76,6 @@ func TestHandlerABAC_ListPolicies(t *testing.T) {
 }
 
 func TestHandlerABAC_CreatePolicy_Success(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := makeCtx(http.MethodPost, "/abac-policy", models.CreateABACPolicyRequest{
 		Name: "test", ResourceType: "r", Action: "read", Effect: "allow",
 	}, nil)
@@ -62,7 +86,6 @@ func TestHandlerABAC_CreatePolicy_Success(t *testing.T) {
 }
 
 func TestHandlerABAC_CreatePolicy_BadRequest(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := makeCtx(http.MethodPost, "/abac-policy", map[string]string{}, nil)
 	makeHandler().CreatePolicy(c)
 	if w.Code != http.StatusBadRequest {
@@ -71,7 +94,6 @@ func TestHandlerABAC_CreatePolicy_BadRequest(t *testing.T) {
 }
 
 func TestHandlerABAC_GetPolicy(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/abac-policy/:id", nil, map[string]string{"id": "p1"})
 	makeHandler().GetPolicy(c)
 	if w.Code < 200 || w.Code >= 500 {
@@ -80,7 +102,6 @@ func TestHandlerABAC_GetPolicy(t *testing.T) {
 }
 
 func TestHandlerABAC_UpdatePolicy(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := makeCtx(http.MethodPut, "/abac-policy/:id", models.UpdateABACPolicyRequest{
 		Name: strPtr("updated"),
 	}, map[string]string{"id": "p1"})
@@ -91,7 +112,6 @@ func TestHandlerABAC_UpdatePolicy(t *testing.T) {
 }
 
 func TestHandlerABAC_DeletePolicy(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := makeCtx(http.MethodDelete, "/abac-policy/:id", nil, map[string]string{"id": "p1"})
 	makeHandler().DeletePolicy(c)
 	if w.Code >= 500 {

@@ -9,11 +9,49 @@ import (
 	"orion/platform-svc-go/internal/auth-mfa/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
 )
 
 func makeMFAHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandlerService{})
 }
+
+type fakeHandlerService struct{}
+
+func (f *fakeHandlerService) ActivateDevice(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) CreateDevice(ctx context.Context, tenantID, userID string, req *models.CreateMFADeviceRequest) (*models.MFADevice, error) {
+	return &models.MFADevice{}, nil
+}
+
+func (f *fakeHandlerService) DeleteDevice(ctx context.Context, tenantID, id string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeHandlerService) DisableDevice(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) GenerateBackupCodes(ctx context.Context, tenantID, userID string) ([]string, error) {
+	return []string{}, nil
+}
+
+func (f *fakeHandlerService) GetDevice(ctx context.Context, tenantID, id string) (*models.MFADevice, error) {
+	return &models.MFADevice{}, nil
+}
+
+func (f *fakeHandlerService) ListDevices(ctx context.Context, tenantID, userID string, filter *models.MFADeviceFilter) ([]models.MFADevice, error) {
+	return []models.MFADevice{}, nil
+}
+
+func (f *fakeHandlerService) VerifyCode(ctx context.Context, tenantID, userID, code string) (bool, error) {
+	return false, nil
+}
+
+var _ service.ServiceInterface = (*fakeHandlerService)(nil)
+
 
 func mfaCtx(method string, pathParams map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
@@ -37,7 +75,6 @@ func TestMFAHandler_RegisterRoutes(t *testing.T) {
 // ==================== CreateDevice ====================
 
 func TestMFAHandler_CreateDevice_BadRequest(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodPost, nil)
 	makeMFAHandler().CreateDevice(c)
 	if w.Code != http.StatusBadRequest {
@@ -48,7 +85,6 @@ func TestMFAHandler_CreateDevice_BadRequest(t *testing.T) {
 // ==================== ListDevices ====================
 
 func TestMFAHandler_ListDevices(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodGet, nil)
 	makeMFAHandler().ListDevices(c)
 	if w.Code != http.StatusOK {
@@ -59,7 +95,6 @@ func TestMFAHandler_ListDevices(t *testing.T) {
 // ==================== GetDevice ====================
 
 func TestMFAHandler_GetDevice(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodGet, map[string]string{"id": "d1"})
 	makeMFAHandler().GetDevice(c)
 	if w.Code < 200 || w.Code >= 500 {
@@ -70,7 +105,6 @@ func TestMFAHandler_GetDevice(t *testing.T) {
 // ==================== ActivateDevice ====================
 
 func TestMFAHandler_ActivateDevice(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodPut, map[string]string{"id": "d1"})
 	makeMFAHandler().ActivateDevice(c)
 	if w.Code >= 500 {
@@ -81,7 +115,6 @@ func TestMFAHandler_ActivateDevice(t *testing.T) {
 // ==================== DisableDevice ====================
 
 func TestMFAHandler_DisableDevice(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodPut, map[string]string{"id": "d1"})
 	makeMFAHandler().DisableDevice(c)
 	if w.Code >= 500 {
@@ -92,7 +125,6 @@ func TestMFAHandler_DisableDevice(t *testing.T) {
 // ==================== DeleteDevice ====================
 
 func TestMFAHandler_DeleteDevice(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodDelete, map[string]string{"id": "d1"})
 	makeMFAHandler().DeleteDevice(c)
 	if w.Code >= 500 {
@@ -103,7 +135,6 @@ func TestMFAHandler_DeleteDevice(t *testing.T) {
 // ==================== VerifyCode ====================
 
 func TestMFAHandler_VerifyCode_BadRequest(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodPost, nil)
 	makeMFAHandler().VerifyCode(c)
 	if w.Code != http.StatusBadRequest {
@@ -114,7 +145,6 @@ func TestMFAHandler_VerifyCode_BadRequest(t *testing.T) {
 // ==================== GenerateBackupCodes ====================
 
 func TestMFAHandler_GenerateBackupCodes(t *testing.T) {
-	t.Skip("handler uses *service.Service concrete type, cannot inject mock")
 	c, w := mfaCtx(http.MethodPost, nil)
 	makeMFAHandler().GenerateBackupCodes(c)
 	if w.Code != http.StatusOK {

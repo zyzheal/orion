@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/user-token/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/user-token/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandlerService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +25,28 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeHandlerService struct{}
+
+func (f *fakeHandlerService) CreateToken(ctx context.Context, tenantID string, req models.CreateTokenRequest) (models.CreateTokenResponse, error) {
+	return models.CreateTokenResponse{}, nil
+}
+
+func (f *fakeHandlerService) DeleteToken(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) GetTokens(ctx context.Context, tenantID, userID string) ([]models.Token, error) {
+	return []models.Token{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeHandlerService)(nil)
+
+
 func TestHandler_USER_TOKEN_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_USER_TOKEN_GetTokens(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTokens(c)
 	if w.Code >= 500 {
@@ -37,7 +54,6 @@ func TestHandler_USER_TOKEN_GetTokens(t *testing.T) {
 	}
 }
 func TestHandler_USER_TOKEN_CreateToken(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateToken(c)
 	if w.Code >= 500 {
@@ -45,7 +61,6 @@ func TestHandler_USER_TOKEN_CreateToken(t *testing.T) {
 	}
 }
 func TestHandler_USER_TOKEN_DeleteToken(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteToken(c)
 	if w.Code >= 500 {

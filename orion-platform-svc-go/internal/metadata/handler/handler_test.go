@@ -8,10 +8,12 @@ import (
 	"orion/platform-svc-go/internal/metadata/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+	"orion/platform-svc-go/internal/metadata/models"
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandlerService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +25,48 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+type fakeHandlerService struct{}
+
+func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error) {
+	return &models.Record{}, nil
+}
+
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) Get(ctx context.Context, tenantID, id string) (*models.Record, error) {
+	return &models.Record{}, nil
+}
+
+func (f *fakeHandlerService) GetStats(ctx context.Context, tenantID string) (gin.H, error) {
+	return gin.H{}, nil
+}
+
+func (f *fakeHandlerService) List(ctx context.Context, tenantID string) ([]models.Record, error) {
+	return []models.Record{}, nil
+}
+
+func (f *fakeHandlerService) Search(ctx context.Context, tenantID string) ([]string, error) {
+	return []string{}, nil
+}
+
+func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error) {
+	return &models.Record{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeHandlerService)(nil)
+
+
 func TestHandler_METADATA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_METADATA_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +75,6 @@ func TestHandler_METADATA_List(t *testing.T) {
 }
 
 func TestHandler_METADATA_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -46,7 +83,6 @@ func TestHandler_METADATA_Get(t *testing.T) {
 }
 
 func TestHandler_METADATA_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -55,7 +91,6 @@ func TestHandler_METADATA_Create(t *testing.T) {
 }
 
 func TestHandler_METADATA_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -64,7 +99,6 @@ func TestHandler_METADATA_Update(t *testing.T) {
 }
 
 func TestHandler_METADATA_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -73,7 +107,6 @@ func TestHandler_METADATA_Delete(t *testing.T) {
 }
 
 func TestHandler_METADATA_BatchCreate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().BatchCreate(c)
 	if w.Code >= 500 {
@@ -82,7 +115,6 @@ func TestHandler_METADATA_BatchCreate(t *testing.T) {
 }
 
 func TestHandler_METADATA_Search(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Search(c)
 	if w.Code >= 500 {
@@ -91,7 +123,6 @@ func TestHandler_METADATA_Search(t *testing.T) {
 }
 
 func TestHandler_METADATA_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {

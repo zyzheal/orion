@@ -15,7 +15,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&fakeBillingService{})
+	return NewHandler(&fakeHandlerService{})
 }
 
 func makeCtx(method string, path string, body interface{}, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -35,6 +35,83 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	}
 	return c, w
 }
+
+type fakeHandlerService struct{}
+
+func (f *fakeHandlerService) CreateAccount(ctx context.Context, tenantID string, req *models.CreateAccountRequest) (*models.Account, error) {
+	return &models.Account{}, nil
+}
+
+func (f *fakeHandlerService) CreateInvoice(ctx context.Context, tenantID string, req *models.CreateInvoiceRequest) (*models.Invoice, error) {
+	return &models.Invoice{}, nil
+}
+
+func (f *fakeHandlerService) CreateLineItem(ctx context.Context, tenantID string, req *models.CreateLineItemRequest) (*models.LineItem, error) {
+	return &models.LineItem{}, nil
+}
+
+func (f *fakeHandlerService) CreateSubscription(ctx context.Context, tenantID string, req *models.CreateSubscriptionRequest) (*models.Subscription, error) {
+	return &models.Subscription{}, nil
+}
+
+func (f *fakeHandlerService) DeleteAccount(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) DeleteInvoice(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) DeleteSubscription(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) GetAccount(ctx context.Context, tenantID, id string) (*models.Account, error) {
+	return &models.Account{}, nil
+}
+
+func (f *fakeHandlerService) GetBillingStats(ctx context.Context, tenantID string) (*models.BillingStats, error) {
+	return &models.BillingStats{}, nil
+}
+
+func (f *fakeHandlerService) GetInvoice(ctx context.Context, tenantID, id string) (*models.Invoice, error) {
+	return &models.Invoice{}, nil
+}
+
+func (f *fakeHandlerService) GetSubscription(ctx context.Context, tenantID, id string) (*models.Subscription, error) {
+	return &models.Subscription{}, nil
+}
+
+func (f *fakeHandlerService) ListAccounts(ctx context.Context, tenantID string, status *string) ([]models.Account, error) {
+	return []models.Account{}, nil
+}
+
+func (f *fakeHandlerService) ListInvoices(ctx context.Context, tenantID string, filter *models.InvoiceFilter) ([]models.Invoice, int, error) {
+	return []models.Invoice{}, 0, nil
+}
+
+func (f *fakeHandlerService) ListLineItems(ctx context.Context, tenantID, invoiceID string) ([]models.LineItem, error) {
+	return []models.LineItem{}, nil
+}
+
+func (f *fakeHandlerService) ListSubscriptions(ctx context.Context, tenantID string, status *string) ([]models.Subscription, error) {
+	return []models.Subscription{}, nil
+}
+
+func (f *fakeHandlerService) UpdateAccount(ctx context.Context, tenantID, id string, req *models.UpdateAccountRequest) (*models.Account, error) {
+	return &models.Account{}, nil
+}
+
+func (f *fakeHandlerService) UpdateInvoice(ctx context.Context, tenantID, id string, updates map[string]any) (*models.Invoice, error) {
+	return &models.Invoice{}, nil
+}
+
+func (f *fakeHandlerService) UpdateSubscription(ctx context.Context, tenantID, id string, req *models.UpdateSubscriptionRequest) (*models.Subscription, error) {
+	return &models.Subscription{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeHandlerService)(nil)
+
 
 type fakeBillingService struct{}
 
