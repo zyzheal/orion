@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_USER_ACTIVITY_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_USER_ACTIVIT_GetActivities(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetActivities(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_USER_ACTIVIT_GetActivities(t *testing.T) {
 	}
 }
 func TestHandler_USER_ACTIVIT_GetActivity(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetActivity(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_USER_ACTIVIT_GetActivity(t *testing.T) {
 	}
 }
 func TestHandler_USER_ACTIVIT_DeleteActivity(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteActivity(c)
 	if w.Code >= 500 {

@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_FINOPS_V2_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_FINOPS_V2_TrackProjectCost(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TrackProjectCost(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_FINOPS_V2_TrackProjectCost(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_TrackTenantCost(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TrackTenantCost(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_FINOPS_V2_TrackTenantCost(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_TrackTeamCost(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TrackTeamCost(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_FINOPS_V2_TrackTeamCost(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetCostByEntity(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCostByEntity(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_FINOPS_V2_GetCostByEntity(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetEntityCostTrend(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetEntityCostTrend(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_FINOPS_V2_GetEntityCostTrend(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetCostOverview(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCostOverview(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_FINOPS_V2_GetCostOverview(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetCostBreakdown(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCostBreakdown(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_FINOPS_V2_GetCostBreakdown(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetChargeback(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetChargeback(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_FINOPS_V2_GetChargeback(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_ListBudgets(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListBudgets(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_FINOPS_V2_ListBudgets(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_CreateBudget(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateBudget(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_FINOPS_V2_CreateBudget(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetBudget(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetBudget(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_FINOPS_V2_GetBudget(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_UpdateBudget(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateBudget(c)
 	if w.Code >= 500 {
@@ -124,7 +125,7 @@ func TestHandler_FINOPS_V2_UpdateBudget(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_DeleteBudget(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteBudget(c)
 	if w.Code >= 500 {
@@ -132,7 +133,7 @@ func TestHandler_FINOPS_V2_DeleteBudget(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetBudgetStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetBudgetStatus(c)
 	if w.Code >= 500 {
@@ -140,7 +141,7 @@ func TestHandler_FINOPS_V2_GetBudgetStatus(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_ForecastBudget(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ForecastBudget(c)
 	if w.Code >= 500 {
@@ -148,7 +149,7 @@ func TestHandler_FINOPS_V2_ForecastBudget(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_CheckBudgetAlerts(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CheckBudgetAlerts(c)
 	if w.Code >= 500 {
@@ -156,7 +157,7 @@ func TestHandler_FINOPS_V2_CheckBudgetAlerts(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetAlertTriggers(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetAlertTriggers(c)
 	if w.Code >= 500 {
@@ -164,7 +165,7 @@ func TestHandler_FINOPS_V2_GetAlertTriggers(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetCostForecasts(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCostForecasts(c)
 	if w.Code >= 500 {
@@ -172,7 +173,7 @@ func TestHandler_FINOPS_V2_GetCostForecasts(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_ListRecommendations(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListRecommendations(c)
 	if w.Code >= 500 {
@@ -180,7 +181,7 @@ func TestHandler_FINOPS_V2_ListRecommendations(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_UpdateRecommendation(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateRecommendation(c)
 	if w.Code >= 500 {
@@ -188,7 +189,7 @@ func TestHandler_FINOPS_V2_UpdateRecommendation(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_DeleteRecommendation(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteRecommendation(c)
 	if w.Code >= 500 {
@@ -196,7 +197,7 @@ func TestHandler_FINOPS_V2_DeleteRecommendation(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetRightSizing(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRightSizing(c)
 	if w.Code >= 500 {
@@ -204,7 +205,7 @@ func TestHandler_FINOPS_V2_GetRightSizing(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetUnusedResources(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetUnusedResources(c)
 	if w.Code >= 500 {
@@ -212,7 +213,7 @@ func TestHandler_FINOPS_V2_GetUnusedResources(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetSavingsEstimate(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetSavingsEstimate(c)
 	if w.Code >= 500 {
@@ -220,7 +221,7 @@ func TestHandler_FINOPS_V2_GetSavingsEstimate(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetReports(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetReports(c)
 	if w.Code >= 500 {
@@ -228,7 +229,7 @@ func TestHandler_FINOPS_V2_GetReports(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetROIHistory(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetROIHistory(c)
 	if w.Code >= 500 {
@@ -236,7 +237,7 @@ func TestHandler_FINOPS_V2_GetROIHistory(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetROISummary(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetROISummary(c)
 	if w.Code >= 500 {
@@ -244,7 +245,7 @@ func TestHandler_FINOPS_V2_GetROISummary(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetMetrics(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetMetrics(c)
 	if w.Code >= 500 {
@@ -252,7 +253,7 @@ func TestHandler_FINOPS_V2_GetMetrics(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_HealthCheck(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().HealthCheck(c)
 	if w.Code >= 500 {
@@ -260,7 +261,7 @@ func TestHandler_FINOPS_V2_HealthCheck(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_CollectCost(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CollectCost(c)
 	if w.Code >= 500 {
@@ -268,7 +269,7 @@ func TestHandler_FINOPS_V2_CollectCost(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetProviders(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetProviders(c)
 	if w.Code >= 500 {
@@ -276,7 +277,7 @@ func TestHandler_FINOPS_V2_GetProviders(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_SetSchedule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SetSchedule(c)
 	if w.Code >= 500 {
@@ -284,7 +285,7 @@ func TestHandler_FINOPS_V2_SetSchedule(t *testing.T) {
 	}
 }
 func TestHandler_FINOPS_V2_GetSchedule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetSchedule(c)
 	if w.Code >= 500 {

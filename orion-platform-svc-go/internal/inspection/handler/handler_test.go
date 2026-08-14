@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_INSPECTION_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_INSPECTION_List(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_INSPECTION_List(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_INSPECTION_Get(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_INSPECTION_Create(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_INSPECTION_Update(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_Delete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_INSPECTION_Delete(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_RunInspection(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RunInspection(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_INSPECTION_RunInspection(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_GetResults(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetResults(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_INSPECTION_GetResults(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_UpdateStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateStatus(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_INSPECTION_UpdateStatus(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_ListTemplates(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListTemplates(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_INSPECTION_ListTemplates(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_INSPECTION_GetStats(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_GetHistory(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetHistory(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_INSPECTION_GetHistory(t *testing.T) {
 	}
 }
 func TestHandler_INSPECTION_BatchCreate(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().BatchCreate(c)
 	if w.Code >= 500 {

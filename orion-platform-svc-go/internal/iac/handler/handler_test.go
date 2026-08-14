@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_IAC_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_IAC_ListWorkspaces(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListWorkspaces(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_IAC_ListWorkspaces(t *testing.T) {
 	}
 }
 func TestHandler_IAC_CreateWorkspace(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateWorkspace(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_IAC_CreateWorkspace(t *testing.T) {
 	}
 }
 func TestHandler_IAC_GetWorkspace(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetWorkspace(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_IAC_GetWorkspace(t *testing.T) {
 	}
 }
 func TestHandler_IAC_UpdateWorkspace(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateWorkspace(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_IAC_UpdateWorkspace(t *testing.T) {
 	}
 }
 func TestHandler_IAC_GeneratePlan(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GeneratePlan(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_IAC_GeneratePlan(t *testing.T) {
 	}
 }
 func TestHandler_IAC_ApplyPlan(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ApplyPlan(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_IAC_ApplyPlan(t *testing.T) {
 	}
 }
 func TestHandler_IAC_GetCurrentState(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCurrentState(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_IAC_GetCurrentState(t *testing.T) {
 	}
 }
 func TestHandler_IAC_ListResources(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListResources(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_IAC_ListResources(t *testing.T) {
 	}
 }
 func TestHandler_IAC_ImportResource(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ImportResource(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_IAC_ImportResource(t *testing.T) {
 	}
 }
 func TestHandler_IAC_ListStateVersions(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListStateVersions(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_IAC_ListStateVersions(t *testing.T) {
 	}
 }
 func TestHandler_IAC_GetStateDiff(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStateDiff(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_IAC_GetStateDiff(t *testing.T) {
 	}
 }
 func TestHandler_IAC_ListPlans(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListPlans(c)
 	if w.Code >= 500 {
@@ -124,7 +125,7 @@ func TestHandler_IAC_ListPlans(t *testing.T) {
 	}
 }
 func TestHandler_IAC_GetPlan(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetPlan(c)
 	if w.Code >= 500 {
@@ -132,7 +133,7 @@ func TestHandler_IAC_GetPlan(t *testing.T) {
 	}
 }
 func TestHandler_IAC_ListModules(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListModules(c)
 	if w.Code >= 500 {
@@ -140,7 +141,7 @@ func TestHandler_IAC_ListModules(t *testing.T) {
 	}
 }
 func TestHandler_IAC_CreateModule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateModule(c)
 	if w.Code >= 500 {
@@ -148,7 +149,7 @@ func TestHandler_IAC_CreateModule(t *testing.T) {
 	}
 }
 func TestHandler_IAC_GetModule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetModule(c)
 	if w.Code >= 500 {
@@ -156,7 +157,7 @@ func TestHandler_IAC_GetModule(t *testing.T) {
 	}
 }
 func TestHandler_IAC_DeleteModule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteModule(c)
 	if w.Code >= 500 {

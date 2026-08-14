@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_NOTIFICATION_P_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_NOTIFICATION_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_NOTIFICATION_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_getUserID(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getUserID(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_NOTIFICATION_getUserID(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_getPagination(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getPagination(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_NOTIFICATION_getPagination(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_ListPolicies(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListPolicies(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_NOTIFICATION_ListPolicies(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_GetPolicy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetPolicy(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_NOTIFICATION_GetPolicy(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_CreatePolicy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreatePolicy(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_NOTIFICATION_CreatePolicy(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_UpdatePolicy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdatePolicy(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_NOTIFICATION_UpdatePolicy(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_DeletePolicy(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeletePolicy(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_NOTIFICATION_DeletePolicy(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_CountPolicies(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CountPolicies(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_NOTIFICATION_CountPolicies(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_EvaluatePolicies(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().EvaluatePolicies(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_NOTIFICATION_EvaluatePolicies(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_ListWorkflows(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListWorkflows(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_NOTIFICATION_ListWorkflows(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_GetWorkflow(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetWorkflow(c)
 	if w.Code >= 500 {
@@ -124,7 +125,7 @@ func TestHandler_NOTIFICATION_GetWorkflow(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_CreateWorkflow(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateWorkflow(c)
 	if w.Code >= 500 {
@@ -132,7 +133,7 @@ func TestHandler_NOTIFICATION_CreateWorkflow(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_UpdateWorkflow(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateWorkflow(c)
 	if w.Code >= 500 {
@@ -140,7 +141,7 @@ func TestHandler_NOTIFICATION_UpdateWorkflow(t *testing.T) {
 	}
 }
 func TestHandler_NOTIFICATION_DeleteWorkflow(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteWorkflow(c)
 	if w.Code >= 500 {

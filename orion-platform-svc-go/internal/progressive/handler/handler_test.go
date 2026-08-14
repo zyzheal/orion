@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_PROGRESSIVE_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PROGRESSIVE_List(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_PROGRESSIVE_List(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_PROGRESSIVE_Get(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_PROGRESSIVE_Create(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_PROGRESSIVE_Update(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Delete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_PROGRESSIVE_Delete(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Start(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Start(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_PROGRESSIVE_Start(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_CompleteStage(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CompleteStage(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_PROGRESSIVE_CompleteStage(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Pause(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Pause(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_PROGRESSIVE_Pause(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Resume(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Resume(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_PROGRESSIVE_Resume(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_Rollback(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Rollback(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_PROGRESSIVE_Rollback(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_ListStages(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListStages(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_PROGRESSIVE_ListStages(t *testing.T) {
 	}
 }
 func TestHandler_PROGRESSIVE_GetProgress(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetProgress(c)
 	if w.Code >= 500 {

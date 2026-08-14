@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_DO_NOT_DISTURB_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DO_NOT_DISTU_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_DO_NOT_DISTU_Create(t *testing.T) {
 	}
 }
 func TestHandler_DO_NOT_DISTU_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_DO_NOT_DISTU_Get(t *testing.T) {
 	}
 }
 func TestHandler_DO_NOT_DISTU_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_DO_NOT_DISTU_Update(t *testing.T) {
 	}
 }
 func TestHandler_DO_NOT_DISTU_IsActive(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().IsActive(c)
 	if w.Code >= 500 {

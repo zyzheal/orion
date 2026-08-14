@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_EPHEMERAL_ENV_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_EPHEMERAL_EN_CreateEnv(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateEnv(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_EPHEMERAL_EN_CreateEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_DeleteEnv(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteEnv(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_EPHEMERAL_EN_DeleteEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_DestroyEnv(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DestroyEnv(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_EPHEMERAL_EN_DestroyEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_ExtendTTL(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExtendTTL(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_EPHEMERAL_EN_ExtendTTL(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_GetEnv(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetEnv(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_EPHEMERAL_EN_GetEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_GetLogs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetLogs(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_EPHEMERAL_EN_GetLogs(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_ListEnvs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListEnvs(c)
 	if w.Code >= 500 {

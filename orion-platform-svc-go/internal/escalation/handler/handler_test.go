@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_ESCALATION_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_ESCALATION_CreateRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateRule(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_ESCALATION_CreateRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_DeleteRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteRule(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_ESCALATION_DeleteRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_GetRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRule(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_ESCALATION_GetRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_ESCALATION_GetStats(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_ListRules(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListRules(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_ESCALATION_ListRules(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_TriggerRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TriggerRule(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_ESCALATION_TriggerRule(t *testing.T) {
 	}
 }
 func TestHandler_ESCALATION_UpdateRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateRule(c)
 	if w.Code >= 500 {

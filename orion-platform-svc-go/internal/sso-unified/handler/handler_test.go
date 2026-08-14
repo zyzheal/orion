@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_SSO_UNIFIED_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_SSO_UNIFIED_CreateConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateConfig(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_SSO_UNIFIED_CreateConfig(t *testing.T) {
 	}
 }
 func TestHandler_SSO_UNIFIED_ListConfigs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListConfigs(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_SSO_UNIFIED_ListConfigs(t *testing.T) {
 	}
 }
 func TestHandler_SSO_UNIFIED_GetConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetConfig(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_SSO_UNIFIED_GetConfig(t *testing.T) {
 	}
 }
 func TestHandler_SSO_UNIFIED_UpdateConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateConfig(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_SSO_UNIFIED_UpdateConfig(t *testing.T) {
 	}
 }
 func TestHandler_SSO_UNIFIED_DeleteConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteConfig(c)
 	if w.Code >= 500 {

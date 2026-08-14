@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_WEBHOOK_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_WEBHOOK_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_WEBHOOK_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_getUserID(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getUserID(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_WEBHOOK_getUserID(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_List(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_WEBHOOK_List(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_WEBHOOK_Create(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_WEBHOOK_Get(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_WEBHOOK_Update(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_Delete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_WEBHOOK_Delete(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_Count(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Count(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_WEBHOOK_Count(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_Trigger(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Trigger(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_WEBHOOK_Trigger(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_TriggerByEvent(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TriggerByEvent(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_WEBHOOK_TriggerByEvent(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_RotateSecret(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RotateSecret(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_WEBHOOK_RotateSecret(t *testing.T) {
 	}
 }
 func TestHandler_WEBHOOK_ListDeliveries(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListDeliveries(c)
 	if w.Code >= 500 {

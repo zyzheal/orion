@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_CRON_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_CRON_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_CRON_Create(t *testing.T) {
 	}
 }
 func TestHandler_CRON_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_CRON_Get(t *testing.T) {
 	}
 }
 func TestHandler_CRON_List(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_CRON_List(t *testing.T) {
 	}
 }
 func TestHandler_CRON_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_CRON_Update(t *testing.T) {
 	}
 }
 func TestHandler_CRON_Delete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_CRON_Delete(t *testing.T) {
 	}
 }
 func TestHandler_CRON_EnableJob(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().EnableJob(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_CRON_EnableJob(t *testing.T) {
 	}
 }
 func TestHandler_CRON_DisableJob(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DisableJob(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_CRON_DisableJob(t *testing.T) {
 	}
 }
 func TestHandler_CRON_ExecuteJob(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExecuteJob(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_CRON_ExecuteJob(t *testing.T) {
 	}
 }
 func TestHandler_CRON_ListExecutions(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListExecutions(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_CRON_ListExecutions(t *testing.T) {
 	}
 }
 func TestHandler_CRON_GetExecution(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetExecution(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_CRON_GetExecution(t *testing.T) {
 	}
 }
 func TestHandler_CRON_RunningJobs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RunningJobs(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_CRON_RunningJobs(t *testing.T) {
 	}
 }
 func TestHandler_CRON_Status(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Status(c)
 	if w.Code >= 500 {
@@ -124,7 +125,7 @@ func TestHandler_CRON_Status(t *testing.T) {
 	}
 }
 func TestHandler_CRON_StartScheduler(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().StartScheduler(c)
 	if w.Code >= 500 {
@@ -132,7 +133,7 @@ func TestHandler_CRON_StartScheduler(t *testing.T) {
 	}
 }
 func TestHandler_CRON_StopScheduler(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().StopScheduler(c)
 	if w.Code >= 500 {

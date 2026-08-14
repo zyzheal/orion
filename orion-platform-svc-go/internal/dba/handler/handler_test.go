@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_DBA_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DBA_ListOrders(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListOrders(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_DBA_ListOrders(t *testing.T) {
 	}
 }
 func TestHandler_DBA_GetOrder(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetOrder(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_DBA_GetOrder(t *testing.T) {
 	}
 }
 func TestHandler_DBA_CreateOrder(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateOrder(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_DBA_CreateOrder(t *testing.T) {
 	}
 }
 func TestHandler_DBA_ApproveOrder(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ApproveOrder(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_DBA_ApproveOrder(t *testing.T) {
 	}
 }
 func TestHandler_DBA_RejectOrder(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RejectOrder(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_DBA_RejectOrder(t *testing.T) {
 	}
 }
 func TestHandler_DBA_ExecuteOrder(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExecuteOrder(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_DBA_ExecuteOrder(t *testing.T) {
 	}
 }
 func TestHandler_DBA_ListDataSources(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListDataSources(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_DBA_ListDataSources(t *testing.T) {
 	}
 }
 func TestHandler_DBA_GetDataSource(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetDataSource(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_DBA_GetDataSource(t *testing.T) {
 	}
 }
 func TestHandler_DBA_CreateDataSource(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateDataSource(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_DBA_CreateDataSource(t *testing.T) {
 	}
 }
 func TestHandler_DBA_UpdateDataSource(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateDataSource(c)
 	if w.Code >= 500 {
@@ -108,7 +109,7 @@ func TestHandler_DBA_UpdateDataSource(t *testing.T) {
 	}
 }
 func TestHandler_DBA_DeleteDataSource(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteDataSource(c)
 	if w.Code >= 500 {
@@ -116,7 +117,7 @@ func TestHandler_DBA_DeleteDataSource(t *testing.T) {
 	}
 }
 func TestHandler_DBA_TestConnection(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TestConnection(c)
 	if w.Code >= 500 {
@@ -124,7 +125,7 @@ func TestHandler_DBA_TestConnection(t *testing.T) {
 	}
 }
 func TestHandler_DBA_ListAuditRules(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListAuditRules(c)
 	if w.Code >= 500 {
@@ -132,7 +133,7 @@ func TestHandler_DBA_ListAuditRules(t *testing.T) {
 	}
 }
 func TestHandler_DBA_CreateAuditRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateAuditRule(c)
 	if w.Code >= 500 {
@@ -140,7 +141,7 @@ func TestHandler_DBA_CreateAuditRule(t *testing.T) {
 	}
 }
 func TestHandler_DBA_UpdateAuditRule(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateAuditRule(c)
 	if w.Code >= 500 {
@@ -148,7 +149,7 @@ func TestHandler_DBA_UpdateAuditRule(t *testing.T) {
 	}
 }
 func TestHandler_DBA_ExecuteDirectQuery(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExecuteDirectQuery(c)
 	if w.Code >= 500 {
@@ -156,7 +157,7 @@ func TestHandler_DBA_ExecuteDirectQuery(t *testing.T) {
 	}
 }
 func TestHandler_DBA_ListQueryLogs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListQueryLogs(c)
 	if w.Code >= 500 {

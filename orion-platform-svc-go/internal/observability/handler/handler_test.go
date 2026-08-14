@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_OBSERVABILITY_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_OBSERVABILIT_RecordMetric(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RecordMetric(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_OBSERVABILIT_RecordMetric(t *testing.T) {
 	}
 }
 func TestHandler_OBSERVABILIT_ListMetrics(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListMetrics(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_OBSERVABILIT_ListMetrics(t *testing.T) {
 	}
 }
 func TestHandler_OBSERVABILIT_GetMetric(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetMetric(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_OBSERVABILIT_GetMetric(t *testing.T) {
 	}
 }
 func TestHandler_OBSERVABILIT_CreateAlert(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateAlert(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_OBSERVABILIT_CreateAlert(t *testing.T) {
 	}
 }
 func TestHandler_OBSERVABILIT_ListAlerts(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListAlerts(c)
 	if w.Code >= 500 {

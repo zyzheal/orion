@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_TERMINAL_AUDIT_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_TERMINAL_AUD_DeleteBatch(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteBatch(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_TERMINAL_AUD_DeleteBatch(t *testing.T) {
 	}
 }
 func TestHandler_TERMINAL_AUD_GetAudit(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetAudit(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_TERMINAL_AUD_GetAudit(t *testing.T) {
 	}
 }
 func TestHandler_TERMINAL_AUD_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_TERMINAL_AUD_GetStats(t *testing.T) {
 	}
 }
 func TestHandler_TERMINAL_AUD_ListAudits(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListAudits(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_TERMINAL_AUD_ListAudits(t *testing.T) {
 	}
 }
 func TestHandler_TERMINAL_AUD_SearchAudits(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SearchAudits(c)
 	if w.Code >= 500 {

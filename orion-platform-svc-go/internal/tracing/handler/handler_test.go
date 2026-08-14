@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_TRACING_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_TRACING_ListTraces(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListTraces(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_TRACING_ListTraces(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_GetTrace(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTrace(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_TRACING_GetTrace(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_GetTraceSpans(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTraceSpans(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_TRACING_GetTraceSpans(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_SearchTraces(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SearchTraces(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_TRACING_SearchTraces(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_GetSamplingConfigs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetSamplingConfigs(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_TRACING_GetSamplingConfigs(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_UpdateSamplingConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateSamplingConfig(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_TRACING_UpdateSamplingConfig(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_GetOtelConfigs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetOtelConfigs(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_TRACING_GetOtelConfigs(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_CreateOtelConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateOtelConfig(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_TRACING_CreateOtelConfig(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_UpdateOtelConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateOtelConfig(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_TRACING_UpdateOtelConfig(t *testing.T) {
 	}
 }
 func TestHandler_TRACING_DeleteOtelConfig(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteOtelConfig(c)
 	if w.Code >= 500 {

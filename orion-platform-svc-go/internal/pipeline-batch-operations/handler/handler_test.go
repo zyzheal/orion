@@ -28,7 +28,6 @@ func TestHandler_PIPELINE_BATCH_RegisterRoutes(t *testing.T) {
 }
 
 func TestHandler_PIPELINE_BAT_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -36,7 +35,6 @@ func TestHandler_PIPELINE_BAT_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_BatchStart(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().BatchStart(c)
 	if w.Code >= 500 {
@@ -44,7 +42,6 @@ func TestHandler_PIPELINE_BAT_BatchStart(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_BatchStop(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().BatchStop(c)
 	if w.Code >= 500 {
@@ -52,7 +49,6 @@ func TestHandler_PIPELINE_BAT_BatchStop(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_BatchDelete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().BatchDelete(c)
 	if w.Code >= 500 {

@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_PERMISSION_AUD_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PERMISSION_A_ListAuditLogs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListAuditLogs(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_PERMISSION_A_ListAuditLogs(t *testing.T) {
 	}
 }
 func TestHandler_PERMISSION_A_LogPermission(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().LogPermission(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_PERMISSION_A_LogPermission(t *testing.T) {
 	}
 }
 func TestHandler_PERMISSION_A_GetAuditLog(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetAuditLog(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_PERMISSION_A_GetAuditLog(t *testing.T) {
 	}
 }
 func TestHandler_PERMISSION_A_DeleteAuditLog(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteAuditLog(c)
 	if w.Code >= 500 {

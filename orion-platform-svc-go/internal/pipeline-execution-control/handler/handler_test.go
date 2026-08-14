@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_PIPELINE_EXECU_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PIPELINE_EXE_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_PIPELINE_EXE_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_Pause(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Pause(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_PIPELINE_EXE_Pause(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_Resume(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Resume(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_PIPELINE_EXE_Resume(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_Abort(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Abort(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_PIPELINE_EXE_Abort(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_Retry(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Retry(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_PIPELINE_EXE_Retry(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_Restart(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Restart(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_PIPELINE_EXE_Restart(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_GetCheckpoints(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetCheckpoints(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_PIPELINE_EXE_GetCheckpoints(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_EXE_GetControlLogs(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetControlLogs(c)
 	if w.Code >= 500 {

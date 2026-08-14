@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_ENVIRONMENT_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_ENVIRONMENT_Create(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_ENVIRONMENT_Create(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_List(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_ENVIRONMENT_List(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_Get(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_ENVIRONMENT_Get(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_Update(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_ENVIRONMENT_Update(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_Delete(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_ENVIRONMENT_Delete(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_UpdateStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateStatus(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_ENVIRONMENT_UpdateStatus(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_Lock(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Lock(c)
 	if w.Code >= 500 {
@@ -84,7 +85,7 @@ func TestHandler_ENVIRONMENT_Lock(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_Unlock(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Unlock(c)
 	if w.Code >= 500 {
@@ -92,7 +93,7 @@ func TestHandler_ENVIRONMENT_Unlock(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_GetLockStatus(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetLockStatus(c)
 	if w.Code >= 500 {
@@ -100,7 +101,7 @@ func TestHandler_ENVIRONMENT_GetLockStatus(t *testing.T) {
 	}
 }
 func TestHandler_ENVIRONMENT_CheckDeploymentAllowed(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CheckDeploymentAllowed(c)
 	if w.Code >= 500 {

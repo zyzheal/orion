@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_EVENT_TRIGGER__RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_EVENT_TRIGGE_ListTriggers(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListTriggers(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_EVENT_TRIGGE_ListTriggers(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_GetTrigger(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTrigger(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_EVENT_TRIGGE_GetTrigger(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_CreateTrigger(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateTrigger(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_EVENT_TRIGGE_CreateTrigger(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_UpdateTrigger(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateTrigger(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_EVENT_TRIGGE_UpdateTrigger(t *testing.T) {
 	}
 }
 func TestHandler_EVENT_TRIGGE_DeleteTrigger(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteTrigger(c)
 	if w.Code >= 500 {

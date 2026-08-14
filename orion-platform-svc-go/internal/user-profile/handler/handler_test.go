@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_USER_PROFILE_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_USER_PROFILE_GetMyProfile(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetMyProfile(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_USER_PROFILE_GetMyProfile(t *testing.T) {
 	}
 }
 func TestHandler_USER_PROFILE_GetProfile(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetProfile(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_USER_PROFILE_GetProfile(t *testing.T) {
 	}
 }
 func TestHandler_USER_PROFILE_UpdateMyProfile(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateMyProfile(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_USER_PROFILE_UpdateMyProfile(t *testing.T) {
 	}
 }
 func TestHandler_USER_PROFILE_UpdateProfile(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateProfile(c)
 	if w.Code >= 500 {

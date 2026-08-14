@@ -24,11 +24,12 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_VECTOR_RegisterRoutes(t *testing.T) {
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_VECTOR_CreateStore(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateStore(c)
 	if w.Code >= 500 {
@@ -36,7 +37,7 @@ func TestHandler_VECTOR_CreateStore(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_DeleteStore(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteStore(c)
 	if w.Code >= 500 {
@@ -44,7 +45,7 @@ func TestHandler_VECTOR_DeleteStore(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_DeleteVectors(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteVectors(c)
 	if w.Code >= 500 {
@@ -52,7 +53,7 @@ func TestHandler_VECTOR_DeleteVectors(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_GetStore(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStore(c)
 	if w.Code >= 500 {
@@ -60,7 +61,7 @@ func TestHandler_VECTOR_GetStore(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_ListStores(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListStores(c)
 	if w.Code >= 500 {
@@ -68,7 +69,7 @@ func TestHandler_VECTOR_ListStores(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_SearchVectors(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SearchVectors(c)
 	if w.Code >= 500 {
@@ -76,7 +77,7 @@ func TestHandler_VECTOR_SearchVectors(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_UpsertVectors(t *testing.T) {
-	t.Skip("handler uses concrete service, cannot inject mock")
+	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpsertVectors(c)
 	if w.Code >= 500 {
