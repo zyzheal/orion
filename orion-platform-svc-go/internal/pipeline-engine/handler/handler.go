@@ -16,11 +16,11 @@ import (
 
 // Handler exposes HTTP endpoints for the Pipeline Engine.
 type Handler struct {
-	engine *service.PipelineEngine
+	engine service.EngineInterface
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(engine *service.PipelineEngine) *Handler {
+func NewHandler(engine service.EngineInterface) *Handler {
 	return &Handler{engine: engine}
 }
 
