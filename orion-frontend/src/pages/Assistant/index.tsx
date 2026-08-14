@@ -72,7 +72,7 @@ const AssistantPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // --- Action execution state (TR-09 / TR-11) ---
+  // --- Action execution state (TR-09 / TR-10 / TR-11) ---
   const [actionLoading, setActionLoading] = useState(false);
   const [actionResult, setActionResult] = useState<AssistantActionResult | null>(null);
   const [actionPrompt, setActionPrompt] = useState('');
@@ -440,7 +440,7 @@ const AssistantPage: React.FC = () => {
               key: 'actions',
               label: (
                 <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  <ThunderboltOutlined /> 智能操作 — 触发研发流程 Agent / Ops 问答助手
+                  <ThunderboltOutlined /> 智能操作 — 触发研发流程 Agent / AI 生成流程 / Ops 问答助手
                 </Text>
               ),
               children: (
