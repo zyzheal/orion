@@ -2,7 +2,7 @@
  * Cost Overview - Stats cards, 7-day trend chart, top tenants/users, model distribution
  * Enhanced with ECharts visualization
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Typography,
   Button,
@@ -13,6 +13,7 @@ import {
   Statistic,
   Table as AntTable,
   message,
+  Select,
 } from 'antd';
 import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined, BarChartOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
@@ -31,6 +32,9 @@ const CostOverview: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [pricing, setPricing] = useState<ModelPricing[]>([]);
+  // TR-08: Model / Tenant filters
+  const [filterModel, setFilterModel] = useState<string>('all');
+  const [filterTenant, setFilterTenant] = useState<string>('all');
 
   const loadData = async () => {
     setLoading(true);
@@ -59,6 +63,21 @@ const CostOverview: React.FC = () => {
     if (yesterday === 0) return 0;
     return ((today - yesterday) / yesterday) * 100;
   }, [dashboard]);
+
+  // TR-08: Apply model/tenant filter to dashboard data
+  const filteredData = useMemo(() => {
+    if (!dashboard) return null;
+    let data = { ...dashboard };
+    if (filterModel && filterModel !== 'all') {
+      data.modelDistribution = data.modelDistribution?.filter((d) => d.model === filterModel) || [];
+    }
+    if (filterTenant && filterTenant !== 'all') {
+      data.topTenants = data.topTenants?.filter((t) => t.tenantId === filterTenant) || [];
+    }
+    return data;
+  }, [dashboard, filterModel, filterTenant]);
+
+  const activeData = filteredData || dashboard;
 
   // ECharts option for cost trend
   const trendChartOption = useMemo(() => {
@@ -111,7 +130,7 @@ const CostOverview: React.FC = () => {
 
   // ECharts option for model distribution
   const modelDistOption = useMemo(() => {
-    if (!dashboard?.modelDistribution?.length) return {};
+    if (!activeData?.modelDistribution?.length) return {};
     return {
       tooltip: { trigger: 'item' as const, formatter: '{b}: ${c} ({d}%)' },
       legend: { orient: 'vertical' as const, left: 'left', top: 'middle' },
@@ -121,7 +140,7 @@ const CostOverview: React.FC = () => {
           radius: ['40%', '70%'],
           center: ['60%', '50%'],
           avoidLabelOverlap: false,
-          data: dashboard.modelDistribution.map((d) => ({
+          data: activeData.modelDistribution.map((d) => ({
             name: d.model,
             value: Math.round(d.cost * 100) / 100,
           })),
@@ -130,23 +149,23 @@ const CostOverview: React.FC = () => {
         },
       ],
     };
-  }, [dashboard]);
+  }, [activeData]);
 
   // ECharts option for tenant cost
   const tenantChartOption = useMemo(() => {
-    if (!dashboard?.topTenants?.length) return {};
+    if (!activeData?.topTenants?.length) return {};
     return {
       tooltip: { trigger: 'axis' as const, axisPointer: { type: 'shadow' as const } },
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: { type: 'value' as const, name: '费用 ($)' },
       yAxis: {
         type: 'category' as const,
-        data: [...dashboard.topTenants].reverse().map((t) => t.tenantId),
+        data: [...activeData.topTenants].reverse().map((t) => t.tenantId),
       },
       series: [
         {
           type: 'bar' as const,
-          data: [...dashboard.topTenants].reverse().map((t) => ({
+          data: [...activeData.topTenants].reverse().map((t) => ({
             value: Math.round(t.cost * 100) / 100,
             itemStyle: { color: colors.primary[500] },
           })),
@@ -154,7 +173,7 @@ const CostOverview: React.FC = () => {
         },
       ],
     };
-  }, [dashboard]);
+  }, [activeData]);
 
   const tenantColumns: ColumnsType<{ tenantId: string; cost: number }> = [
     {
@@ -205,9 +224,47 @@ const CostOverview: React.FC = () => {
           </Title>
           <Text type="secondary">AI 模型调用成本与资源使用统计</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-          刷新
-        </Button>
+        <div
+          style={{
+            display: 'flex',
+            gap: spacing[3],
+            alignItems: 'flex-start',
+          }}
+        >
+          <Select
+            allowClear
+            placeholder="全部模型"
+            value={filterModel}
+            onChange={(v) => setFilterModel(v || 'all')}
+            options={[
+              { label: '全部模型', value: 'all' },
+              ...(dashboard?.modelDistribution || []).map((d) => ({
+                label: d.model,
+                value: d.model,
+              })),
+            ]}
+            style={{ width: 150 }}
+            size="small"
+          />
+          <Select
+            allowClear
+            placeholder="全部租户"
+            value={filterTenant}
+            onChange={(v) => setFilterTenant(v || 'all')}
+            options={[
+              { label: '全部租户', value: 'all' },
+              ...(dashboard?.topTenants || []).map((t) => ({
+                label: t.tenantId,
+                value: t.tenantId,
+              })),
+            ]}
+            style={{ width: 150 }}
+            size="small"
+          />
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -285,7 +342,7 @@ const CostOverview: React.FC = () => {
         {/* Top Tenants Chart */}
         <Col span={8}>
           <Card title="Top 租户" size="small" style={{ marginBottom: spacing.md }}>
-            {dashboard?.topTenants && dashboard.topTenants.length > 0 ? (
+            {activeData?.topTenants && activeData.topTenants.length > 0 ? (
               <ReactECharts option={tenantChartOption} style={{ height: 200 }} />
             ) : (
               <div
@@ -303,7 +360,7 @@ const CostOverview: React.FC = () => {
           <Card title="租户费用明细" size="small">
             <AntTable<{ tenantId: string; cost: number }>
               columns={tenantColumns}
-              dataSource={dashboard?.topTenants || []}
+              dataSource={activeData?.topTenants || []}
               rowKey="tenantId"
               size="small"
               pagination={false}
@@ -327,7 +384,7 @@ const CostOverview: React.FC = () => {
         {/* Model Distribution */}
         <Col span={8}>
           <Card title="模型分布" size="small" style={{ marginBottom: spacing.md }}>
-            {dashboard?.modelDistribution && dashboard.modelDistribution.length > 0 ? (
+            {activeData?.modelDistribution && activeData.modelDistribution.length > 0 ? (
               <ReactECharts option={modelDistOption} style={{ height: 200 }} />
             ) : (
               <div

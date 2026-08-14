@@ -11,6 +11,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { getCurrentUser } from '@/api/auth';
 import { message } from 'antd';
+import CopilotFloating from '@/components/CopilotFloating';
 
 const AUTH_VERIFY_TIMEOUT = 6000;
 

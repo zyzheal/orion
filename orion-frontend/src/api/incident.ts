@@ -77,6 +77,16 @@ export interface Postmortem {
   published_at?: string;
 }
 
+export interface PostmortemDraft {
+  title: string;
+  summary: string;
+  root_cause: string;
+  contributing_factors?: string[];
+  timeline_summary: string;
+  action_items?: string[];
+  lessons_learned?: string;
+}
+
 export interface EscalationRecord {
   id: string;
   incident_id: string;
@@ -195,6 +205,11 @@ export const createPostmortem = async (id: string, data: {
 
 export const publishPostmortem = async (id: string): Promise<Postmortem> => {
   const response = await api.patch<{ data: Postmortem }>(`/api/v1/incidents/${id}/postmortem/publish`);
+  return response.data.data;
+};
+
+export const getPostmortemDraft = async (id: string): Promise<PostmortemDraft> => {
+  const response = await api.get<{ data: PostmortemDraft }>(`/api/v1/incidents/${id}/postmortem/draft`);
   return response.data.data;
 };
 
