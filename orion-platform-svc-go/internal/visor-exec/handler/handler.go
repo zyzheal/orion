@@ -6,7 +6,7 @@ import (
 	"orion/go-common/pkg/auth"
 
 	"orion/platform-svc-go/internal/visor-exec/models"
-	v_service "orion/platform-svc-go/internal/visor-exec/service"
+	"orion/platform-svc-go/internal/visor-exec/service"
 
 	"orion/platform-svc-go/internal/middleware"
 
@@ -15,10 +15,10 @@ import (
 )
 
 type Handler struct {
-	svc *v_service.Service
+	svc service.ServiceInterface
 }
 
-func NewHandler(svc *v_service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -266,7 +266,7 @@ func (h *Handler) GetCronJobByID(c *gin.Context) {
 	id := c.Param("id")
 	job, err := h.svc.GetCronJobByID(ctx, id)
 	if err != nil {
-		if v_service.IsNotFound(err) {
+		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "cron job not found")
 			return
 		}

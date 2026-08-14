@@ -16,11 +16,11 @@ import (
 
 // Handler provides HTTP route handlers for the event bus.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new event bus handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

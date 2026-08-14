@@ -29,6 +29,8 @@ type ServiceInterface interface {
 	RemoveJob(ctx context.Context, tenantID, id string) error
 	Update(ctx context.Context, tenantID, id string, req models.UpdateCronJobRequest) (*models.CronJob, error)
 	UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.CronJob, error)
+	Start()
+	Stop()
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.
