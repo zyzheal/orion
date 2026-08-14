@@ -10,12 +10,38 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the Service.
+type RepositoryInterface interface {
+	CreateIntegration(ctx context.Context, tenantID, name, intType, handlerType string, config map[string]string) (*models.Integration, error)
+	GetIntegrationByTenant(ctx context.Context, tenantID, id string) (*models.Integration, error)
+	ListIntegrations(ctx context.Context, tenantID, intType string, offset, limit int) ([]models.Integration, error)
+	UpdateIntegration(ctx context.Context, tenantID, id string, name, intType, handlerType *string, config map[string]string, status *string, enabled *bool) (*models.Integration, error)
+	DeleteIntegration(ctx context.Context, tenantID, id string) error
+	CountIntegrations(ctx context.Context, tenantID string) (int, error)
+	CreateTask(ctx context.Context, tenantID, integrationID, direction string, data map[string]interface{}) (*models.IntegrationTask, error)
+	GetTaskByTenant(ctx context.Context, tenantID, id string) (*models.IntegrationTask, error)
+	ListTasksByIntegration(ctx context.Context, tenantID, integrationID, status string, offset, limit int) ([]models.IntegrationTask, error)
+	UpdateTaskStatus(ctx context.Context, tenantID, id string, status, errMsg, response string, durationMs int64, finishedAt *time.Time) (*models.IntegrationTask, error)
+	DeleteTask(ctx context.Context, tenantID, id string) error
+	ListLogsByTask(ctx context.Context, taskID string, offset, limit int) ([]models.IntegrationLog, error)
+	CreateLog(ctx context.Context, taskID, level, message, details string) (*models.IntegrationLog, error)
 }
 
+// ensure compile-time check
+var _ RepositoryInterface = (*repository.Repository)(nil)
+
+type Service struct {
+	repo RepositoryInterface
+}
+
+// NewService creates a new Service backed by the real PostgreSQL repository.
 func NewService(db *sqlx.DB) *Service {
 	return &Service{repo: repository.NewRepository(db)}
+}
+
+// NewServiceWithRepo creates a new Service with an injectable repository.
+func NewServiceWithRepo(repo RepositoryInterface) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) CreateIntegration(ctx context.Context, tenantID string, req *models.CreateIntegrationRequest) (*models.Integration, error) {

@@ -475,8 +475,3 @@ func TestApplyMask_PartialShortValue(t *testing.T) {
 	// value len <= 2 -> maskFull -> "**"
 	assert.Equal(t, "**", result.MaskedData["code"])
 }
-
-
-func TestService_TenantIDValidation(t *testing.T) {
-	t.Skip("requires PostgreSQL")
-}

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ai/aiagent/models"
-	"orion/platform-svc-go/internal/ai/aiagent/repository"
 
 	"github.com/google/uuid"
 )
@@ -16,10 +15,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

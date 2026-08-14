@@ -9,11 +9,26 @@ import (
 	"orion/platform-svc-go/internal/release-management/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface is the interface the Service depends on.
+// It mirrors the methods on *repository.Repository.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req *models.CreateReleaseRequest) (*models.Release, error)
+	Get(ctx context.Context, tenantID, id string) (*models.Release, error)
+	List(ctx context.Context, tenantID string, q models.ListReleasesQuery) (*models.ReleaseListResponse, error)
+	Update(ctx context.Context, tenantID, id string, req *models.UpdateReleaseRequest) (*models.Release, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Approve(ctx context.Context, releaseID, approvedBy, comment string) (*models.ReleaseApproval, error)
+	RecordRollback(ctx context.Context, releaseID, reason, performedBy string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+// Ensure *repository.Repository satisfies RepositoryInterface.
+var _ RepositoryInterface = (*repository.Repository)(nil)
+
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

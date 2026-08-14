@@ -2,16 +2,30 @@ package semantic_search_test
 
 import (
 	"testing"
+
+	"orion/platform-svc-go/internal/semantic-search/models"
+	"orion/platform-svc-go/internal/semantic-search/service"
 )
 
 func TestSemanticSearch_NewService_Nil(t *testing.T) {
-	t.Skip("requires PostgreSQL")
+	s := service.NewSemanticSearchService(nil, nil)
+	if s == nil {
+		t.Fatal("NewSemanticSearchService returned nil")
+	}
 }
 
-func TestSemanticSearch_ContextDeadline(t *testing.T) {
-	t.Skip("requires PostgreSQL")
+func TestSemanticSearch_ModelsCompile(t *testing.T) {
+	sr := models.SearchResult{
+		ID:    "r1",
+		Title: "doc",
+		Score: 0.95,
+	}
+	if sr.ID != "r1" || sr.Score != 0.95 {
+		t.Fatalf("unexpected result: %+v", sr)
+	}
 }
 
 func TestSemanticSearch_PackageAvailable(t *testing.T) {
-	t.Skip("requires PostgreSQL")
+	_ = models.SearchRequest{}
+	_ = models.SearchResponse{}
 }

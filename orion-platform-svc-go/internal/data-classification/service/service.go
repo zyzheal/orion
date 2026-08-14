@@ -11,11 +11,58 @@ import (
 	"orion/platform-svc-go/internal/data-classification/repository"
 )
 
-type Service struct {
+// RepositoryInterface abstracts the data-access methods needed by Service
+// so unit tests can inject a fake implementation.
+type RepositoryInterface interface {
+	CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.ClassificationRule, error)
+	ListRules(ctx context.Context, tenantID string) ([]models.ClassificationRule, error)
+	GetRule(ctx context.Context, tenantID, id string) (*models.ClassificationRule, error)
+	DeleteRule(ctx context.Context, tenantID, id string) error
+	Classify(ctx context.Context, tenantID string, resource *models.ClassifiedResource) error
+	GetClassification(ctx context.Context, tenantID, resourceID string) (*models.ClassifiedResource, error)
+}
+
+// repoAdapter wraps the concrete Repository to satisfy RepositoryInterface.
+var _ RepositoryInterface = (*repoAdapter)(nil)
+
+type repoAdapter struct {
 	repo *repository.Repository
 }
 
+func newRepoAdapter(repo *repository.Repository) RepositoryInterface {
+	return &repoAdapter{repo: repo}
+}
+
+func (a *repoAdapter) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.ClassificationRule, error) {
+	return a.repo.CreateRule(ctx, tenantID, req)
+}
+func (a *repoAdapter) ListRules(ctx context.Context, tenantID string) ([]models.ClassificationRule, error) {
+	return a.repo.ListRules(ctx, tenantID)
+}
+func (a *repoAdapter) GetRule(ctx context.Context, tenantID, id string) (*models.ClassificationRule, error) {
+	return a.repo.GetRule(ctx, tenantID, id)
+}
+func (a *repoAdapter) DeleteRule(ctx context.Context, tenantID, id string) error {
+	return a.repo.DeleteRule(ctx, tenantID, id)
+}
+func (a *repoAdapter) Classify(ctx context.Context, tenantID string, resource *models.ClassifiedResource) error {
+	return a.repo.Classify(ctx, tenantID, resource)
+}
+func (a *repoAdapter) GetClassification(ctx context.Context, tenantID, resourceID string) (*models.ClassifiedResource, error) {
+	return a.repo.GetClassification(ctx, tenantID, resourceID)
+}
+
+type Service struct {
+	repo RepositoryInterface
+}
+
 func NewService(repo *repository.Repository) *Service {
+	return &Service{repo: newRepoAdapter(repo)}
+}
+
+// NewServiceForTesting creates a Service with a provided RepositoryInterface.
+// Used exclusively by unit tests.
+func NewServiceForTesting(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
