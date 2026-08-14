@@ -13,7 +13,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeMultiModalTriggerService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -61,13 +61,11 @@ func (f *fakeMultiModalTriggerService) Delete(ctx context.Context, tenantID, id 
 var _ service.ServiceInterface = (*fakeMultiModalTriggerService)(nil)
 
 
-
 func TestHandler_MULTI_MODAL_TR_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_MULTI_MODAL__List(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -75,7 +73,6 @@ func TestHandler_MULTI_MODAL__List(t *testing.T) {
 	}
 }
 func TestHandler_MULTI_MODAL__Get(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -97,7 +94,6 @@ func TestHandler_MULTI_MODAL__Update(t *testing.T) {
 	}
 }
 func TestHandler_MULTI_MODAL__Delete(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

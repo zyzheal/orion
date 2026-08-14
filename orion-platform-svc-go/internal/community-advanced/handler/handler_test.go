@@ -15,7 +15,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeCommunityAdvancedService{})
 }
 
 func makeCtx(method string, path string, body interface{}, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -76,7 +76,6 @@ func (f *fakeCommunityAdvancedService) Delete(ctx context.Context, id, tenantID 
 var _ service.ServiceInterface = (*fakeCommunityAdvancedService)(nil)
 
 
-
 func TestCOMMUNITY_ADVANCED_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))
 }
@@ -90,7 +89,6 @@ func TestCOMMUNITY_ADVANCED_Handler_getTenantID(t *testing.T) {
 }
 
 func TestCOMMUNITY_ADVANCED_Handler_List(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -107,7 +105,6 @@ func TestCOMMUNITY_ADVANCED_Handler_Create(t *testing.T) {
 }
 
 func TestCOMMUNITY_ADVANCED_Handler_Get(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -124,7 +121,6 @@ func TestCOMMUNITY_ADVANCED_Handler_Update(t *testing.T) {
 }
 
 func TestCOMMUNITY_ADVANCED_Handler_Delete(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().Delete(c)
 	if w.Code >= 500 {

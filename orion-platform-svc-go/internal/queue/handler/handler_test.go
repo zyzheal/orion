@@ -13,7 +13,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeQueueService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -61,7 +61,6 @@ func (f *fakeQueueService) Delete(ctx context.Context, tenantID, id string) (err
 var _ service.ServiceInterface = (*fakeQueueService)(nil)
 
 
-
 func TestHandler_QUEUE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
@@ -74,7 +73,6 @@ func TestHandler_QUEUE_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_QUEUE_List(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -82,7 +80,6 @@ func TestHandler_QUEUE_List(t *testing.T) {
 	}
 }
 func TestHandler_QUEUE_Get(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -104,7 +101,6 @@ func TestHandler_QUEUE_Update(t *testing.T) {
 	}
 }
 func TestHandler_QUEUE_Delete(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

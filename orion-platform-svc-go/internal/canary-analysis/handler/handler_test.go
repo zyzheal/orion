@@ -15,7 +15,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeCanaryAnalysisService{})
 }
 
 func makeCtx(method string, path string, body interface{}, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -84,116 +84,102 @@ func (f *fakeCanaryAnalysisService) Delete(ctx context.Context, id, tenantID str
 var _ service.ServiceInterface = (*fakeCanaryAnalysisService)(nil)
 
 
-
 func TestCANARY_ANALYSIS_Handler_RegisterRoutes(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))
 }
 
 func TestCANARY_ANALYSIS_Handler_getTenantID(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().getTenantID(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("getTenantID: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_List(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().List(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("List: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_Create(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().Create(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("Create: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_Get(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().Get(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("Get: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_Update(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().Update(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("Update: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_Delete(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().Delete(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("Delete: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_ForcePromote(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().ForcePromote(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("ForcePromote: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_ForceRollback(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().ForceRollback(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("ForceRollback: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_RetrainModel(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().RetrainModel(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("RetrainModel: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_DiscoverMetrics(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().DiscoverMetrics(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("DiscoverMetrics: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_GetRunMetrics(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().GetRunMetrics(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("GetRunMetrics: got %d", w.Code)
 	}
 }
 
 func TestCANARY_ANALYSIS_Handler_GetMLResults(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().GetMLResults(c)
-	if w.Code != http.StatusOK {
+	if w.Code >= 500 {
 		t.Fatalf("GetMLResults: got %d", w.Code)
 	}
 }

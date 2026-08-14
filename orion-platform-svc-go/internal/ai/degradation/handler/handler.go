@@ -19,11 +19,11 @@ var _ = strconv.Itoa
 
 // Handler exposes HTTP endpoints for the AI Degradation module.
 type Handler struct {
-	svc *service.DegradationService
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(svc *service.DegradationService) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 

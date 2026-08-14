@@ -13,7 +13,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeOciRegistryService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -61,7 +61,6 @@ func (f *fakeOciRegistryService) Delete(ctx context.Context, tenantID, id string
 var _ service.ServiceInterface = (*fakeOciRegistryService)(nil)
 
 
-
 func TestHandler_OCI_REGISTRY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
@@ -74,7 +73,6 @@ func TestHandler_OCI_REGISTRY_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_OCI_REGISTRY_List(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -82,7 +80,6 @@ func TestHandler_OCI_REGISTRY_List(t *testing.T) {
 	}
 }
 func TestHandler_OCI_REGISTRY_Get(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -104,7 +101,6 @@ func TestHandler_OCI_REGISTRY_Update(t *testing.T) {
 	}
 }
 func TestHandler_OCI_REGISTRY_Delete(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -119,7 +115,6 @@ func TestHandler_OCI_REGISTRY_ToggleRegistry(t *testing.T) {
 	}
 }
 func TestHandler_OCI_REGISTRY_ListTags(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListTags(c)
 	if w.Code >= 500 {
@@ -127,7 +122,6 @@ func TestHandler_OCI_REGISTRY_ListTags(t *testing.T) {
 	}
 }
 func TestHandler_OCI_REGISTRY_DeleteImage(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteImage(c)
 	if w.Code >= 500 {

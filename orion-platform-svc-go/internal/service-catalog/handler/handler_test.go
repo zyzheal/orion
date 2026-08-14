@@ -13,7 +13,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeServiceCatalogService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -61,7 +61,6 @@ func (f *fakeServiceCatalogService) Delete(ctx context.Context, tenantID, id str
 var _ service.ServiceInterface = (*fakeServiceCatalogService)(nil)
 
 
-
 func TestHandler_SERVICE_CATALO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
@@ -74,7 +73,6 @@ func TestHandler_SERVICE_CATA_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_CATA_List(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -82,7 +80,6 @@ func TestHandler_SERVICE_CATA_List(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_CATA_Get(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -104,7 +101,6 @@ func TestHandler_SERVICE_CATA_Update(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_CATA_Delete(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -119,7 +115,6 @@ func TestHandler_SERVICE_CATA_UpdateRequestStatus(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_CATA_GetRequestTimeline(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRequestTimeline(c)
 	if w.Code >= 500 {
@@ -127,7 +122,6 @@ func TestHandler_SERVICE_CATA_GetRequestTimeline(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_CATA_GetSLABreaches(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetSLABreaches(c)
 	if w.Code >= 500 {

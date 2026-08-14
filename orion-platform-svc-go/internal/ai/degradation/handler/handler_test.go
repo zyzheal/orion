@@ -15,7 +15,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.DegradationService{})
+	return NewHandler(&fakeAiDegradationService{})
 }
 
 func makeCtx(method string, path string, body interface{}, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -84,14 +84,11 @@ func (f *fakeAiDegradationService) GetGlobalStatus(ctx context.Context, tenantID
 var _ service.ServiceInterface = (*fakeAiDegradationService)(nil)
 
 
-
 func TestAI_DEGRADATION_Handler_RegisterRoutes(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))
 }
 
 func TestAI_DEGRADATION_Handler_CreateConfig(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().CreateConfig(c)
 	if w.Code >= 500 {
@@ -100,7 +97,6 @@ func TestAI_DEGRADATION_Handler_CreateConfig(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_GetConfig(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().GetConfig(c)
 	if w.Code >= 500 {
@@ -109,7 +105,6 @@ func TestAI_DEGRADATION_Handler_GetConfig(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_ListConfigs(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().ListConfigs(c)
 	if w.Code >= 500 {
@@ -118,7 +113,6 @@ func TestAI_DEGRADATION_Handler_ListConfigs(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_UpdateConfig(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().UpdateConfig(c)
 	if w.Code >= 500 {
@@ -127,7 +121,6 @@ func TestAI_DEGRADATION_Handler_UpdateConfig(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_DeleteConfig(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().DeleteConfig(c)
 	if w.Code >= 500 {
@@ -136,7 +129,6 @@ func TestAI_DEGRADATION_Handler_DeleteConfig(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_EnableConfig(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().EnableConfig(c)
 	if w.Code >= 500 {
@@ -145,7 +137,6 @@ func TestAI_DEGRADATION_Handler_EnableConfig(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_DisableConfig(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().DisableConfig(c)
 	if w.Code >= 500 {
@@ -154,7 +145,6 @@ func TestAI_DEGRADATION_Handler_DisableConfig(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_TriggerDegradation(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().TriggerDegradation(c)
 	if w.Code >= 500 {
@@ -163,7 +153,6 @@ func TestAI_DEGRADATION_Handler_TriggerDegradation(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_RecoverService(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().RecoverService(c)
 	if w.Code >= 500 {
@@ -172,7 +161,6 @@ func TestAI_DEGRADATION_Handler_RecoverService(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_GetHistory(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().GetHistory(c)
 	if w.Code >= 500 {
@@ -181,7 +169,6 @@ func TestAI_DEGRADATION_Handler_GetHistory(t *testing.T) {
 }
 
 func TestAI_DEGRADATION_Handler_GetGlobalStatus(t *testing.T) {
-	t.Skip("handler panics on empty data")
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().GetGlobalStatus(c)
 	if w.Code >= 500 {
