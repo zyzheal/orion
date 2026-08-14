@@ -10,6 +10,7 @@ const (
 	ActionTriggerPipeline ActionKind = "trigger_pipeline"
 	ActionCreateChange    ActionKind = "create_change"
 	ActionSuggestCommand  ActionKind = "suggest_command"
+	ActionGenerateFlow    ActionKind = "generate_flow"
 )
 
 // ActionRequest asks the assistant to EXECUTE a workflow action, not just recall.

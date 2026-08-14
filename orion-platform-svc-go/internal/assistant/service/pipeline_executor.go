@@ -165,3 +165,85 @@ func (e *OpsCommandExecutor) Execute(ctx context.Context, tenantID string, req *
 
 	return result, nil
 }
+
+// --- LowcodeGeneratorExecutor (ActionGenerateFlow, TR-10) ---
+
+// FlowGenerator adapts the lowcode service for AI-generated flow creation.
+type FlowGenerator interface {
+	Generate(ctx context.Context, tenantID string, prompt string, workflowName string) (*FlowGenResult, error)
+}
+
+// FlowGenResult is the normalized result of AI flow generation.
+type FlowGenResult struct {
+	ID          string
+	Name        string
+	Description string
+	Nodes       string
+	Edges       string
+	Intent      string
+}
+
+type LowcodeGeneratorExecutor struct {
+	generator FlowGenerator
+}
+
+func NewLowcodeGeneratorExecutor(generator FlowGenerator) *LowcodeGeneratorExecutor {
+	return &LowcodeGeneratorExecutor{generator: generator}
+}
+
+func (e *LowcodeGeneratorExecutor) Kind() models.ActionKind {
+	return models.ActionGenerateFlow
+}
+
+func (e *LowcodeGeneratorExecutor) Execute(ctx context.Context, tenantID string, req *models.ActionRequest) (*models.ActionResult, error) {
+	if e.generator == nil {
+		return &models.ActionResult{
+			Kind:    models.ActionGenerateFlow,
+			Status:  "unsupported",
+			Summary: "未配置 LowCode AI 生成器",
+		}, nil
+	}
+
+	workflowName := ""
+	if req.Title != "" {
+		workflowName = req.Title
+	}
+	if p := req.Metadata; p != nil {
+		if v, ok := p["workflowName"].(string); ok && v != "" {
+			workflowName = v
+		}
+	}
+
+	ref, err := e.generator.Generate(ctx, tenantID, req.Prompt, workflowName)
+	if err != nil {
+		return &models.ActionResult{
+			Kind:    models.ActionGenerateFlow,
+			Status:  "executed",
+			Summary: fmt.Sprintf("流程生成失败：%s", err.Error()),
+			Steps:   []string{"识别意图：AI 生成流程"},
+			Error:   err.Error(),
+		}, nil
+	}
+
+	nodesJSON, _ := json.Marshal(ref.Nodes)
+
+	result := &models.ActionResult{
+		Kind:       models.ActionGenerateFlow,
+		Status:     "executed",
+		Summary:    fmt.Sprintf("已生成流程：%s (意图=%s)", ref.Name, ref.Intent),
+		EntityID:   ref.ID,
+		EntityName: ref.Name,
+		Steps: []string{
+			"识别意图：AI 生成流程",
+			fmt.Sprintf("流程名称: %s", ref.Name),
+			fmt.Sprintf("意图分类: %s", ref.Intent),
+			"已构建节点/连线定义",
+		},
+		Metadata: map[string]interface{}{
+			"intent": ref.Intent,
+			"nodes":  string(nodesJSON),
+			"edges":  ref.Edges,
+		},
+	}
+	return result, nil
+}

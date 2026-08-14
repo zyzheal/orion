@@ -12,6 +12,7 @@ func Test_ResolveActionKind_Explicit(t *testing.T) {
 		models.ActionCreateTicket:   "create_ticket",
 		models.ActionTriggerPipeline: "trigger_pipeline",
 		models.ActionCreateChange:   "create_change",
+		models.ActionGenerateFlow:   "generate_flow",
 	}
 	for want, given := range cases {
 		req := &models.ActionRequest{Prompt: "x", Kind: given}
@@ -33,6 +34,26 @@ func Test_ResolveActionKind_Auto(t *testing.T) {
 		{"发起变更申请", models.ActionCreateChange},
 		{"例行变更上线", models.ActionCreateChange},
 		{"undefined 请求", models.ActionCreateTicket},
+	}
+	for _, c := range cases {
+		req := &models.ActionRequest{Prompt: c.prompt}
+		if got := resolveActionKind(req); got != c.want {
+			t.Errorf("resolveActionKind(%q) = %s, want %s", c.prompt, got, c.want)
+		}
+	}
+}
+
+func Test_ResolveActionKind_TR10FlowGeneration(t *testing.T) {
+	cases := []struct {
+		prompt string
+		want   models.ActionKind
+	}{
+		{"帮我创建一个审批流程", models.ActionGenerateFlow},
+		{"发布服务到生产环境的流程", models.ActionGenerateFlow},
+		{"数据同步 ETL 流程", models.ActionGenerateFlow},
+		{"定时任务 cron 调度流程", models.ActionGenerateFlow},
+		{"ops CPU 高排查命令", models.ActionSuggestCommand},
+		{"触发研发流程 agent run", models.ActionTriggerPipeline},
 	}
 	for _, c := range cases {
 		req := &models.ActionRequest{Prompt: c.prompt}

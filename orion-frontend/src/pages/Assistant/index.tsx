@@ -30,6 +30,7 @@ import {
   ThunderboltOutlined,
   PlayCircleOutlined,
   CloudServerOutlined,
+  FunnelPlotOutlined,
 } from '@ant-design/icons';
 import {
   assistantAsk,
@@ -78,7 +79,7 @@ const AssistantPage: React.FC = () => {
   const [actionKind, setActionKind] = useState<'trigger_pipeline' | 'suggest_command' | 'auto'>('auto');
   const [actionTitle, setActionTitle] = useState('');
 
-  const handleAction = async (kind: 'trigger_pipeline' | 'suggest_command') => {
+  const handleAction = async (kind: 'trigger_pipeline' | 'suggest_command' | 'generate_flow') => {
     const prompt = actionPrompt.trim();
     if (!prompt) {
       message.warning('请输入操作描述');
@@ -449,7 +450,7 @@ const AssistantPage: React.FC = () => {
                       <Input.TextArea
                         value={actionPrompt}
                         onChange={(e) => setActionPrompt(e.target.value)}
-                        placeholder="例如：帮我触发一次支付服务的发布流水线；建议我执行什么命令来排查 CPU 高的问题"
+                        placeholder="例如：帮我触发一次支付服务的发布流水线；创建审批流程；建议我执行什么命令来排查 CPU 高的问题"
                         rows={3}
                         disabled={actionLoading}
                       />
@@ -481,6 +482,15 @@ const AssistantPage: React.FC = () => {
                       style={{ backgroundColor: colors.info[500], borderColor: colors.info[500] }}
                     >
                       Ops 问答助手 (TR-11)
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<FunnelPlotOutlined />}
+                      loading={actionLoading}
+                      onClick={() => handleAction('generate_flow')}
+                      style={{ backgroundColor: colors.magenta?.[500] || '#EB2F96', borderColor: colors.magenta?.[500] || '#EB2F96' }}
+                    >
+                      AI 生成流程 (TR-10)
                     </Button>
                   </Space>
                   {actionResult && (
