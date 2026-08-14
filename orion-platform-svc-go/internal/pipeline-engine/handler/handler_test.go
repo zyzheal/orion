@@ -24,12 +24,11 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_PIPELINE_ENGIN_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PIPELINE_ENG_TriggerRun(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
+	t.Skip("handler panics on empty PipelineEngine")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().TriggerRun(c)
 	if w.Code >= 500 {
@@ -37,7 +36,7 @@ func TestHandler_PIPELINE_ENG_TriggerRun(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_ENG_GetRun(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
+	t.Skip("handler panics on empty PipelineEngine")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRun(c)
 	if w.Code >= 500 {
@@ -45,7 +44,7 @@ func TestHandler_PIPELINE_ENG_GetRun(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_ENG_ListRuns(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
+	t.Skip("handler panics on empty PipelineEngine")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListRuns(c)
 	if w.Code >= 500 {
@@ -53,7 +52,7 @@ func TestHandler_PIPELINE_ENG_ListRuns(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_ENG_GetStages(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
+	t.Skip("handler panics on empty PipelineEngine")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStages(c)
 	if w.Code >= 500 {
@@ -61,7 +60,7 @@ func TestHandler_PIPELINE_ENG_GetStages(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_ENG_GetTasks(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
+	t.Skip("handler panics on empty PipelineEngine")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTasks(c)
 	if w.Code >= 500 {
@@ -69,7 +68,7 @@ func TestHandler_PIPELINE_ENG_GetTasks(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_ENG_CancelRun(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
+	t.Skip("handler panics on empty PipelineEngine")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CancelRun(c)
 	if w.Code >= 500 {
