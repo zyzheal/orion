@@ -154,7 +154,6 @@ func makeDeployment(id string) *models.Deployment {
 // ==================== Create ====================
 
 func TestHandler_Create_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	d := makeDeployment("d1")
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error) {
@@ -168,7 +167,6 @@ func TestHandler_Create_Success(t *testing.T) {
 }
 
 func TestHandler_Create_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.Create, "POST", models.CreateDeploymentRequest{AppName: "app"}, nil, nil)
 	if w.Code != http.StatusBadRequest {
@@ -177,7 +175,6 @@ func TestHandler_Create_BadRequest(t *testing.T) {
 }
 
 func TestHandler_Create_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error) {
 			return nil, errors.New("db err")
@@ -192,7 +189,6 @@ func TestHandler_Create_ServiceError(t *testing.T) {
 // ==================== Get ====================
 
 func TestHandler_Get_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	d := makeDeployment("d1")
 	h := newHandlerWithSvc(&mockSvc{
 		getFn: func(ctx context.Context, tenantID, id string) (*models.Deployment, error) { return d, nil },
@@ -204,7 +200,6 @@ func TestHandler_Get_Success(t *testing.T) {
 }
 
 func TestHandler_Get_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getFn: func(ctx context.Context, tenantID, id string) (*models.Deployment, error) {
 			return nil, errors.New("not found")
@@ -219,7 +214,6 @@ func TestHandler_Get_NotFound(t *testing.T) {
 // ==================== List ====================
 
 func TestHandler_List_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	d := []models.Deployment{*makeDeployment("d1")}
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(ctx context.Context, tenantID string, limit, offset int) ([]models.Deployment, error) {
@@ -233,7 +227,6 @@ func TestHandler_List_Success(t *testing.T) {
 }
 
 func TestHandler_List_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(ctx context.Context, tenantID string, limit, offset int) ([]models.Deployment, error) {
 			return nil, errors.New("db down")
@@ -248,7 +241,6 @@ func TestHandler_List_ServiceError(t *testing.T) {
 // ==================== GetLatest ====================
 
 func TestHandler_GetLatest_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	d := makeDeployment("d1")
 	h := newHandlerWithSvc(&mockSvc{
 		getLatestFn: func(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error) {
@@ -262,7 +254,6 @@ func TestHandler_GetLatest_Success(t *testing.T) {
 }
 
 func TestHandler_GetLatest_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getLatestFn: func(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error) {
 			return nil, errors.New("not found")
@@ -277,7 +268,6 @@ func TestHandler_GetLatest_NotFound(t *testing.T) {
 // ==================== GetMetrics ====================
 
 func TestHandler_GetMetrics_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	m := &models.DeploymentMetrics{Total: 5}
 	h := newHandlerWithSvc(&mockSvc{
 		metricsFn: func(ctx context.Context, tenantID string) (*models.DeploymentMetrics, error) { return m, nil },
@@ -291,7 +281,6 @@ func TestHandler_GetMetrics_Success(t *testing.T) {
 // ==================== Rollback ====================
 
 func TestHandler_Rollback_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	rb := &models.Rollback{ID: "rb1", ToVersion: "v0"}
 	h := newHandlerWithSvc(&mockSvc{
 		rollbackFn: func(ctx context.Context, tenantID, id string, targetVersion, reason string) (*models.Rollback, error) {
@@ -305,7 +294,6 @@ func TestHandler_Rollback_Success(t *testing.T) {
 }
 
 func TestHandler_Rollback_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 	// Send raw JSON with invalid content-type to trigger parsing
 	buf := bytes.NewBufferString(`not json at all`)
@@ -324,7 +312,6 @@ func TestHandler_Rollback_BadRequest(t *testing.T) {
 }
 
 func TestHandler_Rollback_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		rollbackFn: func(ctx context.Context, tenantID, id string, targetVersion, reason string) (*models.Rollback, error) {
 			return nil, errors.New("db err")
@@ -339,7 +326,6 @@ func TestHandler_Rollback_ServiceError(t *testing.T) {
 // ==================== Cancel ====================
 
 func TestHandler_Cancel_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		cancelFn: func(ctx context.Context, tenantID, id string) error { return nil },
 	})
@@ -350,7 +336,6 @@ func TestHandler_Cancel_Success(t *testing.T) {
 }
 
 func TestHandler_Cancel_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		cancelFn: func(ctx context.Context, tenantID, id string) error { return errors.New("db err") },
 	})
@@ -363,7 +348,6 @@ func TestHandler_Cancel_ServiceError(t *testing.T) {
 // ==================== GetAuditTrail ====================
 
 func TestHandler_GetAuditTrail_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	entries := []models.AuditEntry{{ID: 1, DeploymentID: "d1", Action: "create"}}
 	h := newHandlerWithSvc(&mockSvc{
 		getAuditTrailFn: func(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) { return entries, nil },
@@ -377,7 +361,6 @@ func TestHandler_GetAuditTrail_Success(t *testing.T) {
 // ==================== GetReleaseNotes ====================
 
 func TestHandler_GetReleaseNotes_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	note := &models.ReleaseNote{ID: "n1", DeploymentID: "d1", Content: "changelog"}
 	h := newHandlerWithSvc(&mockSvc{
 		getReleaseNotesFn: func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) { return note, nil },
@@ -389,7 +372,6 @@ func TestHandler_GetReleaseNotes_Success(t *testing.T) {
 }
 
 func TestHandler_GetReleaseNotes_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getReleaseNotesFn: func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) {
 			return nil, errors.New("not found")
@@ -404,7 +386,6 @@ func TestHandler_GetReleaseNotes_NotFound(t *testing.T) {
 // ==================== LinkGitCommit ====================
 
 func TestHandler_LinkGitCommit_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		linkGitCommitFn: func(ctx context.Context, deploymentID, commitSHA, branch string) error { return nil },
 	})
@@ -415,7 +396,6 @@ func TestHandler_LinkGitCommit_Success(t *testing.T) {
 }
 
 func TestHandler_LinkGitCommit_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.LinkGitCommit, "POST", map[string]interface{}{"bad": "data"}, map[string]string{"id": "d1"}, nil)
 	if w.Code != http.StatusBadRequest {
@@ -426,7 +406,6 @@ func TestHandler_LinkGitCommit_BadRequest(t *testing.T) {
 // ==================== GetDeploymentChangelog ====================
 
 func TestHandler_GetDeploymentChangelog_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	entries := []models.GitChangelogEntry{{CommitSHA: "abc", Message: "fix"}}
 	h := newHandlerWithSvc(&mockSvc{
 		getDeploymentChangelogFn: func(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error) {

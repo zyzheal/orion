@@ -142,7 +142,6 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 // ==================== Reports ====================
 
 func TestHandler_GetReports_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	report := &eff_models.EfficiencyReport{ReportID: "r-1", TotalPipelineRuns: 5}
 	svc := &mockSvc{
 		generateReportFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) (*eff_models.EfficiencyReport, error) {
@@ -157,7 +156,6 @@ func TestHandler_GetReports_Success(t *testing.T) {
 }
 
 func TestHandler_GetReports_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := &mockSvc{
 		generateReportFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) (*eff_models.EfficiencyReport, error) {
 			return nil, errors.New("db error")
@@ -171,7 +169,6 @@ func TestHandler_GetReports_Error(t *testing.T) {
 }
 
 func TestHandler_GetReportHistory_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	reports := []*eff_models.EfficiencyReport{{ReportID: "r-1"}}
 	svc := &mockSvc{
 		getReportHistoryFn: func(ctx context.Context, tenantID string, limit int) ([]*eff_models.EfficiencyReport, error) {
@@ -186,7 +183,6 @@ func TestHandler_GetReportHistory_Success(t *testing.T) {
 }
 
 func TestHandler_GetReportHistory_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := &mockSvc{
 		getReportHistoryFn: func(ctx context.Context, tenantID string, limit int) ([]*eff_models.EfficiencyReport, error) {
 			return nil, errors.New("db down")
@@ -202,7 +198,6 @@ func TestHandler_GetReportHistory_Error(t *testing.T) {
 // ==================== Team / Project Metrics ====================
 
 func TestHandler_GetTeamMetrics_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	metrics := &eff_models.TeamMetrics{TeamID: "team-a", SuccessRate: 100.0}
 	svc := &mockSvc{
 		getTeamMetricsFn: func(ctx context.Context, tenantID, teamID string) (*eff_models.TeamMetrics, error) {
@@ -217,7 +212,6 @@ func TestHandler_GetTeamMetrics_Success(t *testing.T) {
 }
 
 func TestHandler_GetTeamMetrics_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := &mockSvc{
 		getTeamMetricsFn: func(ctx context.Context, tenantID, teamID string) (*eff_models.TeamMetrics, error) {
 			return nil, errors.New("db error")
@@ -231,7 +225,6 @@ func TestHandler_GetTeamMetrics_Error(t *testing.T) {
 }
 
 func TestHandler_GetTeamMetrics_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := &mockSvc{getTeamMetricsFn: func(ctx context.Context, tenantID, teamID string) (*eff_models.TeamMetrics, error) { return nil, nil }}
 	h := newHandlerWithSvc(svc)
 	// Empty teamId => BadRequest
@@ -242,7 +235,6 @@ func TestHandler_GetTeamMetrics_BadRequest(t *testing.T) {
 }
 
 func TestHandler_GetProjectMetrics_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	metrics := &eff_models.ProjectMetrics{ProjectID: "p-1", CommitCount: 42}
 	svc := &mockSvc{
 		getProjectMetricsFn: func(ctx context.Context, tenantID, projectID string) (*eff_models.ProjectMetrics, error) {
@@ -257,7 +249,6 @@ func TestHandler_GetProjectMetrics_Success(t *testing.T) {
 }
 
 func TestHandler_GetAllTeams_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	teams := []eff_models.TeamInfo{{TeamID: "platform", TeamName: "Platform"}}
 	svc := &mockSvc{
 		getAllTeamsFn: func(ctx context.Context, tenantID string) []eff_models.TeamInfo {
@@ -274,7 +265,6 @@ func TestHandler_GetAllTeams_Success(t *testing.T) {
 // ==================== Period Comparison ====================
 
 func TestHandler_ComparePeriods_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	now := time.Now().UTC()
 	result := &eff_models.PeriodComparisonResult{
 		PeriodA: eff_models.PeriodMetrics{Label: "A"},
@@ -297,7 +287,6 @@ func TestHandler_ComparePeriods_Success(t *testing.T) {
 }
 
 func TestHandler_ComparePeriods_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := &mockSvc{}
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.ComparePeriods, "POST", eff_models.ComparePeriodsRequest{}, nil, nil)
@@ -309,7 +298,6 @@ func TestHandler_ComparePeriods_BadRequest(t *testing.T) {
 // ==================== DORA ====================
 
 func TestHandler_GetAllDORA_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	dora := &eff_models.AllDORAResult{ComputedAt: time.Now().UTC()}
 	svc := &mockSvc{
 		getAllDORAFn: func(ctx context.Context, tenantID string, deployments []eff_models.DeploymentRecord, pipelines []eff_models.PipelineCompletionRecord, incidents []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.AllDORAResult, error) {
@@ -324,7 +312,6 @@ func TestHandler_GetAllDORA_Success(t *testing.T) {
 }
 
 func TestHandler_GetDORATrend_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	trend := &eff_models.DORATrendResult{Current: eff_models.AllDORAResult{}}
 	svc := &mockSvc{
 		getDORATrendFn: func(ctx context.Context, tenantID string, deployments []eff_models.DeploymentRecord, pipelines []eff_models.PipelineCompletionRecord, incidents []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.DORATrendResult, error) {
@@ -341,7 +328,6 @@ func TestHandler_GetDORATrend_Success(t *testing.T) {
 // ==================== Dashboard ====================
 
 func TestHandler_GetDashboard_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	dash := &eff_models.DashboardData{DORA: eff_models.DashboardDORA{DeploymentFrequency: 2.5}}
 	svc := &mockSvc{
 		getDashboardDataFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) *eff_models.DashboardData {
@@ -358,7 +344,6 @@ func TestHandler_GetDashboard_Success(t *testing.T) {
 // ==================== Trends ====================
 
 func TestHandler_GetTrends_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	snapshots := []eff_models.HistoricalSnapshotWeek{{Week: "7/1"}}
 	svc := &mockSvc{
 		getHistoricalSnapshotsFn: func(ctx context.Context, tenantID string, weeks int) ([]eff_models.HistoricalSnapshotWeek, error) {
@@ -373,7 +358,6 @@ func TestHandler_GetTrends_Success(t *testing.T) {
 }
 
 func TestHandler_GetTrends_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := &mockSvc{
 		getHistoricalSnapshotsFn: func(ctx context.Context, tenantID string, weeks int) ([]eff_models.HistoricalSnapshotWeek, error) {
 			return nil, errors.New("db error")
@@ -389,7 +373,6 @@ func TestHandler_GetTrends_Error(t *testing.T) {
 // ==================== Bottlenecks ====================
 
 func TestHandler_GetBottlenecks_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	bns := []eff_models.Bottleneck{{ID: "bn-001"}}
 	svc := &mockSvc{
 		getBottlenecksFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) []eff_models.Bottleneck {
@@ -406,7 +389,6 @@ func TestHandler_GetBottlenecks_Success(t *testing.T) {
 // ==================== Developer Profiles ====================
 
 func TestHandler_GetDeveloperProfiles_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	profiles := []eff_models.DeveloperProfile{{ID: "dev-1"}}
 	svc := &mockSvc{
 		getDeveloperProfilesFn: func(ctx context.Context, tenantID string) []eff_models.DeveloperProfile {

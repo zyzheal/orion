@@ -225,7 +225,6 @@ func TestHandler_GetFlow(t *testing.T) {
 }
 
 func TestHandler_GetFlow_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := newMockSvc()
 	h := NewHandler(svc)
 
@@ -274,7 +273,6 @@ func TestHandler_ExecuteFlow(t *testing.T) {
 }
 
 func TestHandler_ExecuteFlow_NotEnabled(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	svc := newMockSvc()
 	svc.flows["flow-1"] = &models.LowcodeFlow{ID: "flow-1", Enabled: false}
 	h := NewHandler(svc)

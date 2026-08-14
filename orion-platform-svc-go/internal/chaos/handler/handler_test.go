@@ -85,7 +85,6 @@ func TestService_IsNotFound_Wrapped(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Create_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments", "invalid json")
 	h := &Handler{}
 	defer func() {
@@ -101,7 +100,6 @@ func TestHandler_Create_BadRequest(t *testing.T) {
 }
 
 func TestHandler_Create_MissingRequiredFields(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments", map[string]string{})
 	h := &Handler{}
 	defer func() {
@@ -117,7 +115,6 @@ func TestHandler_Create_MissingRequiredFields(t *testing.T) {
 }
 
 func TestHandler_Create_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments", map[string]string{
 		"name": "test", "scope": "app", "faults": "cpu",
 	})
@@ -136,7 +133,6 @@ func TestHandler_Create_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Get_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	// Pass empty JSON body to avoid nil buffer in httptest.NewRequest (Go 1.25+).
 	c := requestWithBody("GET", "/chaos/experiments/exp-1", map[string]string{})
 	h := &Handler{svc: nil}
@@ -153,7 +149,6 @@ func TestHandler_Get_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_List_QueryParams(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -177,7 +172,6 @@ func TestHandler_List_QueryParams(t *testing.T) {
 }
 
 func TestHandler_List_DefaultQueryParams(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -201,7 +195,6 @@ func TestHandler_List_DefaultQueryParams(t *testing.T) {
 }
 
 func TestHandler_List_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("GET", "/chaos/experiments", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -217,7 +210,6 @@ func TestHandler_List_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Update_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("PUT", "/chaos/experiments/exp-1", "invalid json")
 	h := &Handler{}
 	defer func() {
@@ -233,7 +225,6 @@ func TestHandler_Update_BadRequest(t *testing.T) {
 }
 
 func TestHandler_Update_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("PUT", "/chaos/experiments/exp-1", map[string]interface{}{"name": "updated"})
 	h := &Handler{svc: nil}
 	defer func() {
@@ -270,7 +261,6 @@ func TestHandler_RunRequestBinding(t *testing.T) {
 }
 
 func TestHandler_Run_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments/exp-1/run", map[string]string{
 		"target": "test-target", "environment": "staging", "reason": "test run",
 	})
@@ -288,7 +278,6 @@ func TestHandler_Run_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Activate_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments/exp-1/activate", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -300,7 +289,6 @@ func TestHandler_Activate_NilService(t *testing.T) {
 }
 
 func TestHandler_Archive_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments/exp-1/archive", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -316,7 +304,6 @@ func TestHandler_Archive_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_GetRun_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("GET", "/chaos/runs/run-1", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -328,7 +315,6 @@ func TestHandler_GetRun_NilService(t *testing.T) {
 }
 
 func TestHandler_RollbackRun_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/runs/run-1/rollback", map[string]string{"reason": "manual rollback"})
 	h := &Handler{svc: nil}
 	defer func() {
@@ -344,7 +330,6 @@ func TestHandler_RollbackRun_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_CpuSpike_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/inject/cpu-spike", "invalid json")
 	h := &Handler{}
 	defer func() {
@@ -360,7 +345,6 @@ func TestHandler_CpuSpike_BadRequest(t *testing.T) {
 }
 
 func TestHandler_MemoryLeak_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/inject/memory-leak", map[string]string{})
 	h := &Handler{}
 	defer func() {
@@ -376,7 +360,6 @@ func TestHandler_MemoryLeak_BadRequest(t *testing.T) {
 }
 
 func TestHandler_NetworkLatency_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/inject/network-latency", map[string]string{
 		"target": "svc-a", "config": "latency=50ms",
 	})
@@ -390,7 +373,6 @@ func TestHandler_NetworkLatency_NilService(t *testing.T) {
 }
 
 func TestHandler_ServiceDown_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/inject/service-down", map[string]string{
 		"target": "svc-a", "config": "timeout=30s",
 	})
@@ -408,7 +390,6 @@ func TestHandler_ServiceDown_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Recover_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/recover/exp-1", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -420,7 +401,6 @@ func TestHandler_Recover_NilService(t *testing.T) {
 }
 
 func TestHandler_ValidateRecovery_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/validate-recovery/exp-1", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -432,7 +412,6 @@ func TestHandler_ValidateRecovery_NilService(t *testing.T) {
 }
 
 func TestHandler_RecoveryReport_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("GET", "/chaos/recovery-report/exp-1", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -448,7 +427,6 @@ func TestHandler_RecoveryReport_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_PreReleaseVerify_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/pre-release-verify", map[string]string{})
 	h := &Handler{}
 	defer func() {
@@ -464,7 +442,6 @@ func TestHandler_PreReleaseVerify_BadRequest(t *testing.T) {
 }
 
 func TestHandler_PreReleaseVerify_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/pre-release-verify", map[string]string{
 		"service_id": "svc-a", "environment": "staging",
 	})
@@ -482,7 +459,6 @@ func TestHandler_PreReleaseVerify_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_GetRunning_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("GET", "/chaos/experiments-running", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -791,7 +767,6 @@ func TestRespondSuccess_EnvelopeFormat(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Get_ExtractsParams(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -811,7 +786,6 @@ func TestHandler_Get_ExtractsParams(t *testing.T) {
 }
 
 func TestHandler_Run_ExtractsRunId(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -875,7 +849,6 @@ func TestHandler_ContextPropagation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_Create_EmptyJSON(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/experiments", `{}`)
 	h := &Handler{}
 	defer func() {
@@ -891,7 +864,6 @@ func TestHandler_Create_EmptyJSON(t *testing.T) {
 }
 
 func TestHandler_Update_EmptyJSON(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("PUT", "/chaos/experiments/exp-1", `{}`)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -904,7 +876,6 @@ func TestHandler_Update_EmptyJSON(t *testing.T) {
 }
 
 func TestHandler_GetRun_ExtractsRunId(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -943,7 +914,6 @@ func TestHandler_Lifecycle(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_GetRun_NilService_ResponseBody(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("GET", "/chaos/runs/run-1", nil)
 	h := &Handler{svc: nil}
 	defer func() {
@@ -960,7 +930,6 @@ func TestHandler_GetRun_NilService_ResponseBody(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_CpuSpike_ValidJSON_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/inject/cpu-spike", map[string]string{
 		"target": "pod-abc123",
 		"config": `{"cpu": 100, "duration": 30}`,
@@ -975,7 +944,6 @@ func TestHandler_CpuSpike_ValidJSON_NilService(t *testing.T) {
 }
 
 func TestHandler_ServiceDown_ValidJSON_NilService(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/inject/service-down", map[string]string{
 		"target": "pod-abc123",
 		"config": `{"service": "api", "duration": 60}`,
@@ -994,7 +962,6 @@ func TestHandler_ServiceDown_ValidJSON_NilService(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_PreReleaseVerify_EmptyJSON(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c := requestWithBody("POST", "/chaos/pre-release-verify", `{}`)
 	h := &Handler{}
 	defer func() {

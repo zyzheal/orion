@@ -138,7 +138,6 @@ func performSBOMRequest(h *Handler, method, path string, body interface{}, heade
 // --- Tests ---
 
 func TestHandler_ListSBOMs_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		listSBOMsFn: func(_ context.Context, tenantID string, q *models.ListQuery) ([]models.SBOMDocument, int, error) {
 			return []models.SBOMDocument{{ID: "sbom-1", Name: "my-app"}}, 1, nil
@@ -151,7 +150,6 @@ func TestHandler_ListSBOMs_Success(t *testing.T) {
 }
 
 func TestHandler_ListSBOMs_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		listSBOMsFn: func(_ context.Context, _ string, _ *models.ListQuery) ([]models.SBOMDocument, int, error) {
 			return nil, 0, service.ErrSBOMNotFound
@@ -164,7 +162,6 @@ func TestHandler_ListSBOMs_Error(t *testing.T) {
 }
 
 func TestHandler_GenerateSBOM_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		generateSBOMFn: func(_ context.Context, _ *models.GenerateSBOMRequest, _ string) (*models.SBOMDocument, error) {
 			return &models.SBOMDocument{ID: "sbom-1", Name: "app"}, nil
@@ -179,7 +176,6 @@ func TestHandler_GenerateSBOM_Success(t *testing.T) {
 }
 
 func TestHandler_GenerateSBOM_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{})
 	w := performSBOMRequest(h, "POST", "/sbom", "invalid json", map[string]string{"X-Tenant-ID": "t1"})
 	if w.Code != http.StatusBadRequest {
@@ -188,7 +184,6 @@ func TestHandler_GenerateSBOM_BadRequest(t *testing.T) {
 }
 
 func TestHandler_GenerateSBOM_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		generateSBOMFn: func(_ context.Context, _ *models.GenerateSBOMRequest, _ string) (*models.SBOMDocument, error) {
 			return nil, service.ErrSBOMNotFound
@@ -203,7 +198,6 @@ func TestHandler_GenerateSBOM_Error(t *testing.T) {
 }
 
 func TestHandler_GetSBOM_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		getSBOMFn: func(_ context.Context, id string, tenantID string) (*models.SBOMDocument, error) {
 			return &models.SBOMDocument{ID: id, Name: "my-app"}, nil
@@ -216,7 +210,6 @@ func TestHandler_GetSBOM_Success(t *testing.T) {
 }
 
 func TestHandler_GetSBOM_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		getSBOMFn: func(_ context.Context, _ string, _ string) (*models.SBOMDocument, error) {
 			return nil, service.ErrSBOMNotFound
@@ -229,7 +222,6 @@ func TestHandler_GetSBOM_NotFound(t *testing.T) {
 }
 
 func TestHandler_DeleteSBOM_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		deleteSBOMFn: func(_ context.Context, _ string, _ string) (bool, error) {
 			return true, nil
@@ -242,7 +234,6 @@ func TestHandler_DeleteSBOM_Success(t *testing.T) {
 }
 
 func TestHandler_DeleteSBOM_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		deleteSBOMFn: func(_ context.Context, _ string, _ string) (bool, error) {
 			return false, nil
@@ -255,7 +246,6 @@ func TestHandler_DeleteSBOM_NotFound(t *testing.T) {
 }
 
 func TestHandler_ListComponents_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		listComponentsFn: func(_ context.Context, _ string, _ string, _, _ int) ([]models.SBOMComponent, int, error) {
 			return []models.SBOMComponent{{ID: "comp-1", Name: "express"}}, 1, nil
@@ -268,7 +258,6 @@ func TestHandler_ListComponents_Success(t *testing.T) {
 }
 
 func TestHandler_ListVulnerabilities_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		listVulnsFn: func(_ context.Context, _ string, _ string, _ *string, _, _ int) ([]models.Vulnerability, int, error) {
 			return []models.Vulnerability{{ID: "v1", CVEID: "CVE-2023-001"}}, 1, nil
@@ -281,7 +270,6 @@ func TestHandler_ListVulnerabilities_Success(t *testing.T) {
 }
 
 func TestHandler_ScanSBOM_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		scanSBOMFn: func(_ context.Context, _ string, _ string, _ *models.ScanRequest) (*models.SBOMDocument, error) {
 			return &models.SBOMDocument{ID: "sbom-1", Status: models.StatusScanned}, nil
@@ -294,7 +282,6 @@ func TestHandler_ScanSBOM_Success(t *testing.T) {
 }
 
 func TestHandler_ScanSBOM_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		scanSBOMFn: func(_ context.Context, _ string, _ string, _ *models.ScanRequest) (*models.SBOMDocument, error) {
 			return nil, service.ErrSBOMNotFound
@@ -307,7 +294,6 @@ func TestHandler_ScanSBOM_NotFound(t *testing.T) {
 }
 
 func TestHandler_GetLicenses_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		getLicensesFn: func(_ context.Context, _ string, _ string) ([]models.LicenseInfo, error) {
 			return []models.LicenseInfo{{ID: "mit", Name: "MIT"}}, nil
@@ -320,7 +306,6 @@ func TestHandler_GetLicenses_Success(t *testing.T) {
 }
 
 func TestHandler_ListAttestations_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		listAttestationsFn: func(_ context.Context, _ string, _ string) ([]models.SBOMAttestation, error) {
 			return []models.SBOMAttestation{{ID: "att-1"}}, nil
@@ -333,7 +318,6 @@ func TestHandler_ListAttestations_Success(t *testing.T) {
 }
 
 func TestHandler_CreateAttestation_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		createAttestationFn: func(_ context.Context, _ string, _ string, _ *models.CreateAttestationRequest) (*models.SBOMAttestation, error) {
 			return &models.SBOMAttestation{ID: "att-1"}, nil
@@ -348,7 +332,6 @@ func TestHandler_CreateAttestation_Success(t *testing.T) {
 }
 
 func TestHandler_CreateAttestation_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{})
 	w := performSBOMRequest(h, "POST", "/sbom/sbom-1/attestation", "invalid json", map[string]string{"X-Tenant-ID": "t1"})
 	if w.Code != http.StatusBadRequest {
@@ -357,7 +340,6 @@ func TestHandler_CreateAttestation_BadRequest(t *testing.T) {
 }
 
 func TestHandler_CreateAttestation_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		createAttestationFn: func(_ context.Context, _ string, _ string, _ *models.CreateAttestationRequest) (*models.SBOMAttestation, error) {
 			return nil, service.ErrSBOMNotFound
@@ -372,7 +354,6 @@ func TestHandler_CreateAttestation_NotFound(t *testing.T) {
 }
 
 func TestHandler_ExportSBOM_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		exportSBOMFn: func(_ context.Context, _ string, _ string, _ string) (*models.ExportResponse, error) {
 			return &models.ExportResponse{Format: models.FormatCycloneDX, Content: `{"bomFormat":"CycloneDX"}`}, nil
@@ -385,7 +366,6 @@ func TestHandler_ExportSBOM_Success(t *testing.T) {
 }
 
 func TestHandler_ExportSBOM_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		exportSBOMFn: func(_ context.Context, _ string, _ string, _ string) (*models.ExportResponse, error) {
 			return nil, service.ErrSBOMNotFound
@@ -398,7 +378,6 @@ func TestHandler_ExportSBOM_NotFound(t *testing.T) {
 }
 
 func TestHandler_CompareSBOMs_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		compareSBOMsFn: func(_ context.Context, fromID, toID, _ string) (*models.SBOMComparison, error) {
 			return &models.SBOMComparison{FromSBOMID: fromID, ToSBOMID: toID}, nil
@@ -413,7 +392,6 @@ func TestHandler_CompareSBOMs_Success(t *testing.T) {
 }
 
 func TestHandler_CompareSBOMs_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{})
 	w := performSBOMRequest(h, "POST", "/sbom/compare", "invalid json", map[string]string{"X-Tenant-ID": "t1"})
 	if w.Code != http.StatusBadRequest {
@@ -422,7 +400,6 @@ func TestHandler_CompareSBOMs_BadRequest(t *testing.T) {
 }
 
 func TestHandler_CompareSBOMs_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSBOMService{
 		compareSBOMsFn: func(_ context.Context, _, _, _ string) (*models.SBOMComparison, error) {
 			return nil, service.ErrSBOMNotFound

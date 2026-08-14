@@ -162,7 +162,6 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 // --- Categories ---
 
 func TestHandler_Categories_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getCategoriesFn: func(_ context.Context, tenantID string) ([]models.TemplateCategorySummary, error) {
 			if tenantID != "tenant-1" {
@@ -186,7 +185,6 @@ func TestHandler_Categories_Success(t *testing.T) {
 }
 
 func TestHandler_Categories_InternalError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getCategoriesFn: func(_ context.Context, _ string) ([]models.TemplateCategorySummary, error) {
 			return nil, errors.New("db error")
@@ -207,7 +205,6 @@ func TestHandler_Categories_InternalError(t *testing.T) {
 // --- List ---
 
 func TestHandler_List_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, tenantID string, q *models.ListQuery) ([]models.PipelineTemplate, int, error) {
 			if tenantID != "tenant-1" {
@@ -237,7 +234,6 @@ func TestHandler_List_Success(t *testing.T) {
 }
 
 func TestHandler_List_WithQueryParams(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedQ *models.ListQuery
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, q *models.ListQuery) ([]models.PipelineTemplate, int, error) {
@@ -274,7 +270,6 @@ func TestHandler_List_WithQueryParams(t *testing.T) {
 }
 
 func TestHandler_List_DefaultLimit(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedQ *models.ListQuery
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, q *models.ListQuery) ([]models.PipelineTemplate, int, error) {
@@ -295,7 +290,6 @@ func TestHandler_List_DefaultLimit(t *testing.T) {
 }
 
 func TestHandler_List_ClampLimit(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedQ *models.ListQuery
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, q *models.ListQuery) ([]models.PipelineTemplate, int, error) {
@@ -316,7 +310,6 @@ func TestHandler_List_ClampLimit(t *testing.T) {
 }
 
 func TestHandler_List_InternalError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, _ *models.ListQuery) ([]models.PipelineTemplate, int, error) {
 			return nil, 0, errors.New("db error")
@@ -332,7 +325,6 @@ func TestHandler_List_InternalError(t *testing.T) {
 // --- Search ---
 
 func TestHandler_Search_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedQ *models.ListQuery
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, q *models.ListQuery) ([]models.PipelineTemplate, int, error) {
@@ -355,7 +347,6 @@ func TestHandler_Search_Success(t *testing.T) {
 }
 
 func TestHandler_Search_InternalError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, _ *models.ListQuery) ([]models.PipelineTemplate, int, error) {
 			return nil, 0, errors.New("db error")
@@ -371,7 +362,6 @@ func TestHandler_Search_InternalError(t *testing.T) {
 // --- Get ---
 
 func TestHandler_Get_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getFn: func(_ context.Context, tenantID, id string) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -388,7 +378,6 @@ func TestHandler_Get_Success(t *testing.T) {
 }
 
 func TestHandler_Get_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getFn: func(_ context.Context, _, _ string) (*models.PipelineTemplate, error) {
 			return nil, errors.New("not found")
@@ -404,7 +393,6 @@ func TestHandler_Get_NotFound(t *testing.T) {
 // --- Create ---
 
 func TestHandler_Create_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(_ context.Context, tenantID string, req models.CreateTemplateRequest, authorID string) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -441,7 +429,6 @@ func TestHandler_Create_Success(t *testing.T) {
 }
 
 func TestHandler_Create_MissingFields(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
@@ -459,7 +446,6 @@ func TestHandler_Create_MissingFields(t *testing.T) {
 }
 
 func TestHandler_Create_DefaultAuthor(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedAuthor string
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(_ context.Context, _ string, _ models.CreateTemplateRequest, authorID string) (*models.PipelineTemplate, error) {
@@ -493,7 +479,6 @@ func TestHandler_Create_DefaultAuthor(t *testing.T) {
 }
 
 func TestHandler_Create_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(_ context.Context, _ string, _ models.CreateTemplateRequest, _ string) (*models.PipelineTemplate, error) {
 			return nil, errors.New("db error")
@@ -524,7 +509,6 @@ func TestHandler_Create_ServiceError(t *testing.T) {
 // --- Update ---
 
 func TestHandler_Update_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		updateFn: func(_ context.Context, tenantID, id string, req models.UpdateTemplateRequest) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -557,7 +541,6 @@ func TestHandler_Update_Success(t *testing.T) {
 }
 
 func TestHandler_Update_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 
 	w := performRequest(h, h.Update, "PUT", "invalid json", map[string]string{"id": "tmpl-1"}, nil)
@@ -567,7 +550,6 @@ func TestHandler_Update_BadRequest(t *testing.T) {
 }
 
 func TestHandler_Update_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		updateFn: func(_ context.Context, _, _ string, _ models.UpdateTemplateRequest) (*models.PipelineTemplate, error) {
 			return nil, errors.New("not found")
@@ -593,7 +575,6 @@ func TestHandler_Update_NotFound(t *testing.T) {
 // --- Delete ---
 
 func TestHandler_Delete_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var called bool
 	h := newHandlerWithSvc(&mockSvc{
 		deleteFn: func(_ context.Context, tenantID, id string) error {
@@ -626,7 +607,6 @@ func TestHandler_Delete_Success(t *testing.T) {
 }
 
 func TestHandler_Delete_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		deleteFn: func(_ context.Context, _, _ string) error {
 			return errors.New("not found")
@@ -642,7 +622,6 @@ func TestHandler_Delete_NotFound(t *testing.T) {
 // --- Publish ---
 
 func TestHandler_Publish_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		publishFn: func(_ context.Context, tenantID, id string) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -662,7 +641,6 @@ func TestHandler_Publish_Success(t *testing.T) {
 }
 
 func TestHandler_Publish_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		publishFn: func(_ context.Context, _, _ string) (*models.PipelineTemplate, error) {
 			return nil, errors.New("not found")
@@ -678,7 +656,6 @@ func TestHandler_Publish_NotFound(t *testing.T) {
 // --- Deprecate ---
 
 func TestHandler_Deprecate_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		deprecateFn: func(_ context.Context, tenantID, id string) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -698,7 +675,6 @@ func TestHandler_Deprecate_Success(t *testing.T) {
 }
 
 func TestHandler_Deprecate_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		deprecateFn: func(_ context.Context, _, _ string) (*models.PipelineTemplate, error) {
 			return nil, errors.New("not found")
@@ -714,7 +690,6 @@ func TestHandler_Deprecate_NotFound(t *testing.T) {
 // --- Versions ---
 
 func TestHandler_Versions_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedQ *models.ListQuery
 	h := newHandlerWithSvc(&mockSvc{
 		getVersionsFn: func(_ context.Context, tenantID, templateID string, q *models.ListQuery) ([]models.TemplateVersion, int, error) {
@@ -742,7 +717,6 @@ func TestHandler_Versions_Success(t *testing.T) {
 }
 
 func TestHandler_Versions_DefaultLimit(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var capturedQ *models.ListQuery
 	h := newHandlerWithSvc(&mockSvc{
 		getVersionsFn: func(_ context.Context, _, _ string, q *models.ListQuery) ([]models.TemplateVersion, int, error) {
@@ -761,7 +735,6 @@ func TestHandler_Versions_DefaultLimit(t *testing.T) {
 }
 
 func TestHandler_Versions_InternalError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getVersionsFn: func(_ context.Context, _, _ string, _ *models.ListQuery) ([]models.TemplateVersion, int, error) {
 			return nil, 0, errors.New("db error")
@@ -777,7 +750,6 @@ func TestHandler_Versions_InternalError(t *testing.T) {
 // --- Instantiate ---
 
 func TestHandler_Instantiate_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		instantiateFn: func(_ context.Context, tenantID, id string, req models.InstantiateTemplateRequest) (*models.InstantiateTemplateResponse, error) {
 			if tenantID != "tenant-1" {
@@ -813,7 +785,6 @@ func TestHandler_Instantiate_Success(t *testing.T) {
 }
 
 func TestHandler_Instantiate_BadBody(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 
 	w := performRequest(h, h.Instantiate, "POST", "invalid json", map[string]string{"id": "tmpl-1"}, nil)
@@ -823,7 +794,6 @@ func TestHandler_Instantiate_BadBody(t *testing.T) {
 }
 
 func TestHandler_Instantiate_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		instantiateFn: func(_ context.Context, _, _ string, _ models.InstantiateTemplateRequest) (*models.InstantiateTemplateResponse, error) {
 			return nil, service.ErrTemplateNotPublished
@@ -852,7 +822,6 @@ func TestHandler_Instantiate_ServiceError(t *testing.T) {
 // --- Star ---
 
 func TestHandler_Star_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		starFn: func(_ context.Context, tenantID, id string) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -872,7 +841,6 @@ func TestHandler_Star_Success(t *testing.T) {
 }
 
 func TestHandler_Star_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		starFn: func(_ context.Context, _, _ string) (*models.PipelineTemplate, error) {
 			return nil, errors.New("not found")
@@ -888,7 +856,6 @@ func TestHandler_Star_NotFound(t *testing.T) {
 // --- Unstar ---
 
 func TestHandler_Unstar_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		unstarFn: func(_ context.Context, tenantID, id string) (*models.PipelineTemplate, error) {
 			if tenantID != "tenant-1" {
@@ -908,7 +875,6 @@ func TestHandler_Unstar_Success(t *testing.T) {
 }
 
 func TestHandler_Unstar_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		unstarFn: func(_ context.Context, _, _ string) (*models.PipelineTemplate, error) {
 			return nil, errors.New("not found")
@@ -924,7 +890,6 @@ func TestHandler_Unstar_NotFound(t *testing.T) {
 // --- response body parsing helpers ---
 
 func TestHandler_List_ResponseStructure(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(_ context.Context, _ string, _ *models.ListQuery) ([]models.PipelineTemplate, int, error) {
 			return []models.PipelineTemplate{

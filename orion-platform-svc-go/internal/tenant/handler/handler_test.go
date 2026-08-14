@@ -168,7 +168,6 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 }
 
 func TestHandler_List_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	repo.listTenants = []map[string]any{{"id": 1, "name": "acme", "status": "active"}}
 	repo.listTenantsTotal = 1
@@ -181,7 +180,6 @@ func TestHandler_List_Success(t *testing.T) {
 }
 
 func TestHandler_Create_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -192,7 +190,6 @@ func TestHandler_Create_Success(t *testing.T) {
 }
 
 func TestHandler_Get_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	tenant := map[string]any{"id": 1, "name": "acme"}
 	repo.getTenant = &tenant
@@ -205,7 +202,6 @@ func TestHandler_Get_Success(t *testing.T) {
 }
 
 func TestHandler_Get_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	repo.getTenant = nil
 	svc := service.NewService(repo)
@@ -217,7 +213,6 @@ func TestHandler_Get_NotFound(t *testing.T) {
 }
 
 func TestHandler_Delete_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -228,7 +223,6 @@ func TestHandler_Delete_Success(t *testing.T) {
 }
 
 func TestHandler_Update_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	repo.updateErr = errors.New("db error")
 	svc := service.NewService(repo)
@@ -240,7 +234,6 @@ func TestHandler_Update_ServiceError(t *testing.T) {
 }
 
 func TestHandler_GetCurrent_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	tenant := map[string]any{"id": 1, "name": "acme"}
 	repo.getTenant = &tenant
@@ -253,7 +246,6 @@ func TestHandler_GetCurrent_Success(t *testing.T) {
 }
 
 func TestHandler_GetQuota_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	quota := map[string]any{"max_pipelines": 100}
 	repo.quota = &quota
@@ -266,7 +258,6 @@ func TestHandler_GetQuota_Success(t *testing.T) {
 }
 
 func TestHandler_Invite_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	tenant := map[string]any{"id": 1, "name": "acme", "display_name": "acme"}
 	repo.getTenant = &tenant
@@ -281,7 +272,6 @@ func TestHandler_Invite_Success(t *testing.T) {
 }
 
 func TestHandler_Invite_UserAlreadyMember(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	tenant := map[string]any{"id": 1, "name": "acme", "display_name": "acme"}
 	repo.getTenant = &tenant
@@ -307,7 +297,6 @@ func TestHandler_GetMiddlewareConfig(t *testing.T) {
 }
 
 func TestHandler_ListUsers_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	repo.listUsers = []map[string]any{{"id": "u1", "role": "admin"}}
 	svc := service.NewService(repo)
@@ -319,7 +308,6 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 }
 
 func TestHandler_AlertStats_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := newMockRepo()
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)

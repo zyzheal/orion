@@ -24,12 +24,10 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 }
 
 func TestHandler_TASK_TIMEOUT_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_TASK_TIMEOUT_GetTimeouts(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetTimeouts(c)
 	if w.Code >= 500 {
@@ -37,7 +35,6 @@ func TestHandler_TASK_TIMEOUT_GetTimeouts(t *testing.T) {
 	}
 }
 func TestHandler_TASK_TIMEOUT_SetTimeouts(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().SetTimeouts(c)
 	if w.Code >= 500 {

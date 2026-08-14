@@ -60,7 +60,6 @@ func testCtx(w *httptest.ResponseRecorder, method, path, body string) *gin.Conte
 }
 
 func TestHandler_Ingest_OK(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "POST", "/logs", `{"service":"api-svc","level":"ERROR","message":"timeout","traceId":"t123","metadata":{"k":"v"}}`)
@@ -74,7 +73,6 @@ func TestHandler_Ingest_OK(t *testing.T) {
 }
 
 func TestHandler_Ingest_BadBody(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "POST", "/logs", `{"foo":"bar"}`)
@@ -83,7 +81,6 @@ func TestHandler_Ingest_BadBody(t *testing.T) {
 }
 
 func TestHandler_Ingest_UUID_Generated(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "POST", "/logs", `{"service":"a","level":"INFO","message":"x"}`)
@@ -93,7 +90,6 @@ func TestHandler_Ingest_UUID_Generated(t *testing.T) {
 }
 
 func TestHandler_Ingest_CustomTimestamp(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "POST", "/logs", `{"service":"a","level":"DEBUG","message":"m","timestamp":"2026-06-15T10:00:00Z"}`)
@@ -103,7 +99,6 @@ func TestHandler_Ingest_CustomTimestamp(t *testing.T) {
 }
 
 func TestHandler_IngestBatch_OK(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "POST", "/logs/batch", `[{"service":"a","level":"INFO","message":"m1"},{"service":"b","level":"WARN","message":"m2"}]`)
@@ -116,7 +111,6 @@ func TestHandler_IngestBatch_OK(t *testing.T) {
 }
 
 func TestHandler_GetByTrace_OK(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	svc.Ingest(context.Background(), "tenant-1", models.IngestLogRequest{Service: "a", Level: "INFO", Message: "trace-log", TraceID: "t-abc"})
 	w := httptest.NewRecorder()
@@ -131,7 +125,6 @@ func TestHandler_GetByTrace_OK(t *testing.T) {
 }
 
 func TestHandler_GetByTrace_Empty(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "GET", "/logs/trace/nonexistent", "")
@@ -141,7 +134,6 @@ func TestHandler_GetByTrace_Empty(t *testing.T) {
 }
 
 func TestHandler_Search_OK(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "GET", "/logs/search?keyword=error&keyword=timeout", "")
@@ -154,7 +146,6 @@ func TestHandler_Search_OK(t *testing.T) {
 }
 
 func TestHandler_Aggregation_OK(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "GET", "/logs/aggregate?service=api&level=ERROR", "")
@@ -166,7 +157,6 @@ func TestHandler_Aggregation_OK(t *testing.T) {
 }
 
 func TestHandler_CleanupOld_OK(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &testRepo{}; svc := service.NewService(repo); h := NewHandler(svc)
 	w := httptest.NewRecorder()
 	c := testCtx(w, "DELETE", "/logs/cleanup", "")
@@ -176,7 +166,6 @@ func TestHandler_CleanupOld_OK(t *testing.T) {
 }
 
 func TestHandler_getTenantID_Missing(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode); w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	h := NewHandler(service.NewService(&testRepo{}))
@@ -185,7 +174,6 @@ func TestHandler_getTenantID_Missing(t *testing.T) {
 }
 
 func TestHandler_getTenantID_Present(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	gin.SetMode(gin.TestMode); w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "t-test")

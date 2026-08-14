@@ -67,7 +67,6 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 // ==================== ParseYaml ====================
 
 func TestHandler_ParseYaml_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{}
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -91,7 +90,6 @@ spec:
 }
 
 func TestHandler_ParseYaml_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{}
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -105,7 +103,6 @@ func TestHandler_ParseYaml_BadRequest(t *testing.T) {
 // ==================== ToYaml ====================
 
 func TestHandler_ToYaml_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{}
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -122,7 +119,6 @@ func TestHandler_ToYaml_Success(t *testing.T) {
 }
 
 func TestHandler_ToYaml_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{}
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -136,7 +132,6 @@ func TestHandler_ToYaml_BadRequest(t *testing.T) {
 // ==================== Validate ====================
 
 func TestHandler_Validate_Valid(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{}
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -160,7 +155,6 @@ spec:
 }
 
 func TestHandler_Validate_Invalid(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{}
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
@@ -176,7 +170,6 @@ func TestHandler_Validate_Invalid(t *testing.T) {
 // ==================== GetGraph ====================
 
 func TestHandler_GetGraph_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{
 		pipeline: &repository.PipelineDefinition{
 			ID:   "p1",
@@ -204,7 +197,6 @@ spec:
 }
 
 func TestHandler_GetGraph_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{
 		err: service.ErrPipelineNotFound,
 	}
@@ -218,7 +210,6 @@ func TestHandler_GetGraph_NotFound(t *testing.T) {
 }
 
 func TestHandler_GetGraph_InternalError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	repo := &mockPipelineGraphRepo{
 		err: errors.New("db connection failed"),
 	}

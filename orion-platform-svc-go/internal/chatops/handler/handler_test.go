@@ -339,7 +339,6 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 // --- Commands (Handler has ListCommands, GetCommandHelp only) ---
 
 func TestHandler_ListCommands_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listCommandsFn: func(ctx context.Context, tenantID string, permissionLevel, name *string, limit, offset int) ([]models.ChatOpsCommand, error) {
 			return []models.ChatOpsCommand{{ID: "cmd-1"}}, nil
@@ -354,7 +353,6 @@ func TestHandler_ListCommands_Success(t *testing.T) {
 // --- ExecuteCommand ---
 
 func TestHandler_ExecuteCommand_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "test-tenant")
@@ -379,7 +377,6 @@ func TestHandler_ExecuteCommand_Success(t *testing.T) {
 // --- Audit Stats ---
 
 func TestHandler_GetAuditStats_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getAuditStatsFn: func(ctx context.Context, tenantID string) (map[string]interface{}, error) {
 			return map[string]interface{}{"total": 10}, nil
@@ -394,7 +391,6 @@ func TestHandler_GetAuditStats_Success(t *testing.T) {
 // --- Health Check ---
 
 func TestHandler_HealthCheck_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		healthCheckFn: func(ctx context.Context) (*models.HealthCheckResult, error) {
 			return &models.HealthCheckResult{Success: true}, nil
@@ -409,7 +405,6 @@ func TestHandler_HealthCheck_Success(t *testing.T) {
 // --- Roles ---
 
 func TestHandler_CreateRole_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		createRoleFn: func(ctx context.Context, tenantID string, req models.CreateRoleRequest) (*models.PermissionRole, error) {
 			return &models.PermissionRole{ID: "role-1", Name: req.Name}, nil
@@ -422,7 +417,6 @@ func TestHandler_CreateRole_Success(t *testing.T) {
 }
 
 func TestHandler_GetRole_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getRoleFn: func(ctx context.Context, tenantID, id string) (*models.PermissionRole, error) {
 			return &models.PermissionRole{ID: id}, nil
@@ -435,7 +429,6 @@ func TestHandler_GetRole_Success(t *testing.T) {
 }
 
 func TestHandler_DeleteRole_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	var called bool
 	h := newHandlerWithSvc(&mockSvc{
 		deleteRoleFn: func(ctx context.Context, tenantID, id string) error {
@@ -455,7 +448,6 @@ func TestHandler_DeleteRole_Success(t *testing.T) {
 // --- Webhooks ---
 
 func TestHandler_CreateWebhook_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "test-tenant")
@@ -481,7 +473,6 @@ func TestHandler_CreateWebhook_Success(t *testing.T) {
 }
 
 func TestHandler_GetAllWebhooks_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getAllWebhooksFn: func(ctx context.Context, tenantID string) ([]models.Webhook, error) {
 			return []models.Webhook{{ID: "wh-1"}}, nil
@@ -496,7 +487,6 @@ func TestHandler_GetAllWebhooks_Success(t *testing.T) {
 // --- Notification Preferences ---
 
 func TestHandler_GetNotificationPreference_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "test-tenant")
@@ -518,7 +508,6 @@ func TestHandler_GetNotificationPreference_Success(t *testing.T) {
 // --- Dashboard Stats ---
 
 func TestHandler_GetDashboardStats_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getDashboardStatsFn: func(ctx context.Context, tenantID string, req models.DashboardStatsRequest) (*models.DashboardStatsResult, error) {
 			return &models.DashboardStatsResult{TotalCommands: 5}, nil
@@ -533,7 +522,6 @@ func TestHandler_GetDashboardStats_Success(t *testing.T) {
 // --- ReceiveMessage ---
 
 func TestHandler_ReceiveMessage_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "test-tenant")

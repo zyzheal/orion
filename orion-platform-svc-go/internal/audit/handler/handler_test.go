@@ -148,7 +148,6 @@ func makeListResult() *models.AuditLogListResult {
 // ==================== ListLogs ====================
 
 func TestHandler_ListLogs_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	result := makeListResult()
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
@@ -162,7 +161,6 @@ func TestHandler_ListLogs_Success(t *testing.T) {
 }
 
 func TestHandler_ListLogs_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
 			return nil, errors.New("db down")
@@ -177,7 +175,6 @@ func TestHandler_ListLogs_Error(t *testing.T) {
 // ==================== GetLog ====================
 
 func TestHandler_GetLog_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	entry := makeLogEntry("l1")
 	h := newHandlerWithSvc(&mockSvc{
 		getFn: func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, error) { return entry, nil },
@@ -189,7 +186,6 @@ func TestHandler_GetLog_Success(t *testing.T) {
 }
 
 func TestHandler_GetLog_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getFn: func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, error) {
 			return nil, service.ErrNotFound
@@ -204,7 +200,6 @@ func TestHandler_GetLog_NotFound(t *testing.T) {
 // ==================== CreateLog ====================
 
 func TestHandler_CreateLog_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	entry := makeLogEntry("l1")
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error) {
@@ -218,7 +213,6 @@ func TestHandler_CreateLog_Success(t *testing.T) {
 }
 
 func TestHandler_CreateLog_BadRequest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.CreateLog, "POST", map[string]interface{}{"bad": "data"}, nil, nil)
 	if w.Code != http.StatusBadRequest {
@@ -227,7 +221,6 @@ func TestHandler_CreateLog_BadRequest(t *testing.T) {
 }
 
 func TestHandler_CreateLog_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		createFn: func(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error) {
 			return nil, errors.New("db err")
@@ -242,7 +235,6 @@ func TestHandler_CreateLog_ServiceError(t *testing.T) {
 // ==================== VerifySingle ====================
 
 func TestHandler_VerifySingle_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	entry := makeLogEntry("l1")
 	h := newHandlerWithSvc(&mockSvc{
 		verifySingleFn: func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, bool, error) {
@@ -256,7 +248,6 @@ func TestHandler_VerifySingle_Success(t *testing.T) {
 }
 
 func TestHandler_VerifySingle_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		verifySingleFn: func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, bool, error) {
 			return nil, false, service.ErrNotFound
@@ -271,7 +262,6 @@ func TestHandler_VerifySingle_NotFound(t *testing.T) {
 // ==================== VerifyChain ====================
 
 func TestHandler_VerifyChain_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	result := &models.ChainVerifyResult{Valid: true, TotalVerified: 10}
 	h := newHandlerWithSvc(&mockSvc{
 		verifyChainFn: func(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error) { return result, nil },
@@ -283,7 +273,6 @@ func TestHandler_VerifyChain_Success(t *testing.T) {
 }
 
 func TestHandler_VerifyChain_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		verifyChainFn: func(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error) {
 			return nil, errors.New("chain err")
@@ -298,7 +287,6 @@ func TestHandler_VerifyChain_Error(t *testing.T) {
 // ==================== Actions ====================
 
 func TestHandler_Actions_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getActionsFn: func(ctx context.Context, tenantID string) ([]string, error) { return []string{"CREATE"}, nil },
 	})
@@ -311,7 +299,6 @@ func TestHandler_Actions_Success(t *testing.T) {
 // ==================== ComplianceSOC2 ====================
 
 func TestHandler_ComplianceSOC2_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	report := &models.ComplianceReport{ReportType: "SOC2", Score: 90}
 	h := newHandlerWithSvc(&mockSvc{
 		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
@@ -325,7 +312,6 @@ func TestHandler_ComplianceSOC2_Success(t *testing.T) {
 }
 
 func TestHandler_ComplianceSOC2_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
 			return nil, errors.New("db err")
@@ -340,7 +326,6 @@ func TestHandler_ComplianceSOC2_Error(t *testing.T) {
 // ==================== ComplianceCoverage ====================
 
 func TestHandler_ComplianceCoverage_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	stats := &models.AuditCoverageStats{OverallCoveragePct: 80}
 	h := newHandlerWithSvc(&mockSvc{
 		coverageStatsFn: func(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error) { return stats, nil },
@@ -354,7 +339,6 @@ func TestHandler_ComplianceCoverage_Success(t *testing.T) {
 // ==================== ChainGenesis ====================
 
 func TestHandler_ChainGenesis_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.ChainGenesis, "GET", nil, nil, nil)
 	if w.Code != http.StatusOK {
@@ -365,7 +349,6 @@ func TestHandler_ChainGenesis_Success(t *testing.T) {
 // ==================== StorageFlush ====================
 
 func TestHandler_StorageFlush_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.StorageFlush, "POST", nil, nil, nil)
 	if w.Code != http.StatusOK {
@@ -376,7 +359,6 @@ func TestHandler_StorageFlush_Success(t *testing.T) {
 // ==================== ExportJSON ====================
 
 func TestHandler_ExportJSON_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	result := &models.AuditLogExportResult{Filename: "export.json", Content: "[]"}
 	h := newHandlerWithSvc(&mockSvc{
 		exportFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error) {
@@ -390,7 +372,6 @@ func TestHandler_ExportJSON_Success(t *testing.T) {
 }
 
 func TestHandler_ExportJSON_ServiceError(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		exportFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error) {
 			return nil, errors.New("db err")

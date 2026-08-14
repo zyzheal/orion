@@ -68,7 +68,6 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 // ==================== GetGraph ====================
 
 func TestHandler_GetGraph_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	graph := &models.DependencyGraph{TotalEdges: 1,
 		IsSafe: true, Cycles: []models.Cycle{}}
 	h := newHandlerWithSvc(&mockSvc{
@@ -79,7 +78,6 @@ func TestHandler_GetGraph_Success(t *testing.T) {
 }
 
 func TestHandler_GetGraph_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getGraphFn: func(ctx context.Context, tenantID string) (*models.DependencyGraph, error) { return nil, errors.New("db down") },
 	})
@@ -90,7 +88,6 @@ func TestHandler_GetGraph_Error(t *testing.T) {
 // ==================== CheckDefinition ====================
 
 func TestHandler_CheckDefinition_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	check := &models.DependencyCheck{IsSafe: true}
 	h := newHandlerWithSvc(&mockSvc{
 		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) { return check, nil },
@@ -100,7 +97,6 @@ func TestHandler_CheckDefinition_Success(t *testing.T) {
 }
 
 func TestHandler_CheckDefinition_NotFound(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) { return nil, service.ErrWorkflowNotFound },
 	})
@@ -109,7 +105,6 @@ func TestHandler_CheckDefinition_NotFound(t *testing.T) {
 }
 
 func TestHandler_CheckDefinition_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) { return nil, errors.New("db err") },
 	})
@@ -120,7 +115,6 @@ func TestHandler_CheckDefinition_Error(t *testing.T) {
 // ==================== GetVisualization ====================
 
 func TestHandler_GetVisualization_Success(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	viz := &models.VisualizationData{}
 	h := newHandlerWithSvc(&mockSvc{
 		getVisualizationFn: func(ctx context.Context, tenantID string) (*models.VisualizationData, error) { return viz, nil },
@@ -130,7 +124,6 @@ func TestHandler_GetVisualization_Success(t *testing.T) {
 }
 
 func TestHandler_GetVisualization_Error(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := newHandlerWithSvc(&mockSvc{
 		getVisualizationFn: func(ctx context.Context, tenantID string) (*models.VisualizationData, error) { return nil, errors.New("db down") },
 	})
