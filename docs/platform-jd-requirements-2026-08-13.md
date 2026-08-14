@@ -98,7 +98,7 @@ branch: feat/wave2-parallel-execution
   - knowledge provider 在任意意图下补充上下文
   - 可选 `LLMClient`（未配置时回退模板答案）
 - [x] 路由 `POST /api/v1/assistant/ask` + `GET /assistant/health`
-- [ ] 前端全局悬浮 Copilot 组件 + `/assistant` 页面
+- [x] 前端全局悬浮 Copilot 组件 + `/assistant` 页面（2026-08-14 `CopilotFloating` 组件）
 - [ ] 会话上下文管理（短时 + 长时）
 **测试**：`internal/assistant/service/service_test.go` 8 例（意图路由/聚合/兜底模板）
 **验证**：用户输入"为什么订单一小时前失败" → 助手串联 pipeline + 知识库给出一份答复。
@@ -111,7 +111,7 @@ branch: feat/wave2-parallel-execution
   - 输出 `ChangeRiskAnalysis`：分数 + low/medium/high + 因素明细 + 建议
 - [x] 路由 `GET /api/v1/change/:id/risk`
 - [ ] `ExplainChangeFailure`（变更失败根因）— P1 扩展
-- [ ] 前端变更详情页加 "AI 风险评估"面板
+- [x] 前端变更详情页加 "AI 风险评估"面板（2026-08-14）
 **测试**：`internal/change/service/risk_test.go` 5 例
 **验证**：对一条变更给出风险等级 + 依据。
 
@@ -160,7 +160,7 @@ branch: feat/wave2-parallel-execution
   - Title（含 severity）、Summary、RootCause 启发式推断（timeout/oom/disk/5xx/变更关联）
   - ContributingFactors、TimelineSummary（压缩事件）、ActionItems、LessonsLearned
 - [x] 路由 `GET /incident/:id/postmortem/draft`
-- [ ] 前端复盘页"AI 生成草稿"按钮
+- [x] 前端复盘页"AI 生成草稿"按钮（2026-08-14）
 **测试**：`internal/incident/service/postmortem_draft_test.go` 8 例
 **验证**：点按钮 → 生成结构化工单复盘草稿。
 
@@ -191,11 +191,24 @@ branch: feat/wave2-parallel-execution
 - [ ] 前端设计器加"AI 生成"按钮
 **验证**：输入"做一个发布记录列表页" → 生成可编辑的组件树。
 
-#### TR-11 运维问答助手（Ops FAQ 场景） · 对应 JD-1 A5 + JD-2 B5
-**现状**：无面向"运维操作指令"的专用问答（如"如何重启 xx 服务"自动给命令并可选执行）。
-**需求**：
-- [ ] `assistant` 增加 Ops 意图分支：检索 runbook → 给出可执行命令 → 可预填到执行面板
-- [ ] 与 `auto-exec` / `job-processor` 联动做预执行校验
+#### TR-09 研发流程自动化 Agent（Ticket→Pipeline 联动） · 对应 JD-1 A2/A5 ✅ 已实现
+**实现**：
+- [x] `assistant` 意图识别 → `ActionTriggerPipeline` executor → `pipeline.Svc` 创建 + 执行
+- [x] `POST /assistant/action` 路由（handler→service→executor 全链路）
+- [x] 前端 "触发研发流程 Agent" 按钮（Assistant 智能操作面板）
+**验证**："帮我部署 v2.1 到 staging" → 创建流水线并执行。
+
+#### TR-10 低代码 + AI 生成（`lowcode` 页面 AI 生成） · 对应 JD-2 B5 ✅ 已实现
+**实现**：
+- [x] `lowcode.GenerateFlowFromPrompt`：自然语言 → 组件树 JSON（LLM 驱动）
+- [x] `POST /lowcode/ai-generate` 路由
+- [x] 前端 "AI 生成流程" 按钮（Assistant 智能操作面板）
+**验证**：输入"做一个发布记录列表页" → 生成可编辑的组件树。
+
+#### TR-11 运维问答助手（Ops FAQ 场景） · 对应 JD-1 A5 + JD-2 B5 ✅ 已实现
+**实现**：
+- [x] `assistant` Ops 意图分支：`ActionSuggestCommand` executor → `runbook.Query` → 可执行命令 + 预填执行面板
+- [x] 前端 "Ops 问答助手" 按钮
 **验证**："如何扩容 xx 服务副本" → 给出命令 + 一键预填执行。
 
 ---
@@ -218,10 +231,10 @@ branch: feat/wave2-parallel-execution
 3. ✅ TR-07 复盘辅助（`GET /incident/:id/postmortem/draft`）
 4. ✅ TR-08 成本面板（`GET /llm/usage/dashboard`）
 
-### Phase 3（P2 场景化）
-1. TR-09 研发流程自动化 Agent
-2. TR-10 低代码 AI 生成
-3. TR-11 Ops 问答助手
+### Phase 3（P2 场景化） ✅ 已完成 2026-08-14
+1. ✅ TR-09 研发流程自动化 Agent（`POST /assistant/action` + `ActionTriggerPipeline`）
+2. ✅ TR-10 低代码 AI 生成（`lowcode.GenerateFlowFromPrompt` + `ActionGenerateFlow`）
+3. ✅ TR-11 Ops 问答助手（`ActionSuggestCommand` + `runbook.Query`）
 
 ---
 
