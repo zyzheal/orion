@@ -616,6 +616,12 @@ export const routes: AppRoute[] = [
         protected: true,
         requiredPermission: { resource: '*', action: 'manage' },
       },
+      {
+        path: '/console/ai-cost/modules',
+        element: React.lazy(() => import('@/pages/AICostDashboard/ModuleCostDashboard')),
+        protected: true,
+        requiredPermission: { resource: '*', action: 'manage' },
+      },
     ],
   },
   // LLM Trace Dashboard (P1)
@@ -1715,6 +1721,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/AIDashboard')),
     protected: true,
     requiredPermission: { resource: 'ai-gateway', action: 'read' },
+  },
+  {
+    path: '/ai/assistant',
+    element: React.lazy(() => import('@/pages/Assistant')),
+    protected: true,
+    requiredPermission: { resource: 'assistant', action: 'read' },
   },
   {
     path: '/ai/gateway',

@@ -83,8 +83,28 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// --- Sync ---
 	// POST /sync - trigger document center sync
 	f.POST("/sync", auth.RequirePermission("knowledge", "write"), h.TriggerSync)
+	// POST /ingest/source - ingest operational records (alert/ticket/incident/change) into knowledge base
+	f.POST("/ingest/source", auth.RequirePermission("knowledge", "write"), h.IngestFromSource)
 	// GET /sync/logs - get sync logs
 	f.GET("/sync/logs", auth.RequirePermission("knowledge", "read"), h.GetSyncLogs)
+
+	// --- Eval Sets ---
+	// POST /eval/sets - create an eval set with cases
+	f.POST("/eval/sets", auth.RequirePermission("knowledge", "write"), h.CreateEvalSet)
+	// GET /eval/sets - list eval sets
+	f.GET("/eval/sets", auth.RequirePermission("knowledge", "read"), h.ListEvalSets)
+	// GET /eval/sets/:id - get a set (with cases)
+	f.GET("/eval/sets/:id", auth.RequirePermission("knowledge", "read"), h.GetEvalSet)
+	// DELETE /eval/sets/:id - delete a set
+	f.DELETE("/eval/sets/:id", auth.RequirePermission("knowledge", "delete"), h.DeleteEvalSet)
+	// POST /eval/sets/:id/run - trigger an evaluation run
+	f.POST("/eval/sets/:id/run", auth.RequirePermission("knowledge", "write"), h.RunEval)
+	// POST /eval/compare - compare two runs
+	f.POST("/eval/compare", auth.RequirePermission("knowledge", "read"), h.CompareRuns)
+	// GET /eval/runs - list recent runs
+	f.GET("/eval/runs", auth.RequirePermission("knowledge", "read"), h.ListEvalRuns)
+	// POST /eval/ci/run - CI-integrated evaluation: seeds + runs all TR scenarios
+	f.POST("/eval/ci/run", auth.RequirePermission("knowledge", "admin"), h.RunCIEvals)
 
 	// --- RAG ---
 	// POST /rag/retrieve - semantic/text retrieve
@@ -107,6 +127,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/rag/prompt/templates", auth.RequirePermission("knowledge", "admin"), h.RAGPromptTemplates)
 	// POST /rag/prompt/templates - save prompt template
 	f.POST("/rag/prompt/templates", auth.RequirePermission("knowledge", "admin"), h.RAGPromptSave)
+	// POST /rag/prompt/canary - publish a new prompt version as canary
+	f.POST("/rag/prompt/canary", auth.RequirePermission("knowledge", "admin"), h.RAGPromptCanary)
+	// GET /rag/prompt/canary/:name - inspect canary status for a prompt
+	f.GET("/rag/prompt/canary/:name", auth.RequirePermission("knowledge", "admin"), h.RAGPromptCanaryStatus)
 
 	// --- RAG Index ---
 	// POST /rag/index - trigger index build
@@ -422,6 +446,24 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 	middleware.RespondSuccess(c, log)
 }
 
+// IngestFromSource indexes operational records into the knowledge base.
+func (h *Handler) IngestFromSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IngestFromSource")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.SourceIngestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	resp, err := h.svc.IngestFromSource(ctx, tenantID, req)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, resp)
+}
+
 func (h *Handler) GetSyncLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSyncLogs")
 	defer span.End()
@@ -731,6 +773,46 @@ func (h *Handler) RAGPromptSave(c *gin.Context) {
 	middleware.RespondSuccess(c, gin.H{"id": tmpl.ID, "name": req.Name, "version": req.Version})
 }
 
+// RAGPromptCanary publishes a new prompt version as a canary.
+func (h *Handler) RAGPromptCanary(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptCanary")
+	defer span.End()
+	var req models.PromptCanaryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	mgr := h.svc.GetPromptMgr()
+	if mgr == nil {
+		middleware.RespondBadRequest(c, "prompt manager not initialized")
+		return
+	}
+	info, err := mgr.PublishCanaryPrompt(c.Request.Context(), req.Name, req.Content, req.Version, req.TrafficPercent)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondCreated(c, info)
+}
+
+// RAGPromptCanaryStatus inspects the version/canary state of a prompt.
+func (h *Handler) RAGPromptCanaryStatus(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptCanaryStatus")
+	defer span.End()
+	name := c.Param("name")
+	mgr := h.svc.GetPromptMgr()
+	if mgr == nil {
+		middleware.RespondBadRequest(c, "prompt manager not initialized")
+		return
+	}
+	status, err := mgr.PromptVersionStats(c.Request.Context(), name)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, status)
+}
+
 // RAGIndexTrigger triggers a document re-index.
 func (h *Handler) RAGIndexTrigger(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGIndexTrigger")
@@ -843,4 +925,135 @@ func (h *Handler) RAGFlaggedQueries(c *gin.Context) {
 func computeQueryHash(query string) string {
 	h := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(query))))
 	return hex.EncodeToString(h[:32])
+}
+
+// --- Eval Set handlers ---
+
+func (h *Handler) CreateEvalSet(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateEvalSet")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	var req models.CreateEvalSetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	set, err := h.svc.CreateEvalSet(ctx, tenantID, req, userID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondCreated(c, set)
+}
+
+func (h *Handler) ListEvalSets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEvalSets")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	sets, err := h.svc.ListEvalSets(ctx, tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"data": sets, "total": len(sets)})
+}
+
+func (h *Handler) GetEvalSet(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEvalSet")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	set, err := h.svc.GetEvalSet(ctx, tenantID, id)
+	if err != nil {
+		middleware.RespondNotFound(c, "eval set not found")
+		return
+	}
+	cases, err := h.svc.ListEvalSetCases(ctx, tenantID, id)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"set": set, "cases": cases})
+}
+
+func (h *Handler) DeleteEvalSet(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteEvalSet")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	if err := h.svc.DeleteEvalSet(ctx, tenantID, id); err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) RunEval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunEval")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	var req models.RunEvalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	req.SetID = c.Param("id")
+	run, err := h.svc.RunEval(ctx, tenantID, req, userID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondCreated(c, run)
+}
+
+func (h *Handler) CompareRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompareRuns")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.CompareRunsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	comparison, err := h.svc.CompareRuns(ctx, tenantID, req)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, comparison)
+}
+
+func (h *Handler) ListEvalRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEvalRuns")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	setID := c.Query("set_id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	runs, err := h.svc.ListEvalRuns(ctx, tenantID, setID, limit)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"data": runs, "total": len(runs)})
+}
+
+// RunCIEvals triggers the CI-integrated evaluation pipeline: seeds eval sets for
+// TR-09/10/11 scenarios then runs evaluation against each. Returns a summary
+// suitable for CI gate decisions.
+func (h *Handler) RunCIEvals(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunCIEvals")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var cfg service.CIEvalConfig
+	if err := c.ShouldBindJSON(&cfg); err != nil {
+		cfg = service.CIEvalConfig{}
+	}
+	summary, err := h.svc.RunCIEvals(ctx, tenantID, cfg)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, summary)
 }

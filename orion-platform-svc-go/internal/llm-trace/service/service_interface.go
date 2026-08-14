@@ -7,6 +7,8 @@ package service
 
 import (
 	"context"
+	"time"
+
 	"orion/platform-svc-go/internal/llm-trace/models"
 )
 
@@ -19,6 +21,8 @@ type ServiceInterface interface {
 	GetAllPricing(ctx context.Context) map[string]models.ModelPricing
 	GetCostBreakdown(ctx context.Context, tenantID string, q *models.CostBreakdownQuery) (*models.CostBreakdown, int64, error)
 	GetDailyStats(ctx context.Context, tenantID string, date *string) (*models.DailyStats, error)
+	GetUsageDashboard(ctx context.Context, tenantID string, start, end *time.Time) (*models.UsageDashboard, error)
+	GetModuleCostDashboard(ctx context.Context, tenantID string, start, end *time.Time) ([]ModuleCostSummary, error)
 	GetTrace(ctx context.Context, traceID, tenantID string) (*models.LLMTrace, error)
 	GetTrackingAccuracy(ctx context.Context, tenantID string) (*models.TrackingAccuracy, error)
 	ListTraces(ctx context.Context, tenantID string, q *models.ListTracesQuery) ([]models.LLMTrace, int64, error)

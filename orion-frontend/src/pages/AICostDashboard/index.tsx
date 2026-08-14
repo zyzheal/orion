@@ -7,6 +7,7 @@ import {
   UnorderedListOutlined,
   FundOutlined,
   BellOutlined,
+  PartitionOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
@@ -19,6 +20,7 @@ const menuItems = [
   { key: '/console/ai-cost/details', icon: <UnorderedListOutlined />, label: '成本明细' },
   { key: '/console/ai-cost/roi', icon: <FundOutlined />, label: 'ROI 报告' },
   { key: '/console/ai-cost/alerts', icon: <BellOutlined />, label: '告警设置' },
+  { key: '/console/ai-cost/modules', icon: <PartitionOutlined />, label: '模块成本' },
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
@@ -27,6 +29,7 @@ const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subti
   '/console/ai-cost/details': { icon: <UnorderedListOutlined />, title: '成本明细', subtitle: '查看各项 AI 服务的详细费用' },
   '/console/ai-cost/roi': { icon: <FundOutlined />, title: 'ROI 报告', subtitle: 'AI 投资回报率分析' },
   '/console/ai-cost/alerts': { icon: <BellOutlined />, title: '告警设置', subtitle: '配置成本告警阈值' },
+  '/console/ai-cost/modules': { icon: <PartitionOutlined />, title: '模块成本归属', subtitle: '按业务场景统计 AI 成本 (TR-09/10/11)' },
 };
 
 const AICostDashboardLayout: React.FC = () => {

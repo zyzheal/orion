@@ -159,3 +159,24 @@ export function getModelPricing() {
 export function getROIReport(params?: { period?: string }) {
   return api.get('/api/v1/ai-cost/roi', { params });
 }
+
+// ---- Module Cost Dashboard (TR-09/10/11 cost attribution) ----
+
+export interface ModuleCostSummary {
+  scenario: string;
+  requests: number;
+  tokens: number;
+  cost: number;
+  currency: string;
+  successRate: number;
+  byDay?: { date: string; cost: number; tokens: number }[];
+}
+
+export interface ModuleCostParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function getModuleCostDashboard(params?: ModuleCostParams) {
+  return api.get<ModuleCostSummary[]>('/api/v1/llm/cost/module-dashboard', { params });
+}

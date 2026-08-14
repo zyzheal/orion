@@ -16,11 +16,11 @@ import (
 
 // Handler exposes LLM trace endpoints.
 type Handler struct {
-	svc *service.Service
+	svc service.ServiceInterface
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -44,6 +44,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// --- Stats & Cost ---
 	// GET /api/v1/llm/stats/daily - Get daily aggregated statistics
 	f.GET("/stats/daily", auth.RequirePermission("llm-trace", "read"), h.GetDailyStats)
+	// GET /api/v1/llm/usage/dashboard - aggregated usage dashboard
+	f.GET("/usage/dashboard", auth.RequirePermission("llm-trace", "read"), h.GetUsageDashboard)
+	// GET /api/v1/llm/cost/module-dashboard - cost aggregated by module/scenario
+	f.GET("/cost/module-dashboard", auth.RequirePermission("llm-trace", "read"), h.GetModuleCostDashboard)
 
 	// GET /api/v1/llm/cost/breakdown - Get cost breakdown
 	// (placed before /traces/:traceId pattern to avoid collision — no :id param)
@@ -300,6 +304,70 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 		"currency":         breakdown.Currency,
 		"breakdownByModel": breakdown.BreakdownByModel,
 	})
+}
+
+// GetUsageDashboard returns aggregated realtime usage analytics for the cost dashboard.
+func (h *Handler) GetUsageDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUsageDashboard")
+	defer span.End()
+	tenantID := h.getTenantID(c)
+
+	var start, end *time.Time
+	if s := c.Query("startDate"); s != "" {
+		t, err := parseTimeQuery(s)
+		if err != nil {
+			middleware.RespondBadRequest(c, "invalid startDate format")
+			return
+		}
+		start = &t
+	}
+	if e := c.Query("endDate"); e != "" {
+		t, err := parseTimeQuery(e)
+		if err != nil {
+			middleware.RespondBadRequest(c, "invalid endDate format")
+			return
+		}
+		end = &t
+	}
+
+	dash, err := h.svc.GetUsageDashboard(ctx, tenantID, start, end)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, dash)
+}
+
+// GetModuleCostDashboard returns cost aggregated by module/scenario (TR-09/10/11).
+func (h *Handler) GetModuleCostDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetModuleCostDashboard")
+	defer span.End()
+	tenantID := h.getTenantID(c)
+
+	var start, end *time.Time
+	if s := c.Query("startDate"); s != "" {
+		t, err := parseTimeQuery(s)
+		if err != nil {
+			middleware.RespondBadRequest(c, "invalid startDate format")
+			return
+		}
+		start = &t
+	}
+	if e := c.Query("endDate"); e != "" {
+		t, err := parseTimeQuery(e)
+		if err != nil {
+			middleware.RespondBadRequest(c, "invalid endDate format")
+			return
+		}
+		end = &t
+	}
+
+	data, err := h.svc.GetModuleCostDashboard(ctx, tenantID, start, end)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, data)
 }
 
 // parseTimeQuery parses an ISO-8601 or YYYY-MM-DD string into time.Time.

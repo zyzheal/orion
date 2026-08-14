@@ -2,21 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"orion/platform-svc-go/internal/knowledge/models"
 )
 
-// SeedEvalSetForScenario creates (or returns existing) an eval set for a
-// specific TR requirement, with ground-truth cases that validate the
-// P2 business linkage works end-to-end.
-//
-// This is the P3 delivery of TR-05 (评测集基线覆盖 TR-09/10/11):
-//   - TR-09 研发流程 Agent → eval cases for pipeline-trigger prompts
-//   - TR-10 LowCode AI 生成 → eval cases for flow-generation prompts
-//   - TR-11 Ops 问答助手 → eval cases for ops-command prompts
 type ScenarioSeed struct {
-	Scenario string   // e.g. "TR-09", "TR-10", "TR-11"
-	Tag      string   // e.g. "dev-agent", "lowcode-ai", "ops-qa"
+	Scenario string
+	Tag      string
 	Cases    []models.EvalSetCaseInput
 }
 
@@ -53,8 +47,6 @@ var defaultScenarioSeeds = []ScenarioSeed{
 	},
 }
 
-// SeedEvalSetsForAllScenarios seeds eval sets for all default TR-09/10/11
-// scenarios. If a set already exists (by name), it is skipped.
 func (s *Service) SeedEvalSetsForAllScenarios(ctx context.Context, tenantID string, userID string) ([]models.EvalSet, error) {
 	var seeded []models.EvalSet
 	for _, seed := range defaultScenarioSeeds {
@@ -86,8 +78,6 @@ func (s *Service) SeedEvalSetsForAllScenarios(ctx context.Context, tenantID stri
 	return seeded, nil
 }
 
-// SeedEvalSetForScenario seeds a single eval set for one scenario.
-// Returns existing set if already seeded.
 func (s *Service) SeedEvalSetForScenario(ctx context.Context, tenantID string, userID string, scenario string) (*models.EvalSet, error) {
 	for _, seed := range defaultScenarioSeeds {
 		if seed.Scenario != scenario {
@@ -110,4 +100,151 @@ func (s *Service) SeedEvalSetForScenario(ctx context.Context, tenantID string, u
 		return set, err
 	}
 	return nil, nil
+}
+
+// CIEvalResult captures the outcome of one eval set run in CI.
+type CIEvalResult struct {
+	Scenario    string  `json:"scenario"`
+	SetID       string  `json:"set_id"`
+	RunID       string  `json:"run_id"`
+	Status      string  `json:"status"`
+	Pass        int     `json:"pass"`
+	Total       int     `json:"total"`
+	PassRate    float64 `json:"pass_rate"`
+	AvgScore    float64 `json:"avg_score"`
+	DurationMs  int     `json:"duration_ms"`
+}
+
+// CIEvalSummary is the aggregated CI eval report.
+type CIEvalSummary struct {
+	TotalScenarios  int           `json:"total_scenarios"`
+	Passed          int           `json:"passed"`
+	Failed          int           `json:"failed"`
+	Skipped         int           `json:"skipped"`
+	OverallPassRate float64       `json:"overall_pass_rate"`
+	Threshold       float64       `json:"threshold"`
+	MeetsThreshold  bool          `json:"meets_threshold"`
+	Results         []CIEvalResult `json:"results"`
+	DurationMs      int           `json:"duration_ms"`
+}
+
+// CIEvalConfig configures the CI evaluation pipeline.
+type CIEvalConfig struct {
+	Model     string   `json:"model,omitempty"`
+	TopK      int      `json:"top_k,omitempty"`
+	Threshold float64  `json:"threshold,omitempty"`
+	Scenarios []string `json:"scenarios,omitempty"`
+}
+
+// RunCIEvals seeds eval sets for all TR-09/10/11 scenarios, then runs eval
+// against each. Returns a CIEvalSummary suitable for CI gate decisions.
+func (s *Service) RunCIEvals(ctx context.Context, tenantID string, config CIEvalConfig) (*CIEvalSummary, error) {
+	started := time.Now()
+
+	if config.Model == "" {
+		config.Model = "default"
+	}
+	if config.TopK <= 0 {
+		config.TopK = 5
+	}
+
+	seeded, err := s.SeedEvalSetsForAllScenarios(ctx, tenantID, "ci")
+	if err != nil {
+		return nil, fmt.Errorf("failed to seed eval sets: %w", err)
+	}
+
+	var targets []ScenarioSeed
+	if len(config.Scenarios) > 0 {
+		scenarioSet := map[string]bool{}
+		for _, sc := range config.Scenarios {
+			scenarioSet[sc] = true
+		}
+		for _, seed := range defaultScenarioSeeds {
+			if scenarioSet[seed.Scenario] {
+				targets = append(targets, seed)
+			}
+		}
+	} else {
+		targets = defaultScenarioSeeds
+	}
+
+	var results []CIEvalResult
+	passed, failed, skipped := 0, 0, 0
+	totalPass, totalCases := 0, 0
+
+	for _, seed := range targets {
+		setID := ""
+		for _, es := range seeded {
+			if es.Name == seed.Scenario {
+				setID = es.ID
+				break
+			}
+		}
+		if setID == "" {
+			results = append(results, CIEvalResult{
+				Scenario: seed.Scenario,
+				Status:   "skipped",
+			})
+			skipped++
+			continue
+		}
+
+		caseStart := time.Now()
+		run, err := s.RunEval(ctx, tenantID, models.RunEvalRequest{
+			SetID: setID,
+			Model: config.Model,
+			TopK:  config.TopK,
+		}, "ci")
+		if err != nil {
+			results = append(results, CIEvalResult{
+				Scenario:   seed.Scenario,
+				SetID:      setID,
+				Status:     "error",
+				DurationMs: int(time.Since(caseStart).Milliseconds()),
+			})
+			failed++
+			continue
+		}
+
+		passRate := safeRate(run.PassCount, run.TotalCount)
+		res := CIEvalResult{
+			Scenario:   seed.Scenario,
+			SetID:      setID,
+			RunID:      run.ID,
+			Status:     run.Status,
+			Pass:       run.PassCount,
+			Total:      run.TotalCount,
+			PassRate:   passRate,
+			AvgScore:   run.AvgScore,
+			DurationMs: int(time.Since(caseStart).Milliseconds()),
+		}
+		results = append(results, res)
+
+		if run.TotalCount == 0 {
+			skipped++
+			continue
+		}
+		if passRate >= config.Threshold {
+			passed++
+		} else {
+			failed++
+		}
+		totalPass += run.PassCount
+		totalCases += run.TotalCount
+	}
+
+	overallRate := safeRate(totalPass, totalCases)
+	meets := passed == len(targets)-skipped
+
+	return &CIEvalSummary{
+		TotalScenarios:  len(targets),
+		Passed:          passed,
+		Failed:          failed,
+		Skipped:         skipped,
+		OverallPassRate: overallRate,
+		Threshold:       config.Threshold,
+		MeetsThreshold:  meets,
+		Results:         results,
+		DurationMs:      int(time.Since(started).Milliseconds()),
+	}, nil
 }
