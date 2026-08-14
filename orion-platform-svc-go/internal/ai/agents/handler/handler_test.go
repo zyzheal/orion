@@ -105,7 +105,6 @@ func TestAI_AGENTS_Handler_RegisterRoutes(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/ai-agents", nil, nil)
@@ -116,7 +115,6 @@ func TestAI_AGENTS_Handler_List(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/ai-agents", models.RegisterAgentRequest{
@@ -132,7 +130,6 @@ func TestAI_AGENTS_Handler_Create(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/ai-agents/agent-1", nil, map[string]string{"id": "agent-1"})
@@ -143,7 +140,6 @@ func TestAI_AGENTS_Handler_Get(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPut, "/api/v1/ai-agents/agent-1", models.UpdateAgentRequest{}, map[string]string{"id": "agent-1"})
@@ -154,7 +150,6 @@ func TestAI_AGENTS_Handler_Update(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodDelete, "/api/v1/ai-agents/agent-1", nil, map[string]string{"id": "agent-1"})
@@ -168,7 +163,6 @@ func TestAI_AGENTS_Handler_Delete(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_UpdateStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtxForm(http.MethodPost, "/api/v1/ai-agents/agent-1/status", "status=running", map[string]string{"id": "agent-1"})
@@ -179,7 +173,6 @@ func TestAI_AGENTS_Handler_UpdateStatus(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_GetAuditLogs(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/ai-agents/agent-1/audit-logs", nil, map[string]string{"id": "agent-1"})
@@ -190,7 +183,6 @@ func TestAI_AGENTS_Handler_GetAuditLogs(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/ai-agents/stats", nil, nil)
@@ -201,7 +193,6 @@ func TestAI_AGENTS_Handler_GetStats(t *testing.T) {
 }
 
 func TestAI_AGENTS_Handler_Execute(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAgentsService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/ai-agents/agent-1/execute", models.ExecuteAgentRequest{Input: map[string]interface{}{"cmd": "test"}}, map[string]string{"id": "agent-1"})

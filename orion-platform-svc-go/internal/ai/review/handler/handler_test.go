@@ -61,7 +61,6 @@ func TestAI_REVIEW_Handler_RegisterRoutes(t *testing.T) {
 }
 
 func TestAI_REVIEW_Handler_CreateReview(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeReviewService{})
 	c, w := makeCtx(http.MethodPost, "/api/v1/ai/review", models.CreateReviewRequest{Content: "test", CreatedBy: "u1"}, nil)
 	h.CreateReview(c)
@@ -71,7 +70,6 @@ func TestAI_REVIEW_Handler_CreateReview(t *testing.T) {
 }
 
 func TestAI_REVIEW_Handler_GetReview(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeReviewService{})
 	c, w := makeCtx(http.MethodGet, "/api/v1/ai/review/rev-1", nil, map[string]string{"id": "rev-1"})
 	h.GetReview(c)
@@ -81,7 +79,6 @@ func TestAI_REVIEW_Handler_GetReview(t *testing.T) {
 }
 
 func TestAI_REVIEW_Handler_ListReviews(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeReviewService{})
 	c, w := makeCtx(http.MethodGet, "/api/v1/ai/review", nil, nil)
 	h.ListReviews(c)
@@ -91,7 +88,6 @@ func TestAI_REVIEW_Handler_ListReviews(t *testing.T) {
 }
 
 func TestAI_REVIEW_Handler_ApproveReview(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeReviewService{})
 	c, w := makeCtx(http.MethodPost, "/api/v1/ai/review/rev-1/approve", nil, map[string]string{"id": "rev-1"})
 	h.ApproveReview(c)
@@ -101,7 +97,6 @@ func TestAI_REVIEW_Handler_ApproveReview(t *testing.T) {
 }
 
 func TestAI_REVIEW_Handler_RejectReview(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeReviewService{})
 	c, w := makeCtx(http.MethodPost, "/api/v1/ai/review/rev-1/reject", nil, map[string]string{"id": "rev-1"})
 	h.RejectReview(c)

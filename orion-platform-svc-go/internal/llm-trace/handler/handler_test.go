@@ -87,12 +87,10 @@ func makeCtxLLM(method string, path string, body interface{}, params map[string]
 }
 
 func TestHandler_LLM_TRACE_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	newHandler().RegisterRoutes(gin.New().Group(""))
 }
 
 func TestHandler_LLM_TRACE_GetTrace(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/traces/trace-1", nil, map[string]string{"traceId": "trace-1"})
@@ -103,7 +101,6 @@ func TestHandler_LLM_TRACE_GetTrace(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_ListTraces(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/traces", nil, nil)
@@ -114,7 +111,6 @@ func TestHandler_LLM_TRACE_ListTraces(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_CreateTrace(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodPost, "/api/v1/llm/traces", models.TraceCreateRequest{
@@ -131,7 +127,6 @@ func TestHandler_LLM_TRACE_CreateTrace(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_CompleteTrace(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodPost, "/api/v1/llm/traces/trace-1/complete", models.TraceCompleteRequest{
@@ -146,7 +141,6 @@ func TestHandler_LLM_TRACE_CompleteTrace(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_GetDailyStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/stats/daily", nil, nil)
@@ -157,7 +151,6 @@ func TestHandler_LLM_TRACE_GetDailyStats(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_GetTrackingAccuracy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/tracking/accuracy", nil, nil)
@@ -168,7 +161,6 @@ func TestHandler_LLM_TRACE_GetTrackingAccuracy(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_GetPricing(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/pricing", nil, nil)
@@ -179,7 +171,6 @@ func TestHandler_LLM_TRACE_GetPricing(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_EstimateCost(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodPost, "/api/v1/llm/cost/estimate", models.CostEstimateRequest{
@@ -194,7 +185,6 @@ func TestHandler_LLM_TRACE_EstimateCost(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_GetCostBreakdown(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/cost/breakdown", nil, nil)
@@ -205,7 +195,6 @@ func TestHandler_LLM_TRACE_GetCostBreakdown(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_GetUsageDashboard(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/usage/dashboard", nil, nil)
@@ -216,7 +205,6 @@ func TestHandler_LLM_TRACE_GetUsageDashboard(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_GetModuleCostDashboard(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, w := makeCtxLLM(http.MethodGet, "/api/v1/llm/cost/module-dashboard", nil, nil)
@@ -227,7 +215,6 @@ func TestHandler_LLM_TRACE_GetModuleCostDashboard(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, _ := makeCtxLLM(http.MethodGet, "/", nil, nil)
@@ -238,7 +225,6 @@ func TestHandler_LLM_TRACE_getTenantID(t *testing.T) {
 }
 
 func TestHandler_LLM_TRACE_getUserID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeLLMTraceService{}
 	h := NewHandler(fake)
 	c, _ := makeCtxLLM(http.MethodGet, "/", nil, nil)

@@ -84,7 +84,6 @@ func TestAI_MODELS_Handler_RegisterRoutes(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_ListModels(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	h.ListModels(c)
@@ -94,7 +93,6 @@ func TestAI_MODELS_Handler_ListModels(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_RegisterModel(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPost, "/", models.RegisterModelRequest{Name: "gpt-4", DisplayName: "GPT-4", Type: "llm", Framework: "openai"}, nil)
 	h.RegisterModel(c)
@@ -104,7 +102,6 @@ func TestAI_MODELS_Handler_RegisterModel(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_GetModel(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodGet, "/", nil, map[string]string{"id": "m-1"})
 	h.GetModel(c)
@@ -114,7 +111,6 @@ func TestAI_MODELS_Handler_GetModel(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_UpdateModel(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPut, "/", models.UpdateModelRequest{}, map[string]string{"id": "m-1"})
 	h.UpdateModel(c)
@@ -124,7 +120,6 @@ func TestAI_MODELS_Handler_UpdateModel(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_DeleteModel(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodDelete, "/", nil, map[string]string{"id": "m-1"})
 	h.DeleteModel(c)
@@ -134,7 +129,6 @@ func TestAI_MODELS_Handler_DeleteModel(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_ListVersions(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodGet, "/", nil, map[string]string{"id": "m-1"})
 	h.ListVersions(c)
@@ -144,7 +138,6 @@ func TestAI_MODELS_Handler_ListVersions(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_PublishVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPost, "/", models.PublishVersionRequest{ArtifactUri: "s3://bucket/v1"}, map[string]string{"id": "m-1"})
 	h.PublishVersion(c)
@@ -154,7 +147,6 @@ func TestAI_MODELS_Handler_PublishVersion(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_GetVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodGet, "/", nil, map[string]string{"id": "m-1", "versionId": "v-1"})
 	h.GetVersion(c)
@@ -164,7 +156,6 @@ func TestAI_MODELS_Handler_GetVersion(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_PromoteVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPost, "/", models.PromoteVersionRequest{TargetEnvironment: "production"}, map[string]string{"id": "m-1", "versionId": "v-1"})
 	h.PromoteVersion(c)
@@ -174,7 +165,6 @@ func TestAI_MODELS_Handler_PromoteVersion(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_RollbackVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPost, "/", nil, map[string]string{"id": "m-1"})
 	h.RollbackVersion(c)
@@ -184,7 +174,6 @@ func TestAI_MODELS_Handler_RollbackVersion(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_GetModelMetrics(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodGet, "/", nil, map[string]string{"id": "m-1"})
 	h.GetModelMetrics(c)
@@ -194,7 +183,6 @@ func TestAI_MODELS_Handler_GetModelMetrics(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_ConfigureCanary(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPost, "/", models.CanaryConfigRequest{TargetVersion: "v2", TrafficPercent: 10, Duration: 3600}, map[string]string{"id": "m-1"})
 	h.ConfigureCanary(c)
@@ -204,7 +192,6 @@ func TestAI_MODELS_Handler_ConfigureCanary(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_GetCanaryConfig(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodGet, "/", nil, map[string]string{"id": "m-1"})
 	h.GetCanaryConfig(c)
@@ -214,7 +201,6 @@ func TestAI_MODELS_Handler_GetCanaryConfig(t *testing.T) {
 }
 
 func TestAI_MODELS_Handler_StopCanary(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	h := NewHandler(&fakeModelsService{})
 	c, w := makeCtx(http.MethodPost, "/", nil, map[string]string{"id": "m-1"})
 	h.StopCanary(c)

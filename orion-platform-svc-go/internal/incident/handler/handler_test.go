@@ -116,7 +116,6 @@ func TestHandler_INCIDENT_RegisterRoutes(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents", models.CreateIncidentRequest{
@@ -132,7 +131,6 @@ func TestHandler_INCIDENT_Create(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1", nil, map[string]string{"id": "inc-1"})
@@ -143,7 +141,6 @@ func TestHandler_INCIDENT_Get(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents", nil, nil)
@@ -154,7 +151,6 @@ func TestHandler_INCIDENT_List(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPut, "/api/v1/incidents/inc-1", models.UpdateIncidentRequest{
@@ -167,7 +163,6 @@ func TestHandler_INCIDENT_Update(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodDelete, "/api/v1/incidents/inc-1", nil, map[string]string{"id": "inc-1"})
@@ -181,7 +176,6 @@ func TestHandler_INCIDENT_Delete(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/stats", nil, nil)
@@ -192,7 +186,6 @@ func TestHandler_INCIDENT_GetStats(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_UpdateStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPatch, "/api/v1/incidents/inc-1/status", models.UpdateStatusRequest{Status: "mitigated"}, map[string]string{"id": "inc-1"})
@@ -203,7 +196,6 @@ func TestHandler_INCIDENT_UpdateStatus(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_AssignCommander(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPatch, "/api/v1/incidents/inc-1/assign", models.AssignCommanderRequest{CommanderID: "u1"}, map[string]string{"id": "inc-1"})
@@ -214,7 +206,6 @@ func TestHandler_INCIDENT_AssignCommander(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_Escalate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents/inc-1/escalate", models.EscalateRequest{ToLevel: 2, Reason: "need help", EscalatedBy: "u1"}, map[string]string{"id": "inc-1"})
@@ -225,7 +216,6 @@ func TestHandler_INCIDENT_Escalate(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_GetEscalations(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1/escalations", nil, map[string]string{"id": "inc-1"})
@@ -236,7 +226,6 @@ func TestHandler_INCIDENT_GetEscalations(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_CheckSla(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1/sla", nil, map[string]string{"id": "inc-1"})
@@ -247,7 +236,6 @@ func TestHandler_INCIDENT_CheckSla(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_MarkSlaBreach(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents/inc-1/sla/breach", nil, map[string]string{"id": "inc-1"})
@@ -258,7 +246,6 @@ func TestHandler_INCIDENT_MarkSlaBreach(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_AddTimelineEvent(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents/inc-1/timeline", models.AddTimelineEventRequest{EventType: "update", Content: "test"}, map[string]string{"id": "inc-1"})
@@ -269,7 +256,6 @@ func TestHandler_INCIDENT_AddTimelineEvent(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_GetTimeline(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1/timeline", nil, map[string]string{"id": "inc-1"})
@@ -280,7 +266,6 @@ func TestHandler_INCIDENT_GetTimeline(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_CreatePostmortem(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents/inc-1/postmortem", models.CreatePostmortemRequest{Summary: "test", RootCause: "outage"}, map[string]string{"id": "inc-1"})
@@ -291,7 +276,6 @@ func TestHandler_INCIDENT_CreatePostmortem(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_GetPostmortem(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1/postmortem", nil, map[string]string{"id": "inc-1"})
@@ -302,7 +286,6 @@ func TestHandler_INCIDENT_GetPostmortem(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_GeneratePostmortemDraft(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1/postmortem/draft", nil, map[string]string{"id": "inc-1"})
@@ -316,7 +299,6 @@ func TestHandler_INCIDENT_GeneratePostmortemDraft(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_UpdatePostmortem(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPut, "/api/v1/incidents/inc-1/postmortem", models.UpdatePostmortemRequest{Title: strPtrInc("Updated PM")}, map[string]string{"id": "inc-1"})
@@ -327,7 +309,6 @@ func TestHandler_INCIDENT_UpdatePostmortem(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_PublishPostmortem(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents/inc-1/postmortem/publish", nil, map[string]string{"id": "inc-1"})
@@ -338,7 +319,6 @@ func TestHandler_INCIDENT_PublishPostmortem(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_ArchivePostmortem(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodPost, "/api/v1/incidents/inc-1/postmortem/archive", nil, map[string]string{"id": "inc-1"})
@@ -349,7 +329,6 @@ func TestHandler_INCIDENT_ArchivePostmortem(t *testing.T) {
 }
 
 func TestHandler_INCIDENT_GetKnowledgeRecommendations(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeIncidentService{}
 	h := NewHandler(fake)
 	c, w := makeCtxInc(http.MethodGet, "/api/v1/incidents/inc-1/knowledge", nil, map[string]string{"id": "inc-1"})

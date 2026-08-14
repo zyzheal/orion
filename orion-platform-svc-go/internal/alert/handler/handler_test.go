@@ -118,7 +118,6 @@ func TestALERT_Handler_RegisterRoutes(t *testing.T) {
 }
 
 func TestALERT_Handler_Ingest(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/alert/ingest", models.IngestRequest{
@@ -140,7 +139,6 @@ func TestALERT_Handler_Ingest(t *testing.T) {
 }
 
 func TestALERT_Handler_Correlate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/alert/correlate", models.CorrelationRequest{
@@ -156,7 +154,6 @@ func TestALERT_Handler_Correlate(t *testing.T) {
 }
 
 func TestALERT_Handler_GetTopology(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/topology", nil, nil)
@@ -170,7 +167,6 @@ func TestALERT_Handler_GetTopology(t *testing.T) {
 }
 
 func TestALERT_Handler_SetTopology(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/alert/topology", models.TopologyNodesRequest{
@@ -187,7 +183,6 @@ func TestALERT_Handler_SetTopology(t *testing.T) {
 }
 
 func TestALERT_Handler_GetDedupStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/deduplication/stats", nil, nil)
@@ -198,7 +193,6 @@ func TestALERT_Handler_GetDedupStats(t *testing.T) {
 }
 
 func TestALERT_Handler_GetGroups(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/groups", nil, nil)
@@ -209,7 +203,6 @@ func TestALERT_Handler_GetGroups(t *testing.T) {
 }
 
 func TestALERT_Handler_GetSuppressionStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/suppression/stats", nil, nil)
@@ -220,7 +213,6 @@ func TestALERT_Handler_GetSuppressionStats(t *testing.T) {
 }
 
 func TestALERT_Handler_GetMaintenanceWindows(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/suppression/maintenance-windows", nil, nil)
@@ -231,7 +223,6 @@ func TestALERT_Handler_GetMaintenanceWindows(t *testing.T) {
 }
 
 func TestALERT_Handler_AddMaintenanceWindow(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/alert/suppression/maintenance-windows", models.AddMaintenanceWindowRequest{
@@ -246,7 +237,6 @@ func TestALERT_Handler_AddMaintenanceWindow(t *testing.T) {
 }
 
 func TestALERT_Handler_GetKnownIssues(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/suppression/known-issues", nil, nil)
@@ -257,7 +247,6 @@ func TestALERT_Handler_GetKnownIssues(t *testing.T) {
 }
 
 func TestALERT_Handler_AddKnownIssue(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/alert/suppression/known-issues", models.AddKnownIssueRequest{
@@ -272,7 +261,6 @@ func TestALERT_Handler_AddKnownIssue(t *testing.T) {
 }
 
 func TestALERT_Handler_GetActiveAlerts(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/suppression/alerts", nil, nil)
@@ -283,7 +271,6 @@ func TestALERT_Handler_GetActiveAlerts(t *testing.T) {
 }
 
 func TestALERT_Handler_ListAlerts(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/list", nil, nil)
@@ -294,7 +281,6 @@ func TestALERT_Handler_ListAlerts(t *testing.T) {
 }
 
 func TestALERT_Handler_GetAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/alert-1", nil, map[string]string{"id": "alert-1"})
@@ -305,7 +291,6 @@ func TestALERT_Handler_GetAlert(t *testing.T) {
 }
 
 func TestALERT_Handler_ExplainAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodGet, "/api/v1/alert/alert-1/explain", nil, map[string]string{"id": "alert-1"})
@@ -316,7 +301,6 @@ func TestALERT_Handler_ExplainAlert(t *testing.T) {
 }
 
 func TestALERT_Handler_UpdateAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPut, "/api/v1/alert/alert-1", service.UpdateAlertRequest{
@@ -330,7 +314,6 @@ func TestALERT_Handler_UpdateAlert(t *testing.T) {
 }
 
 func TestALERT_Handler_DeleteAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	fake := &fakeAlertService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodDelete, "/api/v1/alert/alert-1", nil, map[string]string{"id": "alert-1"})
