@@ -11,7 +11,7 @@ import (
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(service.NewService(&fakeTicketingRepo{}))
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -19,6 +19,18 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "tenant-1")
 	c.Params = gin.Params{}
+	c.Request = httptest.NewRequest(method, path, nil)
+	return c, w
+}
+
+func makeCtxWithParams(method string, path string, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("tenant_id", "tenant-1")
+	c.Params = gin.Params{}
+	for k, v := range params {
+		c.Params = append(c.Params, gin.Param{Key: k, Value: v})
+	}
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
@@ -525,7 +537,7 @@ func TestHandler_TICKETING_ListSLAPolicies(t *testing.T) {
 	}
 }
 func TestHandler_TICKETING_GetSLAPolicy(t *testing.T) {
-	c, w := makeCtx(http.MethodGet, "/")
+	c, w := makeCtxWithParams(http.MethodGet, "/", map[string]string{"policyId": "1"})
 	newHandler().GetSLAPolicy(c)
 	if w.Code >= 500 {
 		t.Fatalf("GetSLAPolicy: got %d", w.Code)
@@ -539,7 +551,7 @@ func TestHandler_TICKETING_UpdateSLAPolicy(t *testing.T) {
 	}
 }
 func TestHandler_TICKETING_DeleteSLAPolicy(t *testing.T) {
-	c, w := makeCtx(http.MethodGet, "/")
+	c, w := makeCtxWithParams(http.MethodDelete, "/", map[string]string{"policyId": "1"})
 	newHandler().DeleteSLAPolicy(c)
 	if w.Code >= 500 {
 		t.Fatalf("DeleteSLAPolicy: got %d", w.Code)
@@ -560,7 +572,7 @@ func TestHandler_TICKETING_GetBreaches(t *testing.T) {
 	}
 }
 func TestHandler_TICKETING_GetCompliance(t *testing.T) {
-	c, w := makeCtx(http.MethodGet, "/")
+	c, w := makeCtxWithParams(http.MethodGet, "/", map[string]string{"policyId": "1"})
 	newHandler().GetCompliance(c)
 	if w.Code >= 500 {
 		t.Fatalf("GetCompliance: got %d", w.Code)
@@ -588,7 +600,7 @@ func TestHandler_TICKETING_UpdateAutomationRule(t *testing.T) {
 	}
 }
 func TestHandler_TICKETING_DeleteAutomationRule(t *testing.T) {
-	c, w := makeCtx(http.MethodGet, "/")
+	c, w := makeCtxWithParams(http.MethodDelete, "/", map[string]string{"ruleId": "1"})
 	newHandler().DeleteAutomationRule(c)
 	if w.Code >= 500 {
 		t.Fatalf("DeleteAutomationRule: got %d", w.Code)
