@@ -190,6 +190,40 @@ const AlertList: React.FC = () => {
     }
   };
 
+  // AI Explain: show alert explanation via assistant Query
+  const handleAIExplain = async (record: Alert) => {
+    try {
+      const { askAssistant } = await import('@/api/assistant');
+      const resp = await askAssistant({
+        question: `请解释以下告警：${record.metric} 当前值=${record.value} 阈值=${record.threshold}，消息：${record.message || ''}`,
+        intent: 'alert',
+        topK: 3,
+      });
+      if (resp && resp.answer) {
+        message.success({
+          content: (
+            <div>
+              <strong style={{ marginBottom: 4, display: 'block' }}>AI 告警分析</strong>
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, background: '#f5f5f5', padding: 8, borderRadius: 4, maxHeight: 200, overflow: 'auto' }}>
+                {resp.answer}
+              </pre>
+            </div>
+          ),
+          duration: 10,
+          key: `ai-explain-${record.id}`,
+        });
+      } else {
+        message.info('暂无分析结果');
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`AI 分析失败：${error.message}`);
+      } else {
+        message.error('AI 分析失败，请稍后重试');
+      }
+    }
+  };
+
   // Handle refresh
   const handleRefresh = () => {
     loadAlerts();
@@ -369,7 +403,7 @@ const AlertList: React.FC = () => {
     {
       key: 'actions',
       title: '操作',
-      width: 160,
+      width: 200,
       render: (_, record) => {
         const isActive = record.status === 'active';
         const isAcknowledged = record.status === 'acknowledged';
@@ -380,6 +414,7 @@ const AlertList: React.FC = () => {
         if (isActive || isAcknowledged) {
           actions.push({ key: 'resolve', label: '解决', icon: <CloseOutlined />, onClick: () => handleResolve(record.id) });
         }
+        actions.push({ key: 'ai-explain', label: 'AI 解释', onClick: () => handleAIExplain(record) });
         actions.push({ key: 'read', label: '详情', onClick: () => showDetail(record) });
         return <PermissionActions resource="alert" actions={actions} />;
       },
