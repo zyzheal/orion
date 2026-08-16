@@ -14,11 +14,15 @@ import (
 
 // Handler exposes HTTP endpoints for agent trace observability.
 type Handler struct {
-	svc *service.Service
+	svc    *service.Service
+	router *service.ModelRouter
 }
 
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *service.Service, router *service.ModelRouter) *Handler {
+	if router == nil {
+		router = service.NewModelRouter(service.StrategyBalanced)
+	}
+	return &Handler{svc: svc, router: router}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -33,6 +37,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		g.PUT("/:id/complete", write, h.CompleteTrace)
 		g.GET("/list", read, h.ListTraces)
 		g.GET("/metrics", read, h.GetMetrics)
+		g.POST("/route", write, h.RouteModel)
 	}
 }
 
@@ -187,4 +192,40 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, metric)
+}
+
+func (h *Handler) RouteModel(c *gin.Context) {
+	type routeRequest struct {
+		InputTokens   int      `json:"input_tokens"`
+		OutputTokens  int      `json:"output_tokens"`
+		Temperature   float64  `json:"temperature"`
+		TopK          int      `json:"top_k"`
+		PromptLength  int      `json:"prompt_length"`
+		Capabilities  []string `json:"capabilities"`
+		CostBudget    float64  `json:"cost_budget"`
+		PreferredTier string   `json:"preferred_tier"`
+	}
+	var req routeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	strategy := service.RoutingStrategy(req.PreferredTier)
+	router := service.NewModelRouter(strategy)
+
+	resp, err := router.Route(c.Request.Context(), service.RoutingRequest{
+		InputTokens:   req.InputTokens,
+		OutputTokens:  req.OutputTokens,
+		Temperature:   req.Temperature,
+		TopK:          req.TopK,
+		PromptLength:  req.PromptLength,
+		Capabilities:  req.Capabilities,
+		CostBudget:    req.CostBudget,
+		PreferredTier: req.PreferredTier,
+	})
+	if err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, resp)
 }
