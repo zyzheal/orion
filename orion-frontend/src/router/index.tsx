@@ -366,9 +366,10 @@ const AppRoutes: React.FC = () => {
 };
 
 export default function AppRouter() {
-  return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AppRoutes />
-    </BrowserRouter>
-  );
+	return (
+		<BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+			<AppRoutes />
+			<CopilotFloating />
+		</BrowserRouter>
+	);
 }
