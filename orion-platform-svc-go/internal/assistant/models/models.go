@@ -44,3 +44,32 @@ type Conversation struct {
 	Intent    string    `json:"intent"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// Session holds a multi-turn conversation with the assistant.
+type Session struct {
+	ID        string    `json:"id"`
+	TenantID  string    `json:"tenant_id"`
+	UserID    string    `json:"user_id"`
+	Messages  []Message `json:"messages,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Message is a single turn in a conversation.
+type Message struct {
+	Role      string    `json:"role"`
+	Content   string    `json:"content"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// SessionRequest carries optional session_id for multi-turn context.
+type SessionRequest struct {
+	SessionID string `json:"session_id,omitempty"`
+}
+
+// SessionResponse wraps a QueryResponse with session info.
+type SessionResponse struct {
+	QueryResponse `json:",inline"`
+	SessionID     string `json:"session_id"`
+	TurnCount     int    `json:"turn_count"`
+}

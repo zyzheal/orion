@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"fmt"
+	"strconv"
+
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/assistant/models"
 	"orion/platform-svc-go/internal/assistant/service"
@@ -25,6 +28,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		f.GET("/health", h.Health)
 		f.POST("/ask", read, h.Ask)
 		f.POST("/action", read, h.Action)
+		f.GET("/sessions", read, h.ListSessions)
+		f.GET("/sessions/:id", read, h.GetSession)
+		f.DELETE("/sessions/:id", read, h.DeleteSession)
 	}
 }
 
@@ -32,16 +38,34 @@ func (h *Handler) Health(c *gin.Context) {
 	middleware.RespondSuccess(c, gin.H{"status": "ok", "module": "assistant"})
 }
 
+type AskRequest struct {
+	models.QueryRequest `json:",inline"`
+	SessionID           string `json:"session_id,omitempty"`
+}
+
 func (h *Handler) Ask(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssistantAsk")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	var req models.QueryRequest
+	userID := c.GetString("user_id")
+
+	var req AskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc.Query(ctx, tenantID, req)
+
+	if req.SessionID != "" {
+		resp, err := h.svc.QueryWithSession(ctx, tenantID, userID, req.SessionID, req.QueryRequest)
+		if err != nil {
+			middleware.RespondInternalError(c, err.Error())
+			return
+		}
+		middleware.RespondSuccess(c, resp)
+		return
+	}
+
+	resp, err := h.svc.Query(ctx, tenantID, req.QueryRequest)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -49,8 +73,6 @@ func (h *Handler) Ask(c *gin.Context) {
 	middleware.RespondSuccess(c, resp)
 }
 
-// Action executes a workflow action (create ticket / trigger pipeline / create change)
-// from a natural-language request (TR-09 tool-calling).
 func (h *Handler) Action(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssistantAction")
 	defer span.End()
@@ -72,3 +94,52 @@ func (h *Handler) Action(c *gin.Context) {
 	}
 	middleware.RespondCreated(c, res)
 }
+
+func (h *Handler) ListSessions(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 100 {
+			limit = n
+		}
+	}
+	sessions, err := h.svc.ListSessions(c.Request.Context(), tenantID, userID, limit)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	if sessions == nil {
+		sessions = make([]*models.Session, 0)
+	}
+	middleware.RespondSuccess(c, sessions)
+}
+
+func (h *Handler) GetSession(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	sessionID := c.Param("id")
+	if sessionID == "" {
+		middleware.RespondBadRequest(c, "session id is required")
+		return
+	}
+	sess, err := h.svc.GetSession(c.Request.Context(), tenantID, userID, sessionID)
+	if err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, sess)
+}
+
+func (h *Handler) DeleteSession(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	sessionID := c.Param("id")
+	if err := h.svc.DeleteSession(c.Request.Context(), tenantID, sessionID); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"message": "session deleted"})
+}
+
+// Suppress unused fmt import warning
+var _ = fmt.Sprintf

@@ -32,14 +32,27 @@ type SourceProvider interface {
 
 // Service is the assistant brain: intent routing + multi-source fusion + answer.
 type Service struct {
-	providers []SourceProvider
-	llm       LLMClient
-	executors map[models.ActionKind]ActionExecutor
+	providers   []SourceProvider
+	llm         LLMClient
+	executors   map[models.ActionKind]ActionExecutor
+	sessionMgr  *SessionManager
+	sessionStore SessionStore
 }
 
 // NewService creates an assistant with the given source providers.
 func NewService(providers []SourceProvider) *Service {
-	return &Service{providers: providers}
+	store := NewInMemorySessionStore()
+	return &Service{
+		providers:    providers,
+		sessionStore: store,
+		sessionMgr:   NewSessionManager(store),
+	}
+}
+
+// SetSessionStore replaces the default in-memory store with a custom one.
+func (s *Service) SetSessionStore(store SessionStore) {
+	s.sessionStore = store
+	s.sessionMgr = NewSessionManager(store)
 }
 
 // SetLLMClient wires an optional LLM used to synthesize the final answer.
@@ -71,6 +84,73 @@ func (s *Service) Query(ctx context.Context, tenantID string, req models.QueryRe
 		Generated: s.llm != nil,
 		CreatedAt: time.Now().UTC(),
 	}, nil
+}
+
+// QueryWithSession handles multi-turn queries with session context injection.
+// If sessionID is provided, previous messages are appended to the question for
+// context; the answer is persisted back to the session.
+func (s *Service) QueryWithSession(ctx context.Context, tenantID, userID, sessionID string, req models.QueryRequest) (*models.SessionResponse, error) {
+	sess, err := s.sessionMgr.GetOrCreate(ctx, sessionID, tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Inject recent context: append previous Q&A to the current question
+	window := s.sessionMgr.GetContextWindow(ctx, sessionID, tenantID, 6)
+	enriched := s.enrichWithHistory(req.Question, window)
+
+	resp, err := s.Query(ctx, tenantID, models.QueryRequest{
+		Question: enriched,
+		Intent:   req.Intent,
+		SpaceID:  req.SpaceID,
+		TopK:     req.TopK,
+		Metadata: req.Metadata,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Persist the turn
+	if err := s.sessionMgr.AppendTurn(ctx, sessionID, tenantID, req.Question, resp.Answer); err != nil {
+		// Best-effort; don't fail the response
+		_ = err
+	}
+
+	return &models.SessionResponse{
+		QueryResponse: *resp,
+		SessionID:     sessionID,
+		TurnCount:     len(sess.Messages) + 2,
+	}, nil
+}
+
+// enrichWithHistory prepends summarized prior conversation context to the question.
+func (s *Service) enrichWithHistory(question string, history []models.Message) string {
+	if len(history) == 0 {
+		return question
+	}
+	var b strings.Builder
+	b.WriteString("历史对话上下文：\n")
+	for _, m := range history {
+		role := map[bool]string{true: "用户", false: "助手"}[m.Role == "user"]
+		b.WriteString(fmt.Sprintf("  %s: %s\n", role, truncate(m.Content, 100)))
+	}
+	b.WriteString(fmt.Sprintf("\n当前问题：%s", question))
+	return b.String()
+}
+
+// ListSessions returns recent sessions for a user.
+func (s *Service) ListSessions(ctx context.Context, tenantID, userID string, limit int) ([]*models.Session, error) {
+	return s.sessionMgr.store.ListByUser(ctx, tenantID, userID, limit)
+}
+
+// GetSession returns a single session.
+func (s *Service) GetSession(ctx context.Context, tenantID, userID, sessionID string) (*models.Session, error) {
+	return s.sessionMgr.store.Get(ctx, sessionID, tenantID)
+}
+
+// DeleteSession removes a session.
+func (s *Service) DeleteSession(ctx context.Context, tenantID, sessionID string) error {
+	return s.sessionMgr.DeleteSession(ctx, sessionID, tenantID)
 }
 
 // detectIntent classifies a question into an operational domain.
