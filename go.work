@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./
 	./blueprints/orion-ai-svc-go.archived
 	./blueprints/orion-alert-breaker-svc-go.archived
 	./blueprints/orion-api-gateway-go
