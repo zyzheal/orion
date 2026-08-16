@@ -42,6 +42,7 @@ import {
   CloseOutlined,
   EyeOutlined,
   PlayCircleOutlined,
+  ThunderboltOutlined,
   SafetyOutlined,
   ExclamationCircleOutlined,
   ClockCircleOutlined,
@@ -322,6 +323,31 @@ export default function ChangeRequestManagementPage() {
     }
   };
 
+  const handleAIRisk = async (record: ChangeRequest) => {
+    try {
+      const risk = await getChangeRiskAnalysis(record.id);
+      if (risk) {
+        message.success({
+          content: (
+            <div>
+              <strong style={{ display: 'block', marginBottom: 4 }}>AI 变更风险评估</strong>
+              <div>变更: {record.title}</div>
+              <div>风险分: <span style={{ fontWeight: 600 }}>{risk.riskScore ?? risk.risk_score ?? '-'}</span></div>
+              <div>风险等级: <span style={{ fontWeight: 600 }}>{risk.riskLevel ?? risk.risk_level ?? '-'}</span></div>
+              <div style={{ marginTop: 4, fontSize: 12, color: colors.neutral[600] }}>
+                {risk.riskAssessment ?? risk.risk_assessment ?? '暂无详细评估'}
+              </div>
+            </div>
+          ),
+          duration: 8,
+          key: `ai-risk-${record.id}`,
+        });
+      }
+    } catch (err: unknown) {
+      message.error('AI 风险评估失败: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
   const handleViewDetail = async (record: ChangeRequest) => {
     setSelectedRequest(record);
     setDetailDrawerVisible(true);
@@ -422,11 +448,14 @@ export default function ChangeRequestManagementPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 280,
+      width: 300,
       render: (_, record) => (
         <Space size={4}>
           <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             详情
+          </Button>
+          <Button type="link" icon={<ThunderboltOutlined />} onClick={() => handleAIRisk(record)}>
+            AI 风险
           </Button>
           {record.status === 'draft' && (
             <>
