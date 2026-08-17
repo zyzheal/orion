@@ -109,7 +109,7 @@ const CacheConfigPage: React.FC = () => {
       const response = await cacheStrategyApi.list(params);
       const apiData = response.data?.data || response.data || response;
       setStrategies(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error('加载缓存策略失败，请稍后重试');
       setStrategies([]);
     } finally {
@@ -207,7 +207,7 @@ const CacheConfigPage: React.FC = () => {
       title: '命中率',
       key: 'hitRate',
       width: 120,
-      render: (_: unknown, record: CacheStrategy) => {
+      render: (_: any, record: CacheStrategy) => {
         const hit = record.hitCount || 0;
         const miss = record.missCount || 0;
         const rate = hit + miss > 0 ? (hit / (hit + miss)) * 100 : 0;
@@ -234,7 +234,7 @@ const CacheConfigPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 180,
-      render: (_: unknown, record: CacheStrategy) => (
+      render: (_: any, record: CacheStrategy) => (
         <Space size="small">
           <Button
             type="link"
@@ -291,7 +291,7 @@ const CacheConfigPage: React.FC = () => {
       await cacheStrategyApi.delete(id);
       message.success('缓存策略已删除');
       loadStrategies();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error('删除缓存策略失败');
     }
   };

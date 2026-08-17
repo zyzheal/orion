@@ -159,7 +159,7 @@ const ApkCredentialsManagement: React.FC = () => {
         });
 
       setCredentials(apkSecrets);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载凭证失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -194,7 +194,7 @@ const ApkCredentialsManagement: React.FC = () => {
       setCreateModalVisible(false);
       form.resetFields();
       loadCredentials();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) {
         return;
       }
@@ -224,7 +224,7 @@ const ApkCredentialsManagement: React.FC = () => {
       setEditingCredential(null);
       form.resetFields();
       loadCredentials();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) {
         return;
       }
@@ -240,7 +240,7 @@ const ApkCredentialsManagement: React.FC = () => {
       await deleteSecret(tenantId, id);
       message.success(`已删除 ${getMarketName(market)} 的凭证`);
       loadCredentials();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -293,7 +293,7 @@ const ApkCredentialsManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: { id: string; market: string }) => (
+      render: (_: any, record: { id: string; market: string }) => (
         <Space>
           <Button
             size="small"

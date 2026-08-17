@@ -44,11 +44,11 @@ const PipelineList: React.FC = () => {
     try {
       const response = await getPipelines();
       // wrapper: {success, data: {data: [...], total}, meta}
-      const wrapperData = response.data as { data?: { data?: unknown[]; total?: number } };
+      const wrapperData = response.data as { data?: { data?: any[]; total?: number } };
       const payload = wrapperData?.data ?? wrapperData;
       const items = payload?.data ?? (Array.isArray(payload) ? payload : []);
       setPipelines(items as Pipeline[]);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
       } else {
@@ -127,7 +127,7 @@ const PipelineList: React.FC = () => {
       if (runId) {
         navigate(`/pipelines/${selectedPipeline.id}/runs/${runId}`);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`触发运行失败：${error.message}`);
       } else {
@@ -151,7 +151,7 @@ const PipelineList: React.FC = () => {
       width: 200,
       sortable: true,
       filterable: true,
-      render: (_value: unknown, record) => (
+      render: (_value: any, record) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -172,7 +172,7 @@ const PipelineList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: '12%',
-      render: (value: unknown) => <StatusBadge status={String(value) as StatusType} size="small" />,
+      render: (value: any) => <StatusBadge status={String(value) as StatusType} size="small" />,
     },
     {
       key: 'stages',
@@ -190,7 +190,7 @@ const PipelineList: React.FC = () => {
       dataIndex: 'createdAt',
       width: '15%',
       sortable: true,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
@@ -202,7 +202,7 @@ const PipelineList: React.FC = () => {
       dataIndex: 'updatedAt',
       width: '15%',
       sortable: true,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
@@ -212,7 +212,7 @@ const PipelineList: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 320,
-      render: (_: unknown, record) => (
+      render: (_: any, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看

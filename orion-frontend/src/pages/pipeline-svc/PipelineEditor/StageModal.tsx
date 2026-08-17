@@ -357,7 +357,7 @@ const StageModal: React.FC<StageModalProps> = ({
         qualityGateConfig: qualityGateConfig.enabled ? qualityGateConfig : undefined,
       };
       onSave(stageConfig);
-    } catch (error: unknown) {
+    } catch (error: any) {
       // Ant Design 表单验证失败会自动显示错误
       if (error && typeof error === 'object' && 'errorFields' in error) {
         return;

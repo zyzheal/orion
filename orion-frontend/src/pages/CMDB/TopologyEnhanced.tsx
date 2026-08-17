@@ -97,7 +97,7 @@ const typeColorMap: Record<string, string> = {
 const impactLevelConfig: Record<string, { color: string; label: string; threshold: number }> = {
   critical: { color: colors.error[500], label: '严重 (Critical)', threshold: 10 },
   high: { color: colors.warning[500], label: '高 (High)', threshold: 5 },
-  medium: { color: '#FADB14', label: '中 (Medium)', threshold: 2 },
+  medium: { color: colors.warning[500], label: '中 (Medium)', threshold: 2 },
   low: { color: colors.neutral[500], label: '低 (Low)', threshold: 0 },
 };
 
@@ -167,7 +167,7 @@ const EnhancedNode: React.FC<{ data: EnhancedNodeData }> = ({ data }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#fff',
+          color: themeVars.textPrimary,
           fontSize: 13,
           flexShrink: 0,
         }}

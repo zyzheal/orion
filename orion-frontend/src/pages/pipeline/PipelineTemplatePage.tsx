@@ -92,7 +92,7 @@ const PipelineTemplatePage: React.FC = () => {
       const res = await pipelineTemplatesApi.list({ page: 1, limit: 100 });
       const raw = res.data?.data;
       setTemplates(Array.isArray(raw) ? raw : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setTemplates([]);
       message.error(`加载模板列表失败: ${(error as Error).message}`);
     } finally {
@@ -156,8 +156,8 @@ const PipelineTemplatePage: React.FC = () => {
       setEditingTemplate(null);
       createForm.resetFields();
       loadTemplates();
-    } catch (error: unknown) {
-      const err = error as { errorFields?: unknown };
+    } catch (error: any) {
+      const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`${editingTemplate ? '更新' : '创建'}失败: ${(error as Error).message}`);
       }
@@ -171,7 +171,7 @@ const PipelineTemplatePage: React.FC = () => {
       await pipelineTemplatesApi.delete(id);
       message.success('模板已删除');
       loadTemplates();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -226,8 +226,8 @@ const PipelineTemplatePage: React.FC = () => {
       message.success('流水线实例化成功');
       setInstantiateModalVisible(false);
       instantiateForm.resetFields();
-    } catch (error: unknown) {
-      const err = error as { errorFields?: unknown };
+    } catch (error: any) {
+      const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`实例化失败: ${(error as Error).message}`);
       }
@@ -245,7 +245,7 @@ const PipelineTemplatePage: React.FC = () => {
       key: 'name',
       width: 200,
       sorter: (a, b) => a.name.localeCompare(b.name),
-      render: (v: unknown, record) => (
+      render: (v: any, record) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
             <FileTextOutlined style={{ marginRight: 6 }} />
@@ -299,7 +299,7 @@ const PipelineTemplatePage: React.FC = () => {
       dataIndex: 'created_by',
       key: 'created_by',
       width: 120,
-      render: (v: unknown) => <Text type="secondary">{(v as string) || '-'}</Text>,
+      render: (v: any) => <Text type="secondary">{(v as string) || '-'}</Text>,
     },
     {
       title: '更新时间',
@@ -307,7 +307,7 @@ const PipelineTemplatePage: React.FC = () => {
       key: 'updated_at',
       width: 180,
       sorter: (a, b) => dayjs(a.updated_at).valueOf() - dayjs(b.updated_at).valueOf(),
-      render: (v: unknown) => (
+      render: (v: any) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') : '-'}
         </Text>

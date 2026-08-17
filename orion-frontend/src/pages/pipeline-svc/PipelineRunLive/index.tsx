@@ -474,7 +474,7 @@ const PipelineRunLive: React.FC = () => {
       try {
         const response = await getPipelineRun(id!);
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
-        const wrapperData = response.data as { data?: unknown; success?: boolean };
+        const wrapperData = response.data as { data?: any; success?: boolean };
         const apiData = wrapperData?.data ?? wrapperData;
         if (apiData && ((apiData as any).run || (apiData as any).stages)) {
           const run = (apiData as any).run || apiData;
@@ -512,7 +512,7 @@ const PipelineRunLive: React.FC = () => {
         } else {
           setApiError('未找到该 Pipeline 运行记录');
         }
-      } catch (error: unknown) {
+      } catch (error: any) {
         const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
         setApiError(errorMsg);
         message.error(`加载 Pipeline 详情失败：${errorMsg}`);

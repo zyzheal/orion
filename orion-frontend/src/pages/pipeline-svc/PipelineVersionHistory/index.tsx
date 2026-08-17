@@ -39,7 +39,7 @@ const PipelineVersionHistory: React.FC = () => {
     try {
       const response = await pipelineVersionsApi.list(pipelineId);
       setVersions(((response as any).data as PipelineVersion[]) || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载版本历史失败';
       message.error(msg);
     } finally {
@@ -62,7 +62,7 @@ const PipelineVersionHistory: React.FC = () => {
           await pipelineVersionsApi.rollback(pipelineId!, version.id);
           message.success('回滚成功');
           loadVersions();
-        } catch (error: unknown) {
+        } catch (error: any) {
           const msg = error instanceof Error ? error.message : '回滚失败';
           message.error(msg);
         }
@@ -75,7 +75,7 @@ const PipelineVersionHistory: React.FC = () => {
       await pipelineVersionsApi.setBaseline(pipelineId!, version.id, !version.is_baseline);
       message.success(version.is_baseline ? '已取消基线' : '已设为基线');
       loadVersions();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '操作失败';
       message.error(msg);
     }
@@ -95,7 +95,7 @@ const PipelineVersionHistory: React.FC = () => {
       ]);
       setDiffVersions({ versionA: vA, versionB: vB });
       setDiffModalVisible(true);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '版本对比失败';
       message.error(msg);
     } finally {
@@ -109,7 +109,7 @@ const PipelineVersionHistory: React.FC = () => {
       title: '版本',
       dataIndex: 'version',
       width: 100,
-      render: (v: unknown) => (
+      render: (v: any) => (
         <Tag color="blue" style={{ fontFamily: 'monospace' }}>
           v{String(v)}
         </Tag>
@@ -120,7 +120,7 @@ const PipelineVersionHistory: React.FC = () => {
       title: '变更摘要',
       dataIndex: 'change_summary',
       ellipsis: true,
-      render: (summary: unknown) =>
+      render: (summary: any) =>
         (summary as string) || <Text type="secondary">无</Text>,
     },
     {
@@ -128,7 +128,7 @@ const PipelineVersionHistory: React.FC = () => {
       title: '标签',
       dataIndex: 'tags',
       width: 180,
-      render: (tags: unknown) => (
+      render: (tags: any) => (
         <Space wrap>
           {(tags as string[]).map((t) => (
             <Tag key={t} color="default">
@@ -143,7 +143,7 @@ const PipelineVersionHistory: React.FC = () => {
       title: '基线',
       dataIndex: 'is_baseline',
       width: 80,
-      render: (isBaseline: unknown) =>
+      render: (isBaseline: any) =>
         isBaseline ? <StatusBadge status="success" size="small" /> : '-',
     },
     {
@@ -152,7 +152,7 @@ const PipelineVersionHistory: React.FC = () => {
       dataIndex: 'created_at',
       width: 180,
       sortable: true,
-      render: (date: unknown) => (
+      render: (date: any) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(date as string).fromNow()}
         </Text>
@@ -163,13 +163,13 @@ const PipelineVersionHistory: React.FC = () => {
       title: '创建人',
       dataIndex: 'created_by',
       width: 120,
-      render: (by: unknown) => <Text code>{(by as string) || '-'}</Text>,
+      render: (by: any) => <Text code>{(by as string) || '-'}</Text>,
     },
     {
       key: 'actions',
       title: '操作',
       width: 200,
-      render: (_: unknown, record: PipelineVersion) => (
+      render: (_: any, record: PipelineVersion) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => handleRollback(record)}>
             回滚

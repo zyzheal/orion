@@ -109,7 +109,7 @@ const PipelineManagementPage: React.FC = () => {
       const result = await listDataPipelines();
       const data = Array.isArray(result.data) ? result.data : [];
       setPipelines(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载数据管道列表失败';
       message.error(msg);
       setPipelines([]);
@@ -139,7 +139,7 @@ const PipelineManagementPage: React.FC = () => {
       form.resetFields();
       setEditingPipeline(null);
       loadPipelines();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : (editingPipeline ? '更新失败' : '创建失败');
       message.error(msg);
     } finally {
@@ -179,7 +179,7 @@ const PipelineManagementPage: React.FC = () => {
           await deleteDataPipeline(pipeline.id);
           message.success('删除成功');
           loadPipelines();
-        } catch (error: unknown) {
+        } catch (error: any) {
           const msg = error instanceof Error ? error.message : '删除失败';
           message.error(msg);
         }
@@ -199,7 +199,7 @@ const PipelineManagementPage: React.FC = () => {
       await runDataPipeline(pipeline.id);
       message.success('管道运行已触发');
       loadPipelines();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '运行失败';
       message.error(msg);
     } finally {
@@ -213,7 +213,7 @@ const PipelineManagementPage: React.FC = () => {
       await pauseDataPipeline(pipeline.id);
       message.success('管道已暂停');
       loadPipelines();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '暂停失败';
       message.error(msg);
     } finally {
@@ -227,7 +227,7 @@ const PipelineManagementPage: React.FC = () => {
       await resumeDataPipeline(pipeline.id);
       message.success('管道已恢复');
       loadPipelines();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '恢复失败';
       message.error(msg);
     } finally {
@@ -247,7 +247,7 @@ const PipelineManagementPage: React.FC = () => {
       setDrawerContent(result.logs && result.logs.length > 0
         ? result.logs.join('\n')
         : '暂无日志');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载日志失败';
       message.error(msg);
       setDrawerContent('加载失败，请稍后重试');
@@ -265,7 +265,7 @@ const PipelineManagementPage: React.FC = () => {
       const result = await getDataPipelineLineage(pipeline.id);
       const lineage = result.lineage || {};
       setDrawerContent(JSON.stringify(lineage, null, 2));
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载血缘失败';
       message.error(msg);
       setDrawerContent('加载失败，请稍后重试');
@@ -298,7 +298,7 @@ const PipelineManagementPage: React.FC = () => {
       title: '管道名称',
       dataIndex: 'name',
       width: 200,
-      render: (value: unknown, record: DataPipeline) => (
+      render: (value: any, record: DataPipeline) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ color: colors.primary[500], cursor: 'pointer' }}
             onClick={() => navigate(`/data-pipeline/${record.id}`)}>
@@ -315,7 +315,7 @@ const PipelineManagementPage: React.FC = () => {
       title: '源表',
       dataIndex: 'sourceTable',
       width: 140,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Tag color="blue" style={{ fontSize: spacing[3] }}>
           {(value as string) || '-'}
         </Tag>
@@ -326,7 +326,7 @@ const PipelineManagementPage: React.FC = () => {
       title: '目标表',
       dataIndex: 'targetTable',
       width: 140,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Tag color="green" style={{ fontSize: spacing[3] }}>
           {(value as string) || '-'}
         </Tag>
@@ -337,7 +337,7 @@ const PipelineManagementPage: React.FC = () => {
       title: '调度',
       dataIndex: 'schedule',
       width: 120,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Text type="secondary" style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
           {(value as string) || '手动'}
         </Text>
@@ -348,14 +348,14 @@ const PipelineManagementPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (value: unknown) => <StatusTag status={(value as string) || "-"} />,
+      render: (value: any) => <StatusTag status={(value as string) || "-"} />,
     },
     {
       key: 'updatedAt',
       title: '更新时间',
       dataIndex: 'updatedAt',
       width: 140,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {(value as string) ? dayjs(value as string).fromNow() : '-'}
         </Text>
@@ -365,7 +365,7 @@ const PipelineManagementPage: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 200,
-      render: (_: unknown, record: DataPipeline) => (
+      render: (_: any, record: DataPipeline) => (
         <Space size="small" wrap>
           {record.status !== 'running' && (
             <Button

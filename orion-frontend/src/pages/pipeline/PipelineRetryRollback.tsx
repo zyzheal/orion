@@ -224,13 +224,13 @@ const PipelineRetryRollback: React.FC = () => {
     dataIndex?: string;
     key: string;
     width?: number;
-    render?: (value: unknown, record: PipelineRunItem) => React.ReactNode;
+    render?: (value: any, record: PipelineRunItem) => React.ReactNode;
   }> = [
     {
       title: 'Pipeline 名称',
       dataIndex: 'pipelineName',
       key: 'pipelineName',
-      render: (_value: unknown, record: PipelineRunItem) => (
+      render: (_value: any, record: PipelineRunItem) => (
         <Space>
           <Text strong>{record.pipelineName}</Text>
           <Text type="secondary">#{record.runNumber}</Text>
@@ -241,7 +241,7 @@ const PipelineRetryRollback: React.FC = () => {
       title: 'Run ID',
       dataIndex: 'id',
       key: 'id',
-      render: (_value: unknown, record: PipelineRunItem) => (
+      render: (_value: any, record: PipelineRunItem) => (
         <Text code style={{ fontSize: 12 }}>{record.id}</Text>
       ),
     },
@@ -249,7 +249,7 @@ const PipelineRetryRollback: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (_value: unknown, record: PipelineRunItem) => {
+      render: (_value: any, record: PipelineRunItem) => {
         const color = statusColorMap[record.status] || colors.neutral[500];
         const icon = statusIconMap[record.status] || <InfoCircleOutlined />;
         const labelMap: Record<string, string> = {
@@ -271,13 +271,13 @@ const PipelineRetryRollback: React.FC = () => {
       title: '耗时',
       dataIndex: 'duration',
       key: 'duration',
-      render: (_value: unknown, record: PipelineRunItem) => formatDuration(record.duration || 0),
+      render: (_value: any, record: PipelineRunItem) => formatDuration(record.duration || 0),
     },
     {
       title: '时间',
       dataIndex: 'startTime',
       key: 'startTime',
-      render: (_value: unknown, record: PipelineRunItem) => {
+      render: (_value: any, record: PipelineRunItem) => {
         const formatted = dayjs(record.startTime).format('MM-DD HH:mm');
         const relative = dayjs(record.startTime).fromNow();
         return (
@@ -294,7 +294,7 @@ const PipelineRetryRollback: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 200,
-      render: (_value: unknown, record: PipelineRunItem) => {
+      render: (_value: any, record: PipelineRunItem) => {
         const isFailed = record.status === 'failed';
         const isRunning = record.status === 'running';
         const isSuccess = record.status === 'success';

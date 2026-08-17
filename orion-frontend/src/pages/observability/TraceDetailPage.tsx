@@ -1037,7 +1037,7 @@ const TraceDetailPage: React.FC = () => {
                         x={x + 4}
                         y={barY + barH / 2 + 3}
                         fontSize={10}
-                        fill="#ffffff"
+                        fill="var(--text-primary)"
                         style={{ userSelect: 'none', fontWeight: 500 }}
                       >
                         {formatDuration(s.durationNs)}

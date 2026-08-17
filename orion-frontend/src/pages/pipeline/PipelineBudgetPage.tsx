@@ -149,7 +149,7 @@ const PipelineBudgetPage: React.FC = () => {
     try {
       const res = await pipelineBudgetApi.get(selectedPipelineId);
       setBudgetConfig(res || null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setBudgetConfig(null);
     } finally {
       setLoading(false);
@@ -161,7 +161,7 @@ const PipelineBudgetPage: React.FC = () => {
       const res = await pipelineBudgetApi.getUsage(selectedPipelineId, selectedRunId);
       setBudgetUsage(res || null);
       setAlerts(res?.alerts || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setBudgetUsage(null);
       setAlerts([]);
     }
@@ -172,7 +172,7 @@ const PipelineBudgetPage: React.FC = () => {
     try {
       const res = await pipelineBudgetApi.estimate(selectedPipelineId, selectedTriggerType);
       setBudgetEstimate(res || null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setBudgetEstimate(null);
       message.error(`预估失败: ${(error as Error).message}`);
     } finally {
@@ -242,8 +242,8 @@ const PipelineBudgetPage: React.FC = () => {
       message.success('预算配置保存成功');
       setConfigModalVisible(false);
       loadBudgetConfig();
-    } catch (error: unknown) {
-      const err = error as { errorFields?: unknown };
+    } catch (error: any) {
+      const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`保存失败: ${(error as Error).message}`);
       }
@@ -280,7 +280,7 @@ const PipelineBudgetPage: React.FC = () => {
       dataIndex: 'triggered_at',
       key: 'triggered_at',
       width: 180,
-      render: (v: unknown) => (
+      render: (v: any) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') : '-'}
         </Text>

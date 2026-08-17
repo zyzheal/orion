@@ -165,7 +165,7 @@ const KnowledgeGraphPage: React.FC = () => {
                       <circle
                         cx={pos.x} cy={pos.y} r={r}
                         fill={nodeColors[node.type]}
-                        stroke={isSelected ? '#fff' : 'none'}
+                        stroke={isSelected ? themeVars.textPrimary : 'none'}
                         strokeWidth={isSelected ? 3 : 0}
                         opacity={isSelected ? 1 : 0.85}
                       />

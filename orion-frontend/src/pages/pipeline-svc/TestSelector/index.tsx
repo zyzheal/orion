@@ -174,7 +174,7 @@ const TestSelector: React.FC = () => {
       const [testsRes, statsRes] = await Promise.all([getTestCases(), getTestStats()]);
       setTestCases((testsRes.data as any).testCases.map(mapApiTestCase));
       setTestStats(mapApiTestStats(statsRes.data.stats));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Failed to load test data: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -202,7 +202,7 @@ const TestSelector: React.FC = () => {
       title: 'Test Name',
       dataIndex: 'name',
       sortable: true,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Text
           strong
           style={{
@@ -224,14 +224,14 @@ const TestSelector: React.FC = () => {
       dataIndex: 'suite',
       sortable: true,
       filterable: true,
-      render: (value: unknown) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
+      render: (value: any) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
     },
     {
       key: 'status',
       title: 'Status',
       dataIndex: 'status',
       sortable: true,
-      render: (_value: unknown, record: TestCase) => (
+      render: (_value: any, record: TestCase) => (
         <Tag color={getStatusColor(record.status)} icon={getStatusIcon(record.status)}>
           {getStatusLabel(record.status)}
         </Tag>
@@ -254,7 +254,7 @@ const TestSelector: React.FC = () => {
       title: 'Tags',
       dataIndex: 'tags',
       filterable: true,
-      render: (value: unknown) => (
+      render: (value: any) => (
         <Space size={4} wrap>
           {(value as string[]).map((tag) => (
             <Tag key={tag} color={colors.neutral[300]} style={{ fontSize: 11 }}>
@@ -267,7 +267,7 @@ const TestSelector: React.FC = () => {
     {
       key: 'actions',
       title: 'Actions',
-      render: (_value: unknown, record: TestCase) => (
+      render: (_value: any, record: TestCase) => (
         <Space size="small">
           <Button
             type="link"
@@ -326,7 +326,7 @@ const TestSelector: React.FC = () => {
     try {
       const response = await runTests(selectedRowKeys as string[]);
       message.success(`Test run started: ${response.data.runId}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Failed to run tests: ${(error as Error).message}`);
     }
   }, [selectedRowKeys]);

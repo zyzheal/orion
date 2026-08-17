@@ -113,7 +113,7 @@ const PipelineDetail: React.FC = () => {
       try {
         const response = await getPipelineRun(id!);
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
-        const wrapperData = response.data as { data?: unknown };
+        const wrapperData = response.data as { data?: any };
         const apiData = wrapperData?.data ?? wrapperData;
         if (apiData && (apiData instanceof Object) && ('run' in apiData || 'stages' in apiData)) {
           const run = (apiData as APIFlattenedResponse).run || apiData;
@@ -131,7 +131,7 @@ const PipelineDetail: React.FC = () => {
         } else {
           setApiError('未找到该 Pipeline 运行记录');
         }
-      } catch (error: unknown) {
+      } catch (error: any) {
         const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
         setApiError(errorMsg);
         message.error(`加载 Pipeline 详情失败：${errorMsg}`);
@@ -166,7 +166,7 @@ const PipelineDetail: React.FC = () => {
       message.success('Pipeline 重新运行成功');
       // Reload pipeline detail after re-run
       const response = await getPipelineRun(id!);
-      const wrapperData = response.data as { data?: unknown };
+      const wrapperData = response.data as { data?: any };
       const apiData = wrapperData?.data ?? wrapperData;
       if (apiData && (apiData instanceof Object) && ('run' in apiData || 'stages' in apiData)) {
         const run = (apiData as APIFlattenedResponse).run || apiData;
@@ -182,7 +182,7 @@ const PipelineDetail: React.FC = () => {
         };
         setPipeline(flattened);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
       } else {
@@ -213,7 +213,7 @@ const PipelineDetail: React.FC = () => {
           } else {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
-            const reloaded = reloadResp.data as { run?: unknown; stages?: unknown };
+            const reloaded = reloadResp.data as { run?: any; stages?: any };
             const run = reloaded?.run as PipelineDetailModel;
             const updated: PipelineDetailModel = {
               id: run?.id || '',
@@ -226,7 +226,7 @@ const PipelineDetail: React.FC = () => {
             };
             setPipeline(updated);
           }
-        } catch (error: unknown) {
+        } catch (error: any) {
           if (error instanceof Error) {
             message.error(`从阶段「${stageName}」重跑失败：${error.message}`);
           } else {

@@ -69,7 +69,7 @@ const DataPipelinePage: React.FC = () => {
       const result = await listDataPipelines();
       const data = Array.isArray(result.data) ? result.data : [];
       setPipelines(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载数据管道失败: ${(error as Error).message}`);
       setPipelines([]);
     } finally {
@@ -91,7 +91,7 @@ const DataPipelinePage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`创建数据管道失败: ${(error as Error).message}`);
     }
   };
@@ -102,7 +102,7 @@ const DataPipelinePage: React.FC = () => {
       await runDataPipeline(id);
       message.success('管道执行成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`执行管道失败: ${(error as Error).message}`);
     } finally {
       setActionLoading(null);
@@ -116,7 +116,7 @@ const DataPipelinePage: React.FC = () => {
     try {
       const result = await getDataPipelineLineage(pipeline.id);
       setLineageData(JSON.stringify(result.lineage || {}, null, 2));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载数据血缘失败: ${(error as Error).message}`);
       setLineageData('加载失败');
     } finally {
@@ -174,13 +174,13 @@ const DataPipelinePage: React.FC = () => {
       title: '调度',
       key: 'schedule',
       width: 120,
-      render: (_: unknown, record: DataPipeline) => record.schedule || '手动',
+      render: (_: any, record: DataPipeline) => record.schedule || '手动',
     },
     {
       title: '操作',
       key: 'actions',
       width: 160,
-      render: (_: unknown, record: DataPipeline) => (
+      render: (_: any, record: DataPipeline) => (
         <Space size="small">
           <Button
             type="link"
