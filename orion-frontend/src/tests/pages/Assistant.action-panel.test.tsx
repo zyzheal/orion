@@ -46,6 +46,15 @@ const mockIngestSource = vi.fn().mockResolvedValue({
   data: { source: 'alert', indexed: 2, space_id: 'space-1', destination: 'kb' },
 });
 
+// Mock auth API (used by useAuthStore → logout)
+vi.mock('@/api/auth', () => ({
+  login: vi.fn(),
+  logout: vi.fn().mockResolvedValue({ data: {} }),
+  getCurrentUser: vi.fn().mockResolvedValue({
+    data: { id: 'test-user', username: 'test', roles: ['admin'] },
+  }),
+}));
+
 vi.doMock('@/api/assistant', () => ({
   assistantAsk: mockAssistantAsk,
   assistantAction: mockAssistantAction,
@@ -66,6 +75,15 @@ vi.mock('@/tokens', () => ({
     warning: { 500: '#FAAD14' },
   },
   spacing: { sm: 8, md: 12, lg: 16, xl: 24, 3: 12, 6: 24 },
+  themeVars: {
+    bgPrimary: '#FFFFFF',
+    bgSecondary: '#F5F5F7',
+    borderDefault: '#F0F0F0',
+    textPrimary: '#1F1F1F',
+    textSecondary: '#8C8C8C',
+    primaryColor: '#3370E6',
+    primaryHover: '#2B5DD6',
+  },
 }));
 
 // Re-import after mocks
