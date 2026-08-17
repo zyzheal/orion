@@ -29,7 +29,7 @@ import {
   EyeOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   listInstances,
   getInstance,
@@ -334,7 +334,7 @@ const FormInstancePipeline: React.FC = () => {
             </Descriptions.Item>
             {selectedInstance.data && (
               <Descriptions.Item label="数据">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
                   {JSON.stringify(selectedInstance.data, null, 2)}
                 </pre>
               </Descriptions.Item>

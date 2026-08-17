@@ -8,7 +8,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, message, Modal, Spin, Empty } from 'antd';
-import { colors, spacing, componentRadius, shadows } from '@/tokens';
+import { colors, spacing, componentRadius, shadows, themeVars } from '@/tokens';
 import { PlusOutlined, ReloadOutlined, PlayCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
@@ -263,7 +263,7 @@ const AgentDashboard: React.FC = () => {
             onDeleteAgent={handleDeleteAgent}
           />
         ) : (
-          <div style={{ background: colors.light.bg.primary, borderRadius: componentRadius.card, boxShadow: shadows.card, padding: '48px 0' }}>
+          <div style={{ background: themeVars.bgPrimary, borderRadius: componentRadius.card, boxShadow: shadows.card, padding: '48px 0' }}>
             <Empty description="暂无 Agent 数据" />
           </div>
         )}

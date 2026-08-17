@@ -36,7 +36,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
-import { spacing } from '@/tokens';
+import { spacing, themeVars } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -96,10 +96,10 @@ const statusConfig: Record<
   EscalationStatus,
   { label: string; color: string; bgColor: string }
 > = {
-  normal: { label: '正常', color: colors.success[500], bgColor: '#f6ffed' },
-  warning: { label: '即将超时', color: colors.warning[500], bgColor: '#fffbe6' },
-  timeout: { label: '已超时', color: colors.error[500], bgColor: '#fff1f0' },
-  escalated: { label: '已升级', color: colors.purple[500], bgColor: '#f9f0ff' },
+  normal: { label: '正常', color: colors.success[500], bgColor: colors.success[50] },
+  warning: { label: '即将超时', color: colors.warning[500], bgColor: colors.warning[50] },
+  timeout: { label: '已超时', color: colors.error[500], bgColor: colors.error[50] },
+  escalated: { label: '已升级', color: colors.purple[500], bgColor: colors.purple[50] },
 };
 
 const statusTag = (status: EscalationStatus) => {
@@ -737,7 +737,7 @@ const ApprovalEscalation: React.FC = () => {
     <div
       style={{
         padding: spacing.lg,
-        background: colors.light.bg.secondary,
+        background: themeVars.bgSecondary,
         minHeight: '100vh',
       }}
     >
@@ -902,7 +902,7 @@ const ApprovalEscalation: React.FC = () => {
               style={{
                 marginTop: spacing.md,
                 padding: spacing.md,
-                background: colors.light.bg.secondary,
+                background: themeVars.bgSecondary,
                 borderRadius: spacing.sm,
               }}
             >

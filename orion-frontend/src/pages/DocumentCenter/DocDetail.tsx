@@ -18,7 +18,7 @@ import {
   UnorderedListOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { colors, spacing, radius, shadows } from '@/tokens';
+import { colors, spacing, radius, shadows, themeVars } from '@/tokens';
 import type { KnowledgeDoc } from '@/api/knowledge';
 import dayjs from 'dayjs';
 
@@ -127,7 +127,7 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
   const typeConfig = DOC_TYPE_CONFIG[docType];
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', background: colors.light.bg.primary, borderRadius: radius[3], boxShadow: shadows.card }}>
+    <div style={{ height: '100%', overflow: 'auto', background: themeVars.bgPrimary, borderRadius: radius[3], boxShadow: shadows.card }}>
       {/* 顶部工具栏 */}
       <div
         style={{
@@ -135,10 +135,10 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: `${spacing[3]}px ${spacing[4]}px`,
-          borderBottom: `1px solid ${colors.light.border.light}`,
+          borderBottom: `1px solid ${themeVars.borderLight}`,
           position: 'sticky',
           top: 0,
-          background: colors.light.bg.primary,
+          background: themeVars.bgPrimary,
           zIndex: 10,
         }}
       >
@@ -179,7 +179,7 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
             alignItems: 'center',
             gap: spacing[6],
             padding: spacing[4],
-            background: colors.light.bg.secondary,
+            background: themeVars.bgSecondary,
             borderRadius: radius[3],
             marginBottom: spacing[6],
           }}

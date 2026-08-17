@@ -10,7 +10,7 @@
  * - Pagination at bottom
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Badge, Modal, message, Popconfirm } from 'antd';
+import { Typography, Button, Space, Tag, Badge, Modal, message, Popconfirm, Select } from 'antd';
 import {
   PlusOutlined,
   OrderedListOutlined,
@@ -293,30 +293,31 @@ const TicketList: React.FC = () => {
   };
 
   const handleAssign = (ticket: Ticket) => {
-    // TODO: Replace with proper assignee selection modal (engineer dropdown)
-    let assigneeInput = '';
+    let assigneeValue: string | null = null;
     Modal.confirm({
       title: '分配工单',
       content: (
         <div>
           <p>工单: {ticket.id}</p>
-          <input
-            placeholder="输入工程师名称"
-            style={{ width: '100%', padding: '4px 8px', marginTop: 8 }}
-            onChange={(e) => { assigneeInput = e.target.value; }}
+          <Select
+            style={{ width: '100%', marginTop: 8 }}
+            placeholder="选择工程师"
+            onChange={(v) => { assigneeValue = v; }}
+            options={engineers.map((name) => ({ label: name, value: name }))}
+            loading={engineersLoading}
           />
         </div>
       ),
       okText: '确认',
       cancelText: '取消',
       onOk: async () => {
-        if (!assigneeInput.trim()) {
-          message.warning('请输入工程师名称');
+        if (!assigneeValue) {
+          message.warning('请选择工程师');
           throw new Error('validation');
         }
         try {
-          await assignTicket(ticket.id, { assignee: assigneeInput.trim() });
-          message.success(`工单已分配给 ${assigneeInput.trim()}`);
+          await assignTicket(ticket.id, { assignee: assigneeValue });
+          message.success(`工单已分配给 ${assigneeValue}`);
           loadTickets();
         } catch (error: unknown) {
           if (error instanceof Error && error.message !== 'validation') {

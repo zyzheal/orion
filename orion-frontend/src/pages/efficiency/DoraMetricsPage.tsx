@@ -3,6 +3,7 @@
  * DORA 效率指标补全页面 - 四大指标概览、等级评估、趋势图表
  */
 import React, { useState, useEffect } from 'react';
+import { themeVars } from '@/tokens';
 import {
   Typography,
   Card,
@@ -412,7 +413,7 @@ const DoraMetricsPage: React.FC = () => {
         <Col span={6}>
           <Card
             style={{
-              background: colors.light.bg.secondary,
+              background: themeVars.bgSecondary,
               borderRadius: spacing[4],
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
               borderLeft: `3px solid ${colors.primary[500]}`,
@@ -433,7 +434,7 @@ const DoraMetricsPage: React.FC = () => {
         <Col span={6}>
           <Card
             style={{
-              background: colors.light.bg.secondary,
+              background: themeVars.bgSecondary,
               borderRadius: spacing[4],
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
               borderLeft: `3px solid ${colors.success[500]}`,
@@ -454,7 +455,7 @@ const DoraMetricsPage: React.FC = () => {
         <Col span={6}>
           <Card
             style={{
-              background: colors.light.bg.secondary,
+              background: themeVars.bgSecondary,
               borderRadius: spacing[4],
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
               borderLeft: `3px solid ${colors.error[500]}`,
@@ -475,7 +476,7 @@ const DoraMetricsPage: React.FC = () => {
         <Col span={6}>
           <Card
             style={{
-              background: colors.light.bg.secondary,
+              background: themeVars.bgSecondary,
               borderRadius: spacing[4],
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
               borderLeft: `3px solid ${colors.info[500]}`,
@@ -507,7 +508,7 @@ const DoraMetricsPage: React.FC = () => {
           size="middle"
           rowKey="key"
           bordered
-          style={{ background: colors.light.bg.primary }}
+          style={{ background: themeVars.bgPrimary }}
         />
       </Card>
 

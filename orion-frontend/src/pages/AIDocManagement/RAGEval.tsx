@@ -90,10 +90,10 @@ const METRIC_CARDS = [
   {
     key: 'feedback_rate' as const,
     label: '反馈率',
-    icon: <LikeOutlined style={{ fontSize: 24, color: colors.purple?.[500] ?? '#7C5CFC' }} />,
+    icon: <LikeOutlined style={{ fontSize: 24, color: colors.purple[500] }} />,
     format: (v: number) => `${(v * 100).toFixed(1)}%`,
     suffix: '',
-    color: colors.purple?.[500] ?? '#7C5CFC',
+    color: colors.purple[500],
   },
   {
     key: 'accuracy_rate' as const,

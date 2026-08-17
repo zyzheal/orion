@@ -36,7 +36,7 @@ import {
   UserOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title } = Typography;
 const { Text } = Typography;
@@ -117,16 +117,16 @@ const anomalyTypeColor: Record<AnomalyType, string> = {
   '权限滥用': commonStyle.warning,
   '数据外泄': commonStyle.purple,
   '异常时间': commonStyle.info,
-  '高频操作': '#FADB14',
+  '高频操作': colors.warning[400],
 };
 
 /**
  * 检测方法颜色映射
  */
 const methodColor: Record<DetectionMethod, string> = {
-  'IQR': '#F0F2F5',
-  '3σ': '#FFF7E6',
-  'Z-Score': '#F9F0FF',
+  'IQR': colors.neutral[100],
+  '3σ': colors.warning[50],
+  'Z-Score': colors.purple[50],
 };
 
 /**
@@ -135,7 +135,7 @@ const methodColor: Record<DetectionMethod, string> = {
 const getScoreColor = (score: number): string => {
   if (score >= 80) return commonStyle.error;
   if (score >= 60) return commonStyle.warning;
-  if (score >= 40) return '#FADB14';
+  if (score >= 40) return colors.warning[400];
   return commonStyle.info;
 };
 
@@ -144,7 +144,7 @@ const getScoreColor = (score: number): string => {
  */
 const renderStatus = (status: EventStatus) => {
   const statusMap: Record<EventStatus, { color: string; icon: React.ReactNode }> = {
-    '待调查': { color: '#BFBFBF', icon: <SearchOutlined /> },
+    '待调查': { color: colors.neutral[400], icon: <SearchOutlined /> },
     '已确认': { color: commonStyle.success, icon: <CheckCircleOutlined /> },
     '误报': { color: commonStyle.info, icon: <CloseCircleOutlined /> },
   };
@@ -225,7 +225,7 @@ const UEBAPage: React.FC = () => {
               percent={score}
               size="small"
               strokeColor={color}
-              trailColor="#f0f0f0"
+              trailColor={colors.neutral[100]}
               style={{ width: 60 }}
             />
           </Space>
@@ -319,7 +319,7 @@ const UEBAPage: React.FC = () => {
         style={{
           padding: `${spacing.sm}px ${spacing.md}px`,
           borderRadius: 8,
-          backgroundColor: index === 0 ? colors.error[50] : colors.light.bg.secondary,
+          backgroundColor: index === 0 ? colors.error[50] : themeVars.bgSecondary,
           border: index === 0 ? `1px solid ${colors.error[100]}` : 'none',
         }}
       >
@@ -354,7 +354,7 @@ const UEBAPage: React.FC = () => {
         <Progress
           percent={user.score}
           strokeColor={scoreColor}
-          trailColor="#f0f0f0"
+          trailColor={colors.neutral[100]}
           showInfo={false}
         />
       </div>

@@ -20,7 +20,7 @@ import {
   stopMonitoring,
   getAnomalySummary,
 } from '@/api/monitoring';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -233,7 +233,7 @@ const MonitoringDashboard: React.FC = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   padding: '8px 0',
-                  borderBottom: `1px solid ${colors.light.border.light}`,
+                  borderBottom: `1px solid ${themeVars.borderLight}`,
                 }}
               >
                 <Space>

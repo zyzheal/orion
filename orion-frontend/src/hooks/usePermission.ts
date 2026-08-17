@@ -110,6 +110,19 @@ function matchPermission(perms: string[], resource: string, action: string): boo
   return false;
 }
 
+/**
+ * Pure permission check function (no React hooks).
+ * Checks if any of the given roles grant the specified resource:action permission.
+ * Used by non-component contexts (zustand stores, utils) that cannot call usePermission().
+ */
+export function checkPermission(roles: string[], resource: string, action: string): boolean {
+  for (const role of roles) {
+    const perms = ROLE_PERMISSIONS_FALLBACK[role] || [];
+    if (matchPermission(perms, resource, action)) return true;
+  }
+  return false;
+}
+
 // 默认防抖时长 (ms)
 const DEFAULT_DEBOUNCE_MS = 250;
 

@@ -19,7 +19,7 @@ import { aiAgentApi } from '@/api/ai-agents';
 import AgentList from './AgentList';
 import AgentDetail from './AgentDetail';
 import AuditLogViewer from './AuditLogViewer';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Paragraph } = Typography;
 
@@ -285,7 +285,7 @@ const AIAgentsManagement: React.FC = () => {
             style={{
               marginTop: spacing.md,
               backgroundColor: executionResult.success
-                ? colors.light.bg.secondary
+                ? themeVars.bgSecondary
                 : colors.error[50],
               borderColor: executionResult.success ? colors.success[500] : colors.error[500],
             }}

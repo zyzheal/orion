@@ -18,7 +18,7 @@ import {
 import { ReloadOutlined, SearchOutlined, InfoCircleOutlined, LineChartOutlined,} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTraces, type LLMTrace } from '@/api/llm-trace';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -154,7 +154,7 @@ const TraceList: React.FC = () => {
           <Text type="secondary">
             查看 LLM 调用详情、Token 消耗、成本统计
             <Tooltip title="每次 LLM 调用都会生成一条 Trace 记录">
-              <InfoCircleOutlined style={{ marginLeft: 4, color: colors.light.text.secondary }} />
+              <InfoCircleOutlined style={{ marginLeft: 4, color: themeVars.textSecondary }} />
             </Tooltip>
           </Text>
         </div>

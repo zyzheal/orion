@@ -152,7 +152,7 @@ export const pageRegistryLocal: PageEntry[] = [
   // ========== AI Module (Pilot) ==========
   {
     path: '/ai',
-    element: '@/pages/ai-svc/AIDashboard',
+    element: '@/pages/AIDashboard',
     protected: true,
     hideLayout: false,
     menuKey: 'ai',

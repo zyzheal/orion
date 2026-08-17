@@ -17,7 +17,7 @@ import {
   AlertOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -53,7 +53,7 @@ const NotFound: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: colors.light.bg.secondary,
+        background: themeVars.bgSecondary,
         padding: spacing[6],
       }}
     >
@@ -145,7 +145,7 @@ const NotFound: React.FC = () => {
           />
 
           {/* 快捷导航 */}
-          <div style={{ borderTop: `1px solid ${colors.light.border.light}`, paddingTop: spacing.lg }}>
+          <div style={{ borderTop: `1px solid ${themeVars.borderLight}`, paddingTop: spacing.lg }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
               或者访问常用页面：
             </Text>
@@ -160,7 +160,7 @@ const NotFound: React.FC = () => {
                     minWidth: 120,
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border: `1px solid ${colors.light.border.light}`,
+                    border: `1px solid ${themeVars.borderLight}`,
                   }}
                 >
                   <Space direction="vertical" align="center" size={4}>

@@ -24,7 +24,7 @@ import {
   LoadingOutlined,
   CloudUploadOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import StatusBadge from '@/components/StatusBadge';
 import { usePipelineSSE } from '@/hooks/usePipelineSSE';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -303,7 +303,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   height: 3,
                   backgroundColor:
                     stages[index + 1].status === 'pending'
-                      ? colors.light.border.light
+                      ? themeVars.borderLight
                       : stageStatusColors[stages[index].status] || colors.neutral[300],
                   borderRadius: 2,
                   marginTop: -16,
@@ -676,7 +676,7 @@ const PipelineRunLive: React.FC = () => {
           gap: spacing.sm,
           marginBottom: spacing.md,
           padding: '8px 12px',
-          background: colors.light.bg.tertiary,
+          background: themeVars.bgTertiary,
           borderRadius: 6,
         }}
       >

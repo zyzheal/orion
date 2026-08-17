@@ -272,7 +272,7 @@ const AICMDBRecommendation: React.FC = () => {
       key: 'sourceCI',
       width: 150,
       render: (_value, record) => (
-        <Text style={{ fontSize: 12 }}>{record.sourceCIName || record.sourceCI}</Text>
+        <Text style={{ fontSize: 12 }}>{record.sourceCiName || record.sourceCi}</Text>
       ),
     },
     {
@@ -281,7 +281,7 @@ const AICMDBRecommendation: React.FC = () => {
       key: 'targetCI',
       render: (_value, record) => (
         <Space direction="vertical" size={2}>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.targetCIName || record.targetCI}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>{String((record as unknown as { targetCIName?: string; targetCI?: string }).targetCIName || (record as unknown as { targetCIName?: string; targetCI?: string }).targetCI)}</Text>
           <Text style={{ fontSize: 12 }}>{record.suggestion}</Text>
         </Space>
       ),
@@ -315,7 +315,7 @@ const AICMDBRecommendation: React.FC = () => {
       dataIndex: 'recommendTime',
       key: 'recommendTime',
       width: 160,
-      render: (value) => <Text style={{ fontSize: 12 }}>{value || '-'}</Text>,
+      render: (value) => <Text style={{ fontSize: 12 }}>{String(value) || '-'}</Text>,
     },
     {
       title: '操作',

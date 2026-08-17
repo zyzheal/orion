@@ -12,7 +12,7 @@ import {
   SafetyOutlined,
   MailOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import { useAppStore } from '@/stores/appStore';
 
 const { Sider, Content } = Layout;
@@ -48,7 +48,6 @@ const MonitoringLayout: React.FC = () => {
 
   // 从全局 store 获取主题（响应式）
   const theme = useAppStore((state) => state.theme);
-  const isDark = theme === 'dark';
 
   const selectedKey = location.pathname;
   const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'Monitoring', subtitle: '' };
@@ -66,8 +65,8 @@ const MonitoringLayout: React.FC = () => {
         theme={theme}
         width={LAYOUT_CONFIG.siderWidth}
         style={{
-          background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
-          borderRight: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+          background: themeVars.bgPrimary,
+          borderRight: `1px solid ${themeVars.borderLight}`,
         }}
       >
         {!collapsed && (
@@ -90,7 +89,7 @@ const MonitoringLayout: React.FC = () => {
           style={{
             padding: spacing[6],
             margin: 0,
-            background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
+            background: themeVars.bgPrimary,
           }}
         >
           {pageInfo.title && (

@@ -474,6 +474,10 @@ export const lowcodeApi = {
     });
     return res.data;
   },
+  generateFlow: async (data: Record<string, unknown>) => {
+    const res = await api.post("/api/v1/lowcode/generate", data);
+    return res.data;
+  },
 };
 
 export default lowcodeApi;

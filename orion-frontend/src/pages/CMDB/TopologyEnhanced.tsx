@@ -47,7 +47,7 @@ import ReactFlow, {
   type OnEdgesChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   getCIs,
   getTopology,
@@ -138,7 +138,7 @@ const EnhancedNode: React.FC<{ data: EnhancedNodeData }> = ({ data }) => {
       : colors.neutral[300];
   const bgColor = data.isHighlighted
     ? colors.primary[50]
-    : colors.light.bg.primary;
+    : themeVars.bgPrimary;
   const boxShadow = data.isHighlighted
     ? '0 0 0 3px rgba(51,112,230,0.2), 0 4px 12px rgba(0,0,0,0.12)'
     : '0 2px 4px rgba(0,0,0,0.04)';
@@ -538,7 +538,7 @@ const TopologyEnhanced: React.FC = () => {
                   maxZoom={2}
                   defaultEdgeOptions={{ type: 'smoothstep' }}
                 >
-                  <Background color={colors.light.bg.secondary} gap={16} size={1} />
+                  <Background color={themeVars.bgSecondary} gap={16} size={1} />
                   <Controls
                     style={{
                       background: colors.neutral[0],

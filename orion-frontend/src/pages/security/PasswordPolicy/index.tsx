@@ -407,7 +407,7 @@ const PasswordPolicyPage: React.FC = () => {
                 <Progress
                   percent={strength.score}
                   strokeColor={strength.color}
-                  trailColor="#f0f0f0"
+                  trailColor={colors.neutral[100]}
                   showInfo={false}
                   style={{ marginBottom: spacing.md }}
                 />

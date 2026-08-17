@@ -20,7 +20,7 @@ import {
   DatabaseOutlined,
   FilterOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -373,7 +373,7 @@ const DataPipelineMonitor: React.FC = () => {
                 width: '100%',
                 height: 460,
                 position: 'relative',
-                background: colors.light.bg.secondary,
+                background: themeVars.bgSecondary,
                 borderRadius: spacing.sm,
                 overflow: 'hidden',
               }}

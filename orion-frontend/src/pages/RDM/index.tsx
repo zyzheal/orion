@@ -42,22 +42,22 @@ const { TextArea } = Input;
 type TabKey = 'requirements' | 'defects' | 'sprints' | 'tasks';
 
 const PRIORITY_MAP: Record<string, { color: string; label: string }> = {
-  critical: { color: '#f5222d', label: 'Critical' },
-  high: { color: '#fa8c16', label: 'High' },
-  medium: { color: '#1890ff', label: 'Medium' },
-  low: { color: '#52c41a', label: 'Low' },
+  critical: { color: colors.error[500], label: 'Critical' },
+  high: { color: colors.warning[500], label: 'High' },
+  medium: { color: colors.info[500], label: 'Medium' },
+  low: { color: colors.success[500], label: 'Low' },
 };
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
-  backlog: { color: '#d9d9d9', label: 'Backlog' },
-  pending: { color: '#faad14', label: 'Pending' },
-  in_progress: { color: '#1890ff', label: 'In Progress' },
-  done: { color: '#52c41a', label: 'Done' },
-  open: { color: '#1890ff', label: 'Open' },
-  resolved: { color: '#52c41a', label: 'Resolved' },
-  closed: { color: '#d9d9d9', label: 'Closed' },
-  active: { color: '#1890ff', label: 'Active' },
-  completed: { color: '#52c41a', label: 'Completed' },
+  backlog: { color: colors.neutral[300], label: 'Backlog' },
+  pending: { color: colors.warning[500], label: 'Pending' },
+  in_progress: { color: colors.info[500], label: 'In Progress' },
+  done: { color: colors.success[500], label: 'Done' },
+  open: { color: colors.info[500], label: 'Open' },
+  resolved: { color: colors.success[500], label: 'Resolved' },
+  closed: { color: colors.neutral[300], label: 'Closed' },
+  active: { color: colors.info[500], label: 'Active' },
+  completed: { color: colors.success[500], label: 'Completed' },
 };
 
 type EntityType = 'requirement' | 'defect' | 'sprint' | 'task';

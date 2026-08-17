@@ -10,7 +10,7 @@ import {
   type WorkflowExecution,
   type WorkflowHistory,
 } from '@/api/workflow';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -225,7 +225,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
                 <pre
                   style={{
                     fontSize: 12,
-                    background: colors.light.bg.secondary,
+                    background: themeVars.bgSecondary,
                     padding: spacing[3],
                     borderRadius: 6,
                     maxHeight: 120,
@@ -243,7 +243,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
                 <pre
                   style={{
                     fontSize: 12,
-                    background: colors.light.bg.secondary,
+                    background: themeVars.bgSecondary,
                     padding: spacing[3],
                     borderRadius: 6,
                     maxHeight: 120,

@@ -7,7 +7,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from 'antd';
 import { RobotOutlined } from '@ant-design/icons';
-import { colors, radius } from '@/tokens';
 import { useNavigate } from 'react-router-dom';
 
 const CopilotFloating: React.FC = () => {
@@ -40,7 +39,7 @@ const CopilotFloating: React.FC = () => {
           width: 56,
           height: 56,
           boxShadow: '0 4px 12px rgba(51, 112, 230, 0.35)',
-          borderRadius: radius.circle,
+          borderRadius: 28,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

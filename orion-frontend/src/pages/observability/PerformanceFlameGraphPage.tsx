@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Tabs, Card, Typography, Tooltip, Button, Empty, Space, Tag, Statistic } from 'antd';
-import { spacing, shadows, radius } from '@/tokens';
+import { spacing, shadows, radius, themeVars } from '@/tokens';
 import { colors } from '@/tokens/colors';
 import {
   FireOutlined,
@@ -752,8 +752,8 @@ const PerformanceFlameGraphPage: React.FC = () => {
               alignItems: 'center',
               padding: `0 ${spacing.md}`,
               height: HEADER_HEIGHT,
-              borderBottom: `1px solid ${colors.light.border.default}`,
-              backgroundColor: colors.light.bg.secondary,
+              borderBottom: `1px solid ${themeVars.borderDefault}`,
+              backgroundColor: themeVars.bgSecondary,
               fontSize: 12,
             }}
           >
@@ -788,7 +788,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
               position: 'relative',
               overflow: 'auto',
               height: svgHeight - HEADER_HEIGHT - LEGEND_HEIGHT,
-              backgroundColor: colors.light.bg.primary,
+              backgroundColor: themeVars.bgPrimary,
             }}
             onWheel={handleWheel}
           >
@@ -861,8 +861,8 @@ const PerformanceFlameGraphPage: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 padding: `0 ${spacing.md}`,
-                borderTop: `1px solid ${colors.light.border.default}`,
-                backgroundColor: colors.light.bg.secondary,
+                borderTop: `1px solid ${themeVars.borderDefault}`,
+                backgroundColor: themeVars.bgSecondary,
                 fontSize: 11,
                 flexWrap: 'wrap',
                 gap: spacing.xs,
@@ -961,7 +961,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
                 函数详情 / 调用栈 / 占比分析
               </Text>
               {currentProfile && (
-                <div style={{ width: '100%', marginTop: spacing.md, borderTop: `1px solid ${colors.light.border.light}`, paddingTop: spacing.sm }}>
+                <div style={{ width: '100%', marginTop: spacing.md, borderTop: `1px solid ${themeVars.borderLight}`, paddingTop: spacing.sm }}>
                   <Text strong style={{ fontSize: 12, display: 'block', marginBottom: spacing.xs }}>
                     全局统计
                   </Text>

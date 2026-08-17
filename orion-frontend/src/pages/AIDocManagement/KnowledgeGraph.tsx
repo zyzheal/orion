@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Select, Spin, Empty, Tag, message, Typography, Space, Row, Col } from 'antd';
-import { colors, spacing, componentRadius, shadows } from '@/tokens';
+import { colors, spacing, componentRadius, shadows, themeVars } from '@/tokens';
 import { getKnowledgeGraph } from '@/api/ai-docs';
 import { BookOutlined, TagOutlined, FileTextOutlined } from '@ant-design/icons';
 
@@ -134,7 +134,7 @@ const KnowledgeGraphPage: React.FC = () => {
                     <g key={`edge-${i}`}>
                       <line
                         x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
-                        stroke={edge.relation === 'tagged' ? colors.warning[500] : colors.light.border.light}
+                        stroke={edge.relation === 'tagged' ? colors.warning[500] : themeVars.borderLight}
                         strokeWidth={edge.relation === 'tagged' ? 1.5 : 2}
                         strokeDasharray={edge.relation === 'tagged' ? '4,2' : 'none'}
                         opacity={0.6}

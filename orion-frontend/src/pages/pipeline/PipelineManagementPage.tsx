@@ -51,7 +51,7 @@ import {
   type DataPipeline,
   type CreateDataPipelineRequest,
 } from '@/api/data-pipeline';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -609,7 +609,7 @@ const PipelineManagementPage: React.FC = () => {
             <div style={{ textAlign: 'center', padding: '48px 0' }}>加载中...</div>
           ) : (
             <pre style={{
-              background: '#f6f8fa',
+              background: themeVars.bgSecondary,
               padding: spacing.md,
               borderRadius: spacing.sm,
               fontSize: '12px',

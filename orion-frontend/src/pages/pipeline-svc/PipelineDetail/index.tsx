@@ -15,7 +15,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Modal, Empty } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -457,7 +457,7 @@ const PipelineDetail: React.FC = () => {
                           height: 3,
                           backgroundColor:
                             pipeline.stages![index + 1].status === 'pending'
-                              ? colors.light.border.light
+                              ? themeVars.borderLight
                               : stageStatusColors[pipeline.stages![index].status] ||
                                 colors.neutral[300],
                           borderRadius: 2,

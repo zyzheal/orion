@@ -13,7 +13,7 @@
  * Design Tokens 使用：
  * - 正常 span: colors.primary[500] (#3370E6)
  * - 错误 span: colors.error[500] (#f5222d)
- * - 背景: colors.light.bg.primary (#ffffff)
+ * - 背景: themeVars.bgPrimary (#ffffff)
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -28,7 +28,7 @@ import {
   Popover,
   Input,
 } from 'antd';
-import { spacing, shadows, radius } from '@/tokens';
+import { spacing, shadows, radius, themeVars } from '@/tokens';
 import { colors } from '@/tokens/colors';
 import {
   ClockCircleOutlined,
@@ -282,7 +282,7 @@ const SpanDetailPopover: React.FC<{ span: Span }> = ({ span }) => {
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
             Attributes
           </Text>
-          <div style={{ maxHeight: 120, overflow: 'auto', backgroundColor: colors.light.bg.secondary, borderRadius: radius.xs, padding: 8, fontSize: 11 }}>
+          <div style={{ maxHeight: 120, overflow: 'auto', backgroundColor: themeVars.bgSecondary, borderRadius: radius.xs, padding: 8, fontSize: 11 }}>
             <pre style={{ margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
               {JSON.stringify(span.attributes, null, 2)}
             </pre>
@@ -347,7 +347,7 @@ const TreeNodeRow: React.FC<{
   const bgColor = isSelected
     ? colors.primary[50]
     : isHovered
-    ? colors.light.bg.secondary
+    ? themeVars.bgSecondary
     : 'transparent';
 
   const toggleIcon = hasChildren
@@ -366,7 +366,7 @@ const TreeNodeRow: React.FC<{
         alignItems: 'center',
         padding: `0 ${spacing.sm}`,
         backgroundColor: bgColor,
-        borderBottom: `1px solid ${colors.light.border.light}`,
+        borderBottom: `1px solid ${themeVars.borderLight}`,
         cursor: 'pointer',
         userSelect: 'none',
         fontSize: 13,
@@ -476,7 +476,7 @@ const TimeAxis: React.FC<{
   return (
     <g>
       {/* 轴线 */}
-      <line x1="0" y1={y} x2={chartWidth} y2={y} stroke={colors.light.border.default} strokeWidth={1} />
+      <line x1="0" y1={y} x2={chartWidth} y2={y} stroke={themeVars.borderDefault} strokeWidth={1} />
       {/* 刻度线 + 标签 */}
       {ticks.map((tick, i) => (
         <g key={i}>
@@ -798,8 +798,8 @@ const TraceDetailPage: React.FC = () => {
             alignItems: 'center',
             padding: `0 ${spacing.md}`,
             height: HEADER_HEIGHT,
-            borderBottom: `1px solid ${colors.light.border.default}`,
-            backgroundColor: colors.light.bg.secondary,
+            borderBottom: `1px solid ${themeVars.borderDefault}`,
+            backgroundColor: themeVars.bgSecondary,
           }}
         >
           <Text style={{ fontSize: 13, marginRight: spacing.md, flexShrink: 0 }}>
@@ -853,9 +853,9 @@ const TraceDetailPage: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               padding: `0 ${spacing.md}`,
-              borderBottom: `1px solid ${colors.light.border.default}`,
-              borderRight: `1px solid ${colors.light.border.default}`,
-              backgroundColor: colors.light.bg.tertiary,
+              borderBottom: `1px solid ${themeVars.borderDefault}`,
+              borderRight: `1px solid ${themeVars.borderDefault}`,
+              backgroundColor: themeVars.bgTertiary,
               fontSize: 12,
               fontWeight: 500,
               zIndex: 2,
@@ -892,7 +892,7 @@ const TraceDetailPage: React.FC = () => {
               top: HEADER_HEIGHT,
               width: chartWidth,
               height: 1,
-              backgroundColor: colors.light.border.default,
+              backgroundColor: themeVars.borderDefault,
               zIndex: 1,
             }}
           />
@@ -905,8 +905,8 @@ const TraceDetailPage: React.FC = () => {
               top: HEADER_HEIGHT,
               width: TREE_COL_WIDTH,
               height: Math.max(400, totalRows * (ROW_HEIGHT + ROW_GAP)),
-              borderRight: `1px solid ${colors.light.border.default}`,
-              backgroundColor: colors.light.bg.primary,
+              borderRight: `1px solid ${themeVars.borderDefault}`,
+              backgroundColor: themeVars.bgPrimary,
               zIndex: 1,
               overflow: 'hidden',
             }}
@@ -937,7 +937,7 @@ const TraceDetailPage: React.FC = () => {
               top: HEADER_HEIGHT,
               width: chartWidth,
               height: svgHeight - HEADER_HEIGHT,
-              backgroundColor: colors.light.bg.primary,
+              backgroundColor: themeVars.bgPrimary,
               cursor: 'col-resize',
               overflow: 'hidden',
             }}
@@ -966,7 +966,7 @@ const TraceDetailPage: React.FC = () => {
                       key={`grid-${t}`}
                       x1={x} y1={0}
                       x2={x} y2={svgHeight - HEADER_HEIGHT - AXIS_HEIGHT}
-                      stroke={colors.light.border.light}
+                      stroke={themeVars.borderLight}
                       strokeWidth={1}
                       strokeDasharray="2,4"
                     />,
@@ -1094,8 +1094,8 @@ const TraceDetailPage: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               padding: `0 ${spacing.md}`,
-              borderRight: `1px solid ${colors.light.border.default}`,
-              backgroundColor: colors.light.bg.tertiary,
+              borderRight: `1px solid ${themeVars.borderDefault}`,
+              backgroundColor: themeVars.bgTertiary,
               fontSize: 11,
               color: colors.neutral[500],
               zIndex: 2,
@@ -1112,7 +1112,7 @@ const TraceDetailPage: React.FC = () => {
               top: svgHeight - AXIS_HEIGHT,
               width: TREE_COL_WIDTH,
               height: 1,
-              backgroundColor: colors.light.border.default,
+              backgroundColor: themeVars.borderDefault,
               zIndex: 1,
             }}
           />

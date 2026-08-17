@@ -18,12 +18,8 @@ import {
   message,
   Typography,
   Tabs,
-  Descriptions,
-  TreeSelect,
-  InputNumber,
   Popconfirm,
   Divider,
-  Spin,
 } from 'antd';
 import {
   SettingOutlined,
@@ -32,9 +28,6 @@ import {
   CloudUploadOutlined,
   RollbackOutlined,
   HistoryOutlined,
-  FolderOutlined,
-  DatabaseOutlined,
-  AuditOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
@@ -59,7 +52,6 @@ import {
   type ConfigSnapshot,
   type ConfigRelease,
   type ConfigAudit,
-  type ValueType,
 } from '@/api/distributedConfig';
 
 const { Title, Text } = Typography;
@@ -191,9 +183,8 @@ const ConfigCenterPage: React.FC = () => {
 
   const handleCreateNamespace = async (values: { name: string; description?: string }) => {
     try {
-      const res = await createNamespace(values);
-      const ns = res;
-      if (ns) setNamespaces((prev) => [...prev, ns]);
+      const ns = await createNamespace(values) as ConfigNamespace;
+      setNamespaces((prev) => [...prev, ns]);
       message.success('命名空间创建成功');
       setNsModalOpen(false);
       nsForm.resetFields();
@@ -204,12 +195,9 @@ const ConfigCenterPage: React.FC = () => {
 
   const handleCreateGroup = async (values: { namespaceId: string; name: string; description?: string }) => {
     try {
-      const res = await createGroup(values);
-      const g = res;
-      if (g) {
-        setGroups((prev) => [...prev, g]);
-        setSelectedGroup(g.id);
-      }
+      const g = await createGroup(values) as ConfigGroup;
+      setGroups((prev) => [...prev, g]);
+      setSelectedGroup(g.id);
       message.success('配置分组创建成功');
       groupForm.resetFields();
       loadGroups(selectedNamespace);
@@ -224,7 +212,7 @@ const ConfigCenterPage: React.FC = () => {
         message.warning('请先选择配置分组');
         return;
       }
-      const res = await createItem({
+      const item = (await createItem({
         groupId: selectedGroup,
         namespaceId: namespaces.find((n) =>
           groups.find((g) => g.id === selectedGroup)?.namespaceId === n.id
@@ -234,9 +222,8 @@ const ConfigCenterPage: React.FC = () => {
         valueType: values.valueType,
         encrypted: values.encrypted || false,
         description: values.description,
-      });
-      const item = res;
-      if (item) setItems((prev) => [...prev, item]);
+      })) as ConfigItem;
+      setItems((prev) => [...prev, item]);
       message.success('配置项创建成功');
       setItemModalOpen(false);
       setEditingItem(null);
@@ -289,9 +276,8 @@ const ConfigCenterPage: React.FC = () => {
     if (!selectedGroup) { message.warning('请先选择分组'); return; }
     setLoading(true);
     try {
-      const res = await publishSnapshot(selectedGroup, { environment: selectedEnv, operator });
-      const snap = res;
-      if (snap) setSnapshots((prev) => [snap, ...prev]);
+      const snap = await publishSnapshot(selectedGroup, { environment: selectedEnv, operator }) as ConfigSnapshot;
+      setSnapshots((prev) => [snap, ...prev]);
       message.success('快照发布成功');
       loadSnapshots();
     } catch {
@@ -304,14 +290,13 @@ const ConfigCenterPage: React.FC = () => {
   const handlePublishRelease = async (values: { snapshotId: string; environment: string; releaseNote?: string }) => {
     setLoading(true);
     try {
-      const res = await publishRelease({
+      const rel = (await publishRelease({
         snapshotId: values.snapshotId,
         environment: values.environment,
         operator,
         releaseNote: values.releaseNote,
-      });
-      const rel = res;
-      if (rel) setReleases((prev) => [rel, ...prev]);
+      })) as ConfigRelease;
+      setReleases((prev) => [rel, ...prev]);
       message.success('发布成功');
       releaseForm.resetFields();
       loadReleases();
@@ -325,9 +310,8 @@ const ConfigCenterPage: React.FC = () => {
   const handleRollback = async (values: { snapshotId: string; reason?: string }) => {
     setLoading(true);
     try {
-      const res = await rollbackRelease({ snapshotId: values.snapshotId, operator, reason: values.reason });
-      const rel = res;
-      if (rel) setReleases((prev) => [rel, ...prev]);
+      const rel = (await rollbackRelease({ snapshotId: values.snapshotId, operator, reason: values.reason })) as ConfigRelease;
+      setReleases((prev) => [rel, ...prev]);
       message.success('回滚成功');
       rollbackForm.resetFields();
       loadReleases();
@@ -558,10 +542,10 @@ const ConfigCenterPage: React.FC = () => {
       </Row>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: spacing.md }}>
-        <Tabs.TabItem key="items" label="配置项管理" icon={<DatabaseOutlined />} />
-        <Tabs.TabItem key="snapshots" label="快照管理" icon={<CloudUploadOutlined />} />
-        <Tabs.TabItem key="releases" label="发布记录" icon={<RollbackOutlined />} />
-        <Tabs.TabItem key="audit" label="变更审计" icon={<AuditOutlined />} />
+        <Tabs.TabPane key="items" tab="配置项管理" />
+        <Tabs.TabPane key="snapshots" tab="快照管理" />
+        <Tabs.TabPane key="releases" tab="发布记录" />
+        <Tabs.TabPane key="audit" tab="变更审计" />
       </Tabs>
 
       {activeTab === 'items' && (

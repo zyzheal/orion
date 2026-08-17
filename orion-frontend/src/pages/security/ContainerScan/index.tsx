@@ -38,7 +38,7 @@ import {
   SettingOutlined,
   StopOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title } = Typography;
 const { Text } = Typography;
@@ -457,7 +457,7 @@ const ContainerScanPage: React.FC = () => {
                   style={{
                     padding: spacing.sm,
                     borderRadius: 8,
-                    backgroundColor: colors.light.bg.secondary,
+                    backgroundColor: themeVars.bgSecondary,
                   }}
                 >
                   <div
@@ -479,7 +479,7 @@ const ContainerScanPage: React.FC = () => {
                   <Progress
                     percent={v.percentage}
                     strokeColor={v.color}
-                    trailColor="#f0f0f0"
+                    trailColor={colors.neutral[100]}
                     showInfo={false}
                     style={{ marginTop: 4 }}
                   />

@@ -13,7 +13,7 @@ import {
   SafetyCertificateOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
-import { colors, spacing, radius, shadows } from '@/tokens';
+import { colors, spacing, radius, shadows, themeVars } from '@/tokens';
 import { getDocToc, type KnowledgeSpace } from '@/api/knowledge';
 
 // ============================================================================
@@ -224,7 +224,7 @@ export default function DocTree({
     <div
       style={{
         padding: spacing[4],
-        background: colors.light.bg.primary,
+        background: themeVars.bgPrimary,
         borderRadius: radius[3],
         boxShadow: shadows.card,
         height: '100%',

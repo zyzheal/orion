@@ -33,7 +33,7 @@ import {
   InfoCircleOutlined,
   BellOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title } = Typography;
 const { Text } = Typography;
@@ -293,7 +293,7 @@ const SBOMPage: React.FC = () => {
     <div
       style={{
         padding: sLg,
-        backgroundColor: colors.light.bg.secondary,
+        backgroundColor: themeVars.bgSecondary,
         minHeight: '100vh',
       }}
     >

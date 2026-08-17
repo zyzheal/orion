@@ -17,7 +17,7 @@ import {
   SettingOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -57,7 +57,7 @@ const ServerError: React.FC<ServerErrorProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: colors.light.bg.secondary,
+        background: themeVars.bgSecondary,
         padding: spacing[6],
       }}
     >
@@ -90,7 +90,7 @@ const ServerError: React.FC<ServerErrorProps> = ({
                   size="small"
                   column={1}
                   bordered
-                  style={{ background: colors.light.bg.primary, borderRadius: 8 }}
+                  style={{ background: themeVars.bgPrimary, borderRadius: 8 }}
                 >
                   <Descriptions.Item label="错误 ID">
                     <Text code>{displayErrorId}</Text>
@@ -143,7 +143,7 @@ const ServerError: React.FC<ServerErrorProps> = ({
           />
 
           {/* 快捷导航 */}
-          <div style={{ borderTop: `1px solid ${colors.light.border.light}`, paddingTop: spacing.lg }}>
+          <div style={{ borderTop: `1px solid ${themeVars.borderLight}`, paddingTop: spacing.lg }}>
             <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
               或者访问其他功能页面：
             </Text>
@@ -158,7 +158,7 @@ const ServerError: React.FC<ServerErrorProps> = ({
                     minWidth: 120,
                     borderRadius: 8,
                     cursor: 'pointer',
-                    border: `1px solid ${colors.light.border.light}`,
+                    border: `1px solid ${themeVars.borderLight}`,
                   }}
                 >
                   <Space direction="vertical" align="center" size={4}>

@@ -6,6 +6,7 @@
  */
 
 export { colors, colorCSSVariables, semanticColors } from './colors';
+export { themeVars } from './theme-vars';
 export { spacing, spacingRem, componentSpacing, spacingCSSVariables } from './spacing';
 export { radius, componentRadius, radiusCSSVariables } from './radius';
 export { shadows, shadowOpacity, shadowsCSSVariables } from './shadows';

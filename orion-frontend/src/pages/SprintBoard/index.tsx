@@ -43,7 +43,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { colors, spacing, componentRadius, shadows } from '@/tokens';
+import { colors, spacing, componentRadius, shadows, themeVars } from '@/tokens';
 import {
   listSprints,
   createSprint,
@@ -488,7 +488,7 @@ export default function SprintBoardPage() {
               style={{
                 minWidth: 280,
                 flex: '0 0 280px',
-                background: colors.light.bg.secondary,
+                background: themeVars.bgSecondary,
                 borderRadius: componentRadius.card,
                 padding: spacing.md,
               }}

@@ -2,7 +2,7 @@
  * Cost Overview - Stats cards, 7-day trend chart, top tenants/users, model distribution
  * Enhanced with ECharts visualization
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,

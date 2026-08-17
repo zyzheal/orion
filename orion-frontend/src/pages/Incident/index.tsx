@@ -33,7 +33,6 @@ import {
   Modal,
   Row,
   Col,
-  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -1178,7 +1177,7 @@ const IncidentManagement: React.FC = () => {
                       <Descriptions.Item label="标题">{aiDraft.title}</Descriptions.Item>
                       <Descriptions.Item label="摘要">{aiDraft.summary}</Descriptions.Item>
                       <Descriptions.Item label="根因分析">{aiDraft.root_cause}</Descriptions.Item>
-                      {aiDraft.contributing_factors?.length > 0 && (
+                      {aiDraft.contributing_factors && aiDraft.contributing_factors.length > 0 && (
                         <Descriptions.Item label="促成因素">
                           <ul style={{ margin: 0, paddingLeft: spacing.md }}>
                             {aiDraft.contributing_factors.map((f, i) => <li key={i}>{f}</li>)}
@@ -1188,7 +1187,7 @@ const IncidentManagement: React.FC = () => {
                       {aiDraft.timeline_summary && (
                         <Descriptions.Item label="时间线摘要">{aiDraft.timeline_summary}</Descriptions.Item>
                       )}
-                      {aiDraft.action_items?.length > 0 && (
+                      {aiDraft.action_items && aiDraft.action_items.length > 0 && (
                         <Descriptions.Item label="行动项">
                           <ul style={{ margin: 0, paddingLeft: spacing.md }}>
                             {aiDraft.action_items.map((item, i) => <li key={i}>{item}</li>)}

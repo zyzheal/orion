@@ -12,7 +12,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   PlayCircleOutlined,
   ClockCircleOutlined,
@@ -712,7 +712,7 @@ const PipelineDetail: React.FC = () => {
                           height: 3,
                           backgroundColor:
                             pipeline.stages![index + 1].status === 'pending'
-                              ? colors.light.border.light
+                              ? themeVars.borderLight
                               : stageStatusColors[pipeline.stages![index].status] ||
                                 colors.neutral[300],
                           borderRadius: 2,

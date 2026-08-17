@@ -10,6 +10,7 @@ import { Button, Card, Form, Input, Select, Space, message, Modal, Descriptions,
 import { PlusOutlined, PlayCircleOutlined, SaveOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
+import { themeVars } from '@/tokens';
 import { lowcodeApi, type LowcodeFlow } from '@/api/lowcode';
 
 export default function FlowDesigner() {
@@ -60,10 +61,10 @@ export default function FlowDesigner() {
   const handleAiGenerate = async (values: { prompt: string; name?: string }) => {
     setAiLoading(true);
     try {
-      const result = await lowcodeApi.generateFlow({
+      const result = (await lowcodeApi.generateFlow({
         prompt: values.prompt,
         workflowName: values.name,
-      });
+      })) as { intent: string };
       message.success(
         `AI 生成成功，意图识别为「${result.intent}」`
       );
@@ -314,12 +315,12 @@ export default function FlowDesigner() {
             <Descriptions.Item label="创建时间">{selectedFlow.created_at}</Descriptions.Item>
             <Descriptions.Item label="更新时间">{selectedFlow.updated_at}</Descriptions.Item>
             <Descriptions.Item label="节点定义">
-              <pre style={{ maxHeight: 200, overflow: 'auto', background: colors.light.bg.tertiary, padding: 8, borderRadius: 4 }}>
+              <pre style={{ maxHeight: 200, overflow: 'auto', background: themeVars.bgTertiary, padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedFlow.nodes, null, 2)}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="连线定义">
-              <pre style={{ maxHeight: 200, overflow: 'auto', background: colors.light.bg.tertiary, padding: 8, borderRadius: 4 }}>
+              <pre style={{ maxHeight: 200, overflow: 'auto', background: themeVars.bgTertiary, padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedFlow.edges, null, 2)}
               </pre>
             </Descriptions.Item>

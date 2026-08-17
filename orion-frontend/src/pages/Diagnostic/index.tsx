@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography, Spin } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   PlayCircleOutlined,
   FileTextOutlined,
@@ -50,7 +50,7 @@ const DiagnosticLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
+        style={{ borderRight: `1px solid ${themeVars.borderLight}` }}
         width={200}
       >
         {!collapsed && (
@@ -74,7 +74,7 @@ const DiagnosticLayout: React.FC = () => {
             padding: spacing.lg,
             margin: 0,
             minHeight: 280,
-            background: colors.light.bg.primary,
+            background: themeVars.bgPrimary,
           }}
         >
           {pageInfo.title && (

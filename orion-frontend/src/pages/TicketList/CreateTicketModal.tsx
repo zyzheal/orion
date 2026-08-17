@@ -10,6 +10,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
 import { WarningOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useAuthStore } from '@/stores/authStore';
 import { createTicket, type TicketCategory } from '@/api/ticketing';
 
 const { Text } = Typography;
@@ -106,6 +107,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
   const [form] = Form.useForm<CreateTicketFormValues>();
   const [submitting, setSubmitting] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const currentUser = useAuthStore((state) => state.user);
 
   const potentialDuplicates = useMemo(() => {
     return findPotentialDuplicates(titleValue);
@@ -122,7 +124,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
         description: values.description,
         category: values.category as TicketCategory,
         priority: values.priority,
-        reporter: 'current-user', // TODO: get from auth context
+        reporter: currentUser?.username || 'system',
         source: values.source,
         tags: values.tags?.reduce((acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }), {}),
       });

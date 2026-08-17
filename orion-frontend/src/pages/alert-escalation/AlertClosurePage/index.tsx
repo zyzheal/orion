@@ -12,7 +12,7 @@ import {
   BellOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   listPolicies, createPolicy, updatePolicy, deletePolicy,
   evaluatePolicy, listTriggers, resolveTrigger,
@@ -355,7 +355,7 @@ const AlertClosurePage: React.FC = () => {
             {selectedItem.description && <Descriptions.Item label="描述">{selectedItem.description}</Descriptions.Item>}
             {selectedItem.rules && (
               <Descriptions.Item label="升级规则">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
                   {JSON.stringify(selectedItem.rules, null, 2)}
                 </pre>
               </Descriptions.Item>

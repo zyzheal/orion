@@ -48,7 +48,7 @@ import {
   type Recommendation,
   type CommandExecutionInput,
 } from '@/api/chatops';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -408,7 +408,7 @@ const SmartRecommend: React.FC = () => {
           </Badge>
         )}
         {dismissedCount > 0 && (
-          <Badge count={dismissedCount} style={{ backgroundColor: colors.light.text.tertiary }}>
+          <Badge count={dismissedCount} style={{ backgroundColor: themeVars.textTertiary }}>
             <Tag>Dismissed</Tag>
           </Badge>
         )}

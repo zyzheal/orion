@@ -5,7 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Row, Col, Tag, Button, Spin } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   DatabaseOutlined,
   BookOutlined,
@@ -137,7 +137,7 @@ const SubApps: React.FC = () => {
                 height: '100%',
                 minHeight: 280,
                 borderRadius: 12,
-                border: `1px solid ${colors.light.border.light}`,
+                border: `1px solid ${themeVars.borderLight}`,
                 transition: 'all 0.3s',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               }}

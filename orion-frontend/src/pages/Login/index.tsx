@@ -11,7 +11,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { getEnabledSsoProviders } from '@/api/auth';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -267,14 +267,14 @@ const Login: React.FC = () => {
               style={{
                 fontSize: 28,
                 fontWeight: 700,
-                color: colors.light.text.primary,
+                color: themeVars.textPrimary,
                 marginBottom: spacing.sm,
                 letterSpacing: '-0.3px',
               }}
             >
               欢迎回来
             </Title>
-            <Text style={{ fontSize: 15, color: colors.light.text.tertiary }}>
+            <Text style={{ fontSize: 15, color: themeVars.textTertiary }}>
               登录你的 Orion 账户以继续使用平台
             </Text>
           </div>
@@ -294,17 +294,17 @@ const Login: React.FC = () => {
               style={{ marginBottom: spacing.lg }}
             >
               <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, color: colors.light.text.secondary, marginBottom: spacing.sm, display: 'block' }}>
+                <Text style={{ fontSize: 13, fontWeight: 500, color: themeVars.textSecondary, marginBottom: spacing.sm, display: 'block' }}>
                   用户名
                 </Text>
                 <Input
-                  prefix={<UserOutlined style={{ color: colors.light.text.disabled }} />}
+                  prefix={<UserOutlined style={{ color: themeVars.textDisabled }} />}
                   placeholder="请输入用户名"
                   autoComplete="username"
                   style={{
                     height: 48,
                     borderRadius: 10,
-                    border: `1px solid ${colors.light.border.default}`,
+                    border: `1px solid ${themeVars.borderDefault}`,
                     fontSize: 14,
                   }}
                 />
@@ -317,17 +317,17 @@ const Login: React.FC = () => {
               style={{ marginBottom: spacing.xl }}
             >
               <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, color: colors.light.text.secondary, marginBottom: spacing.sm, display: 'block' }}>
+                <Text style={{ fontSize: 13, fontWeight: 500, color: themeVars.textSecondary, marginBottom: spacing.sm, display: 'block' }}>
                   密码
                 </Text>
                 <Input.Password
-                  prefix={<LockOutlined style={{ color: colors.light.text.disabled }} />}
+                  prefix={<LockOutlined style={{ color: themeVars.textDisabled }} />}
                   placeholder="请输入密码"
                   autoComplete="current-password"
                   style={{
                     height: 48,
                     borderRadius: 10,
-                    border: `1px solid ${colors.light.border.default}`,
+                    border: `1px solid ${themeVars.borderDefault}`,
                     fontSize: 14,
                   }}
                 />
@@ -358,7 +358,7 @@ const Login: React.FC = () => {
 
           {/* 底部提示 */}
           <div style={{ marginTop: 32, textAlign: 'center' }}>
-            <Text style={{ fontSize: 12, color: colors.light.text.disabled }}>
+            <Text style={{ fontSize: 12, color: themeVars.textDisabled }}>
               如遇登录问题，请联系平台管理员
             </Text>
           </div>

@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   PlayCircleOutlined,
   FileTextOutlined,
@@ -46,7 +46,6 @@ const DiagnosticLayout: React.FC = () => {
 
   // 从全局 store 获取主题（响应式）
   const theme = useAppStore((state) => state.theme);
-  const isDark = theme === 'dark';
 
   const selectedKey = location.pathname;
   const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'Diagnostic', subtitle: '' };
@@ -64,8 +63,8 @@ const DiagnosticLayout: React.FC = () => {
         theme={theme}
         width={LAYOUT_CONFIG.siderWidth}
         style={{
-          background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
-          borderRight: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+          background: themeVars.bgPrimary,
+          borderRight: `1px solid ${themeVars.borderLight}`,
         }}
       >
         {!collapsed && (
@@ -89,7 +88,7 @@ const DiagnosticLayout: React.FC = () => {
           style={{
             padding: spacing[6],
             margin: 0,
-            background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
+            background: themeVars.bgPrimary,
           }}
         >
           {pageInfo.title && (

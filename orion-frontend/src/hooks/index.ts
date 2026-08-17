@@ -11,6 +11,7 @@ export { useLazyLoad } from './useLazyLoad';
 export { usePagination } from './usePagination';
 export { usePermission } from './usePermission';
 export { usePermissionActions, useMultiPermission } from './usePermissionActions';
+export { useTheme } from './useTheme';
 export type {
   UseWebSocketOptions,
   UseWebSocketReturn,

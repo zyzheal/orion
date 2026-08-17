@@ -33,7 +33,7 @@ import {
   Spin,
   Pagination,
 } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   BellOutlined,
   UserAddOutlined,
@@ -597,7 +597,7 @@ const NotificationCenter: React.FC = () => {
               <div
                 style={{
                   marginTop: spacing[3],
-                  borderTop: `1px solid ${colors.light.border.light}`,
+                  borderTop: `1px solid ${themeVars.borderLight}`,
                   paddingTop: spacing[3],
                 }}
                 onClick={(e) => e.stopPropagation()}

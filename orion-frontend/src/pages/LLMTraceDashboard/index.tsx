@@ -10,7 +10,7 @@ import {
   WalletOutlined,
   AimOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -41,7 +41,7 @@ const LLMTraceDashboardLayout: React.FC = () => {
       <Sider
         width={200}
         theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
+        style={{ borderRight: `1px solid ${themeVars.borderLight}` }}
       >
         <Menu
           mode="inline"
@@ -50,7 +50,7 @@ const LLMTraceDashboardLayout: React.FC = () => {
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Content style={{ padding: spacing[6], background: colors.light.bg.primary }}>
+      <Content style={{ padding: spacing[6], background: themeVars.bgPrimary }}>
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>

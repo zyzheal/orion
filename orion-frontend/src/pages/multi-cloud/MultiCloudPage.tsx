@@ -50,7 +50,7 @@ import {
   type ResourceStatistics,
   type CostComparison,
 } from '@/api/multi-cloud';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -619,7 +619,7 @@ const MultiCloudPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: spacing.lg, background: colors.light.bg.secondary, minHeight: '100vh' }}>
+    <div style={{ padding: spacing.lg, background: themeVars.bgSecondary, minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>

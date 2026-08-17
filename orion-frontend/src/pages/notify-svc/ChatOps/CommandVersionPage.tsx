@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Button, Space, Tag, Modal, Form, Input, message, Tooltip, Popconfirm, Typography } from 'antd';
 import { HistoryOutlined, RollbackOutlined, TagOutlined, DeleteOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { chatopsAdminApi } from '@/api/chatops-admin';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -169,10 +169,10 @@ const CommandVersionPage: React.FC = () => {
   return (
     <div>
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
-        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
             <HistoryOutlined style={{ color: colors.info[500], fontSize: 18 }} />
-            <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: themeVars.textPrimary }}>
               命令版本历史
             </span>
           </Space>
@@ -218,13 +218,13 @@ const CommandVersionPage: React.FC = () => {
             <p><Text strong>描述:</Text> {selectedVersion.description || '-'}</p>
             <p><Text strong>变更日志:</Text> {selectedVersion.changelog || '-'}</p>
             <p><Text strong>命令内容:</Text></p>
-            <pre style={{ background: colors.light.bg.secondary, padding: spacing[3], borderRadius: 6, fontSize: 12 }}>
+            <pre style={{ background: themeVars.bgSecondary, padding: spacing[3], borderRadius: 6, fontSize: 12 }}>
               {selectedVersion.command_text}
             </pre>
             {selectedVersion.parameters && Object.keys(selectedVersion.parameters).length > 0 && (
               <>
                 <p><Text strong>参数:</Text></p>
-                <pre style={{ background: colors.light.bg.secondary, padding: spacing[3], borderRadius: 6, fontSize: 12 }}>
+                <pre style={{ background: themeVars.bgSecondary, padding: spacing[3], borderRadius: 6, fontSize: 12 }}>
                   {JSON.stringify(selectedVersion.parameters, null, 2)}
                 </pre>
               </>

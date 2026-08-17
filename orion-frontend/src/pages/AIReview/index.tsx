@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography, Spin } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   ScanOutlined,
   HistoryOutlined,
@@ -50,7 +50,7 @@ const AIReviewLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
+        style={{ borderRight: `1px solid ${themeVars.borderLight}` }}
       >
         <div style={{ padding: '16px 12px' }}>
           <Title level={4} style={{ margin: 0 }}>
@@ -65,7 +65,7 @@ const AIReviewLayout: React.FC = () => {
         />
       </Sider>
       <Layout>
-        <Content style={{ margin: 0, padding: spacing.lg, background: colors.light.bg.primary }}>
+        <Content style={{ margin: 0, padding: spacing.lg, background: themeVars.bgPrimary }}>
           {pageInfo.title && (
             <div style={{ marginBottom: spacing.md }}>
               <Title level={2} style={{ marginBottom: spacing.sm }}>

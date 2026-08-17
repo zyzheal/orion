@@ -54,7 +54,7 @@ import {
   type Approver,
 } from '@/api/chatops-admin';
 import { getAuditLogs, type AuditLog, type AuditLogListParams } from '@/api/chatops';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 import PermissionAdmin from './PermissionAdmin';
 import CommandVersionPage from './CommandVersionPage';
@@ -267,7 +267,7 @@ const CapabilityMappingTab: React.FC = () => {
   return (
     <div>
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
-        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Space>
             <Input
               prefix={<SearchOutlined />}
@@ -570,10 +570,10 @@ const ApprovalConfigTab: React.FC = () => {
         bodyStyle={{ padding: '0 24px 24px' }}
         style={{ marginBottom: spacing.md }}
       >
-        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
+        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}` }}>
           <Space>
             <SafetyOutlined style={{ color: colors.purple[500], fontSize: 18 }} />
-            <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: themeVars.textPrimary }}>
               审批配置
             </span>
           </Space>
@@ -599,10 +599,10 @@ const ApprovalConfigTab: React.FC = () => {
       <Card
         bodyStyle={{ padding: '0 24px 24px' }}
       >
-        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${colors.light.border.light}` }}>
+        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}` }}>
           <Space>
             <TeamOutlined style={{ color: colors.primary[500], fontSize: 18 }} />
-            <span style={{ fontSize: 15, fontWeight: 600, color: colors.light.text.primary }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: themeVars.textPrimary }}>
               审批人列表
             </span>
           </Space>
@@ -766,7 +766,7 @@ const AuditLogTab: React.FC = () => {
       >
         <Space>
           <AuditOutlined style={{ color: colors.info[500], fontSize: 18 }} />
-          <span style={{ fontSize: 16, fontWeight: 600, color: colors.light.text.primary }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: themeVars.textPrimary }}>
             审计日志
           </span>
         </Space>

@@ -26,7 +26,7 @@ import {
   CodeOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   listComponents,
   createComponent,
@@ -298,14 +298,14 @@ const ComponentRegistryPage: React.FC = () => {
             </Descriptions.Item>
             {selectedComponent.propsSchema && (
               <Descriptions.Item label="Props Schema">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
                   {JSON.stringify(selectedComponent.propsSchema, null, 2)}
                 </pre>
               </Descriptions.Item>
             )}
             {selectedComponent.defaultConfig && (
               <Descriptions.Item label="默认配置">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 150, overflow: 'auto', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+                <pre style={{ margin: 0, fontSize: 12, maxHeight: 150, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
                   {JSON.stringify(selectedComponent.defaultConfig, null, 2)}
                 </pre>
               </Descriptions.Item>

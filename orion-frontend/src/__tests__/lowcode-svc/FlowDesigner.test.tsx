@@ -3,7 +3,18 @@ import { render, screen, waitFor } from '@testing-library/react';
 import FlowDesigner from '@/pages/lowcode-svc/FlowDesigner/index';
 import * as lowcodeApi from '@/api/lowcode';
 
-const mockFlows = [
+const mockFlows: {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  status: 'draft' | 'published' | 'archived';
+  nodeCount: number;
+  edgesCount: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}[] = [
   {
     id: 'flow-1',
     name: 'Deploy Pipeline',

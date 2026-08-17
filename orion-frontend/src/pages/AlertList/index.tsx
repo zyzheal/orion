@@ -10,7 +10,7 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Modal, message, Popconfirm, Spin, Empty } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -193,18 +193,18 @@ const AlertList: React.FC = () => {
   // AI Explain: show alert explanation via assistant Query
   const handleAIExplain = async (record: Alert) => {
     try {
-      const { askAssistant } = await import('@/api/assistant');
-      const resp = await askAssistant({
+      const { assistantAsk } = await import('@/api/assistant');
+      const resp = (await assistantAsk({
         question: `请解释以下告警：${record.metric} 当前值=${record.value} 阈值=${record.threshold}，消息：${record.message || ''}`,
         intent: 'alert',
-        topK: 3,
-      });
+        top_k: 3,
+      })) as { answer?: string };
       if (resp && resp.answer) {
         message.success({
           content: (
             <div>
               <strong style={{ marginBottom: 4, display: 'block' }}>AI 告警分析</strong>
-              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, background: '#f5f5f5', padding: 8, borderRadius: 4, maxHeight: 200, overflow: 'auto' }}>
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, background: themeVars.bgSecondary, padding: 8, borderRadius: 4, maxHeight: 200, overflow: 'auto' }}>
                 {resp.answer}
               </pre>
             </div>

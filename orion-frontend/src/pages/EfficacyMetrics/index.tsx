@@ -168,7 +168,7 @@ const EfficacyMetrics: React.FC = () => {
       ],
       trend: 'up' as const,
       trendPercent: 8,
-      color: '#722ed1',
+      color: colors.purple[500],
       link: '/efficacy-metrics/engineering',
     },
     {
@@ -180,7 +180,7 @@ const EfficacyMetrics: React.FC = () => {
       secondaryItems: [{ label: 'SLA 达成', value: '98%' }],
       trend: 'stable' as const,
       trendPercent: 0,
-      color: '#fa8c16',
+      color: colors.warning[500],
       link: '/efficacy-metrics/compliance',
     },
     {
@@ -192,7 +192,7 @@ const EfficacyMetrics: React.FC = () => {
       secondaryItems: [{ label: 'Agent 完成率', value: `${aiMetrics.completion}%` }],
       trend: 'up' as const,
       trendPercent: 12,
-      color: '#13c2c2',
+      color: colors.info[500],
       link: '/efficacy-metrics/ai-efficiency',
     },
     {
@@ -210,11 +210,11 @@ const EfficacyMetrics: React.FC = () => {
   ];
 
   const trendSeries = [
-    { name: '工程域', dataKey: 'engineering', color: '#722ed1' },
+    { name: '工程域', dataKey: 'engineering', color: colors.purple[500] },
     { name: '端到端', dataKey: 'e2e', color: colors.primary[500] },
     { name: '管理域', dataKey: 'management', color: colors.success[500] },
-    { name: '合规域', dataKey: 'compliance', color: '#fa8c16' },
-    { name: 'AI 提效', dataKey: 'aiEfficiency', color: '#13c2c2' },
+    { name: '合规域', dataKey: 'compliance', color: colors.warning[500] },
+    { name: 'AI 提效', dataKey: 'aiEfficiency', color: colors.info[500] },
     { name: '风险', dataKey: 'risk', color: colors.error[500] },
   ];
 

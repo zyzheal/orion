@@ -32,7 +32,7 @@ import {
   PlusOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
-import { colors, spacing, componentRadius } from '@/tokens';
+import { colors, spacing, componentRadius, themeVars } from '@/tokens';
 import pipelineVersionsApi, { type PipelineVersion } from '@/api/pipeline-versions';
 import {
   getArtifactVersions,
@@ -383,7 +383,7 @@ const VersionManagement: React.FC = () => {
         ) : diffResult ? (
           <pre
             style={{
-              background: colors.light.bg.secondary,
+              background: themeVars.bgSecondary,
               padding: spacing.md,
               borderRadius: componentRadius.input,
               maxHeight: 500,

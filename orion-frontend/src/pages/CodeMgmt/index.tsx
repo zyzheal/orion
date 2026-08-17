@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography, Spin } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   FolderOutlined,
   BranchesOutlined,
@@ -71,8 +71,8 @@ const CodeMgmtLayout: React.FC = () => {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         style={{
-          background: colors.light.bg.primary,
-          borderRight: `1px solid ${colors.light.border.light}`,
+          background: themeVars.bgPrimary,
+          borderRight: `1px solid ${themeVars.borderLight}`,
           padding: '8px 0',
         }}
         theme="light"
@@ -91,7 +91,7 @@ const CodeMgmtLayout: React.FC = () => {
             padding: spacing.lg,
             margin: 0,
             minHeight: 280,
-            background: colors.light.bg.primary,
+            background: themeVars.bgPrimary,
           }}
         >
           {pageInfo.title && (

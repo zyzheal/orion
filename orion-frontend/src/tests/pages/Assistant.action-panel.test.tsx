@@ -6,7 +6,6 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
 
 // Mock antd message
 vi.mock('antd', async () => {
@@ -70,7 +69,8 @@ vi.mock('@/tokens', () => ({
 }));
 
 // Re-import after mocks
-const AssistantPage = (await vi.importActual('../../pages/Assistant/index.tsx')).default;
+import type { ComponentType } from 'react';
+const AssistantPage = (await vi.importActual('../../pages/Assistant/index.tsx')).default as unknown as ComponentType;
 
 describe('Assistant Action Panel (TR-09/10/11)', () => {
   beforeEach(() => {

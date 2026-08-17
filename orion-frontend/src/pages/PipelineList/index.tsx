@@ -42,7 +42,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { PermissionActions, type PermissionAction } from '@/components/PermissionActions';
@@ -488,7 +488,7 @@ const PipelineList: React.FC = () => {
 
       {/* 批量操作栏 */}
       {selectedRowKeys.length > 0 && (
-        <Card size="small" style={{ marginBottom: spacing.md, background: '#e6f7ff' }}>
+        <Card size="small" style={{ marginBottom: spacing.md, background: colors.info[50] }}>
           <Space>
             <Text strong>已选择 {selectedRowKeys.length} 项</Text>
             <Button

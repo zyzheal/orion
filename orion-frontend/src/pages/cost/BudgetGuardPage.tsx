@@ -55,7 +55,7 @@ import {
   type EvaluationResult,
   type CostForecastResult,
 } from '@/api/cost-operations';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -542,7 +542,7 @@ const BudgetGuardPage: React.FC = () => {
   // ============================================================================
 
   return (
-    <div style={{ padding: spacing[6], background: colors.light.bg.primary, minHeight: '100vh' }}>
+    <div style={{ padding: spacing[6], background: themeVars.bgPrimary, minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] }}>
         <div>

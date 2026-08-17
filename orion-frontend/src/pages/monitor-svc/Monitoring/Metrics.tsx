@@ -28,7 +28,7 @@ import {
   getMetricSummary,
 } from '@/api/monitoring';
 import type { Metric } from '@/api/monitoring';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -427,7 +427,7 @@ const MonitoringMetrics: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '4px 0',
-                    borderBottom: `1px solid ${colors.light.border.light}`,
+                    borderBottom: `1px solid ${themeVars.borderLight}`,
                   }}
                 >
                   <Text type="secondary">{dayjs(point.timestamp).format('HH:mm:ss')}</Text>

@@ -7,7 +7,7 @@ import {
   ClockCircleOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -38,7 +38,7 @@ const IacManagementLayout: React.FC = () => {
       <Sider
         width={200}
         theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
+        style={{ borderRight: `1px solid ${themeVars.borderLight}` }}
       >
         <Menu
           mode="inline"
@@ -47,7 +47,7 @@ const IacManagementLayout: React.FC = () => {
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Content style={{ padding: spacing.lg, background: colors.light.bg.primary }}>
+      <Content style={{ padding: spacing.lg, background: themeVars.bgPrimary }}>
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>

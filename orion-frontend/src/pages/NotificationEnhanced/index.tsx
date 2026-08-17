@@ -15,7 +15,7 @@ import {
   ReloadOutlined, BellOutlined, LinkOutlined, UserOutlined,
   ClockCircleOutlined, FileTextOutlined, TableOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import DataState from '@/components/DataState';
 
 // Sub-components (lazy-loaded tabs)
@@ -72,12 +72,12 @@ const NotificationEnhanced: React.FC = () => {
             marginBottom: 0,
             padding: 0,
           }}
-          style={{ background: colors.light.bg.primary }}
+          style={{ background: themeVars.bgPrimary }}
           destroyInactiveTabPane={false}
         >
           {tabs.map((tab) => (
             <TabPane tab={tab.label} key={tab.key}>
-              <div style={{ paddingTop: spacing.md, background: colors.light.bg.primary }}>
+              <div style={{ paddingTop: spacing.md, background: themeVars.bgPrimary }}>
                 <DataState
                   loading={false}
                   error={error}

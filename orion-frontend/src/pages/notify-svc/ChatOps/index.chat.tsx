@@ -6,7 +6,7 @@ import _React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, Input, Button, Avatar, Spin, Typography, Space, Tag, Empty } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, ToolOutlined, ClearOutlined } from '@ant-design/icons';
 import { sendChatMessage, getAvailableTools, type ChatResponse, type ToolInfo } from '@/api/chatops';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -123,7 +123,7 @@ export default function ChatOpsChat() {
           <Card
             size="small"
             style={{
-              backgroundColor: isUser ? colors.primary[500] : colors.light.bg.secondary,
+              backgroundColor: isUser ? colors.primary[500] : themeVars.bgSecondary,
               color: isUser ? colors.neutral[0] : undefined,
               borderRadius: 12,
             }}
@@ -131,7 +131,7 @@ export default function ChatOpsChat() {
           >
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Space size={4}>
-                <Text strong style={{ fontSize: 12, color: isUser ? 'rgba(255,255,255,0.8)' : colors.light.text.secondary }}>
+                <Text strong style={{ fontSize: 12, color: isUser ? 'rgba(255,255,255,0.8)' : themeVars.textSecondary }}>
                   {isUser ? '你' : 'AI 助手'}
                 </Text>
                 {msg.intent && (
@@ -140,7 +140,7 @@ export default function ChatOpsChat() {
                   </Tag>
                 )}
                 {msg.confidence != null && (
-                  <Text style={{ fontSize: 10, color: isUser ? 'rgba(255,255,255,0.6)' : colors.light.text.tertiary }}>
+                  <Text style={{ fontSize: 10, color: isUser ? 'rgba(255,255,255,0.6)' : themeVars.textTertiary }}>
                     {Math.round(msg.confidence * 100)}%
                   </Text>
                 )}
@@ -148,7 +148,7 @@ export default function ChatOpsChat() {
               <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
               {msg.toolCalls && msg.toolCalls.length > 0 && (
                 <Space direction="vertical" size={2}>
-                  <Text style={{ fontSize: 11, color: isUser ? 'rgba(255,255,255,0.7)' : colors.light.text.secondary }}>
+                  <Text style={{ fontSize: 11, color: isUser ? 'rgba(255,255,255,0.7)' : themeVars.textSecondary }}>
                     <ToolOutlined /> 工具调用:
                   </Text>
                   <Space wrap>
@@ -206,7 +206,7 @@ export default function ChatOpsChat() {
             flex: 1,
             overflow: 'auto',
             padding: spacing[4],
-            background: colors.light.bg.secondary,
+            background: themeVars.bgSecondary,
             borderRadius: 12,
           }}
         >

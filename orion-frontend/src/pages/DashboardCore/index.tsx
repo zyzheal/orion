@@ -12,7 +12,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Space, Tag, Spin, Alert } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   RocketOutlined,
   CloudUploadOutlined,
@@ -356,7 +356,7 @@ const DashboardCore: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 0',
-                    borderBottom: `1px solid ${colors.light.border.light}`,
+                    borderBottom: `1px solid ${themeVars.borderLight}`,
                   }}
                 >
                   <Space>

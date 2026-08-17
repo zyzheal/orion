@@ -36,7 +36,7 @@ import {
   getDataPipelineLineage,
   type DataPipeline,
 } from '@/api/data-pipeline';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -324,7 +324,7 @@ const DataPipelinePage: React.FC = () => {
                 <div style={{ textAlign: 'center', padding: '48px 0' }}>加载中...</div>
               ) : (
                 <pre style={{
-                  background: '#f6f8fa',
+                  background: themeVars.bgSecondary,
                   padding: spacing.md,
                   borderRadius: spacing.sm,
                   fontSize: '12px',

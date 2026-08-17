@@ -77,8 +77,8 @@ const AlertList: React.FC = () => {
     setExplanation(null);
     try {
       const res = await getAlertExplain(alertId);
-      const data = res?.data?.explanation ?? res?.data;
-      setExplanation(data ?? null);
+      const data = (res.data as AlertExplanation | { explanation?: string } | undefined) ?? null;
+      setExplanation(data as AlertExplanation | null);
       if (!data) {
         message.warning('该告警暂无解释内容');
       }

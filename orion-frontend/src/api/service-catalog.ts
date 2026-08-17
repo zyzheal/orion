@@ -77,9 +77,13 @@ export const listCatalogItems = async (params?: {
   const qs = Object.keys(p).length > 0 ? '?' + new URLSearchParams(
     Object.entries(p).map(([k, v]) => [k, String(v)])
   ) : '';
-  const res = await api.get(`/api/v1/service-catalog${qs}`);
-  const data = res.data;
-  return Array.isArray(data) ? data : (data?.data || []);
+  const res = await api.get<unknown>(`/api/v1/service-catalog${qs}`);
+  const data = res.data as unknown;
+  if (Array.isArray(data)) return data as ServiceCatalog[];
+  if (typeof data === 'object' && data !== null && 'data' in data) {
+    return (data as { data: ServiceCatalog[] }).data;
+  }
+  return [];
 };
 
 export const getCatalogItem = async (id: string): Promise<ServiceCatalog> => {
@@ -123,9 +127,13 @@ export const updateRequestStatus = async (
 export const getRequestTimeline = async (
   id: string
 ): Promise<TimelineEntry[]> => {
-  const res = await api.get(`/api/v1/service-catalog/requests/${id}/timeline`);
-  const data = res.data;
-  return Array.isArray(data) ? data : (data?.data || []);
+  const res = await api.get<unknown>(`/api/v1/service-catalog/requests/${id}/timeline`);
+  const data = res.data as unknown;
+  if (Array.isArray(data)) return data as TimelineEntry[];
+  if (typeof data === 'object' && data !== null && 'data' in data) {
+    return (data as { data: TimelineEntry[] }).data;
+  }
+  return [];
 };
 
 export const getSLABreaches = async (params?: {

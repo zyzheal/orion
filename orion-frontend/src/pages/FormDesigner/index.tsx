@@ -25,7 +25,7 @@ import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
   CodeOutlined, EyeOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import TableWrapper, { type TableColumn } from '@/components/Table';
 import { listForms, createForm, updateForm, deleteForm } from '@/api/lowcode';
 
@@ -67,9 +67,9 @@ const updateCondition = (_: string, __: Partial<ConditionRule>) => Promise.resol
 const deleteCondition = (_: string) => Promise.resolve();
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
-  draft: { color: '#d9d9d9', label: '草稿' },
-  published: { color: '#52c41a', label: '已发布' },
-  archived: { color: '#faad14', label: '已归档' },
+  draft: { color: colors.neutral[300], label: '草稿' },
+  published: { color: colors.success[500], label: '已发布' },
+  archived: { color: colors.warning[500], label: '已归档' },
 };
 
 const FormDesigner: React.FC = () => {
@@ -90,10 +90,11 @@ const FormDesigner: React.FC = () => {
     try {
       if (activeTab === 'forms') {
         const data = await listForms();
-        setForms(Array.isArray(data) ? data : (data?.data ?? []));
+        const forms = Array.isArray(data) ? data : (data && typeof data === 'object' && 'data' in data ? (data as { data: FormSchema[] }).data ?? [] : []);
+        setForms(forms as FormSchema[]);
       } else {
         const res = await listConditions();
-        setConditions(res.data ?? []);
+        setConditions(Array.isArray(res) ? res : (res as { data?: ConditionRule[] }).data ?? []);
       }
     } catch (err: any) {
       message.error(err?.message || '加载失败');
@@ -298,7 +299,7 @@ const FormDesigner: React.FC = () => {
         footer={null}
         width={640}
       >
-        <pre style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, maxHeight: 400, overflow: 'auto' }}>
+        <pre style={{ background: themeVars.bgSecondary, padding: 16, borderRadius: 8, maxHeight: 400, overflow: 'auto' }}>
           {previewSchema}
         </pre>
       </Modal>

@@ -82,7 +82,7 @@ import {
   PlaygroundExecuteRequest,
 } from '@/api/developer-portal';
 import type { ColumnsType } from 'antd/es/table';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -1330,7 +1330,7 @@ const DeveloperPortalPage: React.FC = () => {
                       ))}
                     </div>
                     <Divider style={{ margin: '8px 0' }}>响应 Body</Divider>
-                    <pre style={{ background: colors.light.bg.tertiary, padding: spacing[3], borderRadius: 8, maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
+                    <pre style={{ background: themeVars.bgTertiary, padding: spacing[3], borderRadius: 8, maxHeight: 300, overflow: 'auto', fontSize: 12 }}>
                       {playgroundResult.response.body}
                     </pre>
                   </div>
@@ -1495,7 +1495,7 @@ const DeveloperPortalPage: React.FC = () => {
             </Descriptions>
             {selectedSdk.status === 'completed' && selectedSdk.output ? (
               <Card size="small" title="生成的代码">
-                <pre style={{ background: colors.light.bg.tertiary, padding: spacing.md, borderRadius: 8, maxHeight: 500, overflow: 'auto', fontSize: 12, lineHeight: 1.5 }}>
+                <pre style={{ background: themeVars.bgTertiary, padding: spacing.md, borderRadius: 8, maxHeight: 500, overflow: 'auto', fontSize: 12, lineHeight: 1.5 }}>
                   {selectedSdk.output}
                 </pre>
               </Card>

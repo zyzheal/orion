@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { Layout, Menu, Typography } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import {
   MedicineBoxOutlined,
   HistoryOutlined,
@@ -49,7 +49,6 @@ const SelfHealingLayout: React.FC = () => {
 
   // 从全局 store 获取主题（响应式）
   const theme = useAppStore((state) => state.theme);
-  const isDark = theme === 'dark';
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -67,8 +66,8 @@ const SelfHealingLayout: React.FC = () => {
         theme={theme}
         width={LAYOUT_CONFIG.siderWidth}
         style={{
-          background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
-          borderRight: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+          background: themeVars.bgPrimary,
+          borderRight: `1px solid ${themeVars.borderLight}`,
         }}
       >
         {!collapsed && (
@@ -91,7 +90,7 @@ const SelfHealingLayout: React.FC = () => {
           style={{
             margin: 0,
             padding: spacing[6],
-            background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
+            background: themeVars.bgPrimary,
           }}
         >
           {pageInfo.title && (

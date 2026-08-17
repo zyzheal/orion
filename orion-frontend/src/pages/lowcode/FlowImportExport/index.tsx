@@ -17,7 +17,7 @@ import { Typography } from 'antd';
 import {
   DownloadOutlined, UploadOutlined, FileTextOutlined, InboxOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import { lowcodeApi, type LowcodeFlow } from '@/api/lowcode';
 import type { UploadFile } from 'antd/es/upload/interface';
 import dayjs from 'dayjs';
@@ -356,7 +356,7 @@ const FlowImportExportPage: React.FC = () => {
 
             {/* Import preview */}
             {importPreview && (
-              <Card size="small" style={{ marginTop: spacing.sm, background: colors.light.bg.secondary }}>
+              <Card size="small" style={{ marginTop: spacing.sm, background: themeVars.bgSecondary }}>
                 <Statistic
                   title="流程名称"
                   value={importPreview.name}

@@ -4,6 +4,8 @@
  * 数据持久化到 localStorage
  */
 import { create } from 'zustand';
+import { useAuthStore } from '@/stores/authStore';
+import { checkPermission } from '@/hooks/usePermission';
 
 export interface MenuChildConfig {
   key: string;
@@ -464,12 +466,13 @@ export const getVisibleChildren = (moduleKey: string): MenuChildConfig[] => {
   const aiModule = modules['/ai'];
   if (!aiModule) return module.children.filter(c => c.enabled);
 
+  const currentUser = useAuthStore.getState().user;
+  const userRoles = currentUser?.roles || currentUser?.role ? (currentUser?.roles || [currentUser?.role || '']) : [];
+
   return module.children.filter(child => {
     if (!child.enabled) return false;
     const required = AI_MODULE_PERMISSIONS[child.key];
     if (!required) return true;
-    // 简单权限检查：检查用户角色是否有该权限
-    // 实际使用时由 usePermission hook 提供
-    return true; // TODO: 后续接入 usePermission
+    return checkPermission(userRoles, required.resource, required.action);
   });
 };

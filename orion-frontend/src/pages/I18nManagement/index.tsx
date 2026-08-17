@@ -54,7 +54,6 @@ export default function I18nManagementPage() {
   const [selectedLocale, setSelectedLocale] = useState<string>('');
   const [localeModalVisible, setLocaleModalVisible] = useState(false);
   const [translationModalVisible, setTranslationModalVisible] = useState(false);
-  const [editingTranslation, setEditingTranslation] = useState<{ key: string; value: string } | null>(null);
   const [activeTab, setActiveTab] = useState('locales');
   const [localeForm] = Form.useForm();
   const [translationForm] = Form.useForm();
@@ -142,7 +141,6 @@ export default function I18nManagementPage() {
   };
 
   const handleEditTranslation = (key: string, value: string) => {
-    setEditingTranslation({ key, value });
     translationForm.setFieldsValue({
       namespace: key.split('.').length > 1 ? key.split('.')[0] : 'default',
       key: key.split('.').length > 1 ? key.split('.').slice(1).join('.') : key,

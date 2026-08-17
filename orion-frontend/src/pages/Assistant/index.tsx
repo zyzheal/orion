@@ -40,7 +40,7 @@ import {
   type AssistantActionResult,
   type SourceIngestItem,
 } from '@/api/assistant';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -76,7 +76,6 @@ const AssistantPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionResult, setActionResult] = useState<AssistantActionResult | null>(null);
   const [actionPrompt, setActionPrompt] = useState('');
-  const [actionKind, setActionKind] = useState<'trigger_pipeline' | 'suggest_command' | 'auto'>('auto');
   const [actionTitle, setActionTitle] = useState('');
 
   const handleAction = async (kind: 'trigger_pipeline' | 'suggest_command' | 'generate_flow') => {
@@ -246,7 +245,7 @@ const AssistantPage: React.FC = () => {
           border: `1px solid ${colors.neutral[200]}`,
           borderRadius: 12,
           padding: spacing.lg,
-          background: colors.light?.bg?.primary ?? '#fff',
+          background: themeVars.bgPrimary,
         }}
       >
         {messages.length === 0 ? (
@@ -284,8 +283,8 @@ const AssistantPage: React.FC = () => {
                     background:
                       m.role === 'user'
                         ? colors.primary[500]
-                        : (colors.light?.bg?.secondary ?? '#F5F5F7'),
-                    color: m.role === 'user' ? '#fff' : 'inherit',
+                        : themeVars.bgSecondary,
+                    color: m.role === 'user' ? colors.neutral[900] : 'inherit',
                   }}
                 >
                   {m.role === 'assistant' && m.response && (
@@ -303,7 +302,7 @@ const AssistantPage: React.FC = () => {
                   )}
                   <Text
                     style={{
-                      color: m.role === 'user' ? '#fff' : undefined,
+                      color: m.role === 'user' ? colors.neutral[900] : undefined,
                       whiteSpace: 'pre-wrap',
                     }}
                   >
@@ -488,7 +487,7 @@ const AssistantPage: React.FC = () => {
                       icon={<FunnelPlotOutlined />}
                       loading={actionLoading}
                       onClick={() => handleAction('generate_flow')}
-                      style={{ backgroundColor: colors.magenta?.[500] || '#EB2F96', borderColor: colors.magenta?.[500] || '#EB2F96' }}
+                      style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
                     >
                       AI 生成流程 (TR-10)
                     </Button>
@@ -499,7 +498,7 @@ const AssistantPage: React.FC = () => {
                       style={{
                         marginTop: 4,
                         padding: 10,
-                        background: colors.light?.bg?.secondary ?? '#F5F5F7',
+                        background: themeVars.bgSecondary,
                       }}
                     >
                       <Space direction="vertical" size={6} style={{ width: '100%' }}>

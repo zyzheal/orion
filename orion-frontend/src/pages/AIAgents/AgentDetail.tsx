@@ -6,7 +6,7 @@
 import React from 'react';
 import { Descriptions, Tag, Typography, Card, Divider } from 'antd';
 import type { AgentInfo } from '@/api/ai-agents';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -88,7 +88,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
       <Card
         size="small"
         style={{
-          backgroundColor: colors.light.bg.secondary,
+          backgroundColor: themeVars.bgSecondary,
           fontFamily: 'monospace',
           fontSize: 12,
         }}

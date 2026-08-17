@@ -46,7 +46,7 @@ import dayjs from 'dayjs';
 import { getTicket, assignTicket, resolveTicket, closeTicket, getTicketRelations, getTransferHistory } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 
 // Local Ticket type definition
 interface Ticket {
@@ -560,7 +560,7 @@ const TicketDetail: React.FC = () => {
                     alignItems: 'center',
                     gap: spacing.sm,
                     padding: '8px 0',
-                    borderBottom: `1px solid ${colors.light.border.light}`,
+                    borderBottom: `1px solid ${themeVars.borderLight}`,
                   }}
                 >
                   <Tag color={relationTypeColors[rel.relationType]}>
@@ -601,7 +601,7 @@ const TicketDetail: React.FC = () => {
                     alignItems: 'center',
                     gap: spacing.sm,
                     padding: '8px 0',
-                    borderBottom: `1px solid ${colors.light.border.light}`,
+                    borderBottom: `1px solid ${themeVars.borderLight}`,
                   }}
                 >
                   <Avatar size="small">{t.fromEngineer[0]}</Avatar>

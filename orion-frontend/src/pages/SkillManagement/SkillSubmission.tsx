@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Typography, Button, Space, Card, Form, Input, Select, message, Tag } from 'antd';
 import { PlusOutlined, SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { createSkill, type SkillPackageInput } from '@/api/skills';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -160,7 +160,7 @@ const SkillSubmission: React.FC = () => {
                 paddingBottom: spacing[3],
                 borderBottom:
                   index < submittedSkills.length - 1
-                    ? `1px solid ${colors.light.border.light}`
+                    ? `1px solid ${themeVars.borderLight}`
                     : 'none',
               }}
             >

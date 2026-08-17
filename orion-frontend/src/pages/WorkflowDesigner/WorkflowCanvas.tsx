@@ -41,7 +41,7 @@ import {
   type WorkflowNode,
   type WorkflowEdge,
 } from '@/api/workflow';
-import { colors } from '@/tokens';
+import { colors, themeVars } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -1074,7 +1074,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           fitView
           fitViewOptions={{ padding: 0.2 }}
           proOptions={{ hideAttribution: true }}
-          style={{ background: colors.light.bg.secondary }}
+          style={{ background: themeVars.bgSecondary }}
         >
           <Background color={colors.neutral[300]} gap={20} />
           <Controls
