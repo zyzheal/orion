@@ -145,7 +145,7 @@ const StrategyList: React.FC = () => {
       render: (actions: string[]) => (
         <Space wrap>
           {actions.slice(0, 3).map((a, i) => (
-            <Tag key={i}>{a}</Tag>
+            <Tag key={String(i)}>{a}</Tag>
           ))}
           {actions.length > 3 && <Tag>+{actions.length - 3}</Tag>}
         </Space>

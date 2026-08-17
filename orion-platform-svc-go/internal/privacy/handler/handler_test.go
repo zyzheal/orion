@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/privacy/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/privacy/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakePrivacyService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +28,62 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakePrivacyService struct{}
+
+func (f *fakePrivacyService) DeletePrivacyConfig(ctx context.Context, tenantID string) error {
+	return nil
+}
+
+func (f *fakePrivacyService) GetPrivacyConfig(ctx context.Context, tenantID string) (*models.PrivacyConfig, error) {
+	return &models.PrivacyConfig{}, nil
+}
+
+func (f *fakePrivacyService) ListComplianceStatus(ctx context.Context) ([]models.ComplianceStatus, error) {
+	return []models.ComplianceStatus{}, nil
+}
+
+func (f *fakePrivacyService) UpdatePrivacyConfig(ctx context.Context, tenantID string, updates map[string]any) (*models.PrivacyConfig, error) {
+	return &models.PrivacyConfig{}, nil
+}
+
+func (f *fakePrivacyService) UpsertPrivacyConfig(ctx context.Context, tenantID string, config *models.PrivacyConfig) (*models.PrivacyConfig, error) {
+	return &models.PrivacyConfig{}, nil
+}
+
+var _ service.ServiceInterface = (*fakePrivacyService)(nil)
+=======
+type fakeprivacyService struct{}
+
+func (f *fakeprivacyService) DeletePrivacyConfig(ctx context.Context, tenantID string) (error) {
+	return nil
+}
+
+func (f *fakeprivacyService) GetPrivacyConfig(ctx context.Context, tenantID string) ((*models.PrivacyConfig, error)) {
+	return &models.PrivacyConfig{}, nil
+}
+
+func (f *fakeprivacyService) ListComplianceStatus(ctx context.Context) (([]models.ComplianceStatus, error)) {
+	return []models.ComplianceStatus{}, nil
+}
+
+func (f *fakeprivacyService) UpdatePrivacyConfig(ctx context.Context, tenantID string, updates map[string]any) ((*models.PrivacyConfig, error)) {
+	return &models.PrivacyConfig{}, nil
+}
+
+func (f *fakeprivacyService) UpsertPrivacyConfig(ctx context.Context, tenantID string, config *models.PrivacyConfig) ((*models.PrivacyConfig, error)) {
+	return &models.PrivacyConfig{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeprivacyService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_PRIVACY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_PRIVACY_GetConfig(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetConfig(c)
 	if w.Code >= 500 {
@@ -36,7 +91,6 @@ func TestHandler_PRIVACY_GetConfig(t *testing.T) {
 	}
 }
 func TestHandler_PRIVACY_UpsertConfig(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpsertConfig(c)
 	if w.Code >= 500 {
@@ -44,7 +98,6 @@ func TestHandler_PRIVACY_UpsertConfig(t *testing.T) {
 	}
 }
 func TestHandler_PRIVACY_DeleteConfig(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteConfig(c)
 	if w.Code >= 500 {
@@ -52,7 +105,6 @@ func TestHandler_PRIVACY_DeleteConfig(t *testing.T) {
 	}
 }
 func TestHandler_PRIVACY_ListComplianceStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListComplianceStatus(c)
 	if w.Code >= 500 {

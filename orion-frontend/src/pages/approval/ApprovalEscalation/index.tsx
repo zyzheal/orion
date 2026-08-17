@@ -214,7 +214,7 @@ const TrendChart: React.FC<{ data: TrendDay[] }> = ({ data }) => {
         const yAvg = padding.top + chartH - ((d.avgDuration - minVal) / (maxVal - minVal)) * chartH;
         const ySla = padding.top + chartH - (d.slaRate / 100) * chartH;
         return (
-          <g key={i}>
+          <g key={String(i)}>
             <circle cx={x} cy={yAvg} r={4} fill={colors.primary[500]} />
             <circle cx={x} cy={ySla} r={3.5} fill={colors.success[500]} />
             <text

@@ -194,7 +194,7 @@ const CommandExecTab: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 2).map((name, i) => (
-            <Tag key={i} icon={<CloudServerOutlined />}>{name}</Tag>
+            <Tag key={String(i)} icon={<CloudServerOutlined />}>{name}</Tag>
           ))}
           {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
         </Space>
@@ -314,7 +314,7 @@ const CommandExecTab: React.FC = () => {
               <Descriptions.Item label="目标主机" span={2}>
                 <Space wrap>
                   {selectedRecord.hostnames.map((name, i) => (
-                    <Tag key={i}>{name}</Tag>
+                    <Tag key={String(i)}>{name}</Tag>
                   ))}
                 </Space>
               </Descriptions.Item>
@@ -640,7 +640,7 @@ const CronJobTab: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 2).map((name, i) => (
-            <Tag key={i} icon={<CloudServerOutlined />}>{name}</Tag>
+            <Tag key={String(i)} icon={<CloudServerOutlined />}>{name}</Tag>
           ))}
           {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
         </Space>
@@ -823,7 +823,7 @@ const FileUploadTab: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 2).map((name, i) => (
-            <Tag key={i} icon={<CloudServerOutlined />}>{name}</Tag>
+            <Tag key={String(i)} icon={<CloudServerOutlined />}>{name}</Tag>
           ))}
           {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
         </Space>

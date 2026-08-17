@@ -887,7 +887,7 @@ const AISecurityPage: React.FC = () => {
               <Title level={5}>策略规则</Title>
               <Space wrap>
                 {selectedPolicy.rules.map((rule, idx) => (
-                  <Tag key={idx} icon={<SecurityScanOutlined />}>
+                  <Tag key={String(idx)} icon={<SecurityScanOutlined />}>
                     {rule}
                   </Tag>
                 ))}

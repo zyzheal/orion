@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/pipeline-batch/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/pipeline-batch/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakePipeline_batchService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,126 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakePipeline_batchService struct{}
+
+func (f *fakePipeline_batchService) AdvanceToNextBatch(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) CompleteBatch(ctx context.Context, pgID string, batchID string, tenantID string, result map[string]any) (*models.BatchRun, error) {
+	return &models.BatchRun{}, nil
+}
+
+func (f *fakePipeline_batchService) CreatePhaseGroup(ctx context.Context, tenantID string, req *models.CreatePhaseGroupRequest) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) DeletePhaseGroup(ctx context.Context, id string, tenantID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakePipeline_batchService) FailBatch(ctx context.Context, pgID string, batchID string, tenantID string, result map[string]any) (*models.BatchRun, error) {
+	return &models.BatchRun{}, nil
+}
+
+func (f *fakePipeline_batchService) GetPhaseGroup(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) ListBatchRuns(ctx context.Context, pgID string, tenantID string) ([]models.BatchRun, error) {
+	return []models.BatchRun{}, nil
+}
+
+func (f *fakePipeline_batchService) ListPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string, limit *int, offset *int) ([]models.PhaseGroup, int, error) {
+	return []models.PhaseGroup{}, 0, nil
+}
+
+func (f *fakePipeline_batchService) PauseExecution(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) ResumeExecution(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) RollbackExecution(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) StartExecution(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakePipeline_batchService) UpdatePhaseGroup(ctx context.Context, id string, tenantID string, req *models.UpdatePhaseGroupRequest) (*models.PhaseGroup, error) {
+	return &models.PhaseGroup{}, nil
+}
+
+var _ service.ServiceInterface = (*fakePipeline_batchService)(nil)
+=======
+type fakepipeline_batchService struct{}
+
+func (f *fakepipeline_batchService) AdvanceToNextBatch(ctx context.Context, id string, tenantID string) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) CompleteBatch(ctx context.Context, pgID string, batchID string, tenantID string, result map[string]any) ((*models.BatchRun, error)) {
+	return &models.BatchRun{}, nil
+}
+
+func (f *fakepipeline_batchService) CreatePhaseGroup(ctx context.Context, tenantID string, req *models.CreatePhaseGroupRequest) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) DeletePhaseGroup(ctx context.Context, id string, tenantID string) ((bool, error)) {
+	return false, nil
+}
+
+func (f *fakepipeline_batchService) FailBatch(ctx context.Context, pgID string, batchID string, tenantID string, result map[string]any) ((*models.BatchRun, error)) {
+	return &models.BatchRun{}, nil
+}
+
+func (f *fakepipeline_batchService) GetPhaseGroup(ctx context.Context, id string, tenantID string) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) ListBatchRuns(ctx context.Context, pgID string, tenantID string) (([]models.BatchRun, error)) {
+	return []models.BatchRun{}, nil
+}
+
+func (f *fakepipeline_batchService) ListPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string, limit *int, offset *int) (([]models.PhaseGroup, int, error)) {
+	return []models.PhaseGroup{}, 0, nil
+}
+
+func (f *fakepipeline_batchService) PauseExecution(ctx context.Context, id string, tenantID string) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) ResumeExecution(ctx context.Context, id string, tenantID string) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) RollbackExecution(ctx context.Context, id string, tenantID string) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) StartExecution(ctx context.Context, id string, tenantID string) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+func (f *fakepipeline_batchService) UpdatePhaseGroup(ctx context.Context, id string, tenantID string, req *models.UpdatePhaseGroupRequest) ((*models.PhaseGroup, error)) {
+	return &models.PhaseGroup{}, nil
+}
+
+var _ service.ServiceInterface = (*fakepipeline_batchService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_PIPELINE_BATCH_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PIPELINE_BAT_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -37,7 +155,6 @@ func TestHandler_PIPELINE_BAT_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_CreatePhaseGroup(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreatePhaseGroup(c)
 	if w.Code >= 500 {
@@ -45,7 +162,6 @@ func TestHandler_PIPELINE_BAT_CreatePhaseGroup(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_ListPhaseGroups(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListPhaseGroups(c)
 	if w.Code >= 500 {
@@ -53,7 +169,6 @@ func TestHandler_PIPELINE_BAT_ListPhaseGroups(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_GetPhaseGroup(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetPhaseGroup(c)
 	if w.Code >= 500 {
@@ -61,7 +176,6 @@ func TestHandler_PIPELINE_BAT_GetPhaseGroup(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_UpdatePhaseGroup(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdatePhaseGroup(c)
 	if w.Code >= 500 {
@@ -69,7 +183,6 @@ func TestHandler_PIPELINE_BAT_UpdatePhaseGroup(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_DeletePhaseGroup(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeletePhaseGroup(c)
 	if w.Code >= 500 {
@@ -77,7 +190,6 @@ func TestHandler_PIPELINE_BAT_DeletePhaseGroup(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_StartExecution(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().StartExecution(c)
 	if w.Code >= 500 {
@@ -85,7 +197,6 @@ func TestHandler_PIPELINE_BAT_StartExecution(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_PauseExecution(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().PauseExecution(c)
 	if w.Code >= 500 {
@@ -93,7 +204,6 @@ func TestHandler_PIPELINE_BAT_PauseExecution(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_ResumeExecution(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ResumeExecution(c)
 	if w.Code >= 500 {
@@ -101,7 +211,6 @@ func TestHandler_PIPELINE_BAT_ResumeExecution(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_AdvanceToNextBatch(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AdvanceToNextBatch(c)
 	if w.Code >= 500 {
@@ -109,7 +218,6 @@ func TestHandler_PIPELINE_BAT_AdvanceToNextBatch(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_RollbackExecution(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RollbackExecution(c)
 	if w.Code >= 500 {
@@ -117,7 +225,6 @@ func TestHandler_PIPELINE_BAT_RollbackExecution(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_ListBatchRuns(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListBatchRuns(c)
 	if w.Code >= 500 {
@@ -125,7 +232,6 @@ func TestHandler_PIPELINE_BAT_ListBatchRuns(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_CompleteBatch(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CompleteBatch(c)
 	if w.Code >= 500 {
@@ -133,7 +239,6 @@ func TestHandler_PIPELINE_BAT_CompleteBatch(t *testing.T) {
 	}
 }
 func TestHandler_PIPELINE_BAT_FailBatch(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().FailBatch(c)
 	if w.Code >= 500 {

@@ -1130,7 +1130,7 @@ const IncidentManagement: React.FC = () => {
                   {postmortem.action_items?.length ? (
                     <ul style={{ margin: 0, paddingLeft: spacing.md }}>
                       {postmortem.action_items.map((item: any, idx: number) => (
-                        <li key={idx}>{item.description || item}</li>
+                        <li key={String(idx)}>{item.description || item}</li>
                       ))}
                     </ul>
                   ) : (
@@ -1180,7 +1180,7 @@ const IncidentManagement: React.FC = () => {
                       {aiDraft.contributing_factors && aiDraft.contributing_factors.length > 0 && (
                         <Descriptions.Item label="促成因素">
                           <ul style={{ margin: 0, paddingLeft: spacing.md }}>
-                            {aiDraft.contributing_factors.map((f, i) => <li key={i}>{f}</li>)}
+                            {aiDraft.contributing_factors.map((f, i) => <li key={String(i)}>{f}</li>)}
                           </ul>
                         </Descriptions.Item>
                       )}
@@ -1190,7 +1190,7 @@ const IncidentManagement: React.FC = () => {
                       {aiDraft.action_items && aiDraft.action_items.length > 0 && (
                         <Descriptions.Item label="行动项">
                           <ul style={{ margin: 0, paddingLeft: spacing.md }}>
-                            {aiDraft.action_items.map((item, i) => <li key={i}>{item}</li>)}
+                            {aiDraft.action_items.map((item, i) => <li key={String(i)}>{item}</li>)}
                           </ul>
                         </Descriptions.Item>
                       )}

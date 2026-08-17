@@ -359,7 +359,7 @@ const PipelineBudget: React.FC = () => {
                     const cfg = alertLevelConfig[alert.level] || alertLevelConfig.info;
                     return (
                       <Alert
-                        key={i}
+                        key={String(i)}
                         message={cfg.label}
                         description={alert.message}
                         type={cfg.type}

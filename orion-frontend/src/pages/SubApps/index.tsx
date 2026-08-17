@@ -115,7 +115,6 @@ const SubApps: React.FC = () => {
           }
         }
       } catch (error) {
-        console.warn('Failed to load subApps from store, using default:', error);
         // 降级使用默认列表
       } finally {
         setLoading(false);

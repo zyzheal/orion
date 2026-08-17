@@ -272,7 +272,7 @@ const DeveloperProfileTab: React.FC = () => {
       render: (_: unknown, record: DeveloperProfile) => (
         <Space wrap>
           {record.specialty.slice(0, 2).map((s: string, i: number) => (
-            <Tag key={i} color="blue" style={{ fontSize: 11 }}>{s}</Tag>
+            <Tag key={String(i)} color="blue" style={{ fontSize: 11 }}>{s}</Tag>
           ))}
           {record.specialty.length > 2 && <Tag style={{ fontSize: 11 }}>+{record.specialty.length - 2}</Tag>}
         </Space>

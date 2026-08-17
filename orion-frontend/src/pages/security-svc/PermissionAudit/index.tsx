@@ -246,7 +246,7 @@ const PermissionAudit: React.FC = () => {
             };
             return (
               <Alert
-                key={index}
+                key={String(index)}
                 type={anomaly.severity === 'critical' || anomaly.severity === 'high' ? 'error' : 'warning'}
                 message={
                   <Space>

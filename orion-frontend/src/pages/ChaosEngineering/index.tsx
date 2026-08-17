@@ -235,7 +235,7 @@ const ChaosEngineering: React.FC = () => {
           {(faults || []).slice(0, 3).map((f, i) => {
             const cfg = faultTypeConfig[f.type] || { label: f.type, color: 'default' };
             return (
-              <Tag key={i} color={cfg.color}>
+              <Tag key={String(i)} color={cfg.color}>
                 {cfg.label}
               </Tag>
             );
@@ -608,7 +608,7 @@ const ChaosEngineering: React.FC = () => {
                 {(selectedExperiment.faults || []).map((f: any, i: number) => {
                   const cfg = faultTypeConfig[f.type] || { label: f.type, color: 'default' };
                   return (
-                    <div key={i}>
+                    <div key={String(i)}>
                       <Tag color={cfg.color}>{cfg.label}</Tag>
                       <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         持续 {f.duration || 60}s | 严重程度 {f.severity || 'medium'}

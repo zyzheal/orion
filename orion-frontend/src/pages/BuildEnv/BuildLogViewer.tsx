@@ -237,7 +237,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
                 parts.push(line.slice(lastIndex));
               }
               return (
-                <div key={index} style={{ minHeight: 20 }}>
+                <div key={String(index)} style={{ minHeight: 20 }}>
                   <span
                     style={{
                       color: colors.neutral[500],
@@ -255,7 +255,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
               );
             }
             return (
-              <div key={index} style={{ minHeight: 20 }}>
+              <div key={String(index)} style={{ minHeight: 20 }}>
                 <span
                   style={{
                     color: colors.neutral[500],

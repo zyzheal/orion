@@ -726,7 +726,7 @@ const FinOpsPage: React.FC = () => {
         {forecasts.length > 0 ? (
           <Row gutter={[16, 16]}>
             {forecasts.map((forecast, index) => (
-              <Col xs={24} lg={12} key={index}>
+              <Col xs={24} lg={12} key={String(index)}>
                 <Card
                   title={`预测 #${index + 1}`}
                   bordered={false}

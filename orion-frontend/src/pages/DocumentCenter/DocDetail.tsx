@@ -239,7 +239,7 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
         <div style={{ padding: spacing[4] }}>
           {toc.map((item, index) => (
             <div
-              key={index}
+              key={String(index)}
               style={{
                 paddingLeft: (item.level - 1) * spacing[4],
                 paddingTop: spacing[2],

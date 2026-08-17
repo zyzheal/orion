@@ -227,7 +227,7 @@ const DiagnosticReports: React.FC = () => {
               <>
                 <Title level={5}>诊断发现</Title>
                 {selectedReport.findings.map((finding: any, idx: number) => (
-                  <Card key={idx} size="small" style={{ background: colors.neutral[50] }}>
+                  <Card key={String(idx)} size="small" style={{ background: colors.neutral[50] }}>
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <Space>
                         <Tag color="purple">{finding.pattern}</Tag>

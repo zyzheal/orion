@@ -91,7 +91,6 @@ const IMNotificationsTab: React.FC = () => {
       const data = await getIMNotificationRules();
       setRules(data);
     } catch (err) {
-      console.warn('IM notification rules API unavailable, showing empty state:', err);
       // Backend endpoint not yet implemented — show empty state gracefully
       setRules([]);
     } finally {

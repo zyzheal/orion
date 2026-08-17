@@ -293,7 +293,7 @@ const ModelVersionsTab: React.FC = () => {
 
                 <Card size="small" title="趋势数据 (近 7 天)">
                   {performance.dailyTrend.map((d, i) => (
-                    <div key={i} style={{ marginBottom: spacing.sm }}>
+                    <div key={String(i)} style={{ marginBottom: spacing.sm }}>
                       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 12 }}>{d.date}</Text>
                         <Progress

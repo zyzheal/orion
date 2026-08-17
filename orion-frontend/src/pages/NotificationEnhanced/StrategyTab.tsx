@@ -326,7 +326,7 @@ const StrategyTab: React.FC = () => {
           <Form.Item name="priority" label="优先级" initialValue={5}>
             <Select>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <Option key={n} value={n}>{n}</Option>
+                <Option key={String(n)} value={n}>{n}</Option>
               ))}
             </Select>
           </Form.Item>

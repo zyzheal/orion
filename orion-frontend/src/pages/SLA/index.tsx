@@ -811,7 +811,7 @@ const SLAManagement: React.FC = () => {
         return (
           <Space size={[0, 4]} wrap>
             {value.map((u: string, i: number) => (
-              <Tag key={i}>{u}</Tag>
+              <Tag key={String(i)}>{u}</Tag>
             ))}
           </Space>
         );

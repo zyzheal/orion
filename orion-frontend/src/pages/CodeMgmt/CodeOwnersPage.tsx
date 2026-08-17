@@ -254,7 +254,7 @@ const CodeOwnersPage: React.FC = () => {
       render: (value: unknown) => (
         <Space wrap>
           {(Array.isArray(value) ? value : []).map((user: string, idx: number) => (
-            <Tag key={idx} color="blue">
+            <Tag key={String(idx)} color="blue">
               @{user}
             </Tag>
           ))}

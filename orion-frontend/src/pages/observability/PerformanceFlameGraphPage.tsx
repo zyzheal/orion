@@ -398,7 +398,7 @@ const DetailPanel: React.FC<{
               const barColor = colorByDepth(depth + 1);
               return (
                 <div
-                  key={i}
+                  key={String(i)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

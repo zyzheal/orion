@@ -208,7 +208,7 @@ const KnowledgeGraphPage: React.FC = () => {
                     {filteredEdges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).map((e, i) => {
                       const related = filteredNodes.find(n => n.id === (e.source === selectedNode.id ? e.target : e.source));
                       return (
-                        <Tag key={i} style={{ marginBottom: 4, cursor: 'pointer' }}
+                        <Tag key={String(i)} style={{ marginBottom: 4, cursor: 'pointer' }}
                           onClick={() => related && setSelectedNode(related)}
                         >
                           {e.relation}: {related?.label || 'unknown'}

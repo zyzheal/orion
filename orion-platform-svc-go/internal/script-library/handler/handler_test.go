@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/script-library/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/script-library/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeScript_libraryService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,62 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeScript_libraryService struct{}
+
+func (f *fakeScript_libraryService) Create(ctx context.Context, tenantID string, req models.CreateScriptLibraryRequest) (*models.ScriptLibrary, error) {
+	return &models.ScriptLibrary{}, nil
+}
+
+func (f *fakeScript_libraryService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeScript_libraryService) Get(ctx context.Context, tenantID, id string) (*models.ScriptLibrary, error) {
+	return &models.ScriptLibrary{}, nil
+}
+
+func (f *fakeScript_libraryService) List(ctx context.Context, tenantID string) ([]models.ScriptLibrary, error) {
+	return []models.ScriptLibrary{}, nil
+}
+
+func (f *fakeScript_libraryService) Update(ctx context.Context, tenantID, id string, req models.UpdateScriptLibraryRequest) (*models.ScriptLibrary, error) {
+	return &models.ScriptLibrary{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeScript_libraryService)(nil)
+=======
+type fakescript_libraryService struct{}
+
+func (f *fakescript_libraryService) Create(ctx context.Context, tenantID string, req models.CreateScriptLibraryRequest) ((*models.ScriptLibrary, error)) {
+	return &models.ScriptLibrary{}, nil
+}
+
+func (f *fakescript_libraryService) Delete(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakescript_libraryService) Get(ctx context.Context, tenantID, id string) ((*models.ScriptLibrary, error)) {
+	return &models.ScriptLibrary{}, nil
+}
+
+func (f *fakescript_libraryService) List(ctx context.Context, tenantID string) (([]models.ScriptLibrary, error)) {
+	return []models.ScriptLibrary{}, nil
+}
+
+func (f *fakescript_libraryService) Update(ctx context.Context, tenantID, id string, req models.UpdateScriptLibraryRequest) ((*models.ScriptLibrary, error)) {
+	return &models.ScriptLibrary{}, nil
+}
+
+var _ service.ServiceInterface = (*fakescript_libraryService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_SCRIPT_LIBRARY_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_SCRIPT_LIBRA_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +91,6 @@ func TestHandler_SCRIPT_LIBRA_List(t *testing.T) {
 	}
 }
 func TestHandler_SCRIPT_LIBRA_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -45,7 +98,6 @@ func TestHandler_SCRIPT_LIBRA_Get(t *testing.T) {
 	}
 }
 func TestHandler_SCRIPT_LIBRA_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -53,7 +105,6 @@ func TestHandler_SCRIPT_LIBRA_Create(t *testing.T) {
 	}
 }
 func TestHandler_SCRIPT_LIBRA_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -61,7 +112,6 @@ func TestHandler_SCRIPT_LIBRA_Update(t *testing.T) {
 	}
 }
 func TestHandler_SCRIPT_LIBRA_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

@@ -422,7 +422,7 @@ const DiagnosticSessions: React.FC = () => {
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
                     <div
-                      key={idx}
+                      key={String(idx)}
                       style={{ padding: spacing[3], background: colors.neutral[50], borderRadius: 6 }}
                     >
                       <Space>

@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/vector-store/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/vector-store/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeVector_storeService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,62 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeVector_storeService struct{}
+
+func (f *fakeVector_storeService) Create(ctx context.Context, tenantID string, req models.CreateVectorStoreRequest) (*models.VectorStore, error) {
+	return &models.VectorStore{}, nil
+}
+
+func (f *fakeVector_storeService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeVector_storeService) Get(ctx context.Context, tenantID, id string) (*models.VectorStore, error) {
+	return &models.VectorStore{}, nil
+}
+
+func (f *fakeVector_storeService) List(ctx context.Context, tenantID string) ([]models.VectorStore, error) {
+	return []models.VectorStore{}, nil
+}
+
+func (f *fakeVector_storeService) Update(ctx context.Context, tenantID, id string, req models.UpdateVectorStoreRequest) (*models.VectorStore, error) {
+	return &models.VectorStore{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeVector_storeService)(nil)
+=======
+type fakevector_storeService struct{}
+
+func (f *fakevector_storeService) Create(ctx context.Context, tenantID string, req models.CreateVectorStoreRequest) ((*models.VectorStore, error)) {
+	return &models.VectorStore{}, nil
+}
+
+func (f *fakevector_storeService) Delete(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakevector_storeService) Get(ctx context.Context, tenantID, id string) ((*models.VectorStore, error)) {
+	return &models.VectorStore{}, nil
+}
+
+func (f *fakevector_storeService) List(ctx context.Context, tenantID string) (([]models.VectorStore, error)) {
+	return []models.VectorStore{}, nil
+}
+
+func (f *fakevector_storeService) Update(ctx context.Context, tenantID, id string, req models.UpdateVectorStoreRequest) ((*models.VectorStore, error)) {
+	return &models.VectorStore{}, nil
+}
+
+var _ service.ServiceInterface = (*fakevector_storeService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_VECTOR_STORE_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_VECTOR_STORE_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +91,6 @@ func TestHandler_VECTOR_STORE_List(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_STORE_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -45,7 +98,6 @@ func TestHandler_VECTOR_STORE_Get(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_STORE_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -53,7 +105,6 @@ func TestHandler_VECTOR_STORE_Create(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_STORE_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -61,7 +112,6 @@ func TestHandler_VECTOR_STORE_Update(t *testing.T) {
 	}
 }
 func TestHandler_VECTOR_STORE_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

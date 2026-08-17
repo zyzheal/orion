@@ -297,7 +297,7 @@ const SpanDetailPopover: React.FC<{ span: Span }> = ({ span }) => {
           </Text>
           <div style={{ maxHeight: 80, overflow: 'auto', fontSize: 11 }}>
             {span.events.map((ev, i) => (
-              <div key={i} style={{ padding: '2px 0', borderLeft: `2px solid ${colors.primary[400]}`, paddingLeft: 6, marginBottom: 2 }}>
+              <div key={String(i)} style={{ padding: '2px 0', borderLeft: `2px solid ${colors.primary[400]}`, paddingLeft: 6, marginBottom: 2 }}>
                 <Text code>{ev.name}</Text>
                 <Text type="secondary" style={{ marginLeft: 4 }}>{formatTime(ev.timestamp)}</Text>
               </div>
@@ -479,7 +479,7 @@ const TimeAxis: React.FC<{
       <line x1="0" y1={y} x2={chartWidth} y2={y} stroke={themeVars.borderDefault} strokeWidth={1} />
       {/* 刻度线 + 标签 */}
       {ticks.map((tick, i) => (
-        <g key={i}>
+        <g key={String(i)}>
           <line x1={tick.x} y1={y} x2={tick.x} y2={y + 4} stroke={colors.neutral[400]} strokeWidth={1} />
           <text
             x={tick.x}

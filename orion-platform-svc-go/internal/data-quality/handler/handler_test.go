@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/data-quality/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/data-quality/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeData_qualityService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,126 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeData_qualityService struct{}
+
+func (f *fakeData_qualityService) CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.Alert, error) {
+	return &models.Alert{}, nil
+}
+
+func (f *fakeData_qualityService) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.Rule, error) {
+	return &models.Rule{}, nil
+}
+
+func (f *fakeData_qualityService) CreateScanResult(ctx context.Context, tenantID string, req *models.CreateScanResultRequest) (*models.ScanResult, error) {
+	return &models.ScanResult{}, nil
+}
+
+func (f *fakeData_qualityService) DeleteAlert(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeData_qualityService) DeleteRule(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeData_qualityService) GetAlert(ctx context.Context, tenantID, id string) (*models.Alert, error) {
+	return &models.Alert{}, nil
+}
+
+func (f *fakeData_qualityService) GetRule(ctx context.Context, tenantID, id string) (*models.Rule, error) {
+	return &models.Rule{}, nil
+}
+
+func (f *fakeData_qualityService) GetStats(ctx context.Context, tenantID string) (*models.QualityStats, error) {
+	return &models.QualityStats{}, nil
+}
+
+func (f *fakeData_qualityService) ListAlerts(ctx context.Context, tenantID string, status *string) ([]models.Alert, error) {
+	return []models.Alert{}, nil
+}
+
+func (f *fakeData_qualityService) ListRules(ctx context.Context, tenantID string, filter *models.RuleFilter) ([]models.Rule, error) {
+	return []models.Rule{}, nil
+}
+
+func (f *fakeData_qualityService) ListScanResults(ctx context.Context, tenantID, ruleID string, status *string) ([]models.ScanResult, error) {
+	return []models.ScanResult{}, nil
+}
+
+func (f *fakeData_qualityService) UpdateAlert(ctx context.Context, tenantID, id string, req *models.UpdateAlertRequest) (*models.Alert, error) {
+	return &models.Alert{}, nil
+}
+
+func (f *fakeData_qualityService) UpdateRule(ctx context.Context, tenantID, id string, req *models.UpdateRuleRequest) (*models.Rule, error) {
+	return &models.Rule{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeData_qualityService)(nil)
+=======
+type fakedata_qualityService struct{}
+
+func (f *fakedata_qualityService) CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) ((*models.Alert, error)) {
+	return &models.Alert{}, nil
+}
+
+func (f *fakedata_qualityService) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) ((*models.Rule, error)) {
+	return &models.Rule{}, nil
+}
+
+func (f *fakedata_qualityService) CreateScanResult(ctx context.Context, tenantID string, req *models.CreateScanResultRequest) ((*models.ScanResult, error)) {
+	return &models.ScanResult{}, nil
+}
+
+func (f *fakedata_qualityService) DeleteAlert(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakedata_qualityService) DeleteRule(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakedata_qualityService) GetAlert(ctx context.Context, tenantID, id string) ((*models.Alert, error)) {
+	return &models.Alert{}, nil
+}
+
+func (f *fakedata_qualityService) GetRule(ctx context.Context, tenantID, id string) ((*models.Rule, error)) {
+	return &models.Rule{}, nil
+}
+
+func (f *fakedata_qualityService) GetStats(ctx context.Context, tenantID string) ((*models.QualityStats, error)) {
+	return &models.QualityStats{}, nil
+}
+
+func (f *fakedata_qualityService) ListAlerts(ctx context.Context, tenantID string, status *string) (([]models.Alert, error)) {
+	return []models.Alert{}, nil
+}
+
+func (f *fakedata_qualityService) ListRules(ctx context.Context, tenantID string, filter *models.RuleFilter) (([]models.Rule, error)) {
+	return []models.Rule{}, nil
+}
+
+func (f *fakedata_qualityService) ListScanResults(ctx context.Context, tenantID, ruleID string, status *string) (([]models.ScanResult, error)) {
+	return []models.ScanResult{}, nil
+}
+
+func (f *fakedata_qualityService) UpdateAlert(ctx context.Context, tenantID, id string, req *models.UpdateAlertRequest) ((*models.Alert, error)) {
+	return &models.Alert{}, nil
+}
+
+func (f *fakedata_qualityService) UpdateRule(ctx context.Context, tenantID, id string, req *models.UpdateRuleRequest) ((*models.Rule, error)) {
+	return &models.Rule{}, nil
+}
+
+var _ service.ServiceInterface = (*fakedata_qualityService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_DATA_QUALITY_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DATA_QUALITY_ListRules(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListRules(c)
 	if w.Code >= 500 {
@@ -37,7 +155,6 @@ func TestHandler_DATA_QUALITY_ListRules(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_CreateRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateRule(c)
 	if w.Code >= 500 {
@@ -45,7 +162,6 @@ func TestHandler_DATA_QUALITY_CreateRule(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_GetRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetRule(c)
 	if w.Code >= 500 {
@@ -53,7 +169,6 @@ func TestHandler_DATA_QUALITY_GetRule(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_UpdateRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateRule(c)
 	if w.Code >= 500 {
@@ -61,7 +176,6 @@ func TestHandler_DATA_QUALITY_UpdateRule(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_DeleteRule(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteRule(c)
 	if w.Code >= 500 {
@@ -69,7 +183,6 @@ func TestHandler_DATA_QUALITY_DeleteRule(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_CreateScanResult(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateScanResult(c)
 	if w.Code >= 500 {
@@ -77,7 +190,6 @@ func TestHandler_DATA_QUALITY_CreateScanResult(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_ListScanResults(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListScanResults(c)
 	if w.Code >= 500 {
@@ -85,7 +197,6 @@ func TestHandler_DATA_QUALITY_ListScanResults(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_ListAlerts(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListAlerts(c)
 	if w.Code >= 500 {
@@ -93,7 +204,6 @@ func TestHandler_DATA_QUALITY_ListAlerts(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_CreateAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateAlert(c)
 	if w.Code >= 500 {
@@ -101,7 +211,6 @@ func TestHandler_DATA_QUALITY_CreateAlert(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_GetAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetAlert(c)
 	if w.Code >= 500 {
@@ -109,7 +218,6 @@ func TestHandler_DATA_QUALITY_GetAlert(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_UpdateAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateAlert(c)
 	if w.Code >= 500 {
@@ -117,7 +225,6 @@ func TestHandler_DATA_QUALITY_UpdateAlert(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_DeleteAlert(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteAlert(c)
 	if w.Code >= 500 {
@@ -125,7 +232,6 @@ func TestHandler_DATA_QUALITY_DeleteAlert(t *testing.T) {
 	}
 }
 func TestHandler_DATA_QUALITY_GetStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetStats(c)
 	if w.Code >= 500 {

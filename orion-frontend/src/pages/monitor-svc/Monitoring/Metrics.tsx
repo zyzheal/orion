@@ -422,7 +422,7 @@ const MonitoringMetrics: React.FC = () => {
               .reverse()
               .map((point: MetricSeriesPoint, idx: number) => (
                 <div
-                  key={idx}
+                  key={String(idx)}
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',

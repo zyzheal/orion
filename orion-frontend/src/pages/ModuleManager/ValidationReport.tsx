@@ -99,7 +99,7 @@ const ValidationReport: React.FC<ValidationReportProps> = ({
             <Collapse>
               {validation.circularDependencies.map((chain, index) => (
                 <Collapse.Panel
-                  key={index}
+                  key={String(index)}
                   header={
                     <Space>
                       <LinkOutlined style={{ color: colors.error[500] }} />

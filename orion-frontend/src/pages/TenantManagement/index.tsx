@@ -532,7 +532,7 @@ const TenantManagementPage: React.FC = () => {
                             const height = Math.max(4, (val / maxVal) * 20);
                             return (
                               <div
-                                key={idx}
+                                key={String(idx)}
                                 style={{
                                   width: 4,
                                   height,

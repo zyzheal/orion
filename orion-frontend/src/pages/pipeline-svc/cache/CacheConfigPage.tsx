@@ -188,7 +188,7 @@ const CacheConfigPage: React.FC = () => {
       render: (paths: string[]) => (
         <Space wrap size={2}>
           {paths.slice(0, 2).map((p, i) => (
-            <Tag key={i} style={{ margin: 0 }}>
+            <Tag key={String(i)} style={{ margin: 0 }}>
               {p.length > 15 ? `${p.substring(0, 15)}...` : p}
             </Tag>
           ))}

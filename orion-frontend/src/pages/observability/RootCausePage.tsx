@@ -303,7 +303,7 @@ const TimelineTab: React.FC = () => {
         <Card title={`时间线事件 (${timeline.totalEvents} 个事件, ${timeline.criticalEvents} 个严重)}`}>
           <Timeline>
             {timeline.events.map((event, i) => (
-              <Timeline.Item key={i} color={getEventColor(event.severity)}>
+              <Timeline.Item key={String(i)} color={getEventColor(event.severity)}>
                 <Text strong>{event.service}</Text>
                 <Tag style={{ marginLeft: spacing.sm }}>{event.eventType}</Tag>
                 <Text type="secondary" style={{ marginLeft: spacing.sm }}>
@@ -482,7 +482,7 @@ const RCAAnalysisTab: React.FC = () => {
               <Card size="small" title="事件时间线">
                 <Timeline>
                   {selectedAnalysis.timeline.map((item, i) => (
-                    <Timeline.Item key={i}>
+                    <Timeline.Item key={String(i)}>
                       <Text strong>{item.service}</Text>
                       <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         {new Date(item.timestamp).toLocaleTimeString()}
@@ -498,7 +498,7 @@ const RCAAnalysisTab: React.FC = () => {
               <Card size="small" title="建议措施">
                 <ul style={{ paddingLeft: 20, margin: 0 }}>
                   {selectedAnalysis.recommendations.map((r, i) => (
-                    <li key={i}><Text>{r}</Text></li>
+                    <li key={String(i)}><Text>{r}</Text></li>
                   ))}
                 </ul>
               </Card>

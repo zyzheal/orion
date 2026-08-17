@@ -182,7 +182,7 @@ const ChaosExperimentPage: React.FC = () => {
       dataIndex: 'faults',
       key: 'faults',
       render: (faults: any[]) =>
-        faults?.map((f, i) => <Tag key={i}>{f.type}</Tag>) || '-',
+        faults?.map((f, i) => <Tag key={String(i)}>{f.type}</Tag>) || '-',
     },
     {
       title: 'Auto Rollback',

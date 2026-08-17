@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/subapp/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/subapp/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeSubappService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +28,86 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeSubappService struct{}
+
+func (f *fakeSubappService) Create(ctx context.Context, tenantID string, createdBy *string, req models.CreateSubAppRequest) (*models.SubApp, error) {
+	return &models.SubApp{}, nil
+}
+
+func (f *fakeSubappService) Delete(ctx context.Context, tenantID, key string, changedBy *string) error {
+	return nil
+}
+
+func (f *fakeSubappService) GetAll(ctx context.Context, tenantID string) ([]models.SubApp, error) {
+	return []models.SubApp{}, nil
+}
+
+func (f *fakeSubappService) GetByKey(ctx context.Context, tenantID, key string) (*models.SubApp, error) {
+	return &models.SubApp{}, nil
+}
+
+func (f *fakeSubappService) GetEnabled(ctx context.Context, tenantID string) ([]models.SubApp, error) {
+	return []models.SubApp{}, nil
+}
+
+func (f *fakeSubappService) GetHistory(ctx context.Context, tenantID, key string) ([]models.SubAppConfigHistory, error) {
+	return []models.SubAppConfigHistory{}, nil
+}
+
+func (f *fakeSubappService) ToggleStatus(ctx context.Context, tenantID, key string, changedBy *string) (*models.SubApp, error) {
+	return &models.SubApp{}, nil
+}
+
+func (f *fakeSubappService) Update(ctx context.Context, tenantID, key string, updatedBy *string, req models.UpdateSubAppRequest) (*models.SubApp, error) {
+	return &models.SubApp{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeSubappService)(nil)
+=======
+type fakesubappService struct{}
+
+func (f *fakesubappService) Create(ctx context.Context, tenantID string, createdBy *string, req models.CreateSubAppRequest) ((*models.SubApp, error)) {
+	return &models.SubApp{}, nil
+}
+
+func (f *fakesubappService) Delete(ctx context.Context, tenantID, key string, changedBy *string) (error) {
+	return nil
+}
+
+func (f *fakesubappService) GetAll(ctx context.Context, tenantID string) (([]models.SubApp, error)) {
+	return []models.SubApp{}, nil
+}
+
+func (f *fakesubappService) GetByKey(ctx context.Context, tenantID, key string) ((*models.SubApp, error)) {
+	return &models.SubApp{}, nil
+}
+
+func (f *fakesubappService) GetEnabled(ctx context.Context, tenantID string) (([]models.SubApp, error)) {
+	return []models.SubApp{}, nil
+}
+
+func (f *fakesubappService) GetHistory(ctx context.Context, tenantID, key string) (([]models.SubAppConfigHistory, error)) {
+	return []models.SubAppConfigHistory{}, nil
+}
+
+func (f *fakesubappService) ToggleStatus(ctx context.Context, tenantID, key string, changedBy *string) ((*models.SubApp, error)) {
+	return &models.SubApp{}, nil
+}
+
+func (f *fakesubappService) Update(ctx context.Context, tenantID, key string, updatedBy *string, req models.UpdateSubAppRequest) ((*models.SubApp, error)) {
+	return &models.SubApp{}, nil
+}
+
+var _ service.ServiceInterface = (*fakesubappService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_SUBAPP_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_SUBAPP_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +115,6 @@ func TestHandler_SUBAPP_List(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_ListEnabled(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListEnabled(c)
 	if w.Code >= 500 {
@@ -44,7 +122,6 @@ func TestHandler_SUBAPP_ListEnabled(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -52,7 +129,6 @@ func TestHandler_SUBAPP_Get(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_History(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().History(c)
 	if w.Code >= 500 {
@@ -60,7 +136,6 @@ func TestHandler_SUBAPP_History(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -68,7 +143,6 @@ func TestHandler_SUBAPP_Create(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -76,7 +150,6 @@ func TestHandler_SUBAPP_Update(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_ToggleStatus(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ToggleStatus(c)
 	if w.Code >= 500 {
@@ -84,7 +157,6 @@ func TestHandler_SUBAPP_ToggleStatus(t *testing.T) {
 	}
 }
 func TestHandler_SUBAPP_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

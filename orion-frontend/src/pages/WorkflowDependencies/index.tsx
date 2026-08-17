@@ -135,7 +135,7 @@ const WorkflowDependenciesPage: React.FC = () => {
    */
   const renderCyclePath = (cycle: CircularDependencyPath, index: number) => (
     <Card
-      key={index}
+      key={String(index)}
       size="small"
       style={{
         marginBottom: spacing[3],
@@ -149,7 +149,7 @@ const WorkflowDependenciesPage: React.FC = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
           {cycle.names.map((name, i) => (
-            <React.Fragment key={i}>
+            <React.Fragment key={String(i)}>
               <Tag color="orange" style={{ margin: 0 }}>
                 {name}
               </Tag>
@@ -463,7 +463,7 @@ const WorkflowDependenciesPage: React.FC = () => {
         >
           {vizData.cycles.map((cycle, index) => (
             <div
-              key={index}
+              key={String(index)}
               style={{
                 padding: '8px 12px',
                 marginBottom: spacing.sm,
@@ -565,7 +565,7 @@ const WorkflowDependenciesPage: React.FC = () => {
                   {checkResult.cycles.length > 0 ? (
                     checkResult.cycles.map((cycle, index) => (
                       <div
-                        key={index}
+                        key={String(index)}
                         style={{
                           padding: '8px',
                           marginBottom: spacing.sm,

@@ -460,7 +460,7 @@ const RiskDashboardPage: React.FC = () => {
               <Timeline>
                 {selectedAssessment.factors.map((factor, index) => (
                   <Timeline.Item
-                    key={index}
+                    key={String(index)}
                     color={
                       factor.status === 'pass'
                         ? 'green'
@@ -492,7 +492,7 @@ const RiskDashboardPage: React.FC = () => {
                   <Title level={5}>改进建议</Title>
                   <ul>
                     {selectedAssessment.recommendations.map((rec, index) => (
-                      <li key={index}>{rec}</li>
+                      <li key={String(index)}>{rec}</li>
                     ))}
                   </ul>
                 </>

@@ -455,7 +455,7 @@ const SBOMPage: React.FC = () => {
                 <Divider style={{ margin: `${spacing.sm}px 0` }} />
                 {selectedVulns.length > 0 ? (
                   selectedVulns.map((vuln, idx) => (
-                    <div key={idx} style={{ marginBottom: spacing.md }}>
+                    <div key={String(idx)} style={{ marginBottom: spacing.md }}>
                       <Descriptions
                         size="small"
                         column={2}
@@ -544,7 +544,7 @@ const SBOMPage: React.FC = () => {
             >
               {mockLicenses.map((lic, idx) => (
                 <Descriptions.Item
-                  key={idx}
+                  key={String(idx)}
                   label={
                     <Text style={{ fontWeight: 600 }}>{lic.name}</Text>
                   }

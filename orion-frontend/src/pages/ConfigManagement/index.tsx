@@ -898,7 +898,7 @@ const ConfigManagementPage: React.FC = () => {
                             <Space wrap>
                               {item.changes.map((c, idx) => (
                                 <Tag
-                                  key={idx}
+                                  key={String(idx)}
                                   color={
                                     c.operation === 'add'
                                       ? 'green'

@@ -27,10 +27,8 @@ const tryLoadOrionMF = async () => {
     mfLoadSubApp = mod.loadSubApp;
 
   } catch (e1) {
-    console.warn('[TestMF] Failed to load from @orion-mf/core:', e1);
     // 降级方案：在开发环境手动挂载到 window 以供测试
     if (import.meta.env.DEV) {
-      console.warn('[TestMF] Using fallback - orion-mf not available, manual test only');
     }
   }
 };

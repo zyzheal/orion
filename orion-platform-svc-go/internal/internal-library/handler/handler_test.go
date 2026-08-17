@@ -8,10 +8,16 @@ import (
 	"orion/platform-svc-go/internal/internal-library/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/internal-library/models"
+	"time"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeInternal_libraryService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +29,174 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeInternal_libraryService struct{}
+
+func (f *fakeInternal_libraryService) Activate(ctx context.Context, tenantID, id string) (*models.InternalLibrary, error) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) AddDependent(ctx context.Context, libraryID string, req models.AddDependentRequest) (*models.LibraryDependent, error) {
+	return &models.LibraryDependent{}, nil
+}
+
+func (f *fakeInternal_libraryService) CheckDependencies(ctx context.Context, repoName string) ([]models.DependencyCheckResult, error) {
+	return []models.DependencyCheckResult{}, nil
+}
+
+func (f *fakeInternal_libraryService) Create(ctx context.Context, tenantID string, req models.CreateInternalLibraryRequest) (*models.InternalLibrary, error) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeInternal_libraryService) Deprecate(ctx context.Context, tenantID, id, reason, migrationGuide string, eolDate *time.Time) (*models.InternalLibrary, error) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) DeprecateVersion(ctx context.Context, libraryID, version, reason, migrationGuide string, eolDate *time.Time) (*models.LibraryVersion, error) {
+	return &models.LibraryVersion{}, nil
+}
+
+func (f *fakeInternal_libraryService) Get(ctx context.Context, tenantID, id string) (*models.InternalLibrary, error) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) GetByName(ctx context.Context, tenantID, name string) (*models.InternalLibrary, error) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) GetVersion(ctx context.Context, libraryID, version string) (*models.LibraryVersion, error) {
+	return &models.LibraryVersion{}, nil
+}
+
+func (f *fakeInternal_libraryService) List(ctx context.Context, tenantID string, limit, offset int) ([]models.InternalLibrary, error) {
+	return []models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) ListByLanguage(ctx context.Context, tenantID, language string, limit, offset int) ([]models.InternalLibrary, error) {
+	return []models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) ListByOwner(ctx context.Context, tenantID, owner string, limit, offset int) ([]models.InternalLibrary, error) {
+	return []models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) ListDependents(ctx context.Context, libraryID string) ([]models.LibraryDependent, error) {
+	return []models.LibraryDependent{}, nil
+}
+
+func (f *fakeInternal_libraryService) ListVersions(ctx context.Context, libraryID string) ([]models.LibraryVersion, error) {
+	return []models.LibraryVersion{}, nil
+}
+
+func (f *fakeInternal_libraryService) PublishVersion(ctx context.Context, libraryID string, req models.PublishVersionRequest) (*models.LibraryVersion, error) {
+	return &models.LibraryVersion{}, nil
+}
+
+func (f *fakeInternal_libraryService) Update(ctx context.Context, tenantID, id string, req models.UpdateInternalLibraryRequest) (*models.InternalLibrary, error) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeInternal_libraryService) UpdateDependentVersion(ctx context.Context, libraryID, repoName, newVersion string) error {
+	return nil
+}
+
+func (f *fakeInternal_libraryService) UpdateStats(ctx context.Context, libraryID string) (*models.UpdateStatsResult, error) {
+	return &models.UpdateStatsResult{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeInternal_libraryService)(nil)
+=======
+type fakeinternal_libraryService struct{}
+
+func (f *fakeinternal_libraryService) Activate(ctx context.Context, tenantID, id string) ((*models.InternalLibrary, error)) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) AddDependent(ctx context.Context, libraryID string, req models.AddDependentRequest) ((*models.LibraryDependent, error)) {
+	return &models.LibraryDependent{}, nil
+}
+
+func (f *fakeinternal_libraryService) CheckDependencies(ctx context.Context, repoName string) (([]models.DependencyCheckResult, error)) {
+	return []models.DependencyCheckResult{}, nil
+}
+
+func (f *fakeinternal_libraryService) Create(ctx context.Context, tenantID string, req models.CreateInternalLibraryRequest) ((*models.InternalLibrary, error)) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) Delete(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeinternal_libraryService) Deprecate(ctx context.Context, tenantID, id, reason, migrationGuide string, eolDate *time.Time) ((*models.InternalLibrary, error)) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) DeprecateVersion(ctx context.Context, libraryID, version, reason, migrationGuide string, eolDate *time.Time) ((*models.LibraryVersion, error)) {
+	return &models.LibraryVersion{}, nil
+}
+
+func (f *fakeinternal_libraryService) Get(ctx context.Context, tenantID, id string) ((*models.InternalLibrary, error)) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) GetByName(ctx context.Context, tenantID, name string) ((*models.InternalLibrary, error)) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) GetVersion(ctx context.Context, libraryID, version string) ((*models.LibraryVersion, error)) {
+	return &models.LibraryVersion{}, nil
+}
+
+func (f *fakeinternal_libraryService) List(ctx context.Context, tenantID string, limit, offset int) (([]models.InternalLibrary, error)) {
+	return []models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) ListByLanguage(ctx context.Context, tenantID, language string, limit, offset int) (([]models.InternalLibrary, error)) {
+	return []models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) ListByOwner(ctx context.Context, tenantID, owner string, limit, offset int) (([]models.InternalLibrary, error)) {
+	return []models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) ListDependents(ctx context.Context, libraryID string) (([]models.LibraryDependent, error)) {
+	return []models.LibraryDependent{}, nil
+}
+
+func (f *fakeinternal_libraryService) ListVersions(ctx context.Context, libraryID string) (([]models.LibraryVersion, error)) {
+	return []models.LibraryVersion{}, nil
+}
+
+func (f *fakeinternal_libraryService) PublishVersion(ctx context.Context, libraryID string, req models.PublishVersionRequest) ((*models.LibraryVersion, error)) {
+	return &models.LibraryVersion{}, nil
+}
+
+func (f *fakeinternal_libraryService) Update(ctx context.Context, tenantID, id string, req models.UpdateInternalLibraryRequest) ((*models.InternalLibrary, error)) {
+	return &models.InternalLibrary{}, nil
+}
+
+func (f *fakeinternal_libraryService) UpdateDependentVersion(ctx context.Context, libraryID, repoName, newVersion string) (error) {
+	return nil
+}
+
+func (f *fakeinternal_libraryService) UpdateStats(ctx context.Context, libraryID string) ((*models.UpdateStatsResult, error)) {
+	return &models.UpdateStatsResult{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeinternal_libraryService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_INTERNAL_LIBRA_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_INTERNAL_LIB_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -37,7 +204,6 @@ func TestHandler_INTERNAL_LIB_Create(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -45,7 +211,6 @@ func TestHandler_INTERNAL_LIB_Get(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -53,7 +218,6 @@ func TestHandler_INTERNAL_LIB_List(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_GetByName(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetByName(c)
 	if w.Code >= 500 {
@@ -61,7 +225,6 @@ func TestHandler_INTERNAL_LIB_GetByName(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_ListByLanguage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListByLanguage(c)
 	if w.Code >= 500 {
@@ -69,7 +232,6 @@ func TestHandler_INTERNAL_LIB_ListByLanguage(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_ListByOwner(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListByOwner(c)
 	if w.Code >= 500 {
@@ -77,7 +239,6 @@ func TestHandler_INTERNAL_LIB_ListByOwner(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -85,7 +246,6 @@ func TestHandler_INTERNAL_LIB_Update(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -93,7 +253,6 @@ func TestHandler_INTERNAL_LIB_Delete(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_PublishVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().PublishVersion(c)
 	if w.Code >= 500 {
@@ -101,7 +260,6 @@ func TestHandler_INTERNAL_LIB_PublishVersion(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_ListVersions(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListVersions(c)
 	if w.Code >= 500 {
@@ -109,7 +267,6 @@ func TestHandler_INTERNAL_LIB_ListVersions(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_GetVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetVersion(c)
 	if w.Code >= 500 {
@@ -117,7 +274,6 @@ func TestHandler_INTERNAL_LIB_GetVersion(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_DeprecateVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeprecateVersion(c)
 	if w.Code >= 500 {
@@ -125,7 +281,6 @@ func TestHandler_INTERNAL_LIB_DeprecateVersion(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_Deprecate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Deprecate(c)
 	if w.Code >= 500 {
@@ -133,7 +288,6 @@ func TestHandler_INTERNAL_LIB_Deprecate(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_Activate(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Activate(c)
 	if w.Code >= 500 {
@@ -141,7 +295,6 @@ func TestHandler_INTERNAL_LIB_Activate(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_ListDependents(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListDependents(c)
 	if w.Code >= 500 {
@@ -149,7 +302,6 @@ func TestHandler_INTERNAL_LIB_ListDependents(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_AddDependent(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AddDependent(c)
 	if w.Code >= 500 {
@@ -157,7 +309,6 @@ func TestHandler_INTERNAL_LIB_AddDependent(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_UpdateDependentVersion(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateDependentVersion(c)
 	if w.Code >= 500 {
@@ -165,7 +316,6 @@ func TestHandler_INTERNAL_LIB_UpdateDependentVersion(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_CheckDependencies(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CheckDependencies(c)
 	if w.Code >= 500 {
@@ -173,7 +323,6 @@ func TestHandler_INTERNAL_LIB_CheckDependencies(t *testing.T) {
 	}
 }
 func TestHandler_INTERNAL_LIB_UpdateStats(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateStats(c)
 	if w.Code >= 500 {

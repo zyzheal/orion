@@ -319,7 +319,7 @@ const AuditLogViewer: React.FC = () => {
               >
                 {stats.platformBreakdown?.map((item, index) => (
                   <div
-                    key={index}
+                    key={String(index)}
                     style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Tag>{item.platform}</Tag>
@@ -337,7 +337,7 @@ const AuditLogViewer: React.FC = () => {
               >
                 {stats.topCommands?.map((item, index) => (
                   <div
-                    key={index}
+                    key={String(index)}
                     style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
                   >
                     <Text code>/{item.command}</Text>

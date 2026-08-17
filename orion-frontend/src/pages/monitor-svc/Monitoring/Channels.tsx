@@ -231,7 +231,7 @@ const MonitoringChannels: React.FC = () => {
       render: (v: unknown) => (
         <Space>
           {(v as Array<unknown>).map((step: any, idx) => (
-            <Tag key={idx} color="blue">
+            <Tag key={String(idx)} color="blue">
               #{step.order} → {step.channel} ({step.delayMs}ms)
             </Tag>
           ))}

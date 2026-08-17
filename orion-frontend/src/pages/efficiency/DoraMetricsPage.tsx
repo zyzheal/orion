@@ -180,7 +180,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, metricKey, metricLabel, c
       <path d={areaD} fill={`url(#grad-${metricKey})`} />
       <path d={pathD} fill="none" stroke={color} strokeWidth="2" />
       {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} />
+        <circle key={String(i)} cx={p.x} cy={p.y} r="3" fill={color} />
       ))}
       {points.map((p, i) => (
         <text

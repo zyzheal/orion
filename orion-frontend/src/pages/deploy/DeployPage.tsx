@@ -1496,7 +1496,7 @@ const DeployPage: React.FC = () => {
                 <Timeline>
                   {selectedDeployment.healthChecks.map((check: HealthCheckResult, idx: number) => (
                     <Timeline.Item
-                      key={idx}
+                      key={String(idx)}
                       color={check.status === 'healthy' ? 'green' : check.status === 'unhealthy' ? 'red' : 'orange'}
                     >
                       <Text strong>{check.name}</Text>
@@ -1588,7 +1588,7 @@ const DeployPage: React.FC = () => {
                         <div style={{ marginTop: spacing.sm }}>
                           {releaseNotes.changes.map((change: ReleaseNotesChange, idx: number) => (
                             <Card
-                              key={idx}
+                              key={String(idx)}
                               size="small"
                               style={{ marginBottom: spacing.sm }}
                               type={change.type === 'breaking' ? 'inner' : undefined}

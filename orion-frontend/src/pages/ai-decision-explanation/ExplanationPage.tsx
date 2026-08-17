@@ -296,7 +296,7 @@ const ExplainDecisionTab: React.FC = () => {
             <Card title="建议贡献度" size="small">
               <ul style={{ margin: 0, paddingLeft: 20 }}>
                 {explanation.matchedRules.filter((r) => r.contribution !== undefined).map((r, i) => (
-                  <li key={i}>
+                  <li key={String(i)}>
                     <Text>{r.name}: 贡献 {r.contribution?.toFixed(2)}</Text>
                   </li>
                 ))}

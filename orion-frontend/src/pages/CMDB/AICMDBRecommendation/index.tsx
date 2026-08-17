@@ -144,7 +144,7 @@ const AccuracyTrendSVG: React.FC<{ data: number[] }> = ({ data }) => {
       {data.map((val, idx) => {
         const x = padding.left + (idx / (data.length - 1)) * innerW;
         const y = padding.top + innerH - ((val - minVal) / range) * innerH;
-        return <circle key={idx} cx={x} cy={y} r="3" fill={colors.purple[500]} />;
+        return <circle key={String(idx)} cx={x} cy={y} r="3" fill={colors.purple[500]} />;
       })}
       <text x={padding.left} y={height - 2} fontSize="9" fill={colors.neutral[500]}>
         7天前

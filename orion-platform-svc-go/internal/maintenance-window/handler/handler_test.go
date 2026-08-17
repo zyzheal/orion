@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/maintenance-window/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/maintenance-window/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeMaintenance_windowService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,62 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeMaintenance_windowService struct{}
+
+func (f *fakeMaintenance_windowService) Create(ctx context.Context, tenantID string, req *models.CreateMaintenanceWindowRequest) (*models.MaintenanceWindow, error) {
+	return &models.MaintenanceWindow{}, nil
+}
+
+func (f *fakeMaintenance_windowService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeMaintenance_windowService) Get(ctx context.Context, tenantID, id string) (*models.MaintenanceWindow, error) {
+	return &models.MaintenanceWindow{}, nil
+}
+
+func (f *fakeMaintenance_windowService) List(ctx context.Context, tenantID string) ([]models.MaintenanceWindow, error) {
+	return []models.MaintenanceWindow{}, nil
+}
+
+func (f *fakeMaintenance_windowService) Update(ctx context.Context, tenantID, id string, req *models.UpdateMaintenanceWindowRequest) (*models.MaintenanceWindow, error) {
+	return &models.MaintenanceWindow{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeMaintenance_windowService)(nil)
+=======
+type fakemaintenance_windowService struct{}
+
+func (f *fakemaintenance_windowService) Create(ctx context.Context, tenantID string, req *models.CreateMaintenanceWindowRequest) ((*models.MaintenanceWindow, error)) {
+	return &models.MaintenanceWindow{}, nil
+}
+
+func (f *fakemaintenance_windowService) Delete(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakemaintenance_windowService) Get(ctx context.Context, tenantID, id string) ((*models.MaintenanceWindow, error)) {
+	return &models.MaintenanceWindow{}, nil
+}
+
+func (f *fakemaintenance_windowService) List(ctx context.Context, tenantID string) (([]models.MaintenanceWindow, error)) {
+	return []models.MaintenanceWindow{}, nil
+}
+
+func (f *fakemaintenance_windowService) Update(ctx context.Context, tenantID, id string, req *models.UpdateMaintenanceWindowRequest) ((*models.MaintenanceWindow, error)) {
+	return &models.MaintenanceWindow{}, nil
+}
+
+var _ service.ServiceInterface = (*fakemaintenance_windowService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_MAINTENANCE_WI_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_MAINTENANCE__List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +91,6 @@ func TestHandler_MAINTENANCE__List(t *testing.T) {
 	}
 }
 func TestHandler_MAINTENANCE__Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -45,7 +98,6 @@ func TestHandler_MAINTENANCE__Create(t *testing.T) {
 	}
 }
 func TestHandler_MAINTENANCE__Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -53,7 +105,6 @@ func TestHandler_MAINTENANCE__Get(t *testing.T) {
 	}
 }
 func TestHandler_MAINTENANCE__Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -61,7 +112,6 @@ func TestHandler_MAINTENANCE__Update(t *testing.T) {
 	}
 }
 func TestHandler_MAINTENANCE__Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

@@ -211,7 +211,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
             </Space>
             <div style={{ marginTop: spacing[2] }}>
               {potentialDuplicates.map((dup, idx) => (
-                <div key={idx} style={{ marginBottom: spacing[1] }}>
+                <div key={String(idx)} style={{ marginBottom: spacing[1] }}>
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     <WarningOutlined /> {dup}
                   </Text>

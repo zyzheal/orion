@@ -200,7 +200,7 @@ const DependencyCheckTool: React.FC = () => {
               render: (_: unknown, record: DependencyCheckResult) =>
                 record.breakingChanges && record.breakingChanges.length > 0 ? (
                   record.breakingChanges.map((c, i) => (
-                    <div key={i}>
+                    <div key={String(i)}>
                       <WarningOutlined /> <Text type="danger">{c}</Text>
                     </div>
                   ))

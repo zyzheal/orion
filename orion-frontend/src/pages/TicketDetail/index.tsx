@@ -243,7 +243,6 @@ const TicketDetail: React.FC = () => {
         setRelations(relationsRes.data?.items || []);
         setTransfers(transfersRes.data?.items || []);
       } catch (error) {
-        console.warn('Failed to load related data:', error);
       }
     };
     loadRelatedData();
@@ -675,7 +674,7 @@ const TicketDetail: React.FC = () => {
                   <Text strong>当前级别: L{ticket.escalationLevel}</Text>
                 </div>
                 {Array.from({ length: ticket.escalationLevel }).map((_, i) => (
-                  <Tag key={i} color={i === ticket.escalationLevel - 1 ? 'red' : 'orange'}>
+                  <Tag key={String(i)} color={i === ticket.escalationLevel - 1 ? 'red' : 'orange'}>
                     升级 {i + 1}
                   </Tag>
                 ))}

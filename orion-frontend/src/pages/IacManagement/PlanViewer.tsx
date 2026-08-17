@@ -362,7 +362,7 @@ const PlanViewer: React.FC = () => {
                       <Text strong>风险:</Text>
                       <ul>
                         {selectedPlan.aiReview.risks.map((r, i) => (
-                          <li key={i}>
+                          <li key={String(i)}>
                             <Text type="danger">{r}</Text>
                           </li>
                         ))}
@@ -374,7 +374,7 @@ const PlanViewer: React.FC = () => {
                       <Text strong>建议:</Text>
                       <ul>
                         {selectedPlan.aiReview.suggestions.map((s, i) => (
-                          <li key={i}>{s}</li>
+                          <li key={String(i)}>{s}</li>
                         ))}
                       </ul>
                     </div>

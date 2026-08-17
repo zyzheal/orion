@@ -493,7 +493,7 @@ const ApiGovernancePage: React.FC = () => {
                   <p style={{ color: colors.neutral[500] }}>No verification results yet. Use the Verify button on a contract to start.</p>
                 ) : (
                   verificationResults.map((result, idx) => (
-                    <Card key={idx} size="small" style={{ marginBottom: spacing.sm }}>
+                    <Card key={String(idx)} size="small" style={{ marginBottom: spacing.sm }}>
                       <Descriptions column={2} size="small">
                         <Descriptions.Item label="Contract">{result.contractId.slice(0, 16)}...</Descriptions.Item>
                         <Descriptions.Item label="Result">
@@ -506,7 +506,7 @@ const ApiGovernancePage: React.FC = () => {
                         <div style={{ marginTop: spacing.sm }}>
                           <strong>Violations:</strong>
                           <ul>
-                            {result.violations.map((v, i) => <li key={i}>{v}</li>)}
+                            {result.violations.map((v, i) => <li key={String(i)}>{v}</li>)}
                           </ul>
                         </div>
                       )}

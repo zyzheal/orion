@@ -157,7 +157,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
         <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' }}>
           {actions.map((action, idx) => (
             <Button
-              key={idx}
+              key={String(idx)}
               size="small"
               type="primary"
               ghost

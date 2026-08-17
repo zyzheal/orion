@@ -81,7 +81,7 @@ const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
 
         {/* Data points */}
         {scorePoints.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="3" fill={colors.primary[500]} stroke={colors.neutral[0]} strokeWidth={1.5} />
+          <circle key={String(i)} cx={p.x} cy={p.y} r="3" fill={colors.primary[500]} stroke={colors.neutral[0]} strokeWidth={1.5} />
         ))}
 
         {/* X labels */}
@@ -89,7 +89,7 @@ const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
           const idx = data.indexOf(d);
           return (
             <text
-              key={i}
+              key={String(i)}
               x={padding.left + idx * xStep}
               y={chartHeight - 6}
               textAnchor="middle"

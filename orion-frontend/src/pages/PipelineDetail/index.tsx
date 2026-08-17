@@ -841,7 +841,7 @@ const PipelineDetail: React.FC = () => {
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
                     stage.logs.map((log: string, index: number) => (
-                      <div key={index} style={{ paddingLeft: spacing.md }}>
+                      <div key={String(index)} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
                         ) : log.includes('passed') ||

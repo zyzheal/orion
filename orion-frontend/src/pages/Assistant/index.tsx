@@ -327,7 +327,7 @@ const AssistantPage: React.FC = () => {
                         </Text>
                         <div style={{ marginTop: 6 }}>
                           {m.response.sources.slice(0, 5).map((s, idx) => (
-                            <Tag key={idx} style={{ marginBottom: 4 }}>
+                            <Tag key={String(idx)} style={{ marginBottom: 4 }}>
                               {s.title}
                             </Tag>
                           ))}
@@ -427,7 +427,7 @@ const AssistantPage: React.FC = () => {
                   </Space>
                   <Space wrap>
                     {importSource.items.map((item, idx) => (
-                      <Tag key={idx} color="blue">
+                      <Tag key={String(idx)} color="blue">
                         {item.title}
                       </Tag>
                     ))}
@@ -513,7 +513,7 @@ const AssistantPage: React.FC = () => {
                         {actionResult.steps && actionResult.steps.length > 0 && (
                           <Space direction="vertical" size={2}>
                             {actionResult.steps.map((step, i) => (
-                              <Text key={i} style={{ fontSize: 12, color: colors.neutral[500] }}>
+                              <Text key={String(i)} style={{ fontSize: 12, color: colors.neutral[500] }}>
                                 {i + 1}. {step}
                               </Text>
                             ))}

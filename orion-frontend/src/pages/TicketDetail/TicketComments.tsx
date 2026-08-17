@@ -95,7 +95,7 @@ function renderContentWithMentions(content: string): React.ReactNode {
       const mentionName = part.slice(1);
       return (
         <Tag
-          key={index}
+          key={String(index)}
           color="blue"
           style={{ margin: '0 2px', cursor: 'pointer', fontSize: spacing[3] }}
           data-testid={`mention-${mentionName}`}
@@ -104,7 +104,7 @@ function renderContentWithMentions(content: string): React.ReactNode {
         </Tag>
       );
     }
-    return <span key={index}>{part}</span>;
+    return <span key={String(index)}>{part}</span>;
   });
 }
 

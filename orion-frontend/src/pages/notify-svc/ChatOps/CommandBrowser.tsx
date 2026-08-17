@@ -254,7 +254,7 @@ const CommandBrowser: React.FC = () => {
             </span>
             {selectedCommand.examples.map((example, index) => (
               <Card
-                key={index}
+                key={String(index)}
                 size="small"
                 style={{ marginBottom: spacing.sm, background: colors.neutral[50] }}
               >

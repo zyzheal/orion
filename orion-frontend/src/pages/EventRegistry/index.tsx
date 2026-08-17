@@ -658,7 +658,7 @@ const EventRegistryPage: React.FC = () => {
               <div style={{ marginTop: spacing.sm }}>
                 {testResults.map((result, idx) => (
                   <Card
-                    key={idx}
+                    key={String(idx)}
                     size="small"
                     style={{
                       marginBottom: spacing.sm,

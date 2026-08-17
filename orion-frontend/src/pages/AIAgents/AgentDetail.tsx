@@ -74,7 +74,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
             {config.tools.map((tool: string | Record<string, unknown>, index: number) => {
               const toolName: React.ReactNode = typeof tool === 'string' ? tool : String(tool.toolName || tool.name || `tool-${index}`);
               return (
-                <Tag key={index} color="geekblue">
+                <Tag key={String(index)} color="geekblue">
                   {toolName}
                 </Tag>
               );

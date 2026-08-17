@@ -246,7 +246,7 @@ const ArtifactVersionPage: React.FC = () => {
                   </Text>
                 </Timeline.Item>
                 {chain.deployments?.map((d, i) => (
-                  <Timeline.Item key={i} color="green">
+                  <Timeline.Item key={String(i)} color="green">
                     <Text strong>部署到 {d.environment}</Text>
                     <br />
                     <Text type="secondary">

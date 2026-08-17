@@ -283,7 +283,7 @@ const NotificationDetail: React.FC = () => {
                 </Text>
                 <Space>
                   {notification.actions.map((action: any, idx: number) => (
-                    <Button key={idx} type={action.type || 'default'}>
+                    <Button key={String(idx)} type={action.type || 'default'}>
                       {action.label}
                     </Button>
                   ))}

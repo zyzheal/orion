@@ -612,7 +612,7 @@ const TopologyEnhanced: React.FC = () => {
                     <Text type="secondary">标签：</Text>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                       {selectedCI.tags.map((tag, i) => (
-                        <Tag key={i}>{tag}</Tag>
+                        <Tag key={String(i)}>{tag}</Tag>
                       ))}
                     </div>
                   </div>

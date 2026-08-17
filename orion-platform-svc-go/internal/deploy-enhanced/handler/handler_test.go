@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/deploy-enhanced/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/deploy-enhanced/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeDeploy_enhancedService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,150 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeDeploy_enhancedService struct{}
+
+func (f *fakeDeploy_enhancedService) AdvanceStage(ctx context.Context, id string, stageID string, validationResult *string, tenantID string) (*models.ProgressiveDeploy, error) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) ApproveEmergencyDeploy(ctx context.Context, id string, approvedBy string, tenantID string) (*models.EmergencyDeploy, error) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) CheckWindow(ctx context.Context, id string, tenantID string) (*models.WindowCheckResult, error) {
+	return &models.WindowCheckResult{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) CompleteEmergencyDeploy(ctx context.Context, id string, postMortem *string, tenantID string) (*models.EmergencyDeploy, error) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) CreateProgressiveDeploy(ctx context.Context, deploymentID string, req *models.CreateProgressiveDeployRequest, tenantID string) (*models.ProgressiveDeploy, error) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) CreateWindow(ctx context.Context, req *models.CreateDeployWindowRequest, tenantID string) (*models.DeployWindow, error) {
+	return &models.DeployWindow{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) DeleteWindow(ctx context.Context, id string, tenantID string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeDeploy_enhancedService) GetEmergencyDeploy(ctx context.Context, id string, tenantID string) (*models.EmergencyDeploy, error) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) GetProgress(ctx context.Context, id string, tenantID string) (*models.ProgressiveDeploy, error) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) GetWindow(ctx context.Context, id string, tenantID string) (*models.DeployWindow, error) {
+	return &models.DeployWindow{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) ListEmergencies(ctx context.Context, tenantID string, status *string) ([]models.EmergencyDeploy, int, error) {
+	return []models.EmergencyDeploy{}, 0, nil
+}
+
+func (f *fakeDeploy_enhancedService) ListWindows(ctx context.Context, tenantID string, environmentID *string, status *string) ([]models.DeployWindow, int, error) {
+	return []models.DeployWindow{}, 0, nil
+}
+
+func (f *fakeDeploy_enhancedService) RejectEmergencyDeploy(ctx context.Context, id string, tenantID string) (*models.EmergencyDeploy, error) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) RequestEmergencyDeploy(ctx context.Context, req *models.CreateEmergencyDeployRequest, tenantID string) (*models.EmergencyDeploy, error) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) RollbackStage(ctx context.Context, id string, stageID string, reason string, tenantID string) (*models.ProgressiveDeploy, error) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakeDeploy_enhancedService) UpdateWindow(ctx context.Context, id string, req *models.UpdateDeployWindowRequest, tenantID string) (*models.DeployWindow, error) {
+	return &models.DeployWindow{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeDeploy_enhancedService)(nil)
+=======
+type fakedeploy_enhancedService struct{}
+
+func (f *fakedeploy_enhancedService) AdvanceStage(ctx context.Context, id string, stageID string, validationResult *string, tenantID string) ((*models.ProgressiveDeploy, error)) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) ApproveEmergencyDeploy(ctx context.Context, id string, approvedBy string, tenantID string) ((*models.EmergencyDeploy, error)) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) CheckWindow(ctx context.Context, id string, tenantID string) ((*models.WindowCheckResult, error)) {
+	return &models.WindowCheckResult{}, nil
+}
+
+func (f *fakedeploy_enhancedService) CompleteEmergencyDeploy(ctx context.Context, id string, postMortem *string, tenantID string) ((*models.EmergencyDeploy, error)) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) CreateProgressiveDeploy(ctx context.Context, deploymentID string, req *models.CreateProgressiveDeployRequest, tenantID string) ((*models.ProgressiveDeploy, error)) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) CreateWindow(ctx context.Context, req *models.CreateDeployWindowRequest, tenantID string) ((*models.DeployWindow, error)) {
+	return &models.DeployWindow{}, nil
+}
+
+func (f *fakedeploy_enhancedService) DeleteWindow(ctx context.Context, id string, tenantID string) ((bool, error)) {
+	return false, nil
+}
+
+func (f *fakedeploy_enhancedService) GetEmergencyDeploy(ctx context.Context, id string, tenantID string) ((*models.EmergencyDeploy, error)) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) GetProgress(ctx context.Context, id string, tenantID string) ((*models.ProgressiveDeploy, error)) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) GetWindow(ctx context.Context, id string, tenantID string) ((*models.DeployWindow, error)) {
+	return &models.DeployWindow{}, nil
+}
+
+func (f *fakedeploy_enhancedService) ListEmergencies(ctx context.Context, tenantID string, status *string) (([]models.EmergencyDeploy, int, error)) {
+	return []models.EmergencyDeploy{}, 0, nil
+}
+
+func (f *fakedeploy_enhancedService) ListWindows(ctx context.Context, tenantID string, environmentID *string, status *string) (([]models.DeployWindow, int, error)) {
+	return []models.DeployWindow{}, 0, nil
+}
+
+func (f *fakedeploy_enhancedService) RejectEmergencyDeploy(ctx context.Context, id string, tenantID string) ((*models.EmergencyDeploy, error)) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) RequestEmergencyDeploy(ctx context.Context, req *models.CreateEmergencyDeployRequest, tenantID string) ((*models.EmergencyDeploy, error)) {
+	return &models.EmergencyDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) RollbackStage(ctx context.Context, id string, stageID string, reason string, tenantID string) ((*models.ProgressiveDeploy, error)) {
+	return &models.ProgressiveDeploy{}, nil
+}
+
+func (f *fakedeploy_enhancedService) UpdateWindow(ctx context.Context, id string, req *models.UpdateDeployWindowRequest, tenantID string) ((*models.DeployWindow, error)) {
+	return &models.DeployWindow{}, nil
+}
+
+var _ service.ServiceInterface = (*fakedeploy_enhancedService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_DEPLOY_ENHANCE_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_DEPLOY_ENHAN_getTenantID(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().getTenantID(c)
 	if w.Code >= 500 {
@@ -37,7 +179,6 @@ func TestHandler_DEPLOY_ENHAN_getTenantID(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_ListWindows(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListWindows(c)
 	if w.Code >= 500 {
@@ -45,7 +186,6 @@ func TestHandler_DEPLOY_ENHAN_ListWindows(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_GetWindow(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetWindow(c)
 	if w.Code >= 500 {
@@ -53,7 +193,6 @@ func TestHandler_DEPLOY_ENHAN_GetWindow(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_CreateWindow(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateWindow(c)
 	if w.Code >= 500 {
@@ -61,7 +200,6 @@ func TestHandler_DEPLOY_ENHAN_CreateWindow(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_UpdateWindow(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().UpdateWindow(c)
 	if w.Code >= 500 {
@@ -69,7 +207,6 @@ func TestHandler_DEPLOY_ENHAN_UpdateWindow(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_DeleteWindow(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteWindow(c)
 	if w.Code >= 500 {
@@ -77,7 +214,6 @@ func TestHandler_DEPLOY_ENHAN_DeleteWindow(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_CheckWindow(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CheckWindow(c)
 	if w.Code >= 500 {
@@ -85,7 +221,6 @@ func TestHandler_DEPLOY_ENHAN_CheckWindow(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_CreateProgressiveDeploy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateProgressiveDeploy(c)
 	if w.Code >= 500 {
@@ -93,7 +228,6 @@ func TestHandler_DEPLOY_ENHAN_CreateProgressiveDeploy(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_GetProgress(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetProgress(c)
 	if w.Code >= 500 {
@@ -101,7 +235,6 @@ func TestHandler_DEPLOY_ENHAN_GetProgress(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_AdvanceStage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().AdvanceStage(c)
 	if w.Code >= 500 {
@@ -109,7 +242,6 @@ func TestHandler_DEPLOY_ENHAN_AdvanceStage(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_RollbackStage(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RollbackStage(c)
 	if w.Code >= 500 {
@@ -117,7 +249,6 @@ func TestHandler_DEPLOY_ENHAN_RollbackStage(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_RequestEmergencyDeploy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RequestEmergencyDeploy(c)
 	if w.Code >= 500 {
@@ -125,7 +256,6 @@ func TestHandler_DEPLOY_ENHAN_RequestEmergencyDeploy(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_ListEmergencies(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListEmergencies(c)
 	if w.Code >= 500 {
@@ -133,7 +263,6 @@ func TestHandler_DEPLOY_ENHAN_ListEmergencies(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_ApproveEmergencyDeploy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ApproveEmergencyDeploy(c)
 	if w.Code >= 500 {
@@ -141,7 +270,6 @@ func TestHandler_DEPLOY_ENHAN_ApproveEmergencyDeploy(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_CompleteEmergencyDeploy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CompleteEmergencyDeploy(c)
 	if w.Code >= 500 {
@@ -149,7 +277,6 @@ func TestHandler_DEPLOY_ENHAN_CompleteEmergencyDeploy(t *testing.T) {
 	}
 }
 func TestHandler_DEPLOY_ENHAN_RejectEmergencyDeploy(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().RejectEmergencyDeploy(c)
 	if w.Code >= 500 {

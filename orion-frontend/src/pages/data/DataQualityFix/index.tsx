@@ -139,11 +139,11 @@ const QualityTrendChart: React.FC = () => {
       <path d={areaD} fill="url(#trendGradient)" />
       <path d={pathD} fill="none" stroke={colors.primary[500]} strokeWidth={2} />
       {MOCK_TREND.map((v, i) => (
-        <circle key={i} cx={scaleX(i)} cy={scaleY(v)} r={3} fill={colors.primary[500]} />
+        <circle key={String(i)} cx={scaleX(i)} cy={scaleY(v)} r={3} fill={colors.primary[500]} />
       ))}
       {TREND_LABELS.map((label, i) => (
         <text
-          key={i}
+          key={String(i)}
           x={scaleX(i)}
           y={height - 1}
           fontSize={8}

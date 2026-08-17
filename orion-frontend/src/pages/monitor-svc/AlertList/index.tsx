@@ -753,7 +753,7 @@ const AlertList: React.FC = () => {
                       </Text>
                       <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
                         {explanation.evidence.map((ev, idx) => (
-                          <li key={idx}>
+                          <li key={String(idx)}>
                             <Text style={{ fontSize: spacing[3] }}>{ev}</Text>
                           </li>
                         ))}
@@ -767,7 +767,7 @@ const AlertList: React.FC = () => {
                       </Text>
                       <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
                         {explanation.suggestions.map((s, idx) => (
-                          <li key={idx}>
+                          <li key={String(idx)}>
                             <Text style={{ fontSize: spacing[3] }}>
                               {s.title}
                               {s.description ? ` — ${s.description}` : ''}

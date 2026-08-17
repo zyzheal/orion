@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/ephemeral-env/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/ephemeral-env/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeEphemeral_envService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,78 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeEphemeral_envService struct{}
+
+func (f *fakeEphemeral_envService) CreateEnv(ctx context.Context, tenantID string, req models.CreateEphemeralEnvRequest) (*models.EphemeralEnv, error) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeEphemeral_envService) DeleteEnv(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeEphemeral_envService) DestroyEnv(ctx context.Context, tenantID, id string) (*models.EphemeralEnv, error) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeEphemeral_envService) ExtendTTL(ctx context.Context, tenantID, id string, req models.ExtendTTLRequest) (*models.EphemeralEnv, error) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeEphemeral_envService) GetEnv(ctx context.Context, tenantID, id string) (*models.EphemeralEnv, error) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeEphemeral_envService) GetLogs(ctx context.Context, tenantID, envID string, limit int) ([]models.EnvLog, error) {
+	return []models.EnvLog{}, nil
+}
+
+func (f *fakeEphemeral_envService) ListEnvs(ctx context.Context, tenantID string, limit, offset int) (*models.ListEnvsResponse, error) {
+	return &models.ListEnvsResponse{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeEphemeral_envService)(nil)
+=======
+type fakeephemeral_envService struct{}
+
+func (f *fakeephemeral_envService) CreateEnv(ctx context.Context, tenantID string, req models.CreateEphemeralEnvRequest) ((*models.EphemeralEnv, error)) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeephemeral_envService) DeleteEnv(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeephemeral_envService) DestroyEnv(ctx context.Context, tenantID, id string) ((*models.EphemeralEnv, error)) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeephemeral_envService) ExtendTTL(ctx context.Context, tenantID, id string, req models.ExtendTTLRequest) ((*models.EphemeralEnv, error)) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeephemeral_envService) GetEnv(ctx context.Context, tenantID, id string) ((*models.EphemeralEnv, error)) {
+	return &models.EphemeralEnv{}, nil
+}
+
+func (f *fakeephemeral_envService) GetLogs(ctx context.Context, tenantID, envID string, limit int) (([]models.EnvLog, error)) {
+	return []models.EnvLog{}, nil
+}
+
+func (f *fakeephemeral_envService) ListEnvs(ctx context.Context, tenantID string, limit, offset int) ((*models.ListEnvsResponse, error)) {
+	return &models.ListEnvsResponse{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeephemeral_envService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_EPHEMERAL_ENV_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_EPHEMERAL_EN_CreateEnv(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CreateEnv(c)
 	if w.Code >= 500 {
@@ -37,7 +107,6 @@ func TestHandler_EPHEMERAL_EN_CreateEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_DeleteEnv(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DeleteEnv(c)
 	if w.Code >= 500 {
@@ -45,7 +114,6 @@ func TestHandler_EPHEMERAL_EN_DeleteEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_DestroyEnv(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().DestroyEnv(c)
 	if w.Code >= 500 {
@@ -53,7 +121,6 @@ func TestHandler_EPHEMERAL_EN_DestroyEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_ExtendTTL(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ExtendTTL(c)
 	if w.Code >= 500 {
@@ -61,7 +128,6 @@ func TestHandler_EPHEMERAL_EN_ExtendTTL(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_GetEnv(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetEnv(c)
 	if w.Code >= 500 {
@@ -69,7 +135,6 @@ func TestHandler_EPHEMERAL_EN_GetEnv(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_GetLogs(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().GetLogs(c)
 	if w.Code >= 500 {
@@ -77,7 +142,6 @@ func TestHandler_EPHEMERAL_EN_GetLogs(t *testing.T) {
 	}
 }
 func TestHandler_EPHEMERAL_EN_ListEnvs(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListEnvs(c)
 	if w.Code >= 500 {

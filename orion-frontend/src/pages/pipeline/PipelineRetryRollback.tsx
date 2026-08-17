@@ -554,7 +554,7 @@ const PipelineRetryRollback: React.FC = () => {
                 </Text>
                 <Space direction="vertical" size={spacing.xs} style={{ marginBottom: spacing.md }}>
                   {selectedRun.stages.map((stage, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <div key={String(idx)} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                       <Tag color={stageStatusColorMap[stage.status]} style={{ flex: '0 0 auto' }}>
                         {stage.name}
                       </Tag>

@@ -72,7 +72,7 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
             <div>
               {list.map((item: DiffItem, idx: number) => (
                 <div
-                  key={idx}
+                  key={String(idx)}
                   style={{
                     padding: '8px 12px',
                     marginBottom: spacing.sm,

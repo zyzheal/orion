@@ -606,7 +606,7 @@ const NotificationCenter: React.FC = () => {
                   <Space style={{ marginBottom: spacing.sm }}>
                     {item.actions.map((action, idx) => (
                       <Button
-                        key={idx}
+                        key={String(idx)}
                         type={
                           action.type as
                             | 'primary'

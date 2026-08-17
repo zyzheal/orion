@@ -414,7 +414,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 <Form.Item label="传递参数">
                   <Space direction="vertical" style={{ width: '100%' }} size={8}>
                     {subPipelineParams.map((param, index) => (
-                      <Space key={index} style={{ width: '100%' }}>
+                      <Space key={String(index)} style={{ width: '100%' }}>
                         <Input
                           value={param.key}
                           onChange={(e) => {
@@ -618,7 +618,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 <Form.Item label="缓存路径" required>
                   <Space direction="vertical" style={{ width: '100%' }} size={8}>
                     {cachePaths.map((path, index) => (
-                      <Space key={index} style={{ width: '100%' }}>
+                      <Space key={String(index)} style={{ width: '100%' }}>
                         <Input
                           value={path}
                           onChange={(e) => handleUpdateCachePath(index, e.target.value)}
@@ -662,7 +662,7 @@ const StageModal: React.FC<StageModalProps> = ({
           <Form.Item label="上传路径" required>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {artifactPaths.map((path, index) => (
-                <Space key={index} style={{ width: '100%' }}>
+                <Space key={String(index)} style={{ width: '100%' }}>
                   <Input
                     value={path}
                     onChange={(e) => handleUpdateArtifactPath(index, e.target.value)}

@@ -8,10 +8,15 @@ import (
 	"orion/platform-svc-go/internal/project-member/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/project-member/models"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeProject_memberService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +28,102 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeProject_memberService struct{}
+
+func (f *fakeProject_memberService) CheckRole(ctx context.Context, tenantID, projectID, userID, role string) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeProject_memberService) CountByProject(ctx context.Context, tenantID, projectID string) (int, error) {
+	return 0, nil
+}
+
+func (f *fakeProject_memberService) CreateMember(ctx context.Context, tenantID string, req models.CreateProjectMemberRequest) (*models.ProjectMember, error) {
+	return &models.ProjectMember{}, nil
+}
+
+func (f *fakeProject_memberService) DeleteByProject(ctx context.Context, tenantID, projectID string) error {
+	return nil
+}
+
+func (f *fakeProject_memberService) DeleteMember(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeProject_memberService) GetMember(ctx context.Context, tenantID, id string) (*models.ProjectMember, error) {
+	return &models.ProjectMember{}, nil
+}
+
+func (f *fakeProject_memberService) GetMemberByProjectUser(ctx context.Context, tenantID, projectID, userID string) (*models.ProjectMember, error) {
+	return &models.ProjectMember{}, nil
+}
+
+func (f *fakeProject_memberService) ListByProject(ctx context.Context, tenantID, projectID string) ([]models.ProjectMember, error) {
+	return []models.ProjectMember{}, nil
+}
+
+func (f *fakeProject_memberService) ListMembers(ctx context.Context, tenantID string, q models.ListMembersQuery) ([]models.ProjectMember, int, error) {
+	return []models.ProjectMember{}, 0, nil
+}
+
+func (f *fakeProject_memberService) UpdateMember(ctx context.Context, tenantID, id string, req models.UpdateProjectMemberRequest) (*models.ProjectMember, error) {
+	return &models.ProjectMember{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeProject_memberService)(nil)
+=======
+type fakeproject_memberService struct{}
+
+func (f *fakeproject_memberService) CheckRole(ctx context.Context, tenantID, projectID, userID, role string) ((bool, error)) {
+	return false, nil
+}
+
+func (f *fakeproject_memberService) CountByProject(ctx context.Context, tenantID, projectID string) ((int, error)) {
+	return 0, nil
+}
+
+func (f *fakeproject_memberService) CreateMember(ctx context.Context, tenantID string, req models.CreateProjectMemberRequest) ((*models.ProjectMember, error)) {
+	return &models.ProjectMember{}, nil
+}
+
+func (f *fakeproject_memberService) DeleteByProject(ctx context.Context, tenantID, projectID string) (error) {
+	return nil
+}
+
+func (f *fakeproject_memberService) DeleteMember(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeproject_memberService) GetMember(ctx context.Context, tenantID, id string) ((*models.ProjectMember, error)) {
+	return &models.ProjectMember{}, nil
+}
+
+func (f *fakeproject_memberService) GetMemberByProjectUser(ctx context.Context, tenantID, projectID, userID string) ((*models.ProjectMember, error)) {
+	return &models.ProjectMember{}, nil
+}
+
+func (f *fakeproject_memberService) ListByProject(ctx context.Context, tenantID, projectID string) (([]models.ProjectMember, error)) {
+	return []models.ProjectMember{}, nil
+}
+
+func (f *fakeproject_memberService) ListMembers(ctx context.Context, tenantID string, q models.ListMembersQuery) (([]models.ProjectMember, int, error)) {
+	return []models.ProjectMember{}, 0, nil
+}
+
+func (f *fakeproject_memberService) UpdateMember(ctx context.Context, tenantID, id string, req models.UpdateProjectMemberRequest) ((*models.ProjectMember, error)) {
+	return &models.ProjectMember{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeproject_memberService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_PROJECT_MEMBER_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_PROJECT_MEMB_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +131,6 @@ func TestHandler_PROJECT_MEMB_List(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -45,7 +138,6 @@ func TestHandler_PROJECT_MEMB_Get(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -53,7 +145,6 @@ func TestHandler_PROJECT_MEMB_Create(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -61,7 +152,6 @@ func TestHandler_PROJECT_MEMB_Update(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {
@@ -69,7 +159,6 @@ func TestHandler_PROJECT_MEMB_Delete(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_ListByProject(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().ListByProject(c)
 	if w.Code >= 500 {
@@ -77,7 +166,6 @@ func TestHandler_PROJECT_MEMB_ListByProject(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_CountByProject(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CountByProject(c)
 	if w.Code >= 500 {
@@ -85,7 +173,6 @@ func TestHandler_PROJECT_MEMB_CountByProject(t *testing.T) {
 	}
 }
 func TestHandler_PROJECT_MEMB_CheckRole(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().CheckRole(c)
 	if w.Code >= 500 {

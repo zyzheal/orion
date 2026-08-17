@@ -8,10 +8,16 @@ import (
 	"orion/platform-svc-go/internal/risk/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/risk/models"
+	"time"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeRiskService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,12 +29,110 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeRiskService struct{}
+
+func (f *fakeRiskService) Create(ctx context.Context, tenantID string, req models.CreateRiskRequest) (*models.Risk, error) {
+	return &models.Risk{}, nil
+}
+
+func (f *fakeRiskService) Delete(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeRiskService) Get(ctx context.Context, tenantID, id string) (*models.Risk, error) {
+	return &models.Risk{}, nil
+}
+
+func (f *fakeRiskService) List(ctx context.Context, tenantID string) ([]models.Risk, error) {
+	return []models.Risk{}, nil
+}
+
+func (f *fakeRiskService) Update(ctx context.Context, tenantID, id string, req models.UpdateRiskRequest) (*models.Risk, error) {
+	return &models.Risk{}, nil
+}
+
+func (f *fakeRiskService) CalculateScore(ctx context.Context, req models.RiskScoreRequest) (*models.RiskScore, error) {
+	return &models.RiskScore{}, nil
+}
+
+func (f *fakeRiskService) GetRiskMatrix(ctx context.Context) (*models.RiskMatrix, error) {
+	return &models.RiskMatrix{}, nil
+}
+
+func (f *fakeRiskService) GetHeatmap(ctx context.Context, tenantID string) (*models.HeatmapResponse, error) {
+	return &models.HeatmapResponse{}, nil
+}
+
+func (f *fakeRiskService) CalculateWeightedScore(ctx context.Context, factors []models.RiskFactor, mitigation *models.MitigationPlan) (*models.WeightedScoreResult, error) {
+	return &models.WeightedScoreResult{}, nil
+}
+
+func (f *fakeRiskService) GetRiskTrends(ctx context.Context, tenantID string, since time.Time) ([]models.RiskTrend, error) {
+	return []models.RiskTrend{}, nil
+}
+
+func (f *fakeRiskService) GetCorrelatedRisks(ctx context.Context, tenantID string) ([]models.CorrelatedRiskPair, error) {
+	return []models.CorrelatedRiskPair{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeRiskService)(nil)
+=======
+type fakeriskService struct{}
+
+func (f *fakeriskService) Create(ctx context.Context, tenantID string, req models.CreateRiskRequest) ((*models.Risk, error)) {
+	return &models.Risk{}, nil
+}
+
+func (f *fakeriskService) Delete(ctx context.Context, tenantID, id string) (error) {
+	return nil
+}
+
+func (f *fakeriskService) Get(ctx context.Context, tenantID, id string) ((*models.Risk, error)) {
+	return &models.Risk{}, nil
+}
+
+func (f *fakeriskService) List(ctx context.Context, tenantID string) (([]models.Risk, error)) {
+	return []models.Risk{}, nil
+}
+
+func (f *fakeriskService) Update(ctx context.Context, tenantID, id string, req models.UpdateRiskRequest) ((*models.Risk, error)) {
+	return &models.Risk{}, nil
+}
+
+func (f *fakeriskService) CalculateScore(ctx context.Context, req models.RiskScoreRequest) ((*models.RiskScore, error)) {
+	return &models.RiskScore{}, nil
+}
+
+func (f *fakeriskService) GetRiskMatrix(ctx context.Context) ((*models.RiskMatrix, error)) {
+	return &models.RiskMatrix{}, nil
+}
+
+func (f *fakeriskService) GetHeatmap(ctx context.Context, tenantID string) ((*models.HeatmapResponse, error)) {
+	return &models.HeatmapResponse{}, nil
+}
+
+func (f *fakeriskService) CalculateWeightedScore(ctx context.Context, factors []models.RiskFactor, mitigation *models.MitigationPlan) ((*models.WeightedScoreResult, error)) {
+	return &models.WeightedScoreResult{}, nil
+}
+
+func (f *fakeriskService) GetRiskTrends(ctx context.Context, tenantID string, since time.Time) (([]models.RiskTrend, error)) {
+	return []models.RiskTrend{}, nil
+}
+
+func (f *fakeriskService) GetCorrelatedRisks(ctx context.Context, tenantID string) (([]models.CorrelatedRiskPair, error)) {
+	return []models.CorrelatedRiskPair{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeriskService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_RISK_RegisterRoutes(t *testing.T) {
 	_ = newHandler()
 }
 
 func TestHandler_RISK_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -36,7 +140,6 @@ func TestHandler_RISK_List(t *testing.T) {
 	}
 }
 func TestHandler_RISK_Get(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Get(c)
 	if w.Code >= 500 {
@@ -44,7 +147,6 @@ func TestHandler_RISK_Get(t *testing.T) {
 	}
 }
 func TestHandler_RISK_Create(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Create(c)
 	if w.Code >= 500 {
@@ -52,7 +154,6 @@ func TestHandler_RISK_Create(t *testing.T) {
 	}
 }
 func TestHandler_RISK_Update(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Update(c)
 	if w.Code >= 500 {
@@ -60,7 +161,6 @@ func TestHandler_RISK_Update(t *testing.T) {
 	}
 }
 func TestHandler_RISK_Delete(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Delete(c)
 	if w.Code >= 500 {

@@ -615,7 +615,7 @@ const EfficiencyDashboard: React.FC = () => {
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
           {ONBOARDING_STEPS.map((step, index) => (
             <div
-              key={index}
+              key={String(index)}
               style={{
                 padding: '16px 0',
                 borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid colors.neutral[200]' : 'none',

@@ -243,7 +243,7 @@ const BuildCachePage: React.FC = () => {
         return (
           <Space wrap size={4}>
             {paths.slice(0, 3).map((p, i) => (
-              <Tag key={i} style={{ margin: 0 }}>
+              <Tag key={String(i)} style={{ margin: 0 }}>
                 {p}
               </Tag>
             ))}

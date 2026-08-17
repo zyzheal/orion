@@ -422,7 +422,7 @@ const PasswordPolicyPage: React.FC = () => {
               </Text>
               {checkItems.map((item, index) => (
                 <div
-                  key={index}
+                  key={String(index)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

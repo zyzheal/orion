@@ -154,7 +154,7 @@ const SkillSubmission: React.FC = () => {
         <Card title="提交历史" extra={<Text type="secondary">本次会话提交</Text>}>
           {submittedSkills.map((skill, index) => (
             <div
-              key={index}
+              key={String(index)}
               style={{
                 marginBottom: spacing[3],
                 paddingBottom: spacing[3],

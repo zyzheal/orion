@@ -647,7 +647,7 @@ const BudgetTab: React.FC = () => {
         record.services.length > 0 ? (
           <Space wrap>
             {record.services.slice(0, 3).map((s: string, i: number) => (
-              <Tag key={i}>{s}</Tag>
+              <Tag key={String(i)}>{s}</Tag>
             ))}
             {record.services.length > 3 && <Tag>+{record.services.length - 3}</Tag>}
           </Space>

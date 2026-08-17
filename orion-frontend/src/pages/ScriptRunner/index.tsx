@@ -151,7 +151,7 @@ const ScriptRunnerPage: React.FC = () => {
               message="警告"
               description={
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {scanResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  {scanResult.warnings.map((w, i) => <li key={String(i)}>{w}</li>)}
                 </ul>
               }
               style={{ marginBottom: spacing.sm }}
@@ -163,7 +163,7 @@ const ScriptRunnerPage: React.FC = () => {
               message="错误"
               description={
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {scanResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                  {scanResult.errors.map((e, i) => <li key={String(i)}>{e}</li>)}
                 </ul>
               }
             />

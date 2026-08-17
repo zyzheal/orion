@@ -988,7 +988,7 @@ export default function CITypeDesignerPage() {
                   校验不通过
                 </Text>
                 {validationResult.errors.map((err, idx) => (
-                  <div key={idx} style={{ marginBottom: 4 }}>
+                  <div key={String(idx)} style={{ marginBottom: 4 }}>
                     <Tag color="error">{err.field}</Tag>
                     <Text type="danger">{err.message}</Text>
                   </div>

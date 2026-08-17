@@ -940,7 +940,7 @@ export default function ChangeRequestManagementPage() {
                       </Text>
                       <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
                         {riskAnalysis.factors.map((f, idx) => (
-                          <li key={idx}>
+                          <li key={String(idx)}>
                             <Text style={{ fontSize: spacing[3] }}>
                               {f.name}（权重 {f.weight}）— {f.reason}
                             </Text>
@@ -957,7 +957,7 @@ export default function ChangeRequestManagementPage() {
                       </Text>
                       <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
                         {riskAnalysis.suggestions.map((s, idx) => (
-                          <li key={idx}>
+                          <li key={String(idx)}>
                             <Text style={{ fontSize: spacing[3] }}>{s}</Text>
                           </li>
                         ))}

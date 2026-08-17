@@ -487,7 +487,7 @@ const ApprovalPage: React.FC = () => {
           <Timeline>
             {selectedApproval.comments.map((c: ApprovalComment, idx: number) => (
               <Timeline.Item
-                key={idx}
+                key={String(idx)}
                 color={c.action === 'approved' ? 'green' : 'red'}
                 dot={c.action === 'approved' ? <CheckCircleOutlined /> : <StopOutlined />}
               >

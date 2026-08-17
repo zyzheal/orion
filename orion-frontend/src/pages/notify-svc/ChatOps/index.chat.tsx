@@ -153,7 +153,7 @@ export default function ChatOpsChat() {
                   </Text>
                   <Space wrap>
                     {msg.toolCalls.map((tc, i) => (
-                      <Tag key={i} color={tc.status === 'completed' ? 'green' : 'orange'}>
+                      <Tag key={String(i)} color={tc.status === 'completed' ? 'green' : 'orange'}>
                         {tc.tool}
                       </Tag>
                     ))}
@@ -164,7 +164,7 @@ export default function ChatOpsChat() {
                 <Space wrap>
                   {msg.suggestions.map((s, i) => (
                     <Button
-                      key={i}
+                      key={String(i)}
                       size="small"
                       type={isUser ? 'default' : 'link'}
                       style={isUser ? { color: colors.neutral[0], borderColor: 'rgba(255,255,255,0.5)' } : undefined}

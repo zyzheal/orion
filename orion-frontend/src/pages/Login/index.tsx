@@ -160,7 +160,7 @@ const Login: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {features.map((f, i) => (
               <div
-                key={i}
+                key={String(i)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

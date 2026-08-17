@@ -402,7 +402,7 @@ const ChangeIntelligence: React.FC = () => {
               <Card title="SHAP 风险因子" size="small" style={{ marginBottom: spacing.md }}>
                 {selectedReport.shapFactors.map(
                   (f: { factor: string; value: number; contribution: number }, i: number) => (
-                    <Row key={i} style={{ marginBottom: spacing.sm }}>
+                    <Row key={String(i)} style={{ marginBottom: spacing.sm }}>
                       <Col span={6}>
                         <Text strong>{f.factor}</Text>
                       </Col>

@@ -205,7 +205,7 @@ export default function KnowledgeBase() {
       render: (_: unknown, record: KnowledgeItem) => (
         <Space wrap>
           {record.tags.map((tag, i) => (
-            <Tag key={i}>{tag}</Tag>
+            <Tag key={String(i)}>{tag}</Tag>
           ))}
         </Space>
       ),

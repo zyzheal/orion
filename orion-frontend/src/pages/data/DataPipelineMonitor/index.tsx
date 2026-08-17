@@ -396,7 +396,7 @@ const DataPipelineMonitor: React.FC = () => {
                   if (!srcPos || !tgtPos) return null;
                   return (
                     <line
-                      key={i}
+                      key={String(i)}
                       x1={srcPos[0] + 80}
                       y1={srcPos[1] + 25}
                       x2={tgtPos[0]}

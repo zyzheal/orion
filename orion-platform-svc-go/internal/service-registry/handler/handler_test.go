@@ -8,10 +8,16 @@ import (
 	"orion/platform-svc-go/internal/service-registry/service"
 
 	"github.com/gin-gonic/gin"
+	"context"
+<<<<<<< Updated upstream
+	"orion/platform-svc-go/internal/service-registry/models"
+	"orion/platform-svc-go/internal/service-registry/repository"
+=======
+>>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
-	return NewHandler(&service.Service{})
+	return NewHandler(&fakeHandlerService{})
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -23,13 +29,70 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
+<<<<<<< Updated upstream
+type fakeHandlerService struct{}
+
+func (f *fakeHandlerService) Deregister(ctx context.Context, tenantID, serviceID string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) GetByInternalID(ctx context.Context, tenantID, id string) (*models.ServiceRegistry, error) {
+	return &models.ServiceRegistry{}, nil
+}
+
+func (f *fakeHandlerService) GetByServiceID(ctx context.Context, tenantID, serviceID string) (*models.ServiceRegistry, error) {
+	return &models.ServiceRegistry{}, nil
+}
+
+func (f *fakeHandlerService) List(ctx context.Context, tenantID string, filters *repository.ListFilters) ([]models.ServiceRegistry, error) {
+	return []models.ServiceRegistry{}, nil
+}
+
+func (f *fakeHandlerService) RecordHeartbeat(ctx context.Context, tenantID, serviceID string) (error) {
+	return nil
+}
+
+func (f *fakeHandlerService) Register(ctx context.Context, tenantID string, req models.RegisterRequest) (*models.ServiceRegistry, error) {
+	return &models.ServiceRegistry{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeHandlerService)(nil)
+=======
+type fakeservice_registryService struct{}
+
+func (f *fakeservice_registryService) Deregister(ctx context.Context, tenantID, serviceID string) (error) {
+	return nil
+}
+
+func (f *fakeservice_registryService) GetByInternalID(ctx context.Context, tenantID, id string) ((*models.ServiceRegistry, error)) {
+	return &models.ServiceRegistry{}, nil
+}
+
+func (f *fakeservice_registryService) GetByServiceID(ctx context.Context, tenantID, serviceID string) ((*models.ServiceRegistry, error)) {
+	return &models.ServiceRegistry{}, nil
+}
+
+func (f *fakeservice_registryService) List(ctx context.Context, tenantID string, f *repository.ListFilters) (([]models.ServiceRegistry, error)) {
+	return []models.ServiceRegistry{}, nil
+}
+
+func (f *fakeservice_registryService) RecordHeartbeat(ctx context.Context, tenantID, serviceID string) (error) {
+	return nil
+}
+
+func (f *fakeservice_registryService) Register(ctx context.Context, tenantID string, req models.RegisterRequest) ((*models.ServiceRegistry, error)) {
+	return &models.ServiceRegistry{}, nil
+}
+
+var _ service.ServiceInterface = (*fakeservice_registryService)(nil)
+>>>>>>> Stashed changes
+
+
 func TestHandler_SERVICE_REGIST_RegisterRoutes(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	_ = newHandler()
 }
 
 func TestHandler_SERVICE_REGI_List(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().List(c)
 	if w.Code >= 500 {
@@ -37,7 +100,6 @@ func TestHandler_SERVICE_REGI_List(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_REGI_Register(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Register(c)
 	if w.Code >= 500 {
@@ -45,7 +107,6 @@ func TestHandler_SERVICE_REGI_Register(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_REGI_Deregister(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Deregister(c)
 	if w.Code >= 500 {
@@ -53,7 +114,6 @@ func TestHandler_SERVICE_REGI_Deregister(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_REGI_Health(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Health(c)
 	if w.Code >= 500 {
@@ -61,7 +121,6 @@ func TestHandler_SERVICE_REGI_Health(t *testing.T) {
 	}
 }
 func TestHandler_SERVICE_REGI_Heartbeat(t *testing.T) {
-	t.Skip("handler uses concrete *service.Service type, cannot inject mock")
 	c, w := makeCtx(http.MethodGet, "/")
 	newHandler().Heartbeat(c)
 	if w.Code >= 500 {

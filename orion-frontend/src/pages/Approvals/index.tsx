@@ -494,7 +494,7 @@ const ApprovalManagement: React.FC = () => {
             <Space direction="vertical" style={{ width: '100%' }}>
               {a.comments.map((c: ApprovalComment, idx: number) => (
                 <div
-                  key={idx}
+                  key={String(idx)}
                   style={{
                     padding: '8px 0',
                     borderBottom:

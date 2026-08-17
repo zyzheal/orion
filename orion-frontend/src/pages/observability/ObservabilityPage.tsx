@@ -380,7 +380,7 @@ const SilenceRulesTab: React.FC = () => {
       render: (_: unknown, record: SilenceRuleType) => (
         <Space wrap>
           {record.matchers.map((m, i) => (
-            <Tag key={i} color="blue">{m.name}="{m.value}"</Tag>
+            <Tag key={String(i)} color="blue">{m.name}="{m.value}"</Tag>
           ))}
         </Space>
       ),
@@ -640,7 +640,7 @@ const RootCauseAnalysisTab: React.FC = () => {
               <Card size="small" title="事件时间线">
                 <Timeline>
                   {selectedAnalysis.timeline.map((item, i) => (
-                    <Timeline.Item key={i}>
+                    <Timeline.Item key={String(i)}>
                       <Text strong>{item.service}</Text>
                       <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         {new Date(item.timestamp).toLocaleTimeString()}
@@ -656,7 +656,7 @@ const RootCauseAnalysisTab: React.FC = () => {
               <Card size="small" title="建议措施">
                 <ul style={{ paddingLeft: 20, margin: 0 }}>
                   {selectedAnalysis.recommendations.map((r, i) => (
-                    <li key={i}><Text>{r}</Text></li>
+                    <li key={String(i)}><Text>{r}</Text></li>
                   ))}
                 </ul>
               </Card>

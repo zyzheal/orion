@@ -228,7 +228,7 @@ const MonitoringDashboard: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }}>
             {anomalies.anomalies.slice(0, 10).map((a: any, idx: number) => (
               <div
-                key={idx}
+                key={String(idx)}
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',

@@ -292,7 +292,7 @@ const RAGQueryPage: React.FC = () => {
             {latestSources && latestSources.sources && latestSources.sources.length > 0 ? (
               latestSources.sources.map((source, index) => (
                 <Collapse
-                  key={index}
+                  key={String(index)}
                   items={[
                     {
                       key: source.documentId || `src-${index}`,
