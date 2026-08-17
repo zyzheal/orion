@@ -276,7 +276,7 @@ export default function ProcessStepPage() {
 
       setDefModalOpen(false);
       fetchDefinitions();
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation
       message.error('保存流程定义失败');
     } finally {
@@ -324,7 +324,7 @@ export default function ProcessStepPage() {
       message.success('流程实例已启动');
       setStartModalOpen(false);
       fetchInstances();
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('启动流程实例失败');
     } finally {

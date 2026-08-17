@@ -148,7 +148,7 @@ const RegisterRunnerModal: React.FC<RegisterModalProps> = ({
       form.resetFields();
       setLabels([]);
       onSuccess();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`${isEdit ? '更新' : '注册'}失败：${error.message}`);
       } else {
@@ -428,7 +428,7 @@ const RunnerManagement: React.FC = () => {
         ? apiData
         : (apiData as { items?: Runner[] })?.items || [];
       setRunners(runnerList);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载 Runner 列表失败：${error.message}`);
       } else {
@@ -481,7 +481,7 @@ const RunnerManagement: React.FC = () => {
       await deregisterRunner(id);
       message.success('Runner 已注销');
       loadRunners();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`注销失败：${error.message}`);
       } else {

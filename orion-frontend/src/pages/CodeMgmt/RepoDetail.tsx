@@ -91,7 +91,7 @@ const RepoDetail: React.FC = () => {
           // continue to next adapter - optional loading
         }
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`解析适配器信息失败：${error.message}`);
       } else {
@@ -109,7 +109,7 @@ const RepoDetail: React.FC = () => {
       const response = await getCodeRepoBranches(adapterId, id);
       const data = response.data as Branch[];
       setBranches(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载分支列表失败：${error.message}`);
       } else {
@@ -127,7 +127,7 @@ const RepoDetail: React.FC = () => {
       const response = await getPullRequests(adapterId, id);
       const data = response.data as PullRequest[];
       setPullRequests(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载 Pull Request 列表失败：${error.message}`);
       } else {
@@ -156,7 +156,7 @@ const RepoDetail: React.FC = () => {
       setCreateBranchModal(false);
       branchForm.resetFields();
       loadBranches();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`创建分支失败：${error.message}`);
       } else {
@@ -190,7 +190,7 @@ const RepoDetail: React.FC = () => {
       setCreatePrModal(false);
       prForm.resetFields();
       loadPullRequests();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`创建 Pull Request 失败：${error.message}`);
       } else {

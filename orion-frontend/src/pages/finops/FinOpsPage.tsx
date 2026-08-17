@@ -139,7 +139,7 @@ const FinOpsPage: React.FC = () => {
     try {
       const data = await getCostOverview({ period: 'monthly' });
       setCostSummary(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载成本概览失败：${error instanceof Error ? error.message : '未知错误'}`);
     }
   }, []);
@@ -157,7 +157,7 @@ const FinOpsPage: React.FC = () => {
     try {
       const data = await getBudgets();
       setBudgets(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载预算列表失败：${error instanceof Error ? error.message : '未知错误'}`);
     }
   }, []);
@@ -167,7 +167,7 @@ const FinOpsPage: React.FC = () => {
     try {
       const data = await getRecommendations();
       setRecommendations(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载优化建议失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setRecommendationsLoading(false);
@@ -179,7 +179,7 @@ const FinOpsPage: React.FC = () => {
     try {
       const data = await getForecasts();
       setForecasts(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载成本预测失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setForecastLoading(false);
@@ -251,7 +251,7 @@ const FinOpsPage: React.FC = () => {
       setBudgetModalOpen(false);
       budgetForm.resetFields();
       loadBudgets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error && typeof error === 'object' && 'errorFields' in error)) {
         message.error(`保存预算失败：${error instanceof Error ? error.message : '未知错误'}`);
       }
@@ -265,7 +265,7 @@ const FinOpsPage: React.FC = () => {
       await deleteBudget(id);
       message.success('预算已删除');
       loadBudgets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除预算失败：${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
@@ -274,7 +274,7 @@ const FinOpsPage: React.FC = () => {
     try {
       await exportCostReport({});
       message.success('报表导出成功');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`导出报表失败：${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
@@ -289,7 +289,7 @@ const FinOpsPage: React.FC = () => {
       await updateRecommendationStatus(id, 'approved');
       message.success('优化建议已批准');
       loadRecommendations();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`操作失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setUpdatingRecommendation(null);
@@ -302,7 +302,7 @@ const FinOpsPage: React.FC = () => {
       await updateRecommendationStatus(id, 'rejected');
       message.success('优化建议已拒绝');
       loadRecommendations();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`操作失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setUpdatingRecommendation(null);
@@ -314,7 +314,7 @@ const FinOpsPage: React.FC = () => {
       await deleteRecommendation(id);
       message.success('优化建议已删除');
       loadRecommendations();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败：${error instanceof Error ? error.message : '未知错误'}`);
     }
   };

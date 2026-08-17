@@ -54,7 +54,7 @@ const BuildCachePage: React.FC = () => {
       const response = await getBuildCacheConfigs();
       const apiData = response.data;
       setConfigs(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载缓存配置失败：${error.message}`);
       } else {
@@ -71,7 +71,7 @@ const BuildCachePage: React.FC = () => {
       const response = await getBuildCacheEntries();
       const apiData = response.data;
       setEntries(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载缓存条目失败：${error.message}`);
       } else {
@@ -101,7 +101,7 @@ const BuildCachePage: React.FC = () => {
       setEditingConfig(null);
       form.resetFields();
       loadConfigs();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (err.errorFields) return;
       if (error instanceof Error) {
@@ -117,7 +117,7 @@ const BuildCachePage: React.FC = () => {
       await deleteBuildCacheConfig(id);
       message.success('Cache config deleted');
       loadConfigs();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除缓存配置失败：${error.message}`);
       } else {
@@ -131,7 +131,7 @@ const BuildCachePage: React.FC = () => {
       await deleteBuildCacheEntry(id);
       message.success('Cache entry deleted');
       loadEntries();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除缓存条目失败：${error.message}`);
       } else {
@@ -146,7 +146,7 @@ const BuildCachePage: React.FC = () => {
       message.success('Expired cache cleaned up');
       loadConfigs();
       loadEntries();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`清理缓存失败：${error.message}`);
       } else {
@@ -160,7 +160,7 @@ const BuildCachePage: React.FC = () => {
       await clearCacheConfig(id);
       message.success('Cache config cleared');
       loadEntries();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`清除缓存配置失败：${error.message}`);
       } else {

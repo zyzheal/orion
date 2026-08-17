@@ -95,7 +95,7 @@ const ServiceRegistry: React.FC = () => {
       }
       const data = await getServices(params);
       setServices(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载服务列表失败：${error.message}`);
       } else {
@@ -137,7 +137,7 @@ const ServiceRegistry: React.FC = () => {
       setRegisterModalVisible(false);
       registerForm.resetFields();
       loadServices();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`注册服务失败：${error.message}`);
       } else {
@@ -155,7 +155,7 @@ const ServiceRegistry: React.FC = () => {
       await deregisterService(record.id);
       message.success(`服务 "${record.name}" 已取消注册`);
       loadServices();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`取消注册失败：${error.message}`);
       } else {
@@ -282,7 +282,7 @@ const ServiceRegistry: React.FC = () => {
                   await api.post(`/v1/service-registry/services/${record.id}/heartbeat`);
                   message.success(`心跳已发送：${record.name}`);
                   loadServices();
-                } catch (error: unknown) {
+                } catch (error: any) {
                   if (error instanceof Error) {
                     message.error(`发送心跳失败：${error.message}`);
                   } else {

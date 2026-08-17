@@ -475,7 +475,7 @@ const PipelineRunLive: React.FC = () => {
         } else {
           setApiError('未找到该 Pipeline 运行记录');
         }
-      } catch (error: unknown) {
+      } catch (error: any) {
         const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
         setApiError(errorMsg);
         message.error(`加载 Pipeline 详情失败：${errorMsg}`);

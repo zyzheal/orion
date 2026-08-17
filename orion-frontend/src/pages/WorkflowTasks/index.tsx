@@ -113,7 +113,7 @@ const WorkflowTasksPage: React.FC = () => {
       const res = await getTasks();
       const list = res.data;
       setTasks(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setTasks([]);
       message.error(`加载任务数据失败: ${(error as Error).message}`);
     } finally {
@@ -151,7 +151,7 @@ const WorkflowTasksPage: React.FC = () => {
       setClaimModalVisible(false);
       claimForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -181,7 +181,7 @@ const WorkflowTasksPage: React.FC = () => {
       setCompleteModalVisible(false);
       completeForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {

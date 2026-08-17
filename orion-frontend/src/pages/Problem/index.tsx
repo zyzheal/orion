@@ -282,7 +282,7 @@ const ProblemPage: React.FC = () => {
       createForm.resetFields();
       loadProblems();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) return; // form validation
       message.error('创建问题失败');
       console.error('Failed to create problem:', error);
@@ -308,7 +308,7 @@ const ProblemPage: React.FC = () => {
       editForm.resetFields();
       loadProblems();
       loadProblemDetail(selectedProblem.id);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       message.error('更新问题失败');
       console.error('Failed to update problem:', error);
@@ -366,7 +366,7 @@ const ProblemPage: React.FC = () => {
       message.success('关联事件成功');
       setLinkIncidentModalVisible(false);
       linkForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       message.error('关联事件失败');
       console.error('Failed to link incident:', error);
@@ -385,7 +385,7 @@ const ProblemPage: React.FC = () => {
       message.success('关联变更成功');
       setLinkChangeModalVisible(false);
       linkForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       message.error('关联变更失败');
       console.error('Failed to link change:', error);
@@ -414,7 +414,7 @@ const ProblemPage: React.FC = () => {
       setKedbModalVisible(false);
       kedbForm.resetFields();
       loadKnownErrors();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       message.error('创建已知错误失败');
       console.error('Failed to create known error:', error);
@@ -439,7 +439,7 @@ const ProblemPage: React.FC = () => {
       kedbEditForm.resetFields();
       setEditingKnownError(null);
       loadKnownErrors();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error && typeof error === 'object' && 'errorFields' in error) return;
       message.error('更新已知错误失败');
       console.error('Failed to update known error:', error);

@@ -110,7 +110,7 @@ const CommunityPage: React.FC = () => {
       if (mentorshipsRes.status === 'fulfilled') {
         setMentorships(Array.isArray(mentorshipsRes.value) ? mentorshipsRes.value : []);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载社区数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ const CommunityPage: React.FC = () => {
       setContributeModalOpen(false);
       contributeForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`提交失败: ${(error as Error).message}`);
     }
   };
@@ -145,7 +145,7 @@ const CommunityPage: React.FC = () => {
       setMentorshipModalOpen(false);
       mentorshipForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`申请失败: ${(error as Error).message}`);
     }
   };

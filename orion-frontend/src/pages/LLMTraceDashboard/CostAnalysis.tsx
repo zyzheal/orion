@@ -41,7 +41,7 @@ const CostAnalysis: React.FC = () => {
       }
       const response = await getCostBreakdown(params);
       setCostData(response.data as CostBreakdown | null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setCostData(null);
       message.error(`加载成本数据失败: ${(error as Error).message}`);
     } finally {

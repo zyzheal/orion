@@ -143,7 +143,7 @@ const SessionManagement: React.FC = () => {
       const statsData = (statsRes.data as any)?.stats || statsRes.data || {};
       setSessions(Array.isArray(sessionsData) ? sessionsData.map(mapApiSession) : []);
       setStats(mapApiStats(statsData as ApiSessionStats));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载 Session 数据失败: ${(error as Error).message}`);
       setSessions([]);
       setStats(null);
@@ -187,7 +187,7 @@ const SessionManagement: React.FC = () => {
       if (selectedSession?.id === id) {
         setSelectedSession((prev) => (prev ? { ...prev, status: 'revoked' as const } : prev));
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`撤销失败: ${(error as Error).message}`);
     }
   };

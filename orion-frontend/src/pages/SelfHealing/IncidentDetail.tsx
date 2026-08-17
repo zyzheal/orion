@@ -40,7 +40,7 @@ const IncidentDetail: React.FC = () => {
     try {
       const res = await getIncident(id);
       setIncident((res.data || null) as unknown as SelfHealingIncident | null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载事件详情失败：${error.message}`);
       } else {

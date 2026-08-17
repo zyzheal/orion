@@ -50,7 +50,7 @@ const PluginManagement: React.FC = () => {
     try {
       const response = await getInstalledPlugins({});
       setPlugins((response.data || []) as unknown as ApiPlugin[]);
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.includes('403')) {
           message.error('权限不足，请重新登录或联系管理员');
@@ -74,7 +74,7 @@ const PluginManagement: React.FC = () => {
     try {
       const response = await getPlugin(plugin.id);
       setSelectedPlugin(response.data as unknown as ApiPlugin);
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err instanceof Error) {
         message.error(`加载插件详情失败：${err.message}`);
       } else {
@@ -106,7 +106,7 @@ const PluginManagement: React.FC = () => {
       // Refresh plugin details
       const response = await getPlugin(selectedPlugin.id);
       setSelectedPlugin(response.data as unknown as ApiPlugin);
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = err instanceof Error ? err.message : '保存配置失败';
       message.error(`保存配置失败：${msg}`);
     }

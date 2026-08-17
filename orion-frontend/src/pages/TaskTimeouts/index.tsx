@@ -82,7 +82,7 @@ const TaskTimeoutsPage: React.FC = () => {
     try {
       const data = await getTimedOutTasks();
       setTimedOutTasks(data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载超时任务失败');
     } finally {
       setLoading(false);
@@ -94,7 +94,7 @@ const TaskTimeoutsPage: React.FC = () => {
     try {
       const data = await getTimeoutStatus();
       setStatus(data || { isRunning: false, processedEventsCount: 0 });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to fetch status:', error);
     }
   };
@@ -115,7 +115,7 @@ const TaskTimeoutsPage: React.FC = () => {
       );
       fetchTimedOutTasks();
       fetchStatus();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '触发检查失败');
     } finally {
       setChecking(false);

@@ -303,7 +303,7 @@ const PlatformConfigTab: React.FC = () => {
       await updatePlatformConfigs(configs);
       setPlatforms(configs);
       message.success('平台配置已保存');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '保存失败';
@@ -425,7 +425,7 @@ const NotificationDNDTab: React.FC = () => {
       setSaving(true);
       await updateNotificationPreferences(values);
       message.success('设置已保存');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '保存失败';
@@ -448,7 +448,7 @@ const NotificationDNDTab: React.FC = () => {
         allowCritical: values.allowCritical ?? true,
       });
       message.success('免打扰设置已保存');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '保存失败';

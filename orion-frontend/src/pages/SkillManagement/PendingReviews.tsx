@@ -88,7 +88,7 @@ const PendingReviews: React.FC = () => {
       const data = res.data;
       setReviews(Array.isArray((data as any).skills) ? (data as any).skills : []);
       setTotal((data as any).total || 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);
       } else {
@@ -138,7 +138,7 @@ const PendingReviews: React.FC = () => {
       }
       setReviewModalVisible(false);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '操作失败');
     } finally {
       setActionLoading(null);

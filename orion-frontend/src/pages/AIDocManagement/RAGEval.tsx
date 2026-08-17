@@ -336,7 +336,7 @@ const RAGEvalPage: React.FC = () => {
       const res = await getRAGEvalMetrics();
       const metrics = res.data as EvalMetric;
       setData(metrics);
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = (err as Error).message || '获取评估指标失败';
       setError(msg);
     } finally {

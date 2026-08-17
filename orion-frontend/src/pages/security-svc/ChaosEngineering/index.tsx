@@ -102,7 +102,7 @@ const ChaosEngineering: React.FC = () => {
       ]);
       setExperiments(expResponse.data || []);
       setScore(scoreData);
-    } catch (err: unknown) {
+    } catch (err: any) {
       const errorMsg = (err as Error).message || '未知错误';
       setError(`加载数据失败: ${errorMsg}`);
       message.error(`加载数据失败: ${errorMsg}`);
@@ -118,7 +118,7 @@ const ChaosEngineering: React.FC = () => {
       await chaosApi.runExperiment(experimentId);
       message.success('混沌实验已启动');
       loadData();
-    } catch (err: unknown) {
+    } catch (err: any) {
       const errorMsg = (err as Error).message || '未知错误';
       setRunError(`启动实验失败: ${errorMsg}`);
       message.error(`启动实验失败: ${errorMsg}`);
@@ -155,7 +155,7 @@ const ChaosEngineering: React.FC = () => {
       setCreateModal(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);

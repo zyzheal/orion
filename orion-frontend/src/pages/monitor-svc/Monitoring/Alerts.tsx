@@ -47,7 +47,7 @@ const MonitoringAlerts: React.FC = () => {
       const response = await getAlerts();
       const apiData = response.data;
       setAlerts(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载告警失败：${error.message}`);
       } else {
@@ -105,7 +105,7 @@ const MonitoringAlerts: React.FC = () => {
       await acknowledgeAlert(id);
       message.success('告警已确认');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`确认告警失败：${error.message}`);
       } else {
@@ -119,7 +119,7 @@ const MonitoringAlerts: React.FC = () => {
       await resolveAlert(id);
       message.success('告警已解决');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`解决告警失败：${error.message}`);
       } else {
@@ -135,7 +135,7 @@ const MonitoringAlerts: React.FC = () => {
       message.success('告警已升级');
       setEscalateModalVisible(false);
       escalateForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`升级告警失败：${error.message}`);
       } else {

@@ -57,7 +57,7 @@ const PluginCreateModal: React.FC<PluginCreateModalProps> = ({ open, onCancel, o
       form.resetFields();
       setInstalling(false);
       onSuccess();
-    } catch (err: unknown) {
+    } catch (err: any) {
       setInstalling(false);
       const errObj = err as { response?: { status?: number }; errorFields?: unknown };
       if (errObj.response?.status === 400) return;

@@ -51,7 +51,7 @@ const RepoList: React.FC = () => {
       const response = await getCodeRepoAdapters();
       const data = response.data as AdapterOption[];
       setAdapters(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载适配器列表失败：${error.message}`);
       }
@@ -66,7 +66,7 @@ const RepoList: React.FC = () => {
       const response = await getCodeRepos(adapterId);
       const data = response.data as CodeRepo[];
       setRepos(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载仓库列表失败：${error.message}`);
       } else {

@@ -161,7 +161,7 @@ const CommandExecTab: React.FC = () => {
       setExecRecords((prev) => [result, ...prev]);
       message.success(`命令已提交到 ${values.hosts.length} 台主机`);
       form.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`执行失败: ${(error as Error).message}`);
@@ -393,7 +393,7 @@ const ScriptTemplateTab: React.FC = () => {
       message.success('模板创建成功');
       setCreateVisible(false);
       form.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -408,7 +408,7 @@ const ScriptTemplateTab: React.FC = () => {
       await deleteTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));
       message.success('模板已删除');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`删除失败：${msg}`);
     }
@@ -570,7 +570,7 @@ const CronJobTab: React.FC = () => {
       message.success('定时任务创建成功');
       setCreateVisible(false);
       form.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -585,7 +585,7 @@ const CronJobTab: React.FC = () => {
       await deleteCronJob(id);
       setCronJobs((prev) => prev.filter((j) => j.id !== id));
       message.success('定时任务已删除');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`删除失败：${msg}`);
     }
@@ -596,7 +596,7 @@ const CronJobTab: React.FC = () => {
       await toggleCronJob(id, enabled);
       setCronJobs((prev) => prev.map((j) => (j.id === id ? { ...j, enabled } : j)));
       message.success(enabled ? '任务已启用' : '任务已禁用');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`操作失败：${msg}`);
     }
@@ -606,7 +606,7 @@ const CronJobTab: React.FC = () => {
     try {
       await runCronJobNow(id);
       message.success('任务已触发执行');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`触发失败：${msg}`);
     }
@@ -772,7 +772,7 @@ const FileUploadTab: React.FC = () => {
       const newTask = res.data as UploadTask;
       setUploadTasks((prev) => [newTask, ...prev]);
       message.success(`文件 ${file.name} 已开始上传`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`上传失败：${msg}`);
     }
@@ -784,7 +784,7 @@ const FileUploadTab: React.FC = () => {
       await cancelUploadTask(id);
       setUploadTasks((prev) => prev.filter((t) => t.id !== id));
       message.info('上传任务已取消');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`取消失败：${msg}`);
     }

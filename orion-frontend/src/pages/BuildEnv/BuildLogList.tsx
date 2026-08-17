@@ -28,7 +28,7 @@ const BuildLogList: React.FC = () => {
       const response = await getBuildLogs();
       const apiData = response.data;
       setLogs(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载构建日志失败：${error.message}`);
       } else {

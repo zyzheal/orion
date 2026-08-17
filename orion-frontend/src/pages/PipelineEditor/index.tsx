@@ -446,7 +446,7 @@ const PipelineEditor: React.FC = () => {
       }
 
       navigate('/pipelines');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`保存失败：${error.message}`);
       } else {

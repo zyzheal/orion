@@ -51,7 +51,7 @@ const DeploymentList: React.FC = () => {
       const response = await getDeployments();
       const apiData = response.data;
       setDeployments(Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载部署列表失败：${error.message}`);
       } else {

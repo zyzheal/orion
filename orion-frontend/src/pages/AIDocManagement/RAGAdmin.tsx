@@ -187,7 +187,7 @@ const RAGAdminPage: React.FC = () => {
       const data = (res.data ?? {}) as RAGConfig;
       setConfig(data);
       configForm.setFieldsValue(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载配置失败: ${(error as Error).message}`);
       setConfig(DEFAULT_CONFIG);
       configForm.setFieldsValue(DEFAULT_CONFIG);
@@ -204,7 +204,7 @@ const RAGAdminPage: React.FC = () => {
       const data = res.data;
       const list = Array.isArray(data) ? data : [];
       setTemplates(list);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载 Prompt 模板失败: ${(error as Error).message}`);
       setTemplates([]);
     } finally {
@@ -225,7 +225,7 @@ const RAGAdminPage: React.FC = () => {
       await updateRAGAdminConfig(values as Record<string, unknown>);
       message.success('配置保存成功');
       setConfig(values as RAGConfig);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if ((error as Record<string, unknown>).errorFields) {
         // Validation error, do nothing
         return;
@@ -262,7 +262,7 @@ const RAGAdminPage: React.FC = () => {
       setTemplateModalVisible(false);
       templateForm.resetFields();
       await loadTemplates();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if ((error as Record<string, unknown>).errorFields) {
         return;
       }
@@ -283,7 +283,7 @@ const RAGAdminPage: React.FC = () => {
     try {
       await triggerRAGIndex();
       message.success('索引重建已触发，请稍后查看结果');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`触发索引重建失败: ${(error as Error).message}`);
     } finally {
       setIndexRebuilding(false);

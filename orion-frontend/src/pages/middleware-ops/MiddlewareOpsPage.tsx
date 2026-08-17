@@ -46,7 +46,7 @@ const InstancesTab: React.FC = () => {
     try {
       const res = await listMiddlewareInstances();
       setInstances((res.data as ListResponse<MiddlewareInstance>).data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载中间件实例失败');
     } finally { setLoading(false); }
   };
@@ -64,7 +64,7 @@ const InstancesTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -74,7 +74,7 @@ const InstancesTab: React.FC = () => {
       await deleteMiddlewareInstance(id);
       message.success('删除成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -174,7 +174,7 @@ const ConnectionPoolsTab: React.FC = () => {
     try {
       const res = await listConnectionPools();
       setPools((res.data as ListResponse<ConnectionPool>).data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载连接池失败');
     } finally { setLoading(false); }
   };
@@ -226,7 +226,7 @@ const MessageQueuesTab: React.FC = () => {
     try {
       const res = await listMqStats();
       setMqStats((res.data as ListResponse<MessageQueueStats>).data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载消息队列数据失败');
     } finally { setLoading(false); }
   };
@@ -273,7 +273,7 @@ const AlertsTab: React.FC = () => {
     try {
       const res = await listMiddlewareAlerts();
       setAlerts((res.data as ListResponse<MiddlewareAlert>).data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载告警失败');
     } finally { setLoading(false); }
   };
@@ -285,7 +285,7 @@ const AlertsTab: React.FC = () => {
       await deleteMiddlewareAlert(id);
       message.success('告警已清除');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -348,7 +348,7 @@ const MiddlewareOpsPage: React.FC = () => {
     try {
       const res = await getMiddlewareHealthSummary();
       setHealthSummary((res.data as HealthResponse).data || null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to load health summary:', error);
     }
   };

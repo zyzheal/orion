@@ -99,7 +99,7 @@ const TriggerPage: React.FC = () => {
       if (statsRes.status === 'fulfilled') {
         setTriggerStats(statsRes.value);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载触发器数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -120,7 +120,7 @@ const TriggerPage: React.FC = () => {
       setEditingWebhook(null);
       webhookForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(
         `${editingWebhook ? '更新' : '创建'} Webhook 失败: ${(error as Error).message}`
       );
@@ -142,7 +142,7 @@ const TriggerPage: React.FC = () => {
       await updateWebhook(id, { enabled: !currentEnabled });
       message.success(currentEnabled ? 'Webhook 已禁用' : 'Webhook 已启用');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`更新失败: ${(error as Error).message}`);
     }
   };
@@ -151,7 +151,7 @@ const TriggerPage: React.FC = () => {
     try {
       await testWebhook(id);
       message.success('Webhook 测试已发送');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Webhook 测试失败: ${(error as Error).message}`);
     }
   };
@@ -161,7 +161,7 @@ const TriggerPage: React.FC = () => {
       await deleteWebhook(id);
       message.success('Webhook 已删除');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -185,7 +185,7 @@ const TriggerPage: React.FC = () => {
       setCreateTriggerModal(false);
       triggerForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`创建触发器失败: ${(error as Error).message}`);
     }
   };
@@ -195,7 +195,7 @@ const TriggerPage: React.FC = () => {
       await triggersApi.executePipeline(id);
       message.success('触发器执行成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`执行失败: ${(error as Error).message}`);
     }
   };

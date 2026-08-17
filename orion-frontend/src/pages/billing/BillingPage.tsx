@@ -66,7 +66,7 @@ const BillingSummaryCard: React.FC = () => {
     try {
       const res = await getBillingSummary();
       setSummary(((res.data as BillingSummaryResponse).data) ?? null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载账单摘要失败';
       message.error(msg);
     } finally {
@@ -111,7 +111,7 @@ const BillingRecordsTab: React.FC = () => {
     try {
       const res = await getBillingRecords();
       setRecords((res.data as BillingRecordsResponse).data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载账单记录失败';
       message.error(msg);
     } finally {
@@ -128,7 +128,7 @@ const BillingRecordsTab: React.FC = () => {
       setGenerateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '生成失败';
       message.error(msg);
     }
@@ -139,7 +139,7 @@ const BillingRecordsTab: React.FC = () => {
       await markBillingPaid(id);
       message.success('标记已支付');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '操作失败';
       message.error(msg);
     }
@@ -224,7 +224,7 @@ const UsageMeteringTab: React.FC = () => {
       const [usageRes, summaryRes] = await Promise.all([getUsage(), getUsageSummary()]);
       setUsage((usageRes.data as UsageResponse).data || []);
       setSummary(((summaryRes.data as UsageSummaryResponse).data) ?? null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载用量数据失败';
       message.error(msg);
     } finally {
@@ -248,7 +248,7 @@ const UsageMeteringTab: React.FC = () => {
       setRecordModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '记录失败';
       message.error(msg);
     }

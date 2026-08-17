@@ -44,7 +44,7 @@ const TriggerRunModal: React.FC<TriggerRunModalProps> = ({ open, onCancel, onSuc
       form.resetFields();
       setTriggering(false);
       onSuccess();
-    } catch (err: unknown) {
+    } catch (err: any) {
       setTriggering(false);
       if (err instanceof Error && 'errorFields' in err) return;
       const message_text = err instanceof Error ? err.message : 'Unknown error';

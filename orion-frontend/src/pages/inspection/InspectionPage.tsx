@@ -42,7 +42,7 @@ const RulesTab: React.FC = () => {
     try {
       const res = await listInspectionRules();
       setRules((res.data as { data?: InspectionRule[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载巡检规则失败');
     } finally { setLoading(false); }
   };
@@ -61,7 +61,7 @@ const RulesTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -71,7 +71,7 @@ const RulesTab: React.FC = () => {
       await createInspectionTask({ ruleId });
       message.success('巡检任务已执行');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '执行失败');
     }
   };
@@ -81,7 +81,7 @@ const RulesTab: React.FC = () => {
       await deleteInspectionRule(id);
       message.success('删除成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -188,7 +188,7 @@ const TasksTab: React.FC = () => {
     try {
       const res = await listInspectionTasks();
       setTasks((res.data as { data?: InspectionTask[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载任务失败');
     } finally { setLoading(false); }
   };
@@ -251,7 +251,7 @@ const ReportsTab: React.FC = () => {
     try {
       const res = await listInspectionReports();
       setReports((res.data as { data?: InspectionReport[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载报告失败');
     } finally { setLoading(false); }
   };
@@ -261,7 +261,7 @@ const ReportsTab: React.FC = () => {
       await generateInspectionReport({ title: `自动巡检报告 ${new Date().toLocaleDateString()}` });
       message.success('报告生成成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '生成失败');
     }
   };
@@ -316,7 +316,7 @@ const InspectionPage: React.FC = () => {
       const data = (res.data as { data?: { score?: number; details?: Record<string, number> } })?.data;
       setHealthScore(data?.score || 100);
       setScoreDetails(data?.details || {});
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to load health score:', error);
     }
   };

@@ -71,7 +71,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
       setCreateModalVisible(false);
       createForm.resetFields();
       onRefresh();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -98,7 +98,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
       setEditModalVisible(false);
       setEditingConfig(null);
       onRefresh();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`更新失败: ${(error as Error).message}`);
@@ -120,7 +120,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
           await deleteTimeoutConfig(id);
           message.success('超时配置已删除');
           onRefresh();
-        } catch (error: unknown) {
+        } catch (error: any) {
           message.error(`删除失败: ${(error as Error).message}`);
         }
       },

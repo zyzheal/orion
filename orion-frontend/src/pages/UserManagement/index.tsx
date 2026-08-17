@@ -115,7 +115,7 @@ const UserManagement: React.FC = () => {
       const data = res.data?.data;
       setUsers(Array.isArray(data) ? data : []);
       setTotal(res.data?.total ?? 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setUsers([]);
       setTotal(0);
       if (error instanceof Error) {
@@ -165,7 +165,7 @@ const UserManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '创建失败';
@@ -191,7 +191,7 @@ const UserManagement: React.FC = () => {
       message.success('用户更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '更新失败';
@@ -207,7 +207,7 @@ const UserManagement: React.FC = () => {
       await deleteUser(id);
       message.success('用户已删除');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -221,7 +221,7 @@ const UserManagement: React.FC = () => {
       await updateUser(id, { status: 'active' });
       message.success('用户已启用');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`启用失败：${error.message}`);
       } else {
@@ -235,7 +235,7 @@ const UserManagement: React.FC = () => {
       await updateUser(id, { status: 'inactive' });
       message.success('用户已禁用');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`禁用失败：${error.message}`);
       } else {
@@ -257,7 +257,7 @@ const UserManagement: React.FC = () => {
       message.info('密码修改功能需要用户当前密码，请联系用户自行修改');
       setChangePwModalVisible(false);
       changePwForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {

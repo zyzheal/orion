@@ -51,7 +51,7 @@ const DocumentEditor: React.FC = () => {
     try {
       const res = await getDocs();
       setDocuments(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setDocuments([
         {
           id: 'd1',
@@ -104,7 +104,7 @@ const DocumentEditor: React.FC = () => {
       await updateDoc(selectedDoc.id, { title, content, status });
       message.success('文档已保存');
       loadDocuments();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`保存失败：${error.message}`);
       } else {

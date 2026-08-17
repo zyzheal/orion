@@ -89,7 +89,7 @@ const NotificationDetail: React.FC = () => {
     try {
       const data = await getNotification(id);
       setNotification(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`获取通知详情失败：${error.message}`);
       } else {
@@ -111,7 +111,7 @@ const NotificationDetail: React.FC = () => {
       await markAsRead(id);
       setNotification((prev: any) => ({ ...prev, read: true }));
       message.success('已标记为已读');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`操作失败：${error.message}`);
       } else {
@@ -129,7 +129,7 @@ const NotificationDetail: React.FC = () => {
       await deleteNotification(id);
       message.success('通知已删除');
       navigate('/notifications');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {

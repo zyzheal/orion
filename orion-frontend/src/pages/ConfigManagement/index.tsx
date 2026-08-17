@@ -181,7 +181,7 @@ const ConfigManagementPage: React.FC = () => {
       ]);
       setConfigs(configsRes.data.configs || []);
       setGitOpsConfig(gitOpsRes.data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载配置失败：${error.message}`);
       } else {
@@ -209,7 +209,7 @@ const ConfigManagementPage: React.FC = () => {
       setEditingConfig(null);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`${editingConfig ? '更新' : '创建'}配置失败：${error.message}`);
       } else {
@@ -244,7 +244,7 @@ const ConfigManagementPage: React.FC = () => {
           await deleteConfig(id);
           message.success('配置已删除');
           loadData();
-        } catch (error: unknown) {
+        } catch (error: any) {
           if (error instanceof Error) {
             message.error(`删除失败：${error.message}`);
           } else {
@@ -260,7 +260,7 @@ const ConfigManagementPage: React.FC = () => {
       await syncFromGit();
       message.success('Git 同步成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`同步失败：${error.message}`);
       } else {
@@ -273,7 +273,7 @@ const ConfigManagementPage: React.FC = () => {
     try {
       await submitForApproval(id, ['admin']);
       message.success('已提交审批');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`提交失败：${error.message}`);
       } else {
@@ -297,7 +297,7 @@ const ConfigManagementPage: React.FC = () => {
       const res = await compareEnvironments(sourceEnv, targetEnv);
       setEnvDiffResult(res.data);
       message.success('环境对比完成');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`环境对比失败：${error.message}`);
       } else {
@@ -327,7 +327,7 @@ const ConfigManagementPage: React.FC = () => {
       const res = await compareConfigs(versionDiffConfigId, versionA, versionB);
       setVersionDiffResult(res.data);
       message.success('版本对比完成');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`版本对比失败：${error.message}`);
       } else {
@@ -354,7 +354,7 @@ const ConfigManagementPage: React.FC = () => {
         })),
       });
       message.success('报告生成成功');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`生成报告失败：${error.message}`);
       } else {
@@ -376,7 +376,7 @@ const ConfigManagementPage: React.FC = () => {
       } else {
         message.success('未检测到配置漂移');
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`漂移检测失败：${error.message}`);
       } else {

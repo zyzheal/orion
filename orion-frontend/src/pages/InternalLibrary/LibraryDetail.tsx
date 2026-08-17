@@ -89,7 +89,7 @@ const DependencyCheckTool: React.FC = () => {
     try {
       const res = await checkDependencies(repoName);
       setResults(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setResults([]);
       message.error(`依赖检查失败：${(error as Error).message}`);
     } finally {

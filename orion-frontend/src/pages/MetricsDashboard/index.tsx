@@ -182,7 +182,7 @@ const MetricsDashboard: React.FC = () => {
       } else {
         setSystemHealthScore(0);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       setMetricSummary(null);
       setServiceHealth([]);
       setTrendData([]);

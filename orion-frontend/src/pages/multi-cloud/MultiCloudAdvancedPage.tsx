@@ -82,7 +82,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
       const data = (res as any)?.data ?? res;
       setComplianceReport(data);
       message.success('合规检查完成');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`合规检查失败: ${(error as Error).message}`);
     } finally {
       setComplianceLoading(false);
@@ -106,7 +106,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
       const data = (res as any)?.data ?? res;
       setScheduleResult(data);
       message.success('资源调度决策生成成功');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`调度失败: ${(error as Error).message}`);
     } finally {
       setScheduleResultLoading(false);

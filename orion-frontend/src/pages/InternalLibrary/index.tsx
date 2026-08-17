@@ -104,7 +104,7 @@ const InternalLibraryManagement: React.FC = () => {
     try {
       const res = await getInternalLibraries();
       setLibraries(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setLibraries([]);
       message.error(`加载二方库数据失败: ${(error as Error).message}`);
     } finally {
@@ -165,7 +165,7 @@ const InternalLibraryManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -184,7 +184,7 @@ const InternalLibraryManagement: React.FC = () => {
       await deleteInternalLibrary(id);
       message.success('二方库已删除');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -198,7 +198,7 @@ const InternalLibraryManagement: React.FC = () => {
       await activateInternalLibrary(id);
       message.success('二方库已激活');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`激活失败：${error.message}`);
       } else {
@@ -224,7 +224,7 @@ const InternalLibraryManagement: React.FC = () => {
       deprecateForm.resetFields();
       loadData();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -259,7 +259,7 @@ const InternalLibraryManagement: React.FC = () => {
       setVersionModalVisible(false);
       versionForm.resetFields();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -290,7 +290,7 @@ const InternalLibraryManagement: React.FC = () => {
       setDeprecateVersionModalVisible(false);
       deprecateVersionForm.resetFields();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -319,7 +319,7 @@ const InternalLibraryManagement: React.FC = () => {
       setAddDependentModalVisible(false);
       addDependentForm.resetFields();
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -339,7 +339,7 @@ const InternalLibraryManagement: React.FC = () => {
       await updateDependent(selectedLib.id, repoName, version);
       message.success('依赖版本已更新');
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`更新失败：${error.message}`);
       } else {
@@ -354,7 +354,7 @@ const InternalLibraryManagement: React.FC = () => {
       await updateDependentStats(selectedLib.id);
       message.success('依赖统计已更新');
       if (detailDrawerVisible) openDetail(selectedLib);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`更新依赖统计失败：${error.message}`);
       } else {
@@ -371,7 +371,7 @@ const InternalLibraryManagement: React.FC = () => {
       const [verRes, depRes] = await Promise.all([getVersions(lib.id), getDependents(lib.id)]);
       setVersions(verRes?.data || []);
       setDependents(depRes?.data || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setVersions([]);
       setDependents([]);
     }

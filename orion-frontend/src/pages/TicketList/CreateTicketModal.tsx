@@ -133,7 +133,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
       setTitleValue('');
       setSubmitting(false);
       onSuccess();
-    } catch (error: unknown) {
+    } catch (error: any) {
       setSubmitting(false);
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {

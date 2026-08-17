@@ -209,7 +209,7 @@ const AISecurityPage: React.FC = () => {
       const [policiesRes, evaluationsRes] = await Promise.all([getPolicies(), getEvaluations()]);
       setPolicies((policiesRes.data as any).policies.map(mapApiPolicyToUI));
       setEvaluations((evaluationsRes.data as any).evaluations.map(mapApiEvalToUI));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Failed to load security data: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -228,7 +228,7 @@ const AISecurityPage: React.FC = () => {
         totalViolations: 0,
         avgResponseTime: 0,
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Failed to load security stats: ${(error as Error).message}`);
     }
   };
@@ -279,7 +279,7 @@ const AISecurityPage: React.FC = () => {
       createForm.resetFields();
       loadData();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
         message.error(`创建失败：${(error as Error).message}`);
       }
@@ -309,7 +309,7 @@ const AISecurityPage: React.FC = () => {
       setEditModalVisible(false);
       setEditPolicy(null);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
         message.error(`更新失败：${(error as Error).message}`);
       }
@@ -324,7 +324,7 @@ const AISecurityPage: React.FC = () => {
       message.success('策略已删除');
       loadData();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除策略失败：${(error as Error).message}`);
     }
   };
@@ -337,7 +337,7 @@ const AISecurityPage: React.FC = () => {
         prev.map((p) => (p.id === record.id ? { ...p, enabled: newEnabled } : p))
       );
       message.success(`策略 "${record.name}" 已${newEnabled ? '启用' : '禁用'}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`状态更新失败：${(error as Error).message}`);
     }
   };
@@ -347,7 +347,7 @@ const AISecurityPage: React.FC = () => {
       setSubmitting(true);
       message.success('策略评估已启动，结果将稍后显示');
       setEvaluateModalVisible(false);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`评估启动失败：${(error as Error).message}`);
     } finally {
       setSubmitting(false);

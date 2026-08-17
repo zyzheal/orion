@@ -50,7 +50,7 @@ const StateBrowser: React.FC = () => {
       if (wsList.length > 0) {
         setSelectedWorkspaceId(wsList[0].id);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`Failed to load workspaces：${error.message}`);
       } else {
@@ -69,7 +69,7 @@ const StateBrowser: React.FC = () => {
       ]);
       setStateVersions(Array.isArray(verRes.data) ? verRes.data : []);
       setResources(Array.isArray(resRes.data) ? resRes.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`Failed to load state data：${error.message}`);
       } else {

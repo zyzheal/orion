@@ -131,7 +131,7 @@ const MultiCloudPage: React.FC = () => {
         const data = statsRes.value as { data?: ResourceStatistics };
         setStatistics(data?.data ?? null);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载多云数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -151,7 +151,7 @@ const MultiCloudPage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`注册失败: ${(error as Error).message}`);
     }
   };
@@ -165,7 +165,7 @@ const MultiCloudPage: React.FC = () => {
         loadData();
         setSyncing(null);
       }, 2000);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`同步失败: ${(error as Error).message}`);
       setSyncing(null);
     }
@@ -181,7 +181,7 @@ const MultiCloudPage: React.FC = () => {
         bandwidth_gb_month: values.bandwidth_gb_month,
       });
       setCostComparison((res.data as CostComparison[]) || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`成本对比失败: ${(error as Error).message}`);
     } finally {
       setCostLoading(false);

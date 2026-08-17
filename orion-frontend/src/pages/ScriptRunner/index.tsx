@@ -55,7 +55,7 @@ const ScriptRunnerPage: React.FC = () => {
     try {
       const res = await scanScript(values as ScriptConfig);
       setScanResult(res.data || null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '扫描失败');
     } finally {
       setScanning(false);
@@ -81,7 +81,7 @@ const ScriptRunnerPage: React.FC = () => {
       } else {
         message.error('执行失败');
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '执行失败');
     } finally {
       setLoading(false);

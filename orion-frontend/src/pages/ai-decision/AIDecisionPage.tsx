@@ -79,7 +79,7 @@ const ModelVersionsTab: React.FC = () => {
     try {
       const res = await listModels();
       setModels(res.data?.models || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载模型列表失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -109,7 +109,7 @@ const ModelVersionsTab: React.FC = () => {
       await activateModel(modelId);
       message.success('模型已激活');
       loadModels();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`激活失败: ${(error as Error).message}`);
     }
   };
@@ -119,7 +119,7 @@ const ModelVersionsTab: React.FC = () => {
       await deprecateModel(modelId);
       message.success('模型已废弃');
       loadModels();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`废弃失败: ${(error as Error).message}`);
     }
   };
@@ -333,7 +333,7 @@ const ABTestingTab: React.FC = () => {
     try {
       const res = await getABTestResults(modelName);
       setResults(res.data || null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载 A/B 测试结果失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -449,7 +449,7 @@ const DecisionExplanationTab: React.FC = () => {
       });
       setExplanation(res.data || null);
       message.success('决策解释已生成');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`生成解释失败: ${(error as Error).message}`);
       }

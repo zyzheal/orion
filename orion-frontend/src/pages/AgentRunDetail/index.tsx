@@ -107,7 +107,7 @@ const AgentRunDetail: React.FC = () => {
           (a: AgentApproval) => a.runId === runId
         )
       );
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err instanceof Error) {
         message.error(`加载运行数据失败：${err.message}`);
       } else {

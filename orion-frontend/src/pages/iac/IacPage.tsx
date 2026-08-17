@@ -44,7 +44,7 @@ const WorkspaceTab: React.FC = () => {
     try {
       const res = await getWorkspaces();
       setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载工作区失败');
     } finally { setLoading(false); }
   };
@@ -63,7 +63,7 @@ const WorkspaceTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -74,7 +74,7 @@ const WorkspaceTab: React.FC = () => {
       await planWorkspace(id);
       message.success('Plan 生成成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : 'Plan 失败');
     } finally {
       setPlanningIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
@@ -87,7 +87,7 @@ const WorkspaceTab: React.FC = () => {
       await applyWorkspace(id, { autoApprove: false });
       message.success('Apply 执行成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : 'Apply 失败');
     } finally {
       setApplyingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
@@ -193,7 +193,7 @@ const ResourcesTab: React.FC = () => {
     try {
       const res = await getWorkspaces();
       setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to load:', error);
     }
   };
@@ -203,7 +203,7 @@ const ResourcesTab: React.FC = () => {
     try {
       const res = await getWorkspaceResources(workspaceId);
       setResources((res.data as { data?: IaCResourceChange[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载资源失败');
     } finally { setLoading(false); }
   };
@@ -267,7 +267,7 @@ const ModulesTab: React.FC = () => {
     try {
       const res = await getModules();
       setModules((res.data as { data?: IaCModule[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载模块失败');
     } finally { setLoading(false); }
   };
@@ -287,7 +287,7 @@ const ModulesTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '注册失败');
     }
   };
@@ -345,7 +345,7 @@ const PlansTab: React.FC = () => {
     try {
       const res = await getWorkspaces();
       setWorkspaces((res.data as { data?: IaCWorkspace[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to load:', error);
     }
   };
@@ -355,7 +355,7 @@ const PlansTab: React.FC = () => {
     try {
       const res = await getWorkspacePlans(workspaceId);
       setPlans((res.data as { data?: IaCPlan[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载计划失败');
     } finally { setLoading(false); }
   };

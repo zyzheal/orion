@@ -50,7 +50,7 @@ const BuilderImageList: React.FC = () => {
       const response = await getBuilderImages();
       const apiData = response.data;
       setImages(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载构建镜像失败：${error.message}`);
       } else {
@@ -101,7 +101,7 @@ const BuilderImageList: React.FC = () => {
       setEditingImage(null);
       form.resetFields();
       loadImages();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (err.errorFields) return;
       if (error instanceof Error) {
@@ -117,7 +117,7 @@ const BuilderImageList: React.FC = () => {
       await deleteBuilderImage(id);
       message.success('Builder image deleted');
       loadImages();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除构建镜像失败：${error.message}`);
       } else {
@@ -136,7 +136,7 @@ const BuilderImageList: React.FC = () => {
         message.success('Builder image deprecated');
       }
       loadImages();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`更新状态失败：${error.message}`);
       } else {

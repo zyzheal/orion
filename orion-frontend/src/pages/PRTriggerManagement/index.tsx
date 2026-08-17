@@ -96,7 +96,7 @@ const PRTriggerManagement: React.FC = () => {
           value: p.id,
         })));
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -127,7 +127,7 @@ const PRTriggerManagement: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`创建失败: ${(error as Error).message}`);
     }
   };
@@ -155,7 +155,7 @@ const PRTriggerManagement: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`更新失败: ${(error as Error).message}`);
     }
   };
@@ -172,7 +172,7 @@ const PRTriggerManagement: React.FC = () => {
           await deletePRTrigger(existingRule.pipelineId, ruleId);
           message.success('PR触发规则已删除');
           loadData();
-        } catch (error: unknown) {
+        } catch (error: any) {
           message.error(`删除失败: ${(error as Error).message}`);
         }
       },
@@ -187,7 +187,7 @@ const PRTriggerManagement: React.FC = () => {
       await updatePRTrigger(existingRule.pipelineId, ruleId, { enabled: newEnabledState });
       message.success(newEnabledState ? '规则已启用' : '规则已禁用');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`更新失败: ${(error as Error).message}`);
     }
   };

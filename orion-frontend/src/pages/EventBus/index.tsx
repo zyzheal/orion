@@ -127,7 +127,7 @@ const EventBusMonitoring: React.FC = () => {
       const statsData = (statsRes.data as any)?.stats || {};
       setEvents(eventsData.map(mapApiEvent));
       setStats(mapApiStats(statsData));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载 EventBus 数据失败: ${(error as Error).message}`);
       setEvents([]);
       setStats(null);

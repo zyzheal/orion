@@ -132,7 +132,7 @@ const FunctionsTab: React.FC = () => {
     try {
       const res = await listServerlessFunctions();
       setFunctions((res.data as { data?: Fn[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载函数列表失败');
     } finally { setLoading(false); }
   }, []);
@@ -155,7 +155,7 @@ const FunctionsTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -176,7 +176,7 @@ const FunctionsTab: React.FC = () => {
       setEditModalOpen(false);
       editForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '更新失败');
     }
   };
@@ -186,7 +186,7 @@ const FunctionsTab: React.FC = () => {
       await deleteServerlessFunction(fn.id);
       message.success('函数删除成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -204,7 +204,7 @@ const FunctionsTab: React.FC = () => {
       }
       setDeployDrawerOpen(false);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '部署失败');
     } finally { setDeployLoading(false); }
   };
@@ -221,7 +221,7 @@ const FunctionsTab: React.FC = () => {
       message.success('函数调用成功');
       setInvokeModalOpen(false);
       invokeForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '调用失败');
     } finally { setInvokeLoading(false); }
   };
@@ -232,7 +232,7 @@ const FunctionsTab: React.FC = () => {
     try {
       const res = await getFunctionLogs(fn.id, { limit: 50 });
       setLogs((res.data as { data?: ServerlessLog[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载日志失败');
     }
   };
@@ -478,7 +478,7 @@ const TriggersTab: React.FC = () => {
     try {
       const res = await listTriggers();
       setTriggers((res.data as { data?: ServerlessTrigger[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载触发器失败');
     } finally { setLoading(false); }
   }, []);
@@ -509,7 +509,7 @@ const TriggersTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -519,7 +519,7 @@ const TriggersTab: React.FC = () => {
       await deleteTrigger(id);
       message.success('触发器删除成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -642,7 +642,7 @@ const MetricsTab: React.FC = () => {
       const [aggRes, scaleRes] = await Promise.all([getAggregateMetrics(), getAutoScalingRecommendations()]);
       setAggregate((aggRes.data as { data?: AggregateMetrics })?.data ?? null);
       setRecommendations((scaleRes.data as { data?: AutoScalingRecommendation[] })?.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载指标失败');
     } finally { setLoading(false); }
   }, []);

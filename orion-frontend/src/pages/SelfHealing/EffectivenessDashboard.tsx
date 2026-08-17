@@ -32,7 +32,7 @@ const EffectivenessDashboard: React.FC = () => {
       ]);
       setEffectiveness((effRes.data || null) as unknown as SelfHealingEffectiveness | null);
       setRecentHistory((histRes.data as any).items || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载效能数据失败：${error.message}`);
       } else {

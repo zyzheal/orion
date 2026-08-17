@@ -90,7 +90,7 @@ const AlertRulesTab: React.FC = () => {
     try {
       const res = await getAlertRules();
       setRules(res.data?.rules || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载告警规则失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -148,7 +148,7 @@ const AlertRulesTab: React.FC = () => {
       }
       setModalVisible(false);
       loadRules();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`操作失败: ${(error as Error).message}`);
       }
@@ -162,7 +162,7 @@ const AlertRulesTab: React.FC = () => {
       await toggleAlertRule(ruleId);
       message.success('规则状态已切换');
       loadRules();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`切换失败: ${(error as Error).message}`);
     }
   };
@@ -176,7 +176,7 @@ const AlertRulesTab: React.FC = () => {
           await deleteAlertRule(ruleId);
           message.success('告警规则已删除');
           loadRules();
-        } catch (error: unknown) {
+        } catch (error: any) {
           message.error(`删除失败: ${(error as Error).message}`);
         }
       },
@@ -323,7 +323,7 @@ const SilenceRulesTab: React.FC = () => {
     try {
       const res = await getSilenceRules();
       setRules(res.data?.rules || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载静默规则失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -353,7 +353,7 @@ const SilenceRulesTab: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       loadRules();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
@@ -367,7 +367,7 @@ const SilenceRulesTab: React.FC = () => {
       await deleteSilenceRule(ruleId);
       message.success('静默规则已删除');
       loadRules();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -461,7 +461,7 @@ const RootCauseAnalysisTab: React.FC = () => {
     try {
       const res = await getRootCauseAnalyses();
       setAnalyses(res.data?.analyses || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载根因分析列表失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -485,7 +485,7 @@ const RootCauseAnalysisTab: React.FC = () => {
       message.success('根因分析已触发');
       triggerForm.resetFields();
       loadAnalyses();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`触发失败: ${(error as Error).message}`);
       }
@@ -681,7 +681,7 @@ const ServiceHealthTab: React.FC = () => {
     try {
       const res = await getServiceHealth();
       setServices(res.data?.services || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载服务健康状态失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);

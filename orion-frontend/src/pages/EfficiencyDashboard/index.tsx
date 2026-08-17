@@ -198,7 +198,7 @@ const EfficiencyDashboard: React.FC = () => {
       setClickHouseStatus(statusRes.data);
       setTeams(teamsRes.data?.teams || []);
       setTrendHistory(trendsRes.data?.trends || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
       message.error(msg);
     } finally {
@@ -212,7 +212,7 @@ const EfficiencyDashboard: React.FC = () => {
     try {
       const res = await getTeamComparison({ teamIds: teamIds?.join(','), interval: 'weekly' });
       setTeamComparison(res.data?.teams || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载团队对比数据失败';
       message.error(msg);
     } finally {

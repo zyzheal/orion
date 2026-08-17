@@ -118,7 +118,7 @@ const VisorPage: React.FC = () => {
       const res = await listHosts();
       const list = (res.data as any)?.hosts;
       setHosts(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setHosts([]);
       message.error(`加载主机列表失败: ${(error as Error).message}`);
     } finally {
@@ -133,7 +133,7 @@ const VisorPage: React.FC = () => {
       const res = await listHosts();
       const list = (res.data as any)?.scripts;
       setScripts(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setScripts([]);
     } finally {
       setScriptLoading(false);
@@ -146,7 +146,7 @@ const VisorPage: React.FC = () => {
       const res = await listResources();
       const list = (res.data as any)?.resources;
       setResources(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setResources([]);
       message.error(`加载资源数据失败: ${(error as Error).message}`);
     } finally {
@@ -177,7 +177,7 @@ const VisorPage: React.FC = () => {
       setHostModalVisible(false);
       hostForm.resetFields();
       loadHosts();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`添加失败: ${(error as Error).message}`);
@@ -192,7 +192,7 @@ const VisorPage: React.FC = () => {
       await removeHost(id);
       message.success('主机已移除');
       loadHosts();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`移除失败: ${(error as Error).message}`);
     }
   };
@@ -202,7 +202,7 @@ const VisorPage: React.FC = () => {
       const res = await getHostStatus(id);
       const data = (res.data as any);
       message.info(`主机状态: ${data?.status || 'unknown'}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`获取状态失败: ${(error as Error).message}`);
     }
   };
@@ -220,7 +220,7 @@ const VisorPage: React.FC = () => {
       message.success('脚本已提交执行');
       scriptForm.resetFields();
       loadScripts();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`执行失败: ${(error as Error).message}`);
@@ -236,7 +236,7 @@ const VisorPage: React.FC = () => {
       const data = (res.data as any);
       setScriptResult(data);
       setViewingResult(true);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`获取结果失败: ${(error as Error).message}`);
     }
   };
@@ -252,7 +252,7 @@ const VisorPage: React.FC = () => {
         const res = await getResourcesByType(type);
         const list = (res.data as any)?.resources;
         setResources(Array.isArray(list) ? list : []);
-      } catch (error: unknown) {
+      } catch (error: any) {
         setResources([]);
         message.error(`加载资源失败: ${(error as Error).message}`);
       }

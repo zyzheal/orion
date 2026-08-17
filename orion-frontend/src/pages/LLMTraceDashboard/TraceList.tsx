@@ -44,7 +44,7 @@ const TraceList: React.FC = () => {
       const data = response.data as unknown as { data: LLMTrace[]; total: number };
       setTraces(data.data || []);
       setTotal(data.total || 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setTraces([]);
       setTotal(0);
       message.error(`加载调用记录失败: ${(error as Error).message}`);

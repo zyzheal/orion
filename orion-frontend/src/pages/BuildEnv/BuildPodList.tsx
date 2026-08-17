@@ -28,7 +28,7 @@ const BuildPodList: React.FC = () => {
       const response = await getBuildPods();
       const apiData = response.data;
       setPods(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载构建 Pod 失败：${error.message}`);
       } else {
@@ -67,7 +67,7 @@ const BuildPodList: React.FC = () => {
       await cancelBuildPod(id);
       message.success('Build pod cancelled');
       loadPods();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`取消构建 Pod 失败：${error.message}`);
       } else {

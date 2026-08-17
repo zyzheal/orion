@@ -167,7 +167,7 @@ const EnvironmentPage: React.FC = () => {
     try {
       const res = await getEnvironments();
       setEnvironments(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setEnvironments([]);
       message.error(`加载环境列表失败: ${(error as Error).message}`);
     } finally {
@@ -230,7 +230,7 @@ const EnvironmentPage: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -264,7 +264,7 @@ const EnvironmentPage: React.FC = () => {
       message.success('环境更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`更新失败: ${(error as Error).message}`);
@@ -279,7 +279,7 @@ const EnvironmentPage: React.FC = () => {
       await deleteEnvironment(id);
       message.success('环境已删除');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -289,7 +289,7 @@ const EnvironmentPage: React.FC = () => {
       await updateEnvironmentStatus(id, { status });
       message.success('状态更新成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`状态更新失败: ${(error as Error).message}`);
     }
   };
@@ -299,7 +299,7 @@ const EnvironmentPage: React.FC = () => {
       await lockEnvironment(id, { reason: '手动锁定', lockedBy: 'current-user' });
       message.success('环境已锁定');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`锁定失败: ${(error as Error).message}`);
     }
   };
@@ -309,7 +309,7 @@ const EnvironmentPage: React.FC = () => {
       await unlockEnvironment(id);
       message.success('环境已解锁');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`解锁失败: ${(error as Error).message}`);
     }
   };

@@ -75,7 +75,7 @@ const BudgetManagement: React.FC = () => {
     try {
       const res = await getBudgets();
       setBudgets(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setBudgets([]);
       message.error(`加载预算数据失败: ${(error as Error).message}`);
     } finally {
@@ -116,7 +116,7 @@ const BudgetManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '创建失败';
@@ -140,7 +140,7 @@ const BudgetManagement: React.FC = () => {
       message.success('预算更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '更新失败';
@@ -156,7 +156,7 @@ const BudgetManagement: React.FC = () => {
       await restoreBudget(id);
       message.success('预算已重置');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`预算重置失败：${error.message}`);
       } else {
@@ -170,7 +170,7 @@ const BudgetManagement: React.FC = () => {
       await deleteBudget(id);
       message.success('预算已删除');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`预算删除失败：${error.message}`);
       } else {

@@ -526,7 +526,7 @@ const TraceDetailPage: React.FC = () => {
     try {
       const data = await traceApi.getTrace(traceId);
       setDetail(data);
-    } catch (err: unknown) {
+    } catch (err: any) {
       setError((err as Error).message || '加载 Trace 失败');
     } finally {
       setLoading(false);

@@ -118,7 +118,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       form.resetFields();
       setSaving(false);
       onSuccess();
-    } catch (err: unknown) {
+    } catch (err: any) {
       setSaving(false);
       if (err instanceof Error && 'errorFields' in err) return;
       const message_text = err instanceof Error ? err.message : 'Unknown error';

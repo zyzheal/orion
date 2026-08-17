@@ -100,7 +100,7 @@ const FinOpsDashboard: React.FC = () => {
       setCostTrend(Array.isArray(costTrendRes) ? costTrendRes : []);
       setOptimizations(Array.isArray(optimizationsRes) ? optimizationsRes : []);
       setBudgetAlerts(Array.isArray(budgetAlertsRes) ? budgetAlertsRes : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载成本数据失败：${error.message}`);
       } else {
@@ -133,7 +133,7 @@ const FinOpsDashboard: React.FC = () => {
         prev.map((opt) => (opt.key === key ? { ...opt, status: 'applied' as const } : opt))
       );
       message.success('优化建议已应用');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`应用优化建议失败：${error.message}`);
       } else {
@@ -147,7 +147,7 @@ const FinOpsDashboard: React.FC = () => {
     try {
       await apiExportCostReport({});
       message.success('报表导出中，请稍后在通知中心查看');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`导出报表失败：${error.message}`);
       } else {

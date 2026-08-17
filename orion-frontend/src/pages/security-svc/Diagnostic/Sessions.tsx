@@ -49,7 +49,7 @@ const DiagnosticSessions: React.FC = () => {
       const response = await getSessions();
       const apiData = response.data;
       setSessions(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载诊断会话失败：${error.message}`);
       } else {
@@ -107,7 +107,7 @@ const DiagnosticSessions: React.FC = () => {
     try {
       const res = await getSession(session.id);
       setSessionDetail(res.data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载会话详情失败：${error.message}`);
       } else {
@@ -133,7 +133,7 @@ const DiagnosticSessions: React.FC = () => {
         const res = await getSession(selectedSession.id);
         setSessionDetail(res.data);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`添加症状失败：${error.message}`);
       } else {
@@ -151,7 +151,7 @@ const DiagnosticSessions: React.FC = () => {
           await completeSession(session.id);
           message.success('会话已完成');
           loadData();
-        } catch (error: unknown) {
+        } catch (error: any) {
           if (error instanceof Error) {
             message.error(`完成会话失败：${error.message}`);
           } else {

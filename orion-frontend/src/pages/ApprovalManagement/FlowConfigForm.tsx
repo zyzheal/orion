@@ -99,7 +99,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
       createForm.resetFields();
       setNodes([]);
       onRefresh();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -125,7 +125,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
       setEditModalVisible(false);
       setEditingFlow(null);
       onRefresh();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`更新失败: ${(error as Error).message}`);
@@ -147,7 +147,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
           await deleteApprovalFlow(id);
           message.success('审批流程已删除');
           onRefresh();
-        } catch (error: unknown) {
+        } catch (error: any) {
           message.error(`删除失败: ${(error as Error).message}`);
         }
       },

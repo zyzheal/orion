@@ -110,7 +110,7 @@ const FederationPage: React.FC = () => {
       if (poolsRes.status === 'fulfilled') {
         setResourcePools(Array.isArray(poolsRes.value) ? poolsRes.value : []);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载联邦数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ const FederationPage: React.FC = () => {
       setCreateClusterModal(false);
       clusterForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`注册失败: ${(error as Error).message}`);
     }
   };
@@ -145,7 +145,7 @@ const FederationPage: React.FC = () => {
       setCreateJobModal(false);
       jobForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`提交失败: ${(error as Error).message}`);
     }
   };
@@ -162,7 +162,7 @@ const FederationPage: React.FC = () => {
       setCreatePoolModal(false);
       poolForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`创建失败: ${(error as Error).message}`);
     }
   };

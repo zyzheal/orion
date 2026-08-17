@@ -50,7 +50,7 @@ const ArtifactVersionPage: React.FC = () => {
         setVersions(res.data.versions || []);
         setTotal(res.data.total || 0);
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = err instanceof Error ? err.message : '加载版本列表失败';
       message.error(msg);
     } finally {
@@ -69,14 +69,14 @@ const ArtifactVersionPage: React.FC = () => {
     try {
       const chainRes = await getTraceabilityChain(version.id);
       if (chainRes.data) setChain(chainRes.data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to load data:', error);
     }
 
     try {
       const depRes = await getDeploymentHistory(version.pipelineId);
       if (depRes.data) setDeployHistory(depRes.data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('Failed to load data:', error);
     }
   };
@@ -86,7 +86,7 @@ const ArtifactVersionPage: React.FC = () => {
       await deployVersion(version.id, { environment, deployedBy: 'current-user' });
       message.success(`已部署到 ${environment}`);
       loadVersions();
-    } catch (err: unknown) {
+    } catch (err: any) {
       const msg = err instanceof Error ? err.message : '部署失败';
       message.error(msg);
     }

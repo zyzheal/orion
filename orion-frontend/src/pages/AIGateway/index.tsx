@@ -66,7 +66,7 @@ const AIGatewayPage: React.FC = () => {
       setGatewayStatus(statusRes.data);
       setEngineStatus(engineRes.data);
       setRules(rulesRes.data.rules);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载 AI Gateway 数据失败：${error.message}`);
       } else {

@@ -175,7 +175,7 @@ const TicketList: React.FC = () => {
       const params = { page: 1, pageSize: 50, ...filters };
       const response = await getTickets(params);
       setTickets((response.data?.items ?? []) as unknown as Ticket[]);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载工单列表失败：${error.message}`);
       } else {
@@ -319,7 +319,7 @@ const TicketList: React.FC = () => {
           await assignTicket(ticket.id, { assignee: assigneeValue });
           message.success(`工单已分配给 ${assigneeValue}`);
           loadTickets();
-        } catch (error: unknown) {
+        } catch (error: any) {
           if (error instanceof Error && error.message !== 'validation') {
             message.error(`分配失败：${error.message}`);
           }
@@ -353,7 +353,7 @@ const TicketList: React.FC = () => {
       await deleteTicket(ticket.id);
       message.success('工单已删除');
       loadTickets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -373,7 +373,7 @@ const TicketList: React.FC = () => {
       }
       message.success('状态更新成功');
       loadTickets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`状态更新失败：${error.message}`);
       } else {

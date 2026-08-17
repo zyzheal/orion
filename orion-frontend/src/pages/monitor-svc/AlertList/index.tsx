@@ -98,7 +98,7 @@ const AlertList: React.FC = () => {
       setAlerts(
         Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? [])
       );
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);
       } else {
@@ -192,7 +192,7 @@ const AlertList: React.FC = () => {
         )
       );
       message.success('告警已确认');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`确认告警失败：${error.message}`);
       } else {
@@ -218,7 +218,7 @@ const AlertList: React.FC = () => {
         )
       );
       message.success('告警已解决');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`解决告警失败：${error.message}`);
       } else {

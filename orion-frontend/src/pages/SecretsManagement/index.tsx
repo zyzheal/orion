@@ -76,7 +76,7 @@ const SecretsManagementInner: React.FC = () => {
       const response = await getSecrets(tenantId);
       const data = response.data;
       setSecrets(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载 Secret 列表失败: ${(error as Error).message}`);
       setSecrets([]);
     } finally {
@@ -132,7 +132,7 @@ const SecretsManagementInner: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       await loadSecrets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -186,7 +186,7 @@ const SecretsManagementInner: React.FC = () => {
       editForm.resetFields();
       setEditingSecret(null);
       await loadSecrets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`更新失败: ${(error as Error).message}`);
@@ -203,7 +203,7 @@ const SecretsManagementInner: React.FC = () => {
       await deleteSecret(tenantId, id);
       message.success('Secret 已删除');
       await loadSecrets();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };

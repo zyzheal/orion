@@ -109,7 +109,7 @@ const EditTicketModal: React.FC<EditTicketModalProps> = ({ open, onCancel, onSuc
       form.resetFields();
       setSubmitting(false);
       onSuccess();
-    } catch (error: unknown) {
+    } catch (error: any) {
       setSubmitting(false);
       // Form validation error - no need to show additional message
     }

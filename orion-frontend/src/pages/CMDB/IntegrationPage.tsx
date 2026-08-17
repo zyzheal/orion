@@ -57,7 +57,7 @@ const IntegrationPage: React.FC = () => {
       setHosts(hostsRes.data ?? []);
       setK8sResources(k8sRes.data ?? []);
       setCICDResources(cicdRes.data ?? []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载集成数据失败：${error.message}`);
       } else {
@@ -76,7 +76,7 @@ const IntegrationPage: React.FC = () => {
       await startK8sSync();
       message.success('K8s 同步已启动');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`同步启动失败：${error.message}`);
       } else {
@@ -93,7 +93,7 @@ const IntegrationPage: React.FC = () => {
       await stopK8sSync();
       message.success('K8s 同步已停止');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`同步停止失败：${error.message}`);
       } else {

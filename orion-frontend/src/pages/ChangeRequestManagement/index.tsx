@@ -344,7 +344,7 @@ export default function ChangeRequestManagementPage() {
           key: `ai-risk-${record.id}`,
         });
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       message.error('AI 风险评估失败: ' + (err instanceof Error ? err.message : String(err)));
     }
   };

@@ -87,7 +87,7 @@ const CodeOwnersPage: React.FC = () => {
         }
       }
       setRepoOptions(allRepos);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载仓库列表失败：${error.message}`);
       }
@@ -115,7 +115,7 @@ const CodeOwnersPage: React.FC = () => {
         setContent('');
         setSavedContent('');
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载 CODEOWNERS 失败：${error.message}`);
       } else {
@@ -150,7 +150,7 @@ const CodeOwnersPage: React.FC = () => {
       } else {
         message.error('CODEOWNERS 验证失败');
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`验证请求失败：${error.message}`);
       } else {
@@ -175,7 +175,7 @@ const CodeOwnersPage: React.FC = () => {
       await registerCodeOwners({ repoId: selectedRepoId, content });
       message.success('CODEOWNERS 已保存');
       setSavedContent(content);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`保存 CODEOWNERS 失败：${error.message}`);
       } else {
@@ -200,7 +200,7 @@ const CodeOwnersPage: React.FC = () => {
           setContent('');
           setSavedContent('');
           setValidationResult(null);
-        } catch (error: unknown) {
+        } catch (error: any) {
           if (error instanceof Error) {
             message.error(`删除 CODEOWNERS 失败：${error.message}`);
           } else {
@@ -226,7 +226,7 @@ const CodeOwnersPage: React.FC = () => {
         setRecommendations(data);
         message.success('推荐加载完成');
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`获取推荐失败：${error.message}`);
       } else {

@@ -52,7 +52,7 @@ const MonitoringChannels: React.FC = () => {
       const response = await getChannels();
       const apiData = response.data;
       setChannels(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载通知渠道失败：${error.message}`);
       } else {
@@ -68,7 +68,7 @@ const MonitoringChannels: React.FC = () => {
       const response = await getEscalationPolicies();
       const apiData = response.data;
       setEscalationPolicies(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载升级策略失败：${error.message}`);
       } else {
@@ -103,7 +103,7 @@ const MonitoringChannels: React.FC = () => {
       setChannelModalVisible(false);
       channelForm.resetFields();
       loadChannels();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`创建通知渠道失败：${error.message}`);
       } else {
@@ -119,7 +119,7 @@ const MonitoringChannels: React.FC = () => {
         prev.map((c) => (c.id === id ? { ...c, enabled: res.data?.enabled ?? !c.enabled } : c))
       );
       message.success('渠道状态已切换');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`切换渠道状态失败：${error.message}`);
       } else {
@@ -141,7 +141,7 @@ const MonitoringChannels: React.FC = () => {
       setEscalationModalVisible(false);
       escalationForm.resetFields();
       loadEscalationPolicies();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`创建升级策略失败：${error.message}`);
       } else {

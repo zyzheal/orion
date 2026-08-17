@@ -107,7 +107,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
     try {
       await onExecute(action.command, action.params);
       message.success(`Command "${action.label}" executed`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`Execution failed: ${error.message}`);
       } else {
@@ -243,7 +243,7 @@ const SmartRecommend: React.FC = () => {
           dismissed: dismissedRef.current.has(r.id),
         }))
       );
-    } catch (err: unknown) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to load recommendations');
       setRecommendations([]);
     } finally {

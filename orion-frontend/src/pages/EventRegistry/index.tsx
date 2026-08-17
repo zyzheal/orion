@@ -105,7 +105,7 @@ const EventRegistryPage: React.FC = () => {
       const data = await getEventTypes();
       setEventTypes(data.eventTypes || []);
       setCategories(data.categories || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载事件类型失败: ${(error as Error).message}`);
     } finally {
       setLoadingEventTypes(false);
@@ -118,7 +118,7 @@ const EventRegistryPage: React.FC = () => {
     try {
       const data = await getSubscriptions();
       setSubscriptions(data.subscriptions || []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载订阅状态失败: ${(error as Error).message}`);
     } finally {
       setLoadingSubscriptions(false);
@@ -131,7 +131,7 @@ const EventRegistryPage: React.FC = () => {
     try {
       const data = await getStatistics();
       setStatistics(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`加载统计信息失败: ${(error as Error).message}`);
     } finally {
       setLoadingStatistics(false);
@@ -188,7 +188,7 @@ const EventRegistryPage: React.FC = () => {
       } else {
         message.warning(`匹配完成: ${totalCount} 个触发器均不匹配`);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`测试匹配失败: ${(error as Error).message}`);
     } finally {
       setLoadingTestMatch(false);

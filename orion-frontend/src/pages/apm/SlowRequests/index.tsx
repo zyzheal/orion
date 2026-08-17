@@ -27,7 +27,7 @@ const ApmSlowRequestsPage: React.FC = () => {
       ]);
       setSlowQueries(queriesRes);
       setPatterns(patternsRes);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载慢请求数据失败');
     } finally {
       setLoading(false);
@@ -43,7 +43,7 @@ const ApmSlowRequestsPage: React.FC = () => {
     try {
       const result = await apmApi.getSlowQueries({ limit: 50 });
       setSlowQueries(result.filter((q) => q.duration_ms >= val));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载慢请求失败');
     } finally {
       setLoading(false);

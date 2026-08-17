@@ -59,7 +59,7 @@ const AIReviewDetail: React.FC = () => {
         // If comments endpoint fails, use empty array (backward compatible)
         setIssues([]);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载评审详情失败：${error.message}`);
       } else {

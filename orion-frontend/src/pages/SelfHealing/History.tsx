@@ -28,7 +28,7 @@ const HealingHistory: React.FC = () => {
       const res = await getHealingHistory({ ...filters, page, pageSize });
       setData((res.data as any).items || []);
       setTotal((res.data as any).total || 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载愈合历史失败：${error.message}`);
       } else {

@@ -81,7 +81,7 @@ const MonitoringMetrics: React.FC = () => {
       const response = await getMetrics();
       const apiData = response.data;
       setMetrics(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载指标失败：${error.message}`);
       } else {
@@ -119,7 +119,7 @@ const MonitoringMetrics: React.FC = () => {
       setRecordModalVisible(false);
       recordForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const message_text = error instanceof Error ? error.message : '记录指标失败';
       message.error(`记录指标失败: ${message_text}`);
     }
@@ -138,7 +138,7 @@ const MonitoringMetrics: React.FC = () => {
       setRegisterModalVisible(false);
       registerForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '注册指标失败';
       message.error(`注册指标失败: ${msg}`);
     }
@@ -154,7 +154,7 @@ const MonitoringMetrics: React.FC = () => {
       ]);
       setSeriesData(seriesRes.data?.points || []);
       setSummaryData(summaryRes.data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载指标详情失败';
       message.error(`加载指标详情失败: ${msg}`);
     }

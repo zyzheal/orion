@@ -85,7 +85,7 @@ const CanaryAnalysis: React.FC = () => {
       const runRes = await getCanaryRuns();
       await getCanaryConfigs();
       setRuns(Array.isArray(runRes.data) ? runRes.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载金丝雀分析数据失败：${error.message}`);
       } else {
@@ -125,7 +125,7 @@ const CanaryAnalysis: React.FC = () => {
       setMetrics(Array.isArray(metricRes.data) ? metricRes.data : []);
       setMlResults(Array.isArray(mlRes.data) ? mlRes.data : []);
       setRunDetailVisible(true);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载运行详情失败：${error.message}`);
       } else {
@@ -141,7 +141,7 @@ const CanaryAnalysis: React.FC = () => {
       setTriggerModalVisible(false);
       triggerForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`触发分析失败：${error.message}`);
       } else {
@@ -156,7 +156,7 @@ const CanaryAnalysis: React.FC = () => {
       message.success('Force promoted');
       loadData();
       setRunDetailVisible(false);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`强制升级失败：${error.message}`);
       } else {
@@ -171,7 +171,7 @@ const CanaryAnalysis: React.FC = () => {
       message.success('Force rolled back');
       loadData();
       setRunDetailVisible(false);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`强制回滚失败：${error.message}`);
       } else {
@@ -187,7 +187,7 @@ const CanaryAnalysis: React.FC = () => {
       setConfigModalVisible(false);
       configForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`创建配置失败：${error.message}`);
       } else {

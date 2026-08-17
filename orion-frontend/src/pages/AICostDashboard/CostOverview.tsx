@@ -42,7 +42,7 @@ const CostOverview: React.FC = () => {
       const [dashRes, pricingRes] = await Promise.all([getDashboardData(), getModelPricing()]);
       setDashboard(dashRes.data as DashboardData | null);
       setPricing(Array.isArray(pricingRes.data) ? pricingRes.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setDashboard(null);
       setPricing([]);
       message.error(`加载成本数据失败: ${(error as Error).message}`);

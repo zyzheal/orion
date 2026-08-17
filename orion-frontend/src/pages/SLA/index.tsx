@@ -188,7 +188,7 @@ const SLAManagement: React.FC = () => {
       const res = await getSLADefinitions(params);
       setDefinitions(Array.isArray(res.data) ? res.data : []);
       setDefTotal(res.total || 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载 SLA 定义失败';
       message.error(msg);
     } finally {
@@ -205,7 +205,7 @@ const SLAManagement: React.FC = () => {
       const res = await getSLATrackings(params);
       setTrackings(Array.isArray(res.data) ? res.data : []);
       setTrackingTotal(res.total || 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载追踪记录失败';
       message.error(msg);
     } finally {
@@ -221,7 +221,7 @@ const SLAManagement: React.FC = () => {
       const res = await getSLABreaches(params);
       setBreaches(Array.isArray(res.data) ? res.data : []);
       setBreachTotal(res.total || 0);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '加载违约事件失败';
       message.error(msg);
     } finally {
@@ -287,7 +287,7 @@ const SLAManagement: React.FC = () => {
       defForm.resetFields();
       loadDefinitions();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '保存 SLA 定义失败';
       message.error(msg);
     }
@@ -299,7 +299,7 @@ const SLAManagement: React.FC = () => {
       message.success('SLA 定义已删除');
       loadDefinitions();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '删除 SLA 定义失败';
       message.error(msg);
     }
@@ -343,7 +343,7 @@ const SLAManagement: React.FC = () => {
       trackingForm.resetFields();
       loadTrackings();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '创建追踪记录失败';
       message.error(msg);
     }
@@ -355,7 +355,7 @@ const SLAManagement: React.FC = () => {
       message.success(`追踪状态已更新为 ${TRACKING_STATUS_LABEL_MAP[status] || status}`);
       loadTrackings();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '更新追踪状态失败';
       message.error(msg);
     }
@@ -367,7 +367,7 @@ const SLAManagement: React.FC = () => {
       message.success('已标记违约');
       loadTrackings();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '标记违约失败';
       message.error(msg);
     }

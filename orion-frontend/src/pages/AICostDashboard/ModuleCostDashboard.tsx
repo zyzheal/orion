@@ -34,7 +34,7 @@ const ModuleCostDashboard: React.FC = () => {
     try {
       const res = await getModuleCostDashboard();
       setData(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setData([]);
       message.error(`加载模块成本数据失败: ${(error as Error).message}`);
     } finally {

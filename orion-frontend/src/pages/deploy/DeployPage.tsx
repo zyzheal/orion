@@ -248,7 +248,7 @@ const DeployPage: React.FC = () => {
       const res = await getDeployments({ page: 1, pageSize: 100 });
       const raw = res.data;
       setDeployments(Array.isArray(raw) ? raw : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setDeployments([]);
       message.error(`加载部署列表失败: ${(error as Error).message}`);
     } finally {
@@ -304,7 +304,7 @@ const DeployPage: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -332,7 +332,7 @@ const DeployPage: React.FC = () => {
       setEmergencyModalVisible(false);
       emergencyForm.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`紧急部署失败: ${(error as Error).message}`);
@@ -347,7 +347,7 @@ const DeployPage: React.FC = () => {
       await api.post(`/v1/deploy/${id}/execute`);
       message.success('部署已启动');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`启动失败: ${(error as Error).message}`);
     }
   };
@@ -357,7 +357,7 @@ const DeployPage: React.FC = () => {
       await cancelDeployment(id);
       message.success('部署已取消');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`取消失败: ${(error as Error).message}`);
     }
   };
@@ -367,7 +367,7 @@ const DeployPage: React.FC = () => {
       await rollbackDeployment(id);
       message.success('回滚已启动');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`回滚失败: ${(error as Error).message}`);
     }
   };
@@ -399,7 +399,7 @@ const DeployPage: React.FC = () => {
           status: 'upcoming',
         },
       ]);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -449,7 +449,7 @@ const DeployPage: React.FC = () => {
           createdAt: dayjs().format('YYYY-MM-DD HH:mm'),
         },
       ]);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -482,7 +482,7 @@ const DeployPage: React.FC = () => {
       );
       await api.post(`/v1/deploy/progressive/${deployId}/advance`);
       message.success('阶段已推进');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`推进失败: ${(error as Error).message}`);
     }
   };
@@ -497,7 +497,7 @@ const DeployPage: React.FC = () => {
       );
       await api.post(`/v1/deploy/progressive/${deployId}/rollback`);
       message.success('渐进式部署已回滚');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`回滚失败: ${(error as Error).message}`);
     }
   };
@@ -532,7 +532,7 @@ const DeployPage: React.FC = () => {
       });
       setReleaseNotes(notes);
       message.success('版本说明生成成功');
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`生成版本说明失败: ${(error as Error).message}`);
     } finally {
       setGeneratingNotes(false);

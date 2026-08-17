@@ -127,7 +127,7 @@ const QualityGatePage: React.FC = () => {
       const res = await getPolicies({ page: 1, pageSize: 100 });
       const raw = res.data;
       setPolicies(Array.isArray(raw) ? raw : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setPolicies([]);
     } finally {
       setLoading(false);
@@ -139,7 +139,7 @@ const QualityGatePage: React.FC = () => {
       const res = await getPolicyViolations({ page: 1, pageSize: 100 });
       const raw = res.data;
       setViolations(Array.isArray(raw) ? raw : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setViolations([]);
     }
   };
@@ -191,7 +191,7 @@ const QualityGatePage: React.FC = () => {
       setWaiveModalVisible(false);
       waiveForm.resetFields();
       loadViolations();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`豁免失败: ${(error as Error).message}`);
@@ -220,7 +220,7 @@ const QualityGatePage: React.FC = () => {
       const data = res.data;
       setGateResult((data && typeof data === 'object') ? data as Record<string, unknown> : null);
       message.success('门禁评估完成');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`评估失败: ${(error as Error).message}`);

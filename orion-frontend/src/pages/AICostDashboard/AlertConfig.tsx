@@ -91,7 +91,7 @@ const AlertConfig: React.FC = () => {
     try {
       const res = await getAlerts();
       setAlerts(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setAlerts([]);
       message.error(`加载告警数据失败: ${(error as Error).message}`);
     } finally {
@@ -121,7 +121,7 @@ const AlertConfig: React.FC = () => {
       message.success('告警规则创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '创建失败';

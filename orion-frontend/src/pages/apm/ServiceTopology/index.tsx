@@ -120,7 +120,7 @@ const ServiceTopologyPage: React.FC = () => {
         markerEnd: { type: MarkerType.ArrowClosed, color: d.error_rate > 5 ? colors.error[500] : colors.neutral[400] },
       }));
       setEdges(flowEdges);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载服务拓扑失败');
     } finally {
       setLoading(false);

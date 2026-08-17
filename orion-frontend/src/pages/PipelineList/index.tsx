@@ -303,7 +303,7 @@ const PipelineList: React.FC = () => {
       await deletePipeline(id);
       message.success('Pipeline 已删除');
       refresh();
-    } catch (err: unknown) {
+    } catch (err: any) {
       const error = err as Error;
       message.error(`删除失败：${error.message}`);
     }
@@ -316,7 +316,7 @@ const PipelineList: React.FC = () => {
       message.success(`已删除 ${selectedRowKeys.length} 个 Pipeline`);
       setSelectedRowKeys([]);
       refresh();
-    } catch (err: unknown) {
+    } catch (err: any) {
       const error = err as Error;
       message.error(`批量删除失败：${error.message}`);
     } finally {

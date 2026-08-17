@@ -208,7 +208,7 @@ const TopologyPage: React.FC = () => {
         setNodes(convertToFlowNodes(data.nodes || []));
         setEdges(convertToFlowEdges((data.edges || []) as TopologyEdgeWithId[]));
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载拓扑图失败：${error.message}`);
       } else {
@@ -251,7 +251,7 @@ const TopologyPage: React.FC = () => {
       setAddRelationOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '未知错误';
@@ -273,7 +273,7 @@ const TopologyPage: React.FC = () => {
       setEdgeDetailOpen(false);
       setSelectedEdge(null);
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`删除关系失败：${msg}`);
     }

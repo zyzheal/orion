@@ -227,7 +227,7 @@ const IncidentManagement: React.FC = () => {
       }
       setIncidents(filtered);
       setTotal(result.total);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`加载事件列表失败: ${msg}`);
     } finally {
@@ -254,7 +254,7 @@ const IncidentManagement: React.FC = () => {
     try {
       const data = await getIncident(id);
       setSelectedIncident(data);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`加载事件详情失败: ${msg}`);
     } finally {
@@ -356,7 +356,7 @@ const IncidentManagement: React.FC = () => {
       createForm.resetFields();
       loadIncidents();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error && !error.message.includes('validate')) {
         message.error(`创建失败: ${error.message}`);
       }
@@ -415,7 +415,7 @@ const IncidentManagement: React.FC = () => {
       if (activeTab === 'detail') {
         loadIncidentDetail(selectedIncident.id);
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error && !error.message.includes('validate')) {
         message.error(`更新失败: ${error.message}`);
       }
@@ -436,7 +436,7 @@ const IncidentManagement: React.FC = () => {
         }
         loadIncidents();
         loadStats();
-      } catch (error: unknown) {
+      } catch (error: any) {
         const msg = error instanceof Error ? error.message : '未知错误';
         message.error(`删除失败: ${msg}`);
       }
@@ -466,7 +466,7 @@ const IncidentManagement: React.FC = () => {
       loadIncidentDetail(selectedIncident.id);
       loadIncidents();
       loadStats();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`状态变更失败: ${msg}`);
     }
@@ -491,7 +491,7 @@ const IncidentManagement: React.FC = () => {
       setAssignModalOpen(false);
       assignForm.resetFields();
       loadIncidentDetail(selectedIncident.id);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error && !error.message.includes('validate')) {
         message.error(`分配失败: ${error.message}`);
       }
@@ -517,7 +517,7 @@ const IncidentManagement: React.FC = () => {
       setEscalateModalOpen(false);
       escalateForm.resetFields();
       loadIncidentDetail(selectedIncident.id);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error && !error.message.includes('validate')) {
         message.error(`升级失败: ${error.message}`);
       }
@@ -537,7 +537,7 @@ const IncidentManagement: React.FC = () => {
       setAddEventModalOpen(false);
       eventForm.resetFields();
       loadTimeline(selectedIncident.id);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error && !error.message.includes('validate')) {
         message.error(`添加失败: ${error.message}`);
       }
@@ -564,7 +564,7 @@ const IncidentManagement: React.FC = () => {
       setPostmortemModalOpen(false);
       postmortemForm.resetFields();
       loadPostmortem(selectedIncident.id);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error && !error.message.includes('validate')) {
         message.error(`创建复盘失败: ${error.message}`);
       }
@@ -578,7 +578,7 @@ const IncidentManagement: React.FC = () => {
       await publishPostmortem(selectedIncident.id);
       message.success('复盘文档已发布');
       loadPostmortem(selectedIncident.id);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`发布失败: ${msg}`);
     }
@@ -593,7 +593,7 @@ const IncidentManagement: React.FC = () => {
       const draft = await getPostmortemDraft(selectedIncident.id);
       setAiDraft(draft);
       message.success('AI 复盘草稿已生成');
-    } catch (error: unknown) {
+    } catch (error: any) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`生成复盘草稿失败: ${msg}`);
     } finally {

@@ -45,7 +45,7 @@ const MonitoringDashboard: React.FC = () => {
       setHealth(healthRes.data);
       setAnomalies(anomalyRes.data);
       setMonitoring(healthRes.data?.status === 'running');
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载监控仪表盘数据失败：${error.message}`);
       } else {
@@ -66,7 +66,7 @@ const MonitoringDashboard: React.FC = () => {
       await startMonitoring();
       message.success('监控已启动');
       setMonitoring(true);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`启动监控失败：${error.message}`);
       } else {
@@ -83,7 +83,7 @@ const MonitoringDashboard: React.FC = () => {
       await stopMonitoring();
       message.success('监控已停止');
       setMonitoring(false);
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`停止监控失败：${error.message}`);
       } else {

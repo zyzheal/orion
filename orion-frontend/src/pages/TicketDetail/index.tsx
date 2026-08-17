@@ -216,7 +216,7 @@ const TicketDetail: React.FC = () => {
     try {
       const response = await getTicket(id!);
       setTicket((response as { data?: { data?: Ticket } })?.data?.data ?? null);
-    } catch (err: unknown) {
+    } catch (err: any) {
       if (err instanceof Error) {
         message.error(`加载工单详情失败：${err.message}`);
       } else {
@@ -289,7 +289,7 @@ const TicketDetail: React.FC = () => {
       setAssignModalOpen(false);
       assignForm.resetFields();
       loadTicket();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error !== true) {
         if (error instanceof Error) {
           message.error(`分配失败：${error.message}`);
@@ -306,7 +306,7 @@ const TicketDetail: React.FC = () => {
       message.success(`工单已升级: ${values.reason || '无理由'}`);
       setEscalateModalOpen(false);
       escalateForm.resetFields();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -329,7 +329,7 @@ const TicketDetail: React.FC = () => {
       setResolveModalOpen(false);
       resolveForm.resetFields();
       loadTicket();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error !== true) {
         if (error instanceof Error) {
           message.error(`解决失败：${error.message}`);
@@ -352,7 +352,7 @@ const TicketDetail: React.FC = () => {
       setTransferModalOpen(false);
       transferForm.resetFields();
       loadTicket();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error !== true) {
         if (error instanceof Error) {
           message.error(`转交失败：${error.message}`);
@@ -368,7 +368,7 @@ const TicketDetail: React.FC = () => {
       await closeTicket(ticket!.id, { performedBy: 'current-user' });
       message.success('工单已关闭');
       loadTicket();
-    } catch (error: unknown) {
+    } catch (error: any) {
       if (error instanceof Error) {
         message.error(`关闭失败：${error.message}`);
       } else {

@@ -39,7 +39,7 @@ const CatalogTab: React.FC = () => {
     try {
       const res = await listCatalogItems();
       setItems(((res.data as { data?: unknown[] })?.data ?? []) as CatalogItem[]);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载目录失败');
     } finally { setLoading(false); }
   };
@@ -57,7 +57,7 @@ const CatalogTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -67,7 +67,7 @@ const CatalogTab: React.FC = () => {
       await deleteCatalogItem(id);
       message.success('删除成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -156,7 +156,7 @@ const LineageTab: React.FC = () => {
       const [relRes, itemRes] = await Promise.all([getLineage(), listCatalogItems()]);
       setRelations(((relRes.data as { data?: unknown[] })?.data ?? []) as LineageRelation[]);
       setItems(((itemRes.data as { data?: unknown[] })?.data ?? []) as CatalogItem[]);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载血缘关系失败');
     } finally { setLoading(false); }
   };
@@ -170,7 +170,7 @@ const LineageTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -180,7 +180,7 @@ const LineageTab: React.FC = () => {
       await deleteLineage(id);
       message.success('删除成功');
       loadData();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };

@@ -174,7 +174,7 @@ const TestSelector: React.FC = () => {
       const [testsRes, statsRes] = await Promise.all([getTestCases(), getTestStats()]);
       setTestCases((testsRes.data as any).testCases.map(mapApiTestCase));
       setTestStats(mapApiTestStats(statsRes.data.stats));
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Failed to load test data: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -326,7 +326,7 @@ const TestSelector: React.FC = () => {
     try {
       const response = await runTests(selectedRowKeys as string[]);
       message.success(`Test run started: ${response.data.runId}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`Failed to run tests: ${(error as Error).message}`);
     }
   }, [selectedRowKeys]);

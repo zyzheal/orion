@@ -87,7 +87,7 @@ const PandawikiPage: React.FC = () => {
       const res = await listSpaces();
       const list = (res.data as any)?.spaces;
       setSpaces(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setSpaces([]);
       message.error(`加载知识库空间失败: ${(error as Error).message}`);
     } finally {
@@ -102,7 +102,7 @@ const PandawikiPage: React.FC = () => {
       const res = await listDocuments(spaceId);
       const list = (res.data as any)?.documents;
       setDocuments(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setDocuments([]);
       message.error(`加载文档列表失败: ${(error as Error).message}`);
     } finally {
@@ -137,7 +137,7 @@ const PandawikiPage: React.FC = () => {
       setSpaceModalVisible(false);
       spaceForm.resetFields();
       loadSpaces();
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -156,7 +156,7 @@ const PandawikiPage: React.FC = () => {
         setDocuments([]);
       }
       loadSpaces();
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -177,7 +177,7 @@ const PandawikiPage: React.FC = () => {
       setDocModalVisible(false);
       docForm.resetFields();
       loadDocuments(selectedSpaceId);
-    } catch (error: unknown) {
+    } catch (error: any) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -192,7 +192,7 @@ const PandawikiPage: React.FC = () => {
       await deleteDocument(selectedSpaceId, docId);
       message.success('文档已删除');
       loadDocuments(selectedSpaceId);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -209,7 +209,7 @@ const PandawikiPage: React.FC = () => {
       const res = await searchDocuments(searchQuery, searchSpaceId || undefined);
       const list = (res.data as any)?.results;
       setSearchResults(Array.isArray(list) ? list : []);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setSearchResults([]);
       message.error(`搜索失败: ${(error as Error).message}`);
     } finally {

@@ -37,7 +37,7 @@ const ServiceTopologyPage: React.FC = () => {
     try {
       const response = await serviceTopologyApi.getTopology();
       setTopology(response.data ?? null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载服务拓扑失败');
     } finally {
       setLoading(false);
@@ -49,7 +49,7 @@ const ServiceTopologyPage: React.FC = () => {
     try {
       const response = await serviceTopologyApi.getServiceDependencies(serviceId);
       setDependencies(response.data ?? null);
-    } catch (error: unknown) {
+    } catch (error: any) {
       message.error(error instanceof Error ? error.message : '加载服务依赖关系失败');
     } finally {
       setLoading(false);
