@@ -219,8 +219,8 @@ const DiagnosticSessionDetail: React.FC = () => {
       {/* Symptoms */}
       <Card title="症状列表">
         {session.symptoms && session.symptoms.length > 0 ? (
-          <Table
-            columns={symptomColumns}
+          <Table loading={loading}
+                  columns={symptomColumns}
             dataSource={session.symptoms}
             rowKey={(record: DiagnosticSymptom, idx) => `${record.type}-${idx}`}
             pagination={false}

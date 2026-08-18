@@ -234,8 +234,8 @@ const AIReviewDetail: React.FC = () => {
 
       {/* Issue List */}
       <Card title={`问题列表 (${detail.totalIssues})`}>
-        <Table
-          columns={issueColumns}
+        <Table loading={loading}
+                columns={issueColumns}
           dataSource={issues}
           rowKey="id"
           pagination={{ pageSize: 10 }}
