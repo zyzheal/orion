@@ -61,7 +61,7 @@ const InfoTab: React.FC<{ artifact: Artifact }> = ({ artifact }) => {
         <Descriptions.Item label="标签" span={2}>
           <Space wrap>
             {Object.entries(a.labels).map(([k, v]) => (
-              <Tag key={k}>
+              <Tag key={String(k)}>
                 {k}: {String(v)}
               </Tag>
             ))}

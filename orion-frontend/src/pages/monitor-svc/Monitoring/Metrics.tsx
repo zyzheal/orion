@@ -209,7 +209,7 @@ const MonitoringMetrics: React.FC = () => {
               Object.entries(tags)
                 .slice(0, 3)
                 .map(([k, val]) => (
-                  <Tag key={k} style={{ fontSize: spacing[2] }}>
+                  <Tag key={String(k)} style={{ fontSize: spacing[2] }}>
                     {k}:{val}
                   </Tag>
                 ))}

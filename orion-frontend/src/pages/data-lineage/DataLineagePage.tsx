@@ -455,7 +455,7 @@ export default function DataLineageEnhancedPage() {
                   return (
                     <Space size="small" wrap>
                       {Object.entries(fm).map(([k, v]) => (
-                        <Tag key={k} color="cyan">{k} → {v}</Tag>
+                        <Tag key={String(k)} color="cyan">{k} → {v}</Tag>
                       ))}
                     </Space>
                   );
@@ -513,7 +513,7 @@ export default function DataLineageEnhancedPage() {
               style={{ width: 110 }}
             >
               {Object.entries(nodeTypeConfig).map(([k, v]) => (
-                <Option key={k} value={k}>{v.label}</Option>
+                <Option key={String(k)} value={k}>{v.label}</Option>
               ))}
             </Select>
             <Button icon={<ReloadOutlined />} onClick={fetchLineage} loading={loading}>
@@ -685,7 +685,7 @@ export default function DataLineageEnhancedPage() {
             <Descriptions.Item label="Field Mapping">
               {edgeMapping.fieldMapping && Object.keys(edgeMapping.fieldMapping).length > 0
                 ? Object.entries(edgeMapping.fieldMapping).map(([k, v]) => (
-                    <div key={k}>
+                    <div key={String(k)}>
                       <Text code>{k}</Text> → <Text code>{v}</Text>
                     </div>
                   ))

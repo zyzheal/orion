@@ -514,7 +514,7 @@ const UserManagement: React.FC = () => {
           <Descriptions.Item label="用户设置" span={2}>
             <Space wrap>
               {Object.entries(u.settings).map(([k, v]) => (
-                <Tag key={k}>
+                <Tag key={String(k)}>
                   {k}: {String(v)}
                 </Tag>
               ))}

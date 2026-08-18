@@ -1326,7 +1326,7 @@ const DeveloperPortalPage: React.FC = () => {
                     <Divider style={{ margin: '8px 0' }}>响应 Headers</Divider>
                     <div style={{ marginBottom: spacing.sm }}>
                       {Object.entries(playgroundResult.response.headers).map(([k, v]) => (
-                        <Tag key={k} style={{ marginBottom: 4 }}><Text code style={{ fontSize: 11 }}>{k}: {v}</Text></Tag>
+                        <Tag key={String(k)} style={{ marginBottom: 4 }}><Text code style={{ fontSize: 11 }}>{k}: {v}</Text></Tag>
                       ))}
                     </div>
                     <Divider style={{ margin: '8px 0' }}>响应 Body</Divider>

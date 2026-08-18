@@ -360,7 +360,7 @@ const MultiCloudPage: React.FC = () => {
       key: 'tags',
       width: 160,
       render: (_: unknown, record: CloudResource) =>
-        record.tags ? Object.entries(record.tags).slice(0, 2).map(([k, v]) => <Tag key={k}>{k}: {v}</Tag>) : '-',
+        record.tags ? Object.entries(record.tags).slice(0, 2).map(([k, v]) => <Tag key={String(k)}>{k}: {v}</Tag>) : '-',
     },
   ];
 

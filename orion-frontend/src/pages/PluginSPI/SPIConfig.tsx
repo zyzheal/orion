@@ -150,7 +150,7 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
           >
             <Select>
               {Object.entries(spiTypeLabelMap).map(([k, v]) => (
-                <Select.Option key={k} value={k}>
+                <Select.Option key={String(k)} value={k}>
                   {v}
                 </Select.Option>
               ))}

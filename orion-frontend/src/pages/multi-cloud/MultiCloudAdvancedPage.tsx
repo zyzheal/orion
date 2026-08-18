@@ -175,7 +175,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
       title: 'Tags',
       dataIndex: 'tags',
       key: 'tags',
-      render: (tags: Record<string, string>) => tags ? Object.entries(tags).slice(0, 3).map(([k, v]) => <Tag key={k}>{k}={v}</Tag>) : '-',
+      render: (tags: Record<string, string>) => tags ? Object.entries(tags).slice(0, 3).map(([k, v]) => <Tag key={String(k)}>{k}={v}</Tag>) : '-',
     },
   ];
 

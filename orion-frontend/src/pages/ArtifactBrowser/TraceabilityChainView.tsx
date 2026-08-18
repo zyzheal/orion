@@ -107,7 +107,7 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
             <Descriptions.Item label="元数据" span={2}>
               <Space wrap>
                 {Object.entries(version.metadata).map(([k, v]) => (
-                  <Tag key={k}>
+                  <Tag key={String(k)}>
                     {k}: {v}
                   </Tag>
                 ))}
