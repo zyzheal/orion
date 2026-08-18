@@ -142,7 +142,7 @@ const DbaPage: React.FC = () => {
       const res = await listOrders({ tenantId: 'default', page: 1, limit: 100 });
       const list = (res.data as { data?: { data?: SqlOrder[] } })?.data?.data ?? [];
       setOrders(Array.isArray(list) ? list : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setOrders([]);
       message.error(`加载SQL工单失败: ${(error as Error).message}`);
     } finally {
@@ -156,7 +156,7 @@ const DbaPage: React.FC = () => {
       const res = await listDataSources('default');
       const list = (res.data as { data?: DataSource[] })?.data ?? [];
       setDataSources(Array.isArray(list) ? list : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setDataSources([]);
       message.error(`加载数据源失败: ${(error as Error).message}`);
     } finally {
@@ -170,7 +170,7 @@ const DbaPage: React.FC = () => {
       const res = await listAuditRules('default');
       const list = (res.data as { data?: DataSource[] })?.data ?? [];
       setAuditRules((Array.isArray(list) ? list : []) as unknown as AuditRule[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setAuditRules([]);
       message.error(`加载审计规则失败: ${(error as Error).message}`);
     } finally {
@@ -202,7 +202,7 @@ const DbaPage: React.FC = () => {
       setOrderModalVisible(false);
       orderForm.resetFields();
       loadOrders();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -217,7 +217,7 @@ const DbaPage: React.FC = () => {
       await approveOrder(id);
       message.success('工单已审批通过');
       loadOrders();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`审批失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
@@ -227,7 +227,7 @@ const DbaPage: React.FC = () => {
       await rejectOrder(id, '工单被拒绝');
       message.success('工单已拒绝');
       loadOrders();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`拒绝失败: ${(error as Error).message}`);
     }
   };
@@ -237,7 +237,7 @@ const DbaPage: React.FC = () => {
       await executeOrder(id);
       message.success('工单已开始执行');
       loadOrders();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`执行失败: ${(error as Error).message}`);
     }
   };
@@ -266,7 +266,7 @@ const DbaPage: React.FC = () => {
       setEditingDs(null);
       dsForm.resetFields();
       loadDataSources();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setDsSubmitting(false);
@@ -296,7 +296,7 @@ const DbaPage: React.FC = () => {
       await deleteDataSource(id);
       message.success('数据源已删除');
       loadDataSources();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -306,7 +306,7 @@ const DbaPage: React.FC = () => {
     try {
       await testConnection(id);
       message.success('连接测试成功');
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`连接测试失败: ${(error as Error).message}`);
     } finally {
       setTestingDs(null);
@@ -320,7 +320,7 @@ const DbaPage: React.FC = () => {
       await updateAuditRule(rule.id, { enabled: !rule.enabled });
       message.success(`规则已${rule.enabled ? '禁用' : '启用'}`);
       loadAuditRules();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`更新失败: ${(error as Error).message}`);
     }
   };

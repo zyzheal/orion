@@ -142,7 +142,7 @@ const GraphPage: React.FC = () => {
       const res = await getServiceDependencies({ tenantId: 'default' });
       const list = res.data;
       setServices(Array.isArray(list) ? list : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setServices([]);
       message.error(`加载服务依赖失败: ${(error as Error).message}`);
     } finally {
@@ -156,7 +156,7 @@ const GraphPage: React.FC = () => {
       const res = await getInfrastructureTopology({ tenantId: 'default' });
       const data = res.data;
       setInfraTopology(data ?? { nodes: [], edges: [] });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setInfraTopology({ nodes: [], edges: [] });
       message.error(`加载基础设施拓扑失败: ${(error as Error).message}`);
     } finally {
@@ -178,7 +178,7 @@ const GraphPage: React.FC = () => {
     try {
       const res = await getServiceDetail(id);
       setSelectedService(res.data ?? null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSelectedService(null);
       message.error(`加载服务详情失败: ${(error as Error).message}`);
     } finally {
@@ -197,7 +197,7 @@ const GraphPage: React.FC = () => {
     try {
       const res = await getImpactAnalysis(impactServiceId);
       setImpactData(res.data ?? null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setImpactData(null);
       message.error(`影响分析失败: ${(error as Error).message}`);
     } finally {
@@ -219,7 +219,7 @@ const GraphPage: React.FC = () => {
         rows: data?.rows ?? [],
       });
       message.success('查询执行成功');
-    } catch (error: any) {
+    } catch (error: unknown) {
       setQueryResult(null);
       setQueryError((error as Error).message);
       message.error(`查询失败: ${(error as Error).message}`);

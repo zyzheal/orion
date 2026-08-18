@@ -57,7 +57,7 @@ const CronJobsPage: React.FC = () => {
     try {
       const res = await getCronJobs();
       setJobs((res.data as any)?.jobs || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载失败');
     } finally {
       setLoading(false);
@@ -82,7 +82,7 @@ const CronJobsPage: React.FC = () => {
       setEditingJob(null);
       form.resetFields();
       fetchJobs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(
         error instanceof Error ? error.message : (editingJob ? '更新' : '创建') + '失败'
       );
@@ -107,7 +107,7 @@ const CronJobsPage: React.FC = () => {
       await deleteCronJob(id);
       message.success('删除成功');
       fetchJobs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -117,7 +117,7 @@ const CronJobsPage: React.FC = () => {
       await executeCronJob(id);
       message.success('执行成功');
       fetchJobs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '执行失败');
     }
   };

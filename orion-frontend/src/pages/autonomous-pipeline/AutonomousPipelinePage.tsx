@@ -78,7 +78,7 @@ const ErrorClassificationTab: React.FC = () => {
     try {
       const res = await getErrorStats({ days: 7 });
       setStats(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载错误统计失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ const ErrorClassificationTab: React.FC = () => {
       setLastClassification(res.data || null);
       message.success('错误分类完成');
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`错误分类失败: ${(error as Error).message}`);
       }
@@ -284,7 +284,7 @@ const AdaptiveTimeoutTab: React.FC = () => {
     try {
       const res = await getTimeoutForStage(stageName);
       setTimeoutConfig(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载超时配置失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -303,7 +303,7 @@ const AdaptiveTimeoutTab: React.FC = () => {
       });
       message.success('执行数据已记录');
       executionForm.resetFields();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`记录执行数据失败: ${(error as Error).message}`);
       }
@@ -430,7 +430,7 @@ const AutoRetryTab: React.FC = () => {
     try {
       const res = await getRetryStats(pipelineId);
       setRetryStats(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载重试统计失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -454,7 +454,7 @@ const AutoRetryTab: React.FC = () => {
       };
       await configureRetry(payload);
       message.success('重试策略配置成功');
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`配置重试策略失败: ${(error as Error).message}`);
       }

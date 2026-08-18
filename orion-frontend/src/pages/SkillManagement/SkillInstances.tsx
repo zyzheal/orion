@@ -73,7 +73,7 @@ const SkillInstances: React.FC = () => {
       setInstances(Array.isArray(instRes.data) ? instRes.data : []);
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
       setSkill((skillData || null) as SkillPackage | null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);
       } else {
@@ -161,7 +161,7 @@ const SkillInstances: React.FC = () => {
 
       setModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(error instanceof Error ? error.message : '操作失败');
@@ -182,7 +182,7 @@ const SkillInstances: React.FC = () => {
           await deleteSkillInstance(skillId, record.id);
           message.success('实例已删除');
           loadData();
-        } catch (error: any) {
+        } catch (error: unknown) {
           message.error(error instanceof Error ? error.message : '删除失败');
         } finally {
           setDeletingId(null);

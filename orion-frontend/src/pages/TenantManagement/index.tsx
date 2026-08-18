@@ -125,7 +125,7 @@ const TenantManagementPage: React.FC = () => {
       setNamespaces(nsBody?.namespaces || []);
       setUsage((usageBody?.usage ? usageBody : { usage: usageBody, quota: usageBody?.quota }) as any);
       setNamespaceDetails((detailsBody?.namespaces || []) as unknown as NamespaceUsageDetail[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载租户数据失败：${error.message}`);
       } else {
@@ -147,7 +147,7 @@ const TenantManagementPage: React.FC = () => {
       message.success('配额更新成功');
       setQuotaModalOpen(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新配额失败：${error.message}`);
       } else {
@@ -176,7 +176,7 @@ const TenantManagementPage: React.FC = () => {
           await allocateNamespace(tenantId);
           message.success('Namespace 分配成功');
           loadData();
-        } catch (error: any) {
+        } catch (error: unknown) {
           // 提取错误信息进行具体判断
           const err = error as {
             response?: { status?: number; data?: { message?: string } };
@@ -206,7 +206,7 @@ const TenantManagementPage: React.FC = () => {
       await releaseNamespace(namespaceName);
       message.success(`Namespace ${namespaceName} 已释放回池`);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { response?: { status?: number; data?: { message?: string } } };
       if (err.response?.status === 403) {
         message.error('配额不足，无法释放 Namespace');

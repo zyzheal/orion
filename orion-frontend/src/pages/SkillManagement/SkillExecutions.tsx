@@ -81,7 +81,7 @@ const SkillExecutions: React.FC = () => {
       setTotal((execData as any).total || 0);
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
       setSkill((skillData || null) as SkillPackage | null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);
       } else {
@@ -107,7 +107,7 @@ const SkillExecutions: React.FC = () => {
           await executeSkill(skillId, { input: {}, sync: false });
           message.success('技能已触发执行');
           loadData();
-        } catch (error: any) {
+        } catch (error: unknown) {
           message.error(error instanceof Error ? error.message : '执行失败');
         }
       },

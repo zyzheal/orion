@@ -127,7 +127,7 @@ const PluginList: React.FC<PluginListProps> = ({
             message.success(`插件 ${plugin.name} 已禁用`);
           }
           onRefresh();
-        } catch (err: any) {
+        } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : `${action}失败`;
           message.error(`${action}失败：${msg}`);
         }
@@ -148,7 +148,7 @@ const PluginList: React.FC<PluginListProps> = ({
           await installPlugin(plugin.id, { version: plugin.latestVersion });
           message.success(`插件 ${plugin.name} 更新成功`);
           onRefresh();
-        } catch (err: any) {
+        } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : '更新失败';
           message.error(`更新失败：${msg}`);
         }
@@ -169,7 +169,7 @@ const PluginList: React.FC<PluginListProps> = ({
           await uninstallPlugin(plugin.id);
           message.success(`插件 ${plugin.name} 已删除`);
           onRefresh();
-        } catch (err: any) {
+        } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : '删除失败';
           message.error(`删除失败：${msg}`);
         }

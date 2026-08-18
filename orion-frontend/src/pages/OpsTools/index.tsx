@@ -233,7 +233,7 @@ const OpsTools: React.FC = () => {
     try {
       const res = await getCronJobs();
       setCronJobs(res.data ?? []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error('加载定时任务失败');
     } finally {
       setCronLoading(false);

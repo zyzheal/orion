@@ -117,7 +117,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
       setCreateModalOpen(false);
       createForm.resetFields();
       fetchWorkflows();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
     } finally {
       setCreating(false);

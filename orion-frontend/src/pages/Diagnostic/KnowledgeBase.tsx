@@ -55,7 +55,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       const patternsData = patternsRes.data;
       setPatterns(Array.isArray(patternsData) ? patternsData : []);
       setStats(statsRes.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载知识库失败：${error.message}`);
       } else {
@@ -79,7 +79,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       const response = await searchPatterns(params);
       const apiData = response.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`搜索模式失败：${error.message}`);
       } else {
@@ -113,7 +113,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       const response = await searchPatterns(params);
       const apiData = response.data;
       setPatterns(Array.isArray(apiData) ? apiData : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`筛选失败：${error.message}`);
       } else {
@@ -128,7 +128,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     try {
       const res = await getPattern(pattern.id);
       setSelectedPattern(res.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载模式详情失败：${error.message}`);
       } else {
@@ -150,7 +150,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
       setAddModalVisible(false);
       addForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`添加模式失败：${error.message}`);
       } else {

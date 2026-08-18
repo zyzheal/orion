@@ -45,7 +45,7 @@ const BranchPolicyList: React.FC = () => {
       const response = await getBranchPolicies();
       const data = response.data as BranchPolicy[];
       setPolicies(Array.isArray(data) ? data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载分支策略失败：${error.message}`);
       } else {
@@ -111,7 +111,7 @@ const BranchPolicyList: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       loadPolicies();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(
           editingPolicy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`
@@ -133,7 +133,7 @@ const BranchPolicyList: React.FC = () => {
           await deleteBranchPolicy(policy.id);
           message.success('策略已删除');
           loadPolicies();
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (error instanceof Error) {
             message.error(`删除策略失败：${error.message}`);
           } else {
@@ -149,7 +149,7 @@ const BranchPolicyList: React.FC = () => {
       await updateBranchPolicy(policy.id, { enabled });
       message.success(enabled ? '策略已启用' : '策略已禁用');
       loadPolicies();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新状态失败：${error.message}`);
       } else {

@@ -50,7 +50,7 @@ const RAGQueryPage: React.FC = () => {
       const res = await getSpaces();
       const spaceList = Array.isArray(res.data) ? res.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSpaces([]);
       message.error(`加载知识库列表失败: ${(error as Error).message}`);
     }
@@ -101,7 +101,7 @@ const RAGQueryPage: React.FC = () => {
         timestamp: dayjs().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',

@@ -48,7 +48,7 @@ const StrategyList: React.FC = () => {
     try {
       const res = await getStrategies();
       setData((res.data as any).items || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载策略列表失败：${error.message}`);
       } else {
@@ -68,7 +68,7 @@ const StrategyList: React.FC = () => {
       await toggleStrategy(id);
       message.success('策略状态已切换');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`切换策略状态失败：${error.message}`);
       } else {
@@ -116,7 +116,7 @@ const StrategyList: React.FC = () => {
       }
       setModalOpen(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(
           editingStrategy ? `更新策略失败：${error.message}` : `创建策略失败：${error.message}`

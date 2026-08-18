@@ -142,7 +142,7 @@ const OnCallManagement: React.FC = () => {
         }
         setUserMap(map);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Use fallback users if API fails
       setUserMap(FALLBACK_USERS);
     } finally {
@@ -158,7 +158,7 @@ const OnCallManagement: React.FC = () => {
       const res = await getSchedules();
       const data = res.data?.schedules;
       setSchedules(Array.isArray(data) && data.length > 0 ? data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSchedules([]);
       message.error(`加载值班排班失败: ${(error as Error).message}`);
     } finally {
@@ -178,7 +178,7 @@ const OnCallManagement: React.FC = () => {
           [scheduleId]: { isOnCall: false },
         }));
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setCurrentOnCall((prev) => ({
         ...prev,
         [scheduleId]: { isOnCall: false },
@@ -231,7 +231,7 @@ const OnCallManagement: React.FC = () => {
       createForm.resetFields();
       setMemberInput('');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -250,7 +250,7 @@ const OnCallManagement: React.FC = () => {
       await deleteSchedule(id);
       message.success('值班排班已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -284,7 +284,7 @@ const OnCallManagement: React.FC = () => {
       message.success('代班创建成功');
       setOverrideModalVisible(false);
       overrideForm.resetFields();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {

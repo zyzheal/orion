@@ -355,7 +355,7 @@ const PipelineDetail: React.FC = () => {
         duration: (latestRun as PipelineRunSummary & { duration?: number | string })?.duration ?? latestRun?.durationMs,
         stages: runStages,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
       setApiError(errorMsg);
       message.error(`加载 Pipeline 详情失败：${errorMsg}`);
@@ -412,7 +412,7 @@ const PipelineDetail: React.FC = () => {
           stages: [],
         };
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
       } else {
@@ -485,7 +485,7 @@ const PipelineDetail: React.FC = () => {
             // 回退：刷新当前页面
             await loadPipeline();
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (error instanceof Error) {
             message.error(`从阶段重跑失败：${error.message}`);
           } else {

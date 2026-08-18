@@ -44,7 +44,7 @@ const ApprovalQueue: React.FC = () => {
       const res = await getApprovals({ status: statusFilter, page, pageSize });
       setData((res.data as any).items || []);
       setTotal((res.data as any).total || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载审批队列失败：${error.message}`);
       } else {
@@ -77,7 +77,7 @@ const ApprovalQueue: React.FC = () => {
       setRespondModalOpen(false);
       respondForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`提交审批失败：${error.message}`);
       } else {

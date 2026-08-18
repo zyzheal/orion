@@ -41,7 +41,7 @@ const TraceOverview: React.FC = () => {
       setDailyStats(statsRes.data as DailyStats | null);
       const pricingData = pricingRes.data as { pricing?: ModelPricing[] } | null;
       setPricing(pricingData?.pricing || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setDailyStats(null);
       setPricing([]);
       message.error(`加载追踪数据失败: ${(error as Error).message}`);

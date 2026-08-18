@@ -119,7 +119,7 @@ const PipelineRunList: React.FC = () => {
       }
 
       setRuns(items);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[PipelineRunList] Error:', error);
       if (error instanceof Error) {
         message.error(`加载 Pipeline 运行列表失败：${error.message}`);
@@ -340,7 +340,7 @@ const PipelineRunList: React.FC = () => {
       message.success('Pipeline 重新运行已触发');
       // Refresh list after retry
       await loadRuns();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行失败：${error.message}`);
       } else {

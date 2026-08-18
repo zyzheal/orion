@@ -132,7 +132,7 @@ const PluginSPIPage: React.FC = () => {
       setExtensionPoints(extPoints.map(mapApiExtensionPoint));
       setPluginRegistrations(regs.map(mapApiRegistration));
       setSpiConfigs(cfgs.map(mapApiSPIConfig));
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载 SPI 数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -144,7 +144,7 @@ const PluginSPIPage: React.FC = () => {
       const response = await getSPIStats();
       const statsData = (response as any).stats || response || {};
       setStats(mapApiStats(statsData));
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载统计信息失败: ${(error as Error).message}`);
     }
   };
@@ -198,7 +198,7 @@ const PluginSPIPage: React.FC = () => {
       configForm.resetFields();
       setEditingConfig(null);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
         message.error(`保存配置失败：${(error as Error).message}`);
       }
@@ -212,7 +212,7 @@ const PluginSPIPage: React.FC = () => {
       await deleteRegistration(id);
       message.success('配置已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`删除配置失败：${(error as Error).message}`);
     }
   };
@@ -227,7 +227,7 @@ const PluginSPIPage: React.FC = () => {
       message.success(
         `插件 "${record.pluginName}" 已${newEnabled === 'enabled' ? '启用' : '禁用'}`
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`状态更新失败：${(error as Error).message}`);
     }
   };

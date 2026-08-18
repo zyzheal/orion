@@ -64,7 +64,7 @@ const AgentDashboard: React.FC = () => {
       // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
       const approvalsData = await getAgentApprovals({ status: 'pending' });
       setApprovals(approvalsData.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.includes('403')) {
           message.error('权限不足，请重新登录或联系管理员');
@@ -120,7 +120,7 @@ const AgentDashboard: React.FC = () => {
       await toggleAgentProfile(agent.id);
       message.success(`Agent ${agent.name} 已${agent.enabled ? '禁用' : '启用'}`);
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message_text = err instanceof Error ? err.message : 'Unknown error';
       message.error(`操作失败：${message_text}`);
     }
@@ -138,7 +138,7 @@ const AgentDashboard: React.FC = () => {
           await deleteAgentProfile(agent.id);
           message.success(`Agent ${agent.name} 已删除`);
           await loadData();
-        } catch (err: any) {
+        } catch (err: unknown) {
           const message_text = err instanceof Error ? err.message : 'Unknown error';
           message.error(`删除失败：${message_text}`);
         }
@@ -167,7 +167,7 @@ const AgentDashboard: React.FC = () => {
       await respondToApproval(approval.id, { approved: true, reason: 'Approved via dashboard' });
       message.success('审批已通过');
       await loadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const message_text = err instanceof Error ? err.message : 'Unknown error';
       message.error(`审批失败：${message_text}`);
     }
@@ -188,7 +188,7 @@ const AgentDashboard: React.FC = () => {
           });
           message.success('审批已拒绝');
           await loadData();
-        } catch (err: any) {
+        } catch (err: unknown) {
           const message_text = err instanceof Error ? err.message : 'Unknown error';
           message.error(`拒绝失败：${message_text}`);
         }

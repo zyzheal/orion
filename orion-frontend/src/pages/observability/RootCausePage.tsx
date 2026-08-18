@@ -54,7 +54,7 @@ const DependencyGraphTab: React.FC = () => {
       const res = await getDependencyGraph();
       const rawData = (res.data as any)?.data;
       setDeps(Array.isArray(rawData) ? rawData : ((rawData as any)?.data as ServiceDependency[]) || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载依赖图失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -76,7 +76,7 @@ const DependencyGraphTab: React.FC = () => {
       const rawData = (res.data as any)?.data;
       setAnalysisResult(Array.isArray(rawData) ? rawData : ((rawData as any)?.data as string[]) || []);
       message.success('根因分析完成');
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
     }
   };
@@ -163,7 +163,7 @@ const TemporalCorrelationTab: React.FC = () => {
       const rawData = res.data?.data;
       setResult(rawData as unknown as TemporalCorrelationResult || null);
       message.success('时间关联分析完成');
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -264,7 +264,7 @@ const TimelineTab: React.FC = () => {
           criticalEvents: (t as any).criticalEvents || 0,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载时间线失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -335,7 +335,7 @@ const RCAAnalysisTab: React.FC = () => {
     try {
       const res = await getRootCauseAnalyses();
       setAnalyses(res.data?.analyses || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载根因分析列表失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -359,7 +359,7 @@ const RCAAnalysisTab: React.FC = () => {
       message.success('根因分析已触发');
       triggerForm.resetFields();
       loadAnalyses();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`触发失败: ${(error as Error).message}`);
       }

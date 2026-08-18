@@ -216,7 +216,7 @@ const ServicePortal: React.FC = () => {
     try {
       const res = await getServiceCategories();
       setCategories(res.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载服务分类失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setCatalogLoading(false);
@@ -230,7 +230,7 @@ const ServicePortal: React.FC = () => {
       if (selectedCategory) params.category_id = selectedCategory;
       const res = await getCatalogServices(params);
       setServices(res.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载服务目录失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setCatalogLoading(false);
@@ -244,7 +244,7 @@ const ServicePortal: React.FC = () => {
       if (ticketStatusFilter) params.status = ticketStatusFilter;
       const res = await getMyTickets(params);
       setTickets(res.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载我的工单失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setTicketsLoading(false);
@@ -255,7 +255,7 @@ const ServicePortal: React.FC = () => {
     try {
       const detail = await getMyTicket(id);
       setSelectedTicket(detail);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载工单详情失败: ${err instanceof Error ? err.message : '未知错误'}`);
     }
   }, []);
@@ -296,7 +296,7 @@ const ServicePortal: React.FC = () => {
       message.success('服务请求已提交');
       setRequestModalOpen(false);
       loadTickets();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error(`提交失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
@@ -321,7 +321,7 @@ const ServicePortal: React.FC = () => {
       if (selectedTicket?.id === ticket.id) {
         setSelectedTicket(null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`取消失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);

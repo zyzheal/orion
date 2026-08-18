@@ -79,7 +79,7 @@ const WorkspaceList: React.FC = () => {
     try {
       const res = await getWorkspaces();
       setWorkspaces(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load workspaces：${error.message}`);
       } else {
@@ -130,7 +130,7 @@ const WorkspaceList: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '创建失败';
@@ -150,7 +150,7 @@ const WorkspaceList: React.FC = () => {
       message.success('工作空间更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '更新失败';

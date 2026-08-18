@@ -89,7 +89,7 @@ const PipelineBudget: React.FC = () => {
       } else {
         setUsage(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载预算配置失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -101,7 +101,7 @@ const PipelineBudget: React.FC = () => {
     try {
       const usageData = await pipelineBudgetApi.getUsage(pipelineId, rid);
       setUsage(usageData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载预算使用数据失败: ${(error as Error).message}`);
     }
   };
@@ -113,7 +113,7 @@ const PipelineBudget: React.FC = () => {
       await pipelineBudgetApi.set(pipelineId, values);
       message.success('预算配置已保存');
       loadBudget();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`保存失败: ${(error as Error).message}`);
     } finally {
       setSaving(false);

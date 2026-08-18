@@ -79,7 +79,7 @@ const VectorStorePage: React.FC = () => {
     try {
       const res = await getCollections();
       setCollections(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setCollections([]);
       message.error(`加载集合数据失败: ${(error as Error).message}`);
     } finally {
@@ -91,7 +91,7 @@ const VectorStorePage: React.FC = () => {
     try {
       const res = await getVectorStats();
       setStats(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setStats(null);
     }
   };
@@ -124,7 +124,7 @@ const VectorStorePage: React.FC = () => {
       message.success('集合已删除');
       await loadData();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -144,7 +144,7 @@ const VectorStorePage: React.FC = () => {
     try {
       const res = await getCollectionDocuments(name);
       setCollectionDocs(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setCollectionDocs([]);
       message.error(`加载文档列表失败: ${(error as Error).message}`);
     } finally {
@@ -157,7 +157,7 @@ const VectorStorePage: React.FC = () => {
       await deleteDocument(id);
       message.success('文档已删除');
       if (selectedCollection) await loadCollectionDocs(selectedCollection.name);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -179,7 +179,7 @@ const VectorStorePage: React.FC = () => {
         topK: searchTopK,
       });
       setSearchResults(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSearchResults([]);
       message.error(`语义搜索失败: ${(error as Error).message}`);
     } finally {
@@ -198,7 +198,7 @@ const VectorStorePage: React.FC = () => {
       if (uploadMetadata.trim()) {
         try {
           metadataObj = JSON.parse(uploadMetadata);
-        } catch (error: any) {
+        } catch (error: unknown) {
           message.error('元数据 JSON 格式错误');
           setUploadLoading(false);
           return;
@@ -213,7 +213,7 @@ const VectorStorePage: React.FC = () => {
       setUploadContent('');
       setUploadMetadata('');
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`上传失败：${error.message}`);
       } else {

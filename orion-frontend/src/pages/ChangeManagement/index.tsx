@@ -358,7 +358,7 @@ const ChangeManagement: React.FC = () => {
       createForm.resetFields();
       loadChanges();
       loadStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation
       message.error('创建变更请求失败');
     } finally {
@@ -389,7 +389,7 @@ const ChangeManagement: React.FC = () => {
       const updated = await getChangeRequest(selectedChange.id);
       setSelectedChange(updated);
       loadChanges();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('更新变更请求失败');
     } finally {
@@ -471,7 +471,7 @@ const ChangeManagement: React.FC = () => {
       loadTimeline(selectedChange.id);
       loadChanges();
       loadStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('状态变更失败');
     }
@@ -513,7 +513,7 @@ const ChangeManagement: React.FC = () => {
       setAddEventModalOpen(false);
       eventForm.resetFields();
       loadTimeline(selectedChange.id);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('添加时间线事件失败');
     }
@@ -532,7 +532,7 @@ const ChangeManagement: React.FC = () => {
       rfcForm.resetFields();
       setEditRfcId(null);
       loadRfcs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('创建 RFC 失败');
     }
@@ -548,7 +548,7 @@ const ChangeManagement: React.FC = () => {
       rfcForm.resetFields();
       setEditRfcId(null);
       loadRfcs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('更新 RFC 失败');
     }
@@ -597,7 +597,7 @@ const ChangeManagement: React.FC = () => {
       cabForm.resetFields();
       setEditCabId(null);
       loadCabMeetings();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('创建 CAB 会议失败');
     }
@@ -620,7 +620,7 @@ const ChangeManagement: React.FC = () => {
       cabForm.resetFields();
       setEditCabId(null);
       loadCabMeetings();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('更新 CAB 会议失败');
     }
@@ -664,7 +664,7 @@ const ChangeManagement: React.FC = () => {
       const updated = await getCABMeeting(selectedCab.id);
       setSelectedCab(updated);
       loadCabMeetings();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('添加决策记录失败');
     }

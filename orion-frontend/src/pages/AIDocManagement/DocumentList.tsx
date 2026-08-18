@@ -67,7 +67,7 @@ const DocumentListPage: React.FC = () => {
       setDocuments(Array.isArray(docRes.data) ? docRes.data : []);
       const spaceList = Array.isArray(spaceRes.data) ? spaceRes.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-    } catch (error: any) {
+    } catch (error: unknown) {
       setDocuments([]);
       setSpaces([]);
       message.error(`加载文档数据失败: ${(error as Error).message}`);
@@ -116,7 +116,7 @@ const DocumentListPage: React.FC = () => {
       createForm.resetFields();
       setTags([]);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '创建失败';
@@ -140,7 +140,7 @@ const DocumentListPage: React.FC = () => {
       message.success('文档更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '更新失败';
@@ -156,7 +156,7 @@ const DocumentListPage: React.FC = () => {
       await deleteDoc(id);
       message.success('文档已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {

@@ -135,7 +135,7 @@ const FeatureFlagsPage: React.FC = () => {
     try {
       const response = await getFeatureFlags();
       setFlags(response.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
       setFlags([]);
@@ -195,7 +195,7 @@ const FeatureFlagsPage: React.FC = () => {
       createForm.resetFields();
       await loadFlags();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error instanceof Error)) {
         message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
       }
@@ -227,7 +227,7 @@ const FeatureFlagsPage: React.FC = () => {
       setEditingFlag(null);
       editForm.resetFields();
       await loadFlags();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`更新失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSubmitting(false);
@@ -240,7 +240,7 @@ const FeatureFlagsPage: React.FC = () => {
       message.success('特性开关已删除');
       await loadFlags();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
@@ -251,7 +251,7 @@ const FeatureFlagsPage: React.FC = () => {
       setFlags((prev) => prev.map((f) => (f.id === flag.id ? { ...f, enabled } : f)));
       message.success(`"${flag.name}" 已${enabled ? '启用' : '禁用'}`);
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`操作失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
@@ -270,7 +270,7 @@ const FeatureFlagsPage: React.FC = () => {
       });
       setEvaluationResult(String(result.data?.result ?? '未知'));
       message.success('评估完成');
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`评估失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSubmitting(false);

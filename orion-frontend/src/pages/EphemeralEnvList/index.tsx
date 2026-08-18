@@ -214,7 +214,7 @@ const CreateEnvModal: React.FC<CreateEnvModalProps> = ({ open, onCancel, onSucce
       form.resetFields();
       setCreating(false);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setCreating(false);
       const errObj = err as { errorFields?: unknown; message?: string };
       if (errObj.errorFields) return;
@@ -306,7 +306,7 @@ const EphemeralEnvList: React.FC = () => {
     try {
       const response = await getEphemeralEnvs({});
       setEnvs(response.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载环境列表失败';
       message.error(msg);
     } finally {
@@ -376,7 +376,7 @@ const EphemeralEnvList: React.FC = () => {
       await wakeEphemeralEnv(env.id);
       message.success('环境已唤醒');
       await loadEnvs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '唤醒失败';
       message.error(`唤醒失败：${msg}`);
     }
@@ -387,7 +387,7 @@ const EphemeralEnvList: React.FC = () => {
       await teardownEphemeralEnv(env.id);
       message.success('环境销毁已触发');
       await loadEnvs();
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '销毁失败';
       message.error(`销毁失败：${msg}`);
     }

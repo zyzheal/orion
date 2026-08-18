@@ -105,7 +105,7 @@ const EnvironmentManagement: React.FC = () => {
     try {
       const res = await getEnvironments();
       setEnvironments(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setEnvironments([]);
       message.error(`加载环境列表失败: ${(error as Error).message}`);
     } finally {
@@ -148,7 +148,7 @@ const EnvironmentManagement: React.FC = () => {
           ? (() => {
               try {
                 return JSON.parse(values.config);
-              } catch (error: any) {
+              } catch (error: unknown) {
                 return undefined;
               }
             })()
@@ -159,7 +159,7 @@ const EnvironmentManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '创建失败';
@@ -184,7 +184,7 @@ const EnvironmentManagement: React.FC = () => {
           ? (() => {
               try {
                 return JSON.parse(values.config);
-              } catch (error: any) {
+              } catch (error: unknown) {
                 return undefined;
               }
             })()
@@ -194,7 +194,7 @@ const EnvironmentManagement: React.FC = () => {
       message.success('环境更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '更新失败';
@@ -210,7 +210,7 @@ const EnvironmentManagement: React.FC = () => {
       await deleteEnvironment(id);
       message.success('环境已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -224,7 +224,7 @@ const EnvironmentManagement: React.FC = () => {
       await updateEnvironmentStatus(id, { status });
       message.success('状态更新成功');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`状态更新失败：${error.message}`);
       } else {

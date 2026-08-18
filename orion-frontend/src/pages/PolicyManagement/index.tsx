@@ -67,7 +67,7 @@ const PolicyManagement: React.FC = () => {
       const [policyRes, violationRes] = await Promise.all([getPolicies(), getPolicyViolations()]);
       setPolicies(Array.isArray(policyRes.data) ? policyRes.data : []);
       setViolations(Array.isArray(violationRes.data) ? violationRes.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load policy data：${error.message}`);
       } else {
@@ -122,7 +122,7 @@ const PolicyManagement: React.FC = () => {
       setEditingPolicy(null);
       form.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to save policy：${error.message}`);
       } else {
@@ -136,7 +136,7 @@ const PolicyManagement: React.FC = () => {
       await togglePolicy(policy.id);
       message.success(`Policy ${policy.enabled ? 'disabled' : 'enabled'}`);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to toggle policy：${error.message}`);
       } else {
@@ -150,7 +150,7 @@ const PolicyManagement: React.FC = () => {
       await deletePolicy(id);
       message.success('Policy deleted');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to delete policy：${error.message}`);
       } else {
@@ -166,7 +166,7 @@ const PolicyManagement: React.FC = () => {
       message.success('Policy evaluated');
       setEvaluateModalVisible(false);
       evalForm.resetFields();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to evaluate policy：${error.message}`);
       } else {
@@ -180,7 +180,7 @@ const PolicyManagement: React.FC = () => {
       await resolveViolation(id);
       message.success('Violation resolved');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to resolve violation：${error.message}`);
       } else {

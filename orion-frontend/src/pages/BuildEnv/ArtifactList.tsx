@@ -37,7 +37,7 @@ const ArtifactList: React.FC = () => {
       const response = await getArtifacts();
       const apiData = response.data;
       setArtifacts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建产物失败：${error.message}`);
       } else {
@@ -85,7 +85,7 @@ const ArtifactList: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       message.success(`Downloading ${artifact.name}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`下载构建产物失败：${error.message}`);
       } else {
@@ -99,7 +99,7 @@ const ArtifactList: React.FC = () => {
       await deleteArtifact(id);
       message.success('Artifact deleted');
       loadArtifacts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除构建产物失败：${error.message}`);
       } else {
@@ -113,7 +113,7 @@ const ArtifactList: React.FC = () => {
       await cleanupExpiredArtifacts();
       message.success('Expired artifacts cleaned up');
       loadArtifacts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`清理构建产物失败：${error.message}`);
       } else {

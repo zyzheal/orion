@@ -109,7 +109,7 @@ const PipelineManagementPage: React.FC = () => {
       const result = await listDataPipelines();
       const data = Array.isArray(result.data) ? result.data : [];
       setPipelines(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载数据管道列表失败';
       message.error(msg);
       setPipelines([]);
@@ -139,7 +139,7 @@ const PipelineManagementPage: React.FC = () => {
       form.resetFields();
       setEditingPipeline(null);
       loadPipelines();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : (editingPipeline ? '更新失败' : '创建失败');
       message.error(msg);
     } finally {
@@ -179,7 +179,7 @@ const PipelineManagementPage: React.FC = () => {
           await deleteDataPipeline(pipeline.id);
           message.success('删除成功');
           loadPipelines();
-        } catch (error: any) {
+        } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : '删除失败';
           message.error(msg);
         }
@@ -199,7 +199,7 @@ const PipelineManagementPage: React.FC = () => {
       await runDataPipeline(pipeline.id);
       message.success('管道运行已触发');
       loadPipelines();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '运行失败';
       message.error(msg);
     } finally {
@@ -213,7 +213,7 @@ const PipelineManagementPage: React.FC = () => {
       await pauseDataPipeline(pipeline.id);
       message.success('管道已暂停');
       loadPipelines();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '暂停失败';
       message.error(msg);
     } finally {
@@ -227,7 +227,7 @@ const PipelineManagementPage: React.FC = () => {
       await resumeDataPipeline(pipeline.id);
       message.success('管道已恢复');
       loadPipelines();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '恢复失败';
       message.error(msg);
     } finally {
@@ -247,7 +247,7 @@ const PipelineManagementPage: React.FC = () => {
       setDrawerContent(result.logs && result.logs.length > 0
         ? result.logs.join('\n')
         : '暂无日志');
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载日志失败';
       message.error(msg);
       setDrawerContent('加载失败，请稍后重试');
@@ -265,7 +265,7 @@ const PipelineManagementPage: React.FC = () => {
       const result = await getDataPipelineLineage(pipeline.id);
       const lineage = result.lineage || {};
       setDrawerContent(JSON.stringify(lineage, null, 2));
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载血缘失败';
       message.error(msg);
       setDrawerContent('加载失败，请稍后重试');

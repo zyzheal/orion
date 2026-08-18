@@ -78,7 +78,7 @@ const MetricsTab: React.FC = () => {
     try {
       const res = await getMLOpsMetrics();
       setMetrics((res.data as { data?: MLOpsMetrics })?.data ?? null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载 MLOps 指标失败');
     } finally { setLoading(false); }
   };
@@ -177,7 +177,7 @@ const ExperimentsTab: React.FC = () => {
     try {
       const res = await listExperiments();
       setExperiments((res.data as { data?: MLExperiment[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载实验失败');
     } finally { setLoading(false); }
   };
@@ -194,7 +194,7 @@ const ExperimentsTab: React.FC = () => {
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -219,7 +219,7 @@ const ExperimentsTab: React.FC = () => {
       setEditModalOpen(false);
       editForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '更新失败');
     }
   };
@@ -229,7 +229,7 @@ const ExperimentsTab: React.FC = () => {
       await deleteExperiment(id);
       message.success('实验已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -239,7 +239,7 @@ const ExperimentsTab: React.FC = () => {
       await updateExperimentStatus(id, status);
       message.success(`实验状态已更新为 ${status}`);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '状态更新失败');
     }
   };
@@ -251,7 +251,7 @@ const ExperimentsTab: React.FC = () => {
     try {
       const res = await getExperimentRuns(id);
       setCurrentRuns((res.data as { data?: MLExperimentRun[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载运行记录失败');
     } finally { setCurrentRunsLoading(false); }
   };
@@ -434,7 +434,7 @@ const ModelRegistryTab: React.FC = () => {
     try {
       const res = await listModels();
       setModels((res.data as { data?: MLModel[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载模型失败');
     } finally { setLoading(false); }
   };
@@ -451,7 +451,7 @@ const ModelRegistryTab: React.FC = () => {
       setRegisterModalOpen(false);
       registerForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '注册失败');
     }
   };
@@ -461,7 +461,7 @@ const ModelRegistryTab: React.FC = () => {
       await deployModel(id);
       message.success('模型部署成功');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '部署失败');
     }
   };
@@ -471,7 +471,7 @@ const ModelRegistryTab: React.FC = () => {
       await updateModelStatus(id, status);
       message.success(`模型状态已更新为 ${status}`);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '状态更新失败');
     }
   };
@@ -594,7 +594,7 @@ const TrainingJobsTab: React.FC = () => {
     try {
       const res = await listTrainingJobs();
       setJobs((res.data as { data?: TrainingJob[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载训练任务失败');
     } finally { setLoading(false); }
   };
@@ -610,7 +610,7 @@ const TrainingJobsTab: React.FC = () => {
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
   };
@@ -620,7 +620,7 @@ const TrainingJobsTab: React.FC = () => {
       await updateJobStatus(id, status);
       message.success(`任务状态已更新为 ${status}`);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '状态更新失败');
     }
   };

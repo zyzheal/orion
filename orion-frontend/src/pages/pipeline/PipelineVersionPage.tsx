@@ -140,7 +140,7 @@ const PipelineVersionPage: React.FC = () => {
       const res = await pipelineVersionsApi.list(selectedPipelineId, { page: 1, limit: 100 });
       const raw = (res as any).data?.data;
       setVersions(Array.isArray(raw) ? raw : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setVersions([]);
       message.error(`加载版本列表失败: ${(error as Error).message}`);
     } finally {
@@ -162,7 +162,7 @@ const PipelineVersionPage: React.FC = () => {
         values.targetVersion
       );
       setDiffResult(res || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`获取版本对比失败: ${(error as Error).message}`);
@@ -186,7 +186,7 @@ const PipelineVersionPage: React.FC = () => {
       setRollbackModalVisible(false);
       rollbackForm.resetFields();
       loadVersions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`回退失败: ${(error as Error).message}`);
@@ -206,7 +206,7 @@ const PipelineVersionPage: React.FC = () => {
       setTagModalVisible(false);
       tagForm.resetFields();
       loadVersions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`添加标签失败: ${(error as Error).message}`);
@@ -221,7 +221,7 @@ const PipelineVersionPage: React.FC = () => {
       await pipelineVersionsApi.removeTag(selectedPipelineId, version.id, tag);
       message.success('标签已移除');
       loadVersions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`移除标签失败: ${(error as Error).message}`);
     }
   };
@@ -231,7 +231,7 @@ const PipelineVersionPage: React.FC = () => {
       await pipelineVersionsApi.setBaseline(selectedPipelineId, version.id, isBaseline);
       message.success(isBaseline ? '已设为基线' : '已取消基线');
       loadVersions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`操作失败: ${(error as Error).message}`);
     }
   };

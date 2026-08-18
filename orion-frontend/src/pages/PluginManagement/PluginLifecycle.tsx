@@ -51,7 +51,7 @@ const PluginLifecycleModal: React.FC<PluginLifecycleModalProps> = ({
       form.resetFields();
       setExecuting(false);
       onSuccess(response.data as unknown as PluginExecutionResult);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setExecuting(false);
       const msg = err instanceof Error ? err.message : '执行失败';
       message.error(`执行失败：${msg}`);

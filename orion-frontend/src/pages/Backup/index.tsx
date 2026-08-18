@@ -198,7 +198,7 @@ const BackupManagement: React.FC = () => {
     try {
       const response = await getBackups();
       setBackups((response.data as any).backups.map(mapApiBackup));
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`Failed to load backups: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -209,7 +209,7 @@ const BackupManagement: React.FC = () => {
     try {
       const response = await getBackupStats();
       setStats(mapApiStats((response.data as any).stats));
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`Failed to load backup stats: ${(error as Error).message}`);
     }
   };
@@ -250,7 +250,7 @@ const BackupManagement: React.FC = () => {
       createForm.resetFields();
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
         message.error(`创建备份失败：${(error as Error).message}`);
       }
@@ -268,7 +268,7 @@ const BackupManagement: React.FC = () => {
       setRestoreModalVisible(false);
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`恢复失败：${(error as Error).message}`);
     } finally {
       setSubmitting(false);
@@ -281,7 +281,7 @@ const BackupManagement: React.FC = () => {
       message.success('备份已删除');
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`删除失败：${(error as Error).message}`);
     }
   };
@@ -295,7 +295,7 @@ const BackupManagement: React.FC = () => {
       } else {
         message.warning('未获取到下载链接');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`下载失败: ${(error as Error).message}`);
     }
   };

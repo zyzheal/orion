@@ -88,7 +88,7 @@ const AuditHistory: React.FC = () => {
       const items = (data as any).logs || [];
       setAuditLogs(Array.isArray(items) ? items : []);
       setTotal((data as any).total || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载失败：${error.message}`);
       } else {

@@ -39,7 +39,7 @@ const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
       message.success('集合创建成功');
       setSubmitting(false);
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '创建失败';
       message.error(msg);
       setSubmitting(false);

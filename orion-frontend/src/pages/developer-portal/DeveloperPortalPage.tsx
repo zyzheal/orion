@@ -214,7 +214,7 @@ const DeveloperPortalPage: React.FC = () => {
         setDocuments(resp.data || []);
         setDocPagination((p) => ({ ...p, current: page, total: resp.total || 0 }));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载文档失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -234,7 +234,7 @@ const DeveloperPortalPage: React.FC = () => {
       const resp = await developerPortalApi.listMockRules({ page, pageSize: mockPagination.pageSize });
       setMockRules(resp.data || []);
       setMockPagination((p) => ({ ...p, current: page, total: resp.total || 0 }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载Mock规则失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -254,7 +254,7 @@ const DeveloperPortalPage: React.FC = () => {
       const resp = await developerPortalApi.listSDKTasks({ page, pageSize: sdkPagination.pageSize });
       setSdkTasks(resp.data || []);
       setSdkPagination((p) => ({ ...p, current: page, total: resp.total || 0 }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载SDK任务失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -274,7 +274,7 @@ const DeveloperPortalPage: React.FC = () => {
       const resp = await developerPortalApi.listSubscriptions({ page, pageSize: subPagination.pageSize });
       setSubscriptions(resp.data || []);
       setSubPagination((p) => ({ ...p, current: page, total: resp.total || 0 }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载订阅失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -294,7 +294,7 @@ const DeveloperPortalPage: React.FC = () => {
       const resp = await developerPortalApi.listPlaygroundRequests({ page, pageSize: pgPagination.pageSize });
       setPlaygroundRequests(resp.data || []);
       setPgPagination((p) => ({ ...p, current: page, total: resp.total || 0 }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`加载请求历史失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -355,7 +355,7 @@ const DeveloperPortalPage: React.FC = () => {
       createDocForm.resetFields();
       loadDocuments();
       loadDocStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`创建失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -379,7 +379,7 @@ const DeveloperPortalPage: React.FC = () => {
       setEditDocDrawer(false);
       editDocForm.resetFields();
       loadDocuments();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`更新失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -392,7 +392,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('文档已删除');
       loadDocuments();
       loadDocStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`删除失败: ${(err as Error).message}`);
     }
   };
@@ -403,7 +403,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('文档已发布');
       loadDocuments();
       loadDocStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`发布失败: ${(err as Error).message}`);
     }
   };
@@ -414,7 +414,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('已取消发布');
       loadDocuments();
       loadDocStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`取消发布失败: ${(err as Error).message}`);
     }
   };
@@ -428,7 +428,7 @@ const DeveloperPortalPage: React.FC = () => {
       setNewVersionModal(false);
       newVersionForm.resetFields();
       loadDocuments();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`创建版本失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -482,7 +482,7 @@ const DeveloperPortalPage: React.FC = () => {
       createMockForm.resetFields();
       loadMockRules();
       loadMockStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`创建失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -508,7 +508,7 @@ const DeveloperPortalPage: React.FC = () => {
       setEditMockModal(false);
       editMockForm.resetFields();
       loadMockRules();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`更新失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -521,7 +521,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('Mock 规则已删除');
       loadMockRules();
       loadMockStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`删除失败: ${(err as Error).message}`);
     }
   };
@@ -532,7 +532,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('状态已切换');
       loadMockRules();
       loadMockStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`切换失败: ${(err as Error).message}`);
     }
   };
@@ -571,7 +571,7 @@ const DeveloperPortalPage: React.FC = () => {
       createSdkForm.resetFields();
       loadSdkTasks();
       loadSdkStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`创建失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -584,7 +584,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('SDK 任务已删除');
       loadSdkTasks();
       loadSdkStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`删除失败: ${(err as Error).message}`);
     }
   };
@@ -594,7 +594,7 @@ const DeveloperPortalPage: React.FC = () => {
       await developerPortalApi.regenerateSDK(id);
       message.success('重新生成已启动');
       setTimeout(() => { loadSdkTasks(); loadSdkStats(); }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`重新生成失败: ${(err as Error).message}`);
     }
   };
@@ -617,7 +617,7 @@ const DeveloperPortalPage: React.FC = () => {
       createSubForm.resetFields();
       loadSubscriptions();
       loadSubStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`提交失败: ${(err as Error).message}`);
     } finally {
       setLoading(false);
@@ -630,7 +630,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('订阅已批准');
       loadSubscriptions();
       loadSubStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`批准失败: ${(err as Error).message}`);
     }
   };
@@ -644,7 +644,7 @@ const DeveloperPortalPage: React.FC = () => {
       rejectSubForm.resetFields();
       loadSubscriptions();
       loadSubStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`拒绝失败: ${(err as Error).message}`);
     }
   };
@@ -655,7 +655,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('订阅已暂停');
       loadSubscriptions();
       loadSubStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`暂停失败: ${(err as Error).message}`);
     }
   };
@@ -666,7 +666,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('订阅已取消');
       loadSubscriptions();
       loadSubStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`取消失败: ${(err as Error).message}`);
     }
   };
@@ -690,7 +690,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success(`请求完成 - ${resp.data?.response?.statusCode}`);
       loadPlaygroundRequests();
       loadPgStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`请求失败: ${(err as Error).message}`);
     } finally {
       setPgExecuting(false);
@@ -703,7 +703,7 @@ const DeveloperPortalPage: React.FC = () => {
       message.success('请求已删除');
       loadPlaygroundRequests();
       loadPgStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`删除失败: ${(err as Error).message}`);
     }
   };
@@ -715,7 +715,7 @@ const DeveloperPortalPage: React.FC = () => {
       setPlaygroundResult(resp.data as any);
       message.success(`重放完成 - ${resp.data?.response?.statusCode}`);
       loadPgStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error(`重放失败: ${(err as Error).message}`);
     } finally {
       setPgExecuting(false);

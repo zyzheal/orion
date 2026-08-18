@@ -49,7 +49,7 @@ const MySkills: React.FC = () => {
     try {
       const res = await getMySkills();
       setSkills(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load installed skills：${error.message}`);
       } else {
@@ -90,7 +90,7 @@ const MySkills: React.FC = () => {
           await uninstallSkill(skill.id);
           message.success(`技能 "${skill.name}" 已卸载`);
           loadData();
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (error instanceof Error) {
             message.error(`卸载失败：${error.message}`);
           } else {

@@ -240,7 +240,7 @@ export default function SprintBoardPage() {
       }
       setModalVisible(false);
       fetchSprints();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('保存失败');
     } finally {

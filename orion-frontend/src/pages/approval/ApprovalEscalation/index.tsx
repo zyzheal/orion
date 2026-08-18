@@ -378,7 +378,7 @@ const EscalationRulesCard: React.FC = () => {
       message.success(`升级规则「${newRule.name}」已创建`);
       setCreateModalVisible(false);
       createForm.resetFields();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建规则失败: ${(error as Error).message}`);

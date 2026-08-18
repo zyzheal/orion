@@ -101,7 +101,7 @@ const CostOverviewTab: React.FC = () => {
       setOverview(overviewRes.data || null);
       setTrends(trendRes.data?.trends || []);
       setByService(serviceRes.data?.services || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载成本数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -307,7 +307,7 @@ const AnomalyDetectionTab: React.FC = () => {
     try {
       const res = await getCostAnomalies({ days: 7 });
       setAnomalies(res.data?.anomalies || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载异常检测数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -403,7 +403,7 @@ const OptimizationTab: React.FC = () => {
       const params = filter !== 'all' ? { category: filter } : undefined;
       const res = await getOptimizationSuggestions(params);
       setSuggestions(res.data?.suggestions || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载优化建议失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -419,7 +419,7 @@ const OptimizationTab: React.FC = () => {
       await applyOptimization(id);
       message.success('优化建议已应用');
       loadSuggestions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`应用失败: ${(error as Error).message}`);
     }
   };
@@ -429,7 +429,7 @@ const OptimizationTab: React.FC = () => {
       await rejectOptimization(id);
       message.success('已忽略该建议');
       loadSuggestions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`操作失败: ${(error as Error).message}`);
     }
   };
@@ -556,7 +556,7 @@ const BudgetTab: React.FC = () => {
     try {
       const res = await getBudgets();
       setBudgets(res.data?.budgets || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载预算失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -584,7 +584,7 @@ const BudgetTab: React.FC = () => {
       setModalVisible(false);
       form.resetFields();
       loadBudgets();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
@@ -602,7 +602,7 @@ const BudgetTab: React.FC = () => {
           await deleteBudget(budgetId);
           message.success('预算已删除');
           loadBudgets();
-        } catch (error: any) {
+        } catch (error: unknown) {
           message.error(`删除失败: ${(error as Error).message}`);
         }
       },
@@ -621,7 +621,7 @@ const BudgetTab: React.FC = () => {
         estimated: data?.estimatedCost || values.estimatedCost,
         limit: data?.budgetLimit || 0,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`预算门禁检查失败: ${(error as Error).message}`);
       }

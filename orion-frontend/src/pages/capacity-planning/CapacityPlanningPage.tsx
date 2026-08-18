@@ -41,7 +41,7 @@ const OverviewTab: React.FC = () => {
       const [bnRes, alertRes] = await Promise.all([analyzeBottlenecks(), listCapacityAlerts()]);
       setBottlenecks((bnRes.data as { data?: Bottleneck[] })?.data ?? []);
       setAlerts((alertRes.data as { data?: CapacityAlert[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载数据失败');
     } finally { setLoading(false); }
   };
@@ -51,7 +51,7 @@ const OverviewTab: React.FC = () => {
       await generateCapacityForecast();
       message.success('预测生成成功');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '预测失败');
     }
   };
@@ -61,7 +61,7 @@ const OverviewTab: React.FC = () => {
       await deleteCapacityAlert(id);
       message.success('告警已清除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
@@ -161,7 +161,7 @@ const ForecastTab: React.FC = () => {
     try {
       const res = await listCapacityForecasts();
       setForecasts((res.data as { data?: CapacityForecast[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载预测失败');
     } finally { setLoading(false); }
   };
@@ -217,7 +217,7 @@ const MetricsTab: React.FC = () => {
     try {
       const res = await listCapacityMetrics();
       setMetrics((res.data as { data?: CapacityMetric[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载指标失败');
     } finally { setLoading(false); }
   };
@@ -235,7 +235,7 @@ const MetricsTab: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '记录失败');
     }
   };
@@ -319,7 +319,7 @@ const ReportsTab: React.FC = () => {
     try {
       const res = await listCapacityReports();
       setReports((res.data as { data?: CapacityReport[] })?.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载报告失败');
     } finally { setLoading(false); }
   };
@@ -329,7 +329,7 @@ const ReportsTab: React.FC = () => {
       await generateCapacityReport({ title: `容量规划报告 ${new Date().toLocaleDateString()}` });
       message.success('报告生成成功');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '生成失败');
     }
   };

@@ -49,7 +49,7 @@ const AIReviewDashboard: React.FC = () => {
     try {
       const res = await getReviewHistory({ pageSize: 10 });
       setRecentReviews((res.data as any)?.items || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审历史失败：${error.message}`);
       } else {
@@ -76,7 +76,7 @@ const AIReviewDashboard: React.FC = () => {
       setTriggerModalOpen(false);
       triggerForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`触发评审失败：${error.message}`);
       } else {

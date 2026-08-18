@@ -259,7 +259,7 @@ export default function ReportDesignerPage() {
       }
       setReportModalVisible(false);
       fetchReports();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('保存失败');
     } finally {

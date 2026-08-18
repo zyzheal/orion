@@ -54,7 +54,7 @@ const AIReviewRules: React.FC = () => {
     try {
       const res = await getReviewRules();
       setData((res.data as any)?.items || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审规则失败：${error.message}`);
       } else {
@@ -74,7 +74,7 @@ const AIReviewRules: React.FC = () => {
       await toggleReviewRule(ruleId);
       message.success('规则状态已切换');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`切换规则状态失败：${error.message}`);
       } else {
@@ -88,7 +88,7 @@ const AIReviewRules: React.FC = () => {
       await deleteReviewRule(ruleId);
       message.success('规则已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除规则失败：${error.message}`);
       } else {
@@ -121,7 +121,7 @@ const AIReviewRules: React.FC = () => {
       }
       setModalOpen(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(
           editingRule ? `更新规则失败：${error.message}` : `创建规则失败：${error.message}`

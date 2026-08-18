@@ -29,7 +29,7 @@ const ApmErrorTrackingPage: React.FC = () => {
       setAllTraces(traceList);
       const errorTraces = traceList.filter((t: any) => t.status === 'error');
       setErrors(errorTraces);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载错误数据失败');
     } finally {
       setLoading(false);

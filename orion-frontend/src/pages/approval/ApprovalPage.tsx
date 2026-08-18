@@ -157,7 +157,7 @@ const ApprovalPage: React.FC = () => {
       const res = await getApprovals();
       const list = res.data?.approvals;
       setApprovals(Array.isArray(list) ? list : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setApprovals([]);
       message.error(`加载审批数据失败: ${(error as Error).message}`);
     } finally {
@@ -204,7 +204,7 @@ const ApprovalPage: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -231,7 +231,7 @@ const ApprovalPage: React.FC = () => {
       setEmergencyModalVisible(false);
       emergencyForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         message.error(`创建失败: ${(error as Error).message}`);
@@ -257,7 +257,7 @@ const ApprovalPage: React.FC = () => {
       message.success('审批通过');
       loadData();
       if (selectedApproval?.id === id) loadDetail(id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`审批操作失败: ${(error as Error).message}`);
     }
   };
@@ -268,7 +268,7 @@ const ApprovalPage: React.FC = () => {
       message.success('已拒绝');
       loadData();
       if (selectedApproval?.id === id) loadDetail(id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`拒绝操作失败: ${(error as Error).message}`);
     }
   };

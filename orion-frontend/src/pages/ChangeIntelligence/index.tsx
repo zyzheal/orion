@@ -63,7 +63,7 @@ const ChangeIntelligence: React.FC = () => {
       ]);
       setReports(Array.isArray(reportRes.data) ? reportRes.data : []);
       setTrends(Array.isArray(trendRes.data) ? trendRes.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : 'Failed to load change intelligence data';
       message.error(msg);
@@ -106,7 +106,7 @@ const ChangeIntelligence: React.FC = () => {
       setAnalyzeModalVisible(false);
       analyzeForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to trigger analysis';
       message.error(msg);
     }
@@ -126,7 +126,7 @@ const ChangeIntelligence: React.FC = () => {
       setAffectedServices(Array.isArray(svcList) ? svcList : []);
       setBlastRadius((blastRes.data as BlastRadiusData) || null);
       setReportDetailVisible(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to load report detail';
       message.error(msg);
     }

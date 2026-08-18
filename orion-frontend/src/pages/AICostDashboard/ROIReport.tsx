@@ -51,7 +51,7 @@ const ROIFeatureReport: React.FC = () => {
       const data = res.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
       setRoiData(Array.isArray(data?.features) ? data.features : []);
       setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setRoiData([]);
       setSuggestions([]);
       message.error(`加载ROI数据失败: ${(error as Error).message}`);

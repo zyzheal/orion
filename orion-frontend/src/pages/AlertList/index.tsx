@@ -61,7 +61,7 @@ const AlertList: React.FC = () => {
       const response = await getAlerts();
       const apiData = response.data;
       setAlerts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);
       } else {
@@ -155,7 +155,7 @@ const AlertList: React.FC = () => {
         )
       );
       message.success('告警已确认');
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`确认告警失败：${error.message}`);
       } else {
@@ -181,7 +181,7 @@ const AlertList: React.FC = () => {
         )
       );
       message.success('告警已解决');
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`解决告警失败：${error.message}`);
       } else {
@@ -215,7 +215,7 @@ const AlertList: React.FC = () => {
       } else {
         message.info('暂无分析结果');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`AI 分析失败：${error.message}`);
       } else {

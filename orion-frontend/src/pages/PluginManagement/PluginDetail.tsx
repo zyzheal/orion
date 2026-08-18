@@ -59,7 +59,7 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       setSaving(true);
       await onSaveConfig?.(values);
       setSaving(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSaving(false);
       if (error instanceof Error) {
         message.error(`保存配置失败：${error.message}`);

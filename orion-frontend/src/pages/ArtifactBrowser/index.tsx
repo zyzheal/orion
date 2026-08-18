@@ -96,7 +96,7 @@ const ArtifactBrowser: React.FC = () => {
         setVersions([]);
         setTotal(0);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载版本数据失败: ${(error as Error).message}`);
       setVersions([]);
       setTotal(0);
@@ -119,7 +119,7 @@ const ArtifactBrowser: React.FC = () => {
     try {
       const res = await getTraceabilityChain(record.id);
       setTraceChain(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载追溯链失败: ${(error as Error).message}`);
       setTraceChain(null);
     } finally {
@@ -140,7 +140,7 @@ const ArtifactBrowser: React.FC = () => {
     try {
       const res = await getVersionDiff(a.pipelineId, a.version, b.version);
       setDiff(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载版本对比失败: ${(error as Error).message}`);
       setDiff(null);
     } finally {
@@ -169,7 +169,7 @@ const ArtifactBrowser: React.FC = () => {
       await deployVersion(deployVersionItem.id, values);
       message.success(`版本 ${deployVersionItem.version} 已触发部署到 ${values.environment}`);
       setDeployModalVisible(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`部署失败: ${(error as Error).message}`);
     } finally {
       setDeploySubmitting(false);

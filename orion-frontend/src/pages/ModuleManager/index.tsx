@@ -135,7 +135,7 @@ const ModuleManagerPage: React.FC = () => {
     try {
       const response = await getModules();
       setModules(response.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载模块列表失败: ${(error as Error).message}`);
       setModules([]);
     } finally {
@@ -152,7 +152,7 @@ const ModuleManagerPage: React.FC = () => {
       ]);
       setValidationResult(validationRes.data?.validation || null);
       setStartupOrder(orderRes.data?.order || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载校验数据失败: ${(error as Error).message}`);
     } finally {
       setValidationLoading(false);
@@ -220,7 +220,7 @@ const ModuleManagerPage: React.FC = () => {
       );
       // Reload validation
       await loadValidation();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as Error;
       message.error(`操作失败: ${err.message}`);
     } finally {

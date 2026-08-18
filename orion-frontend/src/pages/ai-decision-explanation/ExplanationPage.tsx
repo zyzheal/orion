@@ -92,7 +92,7 @@ const ExplainDecisionTab: React.FC = () => {
       });
       setExplanation(res.data || null);
       message.success('决策解释已生成');
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`生成解释失败: ${(error as Error).message}`);
       }
@@ -327,7 +327,7 @@ const ExplanationHistoryTab: React.FC = () => {
         decisionType: filterType,
       });
       setHistory(res.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载历史失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);

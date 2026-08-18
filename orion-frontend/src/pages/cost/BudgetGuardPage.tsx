@@ -248,7 +248,7 @@ const BudgetGuardPage: React.FC = () => {
       const res = await getBudgetGuards();
       const data = res.data?.data;
       setGuards(Array.isArray(data) ? data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setGuards([]);
       if (error instanceof Error) {
         message.error(`加载 Budget Guard 列表失败: ${error.message}`);
@@ -319,7 +319,7 @@ const BudgetGuardPage: React.FC = () => {
       setCreateModalOpen(false);
       createForm.resetFields();
       await loadGuards();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建失败: ${error.message}`);
       } else {
@@ -338,7 +338,7 @@ const BudgetGuardPage: React.FC = () => {
       message.info('更新功能待后端支持');
       setEditModalOpen(false);
       await loadGuards();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新失败: ${error.message}`);
       } else {
@@ -354,7 +354,7 @@ const BudgetGuardPage: React.FC = () => {
       // Note: deleteBudgetGuard would be added to API when backend supports it
       message.info('删除功能待后端支持');
       await loadGuards();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败: ${error.message}`);
       } else {
@@ -369,7 +369,7 @@ const BudgetGuardPage: React.FC = () => {
       const newStatus = guard.status === 'active' ? 'inactive' : 'active';
       message.success(`Guard ${guard.name} ${newStatus === 'active' ? '已启用' : '已停用'}`);
       await loadGuards();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`操作失败: ${error.message}`);
       } else {
@@ -392,7 +392,7 @@ const BudgetGuardPage: React.FC = () => {
       if (res.data?.data?.passed === false) {
         setBlockedCount((prev) => prev + 1);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`评估失败: ${error.message}`);
       } else {

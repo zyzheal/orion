@@ -295,7 +295,7 @@ export default function ChangeRequestManagementPage() {
       }
       setModalVisible(false);
       fetchRequests();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('保存失败');
     } finally {
@@ -344,7 +344,7 @@ export default function ChangeRequestManagementPage() {
           key: `ai-risk-${record.id}`,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       message.error('AI 风险评估失败: ' + (err instanceof Error ? err.message : String(err)));
     }
   };

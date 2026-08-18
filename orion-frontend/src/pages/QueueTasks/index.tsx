@@ -54,7 +54,7 @@ const QueueTasksPage: React.FC = () => {
     try {
       const res = await listJobs(filterStatus ? { status: filterStatus } : undefined);
       setJobs(res.data?.jobs || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载失败');
     } finally {
       setLoading(false);
@@ -84,7 +84,7 @@ const QueueTasksPage: React.FC = () => {
       form.resetFields();
       fetchJobs();
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '入队失败');
     }
   };
@@ -95,7 +95,7 @@ const QueueTasksPage: React.FC = () => {
       message.success('标记完成');
       fetchJobs();
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '操作失败');
     }
   };
@@ -106,7 +106,7 @@ const QueueTasksPage: React.FC = () => {
       message.success('标记失败');
       fetchJobs();
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '操作失败');
     }
   };

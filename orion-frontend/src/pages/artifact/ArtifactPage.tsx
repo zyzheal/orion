@@ -148,7 +148,7 @@ const ArtifactPage: React.FC = () => {
         setArtifacts([]);
         setTotal(0);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setArtifacts([]);
       setTotal(0);
       message.error(`加载制品列表失败: ${(error as Error).message}`);
@@ -161,7 +161,7 @@ const ArtifactPage: React.FC = () => {
     try {
       const res = await getArtifactStats();
       setStats(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setStats(null);
     }
   };

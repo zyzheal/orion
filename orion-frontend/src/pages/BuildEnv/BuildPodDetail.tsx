@@ -28,7 +28,7 @@ const BuildPodDetail: React.FC = () => {
       const response = await getBuildPod(id);
       const podData = response.data as BuildPod | null;
       setPod(podData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建 Pod 详情失败：${error.message}`);
       } else {
@@ -46,7 +46,7 @@ const BuildPodDetail: React.FC = () => {
       const logsData = response.data as Array<{ id: string }>;
       const logs = Array.isArray(logsData) ? logsData : [];
       setLogIds(logs.map((log) => log.id));
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pod 日志失败：${error.message}`);
       }
@@ -64,7 +64,7 @@ const BuildPodDetail: React.FC = () => {
       await cancelBuildPod(id);
       message.success('Build pod cancelled');
       loadPod();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`取消构建 Pod 失败：${error.message}`);
       } else {

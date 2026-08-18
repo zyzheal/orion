@@ -113,7 +113,7 @@ const RateLimitingPage: React.FC = () => {
     try {
       const response = await getRateLimits();
       setRules(response.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
       setRules([]);
@@ -167,7 +167,7 @@ const RateLimitingPage: React.FC = () => {
       createForm.resetFields();
       await loadRules();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
@@ -194,7 +194,7 @@ const RateLimitingPage: React.FC = () => {
       setEditingRule(null);
       editForm.resetFields();
       await loadRules();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`更新失败: ${(error as Error).message}`);
       }
@@ -209,7 +209,7 @@ const RateLimitingPage: React.FC = () => {
       message.success('规则已删除');
       await loadRules();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -219,7 +219,7 @@ const RateLimitingPage: React.FC = () => {
       await toggleRateLimit(rule.id, enabled);
       setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, enabled } : r)));
       message.success(`规则 "${rule.name}" 已${enabled ? '启用' : '禁用'}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`操作失败: ${(error as Error).message}`);
     }
   };

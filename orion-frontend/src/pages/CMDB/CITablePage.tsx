@@ -94,7 +94,7 @@ const CITablePage: React.FC = () => {
       const result = await getCIs({ pageSize: 50 });
       // After interceptor unwraps, response.data is { data: CI[], total, page, pageSize }
       setCIs(result.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {
           message.error('权限不足，请重新登录或联系管理员');
@@ -122,7 +122,7 @@ const CITablePage: React.FC = () => {
     try {
       const result = await getCIRelations(ciId);
       setRelations(result.data ?? []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载关联关系失败：${error.message}`);
       } else {
@@ -155,7 +155,7 @@ const CITablePage: React.FC = () => {
       setRelationModalOpen(false);
       relationForm.resetFields();
       loadRelations(selectedCI.id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建关联关系失败：${error.message}`);
       } else {
@@ -171,7 +171,7 @@ const CITablePage: React.FC = () => {
       if (selectedCI) {
         loadRelations(selectedCI.id);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除关联关系失败：${error.message}`);
       } else {
@@ -200,7 +200,7 @@ const CITablePage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建配置项失败：${error.message}`);
       } else {
@@ -218,7 +218,7 @@ const CITablePage: React.FC = () => {
           await deleteCI(id);
           message.success('删除成功');
           loadData();
-        } catch (error: any) {
+        } catch (error: unknown) {
           if (error instanceof Error) {
             message.error(`删除失败：${error.message}`);
           } else {
@@ -264,7 +264,7 @@ const CITablePage: React.FC = () => {
       editForm.resetFields();
       setEditingCI(null);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新配置项失败：${error.message}`);
       } else {

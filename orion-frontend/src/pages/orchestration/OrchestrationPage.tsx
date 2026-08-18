@@ -118,7 +118,7 @@ const OrchestrationPage: React.FC = () => {
     try {
       const data = await orchestrationApi.list();
       setFlows(Array.isArray(data) ? data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载编排数据失败: ${(error as Error).message}`);
       setFlows([]);
     } finally {
@@ -145,7 +145,7 @@ const OrchestrationPage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`创建工作流失败: ${(error as Error).message}`);
     }
   };
@@ -156,7 +156,7 @@ const OrchestrationPage: React.FC = () => {
       await orchestrationApi.execute(id);
       message.success('工作流已启动');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`启动失败: ${(error as Error).message}`);
     } finally {
       setActionLoading(null);
@@ -169,7 +169,7 @@ const OrchestrationPage: React.FC = () => {
       await orchestrationApi.pause(id);
       message.success('工作流已暂停');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`暂停失败: ${(error as Error).message}`);
     } finally {
       setActionLoading(null);
@@ -182,7 +182,7 @@ const OrchestrationPage: React.FC = () => {
       await orchestrationApi.resume(id);
       message.success('工作流已恢复');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`恢复失败: ${(error as Error).message}`);
     } finally {
       setActionLoading(null);
@@ -195,7 +195,7 @@ const OrchestrationPage: React.FC = () => {
       await orchestrationApi.abort(id);
       message.success('工作流已中止');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`中止失败: ${(error as Error).message}`);
     } finally {
       setActionLoading(null);

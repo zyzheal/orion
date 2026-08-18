@@ -66,7 +66,7 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
       await onUpdateCollection(collection.name, values);
       message.success(`集合 "${collection.displayName}" 更新成功`);
       setEditing(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof Error && 'errorFields' in err) return;
       const msg = err instanceof Error ? err.message : '更新失败';
       message.error(`保存失败：${msg}`);

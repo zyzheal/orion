@@ -61,7 +61,7 @@ const ChaosExperimentPage: React.FC = () => {
       ]);
       setExperiments(expRes.data || []);
       setScore(scoreData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载失败';
       message.error(msg);
     } finally {
@@ -87,7 +87,7 @@ const ChaosExperimentPage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '创建失败';
       message.error(msg);
     }
@@ -102,7 +102,7 @@ const ChaosExperimentPage: React.FC = () => {
       editForm.resetFields();
       setEditingExperiment(null);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '编辑失败';
       message.error(msg);
     }
@@ -113,7 +113,7 @@ const ChaosExperimentPage: React.FC = () => {
       await chaosApi.runExperiment(id);
       message.success('Experiment started');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '启动失败';
       message.error(msg);
     }
@@ -124,7 +124,7 @@ const ChaosExperimentPage: React.FC = () => {
       await chaosApi.stopExperiment(id);
       message.success('Experiment stopped');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '停止失败';
       message.error(msg);
     }
@@ -135,7 +135,7 @@ const ChaosExperimentPage: React.FC = () => {
       await chaosApi.rollbackRun(id, 'Manual rollback');
       message.success('回滚成功');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '回滚失败';
       message.error(msg);
     }
@@ -146,7 +146,7 @@ const ChaosExperimentPage: React.FC = () => {
       await chaosApi.deleteExperiment(id);
       message.success('实验已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '删除失败';
       message.error(msg);
     }

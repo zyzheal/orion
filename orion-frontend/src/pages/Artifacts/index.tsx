@@ -107,7 +107,7 @@ const ArtifactManagement: React.FC = () => {
         setArtifacts([]);
         setTotal(0);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setArtifacts([]);
       setTotal(0);
       message.error(`加载制品数据失败: ${(error as Error).message}`);
@@ -120,7 +120,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getArtifactStats();
       setStats(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setStats(null);
     }
   };
@@ -129,7 +129,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getNamespaces();
       setNamespaces(res.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNamespaces([]);
     }
   };
@@ -186,7 +186,7 @@ const ArtifactManagement: React.FC = () => {
       createForm.resetFields();
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -214,7 +214,7 @@ const ArtifactManagement: React.FC = () => {
       message.success('制品更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -234,7 +234,7 @@ const ArtifactManagement: React.FC = () => {
       message.success('制品已删除');
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败: ${error.message}`);
       } else {
@@ -248,7 +248,7 @@ const ArtifactManagement: React.FC = () => {
       await deprecateArtifact(id);
       message.success('制品已废弃');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`废弃失败: ${error.message}`);
       } else {
@@ -262,7 +262,7 @@ const ArtifactManagement: React.FC = () => {
       await quarantineArtifact(id);
       message.success('制品已隔离');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`隔离失败: ${error.message}`);
       } else {
@@ -281,7 +281,7 @@ const ArtifactManagement: React.FC = () => {
       } else {
         message.warning('未获取到下载链接');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`下载失败: ${error.message}`);
       } else {
@@ -306,7 +306,7 @@ const ArtifactManagement: React.FC = () => {
       promotionForm.resetFields();
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -334,7 +334,7 @@ const ArtifactManagement: React.FC = () => {
       setTagModalVisible(false);
       tagForm.resetFields();
       loadTags(selectedArtifact.id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -381,7 +381,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getArtifactTags(id);
       setTags(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setTags([]);
     }
   };
@@ -390,7 +390,7 @@ const ArtifactManagement: React.FC = () => {
     try {
       const res = await getPromotionHistory(id);
       setPromotionHistory(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setPromotionHistory([]);
     }
   };

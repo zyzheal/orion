@@ -176,7 +176,7 @@ export const CapabilityAdmin: React.FC = () => {
       }
       setModalVisible(false);
       loadCapabilities();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error((error as Error).message || '操作失败');
     }
   };
@@ -189,7 +189,7 @@ export const CapabilityAdmin: React.FC = () => {
       message.success('临时权限已授予');
       setTempPermModalVisible(false);
       loadTempPerms();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error((error as Error).message || '授予失败');
     }
   };
@@ -200,7 +200,7 @@ export const CapabilityAdmin: React.FC = () => {
       await capabilityApi.revokeTemporary(id, '手动撤销');
       message.success('临时权限已撤销');
       loadTempPerms();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error((error as Error).message || '撤销失败');
     }
   };
@@ -212,7 +212,7 @@ export const CapabilityAdmin: React.FC = () => {
       await capabilityApi.requestPermission(values);
       message.success('权限申请已提交，等待审批');
       setRequestModalVisible(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error((error as Error).message || '申请失败');
     }
   };
@@ -225,7 +225,7 @@ export const CapabilityAdmin: React.FC = () => {
       message.success(`清理完成，共清理 ${payload?.cleaned || 0} 条过期权限`);
       loadTempPerms();
       loadAuditLogs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error((error as Error).message || '清理失败');
     }
   };

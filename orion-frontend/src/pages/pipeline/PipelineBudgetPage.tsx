@@ -149,7 +149,7 @@ const PipelineBudgetPage: React.FC = () => {
     try {
       const res = await pipelineBudgetApi.get(selectedPipelineId);
       setBudgetConfig(res || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setBudgetConfig(null);
     } finally {
       setLoading(false);
@@ -161,7 +161,7 @@ const PipelineBudgetPage: React.FC = () => {
       const res = await pipelineBudgetApi.getUsage(selectedPipelineId, selectedRunId);
       setBudgetUsage(res || null);
       setAlerts(res?.alerts || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setBudgetUsage(null);
       setAlerts([]);
     }
@@ -172,7 +172,7 @@ const PipelineBudgetPage: React.FC = () => {
     try {
       const res = await pipelineBudgetApi.estimate(selectedPipelineId, selectedTriggerType);
       setBudgetEstimate(res || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setBudgetEstimate(null);
       message.error(`预估失败: ${(error as Error).message}`);
     } finally {
@@ -242,7 +242,7 @@ const PipelineBudgetPage: React.FC = () => {
       message.success('预算配置保存成功');
       setConfigModalVisible(false);
       loadBudgetConfig();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: any };
       if (!err.errorFields) {
         message.error(`保存失败: ${(error as Error).message}`);

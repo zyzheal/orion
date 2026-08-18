@@ -152,7 +152,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
       setTenants((body?.data || body || []) as TenantEntity[]);
       setTotal((body as any)?.total ?? (body as any)?.totalPages ? ((body as any).page * ((body as any).limit || 1)) : 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载租户列表失败：${error.message}`);
       } else {
@@ -201,7 +201,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       setCreateModalOpen(false);
       createForm.resetFields();
       loadTenants();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // P0-5 修复：创建时 name 重复无明确反馈
       const err = error as { response?: { status?: number; data?: { message?: string } } };
       if (err.response?.status === 400) {
@@ -246,7 +246,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       message.success('租户更新成功');
       setEditModalOpen(false);
       loadTenants();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新租户失败：${error.message}`);
       } else {
@@ -260,7 +260,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       await deleteTenant(id);
       message.success('租户已删除');
       loadTenants();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除租户失败：${error.message}`);
       } else {
@@ -351,7 +351,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       message.success(`成功删除 ${successCount} 个租户`);
       setSelectedRowKeys([]);
       loadTenants();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`批量删除失败：${error.message}`);
       } else {
@@ -371,7 +371,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       const res = await getUsersByTenant(tenant.id);
       const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
       setUsers(Array.isArray(body) ? body : (body as any)?.users || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载用户列表失败：${error.message}`);
       } else {

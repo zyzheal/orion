@@ -55,7 +55,7 @@ const TemplatesDrawer: React.FC<{
       const res = await getAlertRuleTemplates(cat ? { category: cat } : undefined);
       const rawData = (res.data as any)?.data;
       setTemplates(Array.isArray(rawData) ? rawData : (rawData?.data as AlertRuleTemplate[]) || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载模板失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -136,7 +136,7 @@ const AlertRulesPage: React.FC = () => {
     try {
       const res = await getAlertRules();
       setRules(res.data?.rules || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载告警规则失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
@@ -195,7 +195,7 @@ const AlertRulesPage: React.FC = () => {
       }
       setModalVisible(false);
       loadRules();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!(error as { errorFields?: unknown }).errorFields) {
         message.error(`操作失败: ${(error as Error).message}`);
       }
@@ -209,7 +209,7 @@ const AlertRulesPage: React.FC = () => {
       await toggleAlertRule(ruleId);
       message.success('规则状态已切换');
       loadRules();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`切换失败: ${(error as Error).message}`);
     }
   };
@@ -223,7 +223,7 @@ const AlertRulesPage: React.FC = () => {
           await deleteAlertRule(ruleId);
           message.success('告警规则已删除');
           loadRules();
-        } catch (error: any) {
+        } catch (error: unknown) {
           message.error(`删除失败: ${(error as Error).message}`);
         }
       },
@@ -236,7 +236,7 @@ const AlertRulesPage: React.FC = () => {
       message.success('已从模板创建规则');
       setTemplatesVisible(false);
       loadRules();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`创建失败: ${(error as Error).message}`);
     }
   };

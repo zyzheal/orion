@@ -107,7 +107,7 @@ const ProjectManagement: React.FC = () => {
       } else {
         setProjects([]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setProjects([]);
       message.error(`加载项目数据失败: ${(error as Error).message}`);
     } finally {
@@ -162,7 +162,7 @@ const ProjectManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建失败：${error.message}`);
       } else {
@@ -199,7 +199,7 @@ const ProjectManagement: React.FC = () => {
       message.success('项目更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -218,7 +218,7 @@ const ProjectManagement: React.FC = () => {
       await deleteProject(id);
       message.success('项目已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -249,7 +249,7 @@ const ProjectManagement: React.FC = () => {
     try {
       const res = await getProjectResources(projectId);
       setProjectResources(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setProjectResources([]);
     }
   };

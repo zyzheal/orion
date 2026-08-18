@@ -35,7 +35,7 @@ const ApmDashboardPage: React.FC = () => {
         ? Math.round(traceRes.reduce((sum, t) => sum + t.duration_ms, 0) / traceRes.length)
         : 0;
       setAvgDuration(avg);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载 APM 数据失败');
     } finally {
       setLoading(false);

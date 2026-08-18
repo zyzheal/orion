@@ -99,7 +99,7 @@ const PerformancePage: React.FC = () => {
       setBaselines(Array.isArray(baselinesData) ? baselinesData : []);
       setBottlenecks(Array.isArray(bottlenecksData) ? bottlenecksData : []);
       setSuggestions(Array.isArray(suggestionsData) ? suggestionsData : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`加载性能数据失败: ${(error as Error).message}`);
       setBaselines([]);
       setBottlenecks([]);
@@ -126,7 +126,7 @@ const PerformancePage: React.FC = () => {
       setCreateModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`创建基线失败: ${(error as Error).message}`);
     }
   };

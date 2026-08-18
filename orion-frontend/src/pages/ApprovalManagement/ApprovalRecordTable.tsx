@@ -138,7 +138,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
       await approveRequest(id, { reviewerId: currentUserId, comment });
       message.success('审批通过');
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`审批操作失败: ${(error as Error).message}`);
     }
   };
@@ -148,7 +148,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
       await rejectRequest(id, { reviewerId: currentUserId, comment });
       message.success('已拒绝');
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`拒绝操作失败: ${(error as Error).message}`);
     }
   };

@@ -114,7 +114,7 @@ const CircuitBreakerPage: React.FC = () => {
     try {
       const response = await getCircuitBreakers();
       setBreakers(response.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
       setBreakers([]);
@@ -170,7 +170,7 @@ const CircuitBreakerPage: React.FC = () => {
       createForm.resetFields();
       await loadBreakers();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建失败: ${error.message}`);
       } else {
@@ -200,7 +200,7 @@ const CircuitBreakerPage: React.FC = () => {
       setEditingBreaker(null);
       editForm.resetFields();
       await loadBreakers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新失败: ${error.message}`);
       } else {
@@ -217,7 +217,7 @@ const CircuitBreakerPage: React.FC = () => {
       message.success('熔断器已删除');
       await loadBreakers();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`删除失败: ${(error as Error).message}`);
     }
   };
@@ -228,7 +228,7 @@ const CircuitBreakerPage: React.FC = () => {
       message.success('熔断器已重置');
       await loadBreakers();
       await loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error(`重置失败: ${(error as Error).message}`);
     }
   };

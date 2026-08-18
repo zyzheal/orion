@@ -79,7 +79,7 @@ const WorkflowDependenciesPage: React.FC = () => {
     try {
       const data = await getDependencyGraph();
       setGraphData(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setGraphData(null);
       message.error(`加载依赖图失败: ${(error as Error).message}`);
     } finally {
@@ -92,7 +92,7 @@ const WorkflowDependenciesPage: React.FC = () => {
     try {
       const data = await getVisualizationData();
       setVizData(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setVizData(null);
       message.error(`加载可视化数据失败: ${(error as Error).message}`);
     } finally {
@@ -114,7 +114,7 @@ const WorkflowDependenciesPage: React.FC = () => {
       } else {
         message.warning(`检测到 ${data.cycles.length} 个循环依赖`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setCheckResult(null);
       message.error(`检查失败: ${(error as Error).message}`);
     } finally {

@@ -222,7 +222,7 @@ const NotificationCenter: React.FC = () => {
       setNotifications(data);
       setTotal(totalCount || data.length);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`获取通知列表失败：${error.message}`);
       } else {
@@ -238,7 +238,7 @@ const NotificationCenter: React.FC = () => {
     try {
       const data = await getNotificationStats();
       setStats(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`获取统计数据失败：${error.message}`);
       }
@@ -269,7 +269,7 @@ const NotificationCenter: React.FC = () => {
       await markAsRead(id);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`标记已读失败：${error.message}`);
       }
@@ -283,7 +283,7 @@ const NotificationCenter: React.FC = () => {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       message.success('已全部标记为已读');
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`全部标记已读失败：${error.message}`);
       } else {
@@ -299,7 +299,7 @@ const NotificationCenter: React.FC = () => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       message.success('通知已删除');
       fetchStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -324,7 +324,7 @@ const NotificationCenter: React.FC = () => {
       const res = await listUsers({ limit: 200 });
       const users: User[] = res.data?.data || [];
       setAvailableUsers(users);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setAvailableUsers([]);
     } finally {
       setUsersLoading(false);
@@ -375,7 +375,7 @@ const NotificationCenter: React.FC = () => {
       message.success(`广播发送成功，已发送至 ${result.sent} 个用户`);
       setBroadcastModalVisible(false);
       broadcastForm.resetFields();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Form validation errors are handled by Ant Design
       if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error('广播发送失败');
@@ -394,7 +394,7 @@ const NotificationCenter: React.FC = () => {
     try {
       const settings = await getNotificationSettings();
       setNotificationSettings(settings);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`获取通知设置失败：${error.message}`);
       } else {
@@ -416,7 +416,7 @@ const NotificationCenter: React.FC = () => {
       };
       const result = await updateNotificationSettings({ [key]: newSettings[key] });
       setNotificationSettings(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`保存设置失败：${error.message}`);
       } else {

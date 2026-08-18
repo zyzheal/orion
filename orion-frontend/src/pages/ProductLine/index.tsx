@@ -136,7 +136,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
         needsApproval: approvalRes?.data?.requiresApproval,
         isHotfixBranch: hotfixRes?.data?.isHotfix,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Try mock: find matching env mapping
       const pl = productLines.find((p) => p.id === plId);
       if (pl) {
@@ -261,7 +261,7 @@ const ProductLineManagement: React.FC = () => {
     try {
       const res = await getProductLines();
       setProductLines(Array.isArray(res.data) ? res.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setProductLines([]);
       message.error(`加载产品线数据失败: ${(error as Error).message}`);
     } finally {
@@ -343,7 +343,7 @@ const ProductLineManagement: React.FC = () => {
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -375,7 +375,7 @@ const ProductLineManagement: React.FC = () => {
       message.success('产品线更新成功');
       setEditModalVisible(false);
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -394,7 +394,7 @@ const ProductLineManagement: React.FC = () => {
       await deleteProductLine(id);
       message.success('产品线已删除');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`删除失败：${error.message}`);
       } else {
@@ -408,7 +408,7 @@ const ProductLineManagement: React.FC = () => {
       await activateProductLine(id);
       message.success('产品线已激活');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`激活失败：${error.message}`);
       } else {
@@ -422,7 +422,7 @@ const ProductLineManagement: React.FC = () => {
       await suspendProductLine(id);
       message.success('产品线已暂停');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`暂停失败：${error.message}`);
       } else {
@@ -448,7 +448,7 @@ const ProductLineManagement: React.FC = () => {
       const [rtRes, hfRes] = await Promise.all([getReleaseTrains(pl.id), getHotfixChannels(pl.id)]);
       setReleaseTrains(rtRes?.data || []);
       setHotfixChannels(hfRes?.data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setReleaseTrains([]);
       setHotfixChannels([]);
     }
@@ -482,7 +482,7 @@ const ProductLineManagement: React.FC = () => {
       } catch {
         /* optional reload, ignore */
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {
@@ -522,7 +522,7 @@ const ProductLineManagement: React.FC = () => {
       } catch {
         /* optional reload, ignore */
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         if (error instanceof Error) {

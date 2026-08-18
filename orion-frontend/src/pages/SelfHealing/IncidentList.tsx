@@ -43,7 +43,7 @@ const IncidentList: React.FC = () => {
       const res = await getHealingHistory({ ...filters, page, pageSize });
       setData((res.data as any).items || []);
       setTotal((res.data as any).total || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载事件列表失败：${error.message}`);
       } else {
@@ -66,7 +66,7 @@ const IncidentList: React.FC = () => {
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建事件失败：${error.message}`);
       } else {

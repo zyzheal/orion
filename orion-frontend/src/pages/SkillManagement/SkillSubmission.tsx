@@ -55,7 +55,7 @@ const SkillSubmission: React.FC = () => {
       form.resetFields();
       setTags([]);
       setSubmittedSkills((prev) => [...prev, payload]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
         const msg = error instanceof Error ? error.message : '提交失败，请检查表单';

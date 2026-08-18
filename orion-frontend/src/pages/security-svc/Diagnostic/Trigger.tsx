@@ -56,7 +56,7 @@ const DiagnosticTrigger: React.FC = () => {
       if (sessionId) {
         navigate(`/diagnostic/sessions`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建诊断会话失败：${error.message}`);
       } else {
