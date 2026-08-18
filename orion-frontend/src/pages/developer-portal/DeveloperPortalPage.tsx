@@ -336,7 +336,7 @@ const DeveloperPortalPage: React.FC = () => {
 
   // ==================== Document Handlers ====================
 
-  const handleCreateDoc = async (values: Record<string, unknown>) => {
+  const handleCreateDoc = async (values: any) => {
     setLoading(true);
     try {
       const payload: PortalDocumentCreateRequest = {
@@ -362,7 +362,7 @@ const DeveloperPortalPage: React.FC = () => {
     }
   };
 
-  const handleEditDoc = async (values: Record<string, unknown>) => {
+  const handleEditDoc = async (values: any) => {
     if (!selectedDoc) return;
     setLoading(true);
     try {
@@ -419,7 +419,7 @@ const DeveloperPortalPage: React.FC = () => {
     }
   };
 
-  const handleCreateVersion = async (values: Record<string, unknown>) => {
+  const handleCreateVersion = async (values: any) => {
     if (!selectedDoc) return;
     setLoading(true);
     try {
@@ -461,7 +461,7 @@ const DeveloperPortalPage: React.FC = () => {
 
   // ==================== Mock Handlers ====================
 
-  const handleCreateMock = async (values: Record<string, unknown>) => {
+  const handleCreateMock = async (values: any) => {
     setLoading(true);
     try {
       const payload: MockRuleCreateRequest = {
@@ -489,7 +489,7 @@ const DeveloperPortalPage: React.FC = () => {
     }
   };
 
-  const handleEditMock = async (values: Record<string, unknown>) => {
+  const handleEditMock = async (values: any) => {
     if (!selectedMock) return;
     setLoading(true);
     try {
@@ -555,7 +555,7 @@ const DeveloperPortalPage: React.FC = () => {
 
   // ==================== SDK Handlers ====================
 
-  const handleCreateSdk = async (values: Record<string, unknown>) => {
+  const handleCreateSdk = async (values: any) => {
     setLoading(true);
     try {
       const payload: SDKGenerateRequest = {
@@ -601,7 +601,7 @@ const DeveloperPortalPage: React.FC = () => {
 
   // ==================== Subscription Handlers ====================
 
-  const handleCreateSub = async (values: Record<string, unknown>) => {
+  const handleCreateSub = async (values: any) => {
     setLoading(true);
     try {
       const payload: SubscriptionCreateRequest = {
@@ -635,7 +635,7 @@ const DeveloperPortalPage: React.FC = () => {
     }
   };
 
-  const handleRejectSub = async (values: Record<string, unknown>) => {
+  const handleRejectSub = async (values: any) => {
     if (!selectedSub) return;
     try {
       await developerPortalApi.rejectSubscription(selectedSub.id, values.reason as string);
@@ -673,7 +673,7 @@ const DeveloperPortalPage: React.FC = () => {
 
   // ==================== Playground Handlers ====================
 
-  const handleExecutePlayground = async (values: Record<string, unknown>) => {
+  const handleExecutePlayground = async (values: any) => {
     setPgExecuting(true);
     setPlaygroundResult(null);
     try {

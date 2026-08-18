@@ -77,7 +77,7 @@ const DataPipelinePage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (values: Record<string, unknown>) => {
+  const handleCreate = async (values: any) => {
     try {
       await createDataPipeline({
         name: values.name as string,

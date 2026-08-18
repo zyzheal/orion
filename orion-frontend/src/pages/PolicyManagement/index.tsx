@@ -100,7 +100,7 @@ const PolicyManagement: React.FC = () => {
   const openViolations = violations.filter((v) => v.status === 'open').length;
   const blockedViolations = violations.filter((v) => v.severity === 'block').length;
 
-  const handleSavePolicy = async (values: Record<string, unknown>) => {
+  const handleSavePolicy = async (values: any) => {
     try {
       const payload: PolicyInput = {
         name: String(values.name),

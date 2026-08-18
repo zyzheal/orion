@@ -263,7 +263,7 @@ const SLAManagement: React.FC = () => {
 
   // ---- Handlers: Definitions ----
 
-  const handleSaveDefinition = async (values: Record<string, unknown>) => {
+  const handleSaveDefinition = async (values: any) => {
     try {
       const payload = {
         name: String(values.name),
@@ -329,7 +329,7 @@ const SLAManagement: React.FC = () => {
 
   // ---- Handlers: Tracking ----
 
-  const handleCreateTracking = async (values: Record<string, unknown>) => {
+  const handleCreateTracking = async (values: any) => {
     try {
       await createSLATracking({
         sla_definition_id: String(values.sla_definition_id),

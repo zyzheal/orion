@@ -132,7 +132,7 @@ const AccuracyTrendSVG: React.FC<{ data: number[] }> = ({ data }) => {
           <stop offset="100%" stopColor={colors.purple[500]} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={areaPoints.join(' ')} fill="url(#accuracyGradient)" />
+      <polygon points={areaPoints.join(' ')} fill="url(colors.info[500]uracyGradient)" />
       <polyline
         points={points.join(' ')}
         fill="none"

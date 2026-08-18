@@ -321,9 +321,9 @@ const PipelineBudgetPage: React.FC = () => {
             onChange={setSelectedRunId}
             style={{ width: 200 }}
             options={[
-              { label: 'Run #101', value: 'run-demo-1' },
-              { label: 'Run #102', value: 'run-demo-2' },
-              { label: 'Run #103', value: 'run-demo-3' },
+              { label: 'Run colors.primary[500]', value: 'run-demo-1' },
+              { label: 'Run colors.primary[500]', value: 'run-demo-2' },
+              { label: 'Run colors.primary[500]', value: 'run-demo-3' },
             ]}
           />
           <Button icon={<ReloadOutlined />} onClick={() => { loadBudgetConfig(); loadBudgetUsage(); }} loading={loading}>
