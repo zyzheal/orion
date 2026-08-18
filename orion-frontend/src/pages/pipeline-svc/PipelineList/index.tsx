@@ -46,7 +46,7 @@ const PipelineList: React.FC = () => {
       // wrapper: {success, data: {data: [...], total}, meta}
       const payload = response.data as { data?: Pipeline[]; total?: number };
       setPipelines(Array.isArray(payload) ? payload : (payload.data || []));
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
       } else {
@@ -125,7 +125,7 @@ const PipelineList: React.FC = () => {
       if (runId) {
         navigate(`/pipelines/${selectedPipeline.id}/runs/${runId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`触发运行失败：${error.message}`);
       } else {
@@ -149,7 +149,7 @@ const PipelineList: React.FC = () => {
       width: 200,
       sortable: true,
       filterable: true,
-      render: (_value: any, record) => (
+      render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -188,7 +188,7 @@ const PipelineList: React.FC = () => {
       dataIndex: 'createdAt',
       width: '15%',
       sortable: true,
-      render: (value: any) => (
+      render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
@@ -200,7 +200,7 @@ const PipelineList: React.FC = () => {
       dataIndex: 'updatedAt',
       width: '15%',
       sortable: true,
-      render: (value: any) => (
+      render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {dayjs(String(value)).fromNow()}
         </Text>
@@ -210,7 +210,7 @@ const PipelineList: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 320,
-      render: (_: any, record) => (
+      render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看

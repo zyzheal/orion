@@ -34,7 +34,7 @@ const BatchActions: React.FC<BatchActionsProps> = ({ selectedIds, onRefresh, onC
           message.success(`已${labels[action]} ${selectedIds.length} 个 Pipeline`);
           onRefresh();
           onClearSelection();
-        } catch (error: any) {
+        } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : '操作失败';
           message.error(`批量${labels[action]}失败: ${msg}`);
         } finally {

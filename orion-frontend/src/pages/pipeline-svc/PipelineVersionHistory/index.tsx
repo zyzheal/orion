@@ -39,7 +39,7 @@ const PipelineVersionHistory: React.FC = () => {
     try {
       const response = await pipelineVersionsApi.list(pipelineId);
       setVersions(((response as any).data as PipelineVersion[]) || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载版本历史失败';
       message.error(msg);
     } finally {
@@ -62,7 +62,7 @@ const PipelineVersionHistory: React.FC = () => {
           await pipelineVersionsApi.rollback(pipelineId!, version.id);
           message.success('回滚成功');
           loadVersions();
-        } catch (error: any) {
+        } catch (error: unknown) {
           const msg = error instanceof Error ? error.message : '回滚失败';
           message.error(msg);
         }
@@ -75,7 +75,7 @@ const PipelineVersionHistory: React.FC = () => {
       await pipelineVersionsApi.setBaseline(pipelineId!, version.id, !version.is_baseline);
       message.success(version.is_baseline ? '已取消基线' : '已设为基线');
       loadVersions();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '操作失败';
       message.error(msg);
     }
@@ -95,7 +95,7 @@ const PipelineVersionHistory: React.FC = () => {
       ]);
       setDiffVersions({ versionA: vA, versionB: vB });
       setDiffModalVisible(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '版本对比失败';
       message.error(msg);
     } finally {

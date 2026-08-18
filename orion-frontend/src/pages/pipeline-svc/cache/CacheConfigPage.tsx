@@ -109,7 +109,7 @@ const CacheConfigPage: React.FC = () => {
       const response = await cacheStrategyApi.list(params);
       const apiData = response.data?.data || response.data || response;
       setStrategies(Array.isArray(apiData) ? apiData : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error('加载缓存策略失败，请稍后重试');
       setStrategies([]);
     } finally {
@@ -291,7 +291,7 @@ const CacheConfigPage: React.FC = () => {
       await cacheStrategyApi.delete(id);
       message.success('缓存策略已删除');
       loadStrategies();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error('删除缓存策略失败');
     }
   };

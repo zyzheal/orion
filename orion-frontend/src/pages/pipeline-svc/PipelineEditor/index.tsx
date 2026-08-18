@@ -417,7 +417,7 @@ const PipelineEditor: React.FC = () => {
   const handleSavePipeline = useCallback(async () => {
     try {
       await form.validateFields();
-    } catch (error: any) {
+    } catch (error: unknown) {
       message.error('请填写完整的 Pipeline 信息');
       return;
     }
@@ -450,7 +450,7 @@ const PipelineEditor: React.FC = () => {
       }
 
       navigate('/pipelines');
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`保存失败：${error.message}`);
       } else {

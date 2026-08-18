@@ -56,7 +56,7 @@ const StageSelectorModal: React.FC<StageSelectorModalProps> = ({
       // Handle both array and object response formats
       const stageList = Array.isArray(data) ? data : (data.data || []);
       setStages(stageList as StageInfo[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载阶段信息失败：${error.message}`);
       } else {

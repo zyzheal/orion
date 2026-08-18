@@ -95,7 +95,7 @@ const PipelineRunList: React.FC = () => {
       const apiData = response.data;
       const items = Array.isArray(apiData.data) ? apiData.data : [];
       setRuns(items as PipelineRunSummary[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 运行列表失败：${error.message}`);
       } else {
@@ -194,7 +194,7 @@ const PipelineRunList: React.FC = () => {
       title: 'Run ID',
       dataIndex: 'id',
       width: 120,
-      render: (_value: any, record) => (
+      render: (_value: unknown, record) => (
         <Text code style={{ fontSize: spacing[3] }}>
           #{record.id.slice(0, 8)}
         </Text>
@@ -204,7 +204,7 @@ const PipelineRunList: React.FC = () => {
       key: 'pipelineName',
       title: 'Pipeline',
       width: 220,
-      render: (_value: any, record) => (
+      render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
           <Text
             strong
@@ -232,7 +232,7 @@ const PipelineRunList: React.FC = () => {
       key: 'environment',
       title: '环境',
       width: 100,
-      render: (_value: any, record) => (
+      render: (_value: unknown, record) => (
         <Text type="secondary" style={{ fontSize: spacing[3] }}>
           {(record as { environment?: string }).environment || '-'}
         </Text>
@@ -243,7 +243,7 @@ const PipelineRunList: React.FC = () => {
       title: '开始时间',
       width: 180,
       sortable: true,
-      render: (_value: any, record) => {
+      render: (_value: unknown, record) => {
         const startTime = record.startedAt || record.createdAt;
         return (
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
@@ -256,7 +256,7 @@ const PipelineRunList: React.FC = () => {
       key: 'duration',
       title: '耗时',
       width: 100,
-      render: (_value: any, record) => (
+      render: (_value: unknown, record) => (
         <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
           {formatDuration(Number(record.durationMs) || undefined)}
         </Text>
@@ -266,7 +266,7 @@ const PipelineRunList: React.FC = () => {
       key: 'triggeredBy',
       title: '触发人',
       width: 120,
-      render: (_value: any, record) => (
+      render: (_value: unknown, record) => (
         <Text code style={{ fontSize: spacing[3] }}>
           {record.triggerBy || '-'}
         </Text>
@@ -276,7 +276,7 @@ const PipelineRunList: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 220,
-      render: (_: any, record) => (
+      render: (_: unknown, record) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
             查看
@@ -359,7 +359,7 @@ const PipelineRunList: React.FC = () => {
       if (newRunId) {
         navigate(`/pipelines/${newRunId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         const errMsg = error.message;
         // Handle edge case: run no longer exists
@@ -399,7 +399,7 @@ const PipelineRunList: React.FC = () => {
       message.success('Pipeline 已取消');
       // Refresh list after cancel
       await loadRuns();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         const errMsg = error.message;
         // Handle edge case: run no longer running
@@ -448,7 +448,7 @@ const PipelineRunList: React.FC = () => {
       if (newRunId) {
         navigate(`/pipelines/${newRunId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         const errMsg = error.message;
         if (

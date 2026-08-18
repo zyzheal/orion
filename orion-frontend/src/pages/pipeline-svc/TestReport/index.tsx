@@ -48,7 +48,7 @@ const TestReportPage: React.FC = () => {
       if (summaryRes.data) {
         setSummary(summaryRes.data);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载测试报告失败';
       message.error(msg);
     } finally {

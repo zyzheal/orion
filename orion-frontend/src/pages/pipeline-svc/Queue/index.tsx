@@ -107,7 +107,7 @@ const QueueManagement: React.FC = () => {
       const res = await listJobs(params);
       const jobsData = res.data?.jobs;
       setJobs(Array.isArray(jobsData) ? jobsData : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setJobs([]);
       message.error(`加载任务数据失败: ${(error as Error).message}`);
     } finally {
@@ -119,7 +119,7 @@ const QueueManagement: React.FC = () => {
     try {
       const res = await getQueueStats();
       setStats(res.data || null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setStats(null);
     }
   };
@@ -154,7 +154,7 @@ const QueueManagement: React.FC = () => {
       enqueueForm.resetFields();
       loadData();
       loadStats();
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof Error && err.message.includes('JSON')) {
         message.error('Payload 格式错误，请输入有效的 JSON');
       } else if (err instanceof Error) {
@@ -180,7 +180,7 @@ const QueueManagement: React.FC = () => {
       dequeueForm.resetFields();
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`出队失败：${error.message}`);
       } else {
@@ -197,7 +197,7 @@ const QueueManagement: React.FC = () => {
       message.success('任务已标记为完成');
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`操作失败：${error.message}`);
       } else {
@@ -212,7 +212,7 @@ const QueueManagement: React.FC = () => {
       message.success('任务已标记为失败');
       loadData();
       loadStats();
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`操作失败：${error.message}`);
       } else {
