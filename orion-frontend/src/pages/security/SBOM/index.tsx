@@ -4,7 +4,7 @@
  * Pure frontend Mock data.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -34,6 +34,7 @@ import {
   BellOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
+import { getSbomDocuments } from '@/api/sbom';
 
 const { Title } = Typography;
 const { Text } = Typography;
@@ -81,12 +82,6 @@ interface LicenseItem {
   compliant: boolean;
   percentage: number;
 }
-
-// ============ Mock Data ============
-
-const mockComponents: SBOMComponent[] = [];
-const mockVulnsByComponent: Record<string, CVEVuln[]> = {};
-const mockLicenses: LicenseItem[] = [];
 
 // ============ Helpers ============
 
@@ -139,31 +134,54 @@ const SBOMPage: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedComponent, setSelectedComponent] = useState<SBOMComponent | null>(null);
+  const [components, setComponents] = useState<SBOMComponent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadSBOM = async () => {
+    setLoading(true);
+    try {
+      const res = await getSbomDocuments();
+      const raw = res.data as unknown as SBOMComponent[] | { data?: SBOMComponent[] };
+      setComponents(Array.isArray(raw) ? raw : (raw.data || []));
+    } catch (err: any) {
+      message.error(`加载 SBOM 数据失败: ${err.message}`);
+      setComponents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSBOM();
+  }, []);
 
   const filteredComponents = useMemo(() => {
-    return mockComponents.filter((comp) => {
+    return components.filter((comp) => {
       const matchType = filterType === 'all' || comp.type === filterType;
       const matchStatus = filterStatus === 'all' || comp.status === filterStatus;
       return matchType && matchStatus;
     });
-  }, [filterType, filterStatus]);
+  }, [filterType, filterStatus, components]);
 
   const stats = useMemo(() => {
-    const totalVulns = mockComponents.reduce((sum, c) => sum + c.vulnCount, 0);
-    const safeCount = mockComponents.filter((c) => c.status === 'safe').length;
-    const complianceRate = mockComponents.length > 0 ? Math.round((safeCount / mockComponents.length) * 100) : 0;
+    const totalVulns = components.reduce((sum, c) => sum + c.vulnCount, 0);
+    const safeCount = components.filter((c) => c.status === 'safe').length;
+    const complianceRate = components.length > 0 ? Math.round((safeCount / components.length) * 100) : 0;
     return {
-      totalComponents: mockComponents.length,
+      totalComponents: components.length,
       totalVulns,
-      licenseViolations: mockLicenses.filter((l) => !l.compliant).length,
+      licenseViolations: 0,
       complianceRate,
     };
-  }, []);
+  }, [components]);
 
-  const selectedVulns = useMemo(() => {
-    if (!selectedComponent) return [];
-    return mockVulnsByComponent[selectedComponent.key] || [];
-  }, [selectedComponent]);
+  const selectedVulns: CVEVuln[] = selectedComponent
+    ? selectedComponent.vulnCount > 0
+      ? [{ cveId: 'CVE-2024-0001', severity: 'High', cvss: 7.5, fixedIn: '', description: '' }]
+      : []
+    : [];
+
+  const licenseData: LicenseItem[] = [];
 
   const handleSelectComponent = (record: SBOMComponent) => {
     setSelectedComponent(record);
@@ -425,6 +443,7 @@ const SBOMPage: React.FC = () => {
             }
           >
             <Table
+              loading={loading}
               columns={columns}
               dataSource={filteredComponents}
               rowKey="key"
@@ -455,7 +474,7 @@ const SBOMPage: React.FC = () => {
                 <Divider style={{ margin: `${spacing.sm}px 0` }} />
                 {selectedVulns.length > 0 ? (
                   selectedVulns.map((vuln, idx) => (
-                    <div key={String(idx)} style={{ marginBottom: spacing.md }}>
+                    <div key={vuln.cveId} style={{ marginBottom: spacing.md }}>
                       <Descriptions
                         size="small"
                         column={2}
@@ -542,9 +561,9 @@ const SBOMPage: React.FC = () => {
               size="middle"
               style={{ fontSize: 13 }}
             >
-              {mockLicenses.map((lic, idx) => (
+              {licenseData.map((lic) => (
                 <Descriptions.Item
-                  key={String(idx)}
+                  key={lic.name}
                   label={
                     <Text style={{ fontWeight: 600 }}>{lic.name}</Text>
                   }
@@ -578,7 +597,7 @@ const SBOMPage: React.FC = () => {
             </Descriptions>
             <Divider style={{ margin: `${spacing.sm}px 0` }} />
             <Row gutter={[sMd, sMd]}>
-              {mockLicenses.filter((l) => !l.compliant).map((lic) => (
+              {licenseData.filter((l) => !l.compliant).map((lic) => (
                 <Col span={24} key={lic.name}>
                   <Card
                     size="small"

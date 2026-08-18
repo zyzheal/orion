@@ -4,7 +4,7 @@
  * 纯前端 Mock 数据：Trivy/Clair 漏洞扫描、镜像合规、修复建议
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -39,6 +39,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
+import { listContainerScans, runContainerScan } from '@/api/containerScan';
 
 const { Title } = Typography;
 const { Text } = Typography;
@@ -97,12 +98,7 @@ interface ScanPolicy {
 }
 
 /**
- * Mock 镜像扫描数据（10条记录）
- */
-const mockScanData: ImageScanRecord[] = [];
-
-/**
- * 计算漏洞分布数据
+ * 漏洞分布计算
  */
 const calcVulnDistribution = (records: ImageScanRecord[]): VulnDistribution[] => {
   const total = records.reduce((sum, r) => sum + r.total, 0);
@@ -160,12 +156,45 @@ const ContainerScanPage: React.FC = () => {
     threshold: 'Critical+High',
     autoBlock: true,
   });
+  const [scanData, setScanData] = useState<ImageScanRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadScans = async () => {
+    setLoading(true);
+    try {
+      const res = await listContainerScans({ page: 1, page_size: 100 });
+      const raw = res.data as { data?: ImageScanRecord[] } | ImageScanRecord[];
+      setScanData(Array.isArray(raw) ? raw : (raw.data || []));
+    } catch (err: any) {
+      message.error(`加载扫描数据失败: ${err.message}`);
+      setScanData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadScans();
+  }, []);
+
+  const handleScan = async (record: ImageScanRecord) => {
+    setScanningKey(record.key);
+    try {
+      await runContainerScan({ image: record.image, tag: record.tag, engine: policy.engine });
+      message.success('扫描已发起');
+      loadScans();
+    } catch (err: any) {
+      message.error(`发起扫描失败: ${err.message}`);
+    } finally {
+      setScanningKey(null);
+    }
+  };
 
   /**
    * 过滤扫描数据
    */
   const filteredData = useMemo(() => {
-    let data = mockScanData;
+    let data = scanData;
     if (searchText) {
       const keyword = searchText.toLowerCase();
       data = data.filter(
@@ -176,18 +205,18 @@ const ContainerScanPage: React.FC = () => {
       data = data.filter((r) => r.status === statusFilter);
     }
     return data;
-  }, [searchText, statusFilter]);
+  }, [searchText, statusFilter, scanData]);
 
-  const vulnDist = calcVulnDistribution(mockScanData);
+  const vulnDist = calcVulnDistribution(scanData);
 
   /**
    * 统计指标
    */
-  const totalImages = mockScanData.length;
-  const highVulns = mockScanData.reduce((s, r) => s + r.critical + r.high, 0);
-  const passedCount = mockScanData.filter((r) => r.status === 'passed').length;
+  const totalImages = scanData.length;
+  const highVulns = scanData.reduce((s, r) => s + r.critical + r.high, 0);
+  const passedCount = scanData.filter((r) => r.status === 'passed').length;
   const fixRate = totalImages > 0 ? Math.round((passedCount / totalImages) * 100) : 0;
-  const pendingScan = mockScanData.filter((r) => r.status === 'failed').length;
+  const pendingScan = scanData.filter((r) => r.status === 'failed').length;
 
   /**
    * 表格列定义
@@ -266,12 +295,7 @@ const ContainerScanPage: React.FC = () => {
               loading={scanningKey === record.key}
               style={{ color: commonStyle.info }}
               disabled={scanningKey === record.key}
-              onClick={async () => {
-                setScanningKey(record.key);
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-                setScanningKey(null);
-                message.success(`${record.image}:${record.tag} 扫描完成`);
-              }}
+              onClick={() => handleScan(record)}
             />
           </Tooltip>
         </Space>
@@ -426,6 +450,7 @@ const ContainerScanPage: React.FC = () => {
             </div>
 
             <Table
+              loading={loading}
               columns={columns}
               dataSource={filteredData}
               rowKey="key"
