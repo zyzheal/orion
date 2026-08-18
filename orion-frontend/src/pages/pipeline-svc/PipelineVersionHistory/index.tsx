@@ -169,7 +169,7 @@ const PipelineVersionHistory: React.FC = () => {
       key: 'actions',
       title: '操作',
       width: 200,
-      render: (_: any, record: PipelineVersion) => (
+      render: (_: unknown, record: PipelineVersion) => (
         <Space size="small">
           <Button type="link" size="small" onClick={() => handleRollback(record)}>
             回滚

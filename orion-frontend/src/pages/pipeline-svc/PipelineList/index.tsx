@@ -170,7 +170,7 @@ const PipelineList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: '12%',
-      render: (value: any) => <StatusBadge status={String(value) as StatusType} size="small" />,
+      render: (value: unknown) => <StatusBadge status={String(value) as StatusType} size="small" />,
     },
     {
       key: 'stages',

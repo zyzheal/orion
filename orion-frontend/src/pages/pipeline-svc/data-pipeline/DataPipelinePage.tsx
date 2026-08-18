@@ -174,13 +174,13 @@ const DataPipelinePage: React.FC = () => {
       title: '调度',
       key: 'schedule',
       width: 120,
-      render: (_: any, record: DataPipeline) => record.schedule || '手动',
+      render: (_: unknown, record: DataPipeline) => record.schedule || '手动',
     },
     {
       title: '操作',
       key: 'actions',
       width: 160,
-      render: (_: any, record: DataPipeline) => (
+      render: (_: unknown, record: DataPipeline) => (
         <Space size="small">
           <Button
             type="link"

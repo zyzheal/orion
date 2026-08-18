@@ -207,7 +207,7 @@ const CacheConfigPage: React.FC = () => {
       title: '命中率',
       key: 'hitRate',
       width: 120,
-      render: (_: any, record: CacheStrategy) => {
+      render: (_: unknown, record: CacheStrategy) => {
         const hit = record.hitCount || 0;
         const miss = record.missCount || 0;
         const rate = hit + miss > 0 ? (hit / (hit + miss)) * 100 : 0;
@@ -234,7 +234,7 @@ const CacheConfigPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 180,
-      render: (_: any, record: CacheStrategy) => (
+      render: (_: unknown, record: CacheStrategy) => (
         <Space size="small">
           <Button
             type="link"

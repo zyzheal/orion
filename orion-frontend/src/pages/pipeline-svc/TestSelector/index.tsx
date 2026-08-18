@@ -224,7 +224,7 @@ const TestSelector: React.FC = () => {
       dataIndex: 'suite',
       sortable: true,
       filterable: true,
-      render: (value: any) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
+      render: (value: unknown) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
     },
     {
       key: 'status',

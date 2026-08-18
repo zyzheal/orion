@@ -299,7 +299,7 @@ const QueueManagement: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 180,
-      render: (_: any, record: QueueJob) => (
+      render: (_: unknown, record: QueueJob) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
             <Button
