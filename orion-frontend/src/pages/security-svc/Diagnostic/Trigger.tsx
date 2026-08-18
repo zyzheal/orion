@@ -156,7 +156,7 @@ const DiagnosticTrigger: React.FC = () => {
 
           {symptoms.map((symptom, index) => (
             <Card
-              key={index}
+              key={String(index)}
               size="small"
               style={{ marginBottom: spacing[3], background: colors.neutral[50] }}
               title={`症状 #${index + 1}`}

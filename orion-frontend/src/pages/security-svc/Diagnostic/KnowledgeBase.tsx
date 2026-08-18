@@ -199,7 +199,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         return (
           <Space wrap>
             {symptoms.slice(0, 3).map((s, idx) => (
-              <Tag key={idx} style={{ fontSize: spacing[2] }}>
+              <Tag key={String(idx)} style={{ fontSize: spacing[2] }}>
                 {s}
               </Tag>
             ))}
@@ -407,7 +407,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
               <Title level={5}>症状</Title>
               <Space wrap>
                 {selectedPattern.symptoms.map((s: string, idx: number) => (
-                  <Tag key={idx} color="purple">
+                  <Tag key={String(idx)} color="purple">
                     {s}
                   </Tag>
                 ))}

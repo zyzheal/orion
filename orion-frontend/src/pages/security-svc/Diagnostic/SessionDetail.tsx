@@ -208,7 +208,7 @@ const DiagnosticSessionDetail: React.FC = () => {
             <Descriptions.Item label="因素">
               <Space>
                 {complexity.factors.map((f: string, idx: number) => (
-                  <Tag key={idx}>{f}</Tag>
+                  <Tag key={String(idx)}>{f}</Tag>
                 ))}
               </Space>
             </Descriptions.Item>
