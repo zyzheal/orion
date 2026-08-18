@@ -58,13 +58,34 @@ interface ConditionRule {
 
 // ── API helpers ──
 // Forms: real API via '@/api/lowcode' → /api/v1/lowcode
-// Conditions: mock (no Go backend yet — TODO)
-
-// Mock API — no Go backend yet
-const listConditions = () => Promise.resolve([] as ConditionRule[]);
-const createCondition = (_: Partial<ConditionRule>) => Promise.resolve();
-const updateCondition = (_: string, __: Partial<ConditionRule>) => Promise.resolve();
-const deleteCondition = (_: string) => Promise.resolve();
+// Conditions: localStorage-backed persistence (Go backend pending)
+const COND_KEY = 'formdesigner:conditions';
+const loadCond = (): ConditionRule[] => {
+  try {
+    return JSON.parse(localStorage.getItem(COND_KEY) || '[]') as ConditionRule[];
+  } catch {
+    return [];
+  }
+};
+const saveCond = (items: ConditionRule[]) => {
+  localStorage.setItem(COND_KEY, JSON.stringify(items));
+};
+const listConditions = () => Promise.resolve(loadCond());
+const createCondition = (r: Partial<ConditionRule>) => {
+  const items = loadCond();
+  items.push({ id: Date.now().toString(), ...r } as ConditionRule);
+  saveCond(items);
+  return Promise.resolve();
+};
+const updateCondition = (id: string, r: Partial<ConditionRule>) => {
+  const items = loadCond().map((x) => (x.id === id ? { ...x, ...r } : x));
+  saveCond(items);
+  return Promise.resolve();
+};
+const deleteCondition = (id: string) => {
+  saveCond(loadCond().filter((x) => x.id !== id));
+  return Promise.resolve();
+};
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
   draft: { color: colors.neutral[300], label: '草稿' },
