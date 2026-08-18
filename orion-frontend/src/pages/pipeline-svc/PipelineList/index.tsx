@@ -44,10 +44,8 @@ const PipelineList: React.FC = () => {
     try {
       const response = await getPipelines();
       // wrapper: {success, data: {data: [...], total}, meta}
-      const wrapperData = response.data as { data?: { data?: any[]; total?: number } };
-      const payload = wrapperData?.data ?? wrapperData;
-      const items = payload?.data ?? (Array.isArray(payload) ? payload : []);
-      setPipelines(items as Pipeline[]);
+      const payload = response.data as { data?: Pipeline[]; total?: number };
+      setPipelines(Array.isArray(payload) ? payload : (payload.data || []));
     } catch (error: any) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);

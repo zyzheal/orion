@@ -54,6 +54,23 @@ export interface PipelineRun {
   }>;
 }
 
+
+export interface PipelineListResponse {
+  data: Pipeline[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PipelineDetailResponse {
+  data: Pipeline;
+}
+
+export interface PipelineRunListResponse {
+  data: PipelineRun[];
+  total?: number;
+}
+
 export interface PipelineListParams {
   name?: string;
   status?: string;
@@ -244,3 +261,4 @@ export function getPipelineErrorDetail(runId: string) {
     `/api/v1/pipelines/${runId}/error-detail`
   );
 }
+
