@@ -175,7 +175,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
   };
 
   // ---- 表格列 ----
-  const columns: TableColumn<ApprovalChainInfo>[] = [
+  const columns: TableColumn<ApprovalChainInfo>[] = useMemo<TableColumn<ApprovalChainInfo>[]>(() => [
     {
       key: 'title',
       title: '标题',
@@ -336,7 +336,7 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
         </Space>
       ),
     },
-  ];
+  ], [openCommentModal, openDetail]);
 
   // ---- 详情抽屉 ----
   const detailContent = useMemo(() => {

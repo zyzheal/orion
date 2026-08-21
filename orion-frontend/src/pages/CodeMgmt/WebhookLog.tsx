@@ -2,7 +2,7 @@
  * Code Management - Webhook Log Page
  * Table display of webhook events with filtering
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Button, Space, Tag, Drawer, Input, message } from 'antd';
 import { ReloadOutlined, EyeOutlined, ApiOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
@@ -70,7 +70,7 @@ const WebhookLog: React.FC = () => {
     });
   }, [events, searchQuery, filters]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -92,9 +92,9 @@ const WebhookLog: React.FC = () => {
         { label: 'delete', value: 'delete' },
       ],
     },
-  ];
+  ], []);
 
-  const columns: TableColumn<WebhookEvent>[] = [
+  const columns: TableColumn<WebhookEvent>[] = useMemo<TableColumn<WebhookEvent>[]>(() => [
     {
       key: 'id',
       title: '事件 ID',
@@ -184,7 +184,7 @@ const WebhookLog: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], []);
 
   const handleRefresh = () => {
     loadWebhookLogs();

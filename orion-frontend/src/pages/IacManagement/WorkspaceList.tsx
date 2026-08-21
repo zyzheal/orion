@@ -167,7 +167,7 @@ const WorkspaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<IaCWorkspace>[] = [
+  const columns: TableColumn<IaCWorkspace>[] = useMemo<TableColumn<IaCWorkspace>[]>(() => [
     {
       key: 'name',
       title: '工作空间',
@@ -261,9 +261,9 @@ const WorkspaceList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [openEdit]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     { key: 'environment', label: '环境', options: environmentOptions },
     {
       key: 'provider',
@@ -282,7 +282,7 @@ const WorkspaceList: React.FC = () => {
         { label: 'Locked', value: 'locked' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

@@ -194,7 +194,7 @@ const SessionManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<UserSession>[] = [
+  const columns: TableColumn<UserSession>[] = useMemo<TableColumn<UserSession>[]>(() => [
     {
       key: 'user',
       title: '用户',
@@ -301,7 +301,7 @@ const SessionManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleRevoke, openDetail]);
 
   return (
     <div style={{ padding: 0 }}>

@@ -178,7 +178,7 @@ const PluginList: React.FC<PluginListProps> = ({
   };
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'category',
       label: '分类',
@@ -196,10 +196,10 @@ const PluginList: React.FC<PluginListProps> = ({
         { label: '已禁用', value: 'disabled' },
       ],
     },
-  ];
+  ], []);
 
   // Table columns
-  const columns: TableColumn<ApiPlugin>[] = [
+  const columns: TableColumn<ApiPlugin>[] = useMemo<TableColumn<ApiPlugin>[]>(() => [
     {
       key: 'name',
       title: '插件名称',
@@ -350,7 +350,7 @@ const PluginList: React.FC<PluginListProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleToggleStatus, handleUpdate, onConfigure, onExecuteTask]);
 
   return (
     <div data-testid="plugin-management-page">

@@ -244,7 +244,7 @@ const TicketList: React.FC = () => {
   const slaBreached = tickets.filter((t) => calculateSLA(t).overdue).length;
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -285,7 +285,7 @@ const TicketList: React.FC = () => {
         ...(engineersLoading ? [] : engineers.map((name) => ({ label: name, value: name }))),
       ],
     },
-  ];
+  ], []);
 
   // Action handlers
   const handleRefresh = () => {
@@ -383,7 +383,7 @@ const TicketList: React.FC = () => {
   };
 
   // Table columns
-  const columns: TableColumn<Ticket>[] = [
+  const columns: TableColumn<Ticket>[] = useMemo<TableColumn<Ticket>[]>(() => [
     {
       key: 'id',
       title: '工单ID',
@@ -594,7 +594,7 @@ const TicketList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleAssign, handleDelete, handleEdit, handleStatusTransition, navigate]);
 
   return (
     <div style={{ padding: 0 }} data-testid="ticket-list-page">

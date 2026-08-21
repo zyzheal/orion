@@ -1,7 +1,7 @@
 /**
  * Audit Log Viewer - Filterable log table, export, statistics
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -93,7 +93,7 @@ const AuditLogViewer: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<AuditLog>[] = [
+  const columns: TableColumn<AuditLog>[] = useMemo<TableColumn<AuditLog>[]>(() => [
     {
       key: 'id',
       title: '日志 ID',
@@ -179,9 +179,9 @@ const AuditLogViewer: React.FC = () => {
         );
       },
     },
-  ];
+  ], []);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'platform',
       label: '平台',
@@ -202,7 +202,7 @@ const AuditLogViewer: React.FC = () => {
         { label: '失败', value: 'failed' },
       ],
     },
-  ];
+  ], []);
 
   if (apiError && logs.length === 0) {
     return (

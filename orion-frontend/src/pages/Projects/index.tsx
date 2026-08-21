@@ -256,7 +256,7 @@ const ProjectManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<Project>[] = [
+  const columns: TableColumn<Project>[] = useMemo<TableColumn<Project>[]>(() => [
     {
       key: 'name',
       title: '项目名称',
@@ -380,9 +380,9 @@ const ProjectManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openDetail, openEdit]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -393,10 +393,10 @@ const ProjectManagement: React.FC = () => {
         { label: '已归档', value: 'archived' },
       ],
     },
-  ];
+  ], []);
 
   // Resource columns in detail drawer
-  const resourceColumns: TableColumn<ProjectResource>[] = [
+  const resourceColumns: TableColumn<ProjectResource>[] = useMemo<TableColumn<ProjectResource>[]>(() => [
     {
       title: '资源名称',
       dataIndex: 'name',
@@ -437,7 +437,7 @@ const ProjectManagement: React.FC = () => {
         </Text>
       ),
     },
-  ];
+  ], []);
 
   const isInitialLoading = loading && projects.length === 0;
 

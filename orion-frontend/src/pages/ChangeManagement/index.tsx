@@ -10,7 +10,7 @@
  *
  * API: @/api/change
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -674,7 +674,7 @@ const ChangeManagement: React.FC = () => {
   // Table Columns
   // ============================================================================
 
-  const changeColumns: TableColumn<ChangeRequest>[] = [
+  const changeColumns: TableColumn<ChangeRequest>[] = useMemo<TableColumn<ChangeRequest>[]>(() => [
     {
       key: 'title',
       title: '标题',
@@ -780,9 +780,9 @@ const ChangeManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleViewDetail]);
 
-  const rfcColumns: TableColumn<RFC>[] = [
+  const rfcColumns: TableColumn<RFC>[] = useMemo<TableColumn<RFC>[]>(() => [
     {
       key: 'rfc_number',
       title: 'RFC 编号',
@@ -846,9 +846,9 @@ const ChangeManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleEditRfc, handleViewRfc]);
 
-  const cabColumns: TableColumn<CABMeeting>[] = [
+  const cabColumns: TableColumn<CABMeeting>[] = useMemo<TableColumn<CABMeeting>[]>(() => [
     {
       key: 'title',
       title: '会议标题',
@@ -917,7 +917,7 @@ const ChangeManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleEditCab, handleViewCab]);
 
   // ============================================================================
   // Stats Computation

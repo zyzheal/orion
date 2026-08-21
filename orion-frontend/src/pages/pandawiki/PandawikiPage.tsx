@@ -3,7 +3,7 @@
  * Manage knowledge spaces, documents, and search
  * Three-tab layout: 知识库空间 | 文档管理 | 搜索
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -226,7 +226,7 @@ const PandawikiPage: React.FC = () => {
 
   // ---- Space Table Columns ----
 
-  const spaceColumns: TableColumn<WikiSpace>[] = [
+  const spaceColumns: TableColumn<WikiSpace>[] = useMemo<TableColumn<WikiSpace>[]>(() => [
     {
       key: 'name',
       title: '空间名称',
@@ -290,11 +290,11 @@ const PandawikiPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDeleteSpace]);
 
   // ---- Document Table Columns ----
 
-  const documentColumns: TableColumn<WikiDocument>[] = [
+  const documentColumns: TableColumn<WikiDocument>[] = useMemo<TableColumn<WikiDocument>[]>(() => [
     {
       key: 'title',
       title: '文档标题',
@@ -344,7 +344,7 @@ const PandawikiPage: React.FC = () => {
         </Popconfirm>
       ),
     },
-  ];
+  ], [handleDeleteDocument]);
 
   // ---- Tab Items ----
 

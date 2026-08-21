@@ -8,7 +8,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
  * Route: /console/cron
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
   Switch, message, Popconfirm, Tooltip,
@@ -129,7 +129,7 @@ const CronManagement: React.FC = () => {
   };
 
   // Table columns
-  const columns: TableColumn<CronJob>[] = [
+  const columns: TableColumn<CronJob>[] = useMemo<TableColumn<CronJob>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -213,7 +213,7 @@ const CronManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleExecute, openEdit]);
 
   return (
     <div style={{ padding: 0 }}>

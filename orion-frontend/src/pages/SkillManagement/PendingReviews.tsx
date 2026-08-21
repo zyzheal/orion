@@ -156,7 +156,7 @@ const PendingReviews: React.FC = () => {
         ? '拒绝技能'
         : '归档技能';
 
-  const columns: TableColumn<SkillPackage>[] = [
+  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(() => [
     {
       key: 'name',
       title: '技能名称',
@@ -271,7 +271,7 @@ const PendingReviews: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleOpenReview, navigate]);
 
   return (
     <div style={{ padding: 0 }}>

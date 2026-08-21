@@ -100,7 +100,7 @@ const DeploymentList: React.FC = () => {
   }, [searchQuery, filters]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -123,7 +123,7 @@ const DeploymentList: React.FC = () => {
         { label: 'Test', value: 'test' },
       ],
     },
-  ];
+  ], []);
 
   // Environment tag colors
   const envColors: Record<string, string> = {
@@ -142,7 +142,7 @@ const DeploymentList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<DeploymentRecord>[] = [
+  const columns: TableColumn<DeploymentRecord>[] = useMemo<TableColumn<DeploymentRecord>[]>(() => [
     {
       key: 'appName',
       title: '应用',
@@ -253,7 +253,7 @@ const DeploymentList: React.FC = () => {
         />
       ),
     },
-  ];
+  ], [navigate]);
 
   const handleRefresh = () => {
     loadDeployments();

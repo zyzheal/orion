@@ -132,7 +132,7 @@ const PendingList: React.FC = () => {
   const p0Count = confirmations.filter((c) => c.status === 'pending' && c.priority === 'P0').length;
   const p1Count = confirmations.filter((c) => c.status === 'pending' && c.priority === 'P1').length;
 
-  const columns: TableColumn<ConfirmationRequest>[] = [
+  const columns: TableColumn<ConfirmationRequest>[] = useMemo<TableColumn<ConfirmationRequest>[]>(() => [
     {
       key: 'priority',
       title: '优先级',
@@ -268,9 +268,9 @@ const PendingList: React.FC = () => {
           </Space>
         ),
     },
-  ];
+  ], [openCommentModal]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'priority',
       label: '优先级',
@@ -294,7 +294,7 @@ const PendingList: React.FC = () => {
         { label: 'Expired', value: 'expired' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

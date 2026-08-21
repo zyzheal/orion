@@ -97,7 +97,7 @@ const SkillMarketplace: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const columns: TableColumn<SkillPackage>[] = [
+  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(() => [
     {
       key: 'name',
       title: '技能名称',
@@ -205,9 +205,9 @@ const SkillMarketplace: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleInstall, handleViewDetail]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'category',
       label: '分类',
@@ -223,7 +223,7 @@ const SkillMarketplace: React.FC = () => {
         { label: '已归档', value: 'archived' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

@@ -489,7 +489,7 @@ const SLAManagement: React.FC = () => {
 
   // ---- Definitions Table Columns ----
 
-  const defColumns: TableColumn<SLADefinition>[] = [
+  const defColumns: TableColumn<SLADefinition>[] = useMemo<TableColumn<SLADefinition>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -590,11 +590,11 @@ const SLAManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDeleteDefinition, openEditDefModal]);
 
   // ---- Tracking Table Columns ----
 
-  const trackingColumns: TableColumn<SLATracking>[] = [
+  const trackingColumns: TableColumn<SLATracking>[] = useMemo<TableColumn<SLATracking>[]>(() => [
     {
       key: 'entity_type',
       title: '实体类型',
@@ -749,11 +749,11 @@ const SLAManagement: React.FC = () => {
         );
       },
     },
-  ];
+  ], [handleMarkBreach, handleUpdateTrackingStatus]);
 
   // ---- Breach Table Columns ----
 
-  const breachColumns: TableColumn<SLABreachEvent>[] = [
+  const breachColumns: TableColumn<SLABreachEvent>[] = useMemo<TableColumn<SLABreachEvent>[]>(() => [
     {
       key: 'event_type',
       title: '事件类型',
@@ -817,7 +817,7 @@ const SLAManagement: React.FC = () => {
         );
       },
     },
-  ];
+  ], []);
 
   // ---- Tab Items ----
 

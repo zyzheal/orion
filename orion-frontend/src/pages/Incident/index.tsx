@@ -13,7 +13,7 @@
  *       getIncidentTimeline, addTimelineEvent, getPostmortem, createPostmortem,
  *       publishPostmortem, getIncidentStats)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -671,7 +671,7 @@ const IncidentManagement: React.FC = () => {
   };
 
   /** Table columns for incident list */
-  const columns: TableColumn<Incident>[] = [
+  const columns: TableColumn<Incident>[] = useMemo<TableColumn<Incident>[]>(() => [
     {
       key: 'title',
       title: '事件标题',
@@ -780,10 +780,10 @@ const IncidentManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleOpenEdit, handleViewDetail]);
 
   /** Filter definitions for SearchFilterBar */
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'severity',
       label: '严重程度',
@@ -808,7 +808,7 @@ const IncidentManagement: React.FC = () => {
         { label: '已关闭', value: 'closed' },
       ],
     },
-  ];
+  ], []);
 
   // ============================================================================
   // Tab Content Renderers

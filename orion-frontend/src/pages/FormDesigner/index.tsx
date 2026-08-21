@@ -16,7 +16,7 @@
  *   7. 状态切换有反馈
  *   8. 执行操作有 loading 态
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Button, Space, Card, Modal, Form, Input,
   Select, Tag, Tooltip, message, Empty, Tabs, Switch,
@@ -195,18 +195,18 @@ const FormDesigner: React.FC = () => {
     }
   };
 
-  const formColumns: TableColumn[] = [
+  const formColumns: TableColumn<unknown>[] = useMemo<TableColumn<unknown>[]>(() => [
     { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
     { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (_: unknown, record: Record<string, unknown>) => { const v = record.status as string; return <Tag color={STATUS_MAP[v]?.color}>{STATUS_MAP[v]?.label || v}</Tag>; } },
-    { title: '更新日期', dataIndex: 'updatedAt', key: 'updatedAt', render: (_: unknown, record: Record<string, unknown>) => { const v = record.updatedAt as string; return <>{v ? new Date(v).toLocaleDateString('zh-CN') : '-'}</>; } },
-  ];
+    { title: '状态', dataIndex: 'status', key: 'status', render: (_: unknown, record: unknown) => { const r = record as Record<string, unknown>; const v = r.status as string; return <Tag color={STATUS_MAP[v]?.color}>{STATUS_MAP[v]?.label || v}</Tag>; } },
+    { title: '更新日期', dataIndex: 'updatedAt', key: 'updatedAt', render: (_: unknown, record: unknown) => { const r = record as Record<string, unknown>; const v = r.updatedAt as string; return <>{v ? new Date(v).toLocaleDateString('zh-CN') : '-'}</>; } },
+  ], []);
 
-  const conditionColumns: TableColumn[] = [
+  const conditionColumns: TableColumn<unknown>[] = useMemo<TableColumn<unknown>[]>(() => [
     { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
     { title: '条件', dataIndex: 'condition', key: 'condition', ellipsis: true },
-    { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (_: unknown, record: Record<string, unknown>) => <Switch checked={record.enabled as boolean} disabled size="small" /> },
-  ];
+    { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (_: unknown, record: unknown) => <Switch checked={(record as Record<string, unknown>).enabled as boolean} disabled size="small" /> },
+  ], []);
 
   const actionColumn = {
     title: '操作',

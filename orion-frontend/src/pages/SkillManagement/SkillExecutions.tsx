@@ -142,7 +142,7 @@ const SkillExecutions: React.FC = () => {
     return `${minutes}m ${secs}s`;
   };
 
-  const columns: TableColumn<SkillExecution>[] = [
+  const columns: TableColumn<SkillExecution>[] = useMemo<TableColumn<SkillExecution>[]>(() => [
     {
       key: 'id',
       title: '执行ID',
@@ -252,7 +252,7 @@ const SkillExecutions: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], []);
 
   // Extract unique capabilities for filter
   const capabilities = useMemo(() => {

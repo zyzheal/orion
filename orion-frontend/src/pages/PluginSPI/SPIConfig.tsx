@@ -2,7 +2,7 @@
  * SPIConfig Component
  * SPI configuration table with add/edit/delete modal
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Typography, Space, Tag, Badge, Button, Tooltip, Modal, Form, Input, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -47,7 +47,7 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
   onDeleteConfig,
 }) => {
   // Table columns
-  const columns: TableColumn<SPIConfig>[] = [
+  const columns: TableColumn<SPIConfig>[] = useMemo<TableColumn<SPIConfig>[]>(() => [
     {
       key: 'spiType',
       title: 'SPI 类型',
@@ -114,7 +114,7 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [onDeleteConfig, onOpenEditConfig]);
 
   return (
     <>

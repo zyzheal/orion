@@ -109,7 +109,7 @@ const PlanViewer: React.FC = () => {
   const deleteCount = (changes: IaCResourceChange[]) =>
     changes.filter((c) => c.action === 'delete').length;
 
-  const columns: TableColumn<IaCPlan>[] = [
+  const columns: TableColumn<IaCPlan>[] = useMemo<TableColumn<IaCPlan>[]>(() => [
     {
       key: 'id',
       title: '计划 ID',
@@ -238,9 +238,9 @@ const PlanViewer: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [setSelectedPlan]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -251,7 +251,7 @@ const PlanViewer: React.FC = () => {
         { label: 'Discarded', value: 'discarded' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

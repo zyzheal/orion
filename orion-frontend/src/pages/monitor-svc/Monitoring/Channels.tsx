@@ -2,7 +2,7 @@
  * Monitoring Channels Page
  * Manage notification channels (email, webhook, slack) and escalation policies
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -150,7 +150,7 @@ const MonitoringChannels: React.FC = () => {
     }
   };
 
-  const channelColumns: TableColumn<NotificationChannel>[] = [
+  const channelColumns: TableColumn<NotificationChannel>[] = useMemo<TableColumn<NotificationChannel>[]>(() => [
     {
       key: 'name',
       title: '渠道名称',
@@ -214,9 +214,9 @@ const MonitoringChannels: React.FC = () => {
         />
       ),
     },
-  ];
+  ], []);
 
-  const escalationColumns: TableColumn<EscalationPolicy>[] = [
+  const escalationColumns: TableColumn<EscalationPolicy>[] = useMemo<TableColumn<EscalationPolicy>[]>(() => [
     {
       key: 'name',
       title: '策略名称',
@@ -245,7 +245,7 @@ const MonitoringChannels: React.FC = () => {
       width: 80,
       render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
     },
-  ];
+  ], []);
 
   return (
     <div>

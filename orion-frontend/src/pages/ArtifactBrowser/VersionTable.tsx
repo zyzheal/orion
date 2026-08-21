@@ -1,7 +1,7 @@
 /**
  * Version Table - Artifact version list with filters, actions, and selection
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Tag, Space, Button, Tooltip, Typography, DatePicker, Select } from 'antd';
 import {
   EyeOutlined,
@@ -97,7 +97,7 @@ const VersionTable: React.FC<VersionTableProps> = ({
   // Comparison button - enabled when exactly 2 versions selected
   const canCompare = selectedRowKeys.length === 2;
 
-  const columns: TableColumn<ArtifactVersion>[] = [
+  const columns: TableColumn<ArtifactVersion>[] = useMemo<TableColumn<ArtifactVersion>[]>(() => [
     {
       key: 'version',
       title: '版本',
@@ -206,7 +206,7 @@ const VersionTable: React.FC<VersionTableProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [onDeploy, onViewTraceability]);
 
   const rowSelection = {
     selectedRowKeys,

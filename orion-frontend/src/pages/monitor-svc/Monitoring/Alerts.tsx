@@ -2,7 +2,7 @@
  * Monitoring Alerts Page
  * List and manage active alerts with acknowledge, resolve, and escalate actions
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, message, Empty } from 'antd';
 import {
   ReloadOutlined,
@@ -77,7 +77,7 @@ const MonitoringAlerts: React.FC = () => {
     });
   }, [searchQuery, filters, alerts]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'severity',
       label: '严重级别',
@@ -98,7 +98,7 @@ const MonitoringAlerts: React.FC = () => {
         { label: '已解决', value: 'resolved' },
       ],
     },
-  ];
+  ], []);
 
   const handleAcknowledge = async (id: string) => {
     try {
@@ -144,7 +144,7 @@ const MonitoringAlerts: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<Alert>[] = [
+  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(() => [
     {
       key: 'severity',
       title: '级别',
@@ -237,7 +237,7 @@ const MonitoringAlerts: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleAcknowledge, handleResolve]);
 
   return (
     <div>

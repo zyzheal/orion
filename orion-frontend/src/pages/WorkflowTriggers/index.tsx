@@ -7,7 +7,7 @@
  * Route: /console/triggers
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card, Button, Tag, Space, message, Modal, Form, Input, Select, Switch, Tooltip, Popconfirm, Typography,
 } from 'antd';
@@ -161,7 +161,7 @@ const WorkflowTriggers: React.FC = () => {
   };
 
   // Table columns
-  const columns: TableColumn<WorkflowTrigger>[] = [
+  const columns: TableColumn<WorkflowTrigger>[] = useMemo<TableColumn<WorkflowTrigger>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -244,7 +244,7 @@ const WorkflowTriggers: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openEdit]);
 
   return (
     <div style={{ padding: 0 }}>

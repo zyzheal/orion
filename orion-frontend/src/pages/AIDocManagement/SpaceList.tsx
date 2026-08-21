@@ -150,7 +150,7 @@ const SpaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<SpaceType>[] = [
+  const columns: TableColumn<SpaceType>[] = useMemo<TableColumn<SpaceType>[]>(() => [
     {
       key: 'name',
       title: '知识库名称',
@@ -216,7 +216,7 @@ const SpaceList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openEdit]);
 
   const filterDefs: FilterDefinition[] = [{ key: 'type', label: '类型', options: typeOptions }];
 

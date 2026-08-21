@@ -58,7 +58,7 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
   }, [searchQuery, filters, extensionPoints]);
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'spiType',
       label: 'SPI 类型',
@@ -78,10 +78,10 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
         { label: '实验性', value: 'experimental' },
       ],
     },
-  ];
+  ], []);
 
   // Table columns
-  const columns: TableColumn<SPIExtensionPoint>[] = [
+  const columns: TableColumn<SPIExtensionPoint>[] = useMemo<TableColumn<SPIExtensionPoint>[]>(() => [
     {
       key: 'name',
       title: '扩展点',
@@ -153,7 +153,7 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
         </Text>
       ),
     },
-  ];
+  ], []);
 
   return (
     <>

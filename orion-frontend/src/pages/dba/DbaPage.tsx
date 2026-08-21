@@ -3,7 +3,7 @@
  * SQL order management, data source management, audit rules
  * Three-tab layout: SQL Orders | Data Sources | Audit Rules
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -343,7 +343,7 @@ const DbaPage: React.FC = () => {
 
   // ---- Order Table Columns ----
 
-  const orderColumns: TableColumn<SqlOrder>[] = [
+  const orderColumns: TableColumn<SqlOrder>[] = useMemo<TableColumn<SqlOrder>[]>(() => [
     {
       key: 'id',
       title: '工单ID',
@@ -447,11 +447,11 @@ const DbaPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [getOrder, handleApproveOrder, handleExecuteOrder, handleRejectOrder]);
 
   // ---- Audit Rule Columns ----
 
-  const ruleColumns: TableColumn<AuditRule>[] = [
+  const ruleColumns: TableColumn<AuditRule>[] = useMemo<TableColumn<AuditRule>[]>(() => [
     {
       key: 'id',
       title: '规则ID',
@@ -505,7 +505,7 @@ const DbaPage: React.FC = () => {
         <Switch size="small" checked={!!enabled} onChange={() => handleToggleRule(record)} />
       ),
     },
-  ];
+  ], []);
 
   // ---- Tab Items ----
 

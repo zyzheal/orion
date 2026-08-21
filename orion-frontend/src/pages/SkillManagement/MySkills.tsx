@@ -103,7 +103,7 @@ const MySkills: React.FC = () => {
     });
   };
 
-  const columns: TableColumn<SkillPackage>[] = [
+  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(() => [
     {
       key: 'name',
       title: '技能名称',
@@ -208,9 +208,9 @@ const MySkills: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleUninstall, navigate]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'category',
       label: '分类',
@@ -224,7 +224,7 @@ const MySkills: React.FC = () => {
         { label: '基础设施', value: 'infrastructure' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

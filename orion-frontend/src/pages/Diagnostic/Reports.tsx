@@ -2,7 +2,7 @@
  * Diagnostic Reports Page
  * List and view diagnostic reports with pattern matches and confidence scores
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Button, Space, Tag, message, Drawer, Card, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
@@ -76,7 +76,7 @@ const DiagnosticReports: React.FC = () => {
     return { color: 'red', label: '低' };
   };
 
-  const columns: TableColumn<DiagnosticReport>[] = [
+  const columns: TableColumn<DiagnosticReport>[] = useMemo<TableColumn<DiagnosticReport>[]>(() => [
     {
       key: 'id',
       title: '报告ID',
@@ -146,7 +146,7 @@ const DiagnosticReports: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [showReportDetail]);
 
   return (
     <div>

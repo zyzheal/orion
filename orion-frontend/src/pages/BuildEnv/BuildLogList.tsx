@@ -58,7 +58,7 @@ const BuildLogList: React.FC = () => {
     });
   }, [searchQuery, filters, logs]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'runId',
       label: 'Run ID',
@@ -85,9 +85,9 @@ const BuildLogList: React.FC = () => {
           })),
       ],
     },
-  ];
+  ], []);
 
-  const columns: TableColumn<BuildLog>[] = [
+  const columns: TableColumn<BuildLog>[] = useMemo<TableColumn<BuildLog>[]>(() => [
     {
       key: 'id',
       title: 'Log ID',
@@ -182,7 +182,7 @@ const BuildLogList: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [navigate]);
 
   return (
     <div style={{ padding: 0 }}>

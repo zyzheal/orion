@@ -76,7 +76,7 @@ const BuildPodList: React.FC = () => {
     }
   };
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'runId',
       label: 'Run ID',
@@ -114,9 +114,9 @@ const BuildPodList: React.FC = () => {
         { label: 'Cancelled', value: 'cancelled' },
       ],
     },
-  ];
+  ], []);
 
-  const columns: TableColumn<BuildPod>[] = [
+  const columns: TableColumn<BuildPod>[] = useMemo<TableColumn<BuildPod>[]>(() => [
     {
       key: 'name',
       title: 'Pod Name',
@@ -234,7 +234,7 @@ const BuildPodList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleCancel, navigate]);
 
   return (
     <div style={{ padding: 0 }}>

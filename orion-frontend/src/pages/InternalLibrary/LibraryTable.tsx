@@ -1,7 +1,7 @@
 /**
  * Library Table - Internal library list with columns and action buttons
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Tag, Space, Button, Popconfirm, Tooltip, Typography } from 'antd';
 import {
   DeleteOutlined,
@@ -53,7 +53,7 @@ const LibraryTable: React.FC<LibraryTableProps> = ({
   onDeprecate,
   onDelete,
 }) => {
-  const columns: TableColumn<InternalLibrary>[] = [
+  const columns: TableColumn<InternalLibrary>[] = useMemo<TableColumn<InternalLibrary>[]>(() => [
     {
       key: 'displayName',
       title: '二方库',
@@ -193,7 +193,7 @@ const LibraryTable: React.FC<LibraryTableProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [onActivate, onDelete, onDeprecate, onDetail]);
 
   return (
     <Table

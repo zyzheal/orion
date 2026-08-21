@@ -2,7 +2,7 @@
  * Code Management - CODEOWNERS Page
  * Editor for CODEOWNERS file with validate and save functionality
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Typography, Button, Space, Select, Input, message, Card, Alert } from 'antd';
 import {
   SaveOutlined,
@@ -239,7 +239,7 @@ const CodeOwnersPage: React.FC = () => {
 
   const isDirty = content !== savedContent;
 
-  const recommendationColumns: TableColumn<CodeOwnerRecommendation>[] = [
+  const recommendationColumns: TableColumn<CodeOwnerRecommendation>[] = useMemo<TableColumn<CodeOwnerRecommendation>[]>(() => [
     {
       key: 'filePath',
       title: '文件路径',
@@ -261,7 +261,7 @@ const CodeOwnersPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

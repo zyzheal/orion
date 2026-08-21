@@ -82,7 +82,7 @@ const BatchConfirmation: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<ConfirmationRequest>[] = [
+  const columns: TableColumn<ConfirmationRequest>[] = useMemo<TableColumn<ConfirmationRequest>[]>(() => [
     {
       key: 'select',
       title: '选择',
@@ -146,7 +146,7 @@ const BatchConfirmation: React.FC = () => {
         </Text>
       ),
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

@@ -173,7 +173,7 @@ const DocumentListPage: React.FC = () => {
 
   const getSpaceName = (spaceId: string) => spaces.find((s) => s.id === spaceId)?.name || spaceId;
 
-  const columns: TableColumn<Document>[] = [
+  const columns: TableColumn<Document>[] = useMemo<TableColumn<Document>[]>(() => [
     {
       key: 'title',
       title: '标题',
@@ -266,14 +266,14 @@ const DocumentListPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openEdit]);
 
   const spaceOptions = [
     { label: '全部', value: 'all' },
     ...spaces.map((s) => ({ label: s.name, value: s.id })),
   ];
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     { key: 'spaceId', label: '知识库', options: spaceOptions },
     {
       key: 'status',
@@ -285,7 +285,7 @@ const DocumentListPage: React.FC = () => {
         { label: 'Archived', value: 'archived' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

@@ -2,7 +2,7 @@
  * SBOM Detail Page
  * SBOM document detail with package list, vulnerability scan results, attestation status
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Typography,
   Button,
@@ -135,7 +135,7 @@ const SbomDetail: React.FC = () => {
     }
   };
 
-  const packageColumns: TableColumn<SbomPackage>[] = [
+  const packageColumns: TableColumn<SbomPackage>[] = useMemo<TableColumn<SbomPackage>[]>(() => [
     {
       title: '包名',
       dataIndex: 'name',
@@ -176,9 +176,9 @@ const SbomDetail: React.FC = () => {
       width: 150,
       render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
     },
-  ];
+  ], []);
 
-  const vulnColumns: TableColumn<SbomVulnResult>[] = [
+  const vulnColumns: TableColumn<SbomVulnResult>[] = useMemo<TableColumn<SbomVulnResult>[]>(() => [
     {
       title: '扫描器',
       dataIndex: 'scanner',
@@ -265,9 +265,9 @@ const SbomDetail: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [handleViewVulnDetails]);
 
-  const vulnDetailColumns: TableColumn<SbomVulnDetail>[] = [
+  const vulnDetailColumns: TableColumn<SbomVulnDetail>[] = useMemo<TableColumn<SbomVulnDetail>[]>(() => [
     {
       title: 'CVE ID',
       dataIndex: 'cveId',
@@ -322,7 +322,7 @@ const SbomDetail: React.FC = () => {
       key: 'description',
       render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
     },
-  ];
+  ], []);
 
   if (!doc && !loading) {
     return <Text type="secondary">SBOM document not found</Text>;

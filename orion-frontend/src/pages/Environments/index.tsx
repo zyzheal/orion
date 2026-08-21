@@ -252,7 +252,7 @@ const EnvironmentManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<Environment>[] = [
+  const columns: TableColumn<Environment>[] = useMemo<TableColumn<Environment>[]>(() => [
     {
       key: 'name',
       title: '环境名称',
@@ -393,9 +393,9 @@ const EnvironmentManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleStatusChange, openDetail, openEdit]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'type',
       label: '环境类型',
@@ -419,7 +419,7 @@ const EnvironmentManagement: React.FC = () => {
         { label: '已废弃', value: 'deprecated' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

@@ -1,7 +1,7 @@
 /**
  * AgentRunList - Pending approvals and recent runs tables
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Button, Space, Tag } from 'antd';
 import { spacing, colors } from '@/tokens';
@@ -24,7 +24,7 @@ interface AgentRunListProps {
 const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove, onReject }) => {
   const navigate = useNavigate();
 
-  const runColumns: TableColumn<AgentRun>[] = [
+  const runColumns: TableColumn<AgentRun>[] = useMemo<TableColumn<AgentRun>[]>(() => [
     {
       key: 'id',
       title: '运行 ID',
@@ -74,9 +74,9 @@ const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove,
         </Text>
       ),
     },
-  ];
+  ], [navigate]);
 
-  const approvalColumns: TableColumn<AgentApproval>[] = [
+  const approvalColumns: TableColumn<AgentApproval>[] = useMemo<TableColumn<AgentApproval>[]>(() => [
     {
       key: 'id',
       title: '审批 ID',
@@ -148,7 +148,7 @@ const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove,
         </Space>
       ),
     },
-  ];
+  ], [onApprove, onReject]);
 
   return (
     <>

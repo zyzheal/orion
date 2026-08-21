@@ -162,7 +162,7 @@ const BuilderImageList: React.FC = () => {
     setModalOpen(true);
   };
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'type',
       label: 'Type',
@@ -185,9 +185,9 @@ const BuilderImageList: React.FC = () => {
         { label: 'Building', value: 'building' },
       ],
     },
-  ];
+  ], []);
 
-  const columns: TableColumn<BuilderImage>[] = [
+  const columns: TableColumn<BuilderImage>[] = useMemo<TableColumn<BuilderImage>[]>(() => [
     {
       key: 'name',
       title: 'Name',
@@ -286,7 +286,7 @@ const BuilderImageList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleToggleDeprecated, openEditModal]);
 
   return (
     <div style={{ padding: 0 }}>

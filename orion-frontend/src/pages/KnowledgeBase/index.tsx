@@ -2,7 +2,7 @@
  * AI 知识库管理页面 (Phase 4)
  * 知识条目 CRUD、搜索、分类浏览
  */
-import _React, { useState, useEffect } from 'react';
+import _React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography, Button, Space, Card, Modal, Form, Input, Select, message,
   Table as _AntTable, Tag, Row, Col, Input as AntInput, Popconfirm, Tooltip,
@@ -182,7 +182,7 @@ export default function KnowledgeBase() {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<KnowledgeItem>[] = [
+  const columns: TableColumn<KnowledgeItem>[] = useMemo<TableColumn<KnowledgeItem>[]>(() => [
     {
       key: 'title',
       title: '标题',
@@ -240,7 +240,7 @@ export default function KnowledgeBase() {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openEdit]);
 
   return (
     <div style={{ padding: 0 }}>

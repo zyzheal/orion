@@ -2,7 +2,7 @@
  * Monitoring Rules Page
  * Manage alert rules with CRUD operations, toggle enable/disable, suppress/unsuppress
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -83,7 +83,7 @@ const MonitoringRules: React.FC = () => {
     });
   }, [searchQuery, filters, rules]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'severity',
       label: '严重级别',
@@ -94,7 +94,7 @@ const MonitoringRules: React.FC = () => {
         { label: '提示', value: 'info' },
       ],
     },
-  ];
+  ], []);
 
   const openModal = (rule?: AlertRule) => {
     setEditingRule(rule || null);
@@ -165,7 +165,7 @@ const MonitoringRules: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<AlertRule>[] = [
+  const columns: TableColumn<AlertRule>[] = useMemo<TableColumn<AlertRule>[]>(() => [
     {
       key: 'name',
       title: '规则名称',
@@ -235,7 +235,7 @@ const MonitoringRules: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openModal]);
 
   return (
     <div>

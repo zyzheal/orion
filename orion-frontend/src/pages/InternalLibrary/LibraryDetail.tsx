@@ -1,7 +1,7 @@
 /**
  * Library Detail - Detail drawer tabs for internal library (info, versions, dependents, dep-check)
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Typography,
   Tag,
@@ -284,7 +284,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
   onOpenPublish,
   onOpenDeprecateVersion,
 }) => {
-  const versionColumns: TableColumn<LibraryVersion>[] = [
+  const versionColumns: TableColumn<LibraryVersion>[] = useMemo<TableColumn<LibraryVersion>[]>(() => [
     {
       key: 'version',
       title: '版本',
@@ -362,7 +362,7 @@ const VersionTab: React.FC<VersionTabProps> = ({
           <Text type="secondary">已废弃</Text>
         ),
     },
-  ];
+  ], [onOpenDeprecateVersion]);
 
   return (
     <div>
@@ -398,7 +398,7 @@ const DependentsTab: React.FC<DependentsTabProps> = ({
   onOpenAddDependent,
   onUpdateDependent,
 }) => {
-  const dependentColumns: TableColumn<LibraryDependent>[] = [
+  const dependentColumns: TableColumn<LibraryDependent>[] = useMemo<TableColumn<LibraryDependent>[]>(() => [
     {
       key: 'repoName',
       title: '项目',
@@ -469,7 +469,7 @@ const DependentsTab: React.FC<DependentsTabProps> = ({
           <Text type="secondary">-</Text>
         ),
     },
-  ];
+  ], [onUpdateDependent]);
 
   return (
     <div>

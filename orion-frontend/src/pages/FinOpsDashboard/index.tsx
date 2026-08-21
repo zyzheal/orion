@@ -9,7 +9,7 @@
  * - Optimization recommendations
  * - Quick actions
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Col,
@@ -157,7 +157,7 @@ const FinOpsDashboard: React.FC = () => {
   };
 
   // Cost by service columns
-  const costByServiceColumns: TableColumn<CostByServiceItem>[] = [
+  const costByServiceColumns: TableColumn<CostByServiceItem>[] = useMemo<TableColumn<CostByServiceItem>[]>(() => [
     {
       key: 'service',
       title: '服务名称',
@@ -205,7 +205,7 @@ const FinOpsDashboard: React.FC = () => {
         );
       },
     },
-  ];
+  ], []);
 
   // Data timestamp
   const dataTimestamp = dayjs().format('YYYY-MM-DD HH:mm');

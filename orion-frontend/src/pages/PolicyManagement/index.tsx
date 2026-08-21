@@ -189,7 +189,7 @@ const PolicyManagement: React.FC = () => {
     }
   };
 
-  const policyColumns: TableColumn<PolicyDefinition>[] = [
+  const policyColumns: TableColumn<PolicyDefinition>[] = useMemo<TableColumn<PolicyDefinition>[]>(() => [
     {
       key: 'name',
       title: '策略名称',
@@ -284,9 +284,9 @@ const PolicyManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDeletePolicy, handleTogglePolicy]);
 
-  const violationColumns: TableColumn<PolicyViolation>[] = [
+  const violationColumns: TableColumn<PolicyViolation>[] = useMemo<TableColumn<PolicyViolation>[]>(() => [
     {
       key: 'policyName',
       title: '策略',
@@ -353,9 +353,9 @@ const PolicyManagement: React.FC = () => {
           </Button>
         ) : null,
     },
-  ];
+  ], [handleResolveViolation]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'category',
       label: '分类',
@@ -377,7 +377,7 @@ const PolicyManagement: React.FC = () => {
         { label: 'Info', value: 'info' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

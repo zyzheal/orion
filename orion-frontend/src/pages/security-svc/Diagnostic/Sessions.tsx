@@ -2,7 +2,7 @@
  * Diagnostic Sessions Page
  * List diagnostic sessions, view details, add symptoms, complete sessions
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -77,7 +77,7 @@ const DiagnosticSessions: React.FC = () => {
     });
   }, [searchQuery, filters, sessions]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -99,7 +99,7 @@ const DiagnosticSessions: React.FC = () => {
         { label: 'Alert', value: 'alert' },
       ],
     },
-  ];
+  ], []);
 
   const showSessionDetail = async (session: DiagnosticSession) => {
     setSelectedSession(session);
@@ -162,7 +162,7 @@ const DiagnosticSessions: React.FC = () => {
     });
   };
 
-  const columns: TableColumn<DiagnosticSession>[] = [
+  const columns: TableColumn<DiagnosticSession>[] = useMemo<TableColumn<DiagnosticSession>[]>(() => [
     {
       key: 'id',
       title: '会话ID',
@@ -268,7 +268,7 @@ const DiagnosticSessions: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleCompleteSession, openSymptomModal, showSessionDetail]);
 
   return (
     <div>

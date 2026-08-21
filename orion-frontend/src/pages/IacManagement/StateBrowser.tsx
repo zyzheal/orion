@@ -1,7 +1,7 @@
 /**
  * IaC State Browser - State version history, resource list, state diff
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Typography,
   Button,
@@ -92,7 +92,7 @@ const StateBrowser: React.FC = () => {
 
   const selectedWsName = workspaces.find((w) => w.id === selectedWorkspaceId)?.name || '';
 
-  const versionColumns: TableColumn<IaCStateVersion>[] = [
+  const versionColumns: TableColumn<IaCStateVersion>[] = useMemo<TableColumn<IaCStateVersion>[]>(() => [
     {
       key: 'version',
       title: '版本',
@@ -147,9 +147,9 @@ const StateBrowser: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], []);
 
-  const resourceColumns: TableColumn<IaCStateResource>[] = [
+  const resourceColumns: TableColumn<IaCStateResource>[] = useMemo<TableColumn<IaCStateResource>[]>(() => [
     {
       key: 'address',
       title: '资源地址',
@@ -183,7 +183,7 @@ const StateBrowser: React.FC = () => {
       width: 160,
       render: (v: unknown) => <Tag>{String(v)}</Tag>,
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

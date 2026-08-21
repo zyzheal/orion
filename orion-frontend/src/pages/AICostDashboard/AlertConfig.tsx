@@ -3,7 +3,7 @@ import { colors, spacing } from '@/tokens';
 /**
  * Alert Config - Rule creation, severity levels, notification channels
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -132,7 +132,7 @@ const AlertConfig: React.FC = () => {
     }
   };
 
-  const alertColumns: TableColumn<CostAlert>[] = [
+  const alertColumns: TableColumn<CostAlert>[] = useMemo<TableColumn<CostAlert>[]>(() => [
     {
       key: 'severity',
       title: '级别',
@@ -168,9 +168,9 @@ const AlertConfig: React.FC = () => {
       width: 160,
       render: (v: unknown) => <Text type="secondary">{dayjs(String(v)).fromNow()}</Text>,
     },
-  ];
+  ], []);
 
-  const ruleColumns: TableColumn<AlertRule>[] = [
+  const ruleColumns: TableColumn<AlertRule>[] = useMemo<TableColumn<AlertRule>[]>(() => [
     {
       key: 'name',
       title: '规则名称',
@@ -236,7 +236,7 @@ const AlertConfig: React.FC = () => {
         </Popconfirm>
       ),
     },
-  ];
+  ], [setRules]);
 
   const metricOptions = [
     { label: '日费用', value: 'daily_cost' },

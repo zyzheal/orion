@@ -11,7 +11,7 @@
  *
  * Data source: @/api/test-selector (getTestCases, getTestStats, runTests)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Card, Tag, Space, Button, message } from 'antd';
 import { Table as AntTable } from 'antd';
 import {
@@ -196,7 +196,7 @@ const TestSelector: React.FC = () => {
   });
 
   // Table columns
-  const testColumns: TableColumn<TestCase>[] = [
+  const testColumns: TableColumn<TestCase>[] = useMemo<TableColumn<TestCase>[]>(() => [
     {
       key: 'name',
       title: 'Test Name',
@@ -294,10 +294,10 @@ const TestSelector: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], []);
 
   // Filter definitions
-  const filterDefinitions: FilterDefinition[] = [
+  const filterDefinitions: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: 'Status',
@@ -316,7 +316,7 @@ const TestSelector: React.FC = () => {
       options: [{ label: 'All Tags', value: '' }, ...TAG_OPTIONS],
       placeholder: 'Filter by tags',
     },
-  ];
+  ], []);
 
   const handleRunSelected = useCallback(async () => {
     if (selectedRowKeys.length === 0) {

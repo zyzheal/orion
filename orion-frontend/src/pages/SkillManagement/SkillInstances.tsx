@@ -195,7 +195,7 @@ const SkillInstances: React.FC = () => {
     return instances;
   }, [instances]);
 
-  const columns: TableColumn<SkillInstance>[] = [
+  const columns: TableColumn<SkillInstance>[] = useMemo<TableColumn<SkillInstance>[]>(() => [
     {
       key: 'name',
       title: '实例名称',
@@ -294,7 +294,7 @@ const SkillInstances: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleOpenEdit]);
 
   return (
     <div style={{ padding: 0 }}>

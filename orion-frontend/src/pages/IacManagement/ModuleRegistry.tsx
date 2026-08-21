@@ -127,7 +127,7 @@ const ModuleRegistry: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<IaCModule>[] = [
+  const columns: TableColumn<IaCModule>[] = useMemo<TableColumn<IaCModule>[]>(() => [
     {
       key: 'name',
       title: '模块名称',
@@ -217,11 +217,11 @@ const ModuleRegistry: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     { key: 'provider', label: 'Provider', options: providerOptions },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

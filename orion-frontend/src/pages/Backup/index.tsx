@@ -307,7 +307,7 @@ const BackupManagement: React.FC = () => {
 
   // ---- Table Columns ----
 
-  const columns: TableColumn<BackupRecord>[] = [
+  const columns: TableColumn<BackupRecord>[] = useMemo<TableColumn<BackupRecord>[]>(() => [
     {
       key: 'name',
       title: '备份名称',
@@ -426,11 +426,11 @@ const BackupManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleDownload, openRestore]);
 
   // ---- Filter Definitions ----
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'type',
       label: '备份类型',
@@ -453,7 +453,7 @@ const BackupManagement: React.FC = () => {
         { label: '已恢复', value: 'restored' },
       ],
     },
-  ];
+  ], []);
 
   // ---- Render ----
 

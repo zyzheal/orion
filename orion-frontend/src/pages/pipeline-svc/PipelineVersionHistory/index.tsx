@@ -4,7 +4,7 @@
  *
  * 样式已统一为 Design Token 规范。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Button, Space, Tag, Modal, message, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, SwapOutlined, HistoryOutlined } from '@ant-design/icons';
@@ -103,7 +103,7 @@ const PipelineVersionHistory: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<PipelineVersion>[] = [
+  const columns: TableColumn<PipelineVersion>[] = useMemo<TableColumn<PipelineVersion>[]>(() => [
     {
       key: 'version',
       title: '版本',
@@ -180,7 +180,7 @@ const PipelineVersionHistory: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleRollback, handleSetBaseline]);
 
   return (
     <div style={{ padding: 0 }}>

@@ -3,7 +3,7 @@
  * Host management, script execution, resource monitoring
  * Three-tab layout: 主机管理 | 脚本执行 | 资源监控
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -277,7 +277,7 @@ const VisorPage: React.FC = () => {
 
   // ---- Host Table Columns ----
 
-  const hostColumns: TableColumn<Host>[] = [
+  const hostColumns: TableColumn<Host>[] = useMemo<TableColumn<Host>[]>(() => [
     {
       key: 'hostname',
       title: '主机名',
@@ -364,11 +364,11 @@ const VisorPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleRemoveHost, handleViewHostStatus]);
 
   // ---- Script Table Columns ----
 
-  const scriptColumns: TableColumn<ScriptExecution>[] = [
+  const scriptColumns: TableColumn<ScriptExecution>[] = useMemo<TableColumn<ScriptExecution>[]>(() => [
     {
       key: 'id',
       title: '执行ID',
@@ -434,7 +434,7 @@ const VisorPage: React.FC = () => {
           </Button>
         ) : null,
     },
-  ];
+  ], [handleViewScriptResult]);
 
   // ---- Resource Type Icon Map ----
 

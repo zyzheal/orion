@@ -502,7 +502,7 @@ const RunnerManagement: React.FC = () => {
   };
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -515,10 +515,10 @@ const RunnerManagement: React.FC = () => {
         { label: '心跳超时', value: 'stale' },
       ],
     },
-  ];
+  ], []);
 
   // Table columns
-  const columns: TableColumn<Runner>[] = [
+  const columns: TableColumn<Runner>[] = useMemo<TableColumn<Runner>[]>(() => [
     {
       key: 'name',
       title: 'Runner',
@@ -649,7 +649,7 @@ const RunnerManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDeregister, handleEditRunner, handleViewDetail]);
 
   return (
     <div style={{ padding: 0 }}>

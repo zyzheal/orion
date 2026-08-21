@@ -176,7 +176,7 @@ const EventBusMonitoring: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<EventBusEvent>[] = [
+  const columns: TableColumn<EventBusEvent>[] = useMemo<TableColumn<EventBusEvent>[]>(() => [
     {
       key: 'eventType',
       title: '事件类型',
@@ -266,7 +266,7 @@ const EventBusMonitoring: React.FC = () => {
         </Tooltip>
       ),
     },
-  ];
+  ], [openDetail]);
 
   return (
     <div style={{ padding: 0 }}>

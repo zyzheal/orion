@@ -55,7 +55,7 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
   }, [searchQuery, filters, pluginRegistrations]);
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -66,10 +66,10 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
         { label: '异常', value: 'error' },
       ],
     },
-  ];
+  ], []);
 
   // Table columns
-  const columns: TableColumn<PluginRegistration>[] = [
+  const columns: TableColumn<PluginRegistration>[] = useMemo<TableColumn<PluginRegistration>[]>(() => [
     {
       key: 'pluginName',
       title: '插件名称',
@@ -159,7 +159,7 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [onTogglePlugin]);
 
   return (
     <>

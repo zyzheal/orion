@@ -11,7 +11,7 @@
  * - Empty state with guided action
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -177,7 +177,7 @@ const ServiceRegistry: React.FC = () => {
 
   // ==================== Table Columns ====================
 
-  const columns: TableColumn<ServiceInfo>[] = [
+  const columns: TableColumn<ServiceInfo>[] = useMemo<TableColumn<ServiceInfo>[]>(() => [
     {
       key: 'name',
       title: '服务名',
@@ -319,7 +319,7 @@ const ServiceRegistry: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], []);
 
   // ==================== Render ====================
 

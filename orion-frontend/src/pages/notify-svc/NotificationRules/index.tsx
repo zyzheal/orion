@@ -8,7 +8,7 @@
  * Route: /console/notification-rules
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Button, Space, Tag, Modal, Form, Input,
   Switch, message, Popconfirm, Tooltip, Select, Tabs,
@@ -180,7 +180,7 @@ const IMNotificationsTab: React.FC = () => {
   // Table Columns
   // ============================================================================
 
-  const columns: TableColumn<IMNotificationRule>[] = [
+  const columns: TableColumn<IMNotificationRule>[] = useMemo<TableColumn<IMNotificationRule>[]>(() => [
     {
       key: 'platform',
       title: '平台',
@@ -272,7 +272,7 @@ const IMNotificationsTab: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleTest, openEdit]);
 
   // ============================================================================
   // Render

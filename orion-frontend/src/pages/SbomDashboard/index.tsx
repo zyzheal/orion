@@ -145,7 +145,7 @@ const SbomDashboard: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<SbomDocument>[] = [
+  const columns: TableColumn<SbomDocument>[] = useMemo<TableColumn<SbomDocument>[]>(() => [
     {
       key: 'documentId',
       title: 'Document',
@@ -225,9 +225,9 @@ const SbomDashboard: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [navigate]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'format',
       label: '格式',
@@ -247,7 +247,7 @@ const SbomDashboard: React.FC = () => {
         { label: 'Revoked', value: 'revoked' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

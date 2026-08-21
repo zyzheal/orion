@@ -407,7 +407,7 @@ const BudgetGuardPage: React.FC = () => {
   // Table Columns
   // ============================================================================
 
-  const columns: TableColumn<BudgetGuard>[] = [
+  const columns: TableColumn<BudgetGuard>[] = useMemo<TableColumn<BudgetGuard>[]>(() => [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -535,7 +535,7 @@ const BudgetGuardPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete]);
 
   // ============================================================================
   // Render

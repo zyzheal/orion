@@ -10,7 +10,7 @@
  * Route: /console/webhooks
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
   Switch, message, Popconfirm, Tooltip, Select, Drawer,
@@ -140,7 +140,7 @@ const WebhookManagement: React.FC = () => {
     setModalVisible(true);
   };
 
-  const columns: TableColumn<Webhook>[] = [
+  const columns: TableColumn<Webhook>[] = useMemo<TableColumn<Webhook>[]>(() => [
     {
       key: 'url',
       title: 'URL',
@@ -219,9 +219,9 @@ const WebhookManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleTest, handleViewLogs, openEdit]);
 
-  const logColumns: TableColumn<WebhookLog>[] = [
+  const logColumns: TableColumn<WebhookLog>[] = useMemo<TableColumn<WebhookLog>[]>(() => [
     { key: 'event', title: '事件', dataIndex: 'event', width: 180, render: (v: unknown) => <Tag color="blue">{String(v)}</Tag> },
     { key: 'status', title: 'HTTP 状态', dataIndex: 'status', width: 100, render: (v: unknown) => {
       const s = typeof v === 'number' ? v : 0;
@@ -229,7 +229,7 @@ const WebhookManagement: React.FC = () => {
     }},
     { key: 'error', title: '错误', dataIndex: 'error', ellipsis: true, render: (v: unknown) => v ? <Text type="danger">{String(v)}</Text> : '—' },
     { key: 'createdAt', title: '时间', dataIndex: 'createdAt', width: 150, render: (v: unknown) => dayjs(String(v)).format('MM-DD HH:mm:ss') },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

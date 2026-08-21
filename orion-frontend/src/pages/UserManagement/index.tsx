@@ -289,7 +289,7 @@ const UserManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<User>[] = [
+  const columns: TableColumn<User>[] = useMemo<TableColumn<User>[]>(() => [
     {
       key: 'user',
       title: '用户',
@@ -440,11 +440,11 @@ const UserManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleDisable, handleEnable, openDetail, openEdit]);
 
   // ---- Filter definitions ----
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'role',
       label: '角色',
@@ -467,7 +467,7 @@ const UserManagement: React.FC = () => {
         { label: '已锁定', value: 'locked' },
       ],
     },
-  ];
+  ], []);
 
   // ---- Stats ----
 

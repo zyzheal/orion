@@ -72,7 +72,7 @@ const CommandBrowser: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const columns: TableColumn<ChatOpsCommand>[] = [
+  const columns: TableColumn<ChatOpsCommand>[] = useMemo<TableColumn<ChatOpsCommand>[]>(() => [
     {
       key: 'name',
       title: '命令',
@@ -126,9 +126,9 @@ const CommandBrowser: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [handleViewDetail]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'permissionLevel',
       label: '权限',
@@ -140,7 +140,7 @@ const CommandBrowser: React.FC = () => {
         { label: 'Viewer', value: 'viewer' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: '0 0 16px' }}>

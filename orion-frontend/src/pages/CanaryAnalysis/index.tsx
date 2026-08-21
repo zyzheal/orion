@@ -196,7 +196,7 @@ const CanaryAnalysis: React.FC = () => {
     }
   };
 
-  const runColumns: TableColumn<CanaryAnalysisRun>[] = [
+  const runColumns: TableColumn<CanaryAnalysisRun>[] = useMemo<TableColumn<CanaryAnalysisRun>[]>(() => [
     {
       key: 'deploymentId',
       title: '部署',
@@ -300,9 +300,9 @@ const CanaryAnalysis: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [handleViewRun]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -314,7 +314,7 @@ const CanaryAnalysis: React.FC = () => {
         { label: 'Inconclusive', value: 'inconclusive' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

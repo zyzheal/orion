@@ -292,7 +292,7 @@ const PipelineManagementPage: React.FC = () => {
 
   // ==================== 表格列 ====================
 
-  const columns: TableColumn<DataPipeline>[] = [
+  const columns: TableColumn<DataPipeline>[] = useMemo<TableColumn<DataPipeline>[]>(() => [
     {
       key: 'name',
       title: '管道名称',
@@ -436,7 +436,7 @@ const PipelineManagementPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleOpenEdit, handlePause, handleResume, handleRun, handleViewLineage, handleViewLogs, navigate]);
 
   // ==================== 渲染 ====================
 

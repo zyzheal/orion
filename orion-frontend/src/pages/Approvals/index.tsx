@@ -246,7 +246,7 @@ const ApprovalManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<ApprovalRequest>[] = [
+  const columns: TableColumn<ApprovalRequest>[] = useMemo<TableColumn<ApprovalRequest>[]>(() => [
     {
       key: 'title',
       title: '审批标题',
@@ -395,7 +395,7 @@ const ApprovalManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [openCommentModal, openDetail]);
 
   // ---- Detail Drawer Content ----
 

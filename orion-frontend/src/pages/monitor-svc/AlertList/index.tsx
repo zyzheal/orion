@@ -142,7 +142,7 @@ const AlertList: React.FC = () => {
   }, [searchQuery, filters, alerts]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'severity',
       label: '严重级别',
@@ -164,7 +164,7 @@ const AlertList: React.FC = () => {
         { label: '已抑制', value: 'suppressed' },
       ],
     },
-  ];
+  ], []);
 
   // Count active alerts by severity
   const severityCounts = useMemo(() => {
@@ -312,7 +312,7 @@ const AlertList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<Alert>[] = [
+  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(() => [
     {
       key: 'severity',
       title: '级别',
@@ -448,7 +448,7 @@ const AlertList: React.FC = () => {
         );
       },
     },
-  ];
+  ], [handleAcknowledge, handleExplain, handleResolve, showDetail]);
 
   return (
     <div style={{ padding: 0 }}>

@@ -346,7 +346,7 @@ const EphemeralEnvList: React.FC = () => {
   const idleCount = envs.filter((e) => e.status === 'idle').length;
   const activeCount = envs.filter((e) => ['provisioning', 'running'].includes(e.status)).length;
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -357,7 +357,7 @@ const EphemeralEnvList: React.FC = () => {
       label: '仓库',
       options: [{ label: '全部', value: 'all' }, ...uniqueRepos],
     },
-  ];
+  ], []);
 
   const handleViewDetail = (env: EphemeralEnvironment) => {
     navigate(`/ephemeral-envs/${env.id}`);
@@ -398,7 +398,7 @@ const EphemeralEnvList: React.FC = () => {
     setCostDrawerOpen(true);
   };
 
-  const columns: TableColumn<EphemeralEnvironment>[] = [
+  const columns: TableColumn<EphemeralEnvironment>[] = useMemo<TableColumn<EphemeralEnvironment>[]>(() => [
     {
       key: 'namespace',
       title: '环境',
@@ -572,7 +572,7 @@ const EphemeralEnvList: React.FC = () => {
         );
       },
     },
-  ];
+  ], [handleOpenPreview, handleTeardown, handleViewCost, handleViewDetail, handleWake]);
 
   return (
     <div style={{ padding: 0 }} data-testid="ephemeral-env-list-page">

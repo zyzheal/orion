@@ -172,7 +172,7 @@ const PipelineRunList: React.FC = () => {
   }, [filteredRuns]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -185,10 +185,10 @@ const PipelineRunList: React.FC = () => {
         { label: '等待中', value: 'pending' },
       ],
     },
-  ];
+  ], []);
 
   // Table column definitions
-  const columns: TableColumn<PipelineRunSummary>[] = [
+  const columns: TableColumn<PipelineRunSummary>[] = useMemo<TableColumn<PipelineRunSummary>[]>(() => [
     {
       key: 'runId',
       title: 'Run ID',
@@ -341,7 +341,7 @@ const PipelineRunList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [navigate]);
 
   // Handle re-run for a failed/cancelled run
   const handleRetry = async (

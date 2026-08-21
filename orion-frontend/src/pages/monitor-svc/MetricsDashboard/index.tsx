@@ -262,7 +262,7 @@ const MetricsDashboard: React.FC = () => {
       : serviceHealth.filter((s) => s.key === selectedService);
 
   // Table columns for service health
-  const serviceColumns: TableColumn<ServiceHealthRow>[] = [
+  const serviceColumns: TableColumn<ServiceHealthRow>[] = useMemo<TableColumn<ServiceHealthRow>[]>(() => [
     {
       key: 'serviceName',
       title: 'Service Name',
@@ -327,17 +327,17 @@ const MetricsDashboard: React.FC = () => {
         );
       },
     },
-  ];
+  ], []);
 
   // Filter definitions for SearchFilterBar
-  const filterDefinitions: FilterDefinition[] = [
+  const filterDefinitions: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'service',
       label: 'Service',
       options: SERVICE_OPTIONS,
       placeholder: 'Filter by service',
     },
-  ];
+  ], []);
 
   return (
     <div>

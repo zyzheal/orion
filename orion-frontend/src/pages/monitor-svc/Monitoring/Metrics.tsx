@@ -2,7 +2,7 @@
  * Monitoring Metrics Page
  * View and manage metrics, record new metrics, view metric series and summaries
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -162,7 +162,7 @@ const MonitoringMetrics: React.FC = () => {
 
   const filterDefs: FilterDefinition[] = [];
 
-  const columns: TableColumn<Metric>[] = [
+  const columns: TableColumn<Metric>[] = useMemo<TableColumn<Metric>[]>(() => [
     {
       key: 'name',
       title: '指标名称',
@@ -230,7 +230,7 @@ const MonitoringMetrics: React.FC = () => {
         </Text>
       ),
     },
-  ];
+  ], []);
 
   return (
     <div>

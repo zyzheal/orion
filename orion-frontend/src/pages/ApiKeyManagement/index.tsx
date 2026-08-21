@@ -8,7 +8,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
  * Route: /console/api-keys
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input,
   message, Popconfirm, Tooltip, DatePicker, Alert,
@@ -82,7 +82,7 @@ const ApiKeyManagement: React.FC = () => {
     message.success('已复制到剪贴板');
   };
 
-  const columns: TableColumn<ApiKey>[] = [
+  const columns: TableColumn<ApiKey>[] = useMemo<TableColumn<ApiKey>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -149,7 +149,7 @@ const ApiKeyManagement: React.FC = () => {
           </Popconfirm>
         ) : '—',
     },
-  ];
+  ], [copyKey, handleRevoke]);
 
   return (
     <div style={{ padding: 0 }}>

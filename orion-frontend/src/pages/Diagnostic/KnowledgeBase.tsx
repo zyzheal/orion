@@ -2,7 +2,7 @@
  * Diagnostic Knowledge Base Page
  * Search and manage diagnostic patterns, view knowledge base stats
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Typography,
   Button,
@@ -88,7 +88,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     }
   };
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'category',
       label: '分类',
@@ -101,7 +101,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         { label: '基础设施', value: 'infrastructure' },
       ],
     },
-  ];
+  ], []);
 
   const handleFilter = async (newFilters: Record<string, string | string[] | undefined>) => {
     setFilters(newFilters);
@@ -159,7 +159,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<DiagnosticPattern>[] = [
+  const columns: TableColumn<DiagnosticPattern>[] = useMemo<TableColumn<DiagnosticPattern>[]>(() => [
     {
       key: 'name',
       title: '模式名称',
@@ -236,7 +236,7 @@ const DiagnosticKnowledgeBase: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [showDetail]);
 
   return (
     <div>

@@ -2,7 +2,7 @@
  * Code Management - Branch Policy List Page
  * Table display with Modal CRUD for branch protection policies
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -158,7 +158,7 @@ const BranchPolicyList: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<BranchPolicy>[] = [
+  const columns: TableColumn<BranchPolicy>[] = useMemo<TableColumn<BranchPolicy>[]>(() => [
     {
       key: 'branchPattern',
       title: '分支匹配',
@@ -254,7 +254,7 @@ const BranchPolicyList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openEditModal]);
 
   return (
     <div style={{ padding: 0 }}>

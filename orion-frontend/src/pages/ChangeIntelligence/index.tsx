@@ -139,7 +139,7 @@ const ChangeIntelligence: React.FC = () => {
     critical: 'red',
   };
 
-  const columns: TableColumn<ChangeIntelligenceReport>[] = [
+  const columns: TableColumn<ChangeIntelligenceReport>[] = useMemo<TableColumn<ChangeIntelligenceReport>[]>(() => [
     {
       key: 'prId',
       title: 'PR',
@@ -236,9 +236,9 @@ const ChangeIntelligence: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [handleViewDetail]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'riskLevel',
       label: '风险级别',
@@ -250,7 +250,7 @@ const ChangeIntelligence: React.FC = () => {
         { label: 'Critical', value: 'critical' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

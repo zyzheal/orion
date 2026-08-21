@@ -1,7 +1,7 @@
 /**
  * Artifact Table - Artifact list table with action buttons
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Tag, Space, Button, Popconfirm, Tooltip, Typography } from 'antd';
 import {
   EditOutlined,
@@ -66,7 +66,7 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
     return promotionStageOrder[idx + 1];
   };
 
-  const columns: TableColumn<Artifact>[] = [
+  const columns: TableColumn<Artifact>[] = useMemo<TableColumn<Artifact>[]>(() => [
     {
       key: 'name',
       title: '制品名称',
@@ -232,7 +232,7 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [onDelete, onDeprecate, onDetail, onDownload, onEdit, onPromote, onQuarantine, onTag]);
 
   return (
     <Table

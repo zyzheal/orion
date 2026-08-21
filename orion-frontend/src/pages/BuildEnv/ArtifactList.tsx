@@ -122,7 +122,7 @@ const ArtifactList: React.FC = () => {
     }
   };
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'type',
       label: 'Type',
@@ -147,9 +147,9 @@ const ArtifactList: React.FC = () => {
           })),
       ],
     },
-  ];
+  ], []);
 
-  const columns: TableColumn<Artifact>[] = [
+  const columns: TableColumn<Artifact>[] = useMemo<TableColumn<Artifact>[]>(() => [
     {
       key: 'name',
       title: 'Name',
@@ -257,7 +257,7 @@ const ArtifactList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleDownload]);
 
   return (
     <div style={{ padding: 0 }}>

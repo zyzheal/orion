@@ -210,7 +210,7 @@ const SecretsManagementInner: React.FC = () => {
 
   // ---- Filter Definitions ----
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'scope',
       label: '作用域',
@@ -221,11 +221,11 @@ const SecretsManagementInner: React.FC = () => {
         { label: '项目 (project)', value: 'project' },
       ],
     },
-  ];
+  ], []);
 
   // ---- Column Definitions ----
 
-  const columns: TableColumn<Secret>[] = [
+  const columns: TableColumn<Secret>[] = useMemo<TableColumn<Secret>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -318,7 +318,7 @@ const SecretsManagementInner: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openEdit]);
 
   return (
     <div style={{ padding: 0 }}>

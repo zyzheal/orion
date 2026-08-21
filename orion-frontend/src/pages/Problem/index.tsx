@@ -544,7 +544,7 @@ const ProblemPage: React.FC = () => {
   // ============================================================================
 
   /** Problem list table columns */
-  const problemColumns: TableColumn<Problem>[] = [
+  const problemColumns: TableColumn<Problem>[] = useMemo<TableColumn<Problem>[]>(() => [
     {
       key: 'title',
       title: '标题',
@@ -625,10 +625,10 @@ const ProblemPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleOpenEditModal, handleViewDetail]);
 
   /** Filter definitions for problem list SearchFilterBar */
-  const problemFilterDefs: FilterDefinition[] = [
+  const problemFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'severity',
       label: '严重级别',
@@ -649,7 +649,7 @@ const ProblemPage: React.FC = () => {
         { label: '已关闭', value: 'closed' },
       ],
     },
-  ];
+  ], []);
 
   const problemListContent = (
     <div>
@@ -843,7 +843,7 @@ const ProblemPage: React.FC = () => {
   // ============================================================================
 
   /** KEDB table columns */
-  const kedbColumns: TableColumn<KnownError>[] = [
+  const kedbColumns: TableColumn<KnownError>[] = useMemo<TableColumn<KnownError>[]>(() => [
     {
       key: 'title',
       title: '标题',
@@ -927,10 +927,10 @@ const ProblemPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDeleteKnownError, handleOpenKedbEditModal]);
 
   /** Filter definitions for KEDB SearchFilterBar */
-  const kedbFilterDefs: FilterDefinition[] = [
+  const kedbFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'kedbStatus',
       label: '状态',
@@ -940,7 +940,7 @@ const ProblemPage: React.FC = () => {
         { label: '已归档', value: 'archived' },
       ],
     },
-  ];
+  ], []);
 
   const kedbContent = (
     <div>

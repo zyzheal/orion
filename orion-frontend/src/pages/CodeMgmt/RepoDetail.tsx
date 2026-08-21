@@ -2,7 +2,7 @@
  * Code Management - Repository Detail Page
  * Tabs for Branches and Pull Requests with table views
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography,
   Tabs,
@@ -199,7 +199,7 @@ const RepoDetail: React.FC = () => {
     }
   };
 
-  const branchColumns: TableColumn<Branch>[] = [
+  const branchColumns: TableColumn<Branch>[] = useMemo<TableColumn<Branch>[]>(() => [
     {
       key: 'name',
       title: '分支名称',
@@ -255,9 +255,9 @@ const RepoDetail: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDeleteBranch]);
 
-  const prColumns: TableColumn<PullRequest>[] = [
+  const prColumns: TableColumn<PullRequest>[] = useMemo<TableColumn<PullRequest>[]>(() => [
     {
       key: 'title',
       title: 'Pull Request',
@@ -329,7 +329,7 @@ const RepoDetail: React.FC = () => {
         </Text>
       ),
     },
-  ];
+  ], []);
 
   const tabItems = [
     {

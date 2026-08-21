@@ -4,7 +4,7 @@
  * infrastructure topology, and impact analysis.
  * Four-tab layout: Service Dependencies | Infrastructure Topology | Impact Analysis | Cypher Query
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -277,7 +277,7 @@ const GraphPage: React.FC = () => {
 
   // ---- Columns ----
 
-  const serviceColumns: TableColumn<ServiceDependency>[] = [
+  const serviceColumns: TableColumn<ServiceDependency>[] = useMemo<TableColumn<ServiceDependency>[]>(() => [
     {
       key: 'id',
       title: '服务ID',
@@ -346,9 +346,9 @@ const GraphPage: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], [handleSelectService]);
 
-  const infraColumns: TableColumn<InfrastructureNode>[] = [
+  const infraColumns: TableColumn<InfrastructureNode>[] = useMemo<TableColumn<InfrastructureNode>[]>(() => [
     {
       key: 'id',
       title: '节点ID',
@@ -388,9 +388,9 @@ const GraphPage: React.FC = () => {
         );
       },
     },
-  ];
+  ], []);
 
-  const impactColumns: TableColumn<ImpactNode>[] = [
+  const impactColumns: TableColumn<ImpactNode>[] = useMemo<TableColumn<ImpactNode>[]>(() => [
     {
       key: 'service',
       title: '受影响服务',
@@ -428,7 +428,7 @@ const GraphPage: React.FC = () => {
       dataIndex: 'description',
       render: (v: unknown) => <Text type="secondary">{v ? String(v) : '-'}</Text>,
     },
-  ];
+  ], []);
 
   // ---- Service Detail View ----
 

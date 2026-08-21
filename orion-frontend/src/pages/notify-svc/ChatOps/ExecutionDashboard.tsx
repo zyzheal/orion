@@ -75,7 +75,7 @@ const ExecutionDashboard: React.FC = () => {
     (e) => e.status === 'running' || e.status === 'pending'
   ).length;
 
-  const columns: TableColumn<ChatOpsExecution>[] = [
+  const columns: TableColumn<ChatOpsExecution>[] = useMemo<TableColumn<ChatOpsExecution>[]>(() => [
     {
       key: 'commandId',
       title: '命令',
@@ -129,9 +129,9 @@ const ExecutionDashboard: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], []);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -157,7 +157,7 @@ const ExecutionDashboard: React.FC = () => {
         { label: 'Web', value: 'web' },
       ],
     },
-  ];
+  ], []);
 
   if (apiError && executions.length === 0) {
     return (

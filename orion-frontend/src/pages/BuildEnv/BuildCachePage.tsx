@@ -2,7 +2,7 @@
  * Build Cache Page
  * Two tabs: Cache Configs and Cache Entries, with CRUD and cleanup actions.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -192,7 +192,7 @@ const BuildCachePage: React.FC = () => {
     setConfigModalOpen(true);
   };
 
-  const configColumns: TableColumn<BuildCacheConfig>[] = [
+  const configColumns: TableColumn<BuildCacheConfig>[] = useMemo<TableColumn<BuildCacheConfig>[]>(() => [
     {
       key: 'name',
       title: 'Name',
@@ -306,9 +306,9 @@ const BuildCachePage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleClearConfig, handleDeleteConfig, openEditConfigModal]);
 
-  const entryColumns: TableColumn<BuildCacheEntry>[] = [
+  const entryColumns: TableColumn<BuildCacheEntry>[] = useMemo<TableColumn<BuildCacheEntry>[]>(() => [
     {
       key: 'key',
       title: 'Cache Key',
@@ -386,7 +386,7 @@ const BuildCachePage: React.FC = () => {
         </Popconfirm>
       ),
     },
-  ];
+  ], [handleDeleteEntry]);
 
   const tabItems = [
     {

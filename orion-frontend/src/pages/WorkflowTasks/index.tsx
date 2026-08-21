@@ -241,7 +241,7 @@ const WorkflowTasksPage: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<WorkflowTask>[] = [
+  const columns: TableColumn<WorkflowTask>[] = useMemo<TableColumn<WorkflowTask>[]>(() => [
     {
       key: 'title',
       title: '任务标题',
@@ -357,7 +357,7 @@ const WorkflowTasksPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [openClaimModal, openCompleteModal, openDetail]);
 
   // ---- Detail Drawer Content ----
 

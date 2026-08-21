@@ -150,7 +150,7 @@ const RoleManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<Role>[] = [
+  const columns: TableColumn<Role>[] = useMemo<TableColumn<Role>[]>(() => [
     {
       key: 'name',
       title: '角色名称',
@@ -235,7 +235,7 @@ const RoleManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openDetail]);
 
   // ---- Detail Drawer content ----
 

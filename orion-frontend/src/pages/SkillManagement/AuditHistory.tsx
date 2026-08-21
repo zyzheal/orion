@@ -126,7 +126,7 @@ const AuditHistory: React.FC = () => {
     return Array.from(actions);
   }, [auditLogs]);
 
-  const columns: TableColumn<any>[] = [
+  const columns: TableColumn<any>[] = useMemo<TableColumn<any>[]>(() => [
     {
       key: 'action',
       title: '操作类型',
@@ -222,7 +222,7 @@ const AuditHistory: React.FC = () => {
         </Button>
       ),
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>

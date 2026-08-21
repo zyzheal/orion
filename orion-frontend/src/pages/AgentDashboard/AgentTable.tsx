@@ -2,7 +2,7 @@
  * AgentTable - Agent profile table with search and filter
  * Displays filtered agent list with action buttons
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Typography, Button, Space, Tag, Badge } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -47,7 +47,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
   onToggleAgent,
   onDeleteAgent,
 }) => {
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -62,9 +62,9 @@ const AgentTable: React.FC<AgentTableProps> = ({
       label: '角色',
       options: [{ label: '全部', value: 'all' }, ...ROLE_OPTIONS],
     },
-  ];
+  ], []);
 
-  const columns: TableColumn<AgentProfile>[] = [
+  const columns: TableColumn<AgentProfile>[] = useMemo<TableColumn<AgentProfile>[]>(() => [
     {
       key: 'name',
       title: 'Agent 名称',
@@ -172,7 +172,7 @@ const AgentTable: React.FC<AgentTableProps> = ({
         </Space>
       ),
     },
-  ];
+  ], [onDeleteAgent, onEditAgent, onToggleAgent, onViewDetail]);
 
   return (
     <div>

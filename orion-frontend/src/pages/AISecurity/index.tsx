@@ -374,7 +374,7 @@ const AISecurityPage: React.FC = () => {
 
   // ---- Table Columns ----
 
-  const columns: TableColumn<UISecurityPolicy>[] = [
+  const columns: TableColumn<UISecurityPolicy>[] = useMemo<TableColumn<UISecurityPolicy>[]>(() => [
     {
       key: 'name',
       title: '策略名称',
@@ -489,11 +489,11 @@ const AISecurityPage: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, openDetail, openEdit]);
 
   // ---- Filter Definitions ----
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'type',
       label: '策略类型',
@@ -516,7 +516,7 @@ const AISecurityPage: React.FC = () => {
         { label: '已违规', value: 'violated' },
       ],
     },
-  ];
+  ], []);
 
   // ---- Compliance Score Color ----
 

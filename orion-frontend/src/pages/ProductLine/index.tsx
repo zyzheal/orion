@@ -538,7 +538,7 @@ const ProductLineManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<ProductLine>[] = [
+  const columns: TableColumn<ProductLine>[] = useMemo<TableColumn<ProductLine>[]>(() => [
     {
       key: 'displayName',
       title: '产品线',
@@ -656,9 +656,9 @@ const ProductLineManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleActivate, handleDelete, handleSuspend, openDetail, openEdit]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'phase',
       label: '状态',
@@ -680,11 +680,11 @@ const ProductLineManagement: React.FC = () => {
         { label: 'Trunk-Based', value: 'trunk-based' },
       ],
     },
-  ];
+  ], []);
 
   // ---- Release Train columns ----
 
-  const rtColumns: TableColumn<ReleaseTrain>[] = [
+  const rtColumns: TableColumn<ReleaseTrain>[] = useMemo<TableColumn<ReleaseTrain>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -742,11 +742,11 @@ const ProductLineManagement: React.FC = () => {
         </Text>
       ),
     },
-  ];
+  ], []);
 
   // ---- Hotfix Channel columns ----
 
-  const hfColumns: TableColumn<HotfixChannel>[] = [
+  const hfColumns: TableColumn<HotfixChannel>[] = useMemo<TableColumn<HotfixChannel>[]>(() => [
     {
       key: 'name',
       title: '名称',
@@ -801,7 +801,7 @@ const ProductLineManagement: React.FC = () => {
       width: 100,
       render: (v: unknown) => <Text>{String(v ?? '-')}</Text>,
     },
-  ];
+  ], []);
 
   // ---- Detail Drawer content ----
 

@@ -84,7 +84,7 @@ const PipelineList: React.FC = () => {
   }, [searchQuery, filters]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     {
       key: 'status',
       label: '状态',
@@ -95,7 +95,7 @@ const PipelineList: React.FC = () => {
         { label: '已删除', value: 'deleted' },
       ],
     },
-  ];
+  ], []);
 
   // Handle run pipeline
   const handleRun = (record: Pipeline) => {
@@ -141,7 +141,7 @@ const PipelineList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<Pipeline>[] = [
+  const columns: TableColumn<Pipeline>[] = useMemo<TableColumn<Pipeline>[]>(() => [
     {
       key: 'name',
       title: 'Pipeline',
@@ -237,7 +237,7 @@ const PipelineList: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleRun, navigate]);
 
   return (
     <div style={{ padding: 0 }}>

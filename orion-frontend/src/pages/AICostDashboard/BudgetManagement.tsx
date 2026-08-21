@@ -179,7 +179,7 @@ const BudgetManagement: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<Budget>[] = [
+  const columns: TableColumn<Budget>[] = useMemo<TableColumn<Budget>[]>(() => [
     {
       key: 'name',
       title: '预算名称',
@@ -283,9 +283,9 @@ const BudgetManagement: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ], [handleDelete, handleRestore]);
 
-  const filterDefs: FilterDefinition[] = [
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
     { key: 'type', label: '类型', options: [{ label: '全部', value: 'all' }, ...typeOptions] },
     {
       key: 'status',
@@ -298,7 +298,7 @@ const BudgetManagement: React.FC = () => {
         { label: 'Restored', value: 'restored' },
       ],
     },
-  ];
+  ], []);
 
   return (
     <div style={{ padding: 0 }}>
