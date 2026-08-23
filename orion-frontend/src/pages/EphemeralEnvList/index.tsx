@@ -346,18 +346,21 @@ const EphemeralEnvList: React.FC = () => {
   const idleCount = envs.filter((e) => e.status === 'idle').length;
   const activeCount = envs.filter((e) => ['provisioning', 'running'].includes(e.status)).length;
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: STATUS_OPTIONS,
-    },
-    {
-      key: 'repo',
-      label: '仓库',
-      options: [{ label: '全部', value: 'all' }, ...uniqueRepos],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: STATUS_OPTIONS,
+      },
+      {
+        key: 'repo',
+        label: '仓库',
+        options: [{ label: '全部', value: 'all' }, ...uniqueRepos],
+      },
+    ],
+    []
+  );
 
   const handleViewDetail = (env: EphemeralEnvironment) => {
     navigate(`/ephemeral-envs/${env.id}`);
@@ -398,181 +401,184 @@ const EphemeralEnvList: React.FC = () => {
     setCostDrawerOpen(true);
   };
 
-  const columns: TableColumn<EphemeralEnvironment>[] = useMemo<TableColumn<EphemeralEnvironment>[]>(() => [
-    {
-      key: 'namespace',
-      title: '环境',
-      dataIndex: 'namespace',
-      width: 180,
-      render: (value: unknown, record: EphemeralEnvironment) => (
-        <Space direction="vertical" size={0}>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleViewDetail(record)}
-            style={{ padding: 0, height: 'auto' }}
-          >
-            <Text strong>{String(value)}</Text>
-          </Button>
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            PR #{record.prId}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'repo',
-      title: '仓库',
-      dataIndex: 'repoId',
-      width: 160,
-      render: (value: unknown) => (
-        <Space>
-          <CloudServerOutlined style={{ color: colors.primary[500] }} />
-          <Text style={{ fontSize: spacing[3] }}>{String(value)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'branch',
-      title: '分支',
-      dataIndex: 'branchName',
-      width: 160,
-      render: (value: unknown) => <Tag color="cyan">{String(value)}</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 130,
-      render: (value: unknown) => {
-        const status = String(value);
-        return (
-          <Badge
-            status={
-              statusToColor[status] as 'success' | 'processing' | 'default' | 'error' | 'warning'
-            }
-            text={statusLabel[status] || status}
-          />
-        );
-      },
-    },
-    {
-      key: 'previewUrl',
-      title: 'Preview',
-      dataIndex: 'previewUrl',
-      width: 100,
-      render: (value: unknown, record: EphemeralEnvironment) =>
-        value ? (
-          <Button
-            type="link"
-            size="small"
-            icon={<LinkOutlined />}
-            onClick={() => handleOpenPreview(record)}
-          >
-            打开
-          </Button>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
-    },
-    {
-      key: 'resources',
-      title: '资源',
-      dataIndex: 'resources',
-      width: 140,
-      render: (value: unknown) => {
-        if (!value) return <Text type="secondary">-</Text>;
-        const res = value as { cpu?: string; memory?: string };
-        return (
-          <Text style={{ fontSize: spacing[2] }}>
-            CPU: {res.cpu || '-'} / MEM: {res.memory || '-'}
-          </Text>
-        );
-      },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      render: (value: unknown, record: EphemeralEnvironment) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: spacing[3] }}>
-            {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
-          </Text>
-          {record.idleSince && (
-            <Text type="secondary" style={{ fontSize: spacing[2] }}>
-              空闲自 {dayjs(record.idleSince).format('HH:mm')}
-            </Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 240,
-      render: (_: unknown, record: EphemeralEnvironment) => {
-        const isTeardownable = ['running', 'idle'].includes(record.status);
-        const isWakable = record.status === 'idle';
-
-        return (
-          <Space size="small" wrap>
+  const columns: TableColumn<EphemeralEnvironment>[] = useMemo<TableColumn<EphemeralEnvironment>[]>(
+    () => [
+      {
+        key: 'namespace',
+        title: '环境',
+        dataIndex: 'namespace',
+        width: 180,
+        render: (value: unknown, record: EphemeralEnvironment) => (
+          <Space direction="vertical" size={0}>
             <Button
               type="link"
               size="small"
-              icon={<EyeOutlined />}
               onClick={() => handleViewDetail(record)}
+              style={{ padding: 0, height: 'auto' }}
             >
-              详情
+              <Text strong>{String(value)}</Text>
             </Button>
-            {record.previewUrl && (
-              <Button
-                type="link"
-                size="small"
-                icon={<LinkOutlined />}
-                onClick={() => handleOpenPreview(record)}
-              >
-                Preview
-              </Button>
-            )}
-            {isWakable && (
-              <Button
-                type="link"
-                size="small"
-                icon={<ThunderboltOutlined />}
-                onClick={() => handleWake(record)}
-              >
-                唤醒
-              </Button>
-            )}
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              PR #{record.prId}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'repo',
+        title: '仓库',
+        dataIndex: 'repoId',
+        width: 160,
+        render: (value: unknown) => (
+          <Space>
+            <CloudServerOutlined style={{ color: colors.primary[500] }} />
+            <Text style={{ fontSize: spacing[3] }}>{String(value)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'branch',
+        title: '分支',
+        dataIndex: 'branchName',
+        width: 160,
+        render: (value: unknown) => <Tag color="cyan">{String(value)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 130,
+        render: (value: unknown) => {
+          const status = String(value);
+          return (
+            <Badge
+              status={
+                statusToColor[status] as 'success' | 'processing' | 'default' | 'error' | 'warning'
+              }
+              text={statusLabel[status] || status}
+            />
+          );
+        },
+      },
+      {
+        key: 'previewUrl',
+        title: 'Preview',
+        dataIndex: 'previewUrl',
+        width: 100,
+        render: (value: unknown, record: EphemeralEnvironment) =>
+          value ? (
             <Button
               type="link"
               size="small"
-              icon={<DollarOutlined />}
-              onClick={() => handleViewCost(record)}
+              icon={<LinkOutlined />}
+              onClick={() => handleOpenPreview(record)}
             >
-              成本
+              打开
             </Button>
-            {isTeardownable && (
-              <Popconfirm
-                title="确认销毁"
-                description="确定要销毁该环境吗？此操作不可撤销。"
-                onConfirm={() => handleTeardown(record)}
-                okText="销毁"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="link" size="small" danger icon={<PoweroffOutlined />}>
-                  销毁
-                </Button>
-              </Popconfirm>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'resources',
+        title: '资源',
+        dataIndex: 'resources',
+        width: 140,
+        render: (value: unknown) => {
+          if (!value) return <Text type="secondary">-</Text>;
+          const res = value as { cpu?: string; memory?: string };
+          return (
+            <Text style={{ fontSize: spacing[2] }}>
+              CPU: {res.cpu || '-'} / MEM: {res.memory || '-'}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        render: (value: unknown, record: EphemeralEnvironment) => (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: spacing[3] }}>
+              {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
+            </Text>
+            {record.idleSince && (
+              <Text type="secondary" style={{ fontSize: spacing[2] }}>
+                空闲自 {dayjs(record.idleSince).format('HH:mm')}
+              </Text>
             )}
           </Space>
-        );
+        ),
       },
-    },
-  ], [handleOpenPreview, handleTeardown, handleViewCost, handleViewDetail, handleWake]);
+      {
+        key: 'actions',
+        title: '操作',
+        width: 240,
+        render: (_: unknown, record: EphemeralEnvironment) => {
+          const isTeardownable = ['running', 'idle'].includes(record.status);
+          const isWakable = record.status === 'idle';
+
+          return (
+            <Space size="small" wrap>
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewDetail(record)}
+              >
+                详情
+              </Button>
+              {record.previewUrl && (
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<LinkOutlined />}
+                  onClick={() => handleOpenPreview(record)}
+                >
+                  Preview
+                </Button>
+              )}
+              {isWakable && (
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ThunderboltOutlined />}
+                  onClick={() => handleWake(record)}
+                >
+                  唤醒
+                </Button>
+              )}
+              <Button
+                type="link"
+                size="small"
+                icon={<DollarOutlined />}
+                onClick={() => handleViewCost(record)}
+              >
+                成本
+              </Button>
+              {isTeardownable && (
+                <Popconfirm
+                  title="确认销毁"
+                  description="确定要销毁该环境吗？此操作不可撤销。"
+                  onConfirm={() => handleTeardown(record)}
+                  okText="销毁"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button type="link" size="small" danger icon={<PoweroffOutlined />}>
+                    销毁
+                  </Button>
+                </Popconfirm>
+              )}
+            </Space>
+          );
+        },
+      },
+    ],
+    [handleOpenPreview, handleTeardown, handleViewCost, handleViewDetail, handleWake]
+  );
 
   return (
     <div style={{ padding: 0 }} data-testid="ephemeral-env-list-page">

@@ -200,7 +200,7 @@ export interface AlertRuleTemplate {
 export function getAlertRuleTemplates(params?: { category?: string }) {
   return api.get<{ data: AlertRuleTemplate[]; total: number }>(
     '/api/v1/observability/alert-rule-templates',
-    { params },
+    { params }
   );
 }
 
@@ -233,7 +233,7 @@ export interface TimelineReport {
 export function getRcaTimeline(deploymentId: string, params?: { start?: string; end?: string }) {
   return api.get<{ timeline: TimelineReport }>(
     `/api/v1/observability/rca/${deploymentId}/timeline`,
-    { params },
+    { params }
   );
 }
 
@@ -250,10 +250,9 @@ export function getDependencyGraph() {
 }
 
 export function analyzeDependencyRootCause(affectedServices: string[]) {
-  return api.post<{ data: string[] }>(
-    '/api/v1/observability/dependency-graph/analyze',
-    { affectedServices },
-  );
+  return api.post<{ data: string[] }>('/api/v1/observability/dependency-graph/analyze', {
+    affectedServices,
+  });
 }
 
 // ---- Temporal Correlation API ----
@@ -279,10 +278,10 @@ export function analyzeTemporalCorrelation(
     firedAt: string;
     message: string;
   }>,
-  windowMs?: number,
+  windowMs?: number
 ) {
   return api.post<{ data: TemporalCorrelationResult }>(
     '/api/v1/observability/temporal-correlation',
-    { alerts, windowMs },
+    { alerts, windowMs }
   );
 }

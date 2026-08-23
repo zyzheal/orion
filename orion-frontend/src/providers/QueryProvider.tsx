@@ -16,17 +16,16 @@ import type { QueryClientConfig } from '@tanstack/react-query';
 const DEFAULT_CONFIG: QueryClientConfig = {
   defaultOptions: {
     queries: {
-      staleTime: 30_000,             // 30s 内不重新请求（减少重复调用）
-      gcTime: 5 * 60 * 1000,         // 5 分钟后缓存回收
-      retry: 2,                       // 失败重试 2 次
-      retryDelay: (attemptIndex) =>
-        Math.min(1000 * 2 ** attemptIndex, 10_000), // 指数退避，上限 10s
-      refetchOnWindowFocus: true,    // 窗口获得焦点时刷新
-      refetchOnReconnect: true,      // 网络重连时刷新
-      throwOnError: false,           // 不抛出异常，由组件自行处理 error
+      staleTime: 30_000, // 30s 内不重新请求（减少重复调用）
+      gcTime: 5 * 60 * 1000, // 5 分钟后缓存回收
+      retry: 2, // 失败重试 2 次
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10_000), // 指数退避，上限 10s
+      refetchOnWindowFocus: true, // 窗口获得焦点时刷新
+      refetchOnReconnect: true, // 网络重连时刷新
+      throwOnError: false, // 不抛出异常，由组件自行处理 error
     },
     mutations: {
-      retry: 1,                       // 写操作重试 1 次
+      retry: 1, // 写操作重试 1 次
     },
   },
 };
@@ -46,11 +45,7 @@ export function getQueryClient(): QueryClient {
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const client = React.useMemo(() => getQueryClient(), []);
-  return (
-    <TanStackProvider client={client}>
-      {children}
-    </TanStackProvider>
-  );
+  return <TanStackProvider client={client}>{children}</TanStackProvider>;
 }
 
 // ---------------------------------------------------------------------------

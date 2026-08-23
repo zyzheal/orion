@@ -112,12 +112,7 @@ const AppContent: React.FC = () => {
     <ConfigProvider
       locale={zhCN}
       theme={getAntdThemeConfig({ algorithm: isDark ? 'dark' : 'default' })}
-      renderEmpty={() => (
-        <Empty
-          description="暂无数据"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      )}
+      renderEmpty={() => <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />}
     >
       <AppRouter />
     </ConfigProvider>

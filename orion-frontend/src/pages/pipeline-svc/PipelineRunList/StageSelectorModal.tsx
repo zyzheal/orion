@@ -54,7 +54,7 @@ const StageSelectorModal: React.FC<StageSelectorModalProps> = ({
       const response = await getPipelineRunStages(runId);
       const data = response.data as any;
       // Handle both array and object response formats
-      const stageList = Array.isArray(data) ? data : (data.data || []);
+      const stageList = Array.isArray(data) ? data : data.data || [];
       setStages(stageList as StageInfo[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -175,10 +175,7 @@ const StageSelectorModal: React.FC<StageSelectorModalProps> = ({
                     style={{
                       padding: `${spacing.sm} ${spacing.md}`,
                       cursor: 'pointer',
-                      background:
-                        selectedStageId === stage.id
-                          ? colors.primary[50]
-                          : undefined,
+                      background: selectedStageId === stage.id ? colors.primary[50] : undefined,
                     }}
                     onClick={() => setSelectedStageId(stage.id)}
                   >
@@ -186,9 +183,7 @@ const StageSelectorModal: React.FC<StageSelectorModalProps> = ({
                       <Space>
                         <Text strong>#{stage.index + 1}</Text>
                         <Text>{stage.name}</Text>
-                        <Tag color={getStatusTagColor(stage.status)}>
-                          {stage.status}
-                        </Tag>
+                        <Tag color={getStatusTagColor(stage.status)}>{stage.status}</Tag>
                       </Space>
                     </Radio>
                   </List.Item>

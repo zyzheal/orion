@@ -23,7 +23,12 @@ import {
   Tooltip,
   Tag,
 } from 'antd';
-import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import {
   getDashboardStats,
@@ -38,7 +43,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 const { Text } = Typography;
-const {} = Select;
+// Select component not needed in this file
 
 interface MetricCardProps {
   title: string;
@@ -53,7 +58,14 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, suffix, trend, co
   <Card>
     <Tooltip title={tooltip}>
       <Statistic
-        title={<span>{title} <InfoCircleOutlined style={{ fontSize: 12, color: colors.neutral[400], cursor: 'help' }} /></span>}
+        title={
+          <span>
+            {title}{' '}
+            <InfoCircleOutlined
+              style={{ fontSize: 12, color: colors.neutral[400], cursor: 'help' }}
+            />
+          </span>
+        }
         value={value}
         suffix={suffix}
         valueStyle={{ color }}
@@ -61,9 +73,13 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, suffix, trend, co
           trend != null && trend !== 0 ? (
             <span style={{ fontSize: 12, marginRight: 4 }}>
               {trend > 0 ? (
-                <ArrowUpOutlined style={{ color: trend > 0 ? colors.success[500] : colors.error[400] }} />
+                <ArrowUpOutlined
+                  style={{ color: trend > 0 ? colors.success[500] : colors.error[400] }}
+                />
               ) : (
-                <ArrowDownOutlined style={{ color: trend > 0 ? colors.error[400] : colors.success[500] }} />
+                <ArrowDownOutlined
+                  style={{ color: trend > 0 ? colors.error[400] : colors.success[500] }}
+                />
               )}
             </span>
           ) : undefined
@@ -72,7 +88,8 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, suffix, trend, co
     </Tooltip>
     {trend != null && trend !== 0 && (
       <Text type="secondary" style={{ fontSize: 12 }}>
-        {trend > 0 ? '↑' : '↓'}{Math.abs(trend)}% 环比
+        {trend > 0 ? '↑' : '↓'}
+        {Math.abs(trend)}% 环比
       </Text>
     )}
   </Card>
@@ -109,13 +126,23 @@ export default function ChatDashboard() {
   if (apiError && !stats) {
     return (
       <div style={{ padding: spacing.md }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>刷新</Button>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+            刷新
+          </Button>
         </div>
         <Card>
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={apiError} />
         </Card>
-      </div>    );
+      </div>
+    );
   }
 
   const timeRangeOptions = [
@@ -129,18 +156,23 @@ export default function ChatDashboard() {
     grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
     xAxis: {
       type: 'category' as const,
-      data: stats?.trends.map(t => dayjs(t.date).format('MM-DD')) || [],
+      data: stats?.trends.map((t) => dayjs(t.date).format('MM-DD')) || [],
       axisLine: { lineStyle: { color: colors.neutral[200] } },
       axisLabel: { color: colors.neutral[500] },
     },
     yAxis: [
-      { type: 'value' as const, name: '执行数', axisLabel: { color: colors.neutral[500] }, splitLine: { lineStyle: { type: 'dashed' } } },
+      {
+        type: 'value' as const,
+        name: '执行数',
+        axisLabel: { color: colors.neutral[500] },
+        splitLine: { lineStyle: { type: 'dashed' } },
+      },
     ],
     series: [
       {
         name: '执行数',
         type: 'bar' as const,
-        data: stats?.trends.map(t => t.executions) || [],
+        data: stats?.trends.map((t) => t.executions) || [],
         itemStyle: { color: colors.primary[500] },
         barWidth: '40%',
       },
@@ -155,7 +187,7 @@ export default function ChatDashboard() {
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
         label: { show: true, formatter: '{b}: {c}次' },
-        data: stats?.platformDistribution.map(p => ({ name: p.platform, value: p.count })) || [],
+        data: stats?.platformDistribution.map((p) => ({ name: p.platform, value: p.count })) || [],
       },
     ],
   };
@@ -180,7 +212,9 @@ export default function ChatDashboard() {
           >
             {index + 1}
           </span>
-          <Text code style={{ flex: 1 }}>/{cmd.command}</Text>
+          <Text code style={{ flex: 1 }}>
+            /{cmd.command}
+          </Text>
           <Text style={{ color: colors.primary[500], fontWeight: 600 }}>{cmd.count}</Text>
         </div>
       ))}
@@ -189,13 +223,20 @@ export default function ChatDashboard() {
 
   return (
     <div style={{ padding: spacing.md }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Select
             value={timeRange}
             onChange={setTimeRange}
             style={{ width: 120 }}
-            options={timeRangeOptions.map(o => ({ label: o.label, value: o.value }))}
+            options={timeRangeOptions.map((o) => ({ label: o.label, value: o.value }))}
           />
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
             刷新
@@ -241,7 +282,11 @@ export default function ChatDashboard() {
                 title="平均响应时间"
                 value={stats.metrics.avgResponseTime}
                 suffix="s"
-                trend={stats.comparison.avgResponseTime !== 0 ? -Math.round(stats.comparison.avgResponseTime * 10) / 10 : 0}
+                trend={
+                  stats.comparison.avgResponseTime !== 0
+                    ? -Math.round(stats.comparison.avgResponseTime * 10) / 10
+                    : 0
+                }
                 color={colors.purple[600]}
                 tooltip="成功执行的平均响应时间"
               />
@@ -300,7 +345,13 @@ export default function ChatDashboard() {
                     <Tag style={{ marginLeft: spacing.sm }}>{exec.platform}</Tag>
                     <Text style={{ marginLeft: 'auto' }}>{exec.userId}</Text>
                     <Tag
-                      color={exec.status === 'completed' ? 'green' : exec.status === 'failed' ? 'red' : 'orange'}
+                      color={
+                        exec.status === 'completed'
+                          ? 'green'
+                          : exec.status === 'failed'
+                            ? 'red'
+                            : 'orange'
+                      }
                       style={{ marginLeft: spacing.sm }}
                     >
                       {exec.status}

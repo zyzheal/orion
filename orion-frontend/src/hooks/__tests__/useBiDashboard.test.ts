@@ -31,7 +31,12 @@ const mockExecutiveData = {
         slaComplianceTrend: [],
       },
       teamRanking: { topPerformers: [], bottomPerformers: [] },
-      alerts: { slaBreachedCount: 0, overdueTicketsCount: 0, overloadedEngineers: 0, unassignedOlderThan24h: 0 },
+      alerts: {
+        slaBreachedCount: 0,
+        overdueTicketsCount: 0,
+        overloadedEngineers: 0,
+        unassignedOlderThan24h: 0,
+      },
       distribution: { byCategory: {}, byPriority: {} },
     },
   },
@@ -40,9 +45,20 @@ const mockExecutiveData = {
 const mockManagerData = {
   data: {
     data: {
-      teamOverview: { totalTickets: 50, resolvedCount: 40, avgResolutionTimeHours: 3.2, slaComplianceRate: 92, teamLoadPercentage: 75 },
+      teamOverview: {
+        totalTickets: 50,
+        resolvedCount: 40,
+        avgResolutionTimeHours: 3.2,
+        slaComplianceRate: 92,
+        teamLoadPercentage: 75,
+      },
       memberMetrics: [],
-      weekOverWeek: { ticketsCreatedChange: 5, resolvedChange: 3, avgResolutionTimeChange: -2, slaComplianceChange: 1 },
+      weekOverWeek: {
+        ticketsCreatedChange: 5,
+        resolvedChange: 3,
+        avgResolutionTimeChange: -2,
+        slaComplianceChange: 1,
+      },
       transferAnalysis: { totalTransfers: 10, avgTransfersPerTicket: 0.2, topTransferReasons: [] },
     },
   },
@@ -72,9 +88,7 @@ describe('useBiDashboard', () => {
   it('fetches manager dashboard data with teamId param', async () => {
     vi.mocked(biApi.getManagerDashboard).mockResolvedValue(mockManagerData as any);
 
-    const { result } = renderHook(() =>
-      useBiDashboard('manager', { teamId: 'team-1', days: 7 })
-    );
+    const { result } = renderHook(() => useBiDashboard('manager', { teamId: 'team-1', days: 7 }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 

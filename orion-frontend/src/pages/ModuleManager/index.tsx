@@ -213,9 +213,7 @@ const ModuleManagerPage: React.FC = () => {
       // Update local state
       setModules((prev) =>
         prev.map((m) =>
-          m.id === module.id
-            ? { ...m, config: { ...m.config, enabled: newEnabled } }
-            : m
+          m.id === module.id ? { ...m, config: { ...m.config, enabled: newEnabled } } : m
         )
       );
       // Reload validation
@@ -351,23 +349,55 @@ const ModuleManagerPage: React.FC = () => {
                   width: 600,
                   content: (
                     <div>
-                      <p><strong>ID:</strong> {record.id}</p>
-                      <p><strong>名称:</strong> {record.name}</p>
-                      <p><strong>描述:</strong> {record.description}</p>
-                      <p><strong>层级:</strong> {levelLabel[record.level]}</p>
-                      <p><strong>状态:</strong> {stateLabel[record.state]}</p>
-                      <p><strong>启用:</strong> {record.config.enabled ? '是' : '否'}</p>
-                      <p><strong>自动启动:</strong> {record.config.autoStart ? '是' : '否'}</p>
-                      <p><strong>优先级:</strong> {record.config.priority ?? '-'}</p>
-                      <p><strong>依赖:</strong></p>
+                      <p>
+                        <strong>ID:</strong> {record.id}
+                      </p>
+                      <p>
+                        <strong>名称:</strong> {record.name}
+                      </p>
+                      <p>
+                        <strong>描述:</strong> {record.description}
+                      </p>
+                      <p>
+                        <strong>层级:</strong> {levelLabel[record.level]}
+                      </p>
+                      <p>
+                        <strong>状态:</strong> {stateLabel[record.state]}
+                      </p>
+                      <p>
+                        <strong>启用:</strong> {record.config.enabled ? '是' : '否'}
+                      </p>
+                      <p>
+                        <strong>自动启动:</strong> {record.config.autoStart ? '是' : '否'}
+                      </p>
+                      <p>
+                        <strong>优先级:</strong> {record.config.priority ?? '-'}
+                      </p>
+                      <p>
+                        <strong>依赖:</strong>
+                      </p>
                       <ul>
                         {(record.config.dependencies || []).map((dep) => (
-                          <li key={dep}><Text code>{dep}</Text></li>
+                          <li key={dep}>
+                            <Text code>{dep}</Text>
+                          </li>
                         ))}
                       </ul>
-                      {record.routePrefix && <p><strong>路由前缀:</strong> {record.routePrefix}</p>}
-                      {record.error && <p><strong>错误:</strong> <Text type="danger">{record.error}</Text></p>}
-                      {record.domain && <p><strong>所属域:</strong> {record.domain}</p>}
+                      {record.routePrefix && (
+                        <p>
+                          <strong>路由前缀:</strong> {record.routePrefix}
+                        </p>
+                      )}
+                      {record.error && (
+                        <p>
+                          <strong>错误:</strong> <Text type="danger">{record.error}</Text>
+                        </p>
+                      )}
+                      {record.domain && (
+                        <p>
+                          <strong>所属域:</strong> {record.domain}
+                        </p>
+                      )}
                     </div>
                   ),
                 });
@@ -407,10 +437,12 @@ const ModuleManagerPage: React.FC = () => {
             模块管理
           </Title>
           <Text type="secondary">
-            共 {stats.total} 个模块 · {stats.active} 个活跃 · {stats.failed > 0 && `${stats.failed} 个失败`}
+            共 {stats.total} 个模块 · {stats.active} 个活跃 ·{' '}
+            {stats.failed > 0 && `${stats.failed} 个失败`}
           </Text>
           <Text type="secondary">
-            共 {stats.total} 个模块 · {stats.active} 个活跃 · {stats.failed > 0 && `${stats.failed} 个失败`}
+            共 {stats.total} 个模块 · {stats.active} 个活跃 ·{' '}
+            {stats.failed > 0 && `${stats.failed} 个失败`}
           </Text>
         </div>
         <Space>
@@ -432,11 +464,7 @@ const ModuleManagerPage: React.FC = () => {
           >
             启动顺序
           </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={loadAll}
-            loading={loading}
-          >
+          <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>
             刷新
           </Button>
         </Space>
@@ -521,7 +549,12 @@ const ModuleManagerPage: React.FC = () => {
           {
             key: 'dependency',
             label: '依赖关系图',
-            children: <DependencyGraph modules={modules} levelFilter={levelFilter !== 'all' ? levelFilter : undefined} />,
+            children: (
+              <DependencyGraph
+                modules={modules}
+                levelFilter={levelFilter !== 'all' ? levelFilter : undefined}
+              />
+            ),
           },
           {
             key: 'dependency-reverse',

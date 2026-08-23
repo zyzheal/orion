@@ -7,12 +7,27 @@ import apiClient from './client';
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'date' | 'radio' | 'checkbox' | 'cascader' | 'textarea' | 'switch';
+  type:
+    | 'text'
+    | 'number'
+    | 'select'
+    | 'date'
+    | 'radio'
+    | 'checkbox'
+    | 'cascader'
+    | 'textarea'
+    | 'switch';
   required?: boolean;
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
   defaultValue?: unknown;
-  rules?: Array<{ required?: boolean; message?: string; pattern?: string; max?: number; min?: number }>;
+  rules?: Array<{
+    required?: boolean;
+    message?: string;
+    pattern?: string;
+    max?: number;
+    min?: number;
+  }>;
 }
 
 export interface FormSchema {
@@ -48,5 +63,7 @@ export function deleteForm(id: string) {
 }
 
 export function submitForm(id: string, payload: Record<string, unknown>) {
-  return apiClient.post<{ data: { submissionId: string } }>(`/forms/${id}/submit`, payload).then((r) => r.data.data);
+  return apiClient
+    .post<{ data: { submissionId: string } }>(`/forms/${id}/submit`, payload)
+    .then((r) => r.data.data);
 }

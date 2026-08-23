@@ -88,7 +88,11 @@ export const triggersApi = {
     return response.data as WebhookEvent[];
   },
 
-  executeFromChat: async (data: { channelId: string; command: string; params?: Record<string, unknown> }) => {
+  executeFromChat: async (data: {
+    channelId: string;
+    command: string;
+    params?: Record<string, unknown>;
+  }) => {
     const response = await apiClient.post('/api/v1/triggers/chat', data);
     return response.data as TriggerResult;
   },

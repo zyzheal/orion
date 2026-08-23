@@ -4,11 +4,27 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Modal, Form, Input,
-  Select, Switch, Tag, Tooltip, Popconfirm, message, Empty,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
+  Tag,
+  Tooltip,
+  Popconfirm,
+  message,
+  Empty,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -45,7 +61,9 @@ const IntegrationTab: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [channelFilter, setChannelFilter] = useState<string | undefined>();
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const loadItems = async () => {
     setLoading(true);
@@ -54,7 +72,9 @@ const IntegrationTab: React.FC = () => {
       setItems(data);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载集成列表失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -90,7 +110,10 @@ const IntegrationTab: React.FC = () => {
       };
 
       if (editingItem) {
-        await updateNotificationIntegration(editingItem.id, { ...payload, enabled: values.enabled });
+        await updateNotificationIntegration(editingItem.id, {
+          ...payload,
+          enabled: values.enabled,
+        });
         message.success('集成更新成功');
       } else {
         await createNotificationIntegration(payload);
@@ -126,7 +149,9 @@ const IntegrationTab: React.FC = () => {
       loadItems();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '测试请求失败');
-    } finally { setTestingId(null); }
+    } finally {
+      setTestingId(null);
+    }
   };
 
   const handleToggleEnabled = async (item: NotificationIntegration) => {
@@ -161,7 +186,10 @@ const IntegrationTab: React.FC = () => {
         <Space>
           <span
             style={{
-              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+              display: 'inline-block',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
               background: CHANNEL_COLORS[v] || colors.neutral[500],
             }}
           />
@@ -217,7 +245,12 @@ const IntegrationTab: React.FC = () => {
       render: (_: any, record: NotificationIntegration) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            />
           </Tooltip>
           <Tooltip title="测试连接">
             <Button
@@ -245,11 +278,21 @@ const IntegrationTab: React.FC = () => {
 
   return (
     <Card
-      style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+      style={{
+        borderRadius: 12,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
       bodyStyle={{ padding: spacing.md }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Text type="secondary">共 {filteredItems.length} 个集成</Text>
         </Space>
@@ -269,7 +312,9 @@ const IntegrationTab: React.FC = () => {
             onChange={setChannelFilter}
           >
             {CHANNEL_TYPES.map((c) => (
-              <Option key={c.value} value={c.value}>{c.label}</Option>
+              <Option key={c.value} value={c.value}>
+                {c.label}
+              </Option>
             ))}
           </Select>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
@@ -285,11 +330,7 @@ const IntegrationTab: React.FC = () => {
       {filteredItems.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">
-              暂无通知集成，点击上方「新建集成」添加通知渠道
-            </Text>
-          }
+          description={<Text type="secondary">暂无通知集成，点击上方「新建集成」添加通知渠道</Text>}
         />
       ) : (
         <Table
@@ -298,7 +339,11 @@ const IntegrationTab: React.FC = () => {
           rowKey="id"
           loading={loading}
           size="middle"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
           scroll={{ x: 900 }}
         />
       )}
@@ -329,7 +374,9 @@ const IntegrationTab: React.FC = () => {
           >
             <Select placeholder="选择渠道类型">
               {CHANNEL_TYPES.map((c) => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
+                <Option key={c.value} value={c.value}>
+                  {c.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -353,7 +400,11 @@ const IntegrationTab: React.FC = () => {
 
 function parseJSON(val: string): Record<string, any> {
   if (!val || typeof val !== 'string') return {};
-  try { return JSON.parse(val); } catch { return {}; }
+  try {
+    return JSON.parse(val);
+  } catch {
+    return {};
+  }
 }
 
 export default IntegrationTab;

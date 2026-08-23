@@ -133,13 +133,29 @@ const renderStatus = (status: ScanStatus) => {
 const renderVulnTotal = (record: ImageScanRecord) => {
   const tags: React.ReactNode[] = [];
   if (record.critical > 0)
-    tags.push(<Tag key="critical" color={commonStyle.error}>{record.critical}</Tag>);
+    tags.push(
+      <Tag key="critical" color={commonStyle.error}>
+        {record.critical}
+      </Tag>
+    );
   if (record.high > 0)
-    tags.push(<Tag key="high" color={commonStyle.warning}>{record.high}</Tag>);
+    tags.push(
+      <Tag key="high" color={commonStyle.warning}>
+        {record.high}
+      </Tag>
+    );
   if (record.medium > 0)
-    tags.push(<Tag key="medium" color={commonStyle.info}>{record.medium}</Tag>);
+    tags.push(
+      <Tag key="medium" color={commonStyle.info}>
+        {record.medium}
+      </Tag>
+    );
   if (record.low > 0)
-    tags.push(<Tag key="low" color={commonStyle.neutral}>{record.low}</Tag>);
+    tags.push(
+      <Tag key="low" color={commonStyle.neutral}>
+        {record.low}
+      </Tag>
+    );
   if (tags.length === 0) return <Text type="secondary">0</Text>;
   return <Space size={2}>{tags}</Space>;
 };
@@ -164,7 +180,7 @@ const ContainerScanPage: React.FC = () => {
     try {
       const res = await listContainerScans({ page: 1, page_size: 100 });
       const raw = res.data as { data?: ImageScanRecord[] } | ImageScanRecord[];
-      setScanData(Array.isArray(raw) ? raw : (raw.data || []));
+      setScanData(Array.isArray(raw) ? raw : raw.data || []);
     } catch (err: any) {
       message.error(`加载扫描数据失败: ${err.message}`);
       setScanData([]);
@@ -198,7 +214,7 @@ const ContainerScanPage: React.FC = () => {
     if (searchText) {
       const keyword = searchText.toLowerCase();
       data = data.filter(
-        (r) => r.image.toLowerCase().includes(keyword) || r.tag.toLowerCase().includes(keyword),
+        (r) => r.image.toLowerCase().includes(keyword) || r.tag.toLowerCase().includes(keyword)
       );
     }
     if (statusFilter !== 'all') {
@@ -253,19 +269,22 @@ const ContainerScanPage: React.FC = () => {
       title: '高危',
       dataIndex: 'critical',
       key: 'critical',
-      render: (val: number) => (val > 0 ? <Tag color={commonStyle.error}>{val}</Tag> : <Text>-</Text>),
+      render: (val: number) =>
+        val > 0 ? <Tag color={commonStyle.error}>{val}</Tag> : <Text>-</Text>,
     },
     {
       title: '中危',
       dataIndex: 'medium',
       key: 'medium',
-      render: (val: number) => (val > 0 ? <Tag color={commonStyle.warning}>{val}</Tag> : <Text>-</Text>),
+      render: (val: number) =>
+        val > 0 ? <Tag color={commonStyle.warning}>{val}</Tag> : <Text>-</Text>,
     },
     {
       title: '低危',
       dataIndex: 'low',
       key: 'low',
-      render: (val: number) => (val > 0 ? <Tag color={commonStyle.info}>{val}</Tag> : <Text>-</Text>),
+      render: (val: number) =>
+        val > 0 ? <Tag color={commonStyle.info}>{val}</Tag> : <Text>-</Text>,
     },
     {
       title: '状态',
@@ -359,7 +378,11 @@ const ContainerScanPage: React.FC = () => {
               title="扫描镜像总数"
               value={totalImages}
               valueStyle={{ color: commonStyle.primary }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>个镜像</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  个镜像
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -375,7 +398,11 @@ const ContainerScanPage: React.FC = () => {
               title="高危漏洞数"
               value={highVulns}
               valueStyle={{ color: commonStyle.error }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>个漏洞</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  个漏洞
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -391,7 +418,11 @@ const ContainerScanPage: React.FC = () => {
               title="已修复率"
               value={fixRate}
               valueStyle={{ color: commonStyle.success }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>%</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  %
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -407,7 +438,11 @@ const ContainerScanPage: React.FC = () => {
               title="待扫描镜像"
               value={pendingScan}
               valueStyle={{ color: commonStyle.warning }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>个镜像</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  个镜像
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -563,11 +598,7 @@ const ContainerScanPage: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                label="自动阻止部署"
-                name="autoBlock"
-                valuePropName="checked"
-              >
+              <Form.Item label="自动阻止部署" name="autoBlock" valuePropName="checked">
                 <Switch
                   checkedChildren="开启"
                   unCheckedChildren="关闭"

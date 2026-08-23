@@ -113,18 +113,18 @@ const mockRiskRanks: UserRiskRank[] = [];
  * 异常类型颜色映射
  */
 const anomalyTypeColor: Record<AnomalyType, string> = {
-  '异常登录': commonStyle.error,
-  '权限滥用': commonStyle.warning,
-  '数据外泄': commonStyle.purple,
-  '异常时间': commonStyle.info,
-  '高频操作': colors.warning[400],
+  异常登录: commonStyle.error,
+  权限滥用: commonStyle.warning,
+  数据外泄: commonStyle.purple,
+  异常时间: commonStyle.info,
+  高频操作: colors.warning[400],
 };
 
 /**
  * 检测方法颜色映射
  */
 const methodColor: Record<DetectionMethod, string> = {
-  'IQR': colors.neutral[100],
+  IQR: colors.neutral[100],
   '3σ': colors.warning[50],
   'Z-Score': colors.purple[50],
 };
@@ -144,12 +144,16 @@ const getScoreColor = (score: number): string => {
  */
 const renderStatus = (status: EventStatus) => {
   const statusMap: Record<EventStatus, { color: string; icon: React.ReactNode }> = {
-    '待调查': { color: colors.neutral[400], icon: <SearchOutlined /> },
-    '已确认': { color: commonStyle.success, icon: <CheckCircleOutlined /> },
-    '误报': { color: commonStyle.info, icon: <CloseCircleOutlined /> },
+    待调查: { color: colors.neutral[400], icon: <SearchOutlined /> },
+    已确认: { color: commonStyle.success, icon: <CheckCircleOutlined /> },
+    误报: { color: commonStyle.info, icon: <CloseCircleOutlined /> },
   };
   const s = statusMap[status];
-  return <Tag color={s.color}>{s.icon} {status}</Tag>;
+  return (
+    <Tag color={s.color}>
+      {s.icon} {status}
+    </Tag>
+  );
 };
 
 const UEBAPage: React.FC = () => {
@@ -385,7 +389,11 @@ const UEBAPage: React.FC = () => {
               title="监控用户数"
               value={monitoredUsers}
               valueStyle={{ color: commonStyle.primary }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>人</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  人
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -401,7 +409,11 @@ const UEBAPage: React.FC = () => {
               title="异常事件数"
               value={anomalyEvents}
               valueStyle={{ color: commonStyle.error }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>起</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  起
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -417,7 +429,11 @@ const UEBAPage: React.FC = () => {
               title="高危用户数"
               value={highRiskUsers}
               valueStyle={{ color: commonStyle.warning }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>人</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  人
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -434,7 +450,11 @@ const UEBAPage: React.FC = () => {
               value={modelAccuracy}
               precision={1}
               valueStyle={{ color: commonStyle.success }}
-              suffix={<Text type="secondary" style={{ fontSize: 14 }}>%</Text>}
+              suffix={
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  %
+                </Text>
+              }
             />
           </Card>
         </Col>
@@ -558,12 +578,7 @@ const UEBAPage: React.FC = () => {
                   },
                 ]}
               >
-                <InputNumber
-                  min={1}
-                  max={10}
-                  style={{ width: '100%' }}
-                  addonAfter="级"
-                />
+                <InputNumber min={1} max={10} style={{ width: '100%' }} addonAfter="级" />
               </Form.Item>
             </Col>
             <Col span={8}>

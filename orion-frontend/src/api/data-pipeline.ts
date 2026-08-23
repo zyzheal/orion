@@ -68,7 +68,11 @@ export interface PipelineLineage {
  * 获取管道列表
  * @param params 分页和过滤参数
  */
-export async function listDataPipelines(params?: { page?: number; limit?: number; status?: string }) {
+export async function listDataPipelines(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}) {
   const response = await apiClient.get('/api/v1/data-pipeline', { params });
   // 后端返回 { data: [...], total: N }
   return response.data as { data: DataPipeline[]; total: number };

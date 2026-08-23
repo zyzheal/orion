@@ -10,11 +10,21 @@ import { api } from './client';
 // ==================== 类型定义 ====================
 
 export type AuditAction =
-  | 'stage.start' | 'stage.complete' | 'stage.skip' | 'stage.fail'
-  | 'task.start' | 'task.complete' | 'task.fail' | 'task.skip'
-  | 'approval.request' | 'approval.approve' | 'approval.reject'
+  | 'stage.start'
+  | 'stage.complete'
+  | 'stage.skip'
+  | 'stage.fail'
+  | 'task.start'
+  | 'task.complete'
+  | 'task.fail'
+  | 'task.skip'
+  | 'approval.request'
+  | 'approval.approve'
+  | 'approval.reject'
   | 'trigger.fire'
-  | 'run.create' | 'run.cancel' | 'run.complete';
+  | 'run.create'
+  | 'run.cancel'
+  | 'run.complete';
 
 export type AuditOutcome = 'success' | 'failed' | 'pending';
 

@@ -83,18 +83,21 @@ const MonitoringRules: React.FC = () => {
     });
   }, [searchQuery, filters, rules]);
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'severity',
-      label: '严重级别',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '严重', value: 'critical' },
-        { label: '警告', value: 'warning' },
-        { label: '提示', value: 'info' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'severity',
+        label: '严重级别',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '严重', value: 'critical' },
+          { label: '警告', value: 'warning' },
+          { label: '提示', value: 'info' },
+        ],
+      },
+    ],
+    []
+  );
 
   const openModal = (rule?: AlertRule) => {
     setEditingRule(rule || null);
@@ -165,77 +168,82 @@ const MonitoringRules: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<AlertRule>[] = useMemo<TableColumn<AlertRule>[]>(() => [
-    {
-      key: 'name',
-      title: '规则名称',
-      dataIndex: 'name',
-      sortable: true,
-      filterable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'metric',
-      title: '监控指标',
-      dataIndex: 'metric',
-      sortable: true,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'condition',
-      title: '条件',
-      dataIndex: 'condition',
-      width: 100,
-      render: (v: unknown, record: AlertRule) => (
-        <Text>
-          {String(v)} {record.threshold}
-        </Text>
-      ),
-    },
-    {
-      key: 'severity',
-      title: '级别',
-      dataIndex: 'severity',
-      width: 90,
-      render: (v: unknown) => {
-        const colorMap: Record<string, string> = {
-          critical: 'red',
-          warning: 'orange',
-          info: 'blue',
-        };
-        return <Tag color={colorMap[String(v)]}>{String(v)}</Tag>;
+  const columns: TableColumn<AlertRule>[] = useMemo<TableColumn<AlertRule>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '规则名称',
+        dataIndex: 'name',
+        sortable: true,
+        filterable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_, record: AlertRule) => (
-        <Space size="small">
-          <Switch
-            checked={record.enabled}
-            onChange={() => handleToggle(record.id)}
-            checkedChildren="开"
-            unCheckedChildren="关"
-            size="small"
-          />
-          <Button type="link" size="small" onClick={() => openModal(record)}>
-            编辑
-          </Button>
-          <Button type="link" size="small" danger onClick={() => handleDelete(record.id)}>
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleDelete, openModal]);
+      {
+        key: 'metric',
+        title: '监控指标',
+        dataIndex: 'metric',
+        sortable: true,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'condition',
+        title: '条件',
+        dataIndex: 'condition',
+        width: 100,
+        render: (v: unknown, record: AlertRule) => (
+          <Text>
+            {String(v)} {record.threshold}
+          </Text>
+        ),
+      },
+      {
+        key: 'severity',
+        title: '级别',
+        dataIndex: 'severity',
+        width: 90,
+        render: (v: unknown) => {
+          const colorMap: Record<string, string> = {
+            critical: 'red',
+            warning: 'orange',
+            info: 'blue',
+          };
+          return <Tag color={colorMap[String(v)]}>{String(v)}</Tag>;
+        },
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 80,
+        render: (v: unknown) => (
+          <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_, record: AlertRule) => (
+          <Space size="small">
+            <Switch
+              checked={record.enabled}
+              onChange={() => handleToggle(record.id)}
+              checkedChildren="开"
+              unCheckedChildren="关"
+              size="small"
+            />
+            <Button type="link" size="small" onClick={() => openModal(record)}>
+              编辑
+            </Button>
+            <Button type="link" size="small" danger onClick={() => handleDelete(record.id)}>
+              删除
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, openModal]
+  );
 
   return (
     <div>

@@ -195,11 +195,18 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = (response.data as { data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] } })?.data ?? response.data;
+        const execData =
+          (
+            response.data as {
+              data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] };
+            }
+          )?.data ?? response.data;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: (execData as { result?: { output?: string } })?.result?.output || `命令 ${command} 执行完成`,
+          content:
+            (execData as { result?: { output?: string } })?.result?.output ||
+            `命令 ${command} 执行完成`,
           timestamp: new Date(),
           status: (execData as { status?: string }).status === 'completed' ? 'success' : 'failed',
           actions: extractActionsFromResult(execData as { actions?: ExtendedAction[] }),
@@ -245,11 +252,18 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = (response.data as { data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] } })?.data ?? response.data;
+        const execData =
+          (
+            response.data as {
+              data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] };
+            }
+          )?.data ?? response.data;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: (execData as { result?: { output?: string } })?.result?.output || `操作 ${command} 执行完成`,
+          content:
+            (execData as { result?: { output?: string } })?.result?.output ||
+            `操作 ${command} 执行完成`,
           timestamp: new Date(),
           status: (execData as { status?: string }).status === 'completed' ? 'success' : 'failed',
           actions: extractActionsFromResult(execData as { actions?: ExtendedAction[] }),
@@ -289,7 +303,8 @@ export const useChatOpsStore = create<ChatOpsState>()(
       set({ isRecommendationLoading: true });
       try {
         const response = await fetchRecommendations({});
-        const recs = ((response.data as RecommendationListResponse)?.data?.recommendations || []) as unknown as Recommendation[];
+        const recs = ((response.data as RecommendationListResponse)?.data?.recommendations ||
+          []) as unknown as Recommendation[];
         set({
           recommendations: recs,
           unreadAlerts: recs.filter(

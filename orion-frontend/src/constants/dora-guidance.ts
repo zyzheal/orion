@@ -65,8 +65,7 @@ export const ONBOARDING_STEPS = [
   {
     title: '四大核心指标',
     icon: 'metrics',
-    content:
-      `• 部署频率：衡量交付速度
+    content: `• 部署频率：衡量交付速度
 • 变更前置时间：衡量流程效率
 • 服务恢复时间：衡量响应能力
 • 变更失败率：衡量发布质量`,
@@ -74,8 +73,7 @@ export const ONBOARDING_STEPS = [
   {
     title: '效能等级说明',
     icon: 'level',
-    content:
-      `Elite（精英）：行业顶尖水平
+    content: `Elite（精英）：行业顶尖水平
 High（高）：表现优秀
 Medium（中等）：有改进空间
 Low（低）：需要重点关注`,
@@ -83,8 +81,7 @@ Low（低）：需要重点关注`,
   {
     title: '如何提升效能',
     icon: 'improve',
-    content:
-      `1. 查看改进建议获取针对性优化方案
+    content: `1. 查看改进建议获取针对性优化方案
 2. 使用团队对比了解差距
 3. 关注趋势分析持续改进
 4. 点击右上角 ❓ 图标可随时查看帮助`,
@@ -147,8 +144,7 @@ export const DORA_LEVELS = [
 export const DORA_FAQ = [
   {
     question: '部署频率是如何计算的？',
-    answer:
-      '部署频率 = 统计周期内成功部署次数 / 统计天数 × 7。我们默认统计最近 30 天的数据。',
+    answer: '部署频率 = 统计周期内成功部署次数 / 统计天数 × 7。我们默认统计最近 30 天的数据。',
   },
   {
     question: '变更前置时间为什么显示的是 Pipeline 执行时长？',
@@ -157,8 +153,7 @@ export const DORA_FAQ = [
   },
   {
     question: 'MTTR 数据从哪里来？',
-    answer:
-      '当前 MTTR 从部署记录的恢复时间字段计算。后续版本将接入独立的 Incident 追踪系统。',
+    answer: '当前 MTTR 从部署记录的恢复时间字段计算。后续版本将接入独立的 Incident 追踪系统。',
   },
   {
     question: '如何查看历史趋势？',
@@ -167,8 +162,7 @@ export const DORA_FAQ = [
   },
   {
     question: '团队对比功能如何使用？',
-    answer:
-      '切换到"团队对比" Tab，选择需要对比的团队，系统将展示雷达图和排名表格。',
+    answer: '切换到"团队对比" Tab，选择需要对比的团队，系统将展示雷达图和排名表格。',
   },
 ];
 

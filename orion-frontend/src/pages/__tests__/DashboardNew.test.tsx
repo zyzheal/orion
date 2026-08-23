@@ -19,10 +19,16 @@ vi.mock('antd', async () => {
 });
 
 const renderWithProviders = (ui: React.ReactElement) =>
-  render(<BrowserRouter><ChartProvider>{ui}</ChartProvider></BrowserRouter>);
+  render(
+    <BrowserRouter>
+      <ChartProvider>{ui}</ChartProvider>
+    </BrowserRouter>
+  );
 
 describe('DashboardNew', { timeout: 15000 }, () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders dashboard title elements', async () => {
     renderWithProviders(<DashboardNew />);

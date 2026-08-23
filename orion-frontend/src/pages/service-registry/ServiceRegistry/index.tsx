@@ -177,149 +177,152 @@ const ServiceRegistry: React.FC = () => {
 
   // ==================== Table Columns ====================
 
-  const columns: TableColumn<ServiceInfo>[] = useMemo<TableColumn<ServiceInfo>[]>(() => [
-    {
-      key: 'name',
-      title: '服务名',
-      dataIndex: 'name',
-      width: 180,
-      render: (_value: unknown, record) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ color: colors.primary[500] }}>
-            {record.name}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {record.serviceId}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'address',
-      title: '地址',
-      dataIndex: 'address',
-      width: 160,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'port',
-      title: '端口',
-      dataIndex: 'port',
-      width: 90,
-      render: (value: unknown) => <Tag color="blue">{String(value)}</Tag>,
-    },
-    {
-      key: 'protocol',
-      title: '协议',
-      dataIndex: 'protocol',
-      width: 100,
-      render: (value: unknown) => {
-        const protocol = String(value || 'http');
-        const colorMap: Record<string, string> = {
-          http: 'blue',
-          grpc: 'green',
-          tcp: 'orange',
-          custom: 'purple',
-        };
-        return <Tag color={colorMap[protocol] || 'default'}>{protocol.toUpperCase()}</Tag>;
+  const columns: TableColumn<ServiceInfo>[] = useMemo<TableColumn<ServiceInfo>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '服务名',
+        dataIndex: 'name',
+        width: 180,
+        render: (_value: unknown, record) => (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ color: colors.primary[500] }}>
+              {record.name}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {record.serviceId}
+            </Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (value: unknown) => <Text type="secondary">{String(value || '-')}</Text>,
-    },
-    {
-      key: 'health',
-      title: '健康状态',
-      dataIndex: 'health',
-      width: 120,
-      render: (value: unknown) => {
-        const health = String(value || 'unknown');
-        const config = HEALTH_STATUS_CONFIG[health] || HEALTH_STATUS_CONFIG.unknown;
-        return (
-          <Tag color={config.color} icon={config.icon}>
-            {config.label}
-          </Tag>
-        );
+      {
+        key: 'address',
+        title: '地址',
+        dataIndex: 'address',
+        width: 160,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
       },
-    },
-    {
-      key: 'lastHeartbeat',
-      title: '最后心跳',
-      dataIndex: 'lastHeartbeat',
-      width: 160,
-      render: (value: unknown) => {
-        const time = String(value || '');
-        if (!time) {
-          return <Text type="secondary">暂无</Text>;
-        }
-        return (
-          <Tooltip title={dayjs(time).format('YYYY-MM-DD HH:mm:ss')}>
-            <Text type="secondary">{dayjs(time).fromNow()}</Text>
-          </Tooltip>
-        );
+      {
+        key: 'port',
+        title: '端口',
+        dataIndex: 'port',
+        width: 90,
+        render: (value: unknown) => <Tag color="blue">{String(value)}</Tag>,
       },
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      fixed: 'right',
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Tooltip title="发送心跳">
-            <Button
-              type="link"
-              size="small"
-              icon={<HeartOutlined />}
-              onClick={async () => {
-                try {
-                  // 使用 fetch 直接调用心跳接口，因为 API client 未导出 heartbeat
-                  const { api } = await import('@/api/client');
-                  await api.post(`/v1/service-registry/services/${record.id}/heartbeat`);
-                  message.success(`心跳已发送：${record.name}`);
-                  loadServices();
-                } catch (error: unknown) {
-                  if (error instanceof Error) {
-                    message.error(`发送心跳失败：${error.message}`);
-                  } else {
-                    message.error('发送心跳失败，请稍后重试');
+      {
+        key: 'protocol',
+        title: '协议',
+        dataIndex: 'protocol',
+        width: 100,
+        render: (value: unknown) => {
+          const protocol = String(value || 'http');
+          const colorMap: Record<string, string> = {
+            http: 'blue',
+            grpc: 'green',
+            tcp: 'orange',
+            custom: 'purple',
+          };
+          return <Tag color={colorMap[protocol] || 'default'}>{protocol.toUpperCase()}</Tag>;
+        },
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (value: unknown) => <Text type="secondary">{String(value || '-')}</Text>,
+      },
+      {
+        key: 'health',
+        title: '健康状态',
+        dataIndex: 'health',
+        width: 120,
+        render: (value: unknown) => {
+          const health = String(value || 'unknown');
+          const config = HEALTH_STATUS_CONFIG[health] || HEALTH_STATUS_CONFIG.unknown;
+          return (
+            <Tag color={config.color} icon={config.icon}>
+              {config.label}
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'lastHeartbeat',
+        title: '最后心跳',
+        dataIndex: 'lastHeartbeat',
+        width: 160,
+        render: (value: unknown) => {
+          const time = String(value || '');
+          if (!time) {
+            return <Text type="secondary">暂无</Text>;
+          }
+          return (
+            <Tooltip title={dayjs(time).format('YYYY-MM-DD HH:mm:ss')}>
+              <Text type="secondary">{dayjs(time).fromNow()}</Text>
+            </Tooltip>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        fixed: 'right',
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Tooltip title="发送心跳">
+              <Button
+                type="link"
+                size="small"
+                icon={<HeartOutlined />}
+                onClick={async () => {
+                  try {
+                    // 使用 fetch 直接调用心跳接口，因为 API client 未导出 heartbeat
+                    const { api } = await import('@/api/client');
+                    await api.post(`/v1/service-registry/services/${record.id}/heartbeat`);
+                    message.success(`心跳已发送：${record.name}`);
+                    loadServices();
+                  } catch (error: unknown) {
+                    if (error instanceof Error) {
+                      message.error(`发送心跳失败：${error.message}`);
+                    } else {
+                      message.error('发送心跳失败，请稍后重试');
+                    }
                   }
-                }
-              }}
-            >
-              心跳
-            </Button>
-          </Tooltip>
-          <Tooltip title="取消注册">
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              loading={deregisteringId === record.id && deregisterLoading}
-              disabled={deregisteringId === record.id}
-              onClick={() => {
-                Modal.confirm({
-                  title: '确认取消注册',
-                  content: `确定要取消注册服务 "${record.name}" 吗？此操作不可恢复。`,
-                  okText: '确认取消注册',
-                  okType: 'danger',
-                  cancelText: '再想想',
-                  onOk: () => handleDeregister(record),
-                });
-              }}
-            >
-              取消注册
-            </Button>
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ], []);
+                }}
+              >
+                心跳
+              </Button>
+            </Tooltip>
+            <Tooltip title="取消注册">
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                loading={deregisteringId === record.id && deregisterLoading}
+                disabled={deregisteringId === record.id}
+                onClick={() => {
+                  Modal.confirm({
+                    title: '确认取消注册',
+                    content: `确定要取消注册服务 "${record.name}" 吗？此操作不可恢复。`,
+                    okText: '确认取消注册',
+                    okType: 'danger',
+                    cancelText: '再想想',
+                    onOk: () => handleDeregister(record),
+                  });
+                }}
+              >
+                取消注册
+              </Button>
+            </Tooltip>
+          </Space>
+        ),
+      },
+    ],
+    []
+  );
 
   // ==================== Render ====================
 
@@ -339,9 +342,7 @@ const ServiceRegistry: React.FC = () => {
             <SettingOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
             服务注册中心
           </Title>
-          <Text type="secondary">
-            共 {services.length} 个已注册服务
-          </Text>
+          <Text type="secondary">共 {services.length} 个已注册服务</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
@@ -358,10 +359,7 @@ const ServiceRegistry: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <Card
-        size="small"
-        style={{ marginBottom: spacing.md, borderRadius: componentRadius.card }}
-      >
+      <Card size="small" style={{ marginBottom: spacing.md, borderRadius: componentRadius.card }}>
         <Space size="middle" wrap>
           <Input
             placeholder="搜索服务名..."
@@ -396,10 +394,7 @@ const ServiceRegistry: React.FC = () => {
             padding: spacing.xxl,
           }}
         >
-          <Empty
-            description="暂无已注册的服务"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
+          <Empty description="暂无已注册的服务" image={Empty.PRESENTED_IMAGE_SIMPLE}>
             <Button
               type="primary"
               icon={<PlusOutlined />}

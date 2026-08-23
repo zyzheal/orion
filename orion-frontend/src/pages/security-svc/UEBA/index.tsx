@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Button, Space, Row, Col, Statistic, Input, Select, message } from 'antd';
+import { Card, Table, Tag, Button, Space, Row, Col, Statistic, Select, message } from 'antd';
 import { ReloadOutlined, WarningOutlined, UserOutlined, AlertOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getHighRiskUsers, getAnomalies, type UEBAStats, type AnomalyAlert } from '@/api/ueba';
@@ -12,7 +12,7 @@ import { colors, spacing } from '@/tokens';
 
 const { Option } = Select;
 
-const {} = Input;
+// Input component not needed in this file
 
 const UEBAPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -45,7 +45,12 @@ const UEBAPage: React.FC = () => {
       title: '用户ID',
       dataIndex: 'userId',
       key: 'userId',
-      render: (val) => <Space><UserOutlined />{val}</Space>,
+      render: (val) => (
+        <Space>
+          <UserOutlined />
+          {val}
+        </Space>
+      ),
     },
     {
       title: '拒绝次数',
@@ -65,7 +70,12 @@ const UEBAPage: React.FC = () => {
       dataIndex: 'riskLevel',
       key: 'riskLevel',
       render: (val) => {
-        const colorMap: Record<string, string> = { critical: 'red', high: 'orange', medium: 'yellow', low: 'green' };
+        const colorMap: Record<string, string> = {
+          critical: 'red',
+          high: 'orange',
+          medium: 'yellow',
+          low: 'green',
+        };
         return <Tag color={colorMap[val]}>{val.toUpperCase()}</Tag>;
       },
     },
@@ -73,7 +83,7 @@ const UEBAPage: React.FC = () => {
       title: '最后拒绝',
       dataIndex: 'lastDenyAt',
       key: 'lastDenyAt',
-      render: (val) => val ? new Date(val).toLocaleString('zh-CN') : '-',
+      render: (val) => (val ? new Date(val).toLocaleString('zh-CN') : '-'),
     },
   ];
 
@@ -108,7 +118,12 @@ const UEBAPage: React.FC = () => {
       dataIndex: 'severity',
       key: 'severity',
       render: (val) => {
-        const colorMap: Record<string, string> = { critical: 'red', high: 'orange', medium: 'yellow', low: 'blue' };
+        const colorMap: Record<string, string> = {
+          critical: 'red',
+          high: 'orange',
+          medium: 'yellow',
+          low: 'blue',
+        };
         return <Tag color={colorMap[val]}>{val.toUpperCase()}</Tag>;
       },
     },
@@ -125,12 +140,22 @@ const UEBAPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card>
-            <Statistic title="高风险用户" value={risks.length} prefix={<WarningOutlined />} valueStyle={{ color: colors.error[400] }} />
+            <Statistic
+              title="高风险用户"
+              value={risks.length}
+              prefix={<WarningOutlined />}
+              valueStyle={{ color: colors.error[400] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="异常告警" value={alerts.length} prefix={<AlertOutlined />} valueStyle={{ color: colors.warning[500] }} />
+            <Statistic
+              title="异常告警"
+              value={alerts.length}
+              prefix={<AlertOutlined />}
+              valueStyle={{ color: colors.warning[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -140,12 +165,48 @@ const UEBAPage: React.FC = () => {
         </Col>
       </Row>
 
-      <Card title="异常告警" extra={<Space><Select value={hours} onChange={setHours} style={{ width: 100 }}><Option value={6}>6小时</Option><Option value={24}>24小时</Option><Option value={72}>3天</Option><Option value={168}>7天</Option></Select><Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button></Space>} style={{ marginBottom: spacing.md }}>
-        <Table dataSource={alerts} columns={alertColumns} rowKey="timestamp" pagination={false} loading={loading} size="small" />
+      <Card
+        title="异常告警"
+        extra={
+          <Space>
+            <Select value={hours} onChange={setHours} style={{ width: 100 }}>
+              <Option value={6}>6小时</Option>
+              <Option value={24}>24小时</Option>
+              <Option value={72}>3天</Option>
+              <Option value={168}>7天</Option>
+            </Select>
+            <Button icon={<ReloadOutlined />} onClick={fetchData}>
+              刷新
+            </Button>
+          </Space>
+        }
+        style={{ marginBottom: spacing.md }}
+      >
+        <Table
+          dataSource={alerts}
+          columns={alertColumns}
+          rowKey="timestamp"
+          pagination={false}
+          loading={loading}
+          size="small"
+        />
       </Card>
 
-      <Card title="高风险用户" extra={<Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>}>
-        <Table dataSource={risks} columns={riskColumns} rowKey="userId" pagination={{ pageSize: 10 }} loading={loading} />
+      <Card
+        title="高风险用户"
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>
+            刷新
+          </Button>
+        }
+      >
+        <Table
+          dataSource={risks}
+          columns={riskColumns}
+          rowKey="userId"
+          pagination={{ pageSize: 10 }}
+          loading={loading}
+        />
       </Card>
     </div>
   );

@@ -10,7 +10,20 @@
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Input, Switch } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Descriptions,
+  Badge,
+  message,
+  Spin,
+  Divider,
+  Input,
+  Switch,
+} from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -135,7 +148,15 @@ function highlightSearch(text: string, search: string): React.ReactNode {
   const matchRegex = new RegExp(escaped, 'i');
   return parts.map((part, i) =>
     matchRegex.test(part) ? (
-      <span key={String(i)} style={{ background: colors.warning[200], color: colors.neutral[900], borderRadius: 2, padding: '0 2px' }}>
+      <span
+        key={String(i)}
+        style={{
+          background: colors.warning[200],
+          color: colors.neutral[900],
+          borderRadius: 2,
+          padding: '0 2px',
+        }}
+      >
         {part}
       </span>
     ) : (
@@ -301,8 +322,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   color: colors.neutral[0],
                   fontSize: spacing[4],
                   fontWeight: 600,
-                  boxShadow:
-                    stage.status === 'running' ? '0 0 0 4px rgba(24,144,255,0.2)' : 'none',
+                  boxShadow: stage.status === 'running' ? '0 0 0 4px rgba(24,144,255,0.2)' : 'none',
                   animation:
                     stage.status === 'running' ? 'status-pulse 1.5s ease-in-out infinite' : 'none',
                 }}
@@ -366,7 +386,15 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
             <StatusBadge
               status={stage.status}
               size="small"
-              label={stage.status === 'running' ? '运行中' : stage.status === 'success' ? '成功' : stage.status === 'failed' ? '失败' : '等待中'}
+              label={
+                stage.status === 'running'
+                  ? '运行中'
+                  : stage.status === 'success'
+                    ? '成功'
+                    : stage.status === 'failed'
+                      ? '失败'
+                      : '等待中'
+              }
             />
           }
         >
@@ -433,23 +461,28 @@ const PipelineRunLive: React.FC = () => {
   const [currentStageId, setCurrentStageId] = useState<string | undefined>();
 
   // SSE hook
-  const { logs: sseLogs, status: _sseStatus, isConnected, error, connect, disconnect, clearLogs } =
-    usePipelineSSE({
-      pipelineId: id || '',
-      runId: runId || id || '',
-      autoConnect: !isPaused && !!(id && runId),
-      maxLogs: 2000,
-      onStatusChange: (statusEvent) => {
-        // Update pipeline status from SSE event
-        if (statusEvent) {
-          setPipeline((prev: any) =>
-            prev
-              ? { ...prev, status: statusEvent.status, progress: statusEvent.progress }
-              : prev
-          );
-        }
-      },
-    });
+  const {
+    logs: sseLogs,
+    status: _sseStatus,
+    isConnected,
+    error,
+    connect,
+    disconnect,
+    clearLogs,
+  } = usePipelineSSE({
+    pipelineId: id || '',
+    runId: runId || id || '',
+    autoConnect: !isPaused && !!(id && runId),
+    maxLogs: 2000,
+    onStatusChange: (statusEvent) => {
+      // Update pipeline status from SSE event
+      if (statusEvent) {
+        setPipeline((prev: any) =>
+          prev ? { ...prev, status: statusEvent.status, progress: statusEvent.progress } : prev
+        );
+      }
+    },
+  });
 
   // Convert SSE logs to display format
   const [displayLogs, setDisplayLogs] = useState<LogEntry[]>([]);
@@ -591,7 +624,9 @@ const PipelineRunLive: React.FC = () => {
                 返回列表
               </Button>
               <Title level={2} style={{ margin: 0 }}>
-                <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+                <PlayCircleOutlined
+                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
+                />
                 实时执行面板
               </Title>
             </div>
@@ -607,8 +642,7 @@ const PipelineRunLive: React.FC = () => {
   }
 
   const totalStages = pipeline?.stages?.length || 0;
-  const completedStages =
-    pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
+  const completedStages = pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   return (
@@ -622,22 +656,19 @@ const PipelineRunLive: React.FC = () => {
           marginBottom: spacing.lg,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-        >
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline?.name || 'Pipeline'} 实时执行
           </Title>
           <Space size="middle">
-            <Text type="secondary">
-              运行 #{pipeline?.runNumber || runId || id}
-            </Text>
+            <Text type="secondary">运行 #{pipeline?.runNumber || runId || id}</Text>
             <Badge
               status={isConnected ? 'success' : 'error'}
               text={isConnected ? 'SSE 已连接' : 'SSE 未连接'}
@@ -650,9 +681,7 @@ const PipelineRunLive: React.FC = () => {
           </Space>
         </div>
         <div style={{ marginLeft: 'auto' }}>
-          <Space>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-          </Space>
+          <Space>{pipeline && <StatusBadge status={pipeline.status} size="medium" />}</Space>
         </div>
       </div>
 
@@ -666,11 +695,7 @@ const PipelineRunLive: React.FC = () => {
             <Text code>{pipeline?.runNumber || runId || id}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="分支">
-            {pipeline?.branch ? (
-              <Tag color="blue">{pipeline.branch}</Tag>
-            ) : (
-              '-'
-            )}
+            {pipeline?.branch ? <Tag color="blue">{pipeline.branch}</Tag> : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="触发人">
             <Text code>{pipeline?.author || '-'}</Text>
@@ -753,12 +778,7 @@ const PipelineRunLive: React.FC = () => {
         >
           {isPaused ? '恢复' : '暂停'}
         </Button>
-        <Button
-          size="small"
-          icon={<ClearOutlined />}
-          onClick={handleClearLogs}
-          title="清空日志"
-        >
+        <Button size="small" icon={<ClearOutlined />} onClick={handleClearLogs} title="清空日志">
           清空日志
         </Button>
         <Button
@@ -784,7 +804,12 @@ const PipelineRunLive: React.FC = () => {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           {searchText && (
             <Text style={{ fontSize: 12, color: colors.primary[500] }}>
-              匹配: {displayLogs.filter((l) => l.text.toLowerCase().includes(searchText.toLowerCase())).length} 条
+              匹配:{' '}
+              {
+                displayLogs.filter((l) => l.text.toLowerCase().includes(searchText.toLowerCase()))
+                  .length
+              }{' '}
+              条
             </Text>
           )}
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -812,9 +837,7 @@ const PipelineRunLive: React.FC = () => {
           title={
             <Space>
               实时日志
-              {isConnected && (
-                <Badge status="success" text="实时推送中" />
-              )}
+              {isConnected && <Badge status="success" text="实时推送中" />}
             </Space>
           }
           size="small"

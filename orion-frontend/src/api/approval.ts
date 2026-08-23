@@ -289,9 +289,13 @@ export function rejectRequest(id: string, data: { reviewerId: string; comment?: 
  * GET /api/v1/approvals/requests/:id/history
  */
 export function getApprovalHistory(id: string) {
-  return api.get<{ requestId: string; title: string; status: string; totalLevels: number; history: ApprovalStepDetail[] }>(
-    `/api/v1/approvals/requests/${id}/history`
-  );
+  return api.get<{
+    requestId: string;
+    title: string;
+    status: string;
+    totalLevels: number;
+    history: ApprovalStepDetail[];
+  }>(`/api/v1/approvals/requests/${id}/history`);
 }
 
 /**
@@ -342,7 +346,9 @@ export function getTimeoutConfigs(params?: { resourceType?: string }) {
  * 创建超时配置
  * POST /api/v1/approvals/timeout-configs
  */
-export function createTimeoutConfig(data: Omit<ApprovalTimeoutConfig, 'id' | 'createdAt' | 'updatedAt'>) {
+export function createTimeoutConfig(
+  data: Omit<ApprovalTimeoutConfig, 'id' | 'createdAt' | 'updatedAt'>
+) {
   return api.post<ApprovalTimeoutConfig>('/api/v1/approvals/timeout-configs', data);
 }
 

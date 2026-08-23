@@ -10,7 +10,19 @@
  * - Run metadata (pipeline name, run ID, started time, duration)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Badge, message, Spin, Divider, Result } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Descriptions,
+  Badge,
+  message,
+  Spin,
+  Divider,
+  Result,
+} from 'antd';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -34,7 +46,13 @@ import { getPipelineRun } from '@/api/pipelines';
 
 dayjs.extend(duration);
 
-type PipelineRun = { id: string; name: string; status: string; startTime?: string; endTime?: string };
+type PipelineRun = {
+  id: string;
+  name: string;
+  status: string;
+  startTime?: string;
+  endTime?: string;
+};
 type Task = { id: string; name: string; status: string };
 type Step = { id: string; name: string; status: string };
 const { Title, Text } = Typography;
@@ -274,8 +292,7 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
                   color: colors.neutral[0],
                   fontSize: spacing[4],
                   fontWeight: 600,
-                  boxShadow:
-                    stage.status === 'running' ? '0 0 0 4px rgba(24,144,255,0.2)' : 'none',
+                  boxShadow: stage.status === 'running' ? '0 0 0 4px rgba(24,144,255,0.2)' : 'none',
                   animation:
                     stage.status === 'running' ? 'status-pulse 1.5s ease-in-out infinite' : 'none',
                 }}
@@ -339,7 +356,15 @@ const StageProgress: React.FC<StageProgressProps> = ({ stages, currentStageId })
             <StatusBadge
               status={stage.status}
               size="small"
-              label={stage.status === 'running' ? '运行中' : stage.status === 'success' ? '成功' : stage.status === 'failed' ? '失败' : '等待中'}
+              label={
+                stage.status === 'running'
+                  ? '运行中'
+                  : stage.status === 'success'
+                    ? '成功'
+                    : stage.status === 'failed'
+                      ? '失败'
+                      : '等待中'
+              }
             />
           }
         >
@@ -405,23 +430,28 @@ const PipelineRunLive: React.FC = () => {
   const [currentStageId, setCurrentStageId] = useState<string | undefined>();
 
   // SSE hook
-  const { logs: sseLogs, status: sseStatus, isConnected, error, connect, disconnect, clearLogs } =
-    usePipelineSSE({
-      pipelineId: id || '',
-      runId: runId || id || '',
-      autoConnect: !isPaused && !!(id && runId),
-      maxLogs: 2000,
-      onStatusChange: (statusEvent) => {
-        // Update pipeline status from SSE
-        if (sseStatus) {
-          setPipeline((prev: any) =>
-            prev
-              ? { ...prev, status: statusEvent.status, progress: statusEvent.progress }
-              : prev
-          );
-        }
-      },
-    });
+  const {
+    logs: sseLogs,
+    status: sseStatus,
+    isConnected,
+    error,
+    connect,
+    disconnect,
+    clearLogs,
+  } = usePipelineSSE({
+    pipelineId: id || '',
+    runId: runId || id || '',
+    autoConnect: !isPaused && !!(id && runId),
+    maxLogs: 2000,
+    onStatusChange: (statusEvent) => {
+      // Update pipeline status from SSE
+      if (sseStatus) {
+        setPipeline((prev: any) =>
+          prev ? { ...prev, status: statusEvent.status, progress: statusEvent.progress } : prev
+        );
+      }
+    },
+  });
 
   // Convert SSE logs to display format
   const [displayLogs, setDisplayLogs] = useState<LogEntry[]>([]);
@@ -446,25 +476,52 @@ const PipelineRunLive: React.FC = () => {
       try {
         const response = await getPipelineRun(runId!);
         // Backend returns { run, stages, tasks } directly, not wrapped in data
-        const apiData = response.data as { run?: PipelineRun; stages?: StageState[]; tasks?: Task[] };
+        const apiData = response.data as {
+          run?: PipelineRun;
+          stages?: StageState[];
+          tasks?: Task[];
+        };
         if (apiData) {
           setPipeline(apiData);
           // Initialize stages from API data
           if (apiData.stages) {
-            const initialized: StageState[] = apiData.stages.map((s: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string; steps?: Step[] }, idx: number) => ({
-              id: s.id || `stage-${idx}`,
-              name: s.name || '',
-              status: (s.status || 'pending') as StageState['status'],
-              startTime: s.startTime || '',
-              endTime: s.endTime || '',
-              steps: (s.steps || []).map((st: { id?: string; name?: string; status?: string; startTime?: string; endTime?: string }, stIdx: number) => ({
-                id: st.id || `step-${idx}-${stIdx}`,
-                name: st.name || '',
-                status: (st.status || 'pending') as StepState['status'],
-                startTime: st.startTime || '',
-                endTime: st.endTime || '',
-              })),
-            }));
+            const initialized: StageState[] = apiData.stages.map(
+              (
+                s: {
+                  id?: string;
+                  name?: string;
+                  status?: string;
+                  startTime?: string;
+                  endTime?: string;
+                  steps?: Step[];
+                },
+                idx: number
+              ) => ({
+                id: s.id || `stage-${idx}`,
+                name: s.name || '',
+                status: (s.status || 'pending') as StageState['status'],
+                startTime: s.startTime || '',
+                endTime: s.endTime || '',
+                steps: (s.steps || []).map(
+                  (
+                    st: {
+                      id?: string;
+                      name?: string;
+                      status?: string;
+                      startTime?: string;
+                      endTime?: string;
+                    },
+                    stIdx: number
+                  ) => ({
+                    id: st.id || `step-${idx}-${stIdx}`,
+                    name: st.name || '',
+                    status: (st.status || 'pending') as StepState['status'],
+                    startTime: st.startTime || '',
+                    endTime: st.endTime || '',
+                  })
+                ),
+              })
+            );
             setStages(initialized);
             // Set current stage to the first running one
             const running = initialized.find((s) => s.status === 'running');
@@ -561,8 +618,7 @@ const PipelineRunLive: React.FC = () => {
   }
 
   const totalStages = pipeline?.stages?.length || 0;
-  const completedStages =
-    pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
+  const completedStages = pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   return (
@@ -577,14 +633,15 @@ const PipelineRunLive: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline?.name || 'Pipeline'} 实时执行
           </Title>
           <Space size="middle" wrap>
-            <Text type="secondary">
-              运行 #{pipeline?.runNumber || runId || id}
-            </Text>
+            <Text type="secondary">运行 #{pipeline?.runNumber || runId || id}</Text>
             <Badge
               status={isConnected ? 'success' : 'error'}
               text={isConnected ? 'SSE 已连接' : 'SSE 未连接'}
@@ -598,10 +655,7 @@ const PipelineRunLive: React.FC = () => {
           </Space>
         </div>
         <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/pipelines')}
-          >
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
             返回列表
           </Button>
         </Space>
@@ -617,11 +671,7 @@ const PipelineRunLive: React.FC = () => {
             <Text code>{pipeline?.runNumber || runId || id}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="分支">
-            {pipeline?.branch ? (
-              <Tag color="blue">{pipeline.branch}</Tag>
-            ) : (
-              '-'
-            )}
+            {pipeline?.branch ? <Tag color="blue">{pipeline.branch}</Tag> : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="触发人">
             <Text code>{pipeline?.author || '-'}</Text>
@@ -688,12 +738,7 @@ const PipelineRunLive: React.FC = () => {
         >
           {isPaused ? '恢复' : '暂停'}
         </Button>
-        <Button
-          size="small"
-          icon={<ClearOutlined />}
-          onClick={handleClearLogs}
-          title="清空日志"
-        >
+        <Button size="small" icon={<ClearOutlined />} onClick={handleClearLogs} title="清空日志">
           清空日志
         </Button>
         <Button
@@ -751,9 +796,7 @@ const PipelineRunLive: React.FC = () => {
           title={
             <Space>
               实时日志
-              {isConnected && (
-                <Badge status="success" text="实时推送中" />
-              )}
+              {isConnected && <Badge status="success" text="实时推送中" />}
             </Space>
           }
           size="small"

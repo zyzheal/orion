@@ -24,7 +24,8 @@ import {
   WarningOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
-  FileTextOutlined,} from '@ant-design/icons';
+  FileTextOutlined,
+} from '@ant-design/icons';
 import { getReviewDetail, getReviewComments } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -143,12 +144,14 @@ const AIReviewDetail: React.FC = () => {
   return (
     <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ai-review/history')}>
           返回
         </Button>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           评审详情
         </Title>
         <Button icon={<ReloadOutlined />} onClick={loadDetail}>
@@ -234,8 +237,9 @@ const AIReviewDetail: React.FC = () => {
 
       {/* Issue List */}
       <Card title={`问题列表 (${detail.totalIssues})`}>
-        <Table loading={loading}
-                columns={issueColumns}
+        <Table
+          loading={loading}
+          columns={issueColumns}
           dataSource={issues}
           rowKey="id"
           pagination={{ pageSize: 10 }}

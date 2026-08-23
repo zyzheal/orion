@@ -103,128 +103,147 @@ const MySkills: React.FC = () => {
     });
   };
 
-  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(() => [
-    {
-      key: 'name',
-      title: '技能名称',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (v: unknown) => <Tag>v{String(v)}</Tag>,
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 120,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v);
-        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
-          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'error' ? 'failed' : 'pending';
-        return <StatusBadge status={badgeStatus} size="small" />;
+  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '技能名称',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'rating',
-      title: '评分',
-      dataIndex: 'rating',
-      width: 120,
-      render: (v: unknown) => <Rate disabled defaultValue={Number(v)} />,
-    },
-    {
-      key: 'installCount',
-      title: '安装量',
-      dataIndex: 'installCount',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'installedAt',
-      title: '安装时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 220,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<AppstoreOutlined />}
-            onClick={() => navigate(`/skills/${record.id}/instances`)}
-          >
-            实例
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<PlayCircleOutlined />}
-            onClick={() => navigate(`/skills/${record.id}/executions`)}
-          >
-            执行
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<ReloadIcon />}
-            onClick={() => navigate(`/skills/${record.id}/versions`)}
-          >
-            升级
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleUninstall(record)}
-            loading={uninstallingId === record.id}
-          >
-            卸载
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleUninstall, navigate]);
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (v: unknown) => <Tag>v{String(v)}</Tag>,
+      },
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 120,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v);
+          const badgeStatus:
+            | 'running'
+            | 'pending'
+            | 'success'
+            | 'failed'
+            | 'warning'
+            | 'cancelled'
+            | 'unknown' =
+            status === 'active'
+              ? 'success'
+              : status === 'inactive'
+                ? 'cancelled'
+                : status === 'error'
+                  ? 'failed'
+                  : 'pending';
+          return <StatusBadge status={badgeStatus} size="small" />;
+        },
+      },
+      {
+        key: 'rating',
+        title: '评分',
+        dataIndex: 'rating',
+        width: 120,
+        render: (v: unknown) => <Rate disabled defaultValue={Number(v)} />,
+      },
+      {
+        key: 'installCount',
+        title: '安装量',
+        dataIndex: 'installCount',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'installedAt',
+        title: '安装时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 220,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<AppstoreOutlined />}
+              onClick={() => navigate(`/skills/${record.id}/instances`)}
+            >
+              实例
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              onClick={() => navigate(`/skills/${record.id}/executions`)}
+            >
+              执行
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<ReloadIcon />}
+              onClick={() => navigate(`/skills/${record.id}/versions`)}
+            >
+              升级
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleUninstall(record)}
+              loading={uninstallingId === record.id}
+            >
+              卸载
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleUninstall, navigate]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'category',
-      label: '分类',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'CI/CD', value: 'ci-cd' },
-        { label: '数据库', value: 'database' },
-        { label: '监控', value: 'monitoring' },
-        { label: '安全', value: 'security' },
-        { label: 'AI/ML', value: 'ai-ml' },
-        { label: '基础设施', value: 'infrastructure' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'category',
+        label: '分类',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'CI/CD', value: 'ci-cd' },
+          { label: '数据库', value: 'database' },
+          { label: '监控', value: 'monitoring' },
+          { label: '安全', value: 'security' },
+          { label: 'AI/ML', value: 'ai-ml' },
+          { label: '基础设施', value: 'infrastructure' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

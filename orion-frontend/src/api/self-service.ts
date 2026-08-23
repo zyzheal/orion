@@ -54,7 +54,9 @@ export interface CreateSelfServiceTicketPayload {
 // ==================== Catalog ====================
 
 export const getServiceCategories = async (): Promise<{ data: ServiceCategory[] }> => {
-  const response = await api.get<{ data: ServiceCategory[] }>('/api/v1/self-service/catalog/categories');
+  const response = await api.get<{ data: ServiceCategory[] }>(
+    '/api/v1/self-service/catalog/categories'
+  );
   return { data: response.data.data };
 };
 
@@ -64,7 +66,10 @@ export const getCatalogServices = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: ServiceItem[]; total: number }> => {
-  const response = await api.get<{ data: ServiceItem[]; total: number }>('/api/v1/self-service/catalog/services', { params });
+  const response = await api.get<{ data: ServiceItem[]; total: number }>(
+    '/api/v1/self-service/catalog/services',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -76,7 +81,10 @@ export const getMyTickets = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: SelfServiceTicket[]; total: number }> => {
-  const response = await api.get<{ data: SelfServiceTicket[]; total: number }>('/api/v1/self-service/tickets', { params });
+  const response = await api.get<{ data: SelfServiceTicket[]; total: number }>(
+    '/api/v1/self-service/tickets',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -85,8 +93,13 @@ export const getMyTicket = async (id: string): Promise<SelfServiceTicket> => {
   return response.data.data;
 };
 
-export const createMyTicket = async (payload: CreateSelfServiceTicketPayload): Promise<SelfServiceTicket> => {
-  const response = await api.post<{ data: SelfServiceTicket }>('/api/v1/self-service/tickets', payload);
+export const createMyTicket = async (
+  payload: CreateSelfServiceTicketPayload
+): Promise<SelfServiceTicket> => {
+  const response = await api.post<{ data: SelfServiceTicket }>(
+    '/api/v1/self-service/tickets',
+    payload
+  );
   return response.data.data;
 };
 

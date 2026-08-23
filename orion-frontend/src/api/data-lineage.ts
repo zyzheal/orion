@@ -102,7 +102,7 @@ export const recordLineage = async (data: {
  */
 export const getLineageHistory = async (
   pipelineId: string,
-  limit?: number,
+  limit?: number
 ): Promise<LineageRecord[]> => {
   const response = await apiClient.get(`/data-lineage/history/${pipelineId}`, {
     params: limit ? { limit } : {},

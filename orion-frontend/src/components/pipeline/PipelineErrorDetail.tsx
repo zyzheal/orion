@@ -143,7 +143,9 @@ const PipelineErrorDetail: React.FC<PipelineErrorDetailProps> = ({ runId, onRetr
         // Refresh error detail
         setErrorDetail(null);
         const detailResp = await getPipelineErrorDetail(runId);
-        setErrorDetail((detailResp.data as { data?: unknown }).data as PipelineErrorDetailResponse | null);
+        setErrorDetail(
+          (detailResp.data as { data?: unknown }).data as PipelineErrorDetailResponse | null
+        );
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };

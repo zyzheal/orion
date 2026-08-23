@@ -21,7 +21,10 @@ export const internalRouteMap: Record<string, RoutePattern> = {
   ephemeralEnv: { buildPath: ({ id }) => `/ephemeral-envs/${id}`, label: 'Ephemeral Env Detail' },
   buildEnv: { buildPath: () => '/console/build-env', label: 'Build Environment' },
   codeRepo: { buildPath: () => '/console/code-mgmt/repos', label: 'Code Repositories' },
-  selfHealing: { buildPath: ({ id }) => `/console/self-healing/incidents/${id}`, label: 'Self-Healing Incident' },
+  selfHealing: {
+    buildPath: ({ id }) => `/console/self-healing/incidents/${id}`,
+    label: 'Self-Healing Incident',
+  },
 };
 
 /**

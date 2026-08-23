@@ -6,8 +6,26 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Button, Card, Form, Input, Select, Space, message, Modal, Descriptions, Empty, Typography } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, SaveOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  Select,
+  Space,
+  message,
+  Modal,
+  Descriptions,
+  Empty,
+  Typography,
+} from 'antd';
+import {
+  PlusOutlined,
+  PlayCircleOutlined,
+  SaveOutlined,
+  EyeOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
 import { themeVars } from '@/tokens';
@@ -65,9 +83,7 @@ export default function FlowDesigner() {
         prompt: values.prompt,
         workflowName: values.name,
       })) as { intent: string };
-      message.success(
-        `AI 生成成功，意图识别为「${result.intent}」`
-      );
+      message.success(`AI 生成成功，意图识别为「${result.intent}」`);
       setAiVisible(false);
       aiForm.resetFields();
       loadFlows();
@@ -90,8 +106,13 @@ export default function FlowDesigner() {
           return;
         }
       }
-      const result = (await lowcodeApi.executeFlow(selectedFlow.id, input)) as { id?: string; status?: string };
-      message.success(`流程执行成功，实例ID: ${result?.id || 'unknown'}，状态: ${result?.status || 'running'}`);
+      const result = (await lowcodeApi.executeFlow(selectedFlow.id, input)) as {
+        id?: string;
+        status?: string;
+      };
+      message.success(
+        `流程执行成功，实例ID: ${result?.id || 'unknown'}，状态: ${result?.status || 'running'}`
+      );
       setExecuteVisible(false);
     } catch (e: any) {
       message.error(e?.message || '执行失败');
@@ -126,7 +147,14 @@ export default function FlowDesigner() {
       </Typography.Title>
 
       <Card>
-        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            marginBottom: spacing.md,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <Input.Search
             placeholder="搜索流程..."
             style={{ width: 300 }}
@@ -159,7 +187,13 @@ export default function FlowDesigner() {
             </Space>
           </Empty>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: spacing.md }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: spacing.md,
+            }}
+          >
             {flows.map((flow) => (
               <Card
                 key={flow.id}
@@ -169,10 +203,25 @@ export default function FlowDesigner() {
                 title={flow.name}
                 extra={
                   <Space>
-                    <Button size="small" icon={<EyeOutlined />} onClick={() => { setSelectedFlow(flow); setDetailVisible(true); }}>
+                    <Button
+                      size="small"
+                      icon={<EyeOutlined />}
+                      onClick={() => {
+                        setSelectedFlow(flow);
+                        setDetailVisible(true);
+                      }}
+                    >
                       查看
                     </Button>
-                    <Button size="small" type="primary" icon={<PlayCircleOutlined />} onClick={() => { setSelectedFlow(flow); setExecuteVisible(true); }}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<PlayCircleOutlined />}
+                      onClick={() => {
+                        setSelectedFlow(flow);
+                        setExecuteVisible(true);
+                      }}
+                    >
                       执行
                     </Button>
                   </Space>
@@ -186,7 +235,9 @@ export default function FlowDesigner() {
                   </Button>,
                 ]}
               >
-                <p style={{ color: colors.neutral[500], fontSize: 14 }}>{flow.description || '无描述'}</p>
+                <p style={{ color: colors.neutral[500], fontSize: 14 }}>
+                  {flow.description || '无描述'}
+                </p>
                 <p style={{ fontSize: 12, color: colors.neutral[400] }}>
                   节点数: {flow.nodeCount || 0} | 版本: {flow.version} | 状态: {flow.status}
                 </p>
@@ -204,7 +255,11 @@ export default function FlowDesigner() {
         footer={null}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="name" label="流程名称" rules={[{ required: true, message: '请输入流程名称' }]}>
+          <Form.Item
+            name="name"
+            label="流程名称"
+            rules={[{ required: true, message: '请输入流程名称' }]}
+          >
             <Input placeholder="输入流程名称" />
           </Form.Item>
           <Form.Item name="description" label="描述">
@@ -297,7 +352,15 @@ export default function FlowDesigner() {
           <Button key="close" onClick={() => setDetailVisible(false)}>
             关闭
           </Button>,
-          <Button key="execute" type="primary" icon={<PlayCircleOutlined />} onClick={() => { setDetailVisible(false); setExecuteVisible(true); }}>
+          <Button
+            key="execute"
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={() => {
+              setDetailVisible(false);
+              setExecuteVisible(true);
+            }}
+          >
             执行流程
           </Button>,
         ]}
@@ -311,16 +374,34 @@ export default function FlowDesigner() {
             <Descriptions.Item label="版本">{selectedFlow.version}</Descriptions.Item>
             <Descriptions.Item label="状态">{selectedFlow.status}</Descriptions.Item>
             <Descriptions.Item label="节点数">{selectedFlow.nodeCount || 0}</Descriptions.Item>
-            <Descriptions.Item label="创建人">{selectedFlow.created_by || 'system'}</Descriptions.Item>
+            <Descriptions.Item label="创建人">
+              {selectedFlow.created_by || 'system'}
+            </Descriptions.Item>
             <Descriptions.Item label="创建时间">{selectedFlow.created_at}</Descriptions.Item>
             <Descriptions.Item label="更新时间">{selectedFlow.updated_at}</Descriptions.Item>
             <Descriptions.Item label="节点定义">
-              <pre style={{ maxHeight: 200, overflow: 'auto', background: themeVars.bgTertiary, padding: 8, borderRadius: 4 }}>
+              <pre
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  background: themeVars.bgTertiary,
+                  padding: 8,
+                  borderRadius: 4,
+                }}
+              >
                 {JSON.stringify(selectedFlow.nodes, null, 2)}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="连线定义">
-              <pre style={{ maxHeight: 200, overflow: 'auto', background: themeVars.bgTertiary, padding: 8, borderRadius: 4 }}>
+              <pre
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  background: themeVars.bgTertiary,
+                  padding: 8,
+                  borderRadius: 4,
+                }}
+              >
                 {JSON.stringify(selectedFlow.edges, null, 2)}
               </pre>
             </Descriptions.Item>

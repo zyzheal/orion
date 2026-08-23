@@ -48,7 +48,8 @@ const ServerError: React.FC<ServerErrorProps> = ({
 
   // 生成错误 ID（用于运维排查）
   const displayErrorId =
-    errorId || `ERR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    errorId ||
+    `ERR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
   return (
     <div
@@ -84,7 +85,11 @@ const ServerError: React.FC<ServerErrorProps> = ({
               </Text>
             }
             extra={
-              <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: spacing.lg }}>
+              <Space
+                direction="vertical"
+                size="middle"
+                style={{ width: '100%', marginTop: spacing.lg }}
+              >
                 {/* 错误信息 */}
                 <Descriptions
                   size="small"

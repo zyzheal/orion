@@ -138,7 +138,12 @@ const MultiCloudPage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (values: { name: string; provider: string; region: string; credentials_ref?: string }) => {
+  const handleCreate = async (values: {
+    name: string;
+    provider: string;
+    region: string;
+    credentials_ref?: string;
+  }) => {
     try {
       await multiCloudApi.registerCloudAccount({
         provider: values.provider,
@@ -171,7 +176,12 @@ const MultiCloudPage: React.FC = () => {
     }
   };
 
-  const handleCostCompare = async (values: { vm_count: number; vm_type: string; storage_gb: number; bandwidth_gb_month: number }) => {
+  const handleCostCompare = async (values: {
+    vm_count: number;
+    vm_type: string;
+    storage_gb: number;
+    bandwidth_gb_month: number;
+  }) => {
     setCostLoading(true);
     try {
       const res = await multiCloudApi.compareCloudCosts({
@@ -189,14 +199,17 @@ const MultiCloudPage: React.FC = () => {
   };
 
   // Stats
-  const stats = useMemo(() => ({
-    total: accounts.length,
-    active: accounts.filter((a) => a.status === 'active').length,
-    error: accounts.filter((a) => a.status === 'error').length,
-    resources: resources.length,
-    providers: new Set(accounts.map(a => a.provider_id || a.credential_type)).size,
-    regions: new Set(accounts.map(a => a.region)).size,
-  }), [accounts, resources]);
+  const stats = useMemo(
+    () => ({
+      total: accounts.length,
+      active: accounts.filter((a) => a.status === 'active').length,
+      error: accounts.filter((a) => a.status === 'error').length,
+      resources: resources.length,
+      providers: new Set(accounts.map((a) => a.provider_id || a.credential_type)).size,
+      regions: new Set(accounts.map((a) => a.region)).size,
+    }),
+    [accounts, resources]
+  );
 
   // Provider distribution for visualization
   const providerDistribution = useMemo(() => {
@@ -206,7 +219,7 @@ const MultiCloudPage: React.FC = () => {
     if (total === 0) {
       // Fallback to accounts data
       const providerCounts: Record<string, number> = {};
-      accounts.forEach(a => {
+      accounts.forEach((a) => {
         const p = a.provider_id || a.credential_type || 'unknown';
         providerCounts[p] = (providerCounts[p] || 0) + 1;
       });
@@ -238,16 +251,19 @@ const MultiCloudPage: React.FC = () => {
   }, [statistics]);
 
   // Simulated cost trend data
-  const costTrend = useMemo(() => [
-    { month: '1月', cost: 18200 },
-    { month: '2月', cost: 19500 },
-    { month: '3月', cost: 21000 },
-    { month: '4月', cost: 20300 },
-    { month: '5月', cost: 22800 },
-    { month: '6月', cost: statistics?.totalMonthlyCost ?? 24500 },
-  ], [statistics]);
+  const costTrend = useMemo(
+    () => [
+      { month: '1月', cost: 18200 },
+      { month: '2月', cost: 19500 },
+      { month: '3月', cost: 21000 },
+      { month: '4月', cost: 20300 },
+      { month: '5月', cost: 22800 },
+      { month: '6月', cost: statistics?.totalMonthlyCost ?? 24500 },
+    ],
+    [statistics]
+  );
 
-  const maxCost = Math.max(...costTrend.map(t => t.cost));
+  const maxCost = Math.max(...costTrend.map((t) => t.cost));
 
   // Account columns
   const accountColumns = [
@@ -264,7 +280,11 @@ const MultiCloudPage: React.FC = () => {
       width: 120,
       render: (_: unknown, record: CloudAccount) => {
         const provider = record.provider_id || record.credential_type || 'unknown';
-        return <Tag color={providerTypeColor[provider] || 'default'}>{providerLabelMap[provider] || provider}</Tag>;
+        return (
+          <Tag color={providerTypeColor[provider] || 'default'}>
+            {providerLabelMap[provider] || provider}
+          </Tag>
+        );
       },
     },
     { title: '区域', dataIndex: 'region', key: 'region', width: 120 },
@@ -273,7 +293,9 @@ const MultiCloudPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>,
+      render: (v: string) => (
+        <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>
+      ),
     },
     {
       title: '资源数',
@@ -281,7 +303,8 @@ const MultiCloudPage: React.FC = () => {
       width: 80,
       render: (_: unknown, record: CloudAccount) => {
         const accountId = record.account_id;
-        return resources.filter((r) => r.account_id === accountId || r.account_id === accountId).length;
+        return resources.filter((r) => r.account_id === accountId || r.account_id === accountId)
+          .length;
       },
     },
     {
@@ -316,13 +339,19 @@ const MultiCloudPage: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
   ];
 
   // Resource columns
   const resourceColumns = [
-    { title: '名称', dataIndex: 'resource_name', key: 'resource_name', width: 160, render: (v: string, r: CloudResource) => v || r.resource_name || '-' },
+    {
+      title: '名称',
+      dataIndex: 'resource_name',
+      key: 'resource_name',
+      width: 160,
+      render: (v: string, r: CloudResource) => v || r.resource_name || '-',
+    },
     {
       title: '类型',
       dataIndex: 'resource_type',
@@ -330,7 +359,11 @@ const MultiCloudPage: React.FC = () => {
       width: 120,
       render: (v: string) => {
         const typeColors: Record<string, string> = {
-          compute: 'blue', storage: 'green', database: 'purple', network: 'orange', container: 'cyan',
+          compute: 'blue',
+          storage: 'green',
+          database: 'purple',
+          network: 'orange',
+          container: 'cyan',
         };
         return <Tag color={typeColors[v] || 'default'}>{v}</Tag>;
       },
@@ -343,9 +376,24 @@ const MultiCloudPage: React.FC = () => {
       width: 100,
       render: (v: string) => {
         const stateColors: Record<string, string> = {
-          running: 'green', active: 'green', stopped: 'red', error: 'red', pending: 'orange',
+          running: 'green',
+          active: 'green',
+          stopped: 'red',
+          error: 'red',
+          pending: 'orange',
         };
-        return <Badge status={stateColors[v] === 'green' ? 'success' : stateColors[v] === 'red' ? 'error' : 'warning'} text={v} />;
+        return (
+          <Badge
+            status={
+              stateColors[v] === 'green'
+                ? 'success'
+                : stateColors[v] === 'red'
+                  ? 'error'
+                  : 'warning'
+            }
+            text={v}
+          />
+        );
       },
     },
     {
@@ -353,14 +401,22 @@ const MultiCloudPage: React.FC = () => {
       dataIndex: 'monthly_cost',
       key: 'monthly_cost',
       width: 100,
-      render: (v: number) => v > 0 ? `$${v.toFixed(2)}` : '-',
+      render: (v: number) => (v > 0 ? `$${v.toFixed(2)}` : '-'),
     },
     {
       title: '标签',
       key: 'tags',
       width: 160,
       render: (_: unknown, record: CloudResource) =>
-        record.tags ? Object.entries(record.tags).slice(0, 2).map(([k, v]) => <Tag key={String(k)}>{k}: {v}</Tag>) : '-',
+        record.tags
+          ? Object.entries(record.tags)
+              .slice(0, 2)
+              .map(([k, v]) => (
+                <Tag key={String(k)}>
+                  {k}: {v}
+                </Tag>
+              ))
+          : '-',
     },
   ];
 
@@ -380,7 +436,9 @@ const MultiCloudPage: React.FC = () => {
               prefix={<CloudServerOutlined style={{ color: colors.primary[500] }} />}
               valueStyle={{ fontSize: 28, fontWeight: 600 }}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>{stats.active} 已连接</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {stats.active} 已连接
+            </Text>
           </Card>
         </Col>
         <Col span={4}>
@@ -394,7 +452,9 @@ const MultiCloudPage: React.FC = () => {
               prefix={<HddOutlined style={{ color: colors.success[500] }} />}
               valueStyle={{ fontSize: 28, fontWeight: 600 }}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>{stats.providers} 云厂商</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {stats.providers} 云厂商
+            </Text>
           </Card>
         </Col>
         <Col span={4}>
@@ -428,16 +488,26 @@ const MultiCloudPage: React.FC = () => {
         <Col span={4}>
           <Card
             size="small"
-            style={{ borderRadius: 12, borderTop: `3px solid ${stats.error > 0 ? colors.error[500] : colors.success[500]}` }}
+            style={{
+              borderRadius: 12,
+              borderTop: `3px solid ${stats.error > 0 ? colors.error[500] : colors.success[500]}`,
+            }}
           >
             <Statistic
               title="异常账号"
               value={stats.error}
-              prefix={stats.error > 0
-                ? <ExclamationCircleOutlined style={{ color: colors.error[500] }} />
-                : <CheckCircleOutlined style={{ color: colors.success[500] }} />
+              prefix={
+                stats.error > 0 ? (
+                  <ExclamationCircleOutlined style={{ color: colors.error[500] }} />
+                ) : (
+                  <CheckCircleOutlined style={{ color: colors.success[500] }} />
+                )
               }
-              valueStyle={{ fontSize: 28, fontWeight: 600, color: stats.error > 0 ? colors.error[500] : colors.success[500] }}
+              valueStyle={{
+                fontSize: 28,
+                fontWeight: 600,
+                color: stats.error > 0 ? colors.error[500] : colors.success[500],
+              }}
             />
           </Card>
         </Col>
@@ -460,21 +530,25 @@ const MultiCloudPage: React.FC = () => {
       {/* Provider Distribution + Cost Trend */}
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={12}>
-          <Card
-            title="云厂商资源分布"
-            size="small"
-            style={{ borderRadius: 12 }}
-          >
+          <Card title="云厂商资源分布" size="small" style={{ borderRadius: 12 }}>
             {providerDistribution.length > 0 ? (
               <div>
                 {providerDistribution.map((item) => (
                   <div key={item.provider} style={{ marginBottom: spacing.md }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
+                    >
                       <Space>
-                        <CloudOutlined style={{ color: providerIconColors[item.provider] || colors.neutral[500] }} />
+                        <CloudOutlined
+                          style={{
+                            color: providerIconColors[item.provider] || colors.neutral[500],
+                          }}
+                        />
                         <Text strong>{providerLabelMap[item.provider] || item.provider}</Text>
                       </Space>
-                      <Text type="secondary">{item.count} 个资源 ({item.percentage}%)</Text>
+                      <Text type="secondary">
+                        {item.count} 个资源 ({item.percentage}%)
+                      </Text>
                     </div>
                     <Progress
                       percent={item.percentage}
@@ -503,14 +577,31 @@ const MultiCloudPage: React.FC = () => {
               </Button>
             }
           >
-            <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: spacing.sm, padding: '0 8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                height: 160,
+                gap: spacing.sm,
+                padding: '0 8px',
+              }}
+            >
               {costTrend.map((item, index) => {
                 const height = maxCost > 0 ? (item.cost / maxCost) * 140 : 0;
                 const isCurrent = index === costTrend.length - 1;
                 return (
                   <Tooltip key={item.month} title={`$${item.cost.toLocaleString()}`}>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 10, marginBottom: 4 }}>${(item.cost / 1000).toFixed(1)}k</Text>
+                    <div
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, marginBottom: 4 }}>
+                        ${(item.cost / 1000).toFixed(1)}k
+                      </Text>
                       <div
                         style={{
                           width: '100%',
@@ -520,7 +611,9 @@ const MultiCloudPage: React.FC = () => {
                           transition: 'height 0.3s ease',
                         }}
                       />
-                      <Text type="secondary" style={{ fontSize: 10, marginTop: 4 }}>{item.month}</Text>
+                      <Text type="secondary" style={{ fontSize: 10, marginTop: 4 }}>
+                        {item.month}
+                      </Text>
                     </div>
                   </Tooltip>
                 );
@@ -561,7 +654,13 @@ const MultiCloudPage: React.FC = () => {
                           borderTop: `2px solid ${typeColorsMap[item.type] || colors.neutral[300]}`,
                         }}
                       >
-                        <div style={{ fontSize: 24, color: typeColorsMap[item.type], marginBottom: spacing.sm }}>
+                        <div
+                          style={{
+                            fontSize: 24,
+                            color: typeColorsMap[item.type],
+                            marginBottom: spacing.sm,
+                          }}
+                        >
                           {typeIcons[item.type] || <HddOutlined />}
                         </div>
                         <Statistic
@@ -590,7 +689,11 @@ const MultiCloudPage: React.FC = () => {
   const tabItems = [
     {
       key: 'accounts',
-      label: <><CloudServerOutlined /> 云账号</>,
+      label: (
+        <>
+          <CloudServerOutlined /> 云账号
+        </>
+      ),
       children: (
         <Table
           columns={accountColumns}
@@ -604,7 +707,11 @@ const MultiCloudPage: React.FC = () => {
     },
     {
       key: 'resources',
-      label: <><HddOutlined /> 云资源</>,
+      label: (
+        <>
+          <HddOutlined /> 云资源
+        </>
+      ),
       children: (
         <Table
           columns={resourceColumns}
@@ -659,10 +766,18 @@ const MultiCloudPage: React.FC = () => {
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="账号名称" name="name" rules={[{ required: true, message: '请输入账号名称' }]}>
+          <Form.Item
+            label="账号名称"
+            name="name"
+            rules={[{ required: true, message: '请输入账号名称' }]}
+          >
             <Input placeholder="如: AWS Production" />
           </Form.Item>
-          <Form.Item label="云厂商" name="provider" rules={[{ required: true, message: '请选择云厂商' }]}>
+          <Form.Item
+            label="云厂商"
+            name="provider"
+            rules={[{ required: true, message: '请选择云厂商' }]}
+          >
             <Select
               options={[
                 { value: 'aws', label: 'AWS' },
@@ -693,7 +808,12 @@ const MultiCloudPage: React.FC = () => {
         footer={null}
         width={700}
       >
-        <Form form={costForm} layout="inline" onFinish={handleCostCompare} style={{ marginBottom: spacing.md }}>
+        <Form
+          form={costForm}
+          layout="inline"
+          onFinish={handleCostCompare}
+          style={{ marginBottom: spacing.md }}
+        >
           <Form.Item label="VM 数量" name="vm_count" initialValue={1}>
             <Input type="number" style={{ width: 80 }} />
           </Form.Item>
@@ -711,7 +831,9 @@ const MultiCloudPage: React.FC = () => {
             <Input type="number" style={{ width: 80 }} />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={costLoading}>对比</Button>
+            <Button type="primary" htmlType="submit" loading={costLoading}>
+              对比
+            </Button>
           </Form.Item>
         </Form>
 
@@ -725,15 +847,33 @@ const MultiCloudPage: React.FC = () => {
               {
                 title: '云厂商',
                 dataIndex: 'provider',
-                render: (v: string) => <Tag color={providerTypeColor[v]}>{providerLabelMap[v] || v}</Tag>,
+                render: (v: string) => (
+                  <Tag color={providerTypeColor[v]}>{providerLabelMap[v] || v}</Tag>
+                ),
               },
-              { title: '计算费用', dataIndex: ['breakdown', 'compute'], render: (v: number) => `$${v?.toFixed(2) ?? 0}` },
-              { title: '存储费用', dataIndex: ['breakdown', 'storage'], render: (v: number) => `$${v?.toFixed(2) ?? 0}` },
-              { title: '带宽费用', dataIndex: ['breakdown', 'bandwidth'], render: (v: number) => `$${v?.toFixed(2) ?? 0}` },
+              {
+                title: '计算费用',
+                dataIndex: ['breakdown', 'compute'],
+                render: (v: number) => `$${v?.toFixed(2) ?? 0}`,
+              },
+              {
+                title: '存储费用',
+                dataIndex: ['breakdown', 'storage'],
+                render: (v: number) => `$${v?.toFixed(2) ?? 0}`,
+              },
+              {
+                title: '带宽费用',
+                dataIndex: ['breakdown', 'bandwidth'],
+                render: (v: number) => `$${v?.toFixed(2) ?? 0}`,
+              },
               {
                 title: '月度总费用',
                 dataIndex: 'estimatedMonthlyCost',
-                render: (v: number) => <Text strong style={{ color: colors.primary[500] }}>${v?.toFixed(2)}</Text>,
+                render: (v: number) => (
+                  <Text strong style={{ color: colors.primary[500] }}>
+                    ${v?.toFixed(2)}
+                  </Text>
+                ),
               },
             ]}
           />

@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><FaultLibraryPage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <FaultLibraryPage />
+    </BrowserRouter>
+  );
 }
 
 describe('FaultLibraryPage', () => {

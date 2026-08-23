@@ -347,10 +347,7 @@ const EventRegistryPage: React.FC = () => {
           // Tab 2: Subscriptions
           {
             key: 'subscriptions',
-            label: (
-              <span>
-              </span>
-            ),
+            label: <span></span>,
             children: (
               <div>
                 <Text type="secondary" style={{ marginBottom: spacing.md, display: 'block' }}>
@@ -419,7 +416,11 @@ const EventRegistryPage: React.FC = () => {
                     locale={{
                       emptyText: (
                         <Empty description="暂无订阅">
-                          <Button type="primary" icon={<PlusOutlined />} onClick={() => setTestMatchModalVisible(true)}>
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setTestMatchModalVisible(true)}
+                          >
                             测试事件匹配
                           </Button>
                         </Empty>
@@ -548,7 +549,11 @@ const EventRegistryPage: React.FC = () => {
                     locale={{
                       emptyText: (
                         <Empty description="暂无触发器">
-                          <Button type="primary" icon={<PlusOutlined />} onClick={() => setTestMatchModalVisible(true)}>
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setTestMatchModalVisible(true)}
+                          >
                             测试事件匹配
                           </Button>
                         </Empty>

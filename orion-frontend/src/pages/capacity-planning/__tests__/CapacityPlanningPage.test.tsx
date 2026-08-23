@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><CapacityPlanningPage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <CapacityPlanningPage />
+    </BrowserRouter>
+  );
 }
 
 describe('CapacityPlanningPage', () => {

@@ -185,7 +185,12 @@ describe('LLM Trace API', () => {
         currency: 'CNY',
         unit: 'per token',
         pricing: [
-          { modelId: 'gpt-4', provider: 'openai', inputPricePerToken: 0.03, outputPricePerToken: 0.06 },
+          {
+            modelId: 'gpt-4',
+            provider: 'openai',
+            inputPricePerToken: 0.03,
+            outputPricePerToken: 0.06,
+          },
         ],
       };
       vi.mocked(api.get).mockResolvedValue({
@@ -248,7 +253,9 @@ describe('LLM Trace API', () => {
         response: { status: 400, data: { error: 'Missing required fields' } },
       } as any);
 
-      await expect(estimateCost({ modelId: '', inputTokens: 0, outputTokens: 0 })).rejects.toMatchObject({
+      await expect(
+        estimateCost({ modelId: '', inputTokens: 0, outputTokens: 0 })
+      ).rejects.toMatchObject({
         response: { status: 400 },
       });
     });

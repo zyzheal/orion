@@ -27,7 +27,8 @@ import {
   CloseCircleOutlined,
   WarningOutlined,
   SwapOutlined,
-  BarChartOutlined,} from '@ant-design/icons';
+  BarChartOutlined,
+} from '@ant-design/icons';
 import { getReviewHistory, triggerReview, reviewDiff } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';

@@ -25,13 +25,16 @@ const GRID_SIZE = 20;
 
 /** 节点类型对应的 SVG 图标路径 */
 const nodeSvgIcons: Record<WorkflowNodeType, React.ReactNode> = {
-  start: (
-    <polygon points="4,2 4,10 10,6" fill="currentColor" />
-  ),
+  start: <polygon points="4,2 4,10 10,6" fill="currentColor" />,
   approval: (
     <>
       <circle cx="6" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M2 11c0-2.2 1.8-4 4-4s4 1.8 4 4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M2 11c0-2.2 1.8-4 4-4s4 1.8 4 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
     </>
   ),
   condition: (
@@ -39,7 +42,12 @@ const nodeSvgIcons: Record<WorkflowNodeType, React.ReactNode> = {
   ),
   notification: (
     <>
-      <path d="M3 8c0-2 1.3-3 3-3s3 1 3 3v2l1 1H2l1-1V8z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M3 8c0-2 1.3-3 3-3s3 1 3 3v2l1 1H2l1-1V8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
       <path d="M5.5 12a1 1 0 001 0" fill="none" stroke="currentColor" strokeWidth="1.5" />
     </>
   ),
@@ -52,7 +60,16 @@ const nodeSvgIcons: Record<WorkflowNodeType, React.ReactNode> = {
   ),
   end: (
     <>
-      <rect x="2" y="2" width="8" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <rect
+        x="2"
+        y="2"
+        width="8"
+        height="8"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
       <line x1="5" y1="5" x2="7" y2="7" stroke="currentColor" strokeWidth="1.5" />
       <line x1="7" y1="5" x2="5" y2="7" stroke="currentColor" strokeWidth="1.5" />
     </>
@@ -203,14 +220,7 @@ const WorkflowNodeCard: React.FC<{
       />
 
       {/* 左侧装饰线 - 节点类型标识色 */}
-      <rect
-        x={0}
-        y={4}
-        width={3}
-        height={NODE_HEIGHT - 8}
-        rx={1.5}
-        fill={config.color}
-      />
+      <rect x={0} y={4} width={3} height={NODE_HEIGHT - 8} rx={1.5} fill={config.color} />
 
       {/* 图标背景 */}
       <rect
@@ -223,10 +233,7 @@ const WorkflowNodeCard: React.FC<{
       />
 
       {/* 图标 */}
-      <g
-        transform={`translate(${16}, ${NODE_HEIGHT / 2 - 8})`}
-        style={{ color: config.color }}
-      >
+      <g transform={`translate(${16}, ${NODE_HEIGHT / 2 - 8})`} style={{ color: config.color }}>
         {nodeSvgIcons[node.type]}
       </g>
 
@@ -242,32 +249,15 @@ const WorkflowNodeCard: React.FC<{
       </text>
 
       {/* 节点类型标签 */}
-      <text
-        x={40}
-        y={NODE_HEIGHT / 2 + 12}
-        fontSize={10}
-        fill={colors.neutral[500]}
-      >
+      <text x={40} y={NODE_HEIGHT / 2 + 12} fontSize={10} fill={colors.neutral[500]}>
         {config.label}
       </text>
 
       {/* 输出端口（右侧） */}
-      {node.type !== 'end' && (
-        <NodeHandle
-          x={NODE_WIDTH}
-          y={NODE_HEIGHT / 2}
-          type="source"
-        />
-      )}
+      {node.type !== 'end' && <NodeHandle x={NODE_WIDTH} y={NODE_HEIGHT / 2} type="source" />}
 
       {/* 输入端口（左侧） */}
-      {node.type !== 'start' && (
-        <NodeHandle
-          x={0}
-          y={NODE_HEIGHT / 2}
-          type="target"
-        />
-      )}
+      {node.type !== 'start' && <NodeHandle x={0} y={NODE_HEIGHT / 2} type="target" />}
     </g>
   );
 };
@@ -319,9 +309,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const handleDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const nodeType = event.dataTransfer.getData(
-        'application/node-type'
-      ) as WorkflowNodeType;
+      const nodeType = event.dataTransfer.getData('application/node-type') as WorkflowNodeType;
       if (!nodeType) return;
 
       const svgRect = svgRef.current?.getBoundingClientRect();
@@ -378,12 +366,8 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       const mouseX = event.clientX - svgRect.left;
       const mouseY = event.clientY - svgRect.top;
 
-      const newX = Math.round(
-        Math.max(0, mouseX - dragOffset.x) / GRID_SIZE
-      ) * GRID_SIZE;
-      const newY = Math.round(
-        Math.max(0, mouseY - dragOffset.y) / GRID_SIZE
-      ) * GRID_SIZE;
+      const newX = Math.round(Math.max(0, mouseX - dragOffset.x) / GRID_SIZE) * GRID_SIZE;
+      const newY = Math.round(Math.max(0, mouseY - dragOffset.y) / GRID_SIZE) * GRID_SIZE;
 
       onNodeMove?.(draggingNodeId, { x: newX, y: newY });
     },
@@ -471,10 +455,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             refY={3.5}
             orient="auto"
           >
-            <polygon
-              points="0 0, 10 3.5, 0 7"
-              fill={colors.neutral[400]}
-            />
+            <polygon points="0 0, 10 3.5, 0 7" fill={colors.neutral[400]} />
           </marker>
         </defs>
 
@@ -483,12 +464,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           const sourceNode = nodes.find((n) => n.id === edge.source);
           const targetNode = nodes.find((n) => n.id === edge.target);
           return (
-            <EdgePath
-              key={edge.id}
-              edge={edge}
-              sourceNode={sourceNode}
-              targetNode={targetNode}
-            />
+            <EdgePath key={edge.id} edge={edge} sourceNode={sourceNode} targetNode={targetNode} />
           );
         })}
 

@@ -18,7 +18,11 @@ export const StepConfigurationPanel: React.FC<StepConfigurationPanelProps> = ({
   const [form] = Form.useForm();
 
   if (!plugin) {
-    return <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Select a plugin to configure</div>;
+    return (
+      <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>
+        Select a plugin to configure
+      </div>
+    );
   }
 
   const handleSave = () => {
@@ -35,10 +39,13 @@ export const StepConfigurationPanel: React.FC<StepConfigurationPanelProps> = ({
   return (
     <Card title={`Step Configuration: ${plugin.name}`} size="small">
       <div style={{ marginBottom: spacing.md }}>
-        <span>Plugin: </span><strong>{plugin.name}</strong> v{plugin.version}
+        <span>Plugin: </span>
+        <strong>{plugin.name}</strong> v{plugin.version}
         <br />
-        <span>Tier: </span>{plugin.tier}
-        <span style={{ marginLeft: spacing.md }}>Trust: </span>{plugin.trust}
+        <span>Tier: </span>
+        {plugin.tier}
+        <span style={{ marginLeft: spacing.md }}>Trust: </span>
+        {plugin.trust}
       </div>
 
       <Form form={form} layout="vertical" initialValues={{ timeout: 300, retryMax: 2 }}>
@@ -74,8 +81,12 @@ export const StepConfigurationPanel: React.FC<StepConfigurationPanelProps> = ({
       <Space>
         <Button onClick={handleTest}>Test Step</Button>
         <Button onClick={onCancel}>Cancel</Button>
-        <Button type="primary" onClick={handleSave}>Save</Button>
-        <Button danger onClick={onDelete}>Delete</Button>
+        <Button type="primary" onClick={handleSave}>
+          Save
+        </Button>
+        <Button danger onClick={onDelete}>
+          Delete
+        </Button>
       </Space>
     </Card>
   );

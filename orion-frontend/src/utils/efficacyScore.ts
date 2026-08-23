@@ -15,7 +15,13 @@ export interface DomainScore {
   icon: React.ReactNode;
 }
 
-export type DomainKey = 'e2e' | 'management' | 'engineering' | 'compliance' | 'aiEfficiency' | 'risk';
+export type DomainKey =
+  | 'e2e'
+  | 'management'
+  | 'engineering'
+  | 'compliance'
+  | 'aiEfficiency'
+  | 'risk';
 
 export interface ScoreResult {
   overallScore: number;
@@ -53,7 +59,14 @@ export function aggregateScores(
   scores: Record<DomainKey, number>,
   weights?: Record<DomainKey, number>
 ): { overall: number; level: RatingLevel; label: string; color: string } {
-  const w = weights ?? { e2e: 1, management: 1, engineering: 1, compliance: 1, aiEfficiency: 1, risk: 1 };
+  const w = weights ?? {
+    e2e: 1,
+    management: 1,
+    engineering: 1,
+    compliance: 1,
+    aiEfficiency: 1,
+    risk: 1,
+  };
   const totalWeight = Object.values(w).reduce((a, b) => a + b, 0);
   const weightedSum = Object.entries(scores).reduce(
     (sum, [key, score]) => sum + score * (w[key as DomainKey] ?? 1),
@@ -71,7 +84,10 @@ export function safePercent(numerator: number, denominator: number, fallback: nu
 }
 
 /** 趋势计算：比较当前值与上周值 */
-export function computeTrend(current: number, previous: number): { trend: 'up' | 'down' | 'stable'; percent: number } {
+export function computeTrend(
+  current: number,
+  previous: number
+): { trend: 'up' | 'down' | 'stable'; percent: number } {
   if (previous === 0) return { trend: 'stable', percent: 0 };
   const diff = current - previous;
   const percent = Math.round((diff / previous) * 100 * 10) / 10;

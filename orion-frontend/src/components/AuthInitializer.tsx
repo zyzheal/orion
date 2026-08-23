@@ -11,7 +11,9 @@ export const AuthInitializer: React.FC<AuthInitializerProps> = ({ children }) =>
   } catch (error) {
     console.error('[AuthInitializer] Error:', error);
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}
+      >
         <Spin size="large" />
       </div>
     );

@@ -46,8 +46,7 @@ export const inceptionApi = {
   status: () => api.get('/api/v1/inception/status'),
   audit: (sql: string, database?: string) =>
     api.post<SqlAuditResult>('/api/v1/inception/audit', { sql, database }),
-  parse: (sql: string) =>
-    api.post<SqlParseResult>('/api/v1/inception/parse', { sql }),
+  parse: (sql: string) => api.post<SqlParseResult>('/api/v1/inception/parse', { sql }),
   execute: (sql: string, database?: string, dryRun?: boolean) =>
     api.post<SqlExecuteResult>('/api/v1/inception/execute', {
       sql,

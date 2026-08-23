@@ -7,18 +7,7 @@
  * loading, error, and empty states. Mock data is kept only in test files.
  */
 import React, { useMemo } from 'react';
-import {
-  Row,
-  Col,
-  Tag,
-  Table,
-  Typography,
-  Badge,
-  Result,
-  Button,
-  Card,
-  Empty,
-} from 'antd';
+import { Row, Col, Tag, Table, Typography, Badge, Result, Button, Card, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   WarningOutlined,
@@ -82,68 +71,66 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Cast API data to expected type (useBiDashboard returns BiDashboardData union)
   const data = apiData as ExecutiveDashboardData | undefined;
-  const { overview, trends, teamRanking, alerts, distribution } = data ?? {} as ExecutiveDashboardData;
+  const { overview, trends, teamRanking, alerts, distribution } =
+    data ?? ({} as ExecutiveDashboardData);
 
   // Build KPI metrics from API data (must be called unconditionally)
-  const kpiMetrics: KPIMetric[] = useMemo(
-    () => {
-      if (!overview) return [];
-      return [
-        {
-          title: '总工单数',
-          value: overview.totalTickets ?? 0,
-          suffix: '个',
-          trend: { value: 12.5, direction: 'up' },
-          status: 'normal',
-        },
-        {
-          title: '已解决',
-          value: overview.resolvedTickets ?? 0,
-          suffix: '个',
-          trend: { value: 8.3, direction: 'up' },
-          status: 'success',
-        },
-        {
-          title: '待处理',
-          value: overview.openTickets ?? 0,
-          suffix: '个',
-          trend: { value: 3.2, direction: 'down' },
-          status: 'warning',
-        },
-        {
-          title: '解决率',
-          value: `${overview.overallResolutionRate ?? 0}%`,
-          trend: { value: 2.1, direction: 'up' },
-          status: 'success',
-        },
-        {
-          title: '平均解决时间',
-          value: `${overview.avgResolutionTimeHours ?? 0}h`,
-          trend: { value: 5.4, direction: 'down' },
-          status: 'success',
-        },
-        {
-          title: 'SLA合规率',
-          value: `${overview.slaComplianceRate ?? 0}%`,
-          trend: { value: 1.2, direction: 'up' },
-          status: 'success',
-        },
-        {
-          title: '工程师总数',
-          value: overview.totalEngineers ?? 0,
-          suffix: '人',
-          status: 'normal',
-        },
-        {
-          title: '活跃工程师',
-          value: overview.activeEngineers ?? 0,
-          suffix: '人',
-          status: 'normal',
-        },
-      ];
-    },
-    [overview]
-  );
+  const kpiMetrics: KPIMetric[] = useMemo(() => {
+    if (!overview) return [];
+    return [
+      {
+        title: '总工单数',
+        value: overview.totalTickets ?? 0,
+        suffix: '个',
+        trend: { value: 12.5, direction: 'up' },
+        status: 'normal',
+      },
+      {
+        title: '已解决',
+        value: overview.resolvedTickets ?? 0,
+        suffix: '个',
+        trend: { value: 8.3, direction: 'up' },
+        status: 'success',
+      },
+      {
+        title: '待处理',
+        value: overview.openTickets ?? 0,
+        suffix: '个',
+        trend: { value: 3.2, direction: 'down' },
+        status: 'warning',
+      },
+      {
+        title: '解决率',
+        value: `${overview.overallResolutionRate ?? 0}%`,
+        trend: { value: 2.1, direction: 'up' },
+        status: 'success',
+      },
+      {
+        title: '平均解决时间',
+        value: `${overview.avgResolutionTimeHours ?? 0}h`,
+        trend: { value: 5.4, direction: 'down' },
+        status: 'success',
+      },
+      {
+        title: 'SLA合规率',
+        value: `${overview.slaComplianceRate ?? 0}%`,
+        trend: { value: 1.2, direction: 'up' },
+        status: 'success',
+      },
+      {
+        title: '工程师总数',
+        value: overview.totalEngineers ?? 0,
+        suffix: '人',
+        status: 'normal',
+      },
+      {
+        title: '活跃工程师',
+        value: overview.activeEngineers ?? 0,
+        suffix: '人',
+        status: 'normal',
+      },
+    ];
+  }, [overview]);
 
   // Category display names
   const categoryNames: Record<string, string> = {
@@ -269,7 +256,9 @@ const ExecutiveDashboard: React.FC = () => {
           title="数据加载失败"
           subTitle={
             <div>
-              <div>效能仪表盘依赖后端 <code>orion-ticket-svc</code> 微服务，该服务当前未部署或未启动。</div>
+              <div>
+                效能仪表盘依赖后端 <code>orion-ticket-svc</code> 微服务，该服务当前未部署或未启动。
+              </div>
               <div style={{ marginTop: spacing.sm, fontSize: 12, color: colors.neutral[500] }}>
                 请确认后端服务已启动后刷新页面，或联系运维人员检查服务状态。
               </div>
@@ -310,180 +299,185 @@ const ExecutiveDashboard: React.FC = () => {
           <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
 
-      {/* KPI Cards - 8 cards in a 4x2 grid */}
-      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-        {kpiMetrics.map((metric) => (
-          <Col xs={24} sm={12} lg={8} xl={6} key={metric.title}>
-            <StatCard
-              title={metric.title}
-              value={metric.value}
-              suffix={metric.suffix}
-              icon={kpiIcons[metric.title]}
-              trend={
-                'trend' in metric && metric.trend
-                  ? {
-                      value: metric.trend.value,
-                      direction: metric.trend.direction as 'up' | 'down' | 'flat',
-                      good: ['解决率', 'SLA合规率', '已解决'].includes(metric.title)
-                        ? 'up'
-                        : 'down',
-                    }
-                  : undefined
-              }
-            />
-          </Col>
-        ))}
-      </Row>
-
-      {/* Trend Charts Section */}
-      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-        {/* Ticket Volume Trend */}
-        <Col xs={24} xl={12}>
-          <CardPanel title="工单量趋势（近14天）" extra={<Tag color="blue">30天数据</Tag>}>
-            <TrendLineChart
-              title="工单量趋势（近14天）"
-              data={[
-                recentVolumeTrend.map(
-                  (d): TrendDataPoint => ({ period: d.period, value: d.created, label: '创建' })
-                ),
-                recentVolumeTrend.map(
-                  (d): TrendDataPoint => ({ period: d.period, value: d.resolved, label: '解决' })
-                ),
-              ]}
-              height={240}
-            />
-          </CardPanel>
-        </Col>
-
-        {/* SLA Compliance Trend */}
-        <Col xs={24} xl={12}>
-          <CardPanel title="SLA合规率趋势（近14天）" extra={<Tag color="green">{'目标 >90%'}</Tag>}>
-            <TrendLineChart
-              title="SLA合规率趋势（近14天）"
-              data={[
-                (trends?.slaComplianceTrend || [])
-                  .slice(-14)
-                  .map((d): TrendDataPoint => ({ period: d.period, value: d.rate, label: 'SLA' })),
-              ]}
-              height={240}
-              showArea={true}
-              smooth={true}
-            />
-          </CardPanel>
-        </Col>
-      </Row>
-
-      {/* Team Ranking Section */}
-      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-        {/* Top Performers */}
-        <Col xs={24} xl={14}>
-          <CardPanel title="团队排名 - 优秀工程师" extra={<Tag color="gold">Top 5</Tag>}>
-            <Table
-              dataSource={teamRanking?.topPerformers || []}
-              columns={topPerformerColumns}
-              rowKey="engineerId"
-              pagination={false}
-              size="middle"
-            />
-          </CardPanel>
-        </Col>
-
-        {/* Bottom Performers - Need Attention */}
-        <Col xs={24} xl={10}>
-          <CardPanel title="需关注工程师" extra={<Tag color="orange">Attention</Tag>}>
-            <BarChart
-              data={(teamRanking?.bottomPerformers || []).map(
-                (m): BarDataItem => ({ label: m.name, value: m.score })
-              )}
-              height={200}
-            />
-            <div style={{ marginTop: spacing.sm, padding: `0 ${spacing[2]}` }}>
-              {(data?.teamRanking?.bottomPerformers || []).map((member) => (
-                <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
-                  <Text type="warning" style={{ fontSize: spacing[3] }}>
-                    <WarningOutlined style={{ marginRight: 4 }} />
-                    {member.needsAttention}
-                  </Text>
-                </div>
-              ))}
-            </div>
-          </CardPanel>
-        </Col>
-      </Row>
-
-      {/* Alerts Section */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel title="告警中心" extra={<Tag color="red">需立即处理</Tag>}>
-          <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
-            <Col xs={24} sm={8}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <GaugeChart
-                  title="SLA合规率"
-                  value={overview?.slaComplianceRate ?? 0}
-                  thresholds={{ warning: 85, danger: 90 }}
-                  direction="descend"
-                  size={160}
-                />
-              </div>
+        {/* KPI Cards - 8 cards in a 4x2 grid */}
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
+          {kpiMetrics.map((metric) => (
+            <Col xs={24} sm={12} lg={8} xl={6} key={metric.title}>
+              <StatCard
+                title={metric.title}
+                value={metric.value}
+                suffix={metric.suffix}
+                icon={kpiIcons[metric.title]}
+                trend={
+                  'trend' in metric && metric.trend
+                    ? {
+                        value: metric.trend.value,
+                        direction: metric.trend.direction as 'up' | 'down' | 'flat',
+                        good: ['解决率', 'SLA合规率', '已解决'].includes(metric.title)
+                          ? 'up'
+                          : 'down',
+                      }
+                    : undefined
+                }
+              />
             </Col>
-          </Row>
-          <Row gutter={[16, 16]}>
-            {alertCards.map((alert) => (
-              <Col xs={24} sm={12} lg={6} key={alert.title}>
-                <StatCard
-                  title={alert.title}
-                  value={alert.value}
-                  suffix={alert.suffix}
-                  icon={<span style={{ color: alert.color }}>{alert.icon}</span>}
-                  color={alert.color}
-                />
+          ))}
+        </Row>
+
+        {/* Trend Charts Section */}
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
+          {/* Ticket Volume Trend */}
+          <Col xs={24} xl={12}>
+            <CardPanel title="工单量趋势（近14天）" extra={<Tag color="blue">30天数据</Tag>}>
+              <TrendLineChart
+                title="工单量趋势（近14天）"
+                data={[
+                  recentVolumeTrend.map(
+                    (d): TrendDataPoint => ({ period: d.period, value: d.created, label: '创建' })
+                  ),
+                  recentVolumeTrend.map(
+                    (d): TrendDataPoint => ({ period: d.period, value: d.resolved, label: '解决' })
+                  ),
+                ]}
+                height={240}
+              />
+            </CardPanel>
+          </Col>
+
+          {/* SLA Compliance Trend */}
+          <Col xs={24} xl={12}>
+            <CardPanel
+              title="SLA合规率趋势（近14天）"
+              extra={<Tag color="green">{'目标 >90%'}</Tag>}
+            >
+              <TrendLineChart
+                title="SLA合规率趋势（近14天）"
+                data={[
+                  (trends?.slaComplianceTrend || [])
+                    .slice(-14)
+                    .map(
+                      (d): TrendDataPoint => ({ period: d.period, value: d.rate, label: 'SLA' })
+                    ),
+                ]}
+                height={240}
+                showArea={true}
+                smooth={true}
+              />
+            </CardPanel>
+          </Col>
+        </Row>
+
+        {/* Team Ranking Section */}
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
+          {/* Top Performers */}
+          <Col xs={24} xl={14}>
+            <CardPanel title="团队排名 - 优秀工程师" extra={<Tag color="gold">Top 5</Tag>}>
+              <Table
+                dataSource={teamRanking?.topPerformers || []}
+                columns={topPerformerColumns}
+                rowKey="engineerId"
+                pagination={false}
+                size="middle"
+              />
+            </CardPanel>
+          </Col>
+
+          {/* Bottom Performers - Need Attention */}
+          <Col xs={24} xl={10}>
+            <CardPanel title="需关注工程师" extra={<Tag color="orange">Attention</Tag>}>
+              <BarChart
+                data={(teamRanking?.bottomPerformers || []).map(
+                  (m): BarDataItem => ({ label: m.name, value: m.score })
+                )}
+                height={200}
+              />
+              <div style={{ marginTop: spacing.sm, padding: `0 ${spacing[2]}` }}>
+                {(data?.teamRanking?.bottomPerformers || []).map((member) => (
+                  <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
+                    <Text type="warning" style={{ fontSize: spacing[3] }}>
+                      <WarningOutlined style={{ marginRight: 4 }} />
+                      {member.needsAttention}
+                    </Text>
+                  </div>
+                ))}
+              </div>
+            </CardPanel>
+          </Col>
+        </Row>
+
+        {/* Alerts Section */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel title="告警中心" extra={<Tag color="red">需立即处理</Tag>}>
+            <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
+              <Col xs={24} sm={8}>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <GaugeChart
+                    title="SLA合规率"
+                    value={overview?.slaComplianceRate ?? 0}
+                    thresholds={{ warning: 85, danger: 90 }}
+                    direction="descend"
+                    size={160}
+                  />
+                </div>
               </Col>
-            ))}
-          </Row>
-        </CardPanel>
-      </div>
+            </Row>
+            <Row gutter={[16, 16]}>
+              {alertCards.map((alert) => (
+                <Col xs={24} sm={12} lg={6} key={alert.title}>
+                  <StatCard
+                    title={alert.title}
+                    value={alert.value}
+                    suffix={alert.suffix}
+                    icon={<span style={{ color: alert.color }}>{alert.icon}</span>}
+                    color={alert.color}
+                  />
+                </Col>
+              ))}
+            </Row>
+          </CardPanel>
+        </div>
 
-      {/* Distribution Section */}
-      <Row gutter={[16, 16]}>
-        {/* Category Distribution */}
-        <Col xs={24} xl={14}>
-          <CardPanel
-            title="工单分类分布"
-            extra={
-              <Tag color="purple">{Object.keys(distribution?.byCategory || {}).length}个分类</Tag>
-            }
-          >
-            <PieChart
+        {/* Distribution Section */}
+        <Row gutter={[16, 16]}>
+          {/* Category Distribution */}
+          <Col xs={24} xl={14}>
+            <CardPanel
               title="工单分类分布"
-              data={Object.entries(distribution?.byCategory || {}).map(
-                ([key, val]): PieDataItem => ({
-                  name: categoryNames[key] || key,
-                  value: val.count,
-                })
-              )}
-              variant="donut"
-              centerLabel={true}
-              height={240}
-            />
-          </CardPanel>
-        </Col>
+              extra={
+                <Tag color="purple">{Object.keys(distribution?.byCategory || {}).length}个分类</Tag>
+              }
+            >
+              <PieChart
+                title="工单分类分布"
+                data={Object.entries(distribution?.byCategory || {}).map(
+                  ([key, val]): PieDataItem => ({
+                    name: categoryNames[key] || key,
+                    value: val.count,
+                  })
+                )}
+                variant="donut"
+                centerLabel={true}
+                height={240}
+              />
+            </CardPanel>
+          </Col>
 
-        {/* Priority Distribution */}
-        <Col xs={24} xl={10}>
-          <CardPanel title="优先级分布">
-            <BarChart
-              data={Object.entries(distribution?.byPriority || {}).flatMap(
-                ([key, val]): BarDataItem[] => [
-                  { label: priorityNames[key] || key, value: val.count, series: '总数' },
-                  { label: priorityNames[key] || key, value: val.resolved, series: '已解决' },
-                ]
-              )}
-              stacked={false}
-              height={240}
-            />
-          </CardPanel>
-        </Col>
-      </Row>
+          {/* Priority Distribution */}
+          <Col xs={24} xl={10}>
+            <CardPanel title="优先级分布">
+              <BarChart
+                data={Object.entries(distribution?.byPriority || {}).flatMap(
+                  ([key, val]): BarDataItem[] => [
+                    { label: priorityNames[key] || key, value: val.count, series: '总数' },
+                    { label: priorityNames[key] || key, value: val.resolved, series: '已解决' },
+                  ]
+                )}
+                stacked={false}
+                height={240}
+              />
+            </CardPanel>
+          </Col>
+        </Row>
       </DataState>
     </div>
   );

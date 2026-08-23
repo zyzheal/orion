@@ -321,8 +321,7 @@ const RAGAdminPage: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 180,
-      render: (date: string) =>
-        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+      render: (date: string) => (date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'),
     },
     {
       title: '操作',
@@ -357,10 +356,7 @@ const RAGAdminPage: React.FC = () => {
   const renderConfigTab = () => (
     <Spin spinning={configLoading}>
       {config === null && !configLoading ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="加载配置失败"
-        >
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="加载配置失败">
           <Button onClick={loadConfig}>重新加载</Button>
         </Empty>
       ) : (
@@ -370,11 +366,7 @@ const RAGAdminPage: React.FC = () => {
           initialValues={DEFAULT_CONFIG}
           style={{ maxWidth: 700 }}
         >
-          <Descriptions
-            title="检索参数"
-            column={1}
-            style={{ marginBottom: spacing.md }}
-          />
+          <Descriptions title="检索参数" column={1} style={{ marginBottom: spacing.md }} />
           <Row gutter={24}>
             {CONFIG_FIELDS.slice(0, 5).map((field) => (
               <Col span={12} key={field.key}>
@@ -503,10 +495,7 @@ const RAGAdminPage: React.FC = () => {
       </div>
       <Spin spinning={templatesLoading}>
         {templates.length === 0 && !templatesLoading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="暂无 Prompt 模板"
-          >
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 Prompt 模板">
             <Button type="primary" onClick={openNewTemplate}>
               新建模板
             </Button>
@@ -543,11 +532,7 @@ const RAGAdminPage: React.FC = () => {
         destroyOnClose
         style={{ borderRadius: componentRadius.modal }}
       >
-        <Form
-          form={templateForm}
-          layout="vertical"
-          style={{ marginTop: spacing.md }}
-        >
+        <Form form={templateForm} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             name="name"
             label="模板名称"

@@ -175,7 +175,12 @@ const HealthRing: React.FC<{ score: number; loading?: boolean }> = ({ score, loa
         </Space>
       }
       style={{ borderRadius: componentRadius.card, boxShadow: shadows.card, height: '100%' }}
-      bodyStyle={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: spacing.lg }}
+      bodyStyle={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: spacing.lg,
+      }}
     >
       {loading ? (
         <Spin />
@@ -187,7 +192,9 @@ const HealthRing: React.FC<{ score: number; loading?: boolean }> = ({ score, loa
             strokeColor={getHealthColor(score)}
             format={(pct) => (
               <div>
-                <div style={{ fontSize: 28, fontWeight: 600, color: getHealthColor(score) }}>{pct}</div>
+                <div style={{ fontSize: 28, fontWeight: 600, color: getHealthColor(score) }}>
+                  {pct}
+                </div>
                 <div style={{ fontSize: 12, color: colors.neutral[500] }}>分</div>
               </div>
             )}
@@ -392,10 +399,7 @@ const RAGEvalPage: React.FC = () => {
       {/* 空状态 */}
       {!loading && !error && !data && (
         <Card style={{ borderRadius: componentRadius.card, boxShadow: shadows.card }}>
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="暂无评估数据"
-          >
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无评估数据">
             <Button
               type="primary"
               icon={<ReloadOutlined />}

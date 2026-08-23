@@ -15,8 +15,13 @@ export interface PipelineTemplate {
   [key: string]: unknown;
 }
 
-export const listPipelineTemplate = async (params?: Record<string, unknown>): Promise<{ data: PipelineTemplate[]; total: number }> => {
-  const response = await api.get<{ data: PipelineTemplate[]; total: number }>('/api/v1/pipeline-templates/', { params });
+export const listPipelineTemplate = async (
+  params?: Record<string, unknown>
+): Promise<{ data: PipelineTemplate[]; total: number }> => {
+  const response = await api.get<{ data: PipelineTemplate[]; total: number }>(
+    '/api/v1/pipeline-templates/',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -25,13 +30,21 @@ export const getPipelineTemplate = async (templateId: string): Promise<PipelineT
   return response.data;
 };
 
-export const createPipelineTemplate = async (data?: Partial<PipelineTemplate>): Promise<PipelineTemplate> => {
+export const createPipelineTemplate = async (
+  data?: Partial<PipelineTemplate>
+): Promise<PipelineTemplate> => {
   const response = await api.post<PipelineTemplate>('/api/v1/pipeline-templates/', data);
   return response.data;
 };
 
-export const updatePipelineTemplate = async (templateId: string, data: Partial<PipelineTemplate>): Promise<PipelineTemplate> => {
-  const response = await api.put<PipelineTemplate>('/api/v1/pipeline-templates/' + templateId, data);
+export const updatePipelineTemplate = async (
+  templateId: string,
+  data: Partial<PipelineTemplate>
+): Promise<PipelineTemplate> => {
+  const response = await api.put<PipelineTemplate>(
+    '/api/v1/pipeline-templates/' + templateId,
+    data
+  );
   return response.data;
 };
 
@@ -39,7 +52,13 @@ export const deletePipelineTemplate = async (templateId: string): Promise<void> 
   await api.delete('/api/v1/pipeline-templates/' + templateId);
 };
 
-export const createPipelineTemplateInstantiate = async (templateId: string, data?: Partial<PipelineTemplate>): Promise<PipelineTemplate> => {
-  const response = await api.post<PipelineTemplate>('/api/v1/pipeline-templates/' + templateId + '/instantiate', data);
+export const createPipelineTemplateInstantiate = async (
+  templateId: string,
+  data?: Partial<PipelineTemplate>
+): Promise<PipelineTemplate> => {
+  const response = await api.post<PipelineTemplate>(
+    '/api/v1/pipeline-templates/' + templateId + '/instantiate',
+    data
+  );
   return response.data;
 };

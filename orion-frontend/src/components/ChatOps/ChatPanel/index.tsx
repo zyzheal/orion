@@ -96,8 +96,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ icon, title, desc, onClick 
       {icon}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 2 }}>{title}</Text>
-      <Text type="secondary" style={{ fontSize: 11.5, display: 'block' }}>{desc}</Text>
+      <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 2 }}>
+        {title}
+      </Text>
+      <Text type="secondary" style={{ fontSize: 11.5, display: 'block' }}>
+        {desc}
+      </Text>
     </div>
   </div>
 );
@@ -178,7 +182,9 @@ export const ChatPanel: React.FC = () => {
           >
             <MessageOutlined style={{ fontSize: 15, color: colors.neutral[0] }} />
           </div>
-          <Text strong style={{ fontSize: 15 }}>ChatOps 助手</Text>
+          <Text strong style={{ fontSize: 15 }}>
+            ChatOps 助手
+          </Text>
         </div>
         <div
           onClick={toggle}

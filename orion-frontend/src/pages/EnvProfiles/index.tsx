@@ -4,19 +4,37 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
   Descriptions,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import {
-  getEnvProfiles, createEnvProfile, updateEnvProfile, deleteEnvProfile,
-  getEnvironmentsForProfile, resolveEnvVariables,
-  type EnvProfile, type CreateEnvProfileInput, type UpdateEnvProfileInput,
+  getEnvProfiles,
+  createEnvProfile,
+  updateEnvProfile,
+  deleteEnvProfile,
+  getEnvironmentsForProfile,
+  resolveEnvVariables,
+  type EnvProfile,
+  type CreateEnvProfileInput,
+  type UpdateEnvProfileInput,
 } from '@/api/env-profiles';
 
 const { Title, Text } = Typography;
@@ -47,7 +65,9 @@ const EnvProfilesPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -104,9 +124,8 @@ const EnvProfilesPage: React.FC = () => {
       let variables: Record<string, string> = {};
       if (values.variables) {
         try {
-          variables = typeof values.variables === 'string'
-            ? JSON.parse(values.variables)
-            : values.variables;
+          variables =
+            typeof values.variables === 'string' ? JSON.parse(values.variables) : values.variables;
           if (typeof variables !== 'object' || Array.isArray(variables)) {
             message.error('Variables 必须是合法 JSON 对象');
             return;
@@ -142,9 +161,8 @@ const EnvProfilesPage: React.FC = () => {
       let overrides: Record<string, string> | undefined;
       if (values.overrides) {
         try {
-          overrides = typeof values.overrides === 'string'
-            ? JSON.parse(values.overrides)
-            : values.overrides;
+          overrides =
+            typeof values.overrides === 'string' ? JSON.parse(values.overrides) : values.overrides;
           if (typeof overrides !== 'object' || Array.isArray(overrides)) {
             message.error('Overrides 必须是合法 JSON 对象');
             return;
@@ -190,7 +208,9 @@ const EnvProfilesPage: React.FC = () => {
       ellipsis: true,
       render: (v: Record<string, string>) => {
         const keys = Object.keys(v);
-        return keys.length > 0 ? `${keys.length} keys: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}` : '-';
+        return keys.length > 0
+          ? `${keys.length} keys: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}`
+          : '-';
       },
     },
     {
@@ -212,13 +232,33 @@ const EnvProfilesPage: React.FC = () => {
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>
             编辑
           </Button>
-          <Button type="link" size="small" onClick={() => { setSelectedProfile(r); setResolveVisible(true); setResolveResult({}); resolveForm.resetFields(); }}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              setSelectedProfile(r);
+              setResolveVisible(true);
+              setResolveResult({});
+              resolveForm.resetFields();
+            }}
+          >
             解析变量
           </Button>
-          <Button type="link" size="small" onClick={() => handleViewEnvironments(r)} loading={envLoading && selectedProfile?.id === r.id}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => handleViewEnvironments(r)}
+            loading={envLoading && selectedProfile?.id === r.id}
+          >
             环境列表
           </Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(r)}
+          >
             删除
           </Button>
         </Space>
@@ -228,7 +268,9 @@ const EnvProfilesPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <div style={{ flex: 1 }}>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
@@ -268,14 +310,24 @@ const EnvProfilesPage: React.FC = () => {
           <Form.Item name="name" label="Name" rules={[{ required: true, message: '请输入 Name' }]}>
             <Input placeholder="配置名称（如 default）" />
           </Form.Item>
-          <Form.Item name="environment" label="Environment" rules={[{ required: true, message: '请选择环境' }]}>
-            <Select options={[
-              { value: 'development', label: 'Development' },
-              { value: 'staging', label: 'Staging' },
-              { value: 'production', label: 'Production' },
-            ]} />
+          <Form.Item
+            name="environment"
+            label="Environment"
+            rules={[{ required: true, message: '请选择环境' }]}
+          >
+            <Select
+              options={[
+                { value: 'development', label: 'Development' },
+                { value: 'staging', label: 'Staging' },
+                { value: 'production', label: 'Production' },
+              ]}
+            />
           </Form.Item>
-          <Form.Item name="variables" label="Variables (JSON)" rules={[{ required: true, message: '请输入 Variables JSON' }]}>
+          <Form.Item
+            name="variables"
+            label="Variables (JSON)"
+            rules={[{ required: true, message: '请输入 Variables JSON' }]}
+          >
             <Input.TextArea rows={6} placeholder='{"DB_HOST": "localhost", "DB_PORT": "5432"}' />
           </Form.Item>
           <Form.Item name="description" label="Description">
@@ -303,7 +355,9 @@ const EnvProfilesPage: React.FC = () => {
             <Text strong>解析结果：</Text>
             <Descriptions bordered size="small" column={1} style={{ marginTop: 8 }}>
               {Object.entries(resolveResult).map(([key, value]) => (
-                <Descriptions.Item key={key} label={key}>{value}</Descriptions.Item>
+                <Descriptions.Item key={key} label={key}>
+                  {value}
+                </Descriptions.Item>
               ))}
             </Descriptions>
           </div>
@@ -314,7 +368,11 @@ const EnvProfilesPage: React.FC = () => {
       <Modal
         title={`${selectedProfile?.name} — 环境列表`}
         open={!!selectedProfile && !envLoading}
-        onCancel={() => { setSelectedProfile(null); setEnvironments([]); setEnvError(null); }}
+        onCancel={() => {
+          setSelectedProfile(null);
+          setEnvironments([]);
+          setEnvError(null);
+        }}
         footer={null}
       >
         {envError ? (
@@ -328,8 +386,10 @@ const EnvProfilesPage: React.FC = () => {
           </div>
         ) : environments.length > 0 ? (
           <Space wrap>
-            {environments.map(env => (
-              <Tag key={env} color="blue">{env}</Tag>
+            {environments.map((env) => (
+              <Tag key={env} color="blue">
+                {env}
+              </Tag>
             ))}
           </Space>
         ) : (

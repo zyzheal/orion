@@ -7,7 +7,19 @@
  * - /ai/agents - Agent 管理主页面
  */
 import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Typography, Drawer, Modal, Form, Input, Button, message, Spin, Empty } from 'antd';
+import {
+  Card,
+  Tabs,
+  Typography,
+  Drawer,
+  Modal,
+  Form,
+  Input,
+  Button,
+  message,
+  Spin,
+  Empty,
+} from 'antd';
 import {
   RobotOutlined,
   PlayCircleOutlined,
@@ -122,7 +134,11 @@ const AIAgentsManagement: React.FC = () => {
       }
 
       const response = await aiAgentApi.execute(selectedAgent.id, input);
-      const apiData = response.data as { success?: boolean; data?: AgentExecutionResult; error?: string };
+      const apiData = response.data as {
+        success?: boolean;
+        data?: AgentExecutionResult;
+        error?: string;
+      };
       if (apiData.success) {
         setExecutionResult(apiData.data as AgentExecutionResult);
         message.success('Agent 执行成功');
@@ -173,7 +189,13 @@ const AIAgentsManagement: React.FC = () => {
         </span>
       ),
       children: (
-        <AuditLogViewer logs={auditLogs} loading={auditLogLoading} onExecuteAgent={() => { if (selectedAgent) handleExecute(selectedAgent); }} />
+        <AuditLogViewer
+          logs={auditLogs}
+          loading={auditLogLoading}
+          onExecuteAgent={() => {
+            if (selectedAgent) handleExecute(selectedAgent);
+          }}
+        />
       ),
     },
   ];
@@ -194,15 +216,9 @@ const AIAgentsManagement: React.FC = () => {
             <RobotOutlined style={{ marginRight: spacing.sm, color: colors.purple[500] }} />
             AI Agent 管理
           </Title>
-          <Paragraph type="secondary">
-            管理 AI Agent 配置、执行任务、查看审计日志
-          </Paragraph>
+          <Paragraph type="secondary">管理 AI Agent 配置、执行任务、查看审计日志</Paragraph>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={loadAgents}
-          loading={loading}
-        >
+        <Button icon={<ReloadOutlined />} onClick={loadAgents} loading={loading}>
           刷新
         </Button>
       </div>
@@ -284,9 +300,7 @@ const AIAgentsManagement: React.FC = () => {
             title="执行结果"
             style={{
               marginTop: spacing.md,
-              backgroundColor: executionResult.success
-                ? themeVars.bgSecondary
-                : colors.error[50],
+              backgroundColor: executionResult.success ? themeVars.bgSecondary : colors.error[50],
               borderColor: executionResult.success ? colors.success[500] : colors.error[500],
             }}
           >

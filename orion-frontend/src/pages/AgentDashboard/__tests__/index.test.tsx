@@ -62,12 +62,20 @@ vi.mock('../AgentDetailDrawer', () => ({
 
 vi.mock('../CreateAgentModal', () => ({
   default: ({ open, onCancel }: any) =>
-    open ? <div data-testid="create-agent-modal"><button onClick={onCancel}>Close</button></div> : null,
+    open ? (
+      <div data-testid="create-agent-modal">
+        <button onClick={onCancel}>Close</button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('../TriggerRunModal', () => ({
   default: ({ open, onCancel }: any) =>
-    open ? <div data-testid="trigger-run-modal"><button onClick={onCancel}>Close</button></div> : null,
+    open ? (
+      <div data-testid="trigger-run-modal">
+        <button onClick={onCancel}>Close</button>
+      </div>
+    ) : null,
 }));
 
 const mockAgents = [

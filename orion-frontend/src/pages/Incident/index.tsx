@@ -73,7 +73,13 @@ import {
   getPostmortemDraft,
   getIncidentStats,
 } from '@/api/incident';
-import type { Incident, IncidentStats, TimelineEvent, Postmortem, PostmortemDraft } from '@/api/incident';
+import type {
+  Incident,
+  IncidentStats,
+  TimelineEvent,
+  Postmortem,
+  PostmortemDraft,
+} from '@/api/incident';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -122,23 +128,18 @@ const eventTypeConfig: Record<string, { color: string; label: string }> = {
 };
 
 /** Status transition map: current status -> allowed next statuses */
-const statusTransitions: Record<string, Array<{ status: string; label: string; icon: React.ReactNode }>> = {
-  open: [
-    { status: 'acknowledged', label: '确认', icon: <CheckCircleOutlined /> },
-  ],
-  acknowledged: [
-    { status: 'investigating', label: '开始调查', icon: <SearchOutlined /> },
-  ],
+const statusTransitions: Record<
+  string,
+  Array<{ status: string; label: string; icon: React.ReactNode }>
+> = {
+  open: [{ status: 'acknowledged', label: '确认', icon: <CheckCircleOutlined /> }],
+  acknowledged: [{ status: 'investigating', label: '开始调查', icon: <SearchOutlined /> }],
   investigating: [
     { status: 'resolved', label: '解决', icon: <CheckCircleOutlined /> },
     { status: 'on_hold', label: '挂起', icon: <ClockCircleOutlined /> },
   ],
-  on_hold: [
-    { status: 'investigating', label: '恢复调查', icon: <SearchOutlined /> },
-  ],
-  resolved: [
-    { status: 'closed', label: '关闭', icon: <CheckCircleOutlined /> },
-  ],
+  on_hold: [{ status: 'investigating', label: '恢复调查', icon: <SearchOutlined /> }],
+  resolved: [{ status: 'closed', label: '关闭', icon: <CheckCircleOutlined /> }],
   closed: [],
 };
 
@@ -315,13 +316,10 @@ const IncidentManagement: React.FC = () => {
   // ============================================================================
 
   /** Open detail view for an incident */
-  const handleViewDetail = useCallback(
-    (record: Incident) => {
-      setSelectedIncident(record);
-      setActiveTab('detail');
-    },
-    []
-  );
+  const handleViewDetail = useCallback((record: Incident) => {
+    setSelectedIncident(record);
+    setActiveTab('detail');
+  }, []);
 
   /** Go back to list view */
   const handleBackToList = useCallback(() => {
@@ -345,10 +343,16 @@ const IncidentManagement: React.FC = () => {
         assigned_to: values.assigned_to,
         detected_by: values.detected_by,
         affected_services: values.affected_services
-          ? values.affected_services.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.affected_services
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
         tags: values.tags
-          ? values.tags.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.tags
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
       });
       message.success('事件创建成功');
@@ -402,10 +406,16 @@ const IncidentManagement: React.FC = () => {
         assigned_to: values.assigned_to,
         detected_by: values.detected_by,
         affected_services: values.affected_services
-          ? values.affected_services.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.affected_services
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
         tags: values.tags
-          ? values.tags.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.tags
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
       });
       message.success('事件更新成功');
@@ -460,7 +470,9 @@ const IncidentManagement: React.FC = () => {
     try {
       const note = statusNoteForm.getFieldValue('note');
       await updateIncidentStatus(selectedIncident.id, pendingStatusChange, note);
-      message.success(`状态已变更为: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`);
+      message.success(
+        `状态已变更为: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`
+      );
       setStatusNoteModalOpen(false);
       statusNoteForm.resetFields();
       loadIncidentDetail(selectedIncident.id);
@@ -470,7 +482,14 @@ const IncidentManagement: React.FC = () => {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`状态变更失败: ${msg}`);
     }
-  }, [selectedIncident, pendingStatusChange, statusNoteForm, loadIncidentDetail, loadIncidents, loadStats]);
+  }, [
+    selectedIncident,
+    pendingStatusChange,
+    statusNoteForm,
+    loadIncidentDetail,
+    loadIncidents,
+    loadStats,
+  ]);
 
   /** Open assign modal */
   const handleOpenAssign = useCallback(() => {
@@ -556,7 +575,10 @@ const IncidentManagement: React.FC = () => {
         impact_description: values.impact_description,
         timeline_summary: values.timeline_summary,
         action_items: values.action_items
-          ? values.action_items.split('\n').filter(Boolean).map((item: string) => ({ description: item.trim() }))
+          ? values.action_items
+              .split('\n')
+              .filter(Boolean)
+              .map((item: string) => ({ description: item.trim() }))
           : [],
         lessons_learned: values.lessons_learned,
       });
@@ -652,7 +674,9 @@ const IncidentManagement: React.FC = () => {
           <MetricCard
             title="待处理"
             value={openCount}
-            icon={<ExclamationCircleOutlined style={{ fontSize: 24, color: colors.warning[500] }} />}
+            icon={
+              <ExclamationCircleOutlined style={{ fontSize: 24, color: colors.warning[500] }} />
+            }
             loading={statsLoading}
             color={colors.warning[500]}
           />
@@ -671,144 +695,149 @@ const IncidentManagement: React.FC = () => {
   };
 
   /** Table columns for incident list */
-  const columns: TableColumn<Incident>[] = useMemo<TableColumn<Incident>[]>(() => [
-    {
-      key: 'title',
-      title: '事件标题',
-      dataIndex: 'title',
-      ellipsis: true,
-      render: (_val: unknown, record: Incident) => (
-        <Button
-          type="link"
-          style={{ padding: 0, fontWeight: 500 }}
-          onClick={() => handleViewDetail(record)}
-        >
-          {record.title}
-        </Button>
-      ),
-    },
-    {
-      key: 'severity',
-      title: '严重程度',
-      dataIndex: 'severity',
-      width: 100,
-      render: (_val: unknown, record: Incident) => {
-        const cfg = severityConfig[record.severity];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.severity}</Tag>;
-      },
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (_val: unknown, record: Incident) => {
-        const cfg = statusConfig[record.status];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
-      },
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 80,
-      render: (_val: unknown, record: Incident) => {
-        const cfg = priorityConfig[record.priority ?? ''];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>-</Tag>;
-      },
-    },
-    {
-      key: 'assigned_to',
-      title: '负责人',
-      dataIndex: 'assigned_to',
-      width: 120,
-      render: (_val: unknown, record: Incident) => (
-        record.assigned_to ? (
-          <Space size={4}>
-            <UserOutlined style={{ color: colors.neutral[500] }} />
-            <Text>{record.assigned_to}</Text>
-          </Space>
-        ) : (
-          <Text type="secondary">未分配</Text>
-        )
-      ),
-    },
-    {
-      key: 'created_at',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 170,
-      render: (_val: unknown, record: Incident) => (
-        <Text type="secondary">{dayjs(record.created_at).format('YYYY-MM-DD HH:mm')}</Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      fixed: 'right',
-      render: (_val: unknown, record: Incident) => (
-        <Space size={spacing.xs}>
+  const columns: TableColumn<Incident>[] = useMemo<TableColumn<Incident>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '事件标题',
+        dataIndex: 'title',
+        ellipsis: true,
+        render: (_val: unknown, record: Incident) => (
           <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
+            type="link"
+            style={{ padding: 0, fontWeight: 500 }}
             onClick={() => handleViewDetail(record)}
           >
-            查看
+            {record.title}
           </Button>
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定删除此事件?"
-            description="删除后不可恢复"
-            onConfirm={() => handleDelete(record)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />}>
-              删除
+        ),
+      },
+      {
+        key: 'severity',
+        title: '严重程度',
+        dataIndex: 'severity',
+        width: 100,
+        render: (_val: unknown, record: Incident) => {
+          const cfg = severityConfig[record.severity];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.severity}</Tag>;
+        },
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (_val: unknown, record: Incident) => {
+          const cfg = statusConfig[record.status];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
+        },
+      },
+      {
+        key: 'priority',
+        title: '优先级',
+        dataIndex: 'priority',
+        width: 80,
+        render: (_val: unknown, record: Incident) => {
+          const cfg = priorityConfig[record.priority ?? ''];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>-</Tag>;
+        },
+      },
+      {
+        key: 'assigned_to',
+        title: '负责人',
+        dataIndex: 'assigned_to',
+        width: 120,
+        render: (_val: unknown, record: Incident) =>
+          record.assigned_to ? (
+            <Space size={4}>
+              <UserOutlined style={{ color: colors.neutral[500] }} />
+              <Text>{record.assigned_to}</Text>
+            </Space>
+          ) : (
+            <Text type="secondary">未分配</Text>
+          ),
+      },
+      {
+        key: 'created_at',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 170,
+        render: (_val: unknown, record: Incident) => (
+          <Text type="secondary">{dayjs(record.created_at).format('YYYY-MM-DD HH:mm')}</Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        fixed: 'right',
+        render: (_val: unknown, record: Incident) => (
+          <Space size={spacing.xs}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetail(record)}
+            >
+              查看
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleOpenEdit, handleViewDetail]);
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            >
+              编辑
+            </Button>
+            <Popconfirm
+              title="确定删除此事件?"
+              description="删除后不可恢复"
+              onConfirm={() => handleDelete(record)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleOpenEdit, handleViewDetail]
+  );
 
   /** Filter definitions for SearchFilterBar */
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'severity',
-      label: '严重程度',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '严重', value: 'critical' },
-        { label: '高', value: 'high' },
-        { label: '中', value: 'medium' },
-        { label: '低', value: 'low' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '待处理', value: 'open' },
-        { label: '已确认', value: 'acknowledged' },
-        { label: '调查中', value: 'investigating' },
-        { label: '挂起', value: 'on_hold' },
-        { label: '已解决', value: 'resolved' },
-        { label: '已关闭', value: 'closed' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'severity',
+        label: '严重程度',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '严重', value: 'critical' },
+          { label: '高', value: 'high' },
+          { label: '中', value: 'medium' },
+          { label: '低', value: 'low' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '待处理', value: 'open' },
+          { label: '已确认', value: 'acknowledged' },
+          { label: '调查中', value: 'investigating' },
+          { label: '挂起', value: 'on_hold' },
+          { label: '已解决', value: 'resolved' },
+          { label: '已关闭', value: 'closed' },
+        ],
+      },
+    ],
+    []
+  );
 
   // ============================================================================
   // Tab Content Renderers
@@ -832,10 +861,20 @@ const IncidentManagement: React.FC = () => {
           searchPlaceholder="搜索事件标题、描述、负责人..."
           extra={
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={() => { loadIncidents(); loadStats(); }}>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => {
+                  loadIncidents();
+                  loadStats();
+                }}
+              >
                 刷新
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateModalOpen(true)}
+              >
                 创建事件
               </Button>
             </Space>
@@ -886,18 +925,37 @@ const IncidentManagement: React.FC = () => {
           style={{ borderRadius: radius.lg, boxShadow: shadows.card, marginBottom: spacing.md }}
           styles={{ body: { padding: spacing.lg } }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: spacing.sm }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              flexWrap: 'wrap',
+              gap: spacing.sm,
+            }}
+          >
             <div>
               <Space style={{ marginBottom: spacing.sm }}>
-                <Button icon={<ArrowUpOutlined />} onClick={handleBackToList} style={{ transform: 'rotate(-90deg)' }}>
-                </Button>
-                <Title level={3} style={{ margin: 0 }}>{incident.title}</Title>
+                <Button
+                  icon={<ArrowUpOutlined />}
+                  onClick={handleBackToList}
+                  style={{ transform: 'rotate(-90deg)' }}
+                ></Button>
+                <Title level={3} style={{ margin: 0 }}>
+                  {incident.title}
+                </Title>
               </Space>
               <Space>
-                <Tag color={severityConfig[incident.severity]?.color}>{severityConfig[incident.severity]?.label}</Tag>
-                <Tag color={statusConfig[incident.status]?.color}>{statusConfig[incident.status]?.label}</Tag>
+                <Tag color={severityConfig[incident.severity]?.color}>
+                  {severityConfig[incident.severity]?.label}
+                </Tag>
+                <Tag color={statusConfig[incident.status]?.color}>
+                  {statusConfig[incident.status]?.label}
+                </Tag>
                 {incident.priority && (
-                  <Tag color={priorityConfig[incident.priority]?.color}>{priorityConfig[incident.priority]?.label}</Tag>
+                  <Tag color={priorityConfig[incident.priority]?.color}>
+                    {priorityConfig[incident.priority]?.label}
+                  </Tag>
                 )}
                 {incident.sla_breach && <Tag color="red">SLA 违规</Tag>}
               </Space>
@@ -926,42 +984,67 @@ const IncidentManagement: React.FC = () => {
               <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
                 <Descriptions.Item label="类型">{incident.type || '-'}</Descriptions.Item>
                 <Descriptions.Item label="严重程度">
-                  <Tag color={severityConfig[incident.severity]?.color}>{severityConfig[incident.severity]?.label}</Tag>
+                  <Tag color={severityConfig[incident.severity]?.color}>
+                    {severityConfig[incident.severity]?.label}
+                  </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="优先级">
                   {incident.priority ? (
-                    <Tag color={priorityConfig[incident.priority]?.color}>{priorityConfig[incident.priority]?.label}</Tag>
-                  ) : '-'}
+                    <Tag color={priorityConfig[incident.priority]?.color}>
+                      {priorityConfig[incident.priority]?.label}
+                    </Tag>
+                  ) : (
+                    '-'
+                  )}
                 </Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  <Tag color={statusConfig[incident.status]?.color}>{statusConfig[incident.status]?.label}</Tag>
+                  <Tag color={statusConfig[incident.status]?.color}>
+                    {statusConfig[incident.status]?.label}
+                  </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="描述" span={2}>
                   {incident.description || <Text type="secondary">无描述</Text>}
                 </Descriptions.Item>
                 <Descriptions.Item label="影响">{incident.impact || '-'}</Descriptions.Item>
                 <Descriptions.Item label="紧急度">{incident.urgency || '-'}</Descriptions.Item>
-                <Descriptions.Item label="负责人">{incident.assigned_to || '未分配'}</Descriptions.Item>
-                <Descriptions.Item label="指挥官">{incident.commander_id || '未指定'}</Descriptions.Item>
-                <Descriptions.Item label="检测来源">{incident.detected_by || '-'}</Descriptions.Item>
+                <Descriptions.Item label="负责人">
+                  {incident.assigned_to || '未分配'}
+                </Descriptions.Item>
+                <Descriptions.Item label="指挥官">
+                  {incident.commander_id || '未指定'}
+                </Descriptions.Item>
+                <Descriptions.Item label="检测来源">
+                  {incident.detected_by || '-'}
+                </Descriptions.Item>
                 <Descriptions.Item label="升级层级">
-                  <Badge count={incident.escalation_level ?? 0} style={{ backgroundColor: colors.primary[500] }} />
+                  <Badge
+                    count={incident.escalation_level ?? 0}
+                    style={{ backgroundColor: colors.primary[500] }}
+                  />
                 </Descriptions.Item>
                 <Descriptions.Item label="受影响服务" span={2}>
                   {incident.affected_services?.length ? (
                     <Space wrap>
                       {incident.affected_services.map((s) => (
-                        <Tag key={s} color="blue">{s}</Tag>
+                        <Tag key={s} color="blue">
+                          {s}
+                        </Tag>
                       ))}
                     </Space>
-                  ) : '-'}
+                  ) : (
+                    '-'
+                  )}
                 </Descriptions.Item>
                 <Descriptions.Item label="标签" span={2}>
                   {incident.tags?.length ? (
                     <Space wrap>
-                      {incident.tags.map((t) => <Tag key={t}>{t}</Tag>)}
+                      {incident.tags.map((t) => (
+                        <Tag key={t}>{t}</Tag>
+                      ))}
                     </Space>
-                  ) : '-'}
+                  ) : (
+                    '-'
+                  )}
                 </Descriptions.Item>
                 <Descriptions.Item label="创建时间">
                   {dayjs(incident.created_at).format('YYYY-MM-DD HH:mm:ss')}
@@ -1012,13 +1095,26 @@ const IncidentManagement: React.FC = () => {
           style={{ borderRadius: radius.lg, boxShadow: shadows.card, marginBottom: spacing.md }}
           styles={{ body: { padding: spacing.lg } }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Title level={4} style={{ margin: 0 }}>事件时间线</Title>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+            }}
+          >
+            <Title level={4} style={{ margin: 0 }}>
+              事件时间线
+            </Title>
             <Space>
               <Button icon={<ReloadOutlined />} onClick={() => loadTimeline(selectedIncident.id)}>
                 刷新
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddEventModalOpen(true)}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setAddEventModalOpen(true)}
+              >
                 添加记录
               </Button>
             </Space>
@@ -1030,7 +1126,10 @@ const IncidentManagement: React.FC = () => {
           ) : timeline.length > 0 ? (
             <Timeline
               items={timeline.map((event) => {
-                const cfg = eventTypeConfig[event.event_type] || { color: 'gray', label: event.event_type };
+                const cfg = eventTypeConfig[event.event_type] || {
+                  color: 'gray',
+                  label: event.event_type,
+                };
                 return {
                   color: cfg.color,
                   children: (
@@ -1056,7 +1155,11 @@ const IncidentManagement: React.FC = () => {
             />
           ) : (
             <Empty description="暂无时间线记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddEventModalOpen(true)}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setAddEventModalOpen(true)}
+              >
                 添加第一条记录
               </Button>
             </Empty>
@@ -1076,8 +1179,17 @@ const IncidentManagement: React.FC = () => {
           style={{ borderRadius: radius.lg, boxShadow: shadows.card, marginBottom: spacing.md }}
           styles={{ body: { padding: spacing.lg } }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Title level={4} style={{ margin: 0 }}>复盘文档</Title>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md,
+            }}
+          >
+            <Title level={4} style={{ margin: 0 }}>
+              复盘文档
+            </Title>
             <Space>
               {!postmortem && (
                 <Button
@@ -1091,7 +1203,11 @@ const IncidentManagement: React.FC = () => {
                 </Button>
               )}
               {postmortem && postmortem.status === 'draft' && (
-                <Button type="primary" icon={<CheckCircleOutlined />} onClick={handlePublishPostmortem}>
+                <Button
+                  type="primary"
+                  icon={<CheckCircleOutlined />}
+                  onClick={handlePublishPostmortem}
+                >
                   发布复盘
                 </Button>
               )}
@@ -1103,28 +1219,41 @@ const IncidentManagement: React.FC = () => {
             </div>
           ) : postmortem ? (
             <div>
-              <Descriptions
-                column={1}
-                bordered
-                size="small"
-                style={{ marginBottom: spacing.md }}
-              >
+              <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
                 <Descriptions.Item label="标题">{postmortem.title}</Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  <Tag color={postmortem.status === 'published' ? 'green' : postmortem.status === 'draft' ? 'orange' : 'default'}>
-                    {postmortem.status === 'published' ? '已发布' : postmortem.status === 'draft' ? '草稿' : '已归档'}
+                  <Tag
+                    color={
+                      postmortem.status === 'published'
+                        ? 'green'
+                        : postmortem.status === 'draft'
+                          ? 'orange'
+                          : 'default'
+                    }
+                  >
+                    {postmortem.status === 'published'
+                      ? '已发布'
+                      : postmortem.status === 'draft'
+                        ? '草稿'
+                        : '已归档'}
                   </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="摘要">{postmortem.summary}</Descriptions.Item>
                 <Descriptions.Item label="根因分析">{postmortem.root_cause}</Descriptions.Item>
                 {postmortem.impact_description && (
-                  <Descriptions.Item label="影响描述">{postmortem.impact_description}</Descriptions.Item>
+                  <Descriptions.Item label="影响描述">
+                    {postmortem.impact_description}
+                  </Descriptions.Item>
                 )}
                 {postmortem.timeline_summary && (
-                  <Descriptions.Item label="时间线摘要">{postmortem.timeline_summary}</Descriptions.Item>
+                  <Descriptions.Item label="时间线摘要">
+                    {postmortem.timeline_summary}
+                  </Descriptions.Item>
                 )}
                 {postmortem.lessons_learned && (
-                  <Descriptions.Item label="经验教训">{postmortem.lessons_learned}</Descriptions.Item>
+                  <Descriptions.Item label="经验教训">
+                    {postmortem.lessons_learned}
+                  </Descriptions.Item>
                 )}
                 <Descriptions.Item label="行动项">
                   {postmortem.action_items?.length ? (
@@ -1166,7 +1295,13 @@ const IncidentManagement: React.FC = () => {
                   }}
                 >
                   <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
                       <Text strong>
                         <RobotOutlined style={{ color: colors.purple[500], marginRight: 6 }} />
                         AI 复盘草稿
@@ -1180,29 +1315,40 @@ const IncidentManagement: React.FC = () => {
                       {aiDraft.contributing_factors && aiDraft.contributing_factors.length > 0 && (
                         <Descriptions.Item label="促成因素">
                           <ul style={{ margin: 0, paddingLeft: spacing.md }}>
-                            {aiDraft.contributing_factors.map((f, i) => <li key={String(i)}>{f}</li>)}
+                            {aiDraft.contributing_factors.map((f, i) => (
+                              <li key={String(i)}>{f}</li>
+                            ))}
                           </ul>
                         </Descriptions.Item>
                       )}
                       {aiDraft.timeline_summary && (
-                        <Descriptions.Item label="时间线摘要">{aiDraft.timeline_summary}</Descriptions.Item>
+                        <Descriptions.Item label="时间线摘要">
+                          {aiDraft.timeline_summary}
+                        </Descriptions.Item>
                       )}
                       {aiDraft.action_items && aiDraft.action_items.length > 0 && (
                         <Descriptions.Item label="行动项">
                           <ul style={{ margin: 0, paddingLeft: spacing.md }}>
-                            {aiDraft.action_items.map((item, i) => <li key={String(i)}>{item}</li>)}
+                            {aiDraft.action_items.map((item, i) => (
+                              <li key={String(i)}>{item}</li>
+                            ))}
                           </ul>
                         </Descriptions.Item>
                       )}
                       {aiDraft.lessons_learned && (
-                        <Descriptions.Item label="经验教训">{aiDraft.lessons_learned}</Descriptions.Item>
+                        <Descriptions.Item label="经验教训">
+                          {aiDraft.lessons_learned}
+                        </Descriptions.Item>
                       )}
                     </Descriptions>
                     <Button
                       type="primary"
                       icon={<FileTextOutlined />}
                       onClick={handleFillDraftToForm}
-                      style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
+                      style={{
+                        backgroundColor: colors.purple[500],
+                        borderColor: colors.purple[500],
+                      }}
                     >
                       使用草稿创建复盘
                     </Button>
@@ -1211,7 +1357,11 @@ const IncidentManagement: React.FC = () => {
               )}
               {!aiDraft && !aiDraftLoading && (
                 <Empty description="暂无复盘文档" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                  <Button type="primary" icon={<FileTextOutlined />} onClick={() => setPostmortemModalOpen(true)}>
+                  <Button
+                    type="primary"
+                    icon={<FileTextOutlined />}
+                    onClick={() => setPostmortemModalOpen(true)}
+                  >
                     创建复盘文档
                   </Button>
                 </Empty>
@@ -1234,9 +1384,7 @@ const IncidentManagement: React.FC = () => {
         { key: 'timeline', label: '时间线', children: renderTimeline() },
         { key: 'postmortem', label: '复盘', children: renderPostmortem() },
       ]
-    : [
-        { key: 'list', label: '事件列表', children: renderIncidentList() },
-      ];
+    : [{ key: 'list', label: '事件列表', children: renderIncidentList() }];
 
   // ============================================================================
   // Render
@@ -1264,19 +1412,30 @@ const IncidentManagement: React.FC = () => {
           title="创建事件"
           open={createModalOpen}
           onOk={handleCreate}
-          onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
+          onCancel={() => {
+            setCreateModalOpen(false);
+            createForm.resetFields();
+          }}
           confirmLoading={createSubmitting}
           width={640}
           okText="创建"
           cancelText="取消"
         >
           <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="title" label="事件标题" rules={[{ required: true, message: '请输入事件标题' }]}>
+            <Form.Item
+              name="title"
+              label="事件标题"
+              rules={[{ required: true, message: '请输入事件标题' }]}
+            >
               <Input placeholder="简要描述事件" />
             </Form.Item>
             <Row gutter={spacing.md}>
               <Col span={8}>
-                <Form.Item name="severity" label="严重程度" rules={[{ required: true, message: '请选择严重程度' }]}>
+                <Form.Item
+                  name="severity"
+                  label="严重程度"
+                  rules={[{ required: true, message: '请选择严重程度' }]}
+                >
                   <Select placeholder="选择严重程度">
                     <Select.Option value="critical">严重</Select.Option>
                     <Select.Option value="high">高</Select.Option>
@@ -1337,19 +1496,30 @@ const IncidentManagement: React.FC = () => {
           title="编辑事件"
           open={editModalOpen}
           onOk={handleEdit}
-          onCancel={() => { setEditModalOpen(false); editForm.resetFields(); }}
+          onCancel={() => {
+            setEditModalOpen(false);
+            editForm.resetFields();
+          }}
           confirmLoading={editSubmitting}
           width={640}
           okText="保存"
           cancelText="取消"
         >
           <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="title" label="事件标题" rules={[{ required: true, message: '请输入事件标题' }]}>
+            <Form.Item
+              name="title"
+              label="事件标题"
+              rules={[{ required: true, message: '请输入事件标题' }]}
+            >
               <Input placeholder="简要描述事件" />
             </Form.Item>
             <Row gutter={spacing.md}>
               <Col span={8}>
-                <Form.Item name="severity" label="严重程度" rules={[{ required: true, message: '请选择严重程度' }]}>
+                <Form.Item
+                  name="severity"
+                  label="严重程度"
+                  rules={[{ required: true, message: '请选择严重程度' }]}
+                >
                   <Select placeholder="选择严重程度">
                     <Select.Option value="critical">严重</Select.Option>
                     <Select.Option value="high">高</Select.Option>
@@ -1410,7 +1580,10 @@ const IncidentManagement: React.FC = () => {
           title="分配指挥官"
           open={assignModalOpen}
           onOk={handleAssign}
-          onCancel={() => { setAssignModalOpen(false); assignForm.resetFields(); }}
+          onCancel={() => {
+            setAssignModalOpen(false);
+            assignForm.resetFields();
+          }}
           width={400}
           okText="分配"
           cancelText="取消"
@@ -1431,7 +1604,10 @@ const IncidentManagement: React.FC = () => {
           title="升级事件"
           open={escalateModalOpen}
           onOk={handleEscalate}
-          onCancel={() => { setEscalateModalOpen(false); escalateForm.resetFields(); }}
+          onCancel={() => {
+            setEscalateModalOpen(false);
+            escalateForm.resetFields();
+          }}
           width={480}
           okText="升级"
           cancelText="取消"
@@ -1464,7 +1640,10 @@ const IncidentManagement: React.FC = () => {
           title="添加事件记录"
           open={addEventModalOpen}
           onOk={handleAddEvent}
-          onCancel={() => { setAddEventModalOpen(false); eventForm.resetFields(); }}
+          onCancel={() => {
+            setAddEventModalOpen(false);
+            eventForm.resetFields();
+          }}
           width={480}
           okText="添加"
           cancelText="取消"
@@ -1477,7 +1656,9 @@ const IncidentManagement: React.FC = () => {
             >
               <Select placeholder="选择事件类型">
                 {Object.entries(eventTypeConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                  <Select.Option key={key} value={key}>
+                    {cfg.label}
+                  </Select.Option>
                 ))}
               </Select>
             </Form.Item>
@@ -1496,7 +1677,10 @@ const IncidentManagement: React.FC = () => {
           title={`状态变更: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`}
           open={statusNoteModalOpen}
           onOk={handleConfirmStatusChange}
-          onCancel={() => { setStatusNoteModalOpen(false); statusNoteForm.resetFields(); }}
+          onCancel={() => {
+            setStatusNoteModalOpen(false);
+            statusNoteForm.resetFields();
+          }}
           width={480}
           okText="确认变更"
           cancelText="取消"
@@ -1513,19 +1697,34 @@ const IncidentManagement: React.FC = () => {
           title="创建复盘文档"
           open={postmortemModalOpen}
           onOk={handleCreatePostmortem}
-          onCancel={() => { setPostmortemModalOpen(false); postmortemForm.resetFields(); }}
+          onCancel={() => {
+            setPostmortemModalOpen(false);
+            postmortemForm.resetFields();
+          }}
           width={640}
           okText="创建"
           cancelText="取消"
         >
           <Form form={postmortemForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="title" label="复盘标题" rules={[{ required: true, message: '请输入标题' }]}>
+            <Form.Item
+              name="title"
+              label="复盘标题"
+              rules={[{ required: true, message: '请输入标题' }]}
+            >
               <Input placeholder="事件复盘标题" />
             </Form.Item>
-            <Form.Item name="summary" label="摘要" rules={[{ required: true, message: '请输入摘要' }]}>
+            <Form.Item
+              name="summary"
+              label="摘要"
+              rules={[{ required: true, message: '请输入摘要' }]}
+            >
               <TextArea rows={3} placeholder="事件概要描述" />
             </Form.Item>
-            <Form.Item name="root_cause" label="根因分析" rules={[{ required: true, message: '请输入根因分析' }]}>
+            <Form.Item
+              name="root_cause"
+              label="根因分析"
+              rules={[{ required: true, message: '请输入根因分析' }]}
+            >
               <TextArea rows={3} placeholder="深入分析事件根因" />
             </Form.Item>
             <Form.Item name="impact_description" label="影响描述">
@@ -1535,7 +1734,10 @@ const IncidentManagement: React.FC = () => {
               <TextArea rows={2} placeholder="关键时间节点概述" />
             </Form.Item>
             <Form.Item name="action_items" label="行动项" help="每行一个行动项">
-              <TextArea rows={3} placeholder={"修复监控告警阈值\n增加自动化巡检\n优化容灾切换流程"} />
+              <TextArea
+                rows={3}
+                placeholder={'修复监控告警阈值\n增加自动化巡检\n优化容灾切换流程'}
+              />
             </Form.Item>
             <Form.Item name="lessons_learned" label="经验教训">
               <TextArea rows={3} placeholder="总结经验教训" />

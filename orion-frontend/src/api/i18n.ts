@@ -44,8 +44,7 @@ export interface BulkTranslationInput {
 }
 
 // Locales
-export const listLocales = () =>
-  apiClient.get<I18nLocale[]>('/i18n/locales');
+export const listLocales = () => apiClient.get<I18nLocale[]>('/i18n/locales');
 
 export const createLocale = (data: CreateLocaleInput) =>
   apiClient.post<I18nLocale>('/i18n/locales', data);

@@ -27,7 +27,7 @@ const SubAppRouteMF: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
   const instanceRef = useRef<SubAppInstance | null>(null);
-  const user = { id: "", username: "", email: "" };
+  const user = { id: '', username: '', email: '' };
 
   // 根据路径确定子应用 key
   const getAppKeyFromPath = (): string | null => {
@@ -84,11 +84,9 @@ const SubAppRouteMF: React.FC = () => {
       setError(null);
 
       try {
-
         // 检查是否已加载（支持 keepAlive 场景）
         const existingInstance = getSubApp(appKey);
         if (existingInstance && containerRef.current) {
-
           instanceRef.current = existingInstance;
 
           // 如果存在且有 root 元素，直接挂载
@@ -122,7 +120,16 @@ const SubAppRouteMF: React.FC = () => {
           const user = { id: '', username: '', email: '' };
 
           // 子应用可以通过 window.$orion 访问主应用状态
-          (window as unknown as { $orion?: { token: string; tenantId: string; user: { id: string; username: string; email?: string }; getApiBase: () => string } }).$orion = {
+          (
+            window as unknown as {
+              $orion?: {
+                token: string;
+                tenantId: string;
+                user: { id: string; username: string; email?: string };
+                getApiBase: () => string;
+              };
+            }
+          ).$orion = {
             token: token || '',
             tenantId: tenantId || '',
             user,
@@ -215,9 +222,7 @@ const SubAppRouteMF: React.FC = () => {
           <p style={{ color: colors.neutral[500], fontSize: 14 }}>
             子应用: <strong>{mfConfig.name}</strong>
           </p>
-          <p style={{ color: colors.neutral[500], fontSize: 14 }}>
-            入口: {mfConfig.remoteEntry}
-          </p>
+          <p style={{ color: colors.neutral[500], fontSize: 14 }}>入口: {mfConfig.remoteEntry}</p>
           <div style={{ marginTop: spacing.lg }}>
             <button
               onClick={() => {

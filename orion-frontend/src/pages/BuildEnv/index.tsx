@@ -22,11 +22,31 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/console/build-env/images': { icon: <DockerOutlined />, title: 'Builder Images', subtitle: '管理构建镜像' },
-  '/console/build-env/cache': { icon: <DatabaseOutlined />, title: 'Build Cache', subtitle: '管理构建缓存' },
-  '/console/build-env/pods': { icon: <CloudServerOutlined />, title: 'Build Pods', subtitle: '管理构建 Pod 实例' },
-  '/console/build-env/logs': { icon: <FileTextOutlined />, title: 'Build Logs', subtitle: '查看构建日志' },
-  '/console/build-env/artifacts': { icon: <ContainerOutlined />, title: 'Artifacts', subtitle: '管理构建制品' },
+  '/console/build-env/images': {
+    icon: <DockerOutlined />,
+    title: 'Builder Images',
+    subtitle: '管理构建镜像',
+  },
+  '/console/build-env/cache': {
+    icon: <DatabaseOutlined />,
+    title: 'Build Cache',
+    subtitle: '管理构建缓存',
+  },
+  '/console/build-env/pods': {
+    icon: <CloudServerOutlined />,
+    title: 'Build Pods',
+    subtitle: '管理构建 Pod 实例',
+  },
+  '/console/build-env/logs': {
+    icon: <FileTextOutlined />,
+    title: 'Build Logs',
+    subtitle: '查看构建日志',
+  },
+  '/console/build-env/artifacts': {
+    icon: <ContainerOutlined />,
+    title: 'Artifacts',
+    subtitle: '管理构建制品',
+  },
 };
 
 const BuildEnvLayout: React.FC = () => {
@@ -35,7 +55,11 @@ const BuildEnvLayout: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const selectedKey = location.pathname;
-  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'Build Environment', subtitle: '' };
+  const pageInfo = pageTitleMap[selectedKey] || {
+    icon: null,
+    title: 'Build Environment',
+    subtitle: '',
+  };
 
   return (
     <Layout style={{ minHeight: '100%' }}>
@@ -55,12 +79,14 @@ const BuildEnvLayout: React.FC = () => {
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-              {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+              {pageInfo.icon && (
+                <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                  {pageInfo.icon}
+                </span>
+              )}
               {pageInfo.title}
             </Title>
-            {pageInfo.subtitle && (
-              <Text type="secondary">{pageInfo.subtitle}</Text>
-            )}
+            {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
           </div>
         )}
         <Spin spinning={loading}>

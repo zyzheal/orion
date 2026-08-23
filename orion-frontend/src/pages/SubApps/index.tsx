@@ -98,7 +98,7 @@ const SubApps: React.FC = () => {
         const subAppsModule = modules['/subapps'];
 
         if (subAppsModule && subAppsModule.enabled && subAppsModule.children) {
-          const enabledChildren = subAppsModule.children.filter(child => child.enabled);
+          const enabledChildren = subAppsModule.children.filter((child) => child.enabled);
 
           if (enabledChildren.length > 0) {
             const mappedSubApps: SubAppCard[] = enabledChildren.map((child: MenuChildConfig) => ({

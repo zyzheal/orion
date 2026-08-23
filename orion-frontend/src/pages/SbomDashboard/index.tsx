@@ -26,7 +26,15 @@ import {
   FileTextOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
-import { PieChart, BarChart, StatCard, GaugeChart, TreeMap, type PieDataItem, type BarDataItem } from '@/components/charts';
+import {
+  PieChart,
+  BarChart,
+  StatCard,
+  GaugeChart,
+  TreeMap,
+  type PieDataItem,
+  type BarDataItem,
+} from '@/components/charts';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -145,109 +153,115 @@ const SbomDashboard: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<SbomDocument>[] = useMemo<TableColumn<SbomDocument>[]>(() => [
-    {
-      key: 'documentId',
-      title: 'Document',
-      dataIndex: 'documentId',
-      width: 200,
-      sortable: true,
-      render: (_value: unknown, record: SbomDocument) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/sbom/${record.id}`)}
-          >
-            {record.documentId}
-          </Text>
+  const columns: TableColumn<SbomDocument>[] = useMemo<TableColumn<SbomDocument>[]>(
+    () => [
+      {
+        key: 'documentId',
+        title: 'Document',
+        dataIndex: 'documentId',
+        width: 200,
+        sortable: true,
+        render: (_value: unknown, record: SbomDocument) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => navigate(`/sbom/${record.id}`)}
+            >
+              {record.documentId}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              Build: {record.buildId}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'format',
+        title: '格式',
+        dataIndex: 'format',
+        width: 120,
+        render: (value: unknown) => (
+          <Tag color={String(value) === 'cyclonedx' ? 'green' : 'blue'}>{String(value)}</Tag>
+        ),
+      },
+      {
+        key: 'packageCount',
+        title: '包数量',
+        dataIndex: 'packageCount',
+        width: 100,
+        sortable: true,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 120,
+        render: (value: unknown) => (
+          <StatusBadge status={sbomStatusToBadge[String(value)] || 'unknown'} size="small" />
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (value: unknown) => (
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            Build: {record.buildId}
+            {dayjs(String(value)).fromNow()}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'format',
-      title: '格式',
-      dataIndex: 'format',
-      width: 120,
-      render: (value: unknown) => (
-        <Tag color={String(value) === 'cyclonedx' ? 'green' : 'blue'}>{String(value)}</Tag>
-      ),
-    },
-    {
-      key: 'packageCount',
-      title: '包数量',
-      dataIndex: 'packageCount',
-      width: 100,
-      sortable: true,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (value: unknown) => (
-        <StatusBadge status={sbomStatusToBadge[String(value)] || 'unknown'} size="small" />
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record: SbomDocument) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/sbom/${record.id}`)}
-          >
-            查看
-          </Button>
-          <Button type="link" size="small" icon={<DownloadOutlined />}>
-            下载
-          </Button>
-        </Space>
-      ),
-    },
-  ], [navigate]);
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record: SbomDocument) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/sbom/${record.id}`)}
+            >
+              查看
+            </Button>
+            <Button type="link" size="small" icon={<DownloadOutlined />}>
+              下载
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [navigate]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'format',
-      label: '格式',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'SPDX', value: 'spdx' },
-        { label: 'CycloneDX', value: 'cyclonedx' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Active', value: 'active' },
-        { label: 'Expired', value: 'expired' },
-        { label: 'Revoked', value: 'revoked' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'format',
+        label: '格式',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'SPDX', value: 'spdx' },
+          { label: 'CycloneDX', value: 'cyclonedx' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Active', value: 'active' },
+          { label: 'Expired', value: 'expired' },
+          { label: 'Revoked', value: 'revoked' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -370,16 +384,12 @@ const SbomDashboard: React.FC = () => {
                 />
               </Col>
               <Col span={8}>
-                <BarChart
-                  title="组件数量按文档"
-                  data={componentByDoc}
-                  height={200}
-                />
+                <BarChart title="组件数量按文档" data={componentByDoc} height={200} />
               </Col>
               <Col span={8}>
                 <TreeMap
                   title="组件风险分布"
-                  data={documents.map(d => ({
+                  data={documents.map((d) => ({
                     name: d.format,
                     value: d.packageCount,
                   }))}

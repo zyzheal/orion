@@ -44,16 +44,11 @@ export function getFirewallStats() {
   return api.get<FirewallStats>('/api/v1/firewall-policies/stats');
 }
 
-export function createFirewallRule(
-  data: Omit<FirewallRule, 'id' | 'createdAt' | 'updatedAt'>
-) {
+export function createFirewallRule(data: Omit<FirewallRule, 'id' | 'createdAt' | 'updatedAt'>) {
   return api.post<FirewallRule>('/api/v1/firewall-policies', data);
 }
 
-export function updateFirewallRule(
-  id: string,
-  data: Partial<FirewallRule>
-) {
+export function updateFirewallRule(id: string, data: Partial<FirewallRule>) {
   return api.put<FirewallRule>(`/api/v1/firewall-policies/${id}`, data);
 }
 

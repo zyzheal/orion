@@ -17,13 +17,7 @@ interface TemplateSelectorProps {
 
 const TemplateSelector: React.FC<TemplateSelectorProps> = ({ visible, onSelect, onClose }) => {
   return (
-    <Modal
-      title="从模板创建 Pipeline"
-      open={visible}
-      onCancel={onClose}
-      width={900}
-      footer={null}
-    >
+    <Modal title="从模板创建 Pipeline" open={visible} onCancel={onClose} width={900} footer={null}>
       <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
         选择一个模板快速开始，可在此基础上自定义
       </Text>

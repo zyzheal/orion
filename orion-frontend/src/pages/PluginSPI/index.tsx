@@ -126,9 +126,11 @@ const PluginSPIPage: React.FC = () => {
         getPluginRegistrations(),
         getSPIConfigs(),
       ]);
-      const extPoints = Array.isArray(extRes) ? extRes : ((extRes as any).data?.extensionPoints || []);
-      const regs = Array.isArray(regRes) ? regRes : ((regRes as any).data?.registrations || []);
-      const cfgs = Array.isArray(cfgRes) ? cfgRes : ((cfgRes as any).data?.configs || []);
+      const extPoints = Array.isArray(extRes)
+        ? extRes
+        : (extRes as any).data?.extensionPoints || [];
+      const regs = Array.isArray(regRes) ? regRes : (regRes as any).data?.registrations || [];
+      const cfgs = Array.isArray(cfgRes) ? cfgRes : (cfgRes as any).data?.configs || [];
       setExtensionPoints(extPoints.map(mapApiExtensionPoint));
       setPluginRegistrations(regs.map(mapApiRegistration));
       setSpiConfigs(cfgs.map(mapApiSPIConfig));

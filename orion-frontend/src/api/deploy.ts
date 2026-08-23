@@ -27,17 +27,28 @@ export const getDeploy = async (id: string): Promise<Deploy> => {
   return response.data;
 };
 
-export const listDeploy = async (params?: Record<string, unknown>): Promise<{ data: Deploy[]; total: number }> => {
-  const response = await api.get<{ data: Deploy[]; total: number }>('/api/v1/deploy/deploy/history', { params });
+export const listDeploy = async (
+  params?: Record<string, unknown>
+): Promise<{ data: Deploy[]; total: number }> => {
+  const response = await api.get<{ data: Deploy[]; total: number }>(
+    '/api/v1/deploy/deploy/history',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
-export const createDeployDeployRollback = async (id: string, data?: Partial<Deploy>): Promise<Deploy> => {
+export const createDeployDeployRollback = async (
+  id: string,
+  data?: Partial<Deploy>
+): Promise<Deploy> => {
   const response = await api.post<Deploy>('/api/v1/deploy/deploy/' + id + '/rollback', data);
   return response.data;
 };
 
-export const createDeployDeployCancel = async (id: string, data?: Partial<Deploy>): Promise<Deploy> => {
+export const createDeployDeployCancel = async (
+  id: string,
+  data?: Partial<Deploy>
+): Promise<Deploy> => {
   const response = await api.post<Deploy>('/api/v1/deploy/deploy/' + id + '/cancel', data);
   return response.data;
 };
@@ -45,7 +56,16 @@ export const createDeployDeployCancel = async (id: string, data?: Partial<Deploy
 // ==================== Release Notes ====================
 
 export interface ReleaseNotesChange {
-  type: 'feature' | 'fix' | 'improvement' | 'breaking' | 'config' | 'docs' | 'refactor' | 'test' | 'chore';
+  type:
+    | 'feature'
+    | 'fix'
+    | 'improvement'
+    | 'breaking'
+    | 'config'
+    | 'docs'
+    | 'refactor'
+    | 'test'
+    | 'chore';
   description: string;
   commit: string;
   author: string;
@@ -99,7 +119,10 @@ export const generateReleaseNotes = async (
     repoPath?: string;
   }
 ): Promise<ReleaseNotes> => {
-  const response = await api.post<ReleaseNotes>('/api/v1/deploy/' + deploymentId + '/release-notes/generate', options);
+  const response = await api.post<ReleaseNotes>(
+    '/api/v1/deploy/' + deploymentId + '/release-notes/generate',
+    options
+  );
   return response.data;
 };
 

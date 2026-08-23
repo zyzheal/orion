@@ -60,7 +60,9 @@ export const getProblems = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: Problem[]; total: number }> => {
-  const response = await api.get<{ data: Problem[]; total: number }>('/api/v1/problems', { params });
+  const response = await api.get<{ data: Problem[]; total: number }>('/api/v1/problems', {
+    params,
+  });
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -100,12 +102,16 @@ export const updateProblemStatus = async (id: string, status: string): Promise<P
 // ==================== Incident/Change Linking ====================
 
 export const linkIncident = async (problemId: string, incidentId: string): Promise<Problem> => {
-  const response = await api.post<{ data: Problem }>(`/api/v1/problems/${problemId}/incidents`, { incidentId });
+  const response = await api.post<{ data: Problem }>(`/api/v1/problems/${problemId}/incidents`, {
+    incidentId,
+  });
   return response.data.data;
 };
 
 export const linkChange = async (problemId: string, changeId: string): Promise<Problem> => {
-  const response = await api.post<{ data: Problem }>(`/api/v1/problems/${problemId}/changes`, { changeId });
+  const response = await api.post<{ data: Problem }>(`/api/v1/problems/${problemId}/changes`, {
+    changeId,
+  });
   return response.data.data;
 };
 
@@ -116,7 +122,10 @@ export const getKnownErrors = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: KnownError[]; total: number }> => {
-  const response = await api.get<{ data: KnownError[]; total: number }>('/api/v1/problems/known-errors', { params });
+  const response = await api.get<{ data: KnownError[]; total: number }>(
+    '/api/v1/problems/known-errors',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -133,7 +142,10 @@ export const createKnownError = async (data: {
   return response.data.data;
 };
 
-export const updateKnownError = async (id: string, data: Partial<KnownError>): Promise<KnownError> => {
+export const updateKnownError = async (
+  id: string,
+  data: Partial<KnownError>
+): Promise<KnownError> => {
   const response = await api.put<{ data: KnownError }>(`/api/v1/problems/known-errors/${id}`, data);
   return response.data.data;
 };
@@ -143,7 +155,9 @@ export const deleteKnownError = async (id: string): Promise<void> => {
 };
 
 export const searchKnownErrors = async (q: string): Promise<KnownError[]> => {
-  const response = await api.get<{ data: KnownError[] }>('/api/v1/problems/known-errors/search', { params: { q } });
+  const response = await api.get<{ data: KnownError[] }>('/api/v1/problems/known-errors/search', {
+    params: { q },
+  });
   return response.data.data;
 };
 

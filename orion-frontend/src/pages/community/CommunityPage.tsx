@@ -27,18 +27,8 @@ import {
   Select,
   message,
 } from 'antd';
-import {
-  TeamOutlined,
-  ReloadOutlined,
-  StarOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
-  communityApi,
-  type Contribution,
-  type Badge,
-  type Mentorship,
-} from '@/api/community';
+import { TeamOutlined, ReloadOutlined, StarOutlined, PlusOutlined } from '@ant-design/icons';
+import { communityApi, type Contribution, type Badge, type Mentorship } from '@/api/community';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -151,12 +141,15 @@ const CommunityPage: React.FC = () => {
   };
 
   // Stats
-  const stats = useMemo(() => ({
-    totalContributions: contributions.length,
-    approved: contributions.filter((c) => c.status === 'approved').length,
-    totalDownloads: contributions.reduce((s, c) => s + (c.downloads || 0), 0),
-    totalStars: contributions.reduce((s, c) => s + (c.stars || 0), 0),
-  }), [contributions]);
+  const stats = useMemo(
+    () => ({
+      totalContributions: contributions.length,
+      approved: contributions.filter((c) => c.status === 'approved').length,
+      totalDownloads: contributions.reduce((s, c) => s + (c.downloads || 0), 0),
+      totalStars: contributions.reduce((s, c) => s + (c.stars || 0), 0),
+    }),
+    [contributions]
+  );
 
   // Contribution columns
   const contributionColumns = [
@@ -187,7 +180,11 @@ const CommunityPage: React.FC = () => {
       dataIndex: 'stars',
       key: 'stars',
       width: 80,
-      render: (v: number) => <Space><StarOutlined /> {v || 0}</Space>,
+      render: (v: number) => (
+        <Space>
+          <StarOutlined /> {v || 0}
+        </Space>
+      ),
     },
     {
       title: '下载',
@@ -212,9 +209,7 @@ const CommunityPage: React.FC = () => {
       key: 'icon',
       width: 60,
       render: (_: unknown, record: Badge) => (
-        <Avatar style={{ backgroundColor: badgeLevelColor[record.level] }}>
-          {record.icon}
-        </Avatar>
+        <Avatar style={{ backgroundColor: badgeLevelColor[record.level] }}>{record.icon}</Avatar>
       ),
     },
     { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
@@ -231,16 +226,26 @@ const CommunityPage: React.FC = () => {
       dataIndex: 'level',
       key: 'level',
       width: 80,
-      render: (v: string) => (
-        <Tag color={badgeLevelColor[v] || 'default'}>{v}</Tag>
-      ),
+      render: (v: string) => <Tag color={badgeLevelColor[v] || 'default'}>{v}</Tag>,
     },
   ];
 
   // Mentorship columns
   const mentorshipColumns = [
-    { title: '导师', dataIndex: 'mentor_id', key: 'mentor_id', width: 140, render: (v: string) => v.slice(0, 12) },
-    { title: '学员', dataIndex: 'mentee_id', key: 'mentee_id', width: 140, render: (v: string) => v.slice(0, 12) },
+    {
+      title: '导师',
+      dataIndex: 'mentor_id',
+      key: 'mentor_id',
+      width: 140,
+      render: (v: string) => v.slice(0, 12),
+    },
+    {
+      title: '学员',
+      dataIndex: 'mentee_id',
+      key: 'mentee_id',
+      width: 140,
+      render: (v: string) => v.slice(0, 12),
+    },
     { title: '技能领域', dataIndex: 'skill_area', key: 'skill_area', width: 140 },
     {
       title: '状态',
@@ -248,8 +253,16 @@ const CommunityPage: React.FC = () => {
       key: 'status',
       width: 80,
       render: (v: string) => {
-        const colorMap: Record<string, string> = { pending: 'default', active: 'green', completed: 'blue' };
-        const labelMap: Record<string, string> = { pending: '待确认', active: '进行中', completed: '已完成' };
+        const colorMap: Record<string, string> = {
+          pending: 'default',
+          active: 'green',
+          completed: 'blue',
+        };
+        const labelMap: Record<string, string> = {
+          pending: '待确认',
+          active: '进行中',
+          completed: '已完成',
+        };
         return <Tag color={colorMap[v]}>{labelMap[v]}</Tag>;
       },
     },
@@ -337,7 +350,11 @@ const CommunityPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已通过" value={stats.approved} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="已通过"
+              value={stats.approved}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -398,13 +415,25 @@ const CommunityPage: React.FC = () => {
         width={600}
       >
         <Form form={mentorshipForm} layout="vertical" onFinish={handleCreateMentorship}>
-          <Form.Item label="导师 ID" name="mentorId" rules={[{ required: true, message: '请输入导师 ID' }]}>
+          <Form.Item
+            label="导师 ID"
+            name="mentorId"
+            rules={[{ required: true, message: '请输入导师 ID' }]}
+          >
             <Input placeholder="导师用户 ID" />
           </Form.Item>
-          <Form.Item label="学员 ID" name="menteeId" rules={[{ required: true, message: '请输入学员 ID' }]}>
+          <Form.Item
+            label="学员 ID"
+            name="menteeId"
+            rules={[{ required: true, message: '请输入学员 ID' }]}
+          >
             <Input placeholder="学员用户 ID" />
           </Form.Item>
-          <Form.Item label="技能领域" name="skillArea" rules={[{ required: true, message: '请输入技能领域' }]}>
+          <Form.Item
+            label="技能领域"
+            name="skillArea"
+            rules={[{ required: true, message: '请输入技能领域' }]}
+          >
             <Select
               options={[
                 { label: 'Pipeline', value: 'pipeline' },

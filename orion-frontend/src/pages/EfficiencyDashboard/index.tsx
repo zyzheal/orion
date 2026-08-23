@@ -9,7 +9,19 @@
  * - 改进建议
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Tabs, message, Tooltip, Modal, Button, Select } from 'antd';
+import {
+  Typography,
+  Card,
+  Table,
+  Tag,
+  Space,
+  Tabs,
+  message,
+  Tooltip,
+  Modal,
+  Button,
+  Select,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   ClockCircleOutlined,
@@ -33,7 +45,12 @@ import {
   getTeamComparison,
 } from '@/api/efficiency';
 import type { TeamInfo, TeamMetrics, TrendHistoryPoint } from '@/api/efficiency';
-import { DORA_TOOLTIPS, STORAGE_KEYS, ONBOARDING_STEPS, DORA_LEVELS } from '@/constants/dora-guidance';
+import {
+  DORA_TOOLTIPS,
+  STORAGE_KEYS,
+  ONBOARDING_STEPS,
+  DORA_LEVELS,
+} from '@/constants/dora-guidance';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -131,10 +148,18 @@ const EfficiencyDashboard: React.FC = () => {
   // Generate time-series data for trend chart from real API data
   const trendData: TrendDataPoint[][] = React.useMemo(() => {
     if (trendHistory.length > 0) {
-      const weeks = trendHistory.map(t => t.week);
+      const weeks = trendHistory.map((t) => t.week);
       return [
-        weeks.map((period, i) => ({ period, value: trendHistory[i].deploymentFrequency, label: '部署频率' })),
-        weeks.map((period, i) => ({ period, value: trendHistory[i].leadTime, label: '交付周期(h)' })),
+        weeks.map((period, i) => ({
+          period,
+          value: trendHistory[i].deploymentFrequency,
+          label: '部署频率',
+        })),
+        weeks.map((period, i) => ({
+          period,
+          value: trendHistory[i].leadTime,
+          label: '交付周期(h)',
+        })),
         weeks.map((period, i) => ({ period, value: trendHistory[i].mttr, label: 'MTTR(h)' })),
       ];
     }
@@ -183,14 +208,15 @@ const EfficiencyDashboard: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes, trendsRes] = await Promise.all([
-        getDoraMetrics(),
-        getDoraBenchmarks(),
-        getEfficiencyDashboard(),
-        getClickHouseStatus(),
-        getTeams(),
-        getDORTrends({ weeks: 12 }),
-      ]);
+      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes, trendsRes] =
+        await Promise.all([
+          getDoraMetrics(),
+          getDoraBenchmarks(),
+          getEfficiencyDashboard(),
+          getClickHouseStatus(),
+          getTeams(),
+          getDORTrends({ weeks: 12 }),
+        ]);
       setDoraMetrics(metricsRes.data);
       setBenchmarks(benchmarksRes.data);
       // Dashboard response wraps data in { dashboard: {...} }
@@ -364,7 +390,14 @@ const EfficiencyDashboard: React.FC = () => {
   return (
     <div>
       {/* 页面标题 */}
-      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: spacing.lg,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
@@ -494,7 +527,9 @@ const EfficiencyDashboard: React.FC = () => {
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               {/* 团队选择 */}
               <div>
-                <Text type="secondary" style={{ marginRight: spacing.sm }}>选择对比团队：</Text>
+                <Text type="secondary" style={{ marginRight: spacing.sm }}>
+                  选择对比团队：
+                </Text>
                 <Select
                   mode="multiple"
                   style={{ width: 400 }}
@@ -531,7 +566,11 @@ const EfficiencyDashboard: React.FC = () => {
                       key: 'level',
                       render: (level: string) => {
                         const levelInfo = DORA_LEVELS.find((l) => l.level === level);
-                        return <Tag color={levelInfo?.color || colors.neutral[500]}>{levelInfo?.name || level}</Tag>;
+                        return (
+                          <Tag color={levelInfo?.color || colors.neutral[500]}>
+                            {levelInfo?.name || level}
+                          </Tag>
+                        );
                       },
                     },
                     {
@@ -543,24 +582,30 @@ const EfficiencyDashboard: React.FC = () => {
                     {
                       title: '部署频率',
                       key: 'deploymentFrequency',
-                      render: (record: TeamMetrics) => `${record.metrics.deploymentFrequency?.toFixed(1) || '-'} 次/周`,
+                      render: (record: TeamMetrics) =>
+                        `${record.metrics.deploymentFrequency?.toFixed(1) || '-'} 次/周`,
                     },
                     {
                       title: '前置时间',
                       key: 'leadTime',
                       render: (record: TeamMetrics) =>
-                        record.metrics.leadTimeMinutes ? `${record.metrics.leadTimeMinutes.toFixed(1)} min` : '-',
+                        record.metrics.leadTimeMinutes
+                          ? `${record.metrics.leadTimeMinutes.toFixed(1)} min`
+                          : '-',
                     },
                     {
                       title: 'MTTR',
                       key: 'mttr',
                       render: (record: TeamMetrics) =>
-                        record.metrics.mttrMinutes ? `${record.metrics.mttrMinutes.toFixed(1)} min` : '-',
+                        record.metrics.mttrMinutes
+                          ? `${record.metrics.mttrMinutes.toFixed(1)} min`
+                          : '-',
                     },
                     {
                       title: '失败率',
                       key: 'failureRate',
-                      render: (record: TeamMetrics) => `${record.metrics.changeFailureRate?.toFixed(1) || '-'}%`,
+                      render: (record: TeamMetrics) =>
+                        `${record.metrics.changeFailureRate?.toFixed(1) || '-'}%`,
                     },
                   ]}
                 />
@@ -618,7 +663,8 @@ const EfficiencyDashboard: React.FC = () => {
               key={String(index)}
               style={{
                 padding: '16px 0',
-                borderBottom: index < ONBOARDING_STEPS.length - 1 ? '1px solid colors.neutral[200]' : 'none',
+                borderBottom:
+                  index < ONBOARDING_STEPS.length - 1 ? '1px solid colors.neutral[200]' : 'none',
               }}
             >
               <Title level={5} style={{ marginBottom: spacing.sm }}>

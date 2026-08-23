@@ -47,74 +47,77 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
   onDeleteConfig,
 }) => {
   // Table columns
-  const columns: TableColumn<SPIConfig>[] = useMemo<TableColumn<SPIConfig>[]>(() => [
-    {
-      key: 'spiType',
-      title: 'SPI 类型',
-      dataIndex: 'spiType',
-      width: 150,
-      render: (value: unknown) => (
-        <Tag color="purple">{spiTypeLabelMap[String(value)] || String(value)}</Tag>
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      width: 80,
-      render: (_: unknown, record: SPIConfig) => (
-        <Badge
-          status={record.enabled ? 'success' : 'default'}
-          text={record.enabled ? '已启用' : '已禁用'}
-        />
-      ),
-    },
-    {
-      key: 'maxPlugins',
-      title: '最大插件数',
-      dataIndex: 'maxPlugins',
-      width: 100,
-    },
-    {
-      key: 'timeout',
-      title: '超时时间',
-      dataIndex: 'timeout',
-      width: 100,
-      render: (value: unknown) => <Text>{`${value}ms`}</Text>,
-    },
-    {
-      key: 'fallbackStrategy',
-      title: '回退策略',
-      dataIndex: 'fallbackStrategy',
-      width: 120,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: SPIConfig) => (
-        <Space size="small">
-          <Tooltip title="编辑配置">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => onOpenEditConfig(record)}
-            />
-          </Tooltip>
-          <Tooltip title="删除配置">
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => onDeleteConfig(record.id)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ], [onDeleteConfig, onOpenEditConfig]);
+  const columns: TableColumn<SPIConfig>[] = useMemo<TableColumn<SPIConfig>[]>(
+    () => [
+      {
+        key: 'spiType',
+        title: 'SPI 类型',
+        dataIndex: 'spiType',
+        width: 150,
+        render: (value: unknown) => (
+          <Tag color="purple">{spiTypeLabelMap[String(value)] || String(value)}</Tag>
+        ),
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        width: 80,
+        render: (_: unknown, record: SPIConfig) => (
+          <Badge
+            status={record.enabled ? 'success' : 'default'}
+            text={record.enabled ? '已启用' : '已禁用'}
+          />
+        ),
+      },
+      {
+        key: 'maxPlugins',
+        title: '最大插件数',
+        dataIndex: 'maxPlugins',
+        width: 100,
+      },
+      {
+        key: 'timeout',
+        title: '超时时间',
+        dataIndex: 'timeout',
+        width: 100,
+        render: (value: unknown) => <Text>{`${value}ms`}</Text>,
+      },
+      {
+        key: 'fallbackStrategy',
+        title: '回退策略',
+        dataIndex: 'fallbackStrategy',
+        width: 120,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: SPIConfig) => (
+          <Space size="small">
+            <Tooltip title="编辑配置">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => onOpenEditConfig(record)}
+              />
+            </Tooltip>
+            <Tooltip title="删除配置">
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onDeleteConfig(record.id)}
+              />
+            </Tooltip>
+          </Space>
+        ),
+      },
+    ],
+    [onDeleteConfig, onOpenEditConfig]
+  );
 
   return (
     <>

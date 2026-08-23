@@ -58,102 +58,108 @@ const ExtensionPointList: React.FC<ExtensionPointListProps> = ({
   }, [searchQuery, filters, extensionPoints]);
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'spiType',
-      label: 'SPI 类型',
-      options: [
-        { label: '全部', value: 'all' },
-        ...Object.entries(spiTypeLabelMap).map(([k, v]) => ({ label: v, value: k })),
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '活跃', value: 'active' },
-        { label: '未激活', value: 'inactive' },
-        { label: '已废弃', value: 'deprecated' },
-        { label: '实验性', value: 'experimental' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'spiType',
+        label: 'SPI 类型',
+        options: [
+          { label: '全部', value: 'all' },
+          ...Object.entries(spiTypeLabelMap).map(([k, v]) => ({ label: v, value: k })),
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '活跃', value: 'active' },
+          { label: '未激活', value: 'inactive' },
+          { label: '已废弃', value: 'deprecated' },
+          { label: '实验性', value: 'experimental' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Table columns
-  const columns: TableColumn<SPIExtensionPoint>[] = useMemo<TableColumn<SPIExtensionPoint>[]>(() => [
-    {
-      key: 'name',
-      title: '扩展点',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (value: unknown, record: SPIExtensionPoint) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>
-            <ApiOutlined style={{ marginRight: 4, color: colors.primary[500] }} />
-            {String(value)}
+  const columns: TableColumn<SPIExtensionPoint>[] = useMemo<TableColumn<SPIExtensionPoint>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '扩展点',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (value: unknown, record: SPIExtensionPoint) => (
+          <Space direction="vertical" size={0}>
+            <Text strong>
+              <ApiOutlined style={{ marginRight: 4, color: colors.primary[500] }} />
+              {String(value)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+              {record.interfaceName}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'description',
+        title: '描述',
+        width: 250,
+        render: (_: unknown, record: SPIExtensionPoint) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.description}
           </Text>
-          <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
-            {record.interfaceName}
+        ),
+      },
+      {
+        key: 'spiType',
+        title: 'SPI 类型',
+        width: 120,
+        render: (_: unknown, record: SPIExtensionPoint) => (
+          <Tag color="purple">{spiTypeLabelMap[record.spiType] || record.spiType}</Tag>
+        ),
+      },
+      {
+        key: 'registeredPlugins',
+        title: '已注册插件',
+        dataIndex: 'registeredPlugins',
+        width: 110,
+        sortable: true,
+        render: (value: unknown) => <Tag icon={<LinkOutlined />}>{String(value)} 个</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: SPIExtensionPoint) => (
+          <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
+        ),
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
+      },
+      {
+        key: 'lastUpdated',
+        title: '最后更新',
+        dataIndex: 'lastUpdated',
+        width: 140,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(value)).fromNow()}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'description',
-      title: '描述',
-      width: 250,
-      render: (_: unknown, record: SPIExtensionPoint) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {record.description}
-        </Text>
-      ),
-    },
-    {
-      key: 'spiType',
-      title: 'SPI 类型',
-      width: 120,
-      render: (_: unknown, record: SPIExtensionPoint) => (
-        <Tag color="purple">{spiTypeLabelMap[record.spiType] || record.spiType}</Tag>
-      ),
-    },
-    {
-      key: 'registeredPlugins',
-      title: '已注册插件',
-      dataIndex: 'registeredPlugins',
-      width: 110,
-      sortable: true,
-      render: (value: unknown) => <Tag icon={<LinkOutlined />}>{String(value)} 个</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: SPIExtensionPoint) => (
-        <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
-      ),
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'lastUpdated',
-      title: '最后更新',
-      dataIndex: 'lastUpdated',
-      width: 140,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-  ], []);
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <>

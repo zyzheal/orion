@@ -26,7 +26,8 @@ import {
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
-  ScanOutlined,} from '@ant-design/icons';
+  ScanOutlined,
+} from '@ant-design/icons';
 import {
   getReviewRules,
   createReviewRule,

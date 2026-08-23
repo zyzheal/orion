@@ -285,11 +285,15 @@ export const auditSQL = async (params: {
 };
 
 /** 批量审核 */
-export const auditSQLBatch = async (requests: {
-  sql: string;
-  database?: string;
-}[]): Promise<SQLAuditResult[]> => {
-  const response = await api.post<SQLAuditResult[]>('/v1/database-devops/sql-audit/batch', { requests });
+export const auditSQLBatch = async (
+  requests: {
+    sql: string;
+    database?: string;
+  }[]
+): Promise<SQLAuditResult[]> => {
+  const response = await api.post<SQLAuditResult[]>('/v1/database-devops/sql-audit/batch', {
+    requests,
+  });
   return response.data;
 };
 
@@ -301,7 +305,9 @@ export const getAuditHistory = async (params?: {
   since?: string;
   limit?: number;
 }): Promise<SQLAuditResult[]> => {
-  const response = await api.get<SQLAuditResult[]>('/v1/database-devops/sql-audit/history', { params });
+  const response = await api.get<SQLAuditResult[]>('/v1/database-devops/sql-audit/history', {
+    params,
+  });
   return response.data;
 };
 
@@ -318,8 +324,14 @@ export const getAuditRules = async (): Promise<AuditRule[]> => {
 };
 
 /** 更新规则状态 */
-export const updateAuditRule = async (id: string, enabled: boolean): Promise<{ success: boolean }> => {
-  const response = await api.patch<{ success: boolean }>(`/v1/database-devops/sql-audit/rules/${id}`, { enabled });
+export const updateAuditRule = async (
+  id: string,
+  enabled: boolean
+): Promise<{ success: boolean }> => {
+  const response = await api.patch<{ success: boolean }>(
+    `/v1/database-devops/sql-audit/rules/${id}`,
+    { enabled }
+  );
   return response.data;
 };
 
@@ -328,7 +340,9 @@ export const updateAuditRule = async (id: string, enabled: boolean): Promise<{ s
 // ============================================================================
 
 /** 收集慢查询 */
-export const collectSlowQuery = async (entry: Omit<SlowQueryEntry, 'id' | 'normalizedSql' | 'fingerprint'>): Promise<SlowQueryEntry> => {
+export const collectSlowQuery = async (
+  entry: Omit<SlowQueryEntry, 'id' | 'normalizedSql' | 'fingerprint'>
+): Promise<SlowQueryEntry> => {
   const response = await api.post<SlowQueryEntry>('/v1/database-devops/slow-query/collect', entry);
   return response.data;
 };
@@ -339,7 +353,9 @@ export const getSlowQueryStats = async (params?: {
   since?: string;
   until?: string;
 }): Promise<SlowQueryStats> => {
-  const response = await api.get<SlowQueryStats>('/v1/database-devops/slow-query/stats', { params });
+  const response = await api.get<SlowQueryStats>('/v1/database-devops/slow-query/stats', {
+    params,
+  });
   return response.data;
 };
 
@@ -360,7 +376,9 @@ export const getSlowQueryTrend = async (params?: {
   until?: string;
   granularity?: 'hour' | 'day';
 }): Promise<SlowQueryTrend[]> => {
-  const response = await api.get<SlowQueryTrend[]>('/v1/database-devops/slow-query/trend', { params });
+  const response = await api.get<SlowQueryTrend[]>('/v1/database-devops/slow-query/trend', {
+    params,
+  });
   return response.data;
 };
 
@@ -368,13 +386,18 @@ export const getSlowQueryTrend = async (params?: {
 export const getSlowQueryDistribution = async (params?: {
   since?: string;
 }): Promise<SlowQueryDistribution> => {
-  const response = await api.get<SlowQueryDistribution>('/v1/database-devops/slow-query/distribution', { params });
+  const response = await api.get<SlowQueryDistribution>(
+    '/v1/database-devops/slow-query/distribution',
+    { params }
+  );
   return response.data;
 };
 
 /** 获取慢查询告警 */
 export const getSlowQueryAlerts = async (limit?: number): Promise<SlowQueryAlert[]> => {
-  const response = await api.get<SlowQueryAlert[]>('/v1/database-devops/slow-query/alerts', { params: { limit } });
+  const response = await api.get<SlowQueryAlert[]>('/v1/database-devops/slow-query/alerts', {
+    params: { limit },
+  });
   return response.data;
 };
 
@@ -383,8 +406,13 @@ export const getSlowQueryAlerts = async (limit?: number): Promise<SlowQueryAlert
 // ============================================================================
 
 /** 检测敏感数据 */
-export const detectSensitiveData = async (value: string): Promise<SensitiveDataDetectResult | null> => {
-  const response = await api.post<SensitiveDataDetectResult | null>('/v1/database-devops/sensitive-data/detect', { value });
+export const detectSensitiveData = async (
+  value: string
+): Promise<SensitiveDataDetectResult | null> => {
+  const response = await api.post<SensitiveDataDetectResult | null>(
+    '/v1/database-devops/sensitive-data/detect',
+    { value }
+  );
   return response.data ?? null;
 };
 
@@ -410,13 +438,19 @@ export const scanDatabaseSensitiveData = async (params: {
 
 /** 获取扫描历史 */
 export const getScanHistory = async (limit?: number): Promise<ScanReport[]> => {
-  const response = await api.get<ScanReport[]>('/v1/database-devops/sensitive-data/scan-history', { params: { limit } });
+  const response = await api.get<ScanReport[]>('/v1/database-devops/sensitive-data/scan-history', {
+    params: { limit },
+  });
   return response.data;
 };
 
 /** 获取脱敏规则 */
-export const getSensitiveDataRules = async (): Promise<{ id: string; name: string; type: string; strategy: string; enabled: boolean }[]> => {
-  const response = await api.get<{ id: string; name: string; type: string; strategy: string; enabled: boolean }[]>('/v1/database-devops/sensitive-data/rules');
+export const getSensitiveDataRules = async (): Promise<
+  { id: string; name: string; type: string; strategy: string; enabled: boolean }[]
+> => {
+  const response = await api.get<
+    { id: string; name: string; type: string; strategy: string; enabled: boolean }[]
+  >('/v1/database-devops/sensitive-data/rules');
   return response.data;
 };
 
@@ -467,24 +501,34 @@ export const getSchemaChangeDetail = async (id: string): Promise<SchemaChange> =
 };
 
 /** 审批变更 */
-export const reviewSchemaChange = async (id: string, params: {
-  approved: boolean;
-  reviewedBy: string;
-  comment?: string;
-}): Promise<SchemaChange> => {
-  const response = await api.post<SchemaChange>(`/v1/database-devops/schema-changes/${id}/review`, params);
+export const reviewSchemaChange = async (
+  id: string,
+  params: {
+    approved: boolean;
+    reviewedBy: string;
+    comment?: string;
+  }
+): Promise<SchemaChange> => {
+  const response = await api.post<SchemaChange>(
+    `/v1/database-devops/schema-changes/${id}/review`,
+    params
+  );
   return response.data;
 };
 
 /** 执行变更 */
 export const executeSchemaChange = async (id: string): Promise<ExecutionResult> => {
-  const response = await api.post<ExecutionResult>(`/v1/database-devops/schema-changes/${id}/execute`);
+  const response = await api.post<ExecutionResult>(
+    `/v1/database-devops/schema-changes/${id}/execute`
+  );
   return response.data;
 };
 
 /** 回滚变更 */
 export const rollbackSchemaChange = async (id: string): Promise<ExecutionResult> => {
-  const response = await api.post<ExecutionResult>(`/v1/database-devops/schema-changes/${id}/rollback`);
+  const response = await api.post<ExecutionResult>(
+    `/v1/database-devops/schema-changes/${id}/rollback`
+  );
   return response.data;
 };
 
@@ -496,7 +540,9 @@ export const getSchemaChangeStats = async (): Promise<ChangeStats> => {
 
 /** 获取版本历史 */
 export const getSchemaVersionHistory = async (database: string): Promise<SchemaVersion[]> => {
-  const response = await api.get<SchemaVersion[]>(`/v1/database-devops/schema-changes/versions/${database}`);
+  const response = await api.get<SchemaVersion[]>(
+    `/v1/database-devops/schema-changes/versions/${database}`
+  );
   return response.data;
 };
 
@@ -506,6 +552,8 @@ export const getSchemaVersionHistory = async (database: string): Promise<SchemaV
 
 /** 获取数据库健康状态 */
 export const getDatabaseHealthCheck = async (database?: string): Promise<HealthCheckResult> => {
-  const response = await api.get<HealthCheckResult>('/v1/database-devops/health-check', { params: { database } });
+  const response = await api.get<HealthCheckResult>('/v1/database-devops/health-check', {
+    params: { database },
+  });
   return response.data;
 };

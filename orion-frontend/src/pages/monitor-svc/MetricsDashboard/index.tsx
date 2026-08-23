@@ -174,10 +174,7 @@ const MetricsDashboard: React.FC = () => {
       // Compute system health score (weighted average of service health)
       if (healthRows.length > 0) {
         const scoreMap = { healthy: 95, degraded: 60, unhealthy: 25 };
-        const total = healthRows.reduce(
-          (sum, row) => sum + scoreMap[row.status],
-          0
-        );
+        const total = healthRows.reduce((sum, row) => sum + scoreMap[row.status], 0);
         setSystemHealthScore(Math.round(total / healthRows.length));
       } else {
         setSystemHealthScore(0);
@@ -219,7 +216,8 @@ const MetricsDashboard: React.FC = () => {
       requestRate: typeof rate === 'number' && rate > 0 ? generate(rate, 0.1) : [],
       errorRate: typeof err === 'number' && err > 0 ? generate(err, 0.2) : [],
       latencyP50: typeof p50 === 'number' && p50 > 0 ? generate(p50, 0.08) : [],
-      throughput: typeof throughput === 'number' && throughput > 0 ? generate(throughput, 0.12) : [],
+      throughput:
+        typeof throughput === 'number' && throughput > 0 ? generate(throughput, 0.12) : [],
     };
   }, [metricSummary]);
 
@@ -262,82 +260,92 @@ const MetricsDashboard: React.FC = () => {
       : serviceHealth.filter((s) => s.key === selectedService);
 
   // Table columns for service health
-  const serviceColumns: TableColumn<ServiceHealthRow>[] = useMemo<TableColumn<ServiceHealthRow>[]>(() => [
-    {
-      key: 'serviceName',
-      title: 'Service Name',
-      dataIndex: 'serviceName',
-      sortable: true,
-      render: (value: unknown) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      sortable: true,
-      render: (_value: unknown, record: ServiceHealthRow) => (
-        <Tag color={getStatusColor(record.status)}>{getStatusLabel(record.status)}</Tag>
-      ),
-    },
-    {
-      key: 'requestRate',
-      title: 'Request Rate',
-      dataIndex: 'requestRate',
-      sortable: true,
-    },
-    {
-      key: 'errorRate',
-      title: 'Error Rate',
-      dataIndex: 'errorRate',
-      sortable: true,
-      render: (value: unknown) => {
-        const rate = parseFloat(String(value).replace('%', '')) || 0;
-        return (
-          <Text
-            style={{
-              color:
-                rate > 1
-                  ? colors.error[500]
-                  : rate > 0.5
-                    ? colors.warning[500]
-                    : colors.success[500],
-            }}
-          >
-            {String(value)}
-          </Text>
-        );
+  const serviceColumns: TableColumn<ServiceHealthRow>[] = useMemo<TableColumn<ServiceHealthRow>[]>(
+    () => [
+      {
+        key: 'serviceName',
+        title: 'Service Name',
+        dataIndex: 'serviceName',
+        sortable: true,
+        render: (value: unknown) => <Text strong>{String(value)}</Text>,
       },
-    },
-    {
-      key: 'latency',
-      title: 'Latency',
-      dataIndex: 'latency',
-      sortable: true,
-      render: (value: unknown) => {
-        const ms = parseInt(String(value).replace('ms', ''), 10) || 0;
-        return (
-          <Text
-            style={{
-              color:
-                ms > 500 ? colors.error[500] : ms > 200 ? colors.warning[500] : colors.success[500],
-            }}
-          >
-            {String(value)}
-          </Text>
-        );
+      {
+        key: 'status',
+        title: 'Status',
+        dataIndex: 'status',
+        sortable: true,
+        render: (_value: unknown, record: ServiceHealthRow) => (
+          <Tag color={getStatusColor(record.status)}>{getStatusLabel(record.status)}</Tag>
+        ),
       },
-    },
-  ], []);
+      {
+        key: 'requestRate',
+        title: 'Request Rate',
+        dataIndex: 'requestRate',
+        sortable: true,
+      },
+      {
+        key: 'errorRate',
+        title: 'Error Rate',
+        dataIndex: 'errorRate',
+        sortable: true,
+        render: (value: unknown) => {
+          const rate = parseFloat(String(value).replace('%', '')) || 0;
+          return (
+            <Text
+              style={{
+                color:
+                  rate > 1
+                    ? colors.error[500]
+                    : rate > 0.5
+                      ? colors.warning[500]
+                      : colors.success[500],
+              }}
+            >
+              {String(value)}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'latency',
+        title: 'Latency',
+        dataIndex: 'latency',
+        sortable: true,
+        render: (value: unknown) => {
+          const ms = parseInt(String(value).replace('ms', ''), 10) || 0;
+          return (
+            <Text
+              style={{
+                color:
+                  ms > 500
+                    ? colors.error[500]
+                    : ms > 200
+                      ? colors.warning[500]
+                      : colors.success[500],
+              }}
+            >
+              {String(value)}
+            </Text>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   // Filter definitions for SearchFilterBar
-  const filterDefinitions: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'service',
-      label: 'Service',
-      options: SERVICE_OPTIONS,
-      placeholder: 'Filter by service',
-    },
-  ], []);
+  const filterDefinitions: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'service',
+        label: 'Service',
+        options: SERVICE_OPTIONS,
+        placeholder: 'Filter by service',
+      },
+    ],
+    []
+  );
 
   return (
     <div>
@@ -455,14 +463,13 @@ const MetricsDashboard: React.FC = () => {
       {/* Metric Trends & Health */}
       <div style={{ marginBottom: spacing[6], display: 'flex', gap: spacing[4] }}>
         <Card title="系统指标趋势" size="small" style={{ flex: 3 }}>
-          <TrendLineChart
-            data={trendData}
-            height={240}
-            smooth={true}
-            showArea={true}
-          />
+          <TrendLineChart data={trendData} height={240} smooth={true} showArea={true} />
         </Card>
-        <Card title="系统健康度" size="small" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Card
+          title="系统健康度"
+          size="small"
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
           <GaugeChart
             title="Health"
             value={systemHealthScore}
@@ -494,7 +501,6 @@ const MetricsDashboard: React.FC = () => {
           size="small"
         />
       </Card>
-
     </div>
   );
 };

@@ -210,7 +210,11 @@ export const ragQuery = async (data: { query: string; spaceId?: string; topK?: n
   return api.post<RAGResponse>('/api/v1/knowledge/rag/query', data);
 };
 
-export const ragFeedback = async (data: { token: string; is_positive: boolean; corrected_answer?: string }) => {
+export const ragFeedback = async (data: {
+  token: string;
+  is_positive: boolean;
+  corrected_answer?: string;
+}) => {
   return api.post('/api/v1/knowledge/rag/feedback', data);
 };
 
@@ -222,7 +226,11 @@ export const getRAGPromptTemplates = async () => {
   return api.get('/api/v1/knowledge/rag/prompt/templates');
 };
 
-export const saveRAGPromptTemplate = async (data: { name: string; version: string; content: string }) => {
+export const saveRAGPromptTemplate = async (data: {
+  name: string;
+  version: string;
+  content: string;
+}) => {
   return api.post('/api/v1/knowledge/rag/prompt/templates', data);
 };
 
@@ -268,11 +276,15 @@ export interface RAGAuditLog {
 }
 
 export const getRAGAuditLogs = async (params?: { limit?: number; offset?: number }) => {
-  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/logs', { params });
+  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/logs', {
+    params,
+  });
 };
 
 export const getRAGFlaggedQueries = async (params?: { limit?: number; offset?: number }) => {
-  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/flagged', { params });
+  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/flagged', {
+    params,
+  });
 };
 
 // ============================================================================

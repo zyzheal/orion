@@ -224,89 +224,101 @@ export default function I18nManagementPage() {
         国际化管理
       </Title>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {
-          key: 'locales',
-          label: '语言管理',
-          children: (
-            <Card>
-              <Row justify="space-between" style={{ marginBottom: spacing.md }}>
-                <Col>
-                  <Button icon={<ReloadOutlined />} onClick={fetchLocales}>刷新</Button>
-                </Col>
-                <Col>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setLocaleModalVisible(true)}>
-                    添加语言
-                  </Button>
-                </Col>
-              </Row>
-              <Table
-                columns={localeColumns}
-                dataSource={locales}
-                rowKey="id"
-                loading={loading}
-                pagination={false}
-                onRow={(record) => ({
-                  onClick: () => {
-                    setSelectedLocale(record.code);
-                    setActiveTab('translations');
-                  },
-                  style: { cursor: 'pointer' },
-                })}
-              />
-            </Card>
-          ),
-        },
-        {
-          key: 'translations',
-          label: '翻译管理',
-          children: (
-            <Card>
-              <Row justify="space-between" align="middle" style={{ marginBottom: spacing.md }}>
-                <Col>
-                  <Space>
-                    <Text>当前语言:</Text>
-                    <Select
-                      value={selectedLocale}
-                      onChange={setSelectedLocale}
-                      style={{ width: 200 }}
-                      placeholder="选择语言"
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'locales',
+            label: '语言管理',
+            children: (
+              <Card>
+                <Row justify="space-between" style={{ marginBottom: spacing.md }}>
+                  <Col>
+                    <Button icon={<ReloadOutlined />} onClick={fetchLocales}>
+                      刷新
+                    </Button>
+                  </Col>
+                  <Col>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => setLocaleModalVisible(true)}
                     >
-                      {locales.map((loc) => (
-                        <Select.Option key={loc.code} value={loc.code}>
-                          {loc.name} ({loc.code})
-                        </Select.Option>
-                      ))}
-                    </Select>
-                    <Button icon={<ReloadOutlined />} onClick={fetchTranslations}>刷新</Button>
-                  </Space>
-                </Col>
-                <Col>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setTranslationModalVisible(true)}
-                    disabled={!selectedLocale}
-                  >
-                    添加翻译
-                  </Button>
-                </Col>
-              </Row>
-              {selectedLocale ? (
+                      添加语言
+                    </Button>
+                  </Col>
+                </Row>
                 <Table
-                  columns={translationColumns}
-                  dataSource={translationEntries}
-                  rowKey="key"
+                  columns={localeColumns}
+                  dataSource={locales}
+                  rowKey="id"
                   loading={loading}
-                  pagination={{ pageSize: 50 }}
+                  pagination={false}
+                  onRow={(record) => ({
+                    onClick: () => {
+                      setSelectedLocale(record.code);
+                      setActiveTab('translations');
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
                 />
-              ) : (
-                <Empty description="请先选择语言" />
-              )}
-            </Card>
-          ),
-        },
-      ]} />
+              </Card>
+            ),
+          },
+          {
+            key: 'translations',
+            label: '翻译管理',
+            children: (
+              <Card>
+                <Row justify="space-between" align="middle" style={{ marginBottom: spacing.md }}>
+                  <Col>
+                    <Space>
+                      <Text>当前语言:</Text>
+                      <Select
+                        value={selectedLocale}
+                        onChange={setSelectedLocale}
+                        style={{ width: 200 }}
+                        placeholder="选择语言"
+                      >
+                        {locales.map((loc) => (
+                          <Select.Option key={loc.code} value={loc.code}>
+                            {loc.name} ({loc.code})
+                          </Select.Option>
+                        ))}
+                      </Select>
+                      <Button icon={<ReloadOutlined />} onClick={fetchTranslations}>
+                        刷新
+                      </Button>
+                    </Space>
+                  </Col>
+                  <Col>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => setTranslationModalVisible(true)}
+                      disabled={!selectedLocale}
+                    >
+                      添加翻译
+                    </Button>
+                  </Col>
+                </Row>
+                {selectedLocale ? (
+                  <Table
+                    columns={translationColumns}
+                    dataSource={translationEntries}
+                    rowKey="key"
+                    loading={loading}
+                    pagination={{ pageSize: 50 }}
+                  />
+                ) : (
+                  <Empty description="请先选择语言" />
+                )}
+              </Card>
+            ),
+          },
+        ]}
+      />
 
       {/* Add Locale Modal */}
       <Modal
@@ -316,7 +328,11 @@ export default function I18nManagementPage() {
         onCancel={() => setLocaleModalVisible(false)}
       >
         <Form form={localeForm} layout="vertical">
-          <Form.Item name="code" label="语言代码" rules={[{ required: true, message: '请输入语言代码' }]}>
+          <Form.Item
+            name="code"
+            label="语言代码"
+            rules={[{ required: true, message: '请输入语言代码' }]}
+          >
             <Input placeholder="如 zh-CN, en-US, ja-JP" />
           </Form.Item>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
@@ -339,7 +355,11 @@ export default function I18nManagementPage() {
           <Form.Item name="key" label="Key" rules={[{ required: true, message: '请输入 Key' }]}>
             <Input placeholder="如 common.button.submit" />
           </Form.Item>
-          <Form.Item name="value" label="Value" rules={[{ required: true, message: '请输入翻译值' }]}>
+          <Form.Item
+            name="value"
+            label="Value"
+            rules={[{ required: true, message: '请输入翻译值' }]}
+          >
             <TextArea rows={3} placeholder="翻译内容" />
           </Form.Item>
         </Form>

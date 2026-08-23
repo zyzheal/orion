@@ -366,11 +366,14 @@ export interface UpdateToolCategoryInput {
 // ==================== API Functions ====================
 
 // --- Jobs ---
-export const listJobs = (params?: { type?: string; status?: string; enabled?: boolean; tag?: string }) =>
-  apiClient.get<AutoJob[]>('/automation/jobs', { params });
+export const listJobs = (params?: {
+  type?: string;
+  status?: string;
+  enabled?: boolean;
+  tag?: string;
+}) => apiClient.get<AutoJob[]>('/automation/jobs', { params });
 
-export const getJob = (id: string) =>
-  apiClient.get<AutoJob>(`/automation/jobs/${id}`);
+export const getJob = (id: string) => apiClient.get<AutoJob>(`/automation/jobs/${id}`);
 
 export const createJob = (data: CreateJobInput) =>
   apiClient.post<AutoJob>('/automation/jobs', data);
@@ -378,8 +381,7 @@ export const createJob = (data: CreateJobInput) =>
 export const updateJob = (id: string, data: UpdateJobInput) =>
   apiClient.put<AutoJob>(`/automation/jobs/${id}`, data);
 
-export const deleteJob = (id: string) =>
-  apiClient.delete(`/automation/jobs/${id}`);
+export const deleteJob = (id: string) => apiClient.delete(`/automation/jobs/${id}`);
 
 export const executeJob = (id: string, data?: ExecuteJobInput) =>
   apiClient.post<JobExecutionRecord>(`/automation/jobs/${id}/execute`, data ?? {});
@@ -394,8 +396,7 @@ export const getJobExecutions = (id: string, limit?: number) =>
 export const listTimeJobs = (params?: { enabled?: boolean; tag?: string }) =>
   apiClient.get<TimeJob[]>('/automation/time-jobs', { params });
 
-export const getTimeJob = (id: string) =>
-  apiClient.get<TimeJob>(`/automation/time-jobs/${id}`);
+export const getTimeJob = (id: string) => apiClient.get<TimeJob>(`/automation/time-jobs/${id}`);
 
 export const createTimeJob = (data: CreateTableInput) =>
   apiClient.post<TimeJob>('/automation/time-jobs', data);
@@ -403,21 +404,25 @@ export const createTimeJob = (data: CreateTableInput) =>
 export const updateTimeJob = (id: string, data: UpdateTimeJobInput) =>
   apiClient.put<TimeJob>(`/automation/time-jobs/${id}`, data);
 
-export const deleteTimeJob = (id: string) =>
-  apiClient.delete(`/automation/time-jobs/${id}`);
+export const deleteTimeJob = (id: string) => apiClient.delete(`/automation/time-jobs/${id}`);
 
 export const toggleTimeJob = (id: string, enabled: boolean) =>
   apiClient.patch<TimeJob>(`/automation/time-jobs/${id}/status`, { enabled });
 
 export const getTimeJobExecutions = (id: string, limit?: number) =>
-  apiClient.get<TimeJobExecution[]>(`/automation/time-jobs/${id}/executions`, { params: { limit } });
+  apiClient.get<TimeJobExecution[]>(`/automation/time-jobs/${id}/executions`, {
+    params: { limit },
+  });
 
 // --- Tools ---
-export const listTools = (params?: { category?: string; toolType?: string; enabled?: boolean; tag?: string }) =>
-  apiClient.get<AutomationTool[]>('/automation/tools', { params });
+export const listTools = (params?: {
+  category?: string;
+  toolType?: string;
+  enabled?: boolean;
+  tag?: string;
+}) => apiClient.get<AutomationTool[]>('/automation/tools', { params });
 
-export const getTool = (id: string) =>
-  apiClient.get<AutomationTool>(`/automation/tools/${id}`);
+export const getTool = (id: string) => apiClient.get<AutomationTool>(`/automation/tools/${id}`);
 
 export const createTool = (data: CreateToolInput) =>
   apiClient.post<AutomationTool>('/automation/tools', data);
@@ -425,15 +430,18 @@ export const createTool = (data: CreateToolInput) =>
 export const updateTool = (id: string, data: UpdateToolInput) =>
   apiClient.put<AutomationTool>(`/automation/tools/${id}`, data);
 
-export const deleteTool = (id: string) =>
-  apiClient.delete(`/automation/tools/${id}`);
+export const deleteTool = (id: string) => apiClient.delete(`/automation/tools/${id}`);
 
 export const executeTool = (id: string, data: ExecuteToolInput) =>
   apiClient.post<ToolExecutionResult>(`/automation/tools/${id}/execute`, data);
 
 // --- Scripts (Automation) ---
-export const listAutomationScripts = (params?: { scriptType?: string; category?: string; enabled?: boolean; tag?: string }) =>
-  apiClient.get<AutomationScript[]>('/automation/scripts', { params });
+export const listAutomationScripts = (params?: {
+  scriptType?: string;
+  category?: string;
+  enabled?: boolean;
+  tag?: string;
+}) => apiClient.get<AutomationScript[]>('/automation/scripts', { params });
 
 export const getAutomationScript = (id: string) =>
   apiClient.get<AutomationScript>(`/automation/scripts/${id}`);
@@ -444,8 +452,7 @@ export const createAutomationScript = (data: CreateAutomationScriptInput) =>
 export const updateAutomationScript = (id: string, data: UpdateAutomationScriptInput) =>
   apiClient.put<AutomationScript>(`/automation/scripts/${id}`, data);
 
-export const deleteAutomationScript = (id: string) =>
-  apiClient.delete(`/automation/scripts/${id}`);
+export const deleteAutomationScript = (id: string) => apiClient.delete(`/automation/scripts/${id}`);
 
 export const testScript = (id: string, data: ExecuteToolInput) =>
   apiClient.post<ToolExecutionResult>(`/automation/scripts/${id}/test`, data);
@@ -470,7 +477,9 @@ export const executeCompositeTool = (id: string, data?: ExecuteCompositeInput) =
   apiClient.post<CompositeExecutionRecord>(`/automation/composite-tools/${id}/execute`, data ?? {});
 
 export const getCompositeExecutions = (id: string, limit?: number) =>
-  apiClient.get<CompositeExecutionRecord[]>(`/automation/composite-tools/${id}/executions`, { params: { limit } });
+  apiClient.get<CompositeExecutionRecord[]>(`/automation/composite-tools/${id}/executions`, {
+    params: { limit },
+  });
 
 // --- Approvals ---
 export const listReviews = (params?: { status?: string; type?: string }) =>

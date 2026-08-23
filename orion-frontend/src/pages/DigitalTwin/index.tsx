@@ -82,8 +82,16 @@ const DigitalTwin: React.FC = () => {
       ),
     },
     { title: 'Components', dataIndex: 'components', render: (c: any[]) => c.length },
-    { title: 'Size', dataIndex: 'size_bytes', render: (s: number) => `${(s / 1024).toFixed(1)} KB` },
-    { title: 'Created', dataIndex: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Size',
+      dataIndex: 'size_bytes',
+      render: (s: number) => `${(s / 1024).toFixed(1)} KB`,
+    },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const recordingColumns = [
@@ -100,12 +108,19 @@ const DigitalTwin: React.FC = () => {
       ),
     },
     { title: 'Requests', dataIndex: 'request_count' },
-    { title: 'Size', dataIndex: 'size_bytes', render: (s: number) => `${(s / 1024).toFixed(1)} KB` },
+    {
+      title: 'Size',
+      dataIndex: 'size_bytes',
+      render: (s: number) => `${(s / 1024).toFixed(1)} KB`,
+    },
     {
       title: 'Actions',
       key: 'actions',
       render: (_: unknown, record: TrafficRecording) => (
-        <Button onClick={() => handleStopRecording(record.id)} disabled={record.status !== 'recording'}>
+        <Button
+          onClick={() => handleStopRecording(record.id)}
+          disabled={record.status !== 'recording'}
+        >
           Stop
         </Button>
       ),
@@ -114,26 +129,48 @@ const DigitalTwin: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <Tabs items={[
-        {
-          key: 'snapshots',
-          label: <><CameraOutlined /> Snapshots</>,
-          children: (
-            <Card extra={<Button onClick={() => setSnapshotModal(true)}>Create Snapshot</Button>}>
-              <Table columns={snapshotColumns} dataSource={snapshots} rowKey="id" loading={loading} />
-            </Card>
-          ),
-        },
-        {
-          key: 'recordings',
-          label: <><ControlOutlined /> Traffic Recording</>,
-          children: (
-            <Card extra={<Button onClick={() => setRecordingModal(true)}>Start Recording</Button>}>
-              <Table columns={recordingColumns} dataSource={recordings} rowKey="id" loading={loading} />
-            </Card>
-          ),
-        },
-      ]} />
+      <Tabs
+        items={[
+          {
+            key: 'snapshots',
+            label: (
+              <>
+                <CameraOutlined /> Snapshots
+              </>
+            ),
+            children: (
+              <Card extra={<Button onClick={() => setSnapshotModal(true)}>Create Snapshot</Button>}>
+                <Table
+                  columns={snapshotColumns}
+                  dataSource={snapshots}
+                  rowKey="id"
+                  loading={loading}
+                />
+              </Card>
+            ),
+          },
+          {
+            key: 'recordings',
+            label: (
+              <>
+                <ControlOutlined /> Traffic Recording
+              </>
+            ),
+            children: (
+              <Card
+                extra={<Button onClick={() => setRecordingModal(true)}>Start Recording</Button>}
+              >
+                <Table
+                  columns={recordingColumns}
+                  dataSource={recordings}
+                  rowKey="id"
+                  loading={loading}
+                />
+              </Card>
+            ),
+          },
+        ]}
+      />
 
       <Modal
         title="Create Snapshot"
@@ -143,10 +180,12 @@ const DigitalTwin: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleCreateSnapshot}>
           <Form.Item label="Environment" name="environment" required>
-            <Select options={[
-              { value: 'production', label: 'Production' },
-              { value: 'staging', label: 'Staging' },
-            ]} />
+            <Select
+              options={[
+                { value: 'production', label: 'Production' },
+                { value: 'staging', label: 'Staging' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Note" name="note">
             <Input />
@@ -162,9 +201,7 @@ const DigitalTwin: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleStartRecording}>
           <Form.Item label="Source Environment" name="source_env" required>
-            <Select options={[
-              { value: 'production', label: 'Production' },
-            ]} />
+            <Select options={[{ value: 'production', label: 'Production' }]} />
           </Form.Item>
           <Form.Item label="Path Prefixes" name="path_prefixes">
             <Input placeholder="/api/v1/*" />

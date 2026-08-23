@@ -218,7 +218,12 @@ export function getCronJob(id: string) {
   return api.get<CronJob>(`${BASE}/cron-jobs/${id}`);
 }
 
-export function createCronJob(data: { name: string; cronExpression: string; command: string; description: string }) {
+export function createCronJob(data: {
+  name: string;
+  cronExpression: string;
+  command: string;
+  description: string;
+}) {
   return api.post<CronJob>(`${BASE}/cron-jobs`, data);
 }
 
@@ -327,7 +332,12 @@ export function getThemes() {
   return api.get<ThemeConfig[]>(`${BASE}/themes`);
 }
 
-export function createTheme(data: { name: string; primaryColor: string; borderRadius?: number; mode?: 'light' | 'dark' }) {
+export function createTheme(data: {
+  name: string;
+  primaryColor: string;
+  borderRadius?: number;
+  mode?: 'light' | 'dark';
+}) {
   return api.post<ThemeConfig>(`${BASE}/themes`, data);
 }
 
@@ -380,6 +390,11 @@ export interface LogResponse {
   total: number;
 }
 
-export function getLogs(params?: { level?: string; service?: string; page?: number; limit?: number }) {
+export function getLogs(params?: {
+  level?: string;
+  service?: string;
+  page?: number;
+  limit?: number;
+}) {
   return api.get<LogResponse>(`${BASE}/logs`, { params });
 }

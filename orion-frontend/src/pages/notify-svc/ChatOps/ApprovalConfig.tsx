@@ -73,8 +73,6 @@ export interface GlobalApprovalSettings {
   approvalMode: 'strict' | 'relaxed' | 'log_only';
 }
 
-
-
 // ============== Global Settings Tab ==============
 export const GlobalSettingsTab: React.FC = () => {
   const [settings, setSettings] = useState<GlobalApprovalSettings>({
@@ -86,10 +84,12 @@ export const GlobalSettingsTab: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    chatopsAdminApi.getGlobalApprovalConfig()
+    chatopsAdminApi
+      .getGlobalApprovalConfig()
       .then((res) => {
         const data = res.data as any;
-        if (data) setSettings({ enabled: data.enabled ?? true, approvalMode: data.mode || 'strict' });
+        if (data)
+          setSettings({ enabled: data.enabled ?? true, approvalMode: data.mode || 'strict' });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -98,7 +98,10 @@ export const GlobalSettingsTab: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await chatopsAdminApi.updateGlobalApprovalConfig({ enabled: settings.enabled, mode: settings.approvalMode });
+      await chatopsAdminApi.updateGlobalApprovalConfig({
+        enabled: settings.enabled,
+        mode: settings.approvalMode,
+      });
       message.success('全局审批设置已保存');
     } catch {
       message.error('保存失败');
@@ -152,12 +155,7 @@ export const GlobalSettingsTab: React.FC = () => {
           <Divider />
 
           <Form.Item>
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSave}
-              loading={saving}
-            >
+            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
               保存设置
             </Button>
           </Form.Item>
@@ -180,31 +178,37 @@ const CapabilityApprovalTab: React.FC = () => {
     try {
       const res = await chatopsAdminApi.getApprovalConfigs();
       const data = (res.data as any) || [];
-      setConfigs(Array.isArray(data) ? data.map((c: any) => ({
-        id: c.id || c.capability,
-        capabilityId: c.capability || c.capability_id || '',
-        capabilityName: c.capability_name || c.capability || '',
-        riskLevel: c.risk_level ?? 3,
-        enabled: c.enabled ?? true,
-        approvalMode: c.approval_mode || 'strict',
-        approvalLevel: c.approval_level ?? 1,
-        approverRoles: c.approvers || [],
-        approverUsers: c.approver_users || [],
-        proxyRoles: c.proxy_roles || [],
-        proxyUsers: c.proxy_users || [],
-        timeoutMinutes: c.timeout_minutes ?? 30,
-        timeoutAction: c.timeout_action || 'remind',
-        secondTimeoutMinutes: c.second_timeout_minutes ?? 0,
-        secondTimeoutAction: c.second_timeout_action || 'escalate',
-        environments: c.environments || [],
-      })) : []);
+      setConfigs(
+        Array.isArray(data)
+          ? data.map((c: any) => ({
+              id: c.id || c.capability,
+              capabilityId: c.capability || c.capability_id || '',
+              capabilityName: c.capability_name || c.capability || '',
+              riskLevel: c.risk_level ?? 3,
+              enabled: c.enabled ?? true,
+              approvalMode: c.approval_mode || 'strict',
+              approvalLevel: c.approval_level ?? 1,
+              approverRoles: c.approvers || [],
+              approverUsers: c.approver_users || [],
+              proxyRoles: c.proxy_roles || [],
+              proxyUsers: c.proxy_users || [],
+              timeoutMinutes: c.timeout_minutes ?? 30,
+              timeoutAction: c.timeout_action || 'remind',
+              secondTimeoutMinutes: c.second_timeout_minutes ?? 0,
+              secondTimeoutAction: c.second_timeout_action || 'escalate',
+              environments: c.environments || [],
+            }))
+          : []
+      );
     } catch {
       message.error('加载审批配置失败');
     }
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadConfigs(); }, [loadConfigs]);
+  useEffect(() => {
+    loadConfigs();
+  }, [loadConfigs]);
 
   const riskLevelColors: Record<number, string> = {
     3: 'orange',
@@ -237,7 +241,7 @@ const CapabilityApprovalTab: React.FC = () => {
 
   const handleToggle = async (id: string, enabled: boolean) => {
     try {
-      const config = configs.find(c => c.id === id);
+      const config = configs.find((c) => c.id === id);
       if (config) {
         await chatopsAdminApi.updateApprovalConfig(config.capabilityId, { enabled });
         message.success(enabled ? '审批规则已启用' : '审批规则已禁用');
@@ -251,7 +255,12 @@ const CapabilityApprovalTab: React.FC = () => {
   const handleBatchEnable = async () => {
     try {
       await chatopsAdminApi.batchUpdateApprovalConfigs(
-        configs.map(c => ({ capability: c.capabilityId, enabled: true, approvers: c.approverRoles, threshold: c.approvalLevel }))
+        configs.map((c) => ({
+          capability: c.capabilityId,
+          enabled: true,
+          approvers: c.approverRoles,
+          threshold: c.approvalLevel,
+        }))
       );
       message.success('已批量启用');
       loadConfigs();
@@ -263,7 +272,12 @@ const CapabilityApprovalTab: React.FC = () => {
   const handleBatchDisable = async () => {
     try {
       await chatopsAdminApi.batchUpdateApprovalConfigs(
-        configs.map(c => ({ capability: c.capabilityId, enabled: false, approvers: c.approverRoles, threshold: c.approvalLevel }))
+        configs.map((c) => ({
+          capability: c.capabilityId,
+          enabled: false,
+          approvers: c.approverRoles,
+          threshold: c.approvalLevel,
+        }))
       );
       message.success('已批量禁用');
       loadConfigs();
@@ -280,7 +294,9 @@ const CapabilityApprovalTab: React.FC = () => {
       render: (name: string, record: ApprovalConfig) => (
         <Space direction="vertical" size={0}>
           <Text strong>{name}</Text>
-          <Text code style={{ fontSize: 11 }}>{record.capabilityId}</Text>
+          <Text code style={{ fontSize: 11 }}>
+            {record.capabilityId}
+          </Text>
         </Space>
       ),
     },
@@ -289,20 +305,15 @@ const CapabilityApprovalTab: React.FC = () => {
       dataIndex: 'riskLevel',
       key: 'riskLevel',
       width: 80,
-      render: (level: number) => (
-        <Badge color={riskLevelColors[level]} text={`Lv.${level}`} />
-      ),
+      render: (level: number) => <Badge color={riskLevelColors[level]} text={`Lv.${level}`} />,
     },
     {
       title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
       width: 80,
-      render: (enabled: boolean) => (
-        enabled
-          ? <Badge status="success" text="启用" />
-          : <Badge status="default" text="禁用" />
-      ),
+      render: (enabled: boolean) =>
+        enabled ? <Badge status="success" text="启用" /> : <Badge status="default" text="禁用" />,
     },
     {
       title: '模式',
@@ -324,7 +335,9 @@ const CapabilityApprovalTab: React.FC = () => {
       key: 'approverRoles',
       render: (roles: string[]) => (
         <Space wrap>
-          {roles.map(r => <Tag key={r}>{r}</Tag>)}
+          {roles.map((r) => (
+            <Tag key={r}>{r}</Tag>
+          ))}
         </Space>
       ),
     },
@@ -346,7 +359,12 @@ const CapabilityApprovalTab: React.FC = () => {
             checked={record.enabled}
             onChange={(checked) => handleToggle(record.id, checked)}
           />
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
             编辑
           </Button>
         </Space>
@@ -484,17 +502,22 @@ const ApproverConfigTab: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    chatopsAdminApi.getApprovers()
+    chatopsAdminApi
+      .getApprovers()
       .then((res) => {
         const data = (res.data as any) || [];
-        setApprovers(Array.isArray(data) ? data.map((a: any) => ({
-          id: a.user_id || a.id,
-          role: a.role || '',
-          userName: a.user_name || '',
-          userId: a.user_id || '',
-          status: a.is_on_duty ? 'online' : 'offline',
-          isDefault: true,
-        })) : []);
+        setApprovers(
+          Array.isArray(data)
+            ? data.map((a: any) => ({
+                id: a.user_id || a.id,
+                role: a.role || '',
+                userName: a.user_name || '',
+                userId: a.user_id || '',
+                status: a.is_on_duty ? 'online' : 'offline',
+                isDefault: true,
+              }))
+            : []
+        );
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -528,19 +551,24 @@ const ApproverConfigTab: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        status === 'online'
-          ? <Badge status="success" text="在线" />
-          : <Badge status="default" text="离线" />
-      ),
+      render: (status: string) =>
+        status === 'online' ? (
+          <Badge status="success" text="在线" />
+        ) : (
+          <Badge status="default" text="离线" />
+        ),
     },
     {
       title: '操作',
       key: 'action',
       render: () => (
         <Space>
-          <Button type="link" size="small">更换</Button>
-          <Button type="link" size="small">设离线</Button>
+          <Button type="link" size="small">
+            更换
+          </Button>
+          <Button type="link" size="small">
+            设离线
+          </Button>
         </Space>
       ),
     },
@@ -758,11 +786,7 @@ const ApprovalConfig: React.FC = () => {
 
   return (
     <div style={{ padding: '0 0 16px' }}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-      />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
     </div>
   );
 };

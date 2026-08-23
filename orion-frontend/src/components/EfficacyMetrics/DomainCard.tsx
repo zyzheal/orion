@@ -1,6 +1,11 @@
 import React from 'react';
 import { Card, Typography, Tag, Button } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  MinusOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
@@ -35,10 +40,28 @@ const DomainCard: React.FC<DomainCardProps> = ({
   loading = false,
 }) => {
   if (loading) {
-    return <Card size="small" style={{ width: '100%', borderLeft: `3px solid ${color}`, borderRadius: 12 }} loading />;
+    return (
+      <Card
+        size="small"
+        style={{ width: '100%', borderLeft: `3px solid ${color}`, borderRadius: 12 }}
+        loading
+      />
+    );
   }
-  const trendIcon = trend === 'up' ? <ArrowUpOutlined /> : trend === 'down' ? <ArrowDownOutlined /> : <MinusOutlined />;
-  const trendColor = trend === 'up' ? colors.success[500] : trend === 'down' ? colors.error[500] : colors.neutral[500];
+  const trendIcon =
+    trend === 'up' ? (
+      <ArrowUpOutlined />
+    ) : trend === 'down' ? (
+      <ArrowDownOutlined />
+    ) : (
+      <MinusOutlined />
+    );
+  const trendColor =
+    trend === 'up'
+      ? colors.success[500]
+      : trend === 'down'
+        ? colors.error[500]
+        : colors.neutral[500];
 
   return (
     <Card
@@ -56,7 +79,14 @@ const DomainCard: React.FC<DomainCardProps> = ({
         </div>
       }
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.sm }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: spacing.sm,
+          marginBottom: spacing.sm,
+        }}
+      >
         <span style={{ fontSize: 28, fontWeight: 600, color }}>{primaryValue}</span>
         <Tag color={trendColor} style={{ margin: 0, padding: '2px 8px' }}>
           {trendIcon} {trendPercent > 0 ? `${trendPercent}%` : ''}
@@ -70,7 +100,9 @@ const DomainCard: React.FC<DomainCardProps> = ({
           {secondaryItems.map((item) => (
             <div key={item.label} style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, color }}>{item.value}</Text>
-              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{item.label}</Text>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                {item.label}
+              </Text>
             </div>
           ))}
         </div>

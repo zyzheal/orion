@@ -24,7 +24,8 @@ import {
   DeleteOutlined,
   LockOutlined,
   UnlockOutlined,
-  FolderOpenOutlined,} from '@ant-design/icons';
+  FolderOpenOutlined,
+} from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -199,137 +200,145 @@ const RepoDetail: React.FC = () => {
     }
   };
 
-  const branchColumns: TableColumn<Branch>[] = useMemo<TableColumn<Branch>[]>(() => [
-    {
-      key: 'name',
-      title: '分支名称',
-      dataIndex: 'name',
-      width: 250,
-      sortable: true,
-      render: (value: unknown, record: any) => (
-        <Space>
-          <Text strong>{String(value)}</Text>
-          {record.isProtected && <Tag color="red">受保护</Tag>}
-        </Space>
-      ),
-    },
-    {
-      key: 'commitSha',
-      title: '最新提交',
-      dataIndex: 'commitSha',
-      width: 180,
-      render: (value: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value).substring(0, 8)}
-        </Text>
-      ),
-    },
-    {
-      key: 'lastCommitDate',
-      title: '最后提交时间',
-      dataIndex: 'lastCommitDate',
-      width: 200,
-      sortable: true,
-      render: (value: unknown) => <Text type="secondary">{dayjs(String(value)).fromNow()}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={record.isProtected ? <UnlockOutlined /> : <LockOutlined />}
-          >
-            {record.isProtected ? '解锁' : '保护'}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteBranch(record.name)}
-          />
-        </Space>
-      ),
-    },
-  ], [handleDeleteBranch]);
-
-  const prColumns: TableColumn<PullRequest>[] = useMemo<TableColumn<PullRequest>[]>(() => [
-    {
-      key: 'title',
-      title: 'Pull Request',
-      dataIndex: 'title',
-      width: 300,
-      sortable: true,
-      render: (value: unknown, record: any) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
-            {String(value)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            #{record.id}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'state',
-      title: '状态',
-      dataIndex: 'state',
-      width: 120,
-      render: (value: unknown) => {
-        const statusMap: Record<string, unknown> = {
-          open: { status: 'running', label: 'Open' },
-          closed: { status: 'cancelled', label: 'Closed' },
-          merged: { status: 'success', label: 'Merged' },
-        };
-        const config = statusMap[String(value)] || { status: 'unknown', label: String(value) };
-        const cfg = config as { status: string; label: string };
-        return <StatusBadge status={(cfg.status as any) ?? 'unknown'} label={cfg.label} size="small" />;
+  const branchColumns: TableColumn<Branch>[] = useMemo<TableColumn<Branch>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '分支名称',
+        dataIndex: 'name',
+        width: 250,
+        sortable: true,
+        render: (value: unknown, record: any) => (
+          <Space>
+            <Text strong>{String(value)}</Text>
+            {record.isProtected && <Tag color="red">受保护</Tag>}
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'branches',
-      title: '分支',
-      width: 250,
-      render: (_: unknown, record: any) => (
-        <Space size={4}>
-          <Tag color="blue">{record.sourceBranch}</Tag>
-          <Text type="secondary">→</Text>
-          <Tag color="green">{record.targetBranch}</Tag>
-        </Space>
-      ),
-    },
-    {
-      key: 'author',
-      title: '作者',
-      dataIndex: 'author',
-      width: 120,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'reviewCount',
-      title: '评论',
-      dataIndex: 'reviewCount',
-      width: 80,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-  ], []);
+      {
+        key: 'commitSha',
+        title: '最新提交',
+        dataIndex: 'commitSha',
+        width: 180,
+        render: (value: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value).substring(0, 8)}
+          </Text>
+        ),
+      },
+      {
+        key: 'lastCommitDate',
+        title: '最后提交时间',
+        dataIndex: 'lastCommitDate',
+        width: 200,
+        sortable: true,
+        render: (value: unknown) => <Text type="secondary">{dayjs(String(value)).fromNow()}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={record.isProtected ? <UnlockOutlined /> : <LockOutlined />}
+            >
+              {record.isProtected ? '解锁' : '保护'}
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteBranch(record.name)}
+            />
+          </Space>
+        ),
+      },
+    ],
+    [handleDeleteBranch]
+  );
+
+  const prColumns: TableColumn<PullRequest>[] = useMemo<TableColumn<PullRequest>[]>(
+    () => [
+      {
+        key: 'title',
+        title: 'Pull Request',
+        dataIndex: 'title',
+        width: 300,
+        sortable: true,
+        render: (value: unknown, record: any) => (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
+              {String(value)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              #{record.id}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'state',
+        title: '状态',
+        dataIndex: 'state',
+        width: 120,
+        render: (value: unknown) => {
+          const statusMap: Record<string, unknown> = {
+            open: { status: 'running', label: 'Open' },
+            closed: { status: 'cancelled', label: 'Closed' },
+            merged: { status: 'success', label: 'Merged' },
+          };
+          const config = statusMap[String(value)] || { status: 'unknown', label: String(value) };
+          const cfg = config as { status: string; label: string };
+          return (
+            <StatusBadge status={(cfg.status as any) ?? 'unknown'} label={cfg.label} size="small" />
+          );
+        },
+      },
+      {
+        key: 'branches',
+        title: '分支',
+        width: 250,
+        render: (_: unknown, record: any) => (
+          <Space size={4}>
+            <Tag color="blue">{record.sourceBranch}</Tag>
+            <Text type="secondary">→</Text>
+            <Tag color="green">{record.targetBranch}</Tag>
+          </Space>
+        ),
+      },
+      {
+        key: 'author',
+        title: '作者',
+        dataIndex: 'author',
+        width: 120,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
+      },
+      {
+        key: 'reviewCount',
+        title: '评论',
+        dataIndex: 'reviewCount',
+        width: 80,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+    ],
+    []
+  );
 
   const tabItems = [
     {

@@ -23,22 +23,51 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Modal, Form, Input,
-  Select, Tag, Tooltip, Switch, message, Empty,
-  Drawer, Descriptions, Badge, Alert,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  Switch,
+  message,
+  Empty,
+  Drawer,
+  Descriptions,
+  Badge,
+  Alert,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  PlayCircleOutlined, EyeOutlined, RocketOutlined, SettingOutlined,
-  ClockCircleOutlined, ThunderboltOutlined, FolderOpenOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PlayCircleOutlined,
+  EyeOutlined,
+  RocketOutlined,
+  SettingOutlined,
+  ClockCircleOutlined,
+  ThunderboltOutlined,
+  FolderOpenOutlined,
 } from '@ant-design/icons';
+import { colors, spacing, radius, shadows } from '@/tokens';
 import {
-  colors, spacing, radius, shadows,
-} from '@/tokens';
-import {
-  listJobs, getJob, createJob, updateJob, deleteJob,
-  executeJob, toggleJob, getJobExecutions,
-  type AutoJob, type CreateJobInput, type UpdateJobInput,
+  listJobs,
+  getJob,
+  createJob,
+  updateJob,
+  deleteJob,
+  executeJob,
+  toggleJob,
+  getJobExecutions,
+  type AutoJob,
+  type CreateJobInput,
+  type UpdateJobInput,
   type JobExecutionRecord,
 } from '@/api/automation';
 
@@ -71,21 +100,34 @@ const EXEC_STATUS_MAP: Record<string, { color: string; label: string }> = {
   cancelled: { color: colors.warning[500], label: '已取消' },
 };
 
-const JOB_TYPE_OPTIONS = Object.entries(JOB_TYPE_MAP).map(([value, { label }]) => ({ label, value }));
-const JOB_STATUS_OPTIONS = Object.entries(JOB_STATUS_MAP).map(([value, { label }]) => ({ label, value }));
+const JOB_TYPE_OPTIONS = Object.entries(JOB_TYPE_MAP).map(([value, { label }]) => ({
+  label,
+  value,
+}));
+const JOB_STATUS_OPTIONS = Object.entries(JOB_STATUS_MAP).map(([value, { label }]) => ({
+  label,
+  value,
+}));
 
 // ==================== Utility ====================
 
 /** Parse a JSON string safely; returns empty object on failure. */
 function parseJSON(val: string): Record<string, unknown> {
   if (!val || typeof val !== 'string') return {};
-  try { return JSON.parse(val); } catch { return {}; }
+  try {
+    return JSON.parse(val);
+  } catch {
+    return {};
+  }
 }
 
 /** Format a date string to a short Chinese locale display. */
 function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('zh-CN', {
-    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -134,7 +176,9 @@ const Automation: React.FC = () => {
     }
   }, [typeFilter, statusFilter]);
 
-  useEffect(() => { loadJobs(); }, [loadJobs]);
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   // ==================== CRUD Handlers ====================
 
@@ -216,8 +260,12 @@ const Automation: React.FC = () => {
       title: '确认删除作业',
       content: (
         <div>
-          <p>确定要删除作业 <Text strong>{job.name}</Text> 吗？</p>
-          <p><Text type="secondary">此操作不可恢复，所有执行历史将被保留。</Text></p>
+          <p>
+            确定要删除作业 <Text strong>{job.name}</Text> 吗？
+          </p>
+          <p>
+            <Text type="secondary">此操作不可恢复，所有执行历史将被保留。</Text>
+          </p>
         </div>
       ),
       okText: '删除',
@@ -314,9 +362,7 @@ const Automation: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       width: 200,
-      render: (name: string) => (
-        <Text style={{ fontWeight: 500 }}>{name}</Text>
-      ),
+      render: (name: string) => <Text style={{ fontWeight: 500 }}>{name}</Text>,
     },
     {
       title: '类型',
@@ -344,10 +390,7 @@ const Automation: React.FC = () => {
         const s = JOB_STATUS_MAP[status] || JOB_STATUS_MAP.idle;
         const isRunning = status === 'running';
         return (
-          <Badge
-            status={isRunning ? 'processing' : 'default'}
-            dot
-          >
+          <Badge status={isRunning ? 'processing' : 'default'} dot>
             <Tag color={s.color}>{s.label}</Tag>
           </Badge>
         );
@@ -379,11 +422,15 @@ const Automation: React.FC = () => {
           <Tooltip title="定时任务 (Cron)">
             <Tag color="cyan" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <ClockCircleOutlined />
-              <Text code style={{ fontSize: 11 }}>{schedule}</Text>
+              <Text code style={{ fontSize: 11 }}>
+                {schedule}
+              </Text>
             </Tag>
           </Tooltip>
         ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>手动</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            手动
+          </Text>
         ),
     },
     {
@@ -394,7 +441,9 @@ const Automation: React.FC = () => {
       render: (tags: string[]) => (
         <Space size={[0, 4]} wrap>
           {tags.slice(0, 2).map((tag) => (
-            <Tag key={tag} style={{ fontSize: 11 }}>{tag}</Tag>
+            <Tag key={tag} style={{ fontSize: 11 }}>
+              {tag}
+            </Tag>
           ))}
           {tags.length > 2 && <Tag style={{ fontSize: 11 }}>+{tags.length - 2}</Tag>}
         </Space>
@@ -466,7 +515,11 @@ const Automation: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 120,
-      render: (id: string) => <Text code style={{ fontSize: 12 }}>{id}</Text>,
+      render: (id: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {id}
+        </Text>
+      ),
     },
     {
       title: '状态',
@@ -484,7 +537,8 @@ const Automation: React.FC = () => {
       key: 'durationMs',
       width: 100,
       align: 'center' as const,
-      render: (ms: number | null) => ms ? <Text>{(ms / 1000).toFixed(1)}s</Text> : <Text type="secondary">-</Text>,
+      render: (ms: number | null) =>
+        ms ? <Text>{(ms / 1000).toFixed(1)}s</Text> : <Text type="secondary">-</Text>,
     },
     {
       title: '操作人',
@@ -510,14 +564,7 @@ const Automation: React.FC = () => {
       key: 'output',
       render: (output: string | null, record: JobExecutionRecord) => {
         if (record.status === 'failed' && record.error) {
-          return (
-            <Alert
-              message={record.error}
-              type="error"
-              showIcon
-              style={{ fontSize: 12 }}
-            />
-          );
+          return <Alert message={record.error} type="error" showIcon style={{ fontSize: 12 }} />;
         }
         if (output) {
           return (
@@ -528,7 +575,11 @@ const Automation: React.FC = () => {
             </Tooltip>
           );
         }
-        return <Text type="secondary" style={{ fontSize: 12 }}>无输出</Text>;
+        return (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            无输出
+          </Text>
+        );
       },
     },
   ];
@@ -538,7 +589,14 @@ const Automation: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
@@ -549,12 +607,7 @@ const Automation: React.FC = () => {
           </Text>
         </div>
         <Tooltip title="刷新作业列表">
-          <Button
-            icon={<ReloadOutlined />}
-            loading={loading}
-            disabled={loading}
-            onClick={loadJobs}
-          >
+          <Button icon={<ReloadOutlined />} loading={loading} disabled={loading} onClick={loadJobs}>
             刷新
           </Button>
         </Tooltip>
@@ -571,24 +624,38 @@ const Automation: React.FC = () => {
       >
         <Space size="large" style={{ width: '100%', justifyContent: 'space-around' }}>
           <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>总作业数</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              总作业数
+            </Text>
             <br />
             <Text style={{ fontSize: 24, fontWeight: 600 }}>{stats.total}</Text>
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>已启用</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              已启用
+            </Text>
             <br />
-            <Text style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>{stats.enabled}</Text>
+            <Text style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>
+              {stats.enabled}
+            </Text>
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>执行中</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              执行中
+            </Text>
             <br />
-            <Text style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>{stats.running}</Text>
+            <Text style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>
+              {stats.running}
+            </Text>
           </div>
           <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>失败</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              失败
+            </Text>
             <br />
-            <Text style={{ fontSize: 24, fontWeight: 600, color: colors.error[500] }}>{stats.failed}</Text>
+            <Text style={{ fontSize: 24, fontWeight: 600, color: colors.error[500] }}>
+              {stats.failed}
+            </Text>
           </div>
         </Space>
       </Card>
@@ -599,7 +666,14 @@ const Automation: React.FC = () => {
         bodyStyle={{ padding: spacing.md }}
       >
         {/* Toolbar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
           <Space>
             <Text type="secondary">共 {filteredJobs.length} 条作业</Text>
           </Space>
@@ -619,7 +693,9 @@ const Automation: React.FC = () => {
               onChange={setTypeFilter}
             >
               {JOB_TYPE_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
             <Select
@@ -630,7 +706,9 @@ const Automation: React.FC = () => {
               onChange={setStatusFilter}
             >
               {JOB_STATUS_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
@@ -708,16 +786,14 @@ const Automation: React.FC = () => {
           >
             <Select placeholder="选择作业类型">
               {JOB_TYPE_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="enabled"
-            label="启用"
-            valuePropName="checked"
-          >
+          <Form.Item name="enabled" label="启用" valuePropName="checked">
             <Switch checkedChildren="启用" unCheckedChildren="停用" />
           </Form.Item>
 
@@ -742,18 +818,11 @@ const Automation: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="tags" label="标签">
-            <Select
-              mode="tags"
-              placeholder="输入标签后回车"
-              style={{ width: '100%' }}
-            />
+            <Select mode="tags" placeholder="输入标签后回车" style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item name="config" label="配置 (JSON)">
-            <TextArea
-              rows={4}
-              placeholder='{"scriptId": "script-xxx", "timeout": 300}'
-            />
+            <TextArea rows={4} placeholder='{"scriptId": "script-xxx", "timeout": 300}' />
           </Form.Item>
         </Form>
       </Modal>
@@ -762,9 +831,7 @@ const Automation: React.FC = () => {
       <Drawer
         title={
           <div>
-            <Text strong>{currentJob?.name}</Text>
-            {' '}
-            <Text type="secondary">— 执行历史</Text>
+            <Text strong>{currentJob?.name}</Text> <Text type="secondary">— 执行历史</Text>
           </div>
         }
         open={drawerOpen}
@@ -799,14 +866,12 @@ const Automation: React.FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="启用状态">
-                <Switch
-                  size="small"
-                  checked={currentJob.enabled}
-                  disabled
-                />
+                <Switch size="small" checked={currentJob.enabled} disabled />
               </Descriptions.Item>
               {currentJob.description && (
-                <Descriptions.Item label="描述" span={2}>{currentJob.description}</Descriptions.Item>
+                <Descriptions.Item label="描述" span={2}>
+                  {currentJob.description}
+                </Descriptions.Item>
               )}
               <Descriptions.Item label="创建时间" span={2}>
                 {new Date(currentJob.createdAt).toLocaleString('zh-CN')}

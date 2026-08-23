@@ -95,7 +95,8 @@ const UsageCard: React.FC<{
   icon: React.ReactNode;
 }> = ({ title, used, percent, unit, icon }) => {
   const statusColor = percent >= 90 ? 'exception' : percent >= 70 ? 'normal' : 'success';
-  const strokeColor = percent >= 90 ? colors.error[400] : percent >= 70 ? colors.warning[500] : colors.success[500];
+  const strokeColor =
+    percent >= 90 ? colors.error[400] : percent >= 70 ? colors.warning[500] : colors.success[500];
 
   return (
     <Card size="small">
@@ -114,7 +115,8 @@ const UsageCard: React.FC<{
         style={{ marginTop: spacing.sm }}
       />
       <Text type="secondary" style={{ fontSize: 12 }}>
-        已用: {used}{unit}
+        已用: {used}
+        {unit}
       </Text>
     </Card>
   );
@@ -326,7 +328,14 @@ const PipelineBudgetPage: React.FC = () => {
               { label: 'Run colors.primary[500]', value: 'run-demo-3' },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => { loadBudgetConfig(); loadBudgetUsage(); }} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadBudgetConfig();
+              loadBudgetUsage();
+            }}
+            loading={loading}
+          >
             刷新
           </Button>
           <Button icon={<SettingOutlined />} onClick={openConfigModal}>
@@ -379,7 +388,15 @@ const PipelineBudgetPage: React.FC = () => {
 
       {/* Alerts */}
       {alerts.length > 0 && (
-        <Card title={<><WarningOutlined style={{ marginRight: spacing.sm }} />预算告警</>} style={{ marginBottom: spacing.lg }}>
+        <Card
+          title={
+            <>
+              <WarningOutlined style={{ marginRight: spacing.sm }} />
+              预算告警
+            </>
+          }
+          style={{ marginBottom: spacing.lg }}
+        >
           <AntTable<BudgetAlert>
             columns={alertColumns}
             dataSource={alerts}
@@ -399,7 +416,10 @@ const PipelineBudgetPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="时间告警阈值">
               {budgetConfig.time_budget?.warningPercent}%
-              <Tag color={policyColorMap[budgetConfig.time_budget?.policy || 'warn']} style={{ marginLeft: spacing.sm }}>
+              <Tag
+                color={policyColorMap[budgetConfig.time_budget?.policy || 'warn']}
+                style={{ marginLeft: spacing.sm }}
+              >
                 {policyLabelMap[budgetConfig.time_budget?.policy || 'warn']}
               </Tag>
             </Descriptions.Item>
@@ -411,7 +431,10 @@ const PipelineBudgetPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="资源告警阈值">
               {budgetConfig.resource_budget?.warningPercent}%
-              <Tag color={policyColorMap[budgetConfig.resource_budget?.policy || 'warn']} style={{ marginLeft: spacing.sm }}>
+              <Tag
+                color={policyColorMap[budgetConfig.resource_budget?.policy || 'warn']}
+                style={{ marginLeft: spacing.sm }}
+              >
                 {policyLabelMap[budgetConfig.resource_budget?.policy || 'warn']}
               </Tag>
             </Descriptions.Item>
@@ -420,7 +443,10 @@ const PipelineBudgetPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="成本告警阈值">
               {budgetConfig.cost_budget?.warningPercent}%
-              <Tag color={policyColorMap[budgetConfig.cost_budget?.policy || 'warn']} style={{ marginLeft: spacing.sm }}>
+              <Tag
+                color={policyColorMap[budgetConfig.cost_budget?.policy || 'warn']}
+                style={{ marginLeft: spacing.sm }}
+              >
                 {policyLabelMap[budgetConfig.cost_budget?.policy || 'warn']}
               </Tag>
             </Descriptions.Item>
@@ -430,7 +456,12 @@ const PipelineBudgetPage: React.FC = () => {
 
       {/* Budget Estimate */}
       <Card
-        title={<><CalculatorOutlined style={{ marginRight: spacing.sm }} />预算预估</>}
+        title={
+          <>
+            <CalculatorOutlined style={{ marginRight: spacing.sm }} />
+            预算预估
+          </>
+        }
         extra={
           <Space>
             <Select
@@ -460,14 +491,24 @@ const PipelineBudgetPage: React.FC = () => {
               <Statistic
                 title="预估时间"
                 value={formatDuration(budgetEstimate.estimatedTimeMs)}
-                suffix={<Tag color="blue">置信度 {(budgetEstimate.confidence * 100).toFixed(0)}%</Tag>}
+                suffix={
+                  <Tag color="blue">置信度 {(budgetEstimate.confidence * 100).toFixed(0)}%</Tag>
+                }
               />
             </Col>
             <Col span={6}>
-              <Statistic title="预估 CPU" value={budgetEstimate.estimatedCpuCores.toFixed(1)} suffix="cores" />
+              <Statistic
+                title="预估 CPU"
+                value={budgetEstimate.estimatedCpuCores.toFixed(1)}
+                suffix="cores"
+              />
             </Col>
             <Col span={6}>
-              <Statistic title="预估内存" value={budgetEstimate.estimatedMemoryGB.toFixed(1)} suffix="GB" />
+              <Statistic
+                title="预估内存"
+                value={budgetEstimate.estimatedMemoryGB.toFixed(1)}
+                suffix="GB"
+              />
             </Col>
             <Col span={6}>
               <Statistic title="预估成本" value={formatCost(budgetEstimate.estimatedCost)} />
@@ -503,11 +544,13 @@ const PipelineBudgetPage: React.FC = () => {
             </Col>
             <Col span={8}>
               <Form.Item name="timePolicy" label="超限策略">
-                <Select options={[
-                  { label: '警告', value: 'warn' },
-                  { label: '阻止', value: 'block' },
-                  { label: '回滚', value: 'rollback' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '警告', value: 'warn' },
+                    { label: '阻止', value: 'block' },
+                    { label: '回滚', value: 'rollback' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -526,11 +569,13 @@ const PipelineBudgetPage: React.FC = () => {
             </Col>
             <Col span={8}>
               <Form.Item name="resourcePolicy" label="超限策略">
-                <Select options={[
-                  { label: '警告', value: 'warn' },
-                  { label: '阻止', value: 'block' },
-                  { label: '回滚', value: 'rollback' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '警告', value: 'warn' },
+                    { label: '阻止', value: 'block' },
+                    { label: '回滚', value: 'rollback' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -549,11 +594,13 @@ const PipelineBudgetPage: React.FC = () => {
             </Col>
             <Col span={8}>
               <Form.Item name="costPolicy" label="超限策略">
-                <Select options={[
-                  { label: '警告', value: 'warn' },
-                  { label: '阻止', value: 'block' },
-                  { label: '回滚', value: 'rollback' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '警告', value: 'warn' },
+                    { label: '阻止', value: 'block' },
+                    { label: '回滚', value: 'rollback' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>

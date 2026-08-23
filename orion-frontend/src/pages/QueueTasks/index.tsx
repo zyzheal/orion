@@ -28,7 +28,17 @@ import {
   StopOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
-import { listJobs, enqueueJob, completeJob, failJob, getQueueStats, QueueJob, EnqueueInput, JobStatus, QueueStats } from '@/api/queue';
+import {
+  listJobs,
+  enqueueJob,
+  completeJob,
+  failJob,
+  getQueueStats,
+  QueueJob,
+  EnqueueInput,
+  JobStatus,
+  QueueStats,
+} from '@/api/queue';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -43,7 +53,12 @@ const statusColorMap: Record<JobStatus, string> = {
 
 const QueueTasksPage: React.FC = () => {
   const [jobs, setJobs] = useState<QueueJob[]>([]);
-  const [stats, setStats] = useState<QueueStats>({ pending: 0, processing: 0, completed: 0, failed: 0 });
+  const [stats, setStats] = useState<QueueStats>({
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    failed: 0,
+  });
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<JobStatus | undefined>();
@@ -131,16 +146,14 @@ const QueueTasksPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: JobStatus) => (
-        <Badge status={statusColorMap[v] as any} text={v} />
-      ),
+      render: (v: JobStatus) => <Badge status={statusColorMap[v] as any} text={v} />,
     },
     {
       title: '重试次数',
       dataIndex: 'attempts',
       key: 'attempts',
       width: 100,
-      render: (v: number) => v > 0 ? <Tag color="warning">{v}</Tag> : '-',
+      render: (v: number) => (v > 0 ? <Tag color="warning">{v}</Tag> : '-'),
     },
     {
       title: '创建时间',
@@ -173,10 +186,19 @@ const QueueTasksPage: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <UnorderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <UnorderedListOutlined
+              style={{ marginRight: spacing[3], color: colors.primary[500] }}
+            />
             任务队列
           </Title>
           <Text type="secondary">管理队列任务状态、手动入队和完成标记</Text>
@@ -204,22 +226,41 @@ const QueueTasksPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
-            <Statistic title="待处理" value={stats.pending} valueStyle={{ color: colors.neutral[500] }} />
+            <Statistic
+              title="待处理"
+              value={stats.pending}
+              valueStyle={{ color: colors.neutral[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="处理中" value={stats.processing} prefix={<SyncOutlined spin />} valueStyle={{ color: colors.primary[500] }} />
+            <Statistic
+              title="处理中"
+              value={stats.processing}
+              prefix={<SyncOutlined spin />}
+              valueStyle={{ color: colors.primary[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已完成" value={stats.completed} prefix={<CheckCircleOutlined />} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="已完成"
+              value={stats.completed}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="失败" value={stats.failed} valueStyle={{ color: stats.failed > 0 ? colors.error[500] : undefined }} prefix={<StopOutlined />} />
+            <Statistic
+              title="失败"
+              value={stats.failed}
+              valueStyle={{ color: stats.failed > 0 ? colors.error[500] : undefined }}
+              prefix={<StopOutlined />}
+            />
           </Card>
         </Col>
       </Row>
@@ -236,12 +277,20 @@ const QueueTasksPage: React.FC = () => {
       <Modal
         title="入队新任务"
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); form.resetFields(); }}
+        onCancel={() => {
+          setModalVisible(false);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleEnqueue}>
-          <Form.Item name="tenantId" label="租户 ID" rules={[{ required: true }]} initialValue="default">
+          <Form.Item
+            name="tenantId"
+            label="租户 ID"
+            rules={[{ required: true }]}
+            initialValue="default"
+          >
             <Input />
           </Form.Item>
           <Form.Item name="payload" label="任务数据 (JSON)" rules={[{ required: true }]}>

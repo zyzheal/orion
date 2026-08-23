@@ -40,7 +40,9 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
         total: number;
       }>('/v1/tenant/my-tenants');
 
-      const body = (res.data as { tenants?: MyTenant[]; currentTenant?: MyTenant | null; total?: number }) ?? res.data;
+      const body =
+        (res.data as { tenants?: MyTenant[]; currentTenant?: MyTenant | null; total?: number }) ??
+        res.data;
       const tenantList = body?.tenants || [];
       const current = body?.currentTenant || tenantList.find((t: MyTenant) => t.isCurrent);
 
@@ -82,7 +84,9 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
           title={`租户: ${currentTenant.display_name || currentTenant.name}`}
         >
           <TeamOutlined />
-          <span style={{ fontWeight: 500 }}>{currentTenant.display_name || currentTenant.name}</span>
+          <span style={{ fontWeight: 500 }}>
+            {currentTenant.display_name || currentTenant.name}
+          </span>
         </div>
       );
     }
@@ -93,7 +97,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
   // P1-6 修复：切换租户前进行权限校验
   const handleSwitchTenant = async (tenantId: string) => {
     // P1-6 修复：先检查用户是否有该租户的权限
-    const hasPermission = tenants.some(t => t.id === tenantId);
+    const hasPermission = tenants.some((t) => t.id === tenantId);
     if (!hasPermission) {
       message.error('您没有权限访问该租户');
       return;
@@ -102,7 +106,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
     // 更新 localStorage
     localStorage.setItem('tenant_id', tenantId);
     // 更新当前租户状态
-    const newCurrent = tenants.find(t => t.id === tenantId);
+    const newCurrent = tenants.find((t) => t.id === tenantId);
     if (newCurrent) {
       setCurrentTenant({ ...newCurrent, isCurrent: true });
     }
@@ -129,13 +133,9 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
           <div style={{ fontWeight: tenant.isCurrent ? 600 : 400 }}>
             {tenant.display_name || tenant.name}
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-            角色: {tenant.role}
-          </div>
+          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>角色: {tenant.role}</div>
         </div>
-        {tenant.isCurrent && (
-          <CheckOutlined style={{ color: colors.primary[500] }} />
-        )}
+        {tenant.isCurrent && <CheckOutlined style={{ color: colors.primary[500] }} />}
       </div>
     ),
     onClick: () => {
@@ -170,11 +170,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
   }
 
   return (
-    <Dropdown
-      menu={{ items: menuItems }}
-      placement="bottomRight"
-      trigger={['click']}
-    >
+    <Dropdown menu={{ items: menuItems }} placement="bottomRight" trigger={['click']}>
       <div
         style={{
           display: 'flex',

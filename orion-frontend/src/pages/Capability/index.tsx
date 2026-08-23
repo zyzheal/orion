@@ -9,11 +9,7 @@
  */
 import React, { useState } from 'react';
 import { Card, Tabs, Typography, Spin, Empty } from 'antd';
-import {
-  SafetyCertificateOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { SafetyCertificateOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import CapabilityList from './CapabilityList';
 import RoleCapabilityMapping from './RoleCapabilityMapping';
 import UserCapabilityMapping from './UserCapabilityMapping';
@@ -67,7 +63,9 @@ const CapabilityManagement: React.FC = () => {
       {/* 页面标题 */}
       <div style={{ marginBottom: spacing.lg }}>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-          <SafetyCertificateOutlined style={{ marginRight: spacing.sm, color: colors.purple[500] }} />
+          <SafetyCertificateOutlined
+            style={{ marginRight: spacing.sm, color: colors.purple[500] }}
+          />
           能力管理
         </Title>
         <Paragraph type="secondary">管理系统的能力单元、角色能力分配和用户能力覆盖</Paragraph>
@@ -77,7 +75,12 @@ const CapabilityManagement: React.FC = () => {
       <Spin spinning={loading}>
         <Card>
           {tabItems.length > 0 ? (
-            <Tabs activeKey={activeTab} onChange={setActiveTab} defaultActiveKey="list" items={tabItems} />
+            <Tabs
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              defaultActiveKey="list"
+              items={tabItems}
+            />
           ) : (
             <Empty description="暂无数据" />
           )}

@@ -26,10 +26,26 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/observability/diagnostic/sessions': { icon: <PlayCircleOutlined />, title: 'Sessions', subtitle: '诊断会话管理' },
-  '/observability/diagnostic/reports': { icon: <FileTextOutlined />, title: 'Reports', subtitle: '诊断报告查看' },
-  '/observability/diagnostic/knowledge': { icon: <BookOutlined />, title: 'Knowledge Base', subtitle: '诊断知识库' },
-  '/observability/diagnostic/trigger': { icon: <RocketOutlined />, title: 'Trigger', subtitle: '诊断触发规则' },
+  '/observability/diagnostic/sessions': {
+    icon: <PlayCircleOutlined />,
+    title: 'Sessions',
+    subtitle: '诊断会话管理',
+  },
+  '/observability/diagnostic/reports': {
+    icon: <FileTextOutlined />,
+    title: 'Reports',
+    subtitle: '诊断报告查看',
+  },
+  '/observability/diagnostic/knowledge': {
+    icon: <BookOutlined />,
+    title: 'Knowledge Base',
+    subtitle: '诊断知识库',
+  },
+  '/observability/diagnostic/trigger': {
+    icon: <RocketOutlined />,
+    title: 'Trigger',
+    subtitle: '诊断触发规则',
+  },
 };
 
 // 统一的 Layout 配置
@@ -94,12 +110,14 @@ const DiagnosticLayout: React.FC = () => {
           {pageInfo.title && (
             <div style={{ marginBottom: spacing.md }}>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.icon && (
+                  <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                    {pageInfo.icon}
+                  </span>
+                )}
                 {pageInfo.title}
               </Title>
-              {pageInfo.subtitle && (
-                <Text type="secondary">{pageInfo.subtitle}</Text>
-              )}
+              {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
             </div>
           )}
           <Outlet />

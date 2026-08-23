@@ -5,8 +5,4 @@ import PipelineCanvas from './PipelineCanvas';
 import StageNode from './StageNode';
 import DependencyEdge from './DependencyEdge';
 
-export {
-  PipelineCanvas,
-  StageNode,
-  DependencyEdge,
-};
+export { PipelineCanvas, StageNode, DependencyEdge };

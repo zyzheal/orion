@@ -150,92 +150,95 @@ const RoleManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<Role>[] = useMemo<TableColumn<Role>[]>(() => [
-    {
-      key: 'name',
-      title: '角色名称',
-      dataIndex: 'name',
-      width: 180,
-      sortable: true,
-      render: (v: unknown, record: Role) => (
-        <Space direction="vertical" size={0}>
-          <Space>
-            <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
-              {String(v)}
+  const columns: TableColumn<Role>[] = useMemo<TableColumn<Role>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '角色名称',
+        dataIndex: 'name',
+        width: 180,
+        sortable: true,
+        render: (v: unknown, record: Role) => (
+          <Space direction="vertical" size={0}>
+            <Space>
+              <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
+                {String(v)}
+              </Text>
+              {record.is_system && (
+                <Tag color="gold" style={{ fontSize: 10 }}>
+                  系统
+                </Tag>
+              )}
+            </Space>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.description || '无描述'}
             </Text>
-            {record.is_system && (
-              <Tag color="gold" style={{ fontSize: 10 }}>
-                系统
-              </Tag>
+          </Space>
+        ),
+      },
+      {
+        key: 'permissions',
+        title: '权限数量',
+        width: 120,
+        render: (_: unknown, record: Role) => (
+          <Tag color="geekblue" icon={<KeyOutlined />}>
+            {record.permissions.length} 项权限
+          </Tag>
+        ),
+      },
+      {
+        key: 'users',
+        title: '关联用户',
+        width: 120,
+        render: (_: unknown, record: Role) => (
+          <Tag color="cyan" icon={<TeamOutlined />}>
+            {record.user_count || 0} 位用户
+          </Tag>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm') : '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        fixed: 'right' as const,
+        render: (_: unknown, record: Role) => (
+          <Space size="small" wrap>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
+              详情
+            </Button>
+            {!record.is_system && (
+              <Popconfirm
+                title={`确认删除角色 "${record.name}"?`}
+                onConfirm={() => handleDelete(record.id, record.name)}
+              >
+                <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                  删除
+                </Button>
+              </Popconfirm>
             )}
           </Space>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.description || '无描述'}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'permissions',
-      title: '权限数量',
-      width: 120,
-      render: (_: unknown, record: Role) => (
-        <Tag color="geekblue" icon={<KeyOutlined />}>
-          {record.permissions.length} 项权限
-        </Tag>
-      ),
-    },
-    {
-      key: 'users',
-      title: '关联用户',
-      width: 120,
-      render: (_: unknown, record: Role) => (
-        <Tag color="cyan" icon={<TeamOutlined />}>
-          {record.user_count || 0} 位用户
-        </Tag>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm') : '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      fixed: 'right' as const,
-      render: (_: unknown, record: Role) => (
-        <Space size="small" wrap>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => openDetail(record)}
-          >
-            详情
-          </Button>
-          {!record.is_system && (
-            <Popconfirm
-              title={`确认删除角色 "${record.name}"?`}
-              onConfirm={() => handleDelete(record.id, record.name)}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ], [handleDelete, openDetail]);
+        ),
+      },
+    ],
+    [handleDelete, openDetail]
+  );
 
   // ---- Detail Drawer content ----
 
@@ -358,7 +361,9 @@ const RoleManagement: React.FC = () => {
                         <Text strong style={{ fontSize: 13 }}>
                           {group.group}
                         </Text>
-                        <Checkbox.Group style={{ width: '100%', marginTop: spacing.sm, marginLeft: 0 }}>
+                        <Checkbox.Group
+                          style={{ width: '100%', marginTop: spacing.sm, marginLeft: 0 }}
+                        >
                           <div
                             style={{
                               display: 'grid',
@@ -418,7 +423,9 @@ const RoleManagement: React.FC = () => {
                 </Descriptions>
 
                 <Divider>权限列表</Divider>
-                <div style={{ marginBottom: spacing.lg }}>{renderPermissionGroup(selectedRole)}</div>
+                <div style={{ marginBottom: spacing.lg }}>
+                  {renderPermissionGroup(selectedRole)}
+                </div>
 
                 <Divider>关联用户</Divider>
                 {renderAssignedUsers(selectedRole.id)}
@@ -431,9 +438,8 @@ const RoleManagement: React.FC = () => {
   );
 };
 
-
 export default () => (
-  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="角色管理">
+  <PermissionGuard requiredRoles={['admin', 'platform_admin']} pageLevel resourceName="角色管理">
     <RoleManagement />
   </PermissionGuard>
 );

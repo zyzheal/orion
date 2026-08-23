@@ -45,9 +45,15 @@ function PageErrorFallback({ pageName, error }: { pageName?: string; error?: Err
         title={`${name} 加载失败`}
         subTitle={error?.message || '发生了意外错误，请稍后重试'}
         extra={[
-          <Button key="retry" type="primary" onClick={() => navigate(0)}>重新加载</Button>,
-          <Button key="back" onClick={() => navigate(-1)}>返回</Button>,
-          <Button key="home" onClick={() => navigate('/dashboard')}>首页</Button>,
+          <Button key="retry" type="primary" onClick={() => navigate(0)}>
+            重新加载
+          </Button>,
+          <Button key="back" onClick={() => navigate(-1)}>
+            返回
+          </Button>,
+          <Button key="home" onClick={() => navigate('/dashboard')}>
+            首页
+          </Button>,
         ]}
       />
     </div>
@@ -56,6 +62,6 @@ function PageErrorFallback({ pageName, error }: { pageName?: string; error?: Err
 
 /** Derive a human-friendly page name from a route path like "/pipeline-runs" → "Pipeline Runs" */
 export function pathToPageName(path: string | undefined): string {
-  const clean = (path || "page").replace(/:.*$/, '').split('/').pop() || 'Page';
+  const clean = (path || 'page').replace(/:.*$/, '').split('/').pop() || 'Page';
   return clean.replace(/[-_](.)/g, (_, c) => c.toUpperCase());
 }

@@ -28,7 +28,17 @@ vi.mock('@/components/Table', () => ({
 }));
 
 const mockWebhooks = [
-  { id: '1', url: 'https://example.com/hook', events: ['pipeline.completed'], enabled: true, failureCount: 0, lastStatus: 200, lastTriggeredAt: '2026-04-29T10:00:00Z', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-04-29T10:00:00Z' },
+  {
+    id: '1',
+    url: 'https://example.com/hook',
+    events: ['pipeline.completed'],
+    enabled: true,
+    failureCount: 0,
+    lastStatus: 200,
+    lastTriggeredAt: '2026-04-29T10:00:00Z',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-04-29T10:00:00Z',
+  },
 ];
 
 describe('WebhookManagement', () => {
@@ -37,7 +47,9 @@ describe('WebhookManagement', () => {
   });
 
   it('renders loading state then displays data', async () => {
-    vi.mocked(webhookApi.getWebhooks).mockResolvedValue({ data: { webhooks: mockWebhooks } } as any);
+    vi.mocked(webhookApi.getWebhooks).mockResolvedValue({
+      data: { webhooks: mockWebhooks },
+    } as any);
 
     render(<WebhookManagement />);
 

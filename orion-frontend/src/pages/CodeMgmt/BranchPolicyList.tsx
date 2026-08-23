@@ -16,7 +16,13 @@ import {
   Checkbox,
   message,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, BranchesOutlined,} from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  BranchesOutlined,
+} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -158,103 +164,106 @@ const BranchPolicyList: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<BranchPolicy>[] = useMemo<TableColumn<BranchPolicy>[]>(() => [
-    {
-      key: 'branchPattern',
-      title: '分支匹配',
-      dataIndex: 'branchPattern',
-      width: 200,
-      sortable: true,
-      filterable: true,
-      render: (value: unknown, record: any) => (
-        <Space direction="vertical" size={0}>
-          <Text code strong>
-            {String(value)}
-          </Text>
+  const columns: TableColumn<BranchPolicy>[] = useMemo<TableColumn<BranchPolicy>[]>(
+    () => [
+      {
+        key: 'branchPattern',
+        title: '分支匹配',
+        dataIndex: 'branchPattern',
+        width: 200,
+        sortable: true,
+        filterable: true,
+        render: (value: unknown, record: any) => (
+          <Space direction="vertical" size={0}>
+            <Text code strong>
+              {String(value)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              仓库: {record.repoId}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'minApprovals',
+        title: '最少审批',
+        dataIndex: 'minApprovals',
+        width: 100,
+        sortable: true,
+        render: (value: unknown) => <Tag color="blue">{String(value)} 人</Tag>,
+      },
+      {
+        key: 'requireBuildPass',
+        title: '构建通过',
+        dataIndex: 'requireBuildPass',
+        width: 100,
+        render: (value: unknown) => (
+          <Tag color={value ? 'green' : 'default'}>{value ? '是' : '否'}</Tag>
+        ),
+      },
+      {
+        key: 'requireTestPass',
+        title: '测试通过',
+        dataIndex: 'requireTestPass',
+        width: 100,
+        render: (value: unknown) => (
+          <Tag color={value ? 'green' : 'default'}>{value ? '是' : '否'}</Tag>
+        ),
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 100,
+        render: (_value: unknown, record: any) => (
+          <Switch
+            checked={record.enabled}
+            onChange={(checked) => handleToggleEnabled(record, checked)}
+            size="small"
+          />
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'id',
+        width: 160,
+        sortable: true,
+        render: () => (
           <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            仓库: {record.repoId}
+            -
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'minApprovals',
-      title: '最少审批',
-      dataIndex: 'minApprovals',
-      width: 100,
-      sortable: true,
-      render: (value: unknown) => <Tag color="blue">{String(value)} 人</Tag>,
-    },
-    {
-      key: 'requireBuildPass',
-      title: '构建通过',
-      dataIndex: 'requireBuildPass',
-      width: 100,
-      render: (value: unknown) => (
-        <Tag color={value ? 'green' : 'default'}>{value ? '是' : '否'}</Tag>
-      ),
-    },
-    {
-      key: 'requireTestPass',
-      title: '测试通过',
-      dataIndex: 'requireTestPass',
-      width: 100,
-      render: (value: unknown) => (
-        <Tag color={value ? 'green' : 'default'}>{value ? '是' : '否'}</Tag>
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 100,
-      render: (_value: unknown, record: any) => (
-        <Switch
-          checked={record.enabled}
-          onChange={(checked) => handleToggleEnabled(record, checked)}
-          size="small"
-        />
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'id',
-      width: 160,
-      sortable: true,
-      render: () => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          -
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openEditModal(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleDelete, openEditModal]);
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEditModal(record)}
+            >
+              编辑
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+            >
+              删除
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, openEditModal]
+  );
 
   return (
     <div style={{ padding: 0 }}>

@@ -16,7 +16,9 @@ import type { PageEntry, PageRegistry } from './page-registry-types';
  * Convert a string component path to a lazy import function
  * Mirrors the pattern from routes.tsx: `const lazyImport = (path: string) => lazy(() => import(path))`
  */
-function resolveElement(element: string | (() => Promise<{ default: React.ComponentType }>)): (() => Promise<{ default: React.ComponentType }>) {
+function resolveElement(
+  element: string | (() => Promise<{ default: React.ComponentType }>)
+): () => Promise<{ default: React.ComponentType }> {
   if (typeof element === 'function') {
     return element;
   }
@@ -85,17 +87,11 @@ export function generateRoutes(registry: PageRegistry): AppRoute[] {
  * Merge local and remote registries
  * Local entries take precedence for same paths
  */
-export function mergeRegistries(
-  local: PageRegistry,
-  remote?: PageRegistry
-): PageRegistry {
+export function mergeRegistries(local: PageRegistry, remote?: PageRegistry): PageRegistry {
   if (!remote) return local;
 
   const remotePaths = new Set(remote.pages.map((p) => p.path));
-  const merged = [
-    ...local.pages,
-    ...remote.pages.filter((p) => !remotePaths.has(p.path)),
-  ];
+  const merged = [...local.pages, ...remote.pages.filter((p) => !remotePaths.has(p.path))];
 
   // Sort by sortOrder if available
   merged.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));

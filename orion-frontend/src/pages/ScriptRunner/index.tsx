@@ -4,20 +4,17 @@
  * Phase 2.3: Standalone online script execution UI
  */
 import React, { useState } from 'react';
-import {
-  Button,
-  Form,
-  Select,
-  Input,
-  Card,
-  Typography,
-  message,
-  Space,
-  Tag,
-  Alert,
-} from 'antd';
+import { Button, Form, Select, Input, Card, Typography, message, Space, Tag, Alert } from 'antd';
 import { PlayCircleOutlined, SafetyOutlined, CodeOutlined } from '@ant-design/icons';
-import { scanScript, executeScript, ScriptConfig, ScriptScanResult, ScriptExecutionResult, ScriptLanguage, ScriptLevel } from '@/api/scripts';
+import {
+  scanScript,
+  executeScript,
+  ScriptConfig,
+  ScriptScanResult,
+  ScriptExecutionResult,
+  ScriptLanguage,
+  ScriptLevel,
+} from '@/api/scripts';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -72,7 +69,7 @@ const ScriptRunnerPage: React.FC = () => {
         `task-${Date.now()}`,
         'manual-run',
         'standalone',
-        values as ScriptConfig,
+        values as ScriptConfig
       );
       const data = res.data;
       setExecResult(data || null);
@@ -99,7 +96,11 @@ const ScriptRunnerPage: React.FC = () => {
       </div>
 
       <Card title="脚本配置" style={{ marginBottom: spacing.md }}>
-        <Form form={form} layout="vertical" initialValues={{ language: 'javascript', level: 'safe' }}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ language: 'javascript', level: 'safe' }}
+        >
           <Space style={{ marginBottom: spacing.md }} wrap>
             <Form.Item name="language" label="语言" style={{ marginBottom: 0, width: 160 }}>
               <Select options={languageOptions} />
@@ -108,7 +109,11 @@ const ScriptRunnerPage: React.FC = () => {
               <Select options={levelOptions} />
             </Form.Item>
           </Space>
-          <Form.Item name="code" label="脚本代码" rules={[{ required: true, message: '请输入脚本代码' }]}>
+          <Form.Item
+            name="code"
+            label="脚本代码"
+            rules={[{ required: true, message: '请输入脚本代码' }]}
+          >
             <TextArea
               rows={12}
               style={{ fontFamily: 'monospace', fontSize: 13 }}
@@ -116,11 +121,7 @@ const ScriptRunnerPage: React.FC = () => {
             />
           </Form.Item>
           <Space>
-            <Button
-              icon={<SafetyOutlined />}
-              onClick={handleScan}
-              loading={scanning}
-            >
+            <Button icon={<SafetyOutlined />} onClick={handleScan} loading={scanning}>
               安全扫描
             </Button>
             <Button
@@ -141,7 +142,15 @@ const ScriptRunnerPage: React.FC = () => {
             <Tag color={scanResult.passed ? 'success' : 'error'}>
               {scanResult.passed ? '通过' : '未通过'}
             </Tag>
-            <Tag color={scanResult.riskScore > 70 ? 'error' : scanResult.riskScore > 40 ? 'warning' : 'success'}>
+            <Tag
+              color={
+                scanResult.riskScore > 70
+                  ? 'error'
+                  : scanResult.riskScore > 40
+                    ? 'warning'
+                    : 'success'
+              }
+            >
               风险评分: {scanResult.riskScore}
             </Tag>
           </Space>
@@ -151,7 +160,9 @@ const ScriptRunnerPage: React.FC = () => {
               message="警告"
               description={
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {scanResult.warnings.map((w, i) => <li key={String(i)}>{w}</li>)}
+                  {scanResult.warnings.map((w, i) => (
+                    <li key={String(i)}>{w}</li>
+                  ))}
                 </ul>
               }
               style={{ marginBottom: spacing.sm }}
@@ -163,7 +174,9 @@ const ScriptRunnerPage: React.FC = () => {
               message="错误"
               description={
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {scanResult.errors.map((e, i) => <li key={String(i)}>{e}</li>)}
+                  {scanResult.errors.map((e, i) => (
+                    <li key={String(i)}>{e}</li>
+                  ))}
                 </ul>
               }
             />
@@ -181,14 +194,25 @@ const ScriptRunnerPage: React.FC = () => {
             <Tag>退出码: {execResult.exitCode}</Tag>
           </Space>
           {execResult.output && (
-            <Card size="small" title="输出" style={{ background: colors.light?.bg?.secondary || colors.neutral[100] }}>
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>
+            <Card
+              size="small"
+              title="输出"
+              style={{ background: colors.light?.bg?.secondary || colors.neutral[100] }}
+            >
+              <pre
+                style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}
+              >
                 {execResult.output}
               </pre>
             </Card>
           )}
           {execResult.error && (
-            <Alert type="error" message="错误信息" description={execResult.error} style={{ marginTop: spacing[3] }} />
+            <Alert
+              type="error"
+              message="错误信息"
+              description={execResult.error}
+              style={{ marginTop: spacing[3] }}
+            />
           )}
         </Card>
       )}

@@ -4,7 +4,19 @@
  * 支持新增/删除菜单项、跨模块拖拽移动
  */
 import React, { useState } from 'react';
-import { Drawer, Button, Input, Switch, Space, message, Tag, Typography, Modal, Select, Form } from 'antd';
+import {
+  Drawer,
+  Button,
+  Input,
+  Switch,
+  Space,
+  message,
+  Tag,
+  Typography,
+  Modal,
+  Select,
+  Form,
+} from 'antd';
 import {
   SettingOutlined,
   SaveOutlined,
@@ -14,7 +26,11 @@ import {
   DragOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
-import { useMenuConfigStore, type MenuModuleConfig, type MenuChildConfig } from '@/stores/menuConfigStore';
+import {
+  useMenuConfigStore,
+  type MenuModuleConfig,
+  type MenuChildConfig,
+} from '@/stores/menuConfigStore';
 import { spacing } from '@/tokens';
 
 const { Text } = Typography;
@@ -108,7 +124,14 @@ interface MoveChildModalProps {
   moduleOptions: Array<{ key: string; label: string }>;
 }
 
-const MoveChildModal: React.FC<MoveChildModalProps> = ({ open, onClose, onMove, child, fromModuleKey, moduleOptions }) => {
+const MoveChildModal: React.FC<MoveChildModalProps> = ({
+  open,
+  onClose,
+  onMove,
+  child,
+  fromModuleKey,
+  moduleOptions,
+}) => {
   const [targetModule, setTargetModule] = useState('');
 
   const handleMove = () => {
@@ -163,7 +186,15 @@ const ModuleEditor: React.FC<{
   onDeleteChild: (childKey: string) => void;
   onAddChild: (child: Omit<MenuChildConfig, 'key'>) => void;
   moduleOptions: Array<{ key: string; label: string }>;
-}> = ({ module, moduleOrder, onUpdateModule, onUpdateChild, onDeleteChild, onAddChild, moduleOptions }) => {
+}> = ({
+  module,
+  moduleOrder,
+  onUpdateModule,
+  onUpdateChild,
+  onDeleteChild,
+  onAddChild,
+  moduleOptions,
+}) => {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const hasChildren = module.children && module.children.length > 0;
   const [addOpen, setAddOpen] = useState(false);
@@ -222,7 +253,14 @@ const ModuleEditor: React.FC<{
       }}
     >
       {/* 模块头部 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3], marginBottom: hasChildren ? 12 : 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing[3],
+          marginBottom: hasChildren ? 12 : 0,
+        }}
+      >
         <Tag color="blue" style={{ margin: 0, fontSize: 12, minWidth: 28, textAlign: 'center' }}>
           {moduleOrder}
         </Tag>
@@ -280,13 +318,23 @@ const ModuleEditor: React.FC<{
                   padding: '4px 10px',
                   borderRadius: 6,
                   background: child.enabled
-                    ? isDark ? 'rgba(51,112,230,0.1)' : 'rgba(51,112,230,0.06)'
-                    : isDark ? 'rgba(255,255,255,0.03)' : colors.neutral[100],
-                  border: `1px solid ${isDragOver
-                    ? colors.primary
-                    : child.enabled
-                      ? isDark ? 'rgba(51,112,230,0.2)' : 'rgba(51,112,230,0.15)'
-                      : isDark ? 'rgba(255,255,255,0.05)' : 'colors.neutral[200]'}`,
+                    ? isDark
+                      ? 'rgba(51,112,230,0.1)'
+                      : 'rgba(51,112,230,0.06)'
+                    : isDark
+                      ? 'rgba(255,255,255,0.03)'
+                      : colors.neutral[100],
+                  border: `1px solid ${
+                    isDragOver
+                      ? colors.primary
+                      : child.enabled
+                        ? isDark
+                          ? 'rgba(51,112,230,0.2)'
+                          : 'rgba(51,112,230,0.15)'
+                        : isDark
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'colors.neutral[200]'
+                  }`,
                   transition: 'all 0.2s',
                   opacity: child.enabled ? 1 : 0.5,
                   cursor: 'grab',
@@ -300,14 +348,19 @@ const ModuleEditor: React.FC<{
                   onChange={(checked) => onUpdateChild(child.key, { enabled: checked })}
                   size="small"
                 />
-                <Text style={{ fontSize: 12, color: child.enabled ? undefined : colors.neutral[400] }}>
+                <Text
+                  style={{ fontSize: 12, color: child.enabled ? undefined : colors.neutral[400] }}
+                >
                   {child.label}
                 </Text>
                 <Button
                   type="text"
                   size="small"
                   icon={<span style={{ fontSize: 10 }}>→</span>}
-                  onClick={(e) => { e.stopPropagation(); setMoveChild(child); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMoveChild(child);
+                  }}
                   title="移动到..."
                   style={{ padding: '0 2px', height: 20, minWidth: 20 }}
                 />
@@ -370,8 +423,12 @@ const ModuleEditor: React.FC<{
 
 // ==================== Main Panel ====================
 
-export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
-  const { modules, updateModule, updateChild, deleteChild, addChild, saveConfig, resetToDefault } = useMenuConfigStore();
+export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> = ({
+  open,
+  onClose,
+}) => {
+  const { modules, updateModule, updateChild, deleteChild, addChild, saveConfig, resetToDefault } =
+    useMenuConfigStore();
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   const moduleKeys = Object.keys(modules);
@@ -407,7 +464,10 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
       width={560}
       placement="right"
       styles={{
-        body: { padding: '20px 24px', background: isDark ? colors.neutral[900] : colors.neutral[0] },
+        body: {
+          padding: '20px 24px',
+          background: isDark ? colors.neutral[900] : colors.neutral[0],
+        },
         header: {
           borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
           paddingBottom: 16,

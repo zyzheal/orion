@@ -96,7 +96,6 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
       setIsConnected(true);
       setError(null);
       reconnectAttemptsRef.current = 0;
-
     };
 
     eventSource.onerror = (_err) => {
@@ -119,9 +118,7 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
     };
 
     // Handle connected event
-    eventSource.addEventListener('connected', () => {
-
-    });
+    eventSource.addEventListener('connected', () => {});
 
     // Handle log events
     eventSource.addEventListener('log', (event: MessageEvent) => {
@@ -168,7 +165,6 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
     eventSource.addEventListener('stage_start', (event: MessageEvent) => {
       try {
         JSON.parse(event.data);
-
       } catch (e) {
         console.error('[PipelineSSE] Failed to parse stage_start:', e);
       }
@@ -177,7 +173,6 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
     eventSource.addEventListener('stage_end', (event: MessageEvent) => {
       try {
         JSON.parse(event.data);
-
       } catch (e) {
         console.error('[PipelineSSE] Failed to parse stage_end:', e);
       }
@@ -187,7 +182,6 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
     eventSource.addEventListener('step_start', (event: MessageEvent) => {
       try {
         JSON.parse(event.data);
-
       } catch (e) {
         console.error('[PipelineSSE] Failed to parse step_start:', e);
       }
@@ -196,7 +190,6 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
     eventSource.addEventListener('step_end', (event: MessageEvent) => {
       try {
         JSON.parse(event.data);
-
       } catch (e) {
         console.error('[PipelineSSE] Failed to parse step_end:', e);
       }

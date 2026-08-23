@@ -4,12 +4,19 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Select, Tag, Tooltip,
-  message, Empty, DatePicker,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Select,
+  Tag,
+  Tooltip,
+  message,
+  Empty,
+  DatePicker,
 } from 'antd';
-import {
-  ReloadOutlined, EyeOutlined,
-} from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
   getNotificationHistory,
@@ -34,7 +41,8 @@ const STATUS_MAP: Record<string, { color: string; label: string }> = {
 };
 
 const STATUS_FILTERS = Object.entries(STATUS_MAP).map(([key, val]) => ({
-  label: val.label, value: key,
+  label: val.label,
+  value: key,
 }));
 
 const HistoryTab: React.FC = () => {
@@ -48,7 +56,9 @@ const HistoryTab: React.FC = () => {
   const [dateRange, setDateRange] = useState<[any, any] | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
 
-  useEffect(() => { loadItems(); }, [page, pageSize]);
+  useEffect(() => {
+    loadItems();
+  }, [page, pageSize]);
 
   const loadItems = async () => {
     setLoading(true);
@@ -60,12 +70,14 @@ const HistoryTab: React.FC = () => {
         params.startDate = dateRange[0].format('YYYY-MM-DD');
         params.endDate = dateRange[1].format('YYYY-MM-DD');
       }
-      const result = await getNotificationHistory(params) as NotificationHistoryPage;
+      const result = (await getNotificationHistory(params)) as NotificationHistoryPage;
       setItems(result.items || []);
       setTotal(result.total || 0);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载通知历史失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleMarkRead = async (id: string) => {
@@ -86,7 +98,9 @@ const HistoryTab: React.FC = () => {
       loadItems();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '批量操作失败');
-    } finally { setMarkingAll(false); }
+    } finally {
+      setMarkingAll(false);
+    }
   };
 
   const columns = [
@@ -95,7 +109,11 @@ const HistoryTab: React.FC = () => {
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
-      render: (v: string) => <Text style={{ fontWeight: 500 }} title={v}>{v}</Text>,
+      render: (v: string) => (
+        <Text style={{ fontWeight: 500 }} title={v}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '渠道',
@@ -126,7 +144,7 @@ const HistoryTab: React.FC = () => {
       dataIndex: 'sent_at',
       key: 'sent_at',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '创建时间',
@@ -144,7 +162,12 @@ const HistoryTab: React.FC = () => {
         if (record.status === 'read') return <Text type="secondary">已读</Text>;
         return (
           <Tooltip title="标记已读">
-            <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleMarkRead(record.id)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleMarkRead(record.id)}
+            />
           </Tooltip>
         );
       },
@@ -156,7 +179,9 @@ const HistoryTab: React.FC = () => {
     if (record.error_message) {
       return (
         <div style={{ padding: spacing.md, background: colors.error[50], borderRadius: 4 }}>
-          <Text type="danger" style={{ fontWeight: 500 }}>发送错误:</Text>{' '}
+          <Text type="danger" style={{ fontWeight: 500 }}>
+            发送错误:
+          </Text>{' '}
           <Text>{record.error_message}</Text>
         </div>
       );
@@ -166,11 +191,21 @@ const HistoryTab: React.FC = () => {
 
   return (
     <Card
-      style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+      style={{
+        borderRadius: 12,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
       bodyStyle={{ padding: spacing.md }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Text type="secondary">共 {total} 条记录</Text>
         </Space>
@@ -183,7 +218,9 @@ const HistoryTab: React.FC = () => {
             onChange={setStatusFilter}
           >
             {STATUS_FILTERS.map((o) => (
-              <Option key={o.value} value={o.value}>{o.label}</Option>
+              <Option key={o.value} value={o.value}>
+                {o.label}
+              </Option>
             ))}
           </Select>
           <Select
@@ -194,7 +231,9 @@ const HistoryTab: React.FC = () => {
             onChange={setChannelFilter}
           >
             {CHANNEL_TYPES.map((c) => (
-              <Option key={c.value} value={c.value}>{c.label}</Option>
+              <Option key={c.value} value={c.value}>
+                {c.label}
+              </Option>
             ))}
           </Select>
           <RangePicker
@@ -215,11 +254,7 @@ const HistoryTab: React.FC = () => {
       {items.length === 0 && !loading ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">
-              暂无通知历史
-            </Text>
-          }
+          description={<Text type="secondary">暂无通知历史</Text>}
         />
       ) : (
         <Table
@@ -234,7 +269,10 @@ const HistoryTab: React.FC = () => {
             total,
             showSizeChanger: true,
             showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+            onChange: (p, ps) => {
+              setPage(p);
+              setPageSize(ps);
+            },
           }}
           expandable={{ expandedRowRender, rowExpandable: (r) => !!r.error_message }}
           scroll={{ x: 900 }}

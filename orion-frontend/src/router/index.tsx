@@ -49,13 +49,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
       if (isAuthenticated && user) {
         if (!cancelled) {
           // 检查角色权限（向后兼容）
-          if ((route as any).requiredRole && !checkRoleAccess(user.role, (route as any).requiredRole)) {
+          if (
+            (route as any).requiredRole &&
+            !checkRoleAccess(user.role, (route as any).requiredRole)
+          ) {
             message.error('您没有权限访问此页面');
             navigate('/dashboard', { replace: true });
             return;
           }
           // 检查细粒度权限
-          if (route.requiredPermission && !hasPermission(route.requiredPermission.resource, route.requiredPermission.action)) {
+          if (
+            route.requiredPermission &&
+            !hasPermission(route.requiredPermission.resource, route.requiredPermission.action)
+          ) {
             message.error('您没有权限访问此页面');
             navigate('/dashboard', { replace: true });
             return;
@@ -82,19 +88,25 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
             username: response.username,
             email: response.email,
             role: response.role,
-            roles: (response as { roles?: unknown })?.roles as string[] | undefined,  // 多角色支持
+            roles: (response as { roles?: unknown })?.roles as string[] | undefined, // 多角色支持
             avatar: response.avatar,
           });
           useAuthStore.getState().setAuthenticated(true);
 
           // 检查角色权限（向后兼容）
-          if ((route as any).requiredRole && !checkRoleAccess(response.role, (route as any).requiredRole)) {
+          if (
+            (route as any).requiredRole &&
+            !checkRoleAccess(response.role, (route as any).requiredRole)
+          ) {
             message.error('您没有权限访问此页面');
             navigate('/dashboard', { replace: true });
             return;
           }
           // 检查细粒度权限
-          if (route.requiredPermission && !hasPermission(route.requiredPermission.resource, route.requiredPermission.action)) {
+          if (
+            route.requiredPermission &&
+            !hasPermission(route.requiredPermission.resource, route.requiredPermission.action)
+          ) {
             message.error('您没有权限访问此页面');
             navigate('/dashboard', { replace: true });
             return;
@@ -114,7 +126,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; route: AppRoute }> =
     }
 
     verify();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -159,7 +173,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             username: response.username,
             email: response.email,
             role: response.role,
-            roles: (response as { roles?: unknown })?.roles as string[] | undefined,  // 多角色支持
+            roles: (response as { roles?: unknown })?.roles as string[] | undefined, // 多角色支持
             avatar: response.avatar,
           });
           useAuthStore.getState().setAuthenticated(true);
@@ -177,7 +191,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
 
     check();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -223,7 +239,10 @@ const AppRoutes: React.FC = () => {
         }
       } catch (error) {
         if (!cancelled) {
-          console.error('[Router] Failed to load page registry, falling back to static routes:', error);
+          console.error(
+            '[Router] Failed to load page registry, falling back to static routes:',
+            error
+          );
           setRegistryError(true);
         }
       } finally {
@@ -241,9 +260,10 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   // Determine which routes to use
-  const activeRoutes = import.meta.env.VITE_USE_PAGE_REGISTRY === 'true'
-    ? (pageRegistryRoutes ?? routes) // Use registry routes if loaded, fall back to static
-    : routes;
+  const activeRoutes =
+    import.meta.env.VITE_USE_PAGE_REGISTRY === 'true'
+      ? (pageRegistryRoutes ?? routes) // Use registry routes if loaded, fall back to static
+      : routes;
 
   if (registryLoading) {
     return <Loading fullscreen />;
@@ -253,7 +273,10 @@ const AppRoutes: React.FC = () => {
     <Routes>
       {activeRoutes.map((route) => {
         // 支持 React.lazy 组件和普通 ReactNode
-        const pageName = (route as { path?: string }).path != null ? pathToPageName((route as { path?: string }).path) : undefined;
+        const pageName =
+          (route as { path?: string }).path != null
+            ? pathToPageName((route as { path?: string }).path)
+            : undefined;
         const element = (
           <PageErrorBoundary pageName={pageName}>
             <React.Suspense fallback={<Loading fullscreen />}>
@@ -267,7 +290,10 @@ const AppRoutes: React.FC = () => {
           const childRoutes = route.children.map((child) => {
             // 处理 index 路由
             if (child.index) {
-              const childPageName = (child as { path?: string }).path != null ? pathToPageName((child as { path?: string }).path) : undefined;
+              const childPageName =
+                (child as { path?: string }).path != null
+                  ? pathToPageName((child as { path?: string }).path)
+                  : undefined;
               const childElement = (
                 <PageErrorBoundary pageName={childPageName}>
                   <React.Suspense fallback={<Loading />}>
@@ -279,9 +305,7 @@ const AppRoutes: React.FC = () => {
             }
 
             const childElement = (
-              <React.Suspense fallback={<Loading />}>
-                {renderElement(child.element)}
-              </React.Suspense>
+              <React.Suspense fallback={<Loading />}>{renderElement(child.element)}</React.Suspense>
             );
 
             if (child.protected === false) {
@@ -292,11 +316,7 @@ const AppRoutes: React.FC = () => {
               <Route
                 key={child.path}
                 path={child.path}
-                element={
-                  <ProtectedRoute route={child}>
-                    {childElement}
-                  </ProtectedRoute>
-                }
+                element={<ProtectedRoute route={child}>{childElement}</ProtectedRoute>}
               />
             );
           });
@@ -328,7 +348,11 @@ const AppRoutes: React.FC = () => {
         if (route.protected === false) {
           if (route.path === '/login') {
             return (
-              <Route key={route.path} path={route.path} element={<PublicRoute>{element}</PublicRoute>} />
+              <Route
+                key={route.path}
+                path={route.path}
+                element={<PublicRoute>{element}</PublicRoute>}
+              />
             );
           }
           return <Route key={route.path} path={route.path} element={element} />;
@@ -340,11 +364,7 @@ const AppRoutes: React.FC = () => {
             <Route
               key={route.path}
               path={route.path}
-              element={
-                <ProtectedRoute route={route}>
-                  {element}
-                </ProtectedRoute>
-              }
+              element={<ProtectedRoute route={route}>{element}</ProtectedRoute>}
             />
           );
         }
@@ -366,10 +386,10 @@ const AppRoutes: React.FC = () => {
 };
 
 export default function AppRouter() {
-	return (
-		<BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-			<AppRoutes />
-			<CopilotFloating />
-		</BrowserRouter>
-	);
+  return (
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppRoutes />
+      <CopilotFloating />
+    </BrowserRouter>
+  );
 }

@@ -7,17 +7,39 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  apiGovernanceApi, GovernanceContract, GovernanceRule,
-  GovernanceViolation, GovernanceReport
+  apiGovernanceApi,
+  GovernanceContract,
+  GovernanceRule,
+  GovernanceViolation,
+  GovernanceReport,
 } from '@/api/api-governance';
 import {
-  Card, Table, Button, Modal, Form, Select, Input, Tag,
-  message, Space, Statistic, Row, Col, Badge, Tabs, Descriptions,
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Select,
+  Input,
+  Tag,
+  message,
+  Space,
+  Statistic,
+  Row,
+  Col,
+  Badge,
+  Tabs,
+  Descriptions,
 } from 'antd';
 import {
-  FileTextOutlined, SafetyCertificateOutlined,
-  PlusOutlined, ReloadOutlined, CheckCircleOutlined,
-  WarningOutlined, BranchesOutlined, StopOutlined,
+  FileTextOutlined,
+  SafetyCertificateOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  BranchesOutlined,
+  StopOutlined,
   VerifiedOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -160,7 +182,9 @@ const ApiGovernancePage: React.FC = () => {
       if ((result as VerificationResult).passed) {
         message.success('Verification passed');
       } else {
-        message.warning(`Verification failed: ${(result as VerificationResult).violations.length} violations`);
+        message.warning(
+          `Verification failed: ${(result as VerificationResult).violations.length} violations`
+        );
       }
       setVerifyModal(false);
       verifyForm.resetFields();
@@ -245,20 +269,34 @@ const ApiGovernancePage: React.FC = () => {
       dataIndex: 'compliance_score',
       key: 'compliance_score',
       render: (score: number) => (
-        <Tag color={score >= 90 ? 'green' : score >= 70 ? 'orange' : 'red'}>
-          {score}%
-        </Tag>
+        <Tag color={score >= 90 ? 'green' : score >= 70 ? 'orange' : 'red'}>{score}%</Tag>
       ),
     },
     { title: 'Violations', dataIndex: 'violation_count', key: 'violation_count', width: 100 },
-    { title: 'Updated', dataIndex: 'updated_at', key: 'updated_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Updated',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
     {
       title: 'Actions',
       key: 'actions',
       render: (_: unknown, record: GovernanceContract) => (
         <Space>
-          <Button size="small" icon={<VerifiedOutlined />} onClick={() => { setSelectedContract(record); setVerifyModal(true); }}>Verify</Button>
-          <Button size="small" onClick={() => handleEvaluate(record.id)}>Evaluate</Button>
+          <Button
+            size="small"
+            icon={<VerifiedOutlined />}
+            onClick={() => {
+              setSelectedContract(record);
+              setVerifyModal(true);
+            }}
+          >
+            Verify
+          </Button>
+          <Button size="small" onClick={() => handleEvaluate(record.id)}>
+            Evaluate
+          </Button>
         </Space>
       ),
     },
@@ -277,31 +315,43 @@ const ApiGovernancePage: React.FC = () => {
       dataIndex: 'severity',
       key: 'severity',
       render: (sev: string) => (
-        <Tag color={sev === 'error' ? 'red' : sev === 'warning' ? 'orange' : 'blue'}>
-          {sev}
-        </Tag>
+        <Tag color={sev === 'error' ? 'red' : sev === 'warning' ? 'orange' : 'blue'}>{sev}</Tag>
       ),
     },
     {
       title: 'Enabled',
       dataIndex: 'enabled',
       key: 'enabled',
-      render: (enabled: boolean) => (enabled ? <CheckCircleOutlined style={{ color: colors.success[500] }} /> : <WarningOutlined style={{ color: colors.warning[500] }} />),
+      render: (enabled: boolean) =>
+        enabled ? (
+          <CheckCircleOutlined style={{ color: colors.success[500] }} />
+        ) : (
+          <WarningOutlined style={{ color: colors.warning[500] }} />
+        ),
     },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const violationColumns = [
     { title: 'Rule', dataIndex: 'rule_name', key: 'rule_name' },
-    { title: 'Contract', dataIndex: 'contract_id', key: 'contract_id', width: 100, render: (id: string) => id.slice(0, 8) },
+    {
+      title: 'Contract',
+      dataIndex: 'contract_id',
+      key: 'contract_id',
+      width: 100,
+      render: (id: string) => id.slice(0, 8),
+    },
     {
       title: 'Severity',
       dataIndex: 'severity',
       key: 'severity',
       render: (sev: string) => (
-        <Tag color={sev === 'error' ? 'red' : sev === 'warning' ? 'orange' : 'blue'}>
-          {sev}
-        </Tag>
+        <Tag color={sev === 'error' ? 'red' : sev === 'warning' ? 'orange' : 'blue'}>{sev}</Tag>
       ),
     },
     { title: 'Description', dataIndex: 'description', key: 'description', ellipsis: true },
@@ -310,13 +360,29 @@ const ApiGovernancePage: React.FC = () => {
       title: 'Resolved',
       dataIndex: 'resolved',
       key: 'resolved',
-      render: (resolved: boolean) => (resolved ? <CheckCircleOutlined style={{ color: colors.success[500] }} /> : <WarningOutlined style={{ color: colors.warning[500] }} />),
+      render: (resolved: boolean) =>
+        resolved ? (
+          <CheckCircleOutlined style={{ color: colors.success[500] }} />
+        ) : (
+          <WarningOutlined style={{ color: colors.warning[500] }} />
+        ),
     },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const versionColumns = [
-    { title: 'Contract', dataIndex: 'contract_id', key: 'contract_id', width: 140, render: (id: string) => id.slice(0, 12) + '...' },
+    {
+      title: 'Contract',
+      dataIndex: 'contract_id',
+      key: 'contract_id',
+      width: 140,
+      render: (id: string) => id.slice(0, 12) + '...',
+    },
     { title: 'Version', dataIndex: 'version', key: 'version', width: 100 },
     {
       title: 'Status',
@@ -329,9 +395,27 @@ const ApiGovernancePage: React.FC = () => {
         </Tag>
       ),
     },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', width: 160, render: (d: string) => new Date(d).toLocaleString() },
-    { title: 'Breaking Changes', dataIndex: 'breaking_changes', key: 'breaking_changes', width: 120, render: (v: boolean) => v ? <Tag color="red">Yes</Tag> : <Tag>No</Tag> },
-    { title: 'Changelog', dataIndex: 'changelog', key: 'changelog', ellipsis: true, render: (v: string | null) => v || '-' },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
+    {
+      title: 'Breaking Changes',
+      dataIndex: 'breaking_changes',
+      key: 'breaking_changes',
+      width: 120,
+      render: (v: boolean) => (v ? <Tag color="red">Yes</Tag> : <Tag>No</Tag>),
+    },
+    {
+      title: 'Changelog',
+      dataIndex: 'changelog',
+      key: 'changelog',
+      ellipsis: true,
+      render: (v: string | null) => v || '-',
+    },
     {
       title: 'Actions',
       key: 'actions',
@@ -339,12 +423,21 @@ const ApiGovernancePage: React.FC = () => {
       render: (_: unknown, record: ApiVersionType) => (
         <Space>
           {record.status === 'active' && (
-            <Button size="small" icon={<StopOutlined />} onClick={() => { deprecateForm.setFieldsValue({ versionId: record.id }); setDeprecateModal(true); }}>
+            <Button
+              size="small"
+              icon={<StopOutlined />}
+              onClick={() => {
+                deprecateForm.setFieldsValue({ versionId: record.id });
+                setDeprecateModal(true);
+              }}
+            >
               Deprecate
             </Button>
           )}
           {record.status === 'deprecated' && (
-            <Button size="small" danger onClick={() => handleRetireVersion(record.id)}>Retire</Button>
+            <Button size="small" danger onClick={() => handleRetireVersion(record.id)}>
+              Retire
+            </Button>
           )}
         </Space>
       ),
@@ -361,7 +454,10 @@ const ApiGovernancePage: React.FC = () => {
               title="Overall Score"
               value={report?.overall_score ?? 0}
               suffix="/ 100"
-              valueStyle={{ color: (report?.overall_score ?? 0) >= 80 ? colors.success[500] : colors.warning[500] }}
+              valueStyle={{
+                color:
+                  (report?.overall_score ?? 0) >= 80 ? colors.success[500] : colors.warning[500],
+              }}
             />
           </Col>
           <Col span={4}>
@@ -374,14 +470,18 @@ const ApiGovernancePage: React.FC = () => {
             <Statistic
               title="Violations"
               value={violations.length}
-              valueStyle={{ color: violations.length > 0 ? colors.error[400] : colors.success[500] }}
+              valueStyle={{
+                color: violations.length > 0 ? colors.error[400] : colors.success[500],
+              }}
             />
           </Col>
           <Col span={4}>
             <Statistic
               title="Deprecated"
               value={deprecatedCount}
-              valueStyle={{ color: deprecatedCount > 0 ? colors.warning[500] : colors.success[500] }}
+              valueStyle={{
+                color: deprecatedCount > 0 ? colors.warning[500] : colors.success[500],
+              }}
             />
           </Col>
           <Col span={2}>
@@ -400,7 +500,11 @@ const ApiGovernancePage: React.FC = () => {
         items={[
           {
             key: 'contracts',
-            label: <><FileTextOutlined /> Contracts</>,
+            label: (
+              <>
+                <FileTextOutlined /> Contracts
+              </>
+            ),
             children: (
               <Card
                 title="API Contracts"
@@ -409,7 +513,9 @@ const ApiGovernancePage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setContractModal(true)}>
                       New Contract
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -424,7 +530,11 @@ const ApiGovernancePage: React.FC = () => {
           },
           {
             key: 'rules',
-            label: <><SafetyCertificateOutlined /> Governance Rules</>,
+            label: (
+              <>
+                <SafetyCertificateOutlined /> Governance Rules
+              </>
+            ),
             children: (
               <Card
                 title="Governance Rules"
@@ -433,24 +543,32 @@ const ApiGovernancePage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setRuleModal(true)}>
                       New Rule
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
-                <Table
-                  columns={ruleColumns}
-                  dataSource={rules}
-                  rowKey="id"
-                  loading={loading}
-                />
+                <Table columns={ruleColumns} dataSource={rules} rowKey="id" loading={loading} />
               </Card>
             ),
           },
           {
             key: 'violations',
-            label: <><WarningOutlined /> Violations</>,
+            label: (
+              <>
+                <WarningOutlined /> Violations
+              </>
+            ),
             children: (
-              <Card title="Governance Violations" extra={<Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>}>
+              <Card
+                title="Governance Violations"
+                extra={
+                  <Button icon={<ReloadOutlined />} onClick={loadData}>
+                    Refresh
+                  </Button>
+                }
+              >
                 <Table
                   columns={violationColumns}
                   dataSource={violations}
@@ -462,7 +580,11 @@ const ApiGovernancePage: React.FC = () => {
           },
           {
             key: 'versions',
-            label: <><BranchesOutlined /> Version Management</>,
+            label: (
+              <>
+                <BranchesOutlined /> Version Management
+              </>
+            ),
             children: (
               <Card
                 title="API Version Management & Deprecation Tracking"
@@ -471,7 +593,9 @@ const ApiGovernancePage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setVersionModal(true)}>
                       Register Version
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -486,27 +610,43 @@ const ApiGovernancePage: React.FC = () => {
           },
           {
             key: 'verification',
-            label: <><VerifiedOutlined /> Verification History</>,
+            label: (
+              <>
+                <VerifiedOutlined /> Verification History
+              </>
+            ),
             children: (
               <Card title="Contract Verification History">
                 {verificationResults.length === 0 ? (
-                  <p style={{ color: colors.neutral[500] }}>No verification results yet. Use the Verify button on a contract to start.</p>
+                  <p style={{ color: colors.neutral[500] }}>
+                    No verification results yet. Use the Verify button on a contract to start.
+                  </p>
                 ) : (
                   verificationResults.map((result, idx) => (
                     <Card key={String(idx)} size="small" style={{ marginBottom: spacing.sm }}>
                       <Descriptions column={2} size="small">
-                        <Descriptions.Item label="Contract">{result.contractId.slice(0, 16)}...</Descriptions.Item>
-                        <Descriptions.Item label="Result">
-                          <Tag color={result.passed ? 'green' : 'red'}>{result.passed ? 'Passed' : 'Failed'}</Tag>
+                        <Descriptions.Item label="Contract">
+                          {result.contractId.slice(0, 16)}...
                         </Descriptions.Item>
-                        <Descriptions.Item label="Endpoint">{result.method} {result.endpoint}</Descriptions.Item>
-                        <Descriptions.Item label="Verified At">{new Date(result.verifiedAt).toLocaleString()}</Descriptions.Item>
+                        <Descriptions.Item label="Result">
+                          <Tag color={result.passed ? 'green' : 'red'}>
+                            {result.passed ? 'Passed' : 'Failed'}
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Endpoint">
+                          {result.method} {result.endpoint}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Verified At">
+                          {new Date(result.verifiedAt).toLocaleString()}
+                        </Descriptions.Item>
                       </Descriptions>
                       {result.violations.length > 0 && (
                         <div style={{ marginTop: spacing.sm }}>
                           <strong>Violations:</strong>
                           <ul>
-                            {result.violations.map((v, i) => <li key={String(i)}>{v}</li>)}
+                            {result.violations.map((v, i) => (
+                              <li key={String(i)}>{v}</li>
+                            ))}
                           </ul>
                         </div>
                       )}
@@ -534,12 +674,14 @@ const ApiGovernancePage: React.FC = () => {
             <Input placeholder="1.0.0" />
           </Form.Item>
           <Form.Item label="Spec Type" name="spec_type" required>
-            <Select options={[
-              { value: 'openapi', label: 'OpenAPI / Swagger' },
-              { value: 'graphql', label: 'GraphQL' },
-              { value: 'grpc', label: 'gRPC' },
-              { value: 'custom', label: 'Custom' },
-            ]} />
+            <Select
+              options={[
+                { value: 'openapi', label: 'OpenAPI / Swagger' },
+                { value: 'graphql', label: 'GraphQL' },
+                { value: 'grpc', label: 'gRPC' },
+                { value: 'custom', label: 'Custom' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <TextArea rows={2} />
@@ -559,20 +701,24 @@ const ApiGovernancePage: React.FC = () => {
             <Input placeholder="naming-convention" />
           </Form.Item>
           <Form.Item label="Category" name="category" required>
-            <Select options={[
-              { value: 'naming', label: 'Naming Convention' },
-              { value: 'versioning', label: 'Versioning' },
-              { value: 'security', label: 'Security' },
-              { value: 'performance', label: 'Performance' },
-              { value: 'documentation', label: 'Documentation' },
-            ]} />
+            <Select
+              options={[
+                { value: 'naming', label: 'Naming Convention' },
+                { value: 'versioning', label: 'Versioning' },
+                { value: 'security', label: 'Security' },
+                { value: 'performance', label: 'Performance' },
+                { value: 'documentation', label: 'Documentation' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Severity" name="severity" required>
-            <Select options={[
-              { value: 'error', label: 'Error' },
-              { value: 'warning', label: 'Warning' },
-              { value: 'info', label: 'Info' },
-            ]} />
+            <Select
+              options={[
+                { value: 'error', label: 'Error' },
+                { value: 'warning', label: 'Warning' },
+                { value: 'info', label: 'Info' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <TextArea rows={2} />
@@ -595,12 +741,14 @@ const ApiGovernancePage: React.FC = () => {
             <Input placeholder={selectedContract?.path || '/api/v1/...'} />
           </Form.Item>
           <Form.Item label="Method" name="method" initialValue="GET">
-            <Select options={[
-              { value: 'GET', label: 'GET' },
-              { value: 'POST', label: 'POST' },
-              { value: 'PUT', label: 'PUT' },
-              { value: 'DELETE', label: 'DELETE' },
-            ]} />
+            <Select
+              options={[
+                { value: 'GET', label: 'GET' },
+                { value: 'POST', label: 'POST' },
+                { value: 'PUT', label: 'PUT' },
+                { value: 'DELETE', label: 'DELETE' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Actual Response (JSON)" name="actualResponse">
             <TextArea rows={4} placeholder='{"id": "123", "name": "example"}' />
@@ -623,10 +771,12 @@ const ApiGovernancePage: React.FC = () => {
             <Input placeholder="v1.2.0" />
           </Form.Item>
           <Form.Item label="Status" name="status" initialValue="active">
-            <Select options={[
-              { value: 'active', label: 'Active' },
-              { value: 'deprecated', label: 'Deprecated' },
-            ]} />
+            <Select
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'deprecated', label: 'Deprecated' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Changelog" name="changelog">
             <TextArea rows={3} />

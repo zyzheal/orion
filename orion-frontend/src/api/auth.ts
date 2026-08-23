@@ -61,14 +61,21 @@ export const getCurrentUser = async (): Promise<UserInfo> => {
  *
  * Phase 3.8.3: 登录页动态展示可用 SSO Provider
  */
-export const getEnabledSsoProviders = async (): Promise<Array<{
-  name: string;
-  type: string;
-  display_name: string;
-  display_icon?: string;
-}>> => {
+export const getEnabledSsoProviders = async (): Promise<
+  Array<{
+    name: string;
+    type: string;
+    display_name: string;
+    display_icon?: string;
+  }>
+> => {
   const response = await api.get('/api/v1/auth/sso/providers-enabled');
-  return (response.data || []) as { name: string; type: string; display_name: string; display_icon?: string }[];
+  return (response.data || []) as {
+    name: string;
+    type: string;
+    display_name: string;
+    display_icon?: string;
+  }[];
 };
 
 /**
@@ -95,5 +102,10 @@ export const getJwtKeyStatus = async (): Promise<{
   nextRotationDate?: string;
 }> => {
   const response = await api.get('/api/v1/auth/keys');
-  return response.data as { initialized: boolean; activeKeyId?: string; verificationKeyCount: number; nextRotationDate?: string };
+  return response.data as {
+    initialized: boolean;
+    activeKeyId?: string;
+    verificationKeyCount: number;
+    nextRotationDate?: string;
+  };
 };

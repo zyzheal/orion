@@ -10,11 +10,30 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, message, Modal, Form, Input, Select,
-  Empty, Card, Descriptions, Tooltip, Row, Col, Divider,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Empty,
+  Card,
+  Descriptions,
+  Tooltip,
+  Row,
+  Col,
+  Divider,
 } from 'antd';
 import {
-  AppstoreOutlined, EyeOutlined, PlusOutlined, SearchOutlined, ThunderboltOutlined, ExportOutlined,
+  AppstoreOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import { lowcodeApi, type LowcodeTemplate, type LowcodeFlow } from '@/api/lowcode';
@@ -80,8 +99,7 @@ const TemplateMarketPage: React.FC = () => {
         const lower = searchText.toLowerCase();
         templates = templates.filter(
           (t: LowcodeTemplate) =>
-            t.name.toLowerCase().includes(lower) ||
-            t.description?.toLowerCase().includes(lower)
+            t.name.toLowerCase().includes(lower) || t.description?.toLowerCase().includes(lower)
         );
       }
       setTemplates(templates);
@@ -188,15 +206,23 @@ const TemplateMarketPage: React.FC = () => {
       style={{ borderRadius: 12, height: '100%', display: 'flex', flexDirection: 'column' }}
       cover={
         template.thumbnail ? (
-          <div style={{ height: 140, background: `url(${template.thumbnail}) center/cover`, borderRadius: '12px 12px 0 0' }} />
+          <div
+            style={{
+              height: 140,
+              background: `url(${template.thumbnail}) center/cover`,
+              borderRadius: '12px 12px 0 0',
+            }}
+          />
         ) : (
-          <div style={{
-            height: 100,
-            background: `linear-gradient(135deg, ${colors.primary[100]}, ${colors.primary[200]})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
+          <div
+            style={{
+              height: 100,
+              background: `linear-gradient(135deg, ${colors.primary[100]}, ${colors.primary[200]})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <AppstoreOutlined style={{ fontSize: 40, color: colors.primary[500] }} />
           </div>
         )
@@ -217,19 +243,31 @@ const TemplateMarketPage: React.FC = () => {
           <Space>
             <span style={{ fontWeight: 600 }}>{template.name}</span>
             {template.category && (
-              <Tag color="blue" style={{ marginLeft: 4 }}>{template.category}</Tag>
+              <Tag color="blue" style={{ marginLeft: 4 }}>
+                {template.category}
+              </Tag>
             )}
           </Space>
         }
         description={
           <div>
-            <Typography.Text type="secondary" ellipsis style={{ display: 'block', marginBottom: 4 }}>
+            <Typography.Text
+              type="secondary"
+              ellipsis
+              style={{ display: 'block', marginBottom: 4 }}
+            >
               {template.description || '无描述'}
             </Typography.Text>
             <Space size="small">
-              {template.tags && template.tags.split(',').filter(Boolean).map((tag) => (
-                <Tag key={tag} style={{ fontSize: 11 }}>{tag.trim()}</Tag>
-              ))}
+              {template.tags &&
+                template.tags
+                  .split(',')
+                  .filter(Boolean)
+                  .map((tag) => (
+                    <Tag key={tag} style={{ fontSize: 11 }}>
+                      {tag.trim()}
+                    </Tag>
+                  ))}
             </Space>
             <Divider style={{ margin: '8px 0' }} />
             <Space size="large" style={{ fontSize: 12, color: colors.neutral[500] }}>
@@ -249,7 +287,14 @@ const TemplateMarketPage: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <h2 style={{ marginBottom: 0, fontWeight: 600, color: colors.neutral[900] }}>
           <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           模板市场
@@ -268,24 +313,30 @@ const TemplateMarketPage: React.FC = () => {
                 placeholder="搜索模板名称、描述、标签..."
                 prefix={<SearchOutlined />}
                 value={searchText}
-                onChange={(e) => { setSearchText(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                  setPage(1);
+                }}
                 style={{ width: 300 }}
                 allowClear
               />
               <Select
                 placeholder="选择分类"
                 value={categoryFilter || undefined}
-                onChange={(val) => { setCategoryFilter(val || ''); setPage(1); }}
+                onChange={(val) => {
+                  setCategoryFilter(val || '');
+                  setPage(1);
+                }}
                 style={{ width: 150 }}
                 allowClear
               >
                 {categories.map((cat) => (
-                  <Option key={cat} value={cat}>{cat}</Option>
+                  <Option key={cat} value={cat}>
+                    {cat}
+                  </Option>
                 ))}
               </Select>
-              <Typography.Text type="secondary">
-                共 {total} 个模板
-              </Typography.Text>
+              <Typography.Text type="secondary">共 {total} 个模板</Typography.Text>
             </Space>
           </Col>
         </Row>
@@ -314,18 +365,30 @@ const TemplateMarketPage: React.FC = () => {
       <Modal
         title={`模板详情: ${selectedTemplate?.name}`}
         open={detailVisible}
-        onCancel={() => { setDetailVisible(false); setSelectedTemplate(null); }}
+        onCancel={() => {
+          setDetailVisible(false);
+          setSelectedTemplate(null);
+        }}
         width={700}
         footer={
           <Space>
-            <Button onClick={() => { setDetailVisible(false); setSelectedTemplate(null); }}>
+            <Button
+              onClick={() => {
+                setDetailVisible(false);
+                setSelectedTemplate(null);
+              }}
+            >
               关闭
             </Button>
             {selectedTemplate && (
-              <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => {
-                setDetailVisible(false);
-                handleOpenApply(selectedTemplate);
-              }}>
+              <Button
+                type="primary"
+                icon={<ThunderboltOutlined />}
+                onClick={() => {
+                  setDetailVisible(false);
+                  handleOpenApply(selectedTemplate);
+                }}
+              >
                 使用此模板
               </Button>
             )}
@@ -336,34 +399,56 @@ const TemplateMarketPage: React.FC = () => {
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="模板ID">{selectedTemplate.id}</Descriptions.Item>
             <Descriptions.Item label="名称">{selectedTemplate.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">{selectedTemplate.description || '无'}</Descriptions.Item>
+            <Descriptions.Item label="描述">
+              {selectedTemplate.description || '无'}
+            </Descriptions.Item>
             <Descriptions.Item label="分类">
               <Tag color="blue">{selectedTemplate.category || '未分类'}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="标签">
               <Space>
-                {selectedTemplate.tags && selectedTemplate.tags.split(',').filter(Boolean).map((tag) => <Tag key={tag}>{tag.trim()}</Tag>)}
+                {selectedTemplate.tags &&
+                  selectedTemplate.tags
+                    .split(',')
+                    .filter(Boolean)
+                    .map((tag) => <Tag key={tag}>{tag.trim()}</Tag>)}
                 {!selectedTemplate.tags && '无'}
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="使用次数">{selectedTemplate.usageCount || 0}</Descriptions.Item>
+            <Descriptions.Item label="使用次数">
+              {selectedTemplate.usageCount || 0}
+            </Descriptions.Item>
             <Descriptions.Item label="创建人">{selectedTemplate.createdBy}</Descriptions.Item>
             <Descriptions.Item label="创建时间">
               {dayjs(selectedTemplate.createdAt).format('YYYY-MM-DD HH:mm:ss')}
             </Descriptions.Item>
             <Descriptions.Item label="节点定义">
-              <pre style={{
-                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
-                padding: spacing.sm, borderRadius: 8, fontSize: 12,
-              }}>
-                {selectedTemplate.definition ? JSON.stringify(JSON.parse(selectedTemplate.definition), null, 2) : '无'}
+              <pre
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  background: colors.neutral[100],
+                  padding: spacing.sm,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              >
+                {selectedTemplate.definition
+                  ? JSON.stringify(JSON.parse(selectedTemplate.definition), null, 2)
+                  : '无'}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="连线定义">
-              <pre style={{
-                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
-                padding: spacing.sm, borderRadius: 8, fontSize: 12,
-              }}>
+              <pre
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  background: colors.neutral[100],
+                  padding: spacing.sm,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              >
                 {'无'}
               </pre>
             </Descriptions.Item>
@@ -375,7 +460,11 @@ const TemplateMarketPage: React.FC = () => {
       <Modal
         title={`应用模板: ${templateToApply?.name}`}
         open={applyVisible}
-        onCancel={() => { setApplyVisible(false); setTemplateToApply(null); applyForm.resetFields(); }}
+        onCancel={() => {
+          setApplyVisible(false);
+          setTemplateToApply(null);
+          applyForm.resetFields();
+        }}
         footer={null}
       >
         <Form form={applyForm} layout="vertical" onFinish={handleApplyTemplate}>
@@ -390,7 +479,13 @@ const TemplateMarketPage: React.FC = () => {
             <TextArea placeholder="流程描述" rows={3} />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block icon={<PlusOutlined />} loading={applying}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              icon={<PlusOutlined />}
+              loading={applying}
+            >
               创建流程
             </Button>
           </Form.Item>
@@ -401,7 +496,10 @@ const TemplateMarketPage: React.FC = () => {
       <Modal
         title="发布为模板"
         open={publishVisible}
-        onCancel={() => { setPublishVisible(false); publishForm.resetFields(); }}
+        onCancel={() => {
+          setPublishVisible(false);
+          publishForm.resetFields();
+        }}
         footer={null}
       >
         <Form form={publishForm} layout="vertical" onFinish={handlePublish}>
@@ -442,7 +540,13 @@ const TemplateMarketPage: React.FC = () => {
             <Select mode="tags" placeholder="输入标签后按回车" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block icon={<ExportOutlined />} loading={publishing}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              icon={<ExportOutlined />}
+              loading={publishing}
+            >
               发布模板
             </Button>
           </Form.Item>

@@ -120,7 +120,9 @@ export const digitalTwinApi = {
   },
 
   stopRecording: async (recordingId: string) => {
-    const response = await apiClient.post(`/api/v1/digital-twin/traffic/recording/${recordingId}/stop`);
+    const response = await apiClient.post(
+      `/api/v1/digital-twin/traffic/recording/${recordingId}/stop`
+    );
     return response.data;
   },
 
@@ -130,7 +132,11 @@ export const digitalTwinApi = {
   },
 
   // Traffic Replay
-  startReplay: async (data: { recording_id: string; target_env: string; speed_multiplier?: number }) => {
+  startReplay: async (data: {
+    recording_id: string;
+    target_env: string;
+    speed_multiplier?: number;
+  }) => {
     const response = await apiClient.post('/api/v1/digital-twin/traffic/replay', data);
     return response.data as TrafficReplay;
   },

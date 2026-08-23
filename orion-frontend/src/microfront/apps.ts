@@ -74,9 +74,7 @@ export const getSubAppConfig = (key: string): SubAppConfig | undefined => {
 export const getSubAppConfigs = (): SubAppConfig[] => {
   const storeApps = getStoreState().apps;
   if (storeApps.length > 0) {
-    return storeApps
-      .filter((app) => app.status === 'enabled')
-      .map(convertToConfig);
+    return storeApps.filter((app) => app.status === 'enabled').map(convertToConfig);
   }
 
   return [];

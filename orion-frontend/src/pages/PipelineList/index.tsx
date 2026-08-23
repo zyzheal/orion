@@ -135,7 +135,11 @@ const PipelineList: React.FC = () => {
         status: filters.status,
       });
       // 兼容不同响应格式 — client 拦截器已解包 response.data
-      const response = result as unknown as { data?: Pipeline[]; total?: number; items?: Pipeline[] };
+      const response = result as unknown as {
+        data?: Pipeline[];
+        total?: number;
+        items?: Pipeline[];
+      };
       return {
         data: response.data || response.items || [],
         total: response.total || 0,
@@ -155,159 +159,179 @@ const PipelineList: React.FC = () => {
   // ---- 筛选定义 ----
   const filterDefinitions: FilterDefinition[] = useMemo(
     () => [
-      { key: 'status', label: '状态', options: [
-        { label: 'Active', value: 'active' },
-        { label: 'Inactive', value: 'inactive' },
-        { label: 'Archived', value: 'archived' },
-        { label: 'Draft', value: 'draft' },
-      ] },
-      { key: 'environment', label: '环境', options: [
-        { label: 'Production', value: 'production' },
-        { label: 'Staging', value: 'staging' },
-        { label: 'Development', value: 'development' },
-        { label: 'Testing', value: 'testing' },
-      ] },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+          { label: 'Archived', value: 'archived' },
+          { label: 'Draft', value: 'draft' },
+        ],
+      },
+      {
+        key: 'environment',
+        label: '环境',
+        options: [
+          { label: 'Production', value: 'production' },
+          { label: 'Staging', value: 'staging' },
+          { label: 'Development', value: 'development' },
+          { label: 'Testing', value: 'testing' },
+        ],
+      },
     ],
     []
   );
 
   // ---- 表格列定义 ----
   const columns: TableColumn<Pipeline>[] = useMemo(
-    () => [
-      {
-        key: 'name',
-        title: '名称',
-        dataIndex: 'name',
-        fixed: 'left',
-        width: 200,
-        render: (name: unknown, record: Pipeline) => (
-          <a onClick={() => navigate(`/pipelines/${record.id}`)}>
-            {String(name ?? '')}
-          </a>
-        ),
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 100,
-        render: (status: unknown) => {
-          const colorMap: Record<string, string> = {
-            active: 'green',
-            inactive: 'default',
-            archived: 'orange',
-            draft: 'blue',
-          };
-          return <Tag color={colorMap[String(status)] || 'default'}>{String(status)}</Tag>;
+    () =>
+      [
+        {
+          key: 'name',
+          title: '名称',
+          dataIndex: 'name',
+          fixed: 'left',
+          width: 200,
+          render: (name: unknown, record: Pipeline) => (
+            <a onClick={() => navigate(`/pipelines/${record.id}`)}>{String(name ?? '')}</a>
+          ),
         },
-      },
-      {
-        key: 'version',
-        title: '版本',
-        dataIndex: 'version',
-        width: 80,
-      },
-      {
-        key: 'stages',
-        title: '阶段数',
-        dataIndex: 'stages',
-        width: 80,
-        render: (stages: unknown) => {
-          const count = Array.isArray(stages) ? stages.length : typeof stages === 'number' ? stages : '-';
-          return <Text>{count}</Text>;
+        {
+          key: 'status',
+          title: '状态',
+          dataIndex: 'status',
+          width: 100,
+          render: (status: unknown) => {
+            const colorMap: Record<string, string> = {
+              active: 'green',
+              inactive: 'default',
+              archived: 'orange',
+              draft: 'blue',
+            };
+            return <Tag color={colorMap[String(status)] || 'default'}>{String(status)}</Tag>;
+          },
         },
-      },
-      {
-        key: 'environment',
-        title: '环境',
-        dataIndex: 'environment',
-        width: 120,
-        render: (env: unknown) => env ? <Tag>{String(env)}</Tag> : '-',
-      },
-      {
-        key: 'creator',
-        title: '创建者',
-        dataIndex: 'creator',
-        width: 120,
-        ellipsis: true,
-      },
-      {
-        key: 'createdAt',
-        title: '创建时间',
-        dataIndex: 'createdAt',
-        width: 160,
-        render: (time: unknown) => time ? dayjs(String(time)).format('YYYY-MM-DD HH:mm') : '-',
-      },
-      {
-        key: 'updatedAt',
-        title: '更新时间',
-        dataIndex: 'updatedAt',
-        width: 160,
-        render: (time: unknown) => time ? dayjs(String(time)).format('YYYY-MM-DD HH:mm') : '-',
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 200,
-        fixed: 'right',
-        render: (_: unknown, record: Pipeline) => (
-          <Space>
-            <Tooltip title="查看详情">
-              <Button
-                type="link"
+        {
+          key: 'version',
+          title: '版本',
+          dataIndex: 'version',
+          width: 80,
+        },
+        {
+          key: 'stages',
+          title: '阶段数',
+          dataIndex: 'stages',
+          width: 80,
+          render: (stages: unknown) => {
+            const count = Array.isArray(stages)
+              ? stages.length
+              : typeof stages === 'number'
+                ? stages
+                : '-';
+            return <Text>{count}</Text>;
+          },
+        },
+        {
+          key: 'environment',
+          title: '环境',
+          dataIndex: 'environment',
+          width: 120,
+          render: (env: unknown) => (env ? <Tag>{String(env)}</Tag> : '-'),
+        },
+        {
+          key: 'creator',
+          title: '创建者',
+          dataIndex: 'creator',
+          width: 120,
+          ellipsis: true,
+        },
+        {
+          key: 'createdAt',
+          title: '创建时间',
+          dataIndex: 'createdAt',
+          width: 160,
+          render: (time: unknown) => (time ? dayjs(String(time)).format('YYYY-MM-DD HH:mm') : '-'),
+        },
+        {
+          key: 'updatedAt',
+          title: '更新时间',
+          dataIndex: 'updatedAt',
+          width: 160,
+          render: (time: unknown) => (time ? dayjs(String(time)).format('YYYY-MM-DD HH:mm') : '-'),
+        },
+        {
+          key: 'actions',
+          title: '操作',
+          width: 200,
+          fixed: 'right',
+          render: (_: unknown, record: Pipeline) => (
+            <Space>
+              <Tooltip title="查看详情">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ColumnHeightOutlined />}
+                  onClick={() => navigate(`/pipelines/${record.id}`)}
+                />
+              </Tooltip>
+              <Tooltip title="编辑">
+                <Button
+                  type="link"
+                  size="small"
+                  disabled={!canEdit}
+                  onClick={() => navigate(`/pipelines/${record.id}/edit`)}
+                >
+                  编辑
+                </Button>
+              </Tooltip>
+              <Tooltip title="查看运行记录">
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+                >
+                  运行记录
+                </Button>
+              </Tooltip>
+              <Select
+                placeholder="删除"
                 size="small"
-                icon={<ColumnHeightOutlined />}
-                onClick={() => navigate(`/pipelines/${record.id}`)}
-              />
-            </Tooltip>
-            <Tooltip title="编辑">
-              <Button
-                type="link"
-                size="small"
-                disabled={!canEdit}
-                onClick={() => navigate(`/pipelines/${record.id}/edit`)}
+                value={null}
+                onClick={(e) => e.stopPropagation()}
               >
-                编辑
-              </Button>
-            </Tooltip>
-            <Tooltip title="查看运行记录">
-              <Button
-                type="link"
-                size="small"
-                onClick={() => navigate(`/pipelines/${record.id}/runs`)}
-              >
-                运行记录
-              </Button>
-            </Tooltip>
-            <Select
-              placeholder="删除"
-              size="small"
-              value={null}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Select.Option value="delete" onClick={(e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); handleDelete(record.id); }}>
-                删除
-              </Select.Option>
-            </Select>
-          </Space>
-        ),
-      },
-    ].filter((col) => columnVisible[col.key]) as TableColumn<Pipeline>[],
+                <Select.Option
+                  value="delete"
+                  onClick={(e: React.MouseEvent<HTMLElement>) => {
+                    e.stopPropagation();
+                    handleDelete(record.id);
+                  }}
+                >
+                  删除
+                </Select.Option>
+              </Select>
+            </Space>
+          ),
+        },
+      ].filter((col) => columnVisible[col.key]) as TableColumn<Pipeline>[],
     [navigate, canEdit, columnVisible]
   );
 
   // ---- 事件处理 ----
 
-  const handleDelete = useCallback(async (id: string) => {
-    try {
-      await deletePipeline(id);
-      message.success('Pipeline 已删除');
-      refresh();
-    } catch (err: unknown) {
-      const error = err as Error;
-      message.error(`删除失败：${error.message}`);
-    }
-  }, [refresh]);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        await deletePipeline(id);
+        message.success('Pipeline 已删除');
+        refresh();
+      } catch (err: unknown) {
+        const error = err as Error;
+        message.error(`删除失败：${error.message}`);
+      }
+    },
+    [refresh]
+  );
 
   const handleBatchDelete = useCallback(async () => {
     setBatchLoading(true);
@@ -365,23 +389,20 @@ const PipelineList: React.FC = () => {
 
   const handleApplyView = useCallback((view: SavedView) => {
     setFilters(view.filters);
-    setColumnVisible(
-      view.columns.reduce((acc, col) => ({ ...acc, [col]: true }), {})
-    );
+    setColumnVisible(view.columns.reduce((acc, col) => ({ ...acc, [col]: true }), {}));
     message.success(`已应用视图：${view.name}`);
   }, []);
 
   // ---- 渲染 ----
 
-  const createPermissionAction = useCallback((
-    key: string,
-    label: string,
-    onClick?: () => void
-  ): PermissionAction => ({
-    key,
-    label,
-    onClick,
-  }), []);
+  const createPermissionAction = useCallback(
+    (key: string, label: string, onClick?: () => void): PermissionAction => ({
+      key,
+      label,
+      onClick,
+    }),
+    []
+  );
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -405,11 +426,9 @@ const PipelineList: React.FC = () => {
             {/* 新建 Pipeline */}
             <PermissionActions
               resource="pipeline"
-              actions={[createPermissionAction(
-                'write',
-                '新建 Pipeline',
-                () => navigate('/pipelines/new')
-              )]}
+              actions={[
+                createPermissionAction('write', '新建 Pipeline', () => navigate('/pipelines/new')),
+              ]}
               render={(action: PermissionAction, hasPermission: boolean) => (
                 <Button
                   type="primary"
@@ -430,10 +449,12 @@ const PipelineList: React.FC = () => {
         <SearchFilterBar
           filters={filterDefinitions}
           onSearch={setSearchQuery}
-          onFilter={(f) => setFilters({
-            status: f.status as string | undefined,
-            environment: f.environment as string | undefined,
-          })}
+          onFilter={(f) =>
+            setFilters({
+              status: f.status as string | undefined,
+              environment: f.environment as string | undefined,
+            })
+          }
           searchPlaceholder="搜索 Pipeline 名称..."
           initialQuery={searchQuery}
           initialFilters={filters as Record<string, string | string[] | undefined>}
@@ -470,9 +491,7 @@ const PipelineList: React.FC = () => {
                 label: (
                   <Checkbox
                     checked={columnVisible[key]}
-                    onChange={() =>
-                      setColumnVisible((prev) => ({ ...prev, [key]: !prev[key] }))
-                    }
+                    onChange={() => setColumnVisible((prev) => ({ ...prev, [key]: !prev[key] }))}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {columns.find((c) => c.key === key)?.title || key}
@@ -491,10 +510,7 @@ const PipelineList: React.FC = () => {
         <Card size="small" style={{ marginBottom: spacing.md, background: colors.info[50] }}>
           <Space>
             <Text strong>已选择 {selectedRowKeys.length} 项</Text>
-            <Button
-              size="small"
-              onClick={() => setSelectedRowKeys([])}
-            >
+            <Button size="small" onClick={() => setSelectedRowKeys([])}>
               取消选择
             </Button>
             <Button
@@ -505,19 +521,10 @@ const PipelineList: React.FC = () => {
             >
               批量触发
             </Button>
-            <Button
-              size="small"
-              danger
-              loading={batchLoading}
-              onClick={handleBatchDelete}
-            >
+            <Button size="small" danger loading={batchLoading} onClick={handleBatchDelete}>
               批量删除
             </Button>
-            <Button
-              size="small"
-              icon={<ExportOutlined />}
-              onClick={handleExport}
-            >
+            <Button size="small" icon={<ExportOutlined />} onClick={handleExport}>
               导出选中
             </Button>
           </Space>
@@ -549,14 +556,8 @@ const PipelineList: React.FC = () => {
         }}
         locale={{
           emptyText: (
-            <Empty
-              description="暂无 Pipeline 数据"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            >
-              <Button
-                type="primary"
-                onClick={() => navigate('/pipelines/new')}
-              >
+            <Empty description="暂无 Pipeline 数据" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+              <Button type="primary" onClick={() => navigate('/pipelines/new')}>
                 创建第一个 Pipeline
               </Button>
             </Empty>

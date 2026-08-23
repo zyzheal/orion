@@ -86,21 +86,15 @@ interface PresetTemplate {
 const PRESET_TEMPLATES: PresetTemplate[] = [
   {
     label: 'Node.js 版本',
-    dimensions: [
-      { keyPlaceholder: 'node', values: ['18', '20', '22'] },
-    ],
+    dimensions: [{ keyPlaceholder: 'node', values: ['18', '20', '22'] }],
   },
   {
     label: '操作系统',
-    dimensions: [
-      { keyPlaceholder: 'os', values: ['linux', 'macos', 'windows'] },
-    ],
+    dimensions: [{ keyPlaceholder: 'os', values: ['linux', 'macos', 'windows'] }],
   },
   {
     label: 'Python 版本',
-    dimensions: [
-      { keyPlaceholder: 'python', values: ['3.9', '3.10', '3.11', '3.12'] },
-    ],
+    dimensions: [{ keyPlaceholder: 'python', values: ['3.9', '3.10', '3.11', '3.12'] }],
   },
   {
     label: 'Node.js × OS 组合',
@@ -181,16 +175,9 @@ function parseValues(input: string): string[] {
 // Component
 // ============================================================================
 
-const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
-  value,
-  onChange,
-}) => {
-  const [dimensions, setDimensions] = useState<MatrixDimension[]>(
-    value?.dimensions || []
-  );
-  const [exclusions, setExclusions] = useState<ExclusionRule[]>(
-    value?.exclusions || []
-  );
+const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({ value, onChange }) => {
+  const [dimensions, setDimensions] = useState<MatrixDimension[]>(value?.dimensions || []);
+  const [exclusions, setExclusions] = useState<ExclusionRule[]>(value?.exclusions || []);
 
   // 同步到外部 value（仅在 dimensions/exclusions 变化时）
   // 注意：enabled 状态由外部 Switch 控制，不应根据 dimensions.length 自动推断
@@ -224,10 +211,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
   // --------------------------------------------------------------------------
 
   const handleAddDimension = useCallback(() => {
-    setDimensions((prev) => [
-      ...prev,
-      { key: '', values: [] },
-    ]);
+    setDimensions((prev) => [...prev, { key: '', values: [] }]);
   }, []);
 
   const handleRemoveDimension = useCallback((index: number) => {
@@ -243,17 +227,14 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
     });
   }, []);
 
-  const handleUpdateDimensionValues = useCallback(
-    (index: number, valuesInput: string) => {
-      const values = parseValues(valuesInput);
-      setDimensions((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], values };
-        return next;
-      });
-    },
-    []
-  );
+  const handleUpdateDimensionValues = useCallback((index: number, valuesInput: string) => {
+    const values = parseValues(valuesInput);
+    setDimensions((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], values };
+      return next;
+    });
+  }, []);
 
   // --------------------------------------------------------------------------
   // 预设模板
@@ -281,10 +262,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
         defaultMatch[d.key] = d.values[0];
       }
     });
-    setExclusions((prev) => [
-      ...prev,
-      { match: defaultMatch, reason: '' },
-    ]);
+    setExclusions((prev) => [...prev, { match: defaultMatch, reason: '' }]);
   }, [dimensions]);
 
   const handleRemoveExclusion = useCallback((index: number) => {
@@ -371,12 +349,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           </Space>
         }
         extra={
-          <Button
-            type="primary"
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={handleAddDimension}
-          >
+          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddDimension}>
             添加维度
           </Button>
         }
@@ -393,11 +366,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
         <div style={{ marginTop: spacing[3] }}>
           <Space wrap>
             {PRESET_TEMPLATES.map((preset) => (
-              <Button
-                key={preset.label}
-                size="small"
-                onClick={() => handleApplyPreset(preset)}
-              >
+              <Button key={preset.label} size="small" onClick={() => handleApplyPreset(preset)}>
                 {preset.label}
               </Button>
             ))}
@@ -425,11 +394,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
         addonBefore="Values"
       />
       <Tooltip title="删除此维度">
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleRemoveDimension(index)}
-        />
+        <Button danger icon={<DeleteOutlined />} onClick={() => handleRemoveDimension(index)} />
       </Tooltip>
     </Space>
   ));
@@ -462,18 +427,11 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
         <Space>
           <ThunderboltOutlined style={{ color: colors.warning[500] }} />
           <span>矩阵构建配置</span>
-          {totalCount > 0 && (
-            <Tag color="processing">{effectiveCount} 个任务</Tag>
-          )}
+          {totalCount > 0 && <Tag color="processing">{effectiveCount} 个任务</Tag>}
         </Space>
       }
       extra={
-        <Button
-          type="link"
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={handleAddDimension}
-        >
+        <Button type="link" size="small" icon={<PlusOutlined />} onClick={handleAddDimension}>
           添加维度
         </Button>
       }
@@ -498,14 +456,10 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
       </div>
 
       {/* 维度列表 */}
-      <div style={{ marginBottom: spacing.md }}>
-        {dimensionRows}
-      </div>
+      <div style={{ marginBottom: spacing.md }}>{dimensionRows}</div>
 
       {/* 维度值预览 */}
-      {dimensionTags.length > 0 && (
-        <div style={{ marginBottom: spacing[3] }}>{dimensionTags}</div>
-      )}
+      {dimensionTags.length > 0 && <div style={{ marginBottom: spacing[3] }}>{dimensionTags}</div>}
 
       {/* 组合数预览 */}
       {previewText && (
@@ -554,9 +508,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
         <Space>
           <BlockOutlined />
           <span>排除规则</span>
-          {exclusions.length > 0 && (
-            <Badge count={exclusions.length} size="small" />
-          )}
+          {exclusions.length > 0 && <Badge count={exclusions.length} size="small" />}
         </Space>
       </Divider>
 
@@ -592,9 +544,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
                         size="small"
                         style={{ width: 120 }}
                         value={rule.match[d.key]}
-                        onChange={(val: string) =>
-                          handleUpdateExclusionMatch(exIndex, d.key, val)
-                        }
+                        onChange={(val: string) => handleUpdateExclusionMatch(exIndex, d.key, val)}
                         options={d.values.map((v) => ({ label: v, value: v }))}
                       />
                     </Space>
@@ -605,9 +555,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
               <Input
                 size="small"
                 value={rule.reason}
-                onChange={(e) =>
-                  handleUpdateExclusionReason(exIndex, e.target.value)
-                }
+                onChange={(e) => handleUpdateExclusionReason(exIndex, e.target.value)}
                 placeholder="排除原因（可选）"
               />
             </Space>
@@ -622,9 +570,7 @@ const MatrixConfigurator: React.FC<MatrixConfiguratorProps> = ({
           icon={<PlusOutlined />}
           onClick={handleAddExclusion}
           style={{ marginTop: spacing.sm }}
-          disabled={
-            dimensions.some((d) => !d.key || d.values.length === 0)
-          }
+          disabled={dimensions.some((d) => !d.key || d.values.length === 0)}
         >
           添加排除规则
         </Button>

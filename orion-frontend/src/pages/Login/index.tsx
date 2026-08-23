@@ -38,7 +38,14 @@ const features = [
 // 左侧背景装饰图形
 const DecorativeCircles: React.FC = () => (
   <svg
-    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+    }}
     viewBox="0 0 600 800"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -87,7 +94,8 @@ const Login: React.FC = () => {
     const result = await login(values);
     if (result.success) {
       message.success('登录成功');
-      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/dashboard';
+      const from =
+        (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/dashboard';
       navigate(from, { replace: true });
     } else {
       if (result.error && typeof result.error === 'object' && 'message' in result.error) {
@@ -99,7 +107,14 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      }}
+    >
       {/* ===== 左侧品牌展示区 ===== */}
       <div
         style={{
@@ -119,7 +134,14 @@ const Login: React.FC = () => {
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
             <img src="/logo.svg" alt="Orion" style={{ width: 40, height: 40 }} />
-            <span style={{ fontSize: 22, fontWeight: 700, color: colors.neutral[0], letterSpacing: '0.5px' }}>
+            <span
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: colors.neutral[0],
+                letterSpacing: '0.5px',
+              }}
+            >
               Orion Platform
             </span>
           </div>
@@ -152,8 +174,7 @@ const Login: React.FC = () => {
             }}
           >
             Orion 不替代现有工具链，而是通过 AI 能力
-            <br />
-            让 Tekton、Knative、Prometheus 和 K8s 协同工作
+            <br />让 Tekton、Knative、Prometheus 和 K8s 协同工作
           </Text>
 
           {/* 特性列表 */}
@@ -198,8 +219,19 @@ const Login: React.FC = () => {
                   {f.icon}
                 </div>
                 <div>
-                  <div style={{ color: colors.neutral[0], fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{f.title}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.5 }}>{f.desc}</div>
+                  <div
+                    style={{
+                      color: colors.neutral[0],
+                      fontSize: 14,
+                      fontWeight: 600,
+                      marginBottom: 2,
+                    }}
+                  >
+                    {f.title}
+                  </div>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.5 }}>
+                    {f.desc}
+                  </div>
                 </div>
               </div>
             ))}
@@ -294,7 +326,15 @@ const Login: React.FC = () => {
               style={{ marginBottom: spacing.lg }}
             >
               <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, color: themeVars.textSecondary, marginBottom: spacing.sm, display: 'block' }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: themeVars.textSecondary,
+                    marginBottom: spacing.sm,
+                    display: 'block',
+                  }}
+                >
                   用户名
                 </Text>
                 <Input
@@ -317,7 +357,15 @@ const Login: React.FC = () => {
               style={{ marginBottom: spacing.xl }}
             >
               <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, color: themeVars.textSecondary, marginBottom: spacing.sm, display: 'block' }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: themeVars.textSecondary,
+                    marginBottom: spacing.sm,
+                    display: 'block',
+                  }}
+                >
                   密码
                 </Text>
                 <Input.Password

@@ -103,10 +103,7 @@ const PendingReviews: React.FC = () => {
     loadData();
   }, [page, categoryFilter]);
 
-  const handleOpenReview = (
-    skill: SkillPackage,
-    action: 'approve' | 'reject' | 'archive'
-  ) => {
+  const handleOpenReview = (skill: SkillPackage, action: 'approve' | 'reject' | 'archive') => {
     setReviewingSkill(skill);
     setReviewAction(action);
     setReviewReason('');
@@ -150,128 +147,133 @@ const PendingReviews: React.FC = () => {
   }, [reviews]);
 
   const modalTitle =
-    reviewAction === 'approve'
-      ? '通过审核'
-      : reviewAction === 'reject'
-        ? '拒绝技能'
-        : '归档技能';
+    reviewAction === 'approve' ? '通过审核' : reviewAction === 'reject' ? '拒绝技能' : '归档技能';
 
-  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(() => [
-    {
-      key: 'name',
-      title: '技能名称',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (v: unknown) => <Tag>v{String(v)}</Tag>,
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 120,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v);
-        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
-          status === 'approved' ? 'success' : status === 'rejected' ? 'failed' : 'pending';
-        return <StatusBadge status={badgeStatus} size="small" />;
+  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '技能名称',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'author',
-      title: '提交人',
-      dataIndex: 'author',
-      width: 120,
-      render: (v: unknown) => <Text code>{String(v)}</Text>,
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'description',
-      width: 240,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[2] }}>
-          {String(v).slice(0, 80)}{String(v).length > 80 ? '...' : ''}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '提交时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: spacing[3] }}>
-            {dayjs(String(v)).format('MM-DD HH:mm')}
-          </Text>
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (v: unknown) => <Tag>v{String(v)}</Tag>,
+      },
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 120,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v);
+          const badgeStatus:
+            | 'running'
+            | 'pending'
+            | 'success'
+            | 'failed'
+            | 'warning'
+            | 'cancelled'
+            | 'unknown' =
+            status === 'approved' ? 'success' : status === 'rejected' ? 'failed' : 'pending';
+          return <StatusBadge status={badgeStatus} size="small" />;
+        },
+      },
+      {
+        key: 'author',
+        title: '提交人',
+        dataIndex: 'author',
+        width: 120,
+        render: (v: unknown) => <Text code>{String(v)}</Text>,
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'description',
+        width: 240,
+        render: (v: unknown) => (
           <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {dayjs(String(v)).fromNow()}
+            {String(v).slice(0, 80)}
+            {String(v).length > 80 ? '...' : ''}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 240,
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/skills/${record.id}/instances`)}
-          >
-            查看
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            style={{ color: colors.success[500] }}
-            icon={<CheckOutlined />}
-            onClick={() => handleOpenReview(record, 'approve')}
-            loading={actionLoading === `approve-${record.id}`}
-          >
-            通过
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<CloseOutlined />}
-            onClick={() => handleOpenReview(record, 'reject')}
-            loading={actionLoading === `reject-${record.id}`}
-          >
-            拒绝
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleOpenReview(record, 'archive')}
-            loading={actionLoading === `archive-${record.id}`}
-          >
-            归档
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleOpenReview, navigate]);
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '提交时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: spacing[3] }}>{dayjs(String(v)).format('MM-DD HH:mm')}</Text>
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {dayjs(String(v)).fromNow()}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 240,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/skills/${record.id}/instances`)}
+            >
+              查看
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              style={{ color: colors.success[500] }}
+              icon={<CheckOutlined />}
+              onClick={() => handleOpenReview(record, 'approve')}
+              loading={actionLoading === `approve-${record.id}`}
+            >
+              通过
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<CloseOutlined />}
+              onClick={() => handleOpenReview(record, 'reject')}
+              loading={actionLoading === `reject-${record.id}`}
+            >
+              拒绝
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleOpenReview(record, 'archive')}
+              loading={actionLoading === `archive-${record.id}`}
+            >
+              归档
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleOpenReview, navigate]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -328,11 +330,7 @@ const PendingReviews: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="当前页"
-              value={reviews.length}
-              suffix="个"
-            />
+            <Statistic title="当前页" value={reviews.length} suffix="个" />
           </Card>
         </Col>
       </Row>
@@ -374,13 +372,7 @@ const PendingReviews: React.FC = () => {
         open={reviewModalVisible}
         onCancel={() => setReviewModalVisible(false)}
         onOk={handleReviewSubmit}
-        okText={
-          reviewAction === 'approve'
-            ? '通过'
-            : reviewAction === 'reject'
-              ? '拒绝'
-              : '归档'
-        }
+        okText={reviewAction === 'approve' ? '通过' : reviewAction === 'reject' ? '拒绝' : '归档'}
         okButtonProps={{
           danger: reviewAction === 'reject',
           loading: !!actionLoading,
@@ -406,9 +398,7 @@ const PendingReviews: React.FC = () => {
                 }
                 name="reason"
                 rules={
-                  reviewAction === 'reject'
-                    ? [{ required: true, message: '请填写拒绝原因' }]
-                    : []
+                  reviewAction === 'reject' ? [{ required: true, message: '请填写拒绝原因' }] : []
                 }
               >
                 <TextArea

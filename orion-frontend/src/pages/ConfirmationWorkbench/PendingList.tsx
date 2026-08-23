@@ -132,169 +132,188 @@ const PendingList: React.FC = () => {
   const p0Count = confirmations.filter((c) => c.status === 'pending' && c.priority === 'P0').length;
   const p1Count = confirmations.filter((c) => c.status === 'pending' && c.priority === 'P1').length;
 
-  const columns: TableColumn<ConfirmationRequest>[] = useMemo<TableColumn<ConfirmationRequest>[]>(() => [
-    {
-      key: 'priority',
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 80,
-      sortable: true,
-      render: (v: unknown) => (
-        <Tag color={priorityColorMap[String(v)] || 'default'} style={{ fontWeight: 'bold' }}>
-          {String(v)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'sceneType',
-      title: '场景',
-      dataIndex: 'sceneType',
-      width: 120,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'id',
-      title: '确认 ID',
-      dataIndex: 'id',
-      width: 180,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v).slice(0, 16)}...
-        </Text>
-      ),
-    },
-    {
-      key: 'aiSuggestion',
-      title: 'AI 建议',
-      dataIndex: 'aiSuggestion',
-      width: 200,
-      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
-    },
-    {
-      key: 'aiConfidence',
-      title: 'AI 置信度',
-      dataIndex: 'aiConfidence',
-      width: 120,
-      render: (v: unknown) => (
-        <Progress
-          percent={Number(v)}
-          size="small"
-          strokeColor={
-            Number(v) >= 80
-              ? colors.success[500]
-              : Number(v) >= 60
-                ? colors.warning[500]
-                : colors.error[400]
-          }
-          format={() => `${Number(v)}%`}
-        />
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v);
-        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
-          status === 'confirmed' ? 'success' : status === 'rejected' ? 'failed' : status === 'expired' ? 'cancelled' : 'pending';
-        return <StatusBadge status={badgeStatus} size="small" />;
-      },
-    },
-    {
-      key: 'pushTime',
-      title: '推送时间',
-      dataIndex: 'pushTime',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_: unknown, record: any) =>
-        record.status === 'pending' ? (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<CheckOutlined />}
-              style={{ color: colors.success[500] }}
-              onClick={() => openCommentModal(record, 'approve')}
-            >
-              确认
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<CloseOutlined />}
-              danger
-              onClick={() => openCommentModal(record, 'reject')}
-            >
-              拒绝
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<InfoCircleOutlined />}
-              onClick={() => {
-                setSelectedConfirmation(record);
-                setDetailModalVisible(true);
-              }}
-            >
-              详情
-            </Button>
-          </Space>
-        ) : (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<InfoCircleOutlined />}
-              onClick={() => {
-                setSelectedConfirmation(record);
-                setDetailModalVisible(true);
-              }}
-            >
-              详情
-            </Button>
-          </Space>
+  const columns: TableColumn<ConfirmationRequest>[] = useMemo<TableColumn<ConfirmationRequest>[]>(
+    () => [
+      {
+        key: 'priority',
+        title: '优先级',
+        dataIndex: 'priority',
+        width: 80,
+        sortable: true,
+        render: (v: unknown) => (
+          <Tag color={priorityColorMap[String(v)] || 'default'} style={{ fontWeight: 'bold' }}>
+            {String(v)}
+          </Tag>
         ),
-    },
-  ], [openCommentModal]);
+      },
+      {
+        key: 'sceneType',
+        title: '场景',
+        dataIndex: 'sceneType',
+        width: 120,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'id',
+        title: '确认 ID',
+        dataIndex: 'id',
+        width: 180,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v).slice(0, 16)}...
+          </Text>
+        ),
+      },
+      {
+        key: 'aiSuggestion',
+        title: 'AI 建议',
+        dataIndex: 'aiSuggestion',
+        width: 200,
+        render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      },
+      {
+        key: 'aiConfidence',
+        title: 'AI 置信度',
+        dataIndex: 'aiConfidence',
+        width: 120,
+        render: (v: unknown) => (
+          <Progress
+            percent={Number(v)}
+            size="small"
+            strokeColor={
+              Number(v) >= 80
+                ? colors.success[500]
+                : Number(v) >= 60
+                  ? colors.warning[500]
+                  : colors.error[400]
+            }
+            format={() => `${Number(v)}%`}
+          />
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v);
+          const badgeStatus:
+            | 'running'
+            | 'pending'
+            | 'success'
+            | 'failed'
+            | 'warning'
+            | 'cancelled'
+            | 'unknown' =
+            status === 'confirmed'
+              ? 'success'
+              : status === 'rejected'
+                ? 'failed'
+                : status === 'expired'
+                  ? 'cancelled'
+                  : 'pending';
+          return <StatusBadge status={badgeStatus} size="small" />;
+        },
+      },
+      {
+        key: 'pushTime',
+        title: '推送时间',
+        dataIndex: 'pushTime',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_: unknown, record: any) =>
+          record.status === 'pending' ? (
+            <Space size="small">
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckOutlined />}
+                style={{ color: colors.success[500] }}
+                onClick={() => openCommentModal(record, 'approve')}
+              >
+                确认
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<CloseOutlined />}
+                danger
+                onClick={() => openCommentModal(record, 'reject')}
+              >
+                拒绝
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<InfoCircleOutlined />}
+                onClick={() => {
+                  setSelectedConfirmation(record);
+                  setDetailModalVisible(true);
+                }}
+              >
+                详情
+              </Button>
+            </Space>
+          ) : (
+            <Space size="small">
+              <Button
+                type="link"
+                size="small"
+                icon={<InfoCircleOutlined />}
+                onClick={() => {
+                  setSelectedConfirmation(record);
+                  setDetailModalVisible(true);
+                }}
+              >
+                详情
+              </Button>
+            </Space>
+          ),
+      },
+    ],
+    [openCommentModal]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'priority',
-      label: '优先级',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'P0', value: 'P0' },
-        { label: 'P1', value: 'P1' },
-        { label: 'P2', value: 'P2' },
-        { label: 'P3', value: 'P3' },
-      ],
-    },
-    { key: 'sceneType', label: '场景', options: sceneTypeOptions },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Pending', value: 'pending' },
-        { label: 'Confirmed', value: 'confirmed' },
-        { label: 'Rejected', value: 'rejected' },
-        { label: 'Expired', value: 'expired' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'priority',
+        label: '优先级',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'P0', value: 'P0' },
+          { label: 'P1', value: 'P1' },
+          { label: 'P2', value: 'P2' },
+          { label: 'P3', value: 'P3' },
+        ],
+      },
+      { key: 'sceneType', label: '场景', options: sceneTypeOptions },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Pending', value: 'pending' },
+          { label: 'Confirmed', value: 'confirmed' },
+          { label: 'Rejected', value: 'rejected' },
+          { label: 'Expired', value: 'expired' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -381,7 +400,17 @@ const PendingList: React.FC = () => {
               <Tag color={priorityColorMap[selectedConfirmation.priority]}>
                 {selectedConfirmation.priority}
               </Tag>
-              <StatusBadge status={selectedConfirmation.status === 'confirmed' ? 'success' : selectedConfirmation.status === 'rejected' ? 'failed' : selectedConfirmation.status === 'expired' ? 'cancelled' : 'pending'} />
+              <StatusBadge
+                status={
+                  selectedConfirmation.status === 'confirmed'
+                    ? 'success'
+                    : selectedConfirmation.status === 'rejected'
+                      ? 'failed'
+                      : selectedConfirmation.status === 'expired'
+                        ? 'cancelled'
+                        : 'pending'
+                }
+              />
             </Space>
             <p>
               <Text strong>AI 建议:</Text> {selectedConfirmation.aiSuggestion}

@@ -20,8 +20,13 @@ export const createArtifactArtifacts = async (data?: Partial<Artifact>): Promise
   return response.data;
 };
 
-export const listArtifact = async (params?: Record<string, unknown>): Promise<{ data: Artifact[]; total: number }> => {
-  const response = await api.get<{ data: Artifact[]; total: number }>('/api/v1/artifacts/artifacts', { params });
+export const listArtifact = async (
+  params?: Record<string, unknown>
+): Promise<{ data: Artifact[]; total: number }> => {
+  const response = await api.get<{ data: Artifact[]; total: number }>(
+    '/api/v1/artifacts/artifacts',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -39,22 +44,40 @@ export const deleteArtifact = async (id: string): Promise<void> => {
   await api.delete('/api/v1/artifacts/artifacts/' + id);
 };
 
-export const createArtifactArtifactsTags = async (id: string, data?: Partial<Artifact>): Promise<Artifact> => {
+export const createArtifactArtifactsTags = async (
+  id: string,
+  data?: Partial<Artifact>
+): Promise<Artifact> => {
   const response = await api.post<Artifact>('/api/v1/artifacts/artifacts/' + id + '/tags', data);
   return response.data;
 };
 
-export const createArtifactArtifactsPromote = async (id: string, data?: Partial<Artifact>): Promise<Artifact> => {
+export const createArtifactArtifactsPromote = async (
+  id: string,
+  data?: Partial<Artifact>
+): Promise<Artifact> => {
   const response = await api.post<Artifact>('/api/v1/artifacts/artifacts/' + id + '/promote', data);
   return response.data;
 };
 
-export const createArtifactArtifactsDeprecate = async (id: string, data?: Partial<Artifact>): Promise<Artifact> => {
-  const response = await api.post<Artifact>('/api/v1/artifacts/artifacts/' + id + '/deprecate', data);
+export const createArtifactArtifactsDeprecate = async (
+  id: string,
+  data?: Partial<Artifact>
+): Promise<Artifact> => {
+  const response = await api.post<Artifact>(
+    '/api/v1/artifacts/artifacts/' + id + '/deprecate',
+    data
+  );
   return response.data;
 };
 
-export const createArtifactArtifactsQuarantine = async (id: string, data?: Partial<Artifact>): Promise<Artifact> => {
-  const response = await api.post<Artifact>('/api/v1/artifacts/artifacts/' + id + '/quarantine', data);
+export const createArtifactArtifactsQuarantine = async (
+  id: string,
+  data?: Partial<Artifact>
+): Promise<Artifact> => {
+  const response = await api.post<Artifact>(
+    '/api/v1/artifacts/artifacts/' + id + '/quarantine',
+    data
+  );
   return response.data;
 };

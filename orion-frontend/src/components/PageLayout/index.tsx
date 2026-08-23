@@ -126,7 +126,9 @@ function PageLayout({
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  color: darkSidebar ? 'rgba(255,255,255,0.65)' : 'var(--text-secondary, colors.neutral[600])',
+                  color: darkSidebar
+                    ? 'rgba(255,255,255,0.65)'
+                    : 'var(--text-secondary, colors.neutral[600])',
                   borderBottom: '1px solid var(--border-light, colors.neutral[200])',
                 }}
                 onClick={handleToggle}

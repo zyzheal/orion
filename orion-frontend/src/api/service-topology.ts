@@ -45,11 +45,15 @@ export const serviceTopologyApi = {
   },
 
   getServiceTopology(serviceId: string) {
-    return apiClient.get<TopologyGraph>(`/api/v1/service-topology/topology/${encodeURIComponent(serviceId)}`);
+    return apiClient.get<TopologyGraph>(
+      `/api/v1/service-topology/topology/${encodeURIComponent(serviceId)}`
+    );
   },
 
   getServiceDependencies(serviceId: string) {
-    return apiClient.get<ServiceDependencies>(`/api/v1/service-topology/dependencies/${encodeURIComponent(serviceId)}`);
+    return apiClient.get<ServiceDependencies>(
+      `/api/v1/service-topology/dependencies/${encodeURIComponent(serviceId)}`
+    );
   },
 };
 

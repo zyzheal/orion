@@ -124,12 +124,15 @@ const DataPipelinePage: React.FC = () => {
     }
   };
 
-  const stats = useMemo(() => ({
-    total: pipelines.length,
-    running: pipelines.filter((p) => p.status === 'running').length,
-    paused: pipelines.filter((p) => p.status === 'paused').length,
-    failed: pipelines.filter((p) => p.status === 'failed').length,
-  }), [pipelines]);
+  const stats = useMemo(
+    () => ({
+      total: pipelines.length,
+      running: pipelines.filter((p) => p.status === 'running').length,
+      paused: pipelines.filter((p) => p.status === 'paused').length,
+      failed: pipelines.filter((p) => p.status === 'failed').length,
+    }),
+    [pipelines]
+  );
 
   const pipelineColumns = [
     {
@@ -140,7 +143,11 @@ const DataPipelinePage: React.FC = () => {
       render: (v: string, record: DataPipeline) => (
         <Space direction="vertical" size={0}>
           <Text strong>{v}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.description }}>
+          <Text
+            type="secondary"
+            style={{ fontSize: 12 }}
+            ellipsis={{ tooltip: record.description }}
+          >
             {record.description}
           </Text>
         </Space>
@@ -233,12 +240,20 @@ const DataPipelinePage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中" value={stats.running} valueStyle={{ color: colors.primary[500] }} />
+            <Statistic
+              title="运行中"
+              value={stats.running}
+              valueStyle={{ color: colors.primary[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已暂停" value={stats.paused} valueStyle={{ color: colors.warning[500] }} />
+            <Statistic
+              title="已暂停"
+              value={stats.paused}
+              valueStyle={{ color: colors.warning[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -323,15 +338,17 @@ const DataPipelinePage: React.FC = () => {
               {lineageLoading ? (
                 <div style={{ textAlign: 'center', padding: '48px 0' }}>加载中...</div>
               ) : (
-                <pre style={{
-                  background: themeVars.bgSecondary,
-                  padding: spacing.md,
-                  borderRadius: spacing.sm,
-                  fontSize: '12px',
-                  whiteSpace: 'pre-wrap',
-                  maxHeight: 400,
-                  overflow: 'auto',
-                }}>
+                <pre
+                  style={{
+                    background: themeVars.bgSecondary,
+                    padding: spacing.md,
+                    borderRadius: spacing.sm,
+                    fontSize: '12px',
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: 400,
+                    overflow: 'auto',
+                  }}
+                >
                   {lineageData || '暂无血缘数据'}
                 </pre>
               )}

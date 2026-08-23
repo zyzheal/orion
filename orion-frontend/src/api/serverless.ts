@@ -10,7 +10,13 @@ import { api } from './client';
 
 export type FunctionStatus = 'draft' | 'deployed' | 'stopped' | 'error';
 export type TriggerType = 'http' | 'cron' | 'event' | 'queue' | 'kafka' | 's3';
-export type FunctionRuntime = 'nodejs18' | 'nodejs20' | 'python3.9' | 'python3.11' | 'go1.21' | 'java17';
+export type FunctionRuntime =
+  | 'nodejs18'
+  | 'nodejs20'
+  | 'python3.9'
+  | 'python3.11'
+  | 'go1.21'
+  | 'java17';
 
 export interface ServerlessFunction {
   id: string;
@@ -141,7 +147,10 @@ export function createServerlessFunction(data: {
   return api.post('/api/v1/serverless/functions', data);
 }
 
-export function listServerlessFunctions(params?: { status?: FunctionStatus; runtime?: FunctionRuntime }) {
+export function listServerlessFunctions(params?: {
+  status?: FunctionStatus;
+  runtime?: FunctionRuntime;
+}) {
   return api.get<{ data: ServerlessFunction[] }>('/api/v1/serverless/functions', { params });
 }
 
@@ -149,17 +158,20 @@ export function getServerlessFunction(id: string) {
   return api.get<{ data: ServerlessFunction }>(`/api/v1/serverless/functions/${id}`);
 }
 
-export function updateServerlessFunction(id: string, data: {
-  name?: string;
-  description?: string;
-  runtime?: FunctionRuntime;
-  handler?: string;
-  memory?: number;
-  timeout?: number;
-  environment?: Record<string, string>;
-  code?: string;
-  replicas?: { min?: number; max?: number };
-}) {
+export function updateServerlessFunction(
+  id: string,
+  data: {
+    name?: string;
+    description?: string;
+    runtime?: FunctionRuntime;
+    handler?: string;
+    memory?: number;
+    timeout?: number;
+    environment?: Record<string, string>;
+    code?: string;
+    replicas?: { min?: number; max?: number };
+  }
+) {
   return api.put(`/api/v1/serverless/functions/${id}`, data);
 }
 
@@ -174,7 +186,9 @@ export function deployServerlessFunction(id: string) {
 }
 
 export function listDeployments(id: string) {
-  return api.get<{ data: ServerlessDeployment[] }>(`/api/v1/serverless/functions/${id}/deployments`);
+  return api.get<{ data: ServerlessDeployment[] }>(
+    `/api/v1/serverless/functions/${id}/deployments`
+  );
 }
 
 // ---- Invocation ----

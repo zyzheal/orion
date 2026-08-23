@@ -259,7 +259,10 @@ export const getCICurrentVersion = async (ciId: string) => {
 };
 
 export const restoreCIVersion = async (ciId: string, version: string, user?: string) => {
-  const response = await apiClient.post(`/api/v1/cmdb/cis/${ciId}/versions/restore`, { version, user });
+  const response = await apiClient.post(`/api/v1/cmdb/cis/${ciId}/versions/restore`, {
+    version,
+    user,
+  });
   return response.data as { ci?: CIItem };
 };
 
@@ -322,7 +325,10 @@ export interface RecommendationResult {
   total: number;
 }
 
-export const getRecommendations = async (params?: { type?: RecommendationType; limit?: number }) => {
+export const getRecommendations = async (params?: {
+  type?: RecommendationType;
+  limit?: number;
+}) => {
   const response = await apiClient.get('/api/v1/cmdb/recommendations', { params });
   return response.data as { data?: RecommendationResult };
 };

@@ -57,10 +57,18 @@ import {
 } from '@/api/tenant';
 
 // API 响应包装接口
-interface QuotaResponse { quota?: TenantQuota }
-interface PoolStatusResponse { status?: PoolStatus }
-interface NamespaceResponse { namespaces?: NamespacePoolEntry[] }
-interface UsageResponse { usage?: TenantUsage }
+interface QuotaResponse {
+  quota?: TenantQuota;
+}
+interface PoolStatusResponse {
+  status?: PoolStatus;
+}
+interface NamespaceResponse {
+  namespaces?: NamespacePoolEntry[];
+}
+interface UsageResponse {
+  usage?: TenantUsage;
+}
 
 const { Title, Text } = Typography;
 
@@ -123,7 +131,9 @@ const TenantManagementPage: React.FC = () => {
       setQuota((quotaBody as any)?.quota || quotaBody);
       setPoolStatus(poolBody);
       setNamespaces(nsBody?.namespaces || []);
-      setUsage((usageBody?.usage ? usageBody : { usage: usageBody, quota: usageBody?.quota }) as any);
+      setUsage(
+        (usageBody?.usage ? usageBody : { usage: usageBody, quota: usageBody?.quota }) as any
+      );
       setNamespaceDetails((detailsBody?.namespaces || []) as unknown as NamespaceUsageDetail[]);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -403,9 +413,12 @@ const TenantManagementPage: React.FC = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2} style={{ marginBottom: 4 }}>租户管理</Title>
+            <Title level={2} style={{ marginBottom: 4 }}>
+              租户管理
+            </Title>
             <Text type="secondary">
-              多租户隔离、配额管理、Namespace 池 · 租户 ID: <Text code>{tenantId?.slice(0, 8) || '无效'}</Text>
+              多租户隔离、配额管理、Namespace 池 · 租户 ID:{' '}
+              <Text code>{tenantId?.slice(0, 8) || '无效'}</Text>
             </Text>
           </div>
           <Space>
@@ -496,11 +509,22 @@ const TenantManagementPage: React.FC = () => {
                         <Text type="secondary">{item.label}</Text>
                       </Space>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: spacing.sm, marginBottom: spacing.sm }}>
-                      <span style={{ fontWeight: 'bold', fontSize: 20, color: getUsageColor(percent) }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: spacing.sm,
+                        marginBottom: spacing.sm,
+                      }}
+                    >
+                      <span
+                        style={{ fontWeight: 'bold', fontSize: 20, color: getUsageColor(percent) }}
+                      >
                         {item.usage.used}
                       </span>
-                      <Text type="secondary">/ {item.usage.limit} {item.unit}</Text>
+                      <Text type="secondary">
+                        / {item.usage.limit} {item.unit}
+                      </Text>
                     </div>
                     <Progress
                       percent={percent}
@@ -510,13 +534,22 @@ const TenantManagementPage: React.FC = () => {
                     />
                     {/* P2-4: Trend indicator */}
                     {item.trend && (
-                      <div style={{ marginTop: spacing.sm, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                      <div
+                        style={{
+                          marginTop: spacing.sm,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.sm,
+                        }}
+                      >
                         <Space size={4}>
                           {item.trend.direction === 'up' && (
                             <ArrowUpOutlined style={{ color: colors.error[500], fontSize: 12 }} />
                           )}
                           {item.trend.direction === 'down' && (
-                            <ArrowDownOutlined style={{ color: colors.success[500], fontSize: 12 }} />
+                            <ArrowDownOutlined
+                              style={{ color: colors.success[500], fontSize: 12 }}
+                            />
                           )}
                           {item.trend.direction === 'stable' && (
                             <MinusOutlined style={{ color: colors.neutral[500], fontSize: 12 }} />
@@ -526,7 +559,15 @@ const TenantManagementPage: React.FC = () => {
                           </Text>
                         </Space>
                         {/* Mini sparkline visualization */}
-                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 20, marginLeft: 'auto' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            gap: 2,
+                            height: 20,
+                            marginLeft: 'auto',
+                          }}
+                        >
                           {item.trend.history.slice(-7).map((val, idx) => {
                             const maxVal = Math.max(...item.trend!.history, 1);
                             const height = Math.max(4, (val / maxVal) * 20);
@@ -624,10 +665,7 @@ const TenantManagementPage: React.FC = () => {
               size="small"
             />
           ) : (
-            <Empty
-              description="暂无已分配的 Namespace"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            >
+            <Empty description="暂无已分配的 Namespace" image={Empty.PRESENTED_IMAGE_SIMPLE}>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAllocateNamespace}>
                 分配 Namespace
               </Button>
@@ -646,7 +684,8 @@ const TenantManagementPage: React.FC = () => {
         >
           <Descriptions size="small" column={1} style={{ marginBottom: spacing.md }}>
             <Descriptions.Item label="说明">
-              配额控制租户可使用的资源上限。修改后立即生效，影响 Pipeline 创建、运行、Runner 部署等。
+              配额控制租户可使用的资源上限。修改后立即生效，影响 Pipeline 创建、运行、Runner
+              部署等。
             </Descriptions.Item>
           </Descriptions>
           <Form

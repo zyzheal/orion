@@ -39,12 +39,42 @@ const mockQueueTickets = [
 ];
 
 const mockEngineers = [
-  { id: 'E001', name: '张伟', username: 'zhangwei', email: null, role: 'engineer', status: 'active', avatar_url: null, last_login_at: null, last_login_ip: null, settings: {}, created_at: '', updated_at: '', created_by: null },
-  { id: 'E002', name: '李娜', username: 'lina', email: null, role: 'engineer', status: 'active', avatar_url: null, last_login_at: null, last_login_ip: null, settings: {}, created_at: '', updated_at: '', created_by: null },
+  {
+    id: 'E001',
+    name: '张伟',
+    username: 'zhangwei',
+    email: null,
+    role: 'engineer',
+    status: 'active',
+    avatar_url: null,
+    last_login_at: null,
+    last_login_ip: null,
+    settings: {},
+    created_at: '',
+    updated_at: '',
+    created_by: null,
+  },
+  {
+    id: 'E002',
+    name: '李娜',
+    username: 'lina',
+    email: null,
+    role: 'engineer',
+    status: 'active',
+    avatar_url: null,
+    last_login_at: null,
+    last_login_ip: null,
+    settings: {},
+    created_at: '',
+    updated_at: '',
+    created_by: null,
+  },
 ];
 
 beforeEach(() => {
-  vi.mocked(ticketingApi.getTickets).mockResolvedValue({ data: { items: mockQueueTickets, total: mockQueueTickets.length } } as any);
+  vi.mocked(ticketingApi.getTickets).mockResolvedValue({
+    data: { items: mockQueueTickets, total: mockQueueTickets.length },
+  } as any);
   vi.mocked(usersApi.listUsers).mockResolvedValue({ data: { data: mockEngineers } } as any);
 });
 

@@ -96,7 +96,11 @@ const ConnectLogTab: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 120,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '用户',
@@ -118,7 +122,9 @@ const ConnectLogTab: React.FC = () => {
         <Space>
           <CloudServerOutlined style={{ color: colors.primary[500] }} />
           <span>{record.hostname}</span>
-          <Text type="secondary" style={{ fontSize: 12 }}>({record.hostIp})</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            ({record.hostIp})
+          </Text>
         </Space>
       ),
     },
@@ -185,7 +191,11 @@ const ConnectLogTab: React.FC = () => {
               { label: '已终止', value: 'terminated' },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => loadLogs(filterStatus === 'all' ? undefined : filterStatus)} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => loadLogs(filterStatus === 'all' ? undefined : filterStatus)}
+            loading={loading}
+          >
             刷新
           </Button>
         </Space>
@@ -214,10 +224,14 @@ const ConnectLogTab: React.FC = () => {
           <Descriptions column={1} bordered>
             <Descriptions.Item label="会话ID">{selectedLog.id}</Descriptions.Item>
             <Descriptions.Item label="用户">{selectedLog.username}</Descriptions.Item>
-            <Descriptions.Item label="目标主机">{selectedLog.hostname} ({selectedLog.hostIp})</Descriptions.Item>
+            <Descriptions.Item label="目标主机">
+              {selectedLog.hostname} ({selectedLog.hostIp})
+            </Descriptions.Item>
             <Descriptions.Item label="客户端IP">{selectedLog.clientIp}</Descriptions.Item>
             <Descriptions.Item label="连接时间">{selectedLog.connectTime}</Descriptions.Item>
-            <Descriptions.Item label="断开时间">{selectedLog.disconnectTime || '-'}</Descriptions.Item>
+            <Descriptions.Item label="断开时间">
+              {selectedLog.disconnectTime || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="持续时间">{selectedLog.duration || '-'}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={connectStatusMap[selectedLog.status].color}>
@@ -290,7 +304,9 @@ const FileLogTab: React.FC = () => {
             <FileTextOutlined style={{ color: colors.primary[500] }} />
             <Text strong>{record.fileName}</Text>
           </Space>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.filePath}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.filePath}
+          </Text>
         </Space>
       ),
     },
@@ -353,7 +369,11 @@ const FileLogTab: React.FC = () => {
 // ============================================================================
 
 const AuditLogPage: React.FC = () => {
-  const [stats, setStats] = useState({ totalConnectLogs: 0, activeSessions: 0, totalFileTransfers: 0 });
+  const [stats, setStats] = useState({
+    totalConnectLogs: 0,
+    activeSessions: 0,
+    totalFileTransfers: 0,
+  });
 
   useEffect(() => {
     getTerminalAuditStats()
@@ -396,17 +416,29 @@ const AuditLogPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="连接日志" value={stats.totalConnectLogs} prefix={<ClockCircleOutlined />} />
+            <Statistic
+              title="连接日志"
+              value={stats.totalConnectLogs}
+              prefix={<ClockCircleOutlined />}
+            />
           </Card>
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="活跃会话" value={stats.activeSessions} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="活跃会话"
+              value={stats.activeSessions}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={8}>
           <Card size="small">
-            <Statistic title="文件传输" value={stats.totalFileTransfers} prefix={<FileTextOutlined />} />
+            <Statistic
+              title="文件传输"
+              value={stats.totalFileTransfers}
+              prefix={<FileTextOutlined />}
+            />
           </Card>
         </Col>
       </Row>

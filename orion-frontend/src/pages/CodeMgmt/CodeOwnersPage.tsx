@@ -10,7 +10,8 @@ import {
   ReloadOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
-  TeamOutlined,} from '@ant-design/icons';
+  TeamOutlined,
+} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -40,8 +41,13 @@ interface CodeOwnerRecommendation {
 }
 
 // API 响应包装接口
-interface ApiResponse<T> { data?: T | T[] }
-interface ListResponse<T> { data?: T[]; items?: T[] }
+interface ApiResponse<T> {
+  data?: T | T[];
+}
+interface ListResponse<T> {
+  data?: T[];
+  items?: T[];
+}
 
 const CodeOwnersPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -221,7 +227,10 @@ const CodeOwnersPage: React.FC = () => {
       // Recommend approvers for common paths
       const filePaths = ['src/', 'tests/', 'docs/'];
       const response = await recommendCodeOwnersApprovers(selectedRepoId, filePaths);
-      const data = (response.data as ApiResponse<CodeOwnerRecommendation[]>)?.data ?? (response.data as ListResponse<CodeOwnerRecommendation>)?.items ?? [];
+      const data =
+        (response.data as ApiResponse<CodeOwnerRecommendation[]>)?.data ??
+        (response.data as ListResponse<CodeOwnerRecommendation>)?.items ??
+        [];
       if (Array.isArray(data)) {
         setRecommendations(data);
         message.success('推荐加载完成');
@@ -239,29 +248,34 @@ const CodeOwnersPage: React.FC = () => {
 
   const isDirty = content !== savedContent;
 
-  const recommendationColumns: TableColumn<CodeOwnerRecommendation>[] = useMemo<TableColumn<CodeOwnerRecommendation>[]>(() => [
-    {
-      key: 'filePath',
-      title: '文件路径',
-      dataIndex: 'filePath',
-      width: 200,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'approvers',
-      title: '推荐审批人',
-      dataIndex: 'approvers',
-      render: (value: unknown) => (
-        <Space wrap>
-          {(Array.isArray(value) ? value : []).map((user: string, idx: number) => (
-            <Tag key={String(idx)} color="blue">
-              @{user}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    },
-  ], []);
+  const recommendationColumns: TableColumn<CodeOwnerRecommendation>[] = useMemo<
+    TableColumn<CodeOwnerRecommendation>[]
+  >(
+    () => [
+      {
+        key: 'filePath',
+        title: '文件路径',
+        dataIndex: 'filePath',
+        width: 200,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
+      },
+      {
+        key: 'approvers',
+        title: '推荐审批人',
+        dataIndex: 'approvers',
+        render: (value: unknown) => (
+          <Space wrap>
+            {(Array.isArray(value) ? value : []).map((user: string, idx: number) => (
+              <Tag key={String(idx)} color="blue">
+                @{user}
+              </Tag>
+            ))}
+          </Space>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

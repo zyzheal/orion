@@ -20,12 +20,7 @@ import {
   Empty,
   Descriptions,
 } from 'antd';
-import {
-  PlusOutlined,
-  ReloadOutlined,
-  CodeOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, CodeOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
 import {
   listComponents,
@@ -68,16 +63,20 @@ const ComponentRegistryPage: React.FC = () => {
     }
   }, [category]);
 
-  useEffect(() => { loadComponents(); }, [loadComponents]);
+  useEffect(() => {
+    loadComponents();
+  }, [loadComponents]);
 
   const handleCreate = async (values: any) => {
     try {
-      const propsSchema = typeof values.propsSchema === 'string'
-        ? JSON.parse(values.propsSchema)
-        : values.propsSchema || {};
-      const defaultConfig = typeof values.defaultConfig === 'string'
-        ? JSON.parse(values.defaultConfig)
-        : values.defaultConfig || {};
+      const propsSchema =
+        typeof values.propsSchema === 'string'
+          ? JSON.parse(values.propsSchema)
+          : values.propsSchema || {};
+      const defaultConfig =
+        typeof values.defaultConfig === 'string'
+          ? JSON.parse(values.defaultConfig)
+          : values.defaultConfig || {};
       await createComponent({
         name: values.name,
         displayName: values.displayName,
@@ -108,14 +107,22 @@ const ComponentRegistryPage: React.FC = () => {
   };
 
   const columns = [
-    { title: '组件名', dataIndex: 'name', key: 'name', width: 160, render: (v: string) => <Tag>{v}</Tag> },
+    {
+      title: '组件名',
+      dataIndex: 'name',
+      key: 'name',
+      width: 160,
+      render: (v: string) => <Tag>{v}</Tag>,
+    },
     { title: '显示名', dataIndex: 'displayName', key: 'displayName' },
     {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      render: (v: string) => <Tag color="blue">{CATEGORIES.find((c) => c.value === v)?.label || v}</Tag>,
+      render: (v: string) => (
+        <Tag color="blue">{CATEGORIES.find((c) => c.value === v)?.label || v}</Tag>
+      ),
     },
     { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
     {
@@ -123,21 +130,21 @@ const ComponentRegistryPage: React.FC = () => {
       dataIndex: 'isBuiltin',
       key: 'isBuiltin',
       width: 70,
-      render: (v: boolean) => v ? <Tag color="green">是</Tag> : <Tag>否</Tag>,
+      render: (v: boolean) => (v ? <Tag color="green">是</Tag> : <Tag>否</Tag>),
     },
     {
       title: '图标',
       dataIndex: 'icon',
       key: 'icon',
       width: 80,
-      render: (v: string) => v ? <span>{v}</span> : '-',
+      render: (v: string) => (v ? <span>{v}</span> : '-'),
     },
     {
       title: '注册时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -145,7 +152,12 @@ const ComponentRegistryPage: React.FC = () => {
       width: 120,
       render: (_: any, record: ComponentRegistry) => (
         <Space>
-          <Button size="small" type="link" icon={<CodeOutlined />} onClick={() => handleViewDetail(record)}>
+          <Button
+            size="small"
+            type="link"
+            icon={<CodeOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
             详情
           </Button>
         </Space>
@@ -167,7 +179,9 @@ const ComponentRegistryPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <Typography.Text type="secondary">组件总数</Typography.Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>{components.length}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>
+              {components.length}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
@@ -208,14 +222,29 @@ const ComponentRegistryPage: React.FC = () => {
               placeholder="分类筛选"
             >
               {CATEGORIES.map((c) => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
+                <Option key={c.value} value={c.value}>
+                  {c.label}
+                </Option>
               ))}
             </Select>
-            <Button icon={<ReloadOutlined />} size="small" onClick={loadComponents} loading={loading}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-              form.resetFields();
-              setModalOpen(true);
-            }}>注册组件</Button>
+            <Button
+              icon={<ReloadOutlined />}
+              size="small"
+              onClick={loadComponents}
+              loading={loading}
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                form.resetFields();
+                setModalOpen(true);
+              }}
+            >
+              注册组件
+            </Button>
           </Space>
         }
       >
@@ -250,7 +279,9 @@ const ComponentRegistryPage: React.FC = () => {
           <Form.Item name="category" label="分类" initialValue="custom">
             <Select>
               {CATEGORIES.map((c) => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
+                <Option key={c.value} value={c.value}>
+                  {c.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -267,10 +298,7 @@ const ComponentRegistryPage: React.FC = () => {
             />
           </Form.Item>
           <Form.Item name="defaultConfig" label="默认配置 (JSON)">
-            <TextArea
-              rows={3}
-              placeholder='{"width":"100%","disabled":false}'
-            />
+            <TextArea rows={3} placeholder='{"width":"100%","disabled":false}' />
           </Form.Item>
         </Form>
       </Modal>
@@ -286,7 +314,10 @@ const ComponentRegistryPage: React.FC = () => {
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="组件标识">{selectedComponent.name}</Descriptions.Item>
             <Descriptions.Item label="显示名称">{selectedComponent.displayName}</Descriptions.Item>
-            <Descriptions.Item label="分类">{CATEGORIES.find((c) => c.value === selectedComponent.category)?.label || selectedComponent.category}</Descriptions.Item>
+            <Descriptions.Item label="分类">
+              {CATEGORIES.find((c) => c.value === selectedComponent.category)?.label ||
+                selectedComponent.category}
+            </Descriptions.Item>
             <Descriptions.Item label="版本">
               <Tag color="blue">{selectedComponent.version}</Tag>
             </Descriptions.Item>
@@ -298,19 +329,41 @@ const ComponentRegistryPage: React.FC = () => {
             </Descriptions.Item>
             {selectedComponent.propsSchema && (
               <Descriptions.Item label="Props Schema">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
+                <pre
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    maxHeight: 200,
+                    overflow: 'auto',
+                    background: themeVars.bgSecondary,
+                    padding: 8,
+                    borderRadius: 4,
+                  }}
+                >
                   {JSON.stringify(selectedComponent.propsSchema, null, 2)}
                 </pre>
               </Descriptions.Item>
             )}
             {selectedComponent.defaultConfig && (
               <Descriptions.Item label="默认配置">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 150, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
+                <pre
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    maxHeight: 150,
+                    overflow: 'auto',
+                    background: themeVars.bgSecondary,
+                    padding: 8,
+                    borderRadius: 4,
+                  }}
+                >
                   {JSON.stringify(selectedComponent.defaultConfig, null, 2)}
                 </pre>
               </Descriptions.Item>
             )}
-            <Descriptions.Item label="注册时间">{new Date(selectedComponent.createdAt).toLocaleString()}</Descriptions.Item>
+            <Descriptions.Item label="注册时间">
+              {new Date(selectedComponent.createdAt).toLocaleString()}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

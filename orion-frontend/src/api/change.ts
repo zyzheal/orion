@@ -15,7 +15,15 @@ export interface ChangeRequest {
   category?: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
   risk_level: 'high' | 'medium' | 'low';
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'cancelled' | 'closed';
+  status:
+    | 'draft'
+    | 'submitted'
+    | 'approved'
+    | 'rejected'
+    | 'in_progress'
+    | 'completed'
+    | 'cancelled'
+    | 'closed';
   impact_description?: string;
   rollback_plan?: string;
   implementation_plan?: string;
@@ -105,7 +113,10 @@ export const getChangeRequests = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: ChangeRequest[]; total: number }> => {
-  const response = await api.get<{ data: ChangeRequest[]; total: number }>('/api/v1/changes/requests', { params });
+  const response = await api.get<{ data: ChangeRequest[]; total: number }>(
+    '/api/v1/changes/requests',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -133,9 +144,7 @@ export interface ChangeRiskAnalysis {
 }
 
 /** AI-assisted risk assessment for a change request (GET /api/v1/change/:id/risk). */
-export const getChangeRiskAnalysis = async (
-  id: string
-): Promise<ChangeRiskAnalysis> => {
+export const getChangeRiskAnalysis = async (id: string): Promise<ChangeRiskAnalysis> => {
   const response = await api.get<{ data: ChangeRiskAnalysis }>(`/api/v1/change/${id}/risk`);
   return response.data.data;
 };
@@ -159,7 +168,10 @@ export const createChangeRequest = async (data: {
   return response.data.data;
 };
 
-export const updateChangeRequest = async (id: string, data: Partial<ChangeRequest>): Promise<ChangeRequest> => {
+export const updateChangeRequest = async (
+  id: string,
+  data: Partial<ChangeRequest>
+): Promise<ChangeRequest> => {
   const response = await api.put<{ data: ChangeRequest }>(`/api/v1/changes/requests/${id}`, data);
   return response.data.data;
 };
@@ -168,24 +180,41 @@ export const deleteChangeRequest = async (id: string): Promise<void> => {
   await api.delete(`/api/v1/changes/requests/${id}`);
 };
 
-export const updateChangeRequestStatus = async (id: string, status: string, reason?: string): Promise<ChangeRequest> => {
-  const response = await api.patch<{ data: ChangeRequest }>(`/api/v1/changes/requests/${id}/status`, { status, reason });
+export const updateChangeRequestStatus = async (
+  id: string,
+  status: string,
+  reason?: string
+): Promise<ChangeRequest> => {
+  const response = await api.patch<{ data: ChangeRequest }>(
+    `/api/v1/changes/requests/${id}/status`,
+    { status, reason }
+  );
   return response.data.data;
 };
 
 // ==================== Timeline ====================
 
-export const getChangeTimeline = async (changeRequestId: string): Promise<ChangeTimelineEvent[]> => {
-  const response = await api.get<{ data: ChangeTimelineEvent[] }>(`/api/v1/changes/requests/${changeRequestId}/timeline`);
+export const getChangeTimeline = async (
+  changeRequestId: string
+): Promise<ChangeTimelineEvent[]> => {
+  const response = await api.get<{ data: ChangeTimelineEvent[] }>(
+    `/api/v1/changes/requests/${changeRequestId}/timeline`
+  );
   return response.data.data;
 };
 
-export const addChangeTimelineEvent = async (changeRequestId: string, data: {
-  event_type: string;
-  description: string;
-  metadata?: Record<string, unknown>;
-}): Promise<ChangeTimelineEvent> => {
-  const response = await api.post<{ data: ChangeTimelineEvent }>(`/api/v1/changes/requests/${changeRequestId}/timeline`, data);
+export const addChangeTimelineEvent = async (
+  changeRequestId: string,
+  data: {
+    event_type: string;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<ChangeTimelineEvent> => {
+  const response = await api.post<{ data: ChangeTimelineEvent }>(
+    `/api/v1/changes/requests/${changeRequestId}/timeline`,
+    data
+  );
   return response.data.data;
 };
 
@@ -196,7 +225,9 @@ export const getRFCs = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: RFC[]; total: number }> => {
-  const response = await api.get<{ data: RFC[]; total: number }>('/api/v1/changes/rfcs', { params });
+  const response = await api.get<{ data: RFC[]; total: number }>('/api/v1/changes/rfcs', {
+    params,
+  });
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -229,7 +260,9 @@ export const getCABMeetings = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: CABMeeting[]; total: number }> => {
-  const response = await api.get<{ data: CABMeeting[]; total: number }>('/api/v1/changes/cab', { params });
+  const response = await api.get<{ data: CABMeeting[]; total: number }>('/api/v1/changes/cab', {
+    params,
+  });
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -249,17 +282,26 @@ export const createCABMeeting = async (data: {
   return response.data.data;
 };
 
-export const updateCABMeeting = async (id: string, data: Partial<CABMeeting>): Promise<CABMeeting> => {
+export const updateCABMeeting = async (
+  id: string,
+  data: Partial<CABMeeting>
+): Promise<CABMeeting> => {
   const response = await api.put<{ data: CABMeeting }>(`/api/v1/changes/cab/${id}`, data);
   return response.data.data;
 };
 
-export const addCABDecision = async (meetingId: string, decision: {
-  changeRequestId: string;
-  decision: 'approved' | 'rejected' | 'deferred';
-  notes?: string;
-}): Promise<CABMeeting> => {
-  const response = await api.post<{ data: CABMeeting }>(`/api/v1/changes/cab/${meetingId}/decisions`, decision);
+export const addCABDecision = async (
+  meetingId: string,
+  decision: {
+    changeRequestId: string;
+    decision: 'approved' | 'rejected' | 'deferred';
+    notes?: string;
+  }
+): Promise<CABMeeting> => {
+  const response = await api.post<{ data: CABMeeting }>(
+    `/api/v1/changes/cab/${meetingId}/decisions`,
+    decision
+  );
   return response.data.data;
 };
 

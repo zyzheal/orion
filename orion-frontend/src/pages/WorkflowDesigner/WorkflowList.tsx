@@ -3,7 +3,13 @@
  */
 import React, { useEffect, useState } from 'react';
 import { Button, Empty, List, Tag, Space, message, Input, Select, Modal, Form } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, PauseCircleOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  SearchOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import {
   getWorkflowList,
   suspendWorkflow,
@@ -126,14 +132,20 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
 
   const filteredWorkflows = workflows.filter((w) => {
     const matchesSearch = !searchText || w.name.toLowerCase().includes(searchText.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? w.enabled : !w.enabled);
+    const matchesStatus =
+      statusFilter === 'all' || (statusFilter === 'active' ? w.enabled : !w.enabled);
     return matchesSearch && matchesStatus;
   });
 
   if (filteredWorkflows.length === 0 && !loading) {
     return (
       <div>
-        <Button type="primary" icon={<PlusOutlined />} block onClick={() => setCreateModalOpen(true)}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          block
+          onClick={() => setCreateModalOpen(true)}
+        >
           新建工作流
         </Button>
         <div style={{ marginTop: spacing.md }}>
@@ -230,7 +242,11 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
         destroyOnClose
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="工作流名称" name="name" rules={[{ required: true, message: '请输入工作流名称' }]}>
+          <Form.Item
+            label="工作流名称"
+            name="name"
+            rules={[{ required: true, message: '请输入工作流名称' }]}
+          >
             <Input placeholder="例如：代码审核流程" />
           </Form.Item>
           <Form.Item label="描述" name="description">

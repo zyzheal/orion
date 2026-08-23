@@ -4,10 +4,38 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Select, Button, Space, Statistic, Row, Col, message, Alert, Badge } from 'antd';
-import { ReloadOutlined, FilterOutlined, BarChartOutlined, WarningOutlined, UserOutlined } from '@ant-design/icons';
+import {
+  Card,
+  Table,
+  Tag,
+  Select,
+  Button,
+  Space,
+  Statistic,
+  Row,
+  Col,
+  message,
+  Alert,
+  Badge,
+} from 'antd';
+import {
+  ReloadOutlined,
+  FilterOutlined,
+  BarChartOutlined,
+  WarningOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { queryDeniedLogs, queryDeniedStats, getAnomalies, getHighRiskUsers, type AuditLogEntry, type AuditStats, type UEBAAnomaly, type UEBARiskUser } from '@/api/permission-audit';
+import {
+  queryDeniedLogs,
+  queryDeniedStats,
+  getAnomalies,
+  getHighRiskUsers,
+  type AuditLogEntry,
+  type AuditStats,
+  type UEBAAnomaly,
+  type UEBARiskUser,
+} from '@/api/permission-audit';
 import { colors, spacing } from '@/tokens';
 
 const { Option } = Select;
@@ -71,7 +99,7 @@ const PermissionAudit: React.FC = () => {
       dataIndex: 'evaluated_at',
       key: 'evaluated_at',
       width: 180,
-      render: (val) => val ? new Date(val).toLocaleString('zh-CN') : '-',
+      render: (val) => (val ? new Date(val).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '用户',
@@ -112,9 +140,7 @@ const PermissionAudit: React.FC = () => {
       key: 'decision',
       width: 80,
       render: (val) => (
-        <Tag color={val === 'deny' ? 'red' : 'green'}>
-          {val === 'deny' ? '拒绝' : '允许'}
-        </Tag>
+        <Tag color={val === 'deny' ? 'red' : 'green'}>{val === 'deny' ? '拒绝' : '允许'}</Tag>
       ),
     },
     {
@@ -170,11 +196,7 @@ const PermissionAudit: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="统计时段 (小时)"
-              value={hours}
-              suffix="h"
-            />
+            <Statistic title="统计时段 (小时)" value={hours} suffix="h" />
           </Card>
         </Col>
         <Col span={6}>
@@ -209,7 +231,13 @@ const PermissionAudit: React.FC = () => {
               <Option value={72}>3天</Option>
               <Option value={168}>7天</Option>
             </Select>
-            <Button icon={<ReloadOutlined />} onClick={() => { fetchStats(); fetchAnomalies(); }}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                fetchStats();
+                fetchAnomalies();
+              }}
+            >
               刷新
             </Button>
           </Space>
@@ -247,7 +275,11 @@ const PermissionAudit: React.FC = () => {
             return (
               <Alert
                 key={String(index)}
-                type={anomaly.severity === 'critical' || anomaly.severity === 'high' ? 'error' : 'warning'}
+                type={
+                  anomaly.severity === 'critical' || anomaly.severity === 'high'
+                    ? 'error'
+                    : 'warning'
+                }
                 message={
                   <Space>
                     <Tag color={severityColor[anomaly.severity] || 'default'}>
@@ -292,7 +324,12 @@ const PermissionAudit: React.FC = () => {
                 key: 'riskLevel',
                 width: 100,
                 render: (val: string) => {
-                  const colorMap: Record<string, string> = { low: 'green', medium: 'orange', high: 'red', critical: 'magenta' };
+                  const colorMap: Record<string, string> = {
+                    low: 'green',
+                    medium: 'orange',
+                    high: 'red',
+                    critical: 'magenta',
+                  };
                   return <Tag color={colorMap[val] || 'default'}>{val}</Tag>;
                 },
               },

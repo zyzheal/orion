@@ -3,7 +3,8 @@
  * Configure automatic vectorization rules for uploaded documents
  */
 import _React, { useState, useEffect, useCallback } from 'react';
-import { InputNumber,
+import {
+  InputNumber,
   Card,
   Table,
   Tag,
@@ -84,7 +85,9 @@ export default function AutoVectorizePage() {
     }
   }, []);
 
-  useEffect(() => { fetchRules(); }, [fetchRules]);
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
 
   const handleCreate = async (values: any) => {
     try {
@@ -139,7 +142,10 @@ export default function AutoVectorizePage() {
       key: 'source_type',
       render: (v: string) => {
         const labels: Record<string, string> = {
-          upload: '文件上传', git: 'Git 仓库', api: 'API 推送', database: '数据库同步',
+          upload: '文件上传',
+          git: 'Git 仓库',
+          api: 'API 推送',
+          database: '数据库同步',
         };
         return <Tag>{labels[v] || v}</Tag>;
       },
@@ -148,7 +154,12 @@ export default function AutoVectorizePage() {
       title: '文件类型',
       dataIndex: 'file_types',
       key: 'file_types',
-      render: (v: string[]) => v?.map(t => <Tag key={t} color="blue">{t}</Tag>) ?? '-',
+      render: (v: string[]) =>
+        v?.map((t) => (
+          <Tag key={t} color="blue">
+            {t}
+          </Tag>
+        )) ?? '-',
     },
     {
       title: '分块大小',
@@ -186,9 +197,13 @@ export default function AutoVectorizePage() {
       key: 'action',
       render: (_: unknown, record: VectorizeRule) => (
         <Space>
-          <Button size="small" icon={<SettingOutlined />}>编辑</Button>
+          <Button size="small" icon={<SettingOutlined />}>
+            编辑
+          </Button>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Button size="small" danger>删除</Button>
+            <Button size="small" danger>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -207,7 +222,7 @@ export default function AutoVectorizePage() {
           <Card>
             <Statistic
               title="活跃规则"
-              value={rules.filter(r => r.enabled).length}
+              value={rules.filter((r) => r.enabled).length}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: colors.success[500] }}
             />
@@ -224,20 +239,12 @@ export default function AutoVectorizePage() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="待处理"
-              value={0}
-              prefix={<ClockCircleOutlined />}
-            />
+            <Statistic title="待处理" value={0} prefix={<ClockCircleOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="规则总数"
-              value={rules.length}
-              prefix={<ThunderboltOutlined />}
-            />
+            <Statistic title="规则总数" value={rules.length} prefix={<ThunderboltOutlined />} />
           </Card>
         </Col>
       </Row>
@@ -246,7 +253,9 @@ export default function AutoVectorizePage() {
         title="向量化规则"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchRules}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchRules}>
+              刷新
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
               新建规则
             </Button>
@@ -265,7 +274,10 @@ export default function AutoVectorizePage() {
       <Modal
         title="新建向量化规则"
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); form.resetFields(); }}
+        onCancel={() => {
+          setModalVisible(false);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         width={600}
       >

@@ -65,12 +65,7 @@ export interface CacheStats {
 // Cache Strategy API
 export const cacheStrategyApi = {
   // List cache strategies
-  list: async (params?: {
-    type?: CacheType;
-    enabled?: boolean;
-    page?: number;
-    limit?: number;
-  }) => {
+  list: async (params?: { type?: CacheType; enabled?: boolean; page?: number; limit?: number }) => {
     const response = await apiClient.get('/api/v1/cache-strategies', { params });
     return response.data;
   },
@@ -143,7 +138,9 @@ export const cacheStrategyApi = {
 
   // Generate cache key
   generateKey: async (id: string, context: Record<string, string>) => {
-    const response = await apiClient.post(`/api/v1/cache-strategies/${id}/generate-key`, { context });
+    const response = await apiClient.post(`/api/v1/cache-strategies/${id}/generate-key`, {
+      context,
+    });
     return response.data as { key: string };
   },
 };

@@ -196,127 +196,133 @@ const TestSelector: React.FC = () => {
   });
 
   // Table columns
-  const testColumns: TableColumn<TestCase>[] = useMemo<TableColumn<TestCase>[]>(() => [
-    {
-      key: 'name',
-      title: 'Test Name',
-      dataIndex: 'name',
-      sortable: true,
-      render: (value: unknown) => (
-        <Text
-          strong
-          style={{
-            maxWidth: 320,
-            display: 'block',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-          title={String(value)}
-        >
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'suite',
-      title: 'Suite',
-      dataIndex: 'suite',
-      sortable: true,
-      filterable: true,
-      render: (value: unknown) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      sortable: true,
-      render: (_value: unknown, record: TestCase) => (
-        <Tag color={getStatusColor(record.status)} icon={getStatusIcon(record.status)}>
-          {getStatusLabel(record.status)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'duration',
-      title: 'Duration',
-      dataIndex: 'duration',
-      sortable: true,
-    },
-    {
-      key: 'lastRun',
-      title: 'Last Run',
-      dataIndex: 'lastRun',
-      sortable: true,
-    },
-    {
-      key: 'tags',
-      title: 'Tags',
-      dataIndex: 'tags',
-      filterable: true,
-      render: (value: unknown) => (
-        <Space size={4} wrap>
-          {(value as string[]).map((tag) => (
-            <Tag key={tag} color={colors.neutral[300]} style={{ fontSize: 11 }}>
-              {tag}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      render: (_value: unknown, record: TestCase) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<PlayCircleOutlined />}
-            style={{ color: colors.primary[500], padding: 0 }}
-            onClick={() => {
-              message.info(`Running test: ${record.name}`);
+  const testColumns: TableColumn<TestCase>[] = useMemo<TableColumn<TestCase>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Test Name',
+        dataIndex: 'name',
+        sortable: true,
+        render: (value: unknown) => (
+          <Text
+            strong
+            style={{
+              maxWidth: 320,
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
+            title={String(value)}
           >
-            Run
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            style={{ color: colors.neutral[500], padding: 0 }}
-            onClick={() => {
-              message.info(`Viewing detail: ${record.name}`);
-            }}
-          >
-            Detail
-          </Button>
-        </Space>
-      ),
-    },
-  ], []);
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'suite',
+        title: 'Suite',
+        dataIndex: 'suite',
+        sortable: true,
+        filterable: true,
+        render: (value: unknown) => <Tag color={colors.primary[400]}>{String(value)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        dataIndex: 'status',
+        sortable: true,
+        render: (_value: unknown, record: TestCase) => (
+          <Tag color={getStatusColor(record.status)} icon={getStatusIcon(record.status)}>
+            {getStatusLabel(record.status)}
+          </Tag>
+        ),
+      },
+      {
+        key: 'duration',
+        title: 'Duration',
+        dataIndex: 'duration',
+        sortable: true,
+      },
+      {
+        key: 'lastRun',
+        title: 'Last Run',
+        dataIndex: 'lastRun',
+        sortable: true,
+      },
+      {
+        key: 'tags',
+        title: 'Tags',
+        dataIndex: 'tags',
+        filterable: true,
+        render: (value: unknown) => (
+          <Space size={4} wrap>
+            {(value as string[]).map((tag) => (
+              <Tag key={tag} color={colors.neutral[300]} style={{ fontSize: 11 }}>
+                {tag}
+              </Tag>
+            ))}
+          </Space>
+        ),
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        render: (_value: unknown, record: TestCase) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              style={{ color: colors.primary[500], padding: 0 }}
+              onClick={() => {
+                message.info(`Running test: ${record.name}`);
+              }}
+            >
+              Run
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              style={{ color: colors.neutral[500], padding: 0 }}
+              onClick={() => {
+                message.info(`Viewing detail: ${record.name}`);
+              }}
+            >
+              Detail
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    []
+  );
 
   // Filter definitions
-  const filterDefinitions: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: 'Status',
-      options: STATUS_OPTIONS,
-      placeholder: 'Filter by status',
-    },
-    {
-      key: 'suite',
-      label: 'Suite',
-      options: [{ label: 'All Suites', value: '' }, ...SUITE_OPTIONS],
-      placeholder: 'Filter by suite',
-    },
-    {
-      key: 'tags',
-      label: 'Tags',
-      options: [{ label: 'All Tags', value: '' }, ...TAG_OPTIONS],
-      placeholder: 'Filter by tags',
-    },
-  ], []);
+  const filterDefinitions: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: 'Status',
+        options: STATUS_OPTIONS,
+        placeholder: 'Filter by status',
+      },
+      {
+        key: 'suite',
+        label: 'Suite',
+        options: [{ label: 'All Suites', value: '' }, ...SUITE_OPTIONS],
+        placeholder: 'Filter by suite',
+      },
+      {
+        key: 'tags',
+        label: 'Tags',
+        options: [{ label: 'All Tags', value: '' }, ...TAG_OPTIONS],
+        placeholder: 'Filter by tags',
+      },
+    ],
+    []
+  );
 
   const handleRunSelected = useCallback(async () => {
     if (selectedRowKeys.length === 0) {

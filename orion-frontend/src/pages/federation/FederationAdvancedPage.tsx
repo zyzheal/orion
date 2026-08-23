@@ -6,15 +6,33 @@
 import React, { useState, useEffect } from 'react';
 import { federationApi, FederationCluster, CrossClusterJob } from '@/api/federation';
 import {
-  Card, Table, Button, Modal, Form, Select, Input, Tag,
-  message, Space, Statistic, Row, Col, Progress, Tabs,
-  Badge as AntBadge, Descriptions
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Select,
+  Input,
+  Tag,
+  message,
+  Space,
+  Statistic,
+  Row,
+  Col,
+  Progress,
+  Tabs,
+  Badge as AntBadge,
+  Descriptions,
 } from 'antd';
 import { spacing } from '@/tokens';
 import {
-  ClusterOutlined, CloudServerOutlined, SwapOutlined,
-  PlusOutlined, ReloadOutlined, SettingOutlined,
-  ThunderboltOutlined
+  ClusterOutlined,
+  CloudServerOutlined,
+  SwapOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SettingOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 
 const FederationAdvancedPage: React.FC = () => {
@@ -83,7 +101,12 @@ const FederationAdvancedPage: React.FC = () => {
 
   const clusterColumns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Provider', dataIndex: 'provider', key: 'provider', render: (p: string) => <Tag>{p}</Tag> },
+    {
+      title: 'Provider',
+      dataIndex: 'provider',
+      key: 'provider',
+      render: (p: string) => <Tag>{p}</Tag>,
+    },
     { title: 'Region', dataIndex: 'region', key: 'region' },
     {
       title: 'Status',
@@ -97,7 +120,12 @@ const FederationAdvancedPage: React.FC = () => {
       ),
     },
     { title: 'Nodes', dataIndex: 'nodeCount', key: 'nodeCount', width: 80 },
-    { title: 'Registered', dataIndex: 'registeredAt', key: 'registeredAt', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Registered',
+      dataIndex: 'registeredAt',
+      key: 'registeredAt',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const jobColumns = [
@@ -121,7 +149,15 @@ const FederationAdvancedPage: React.FC = () => {
       key: 'status',
       render: (status: string) => (
         <AntBadge
-          status={status === 'completed' ? 'success' : status === 'running' ? 'processing' : status === 'failed' ? 'error' : 'default'}
+          status={
+            status === 'completed'
+              ? 'success'
+              : status === 'running'
+                ? 'processing'
+                : status === 'failed'
+                  ? 'error'
+                  : 'default'
+          }
           text={status}
         />
       ),
@@ -132,7 +168,12 @@ const FederationAdvancedPage: React.FC = () => {
       key: 'progress',
       render: (progress: number) => <Progress percent={progress || 0} size="small" />,
     },
-    { title: 'Submitted', dataIndex: 'submittedAt', key: 'submittedAt', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Submitted',
+      dataIndex: 'submittedAt',
+      key: 'submittedAt',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const poolColumns = [
@@ -141,7 +182,8 @@ const FederationAdvancedPage: React.FC = () => {
       title: 'Clusters',
       dataIndex: 'clusters',
       key: 'clusters',
-      render: (c: string[]) => c && c.length > 0 ? c.map((id: string) => <Tag key={id}>{id}</Tag>) : '-',
+      render: (c: string[]) =>
+        c && c.length > 0 ? c.map((id: string) => <Tag key={id}>{id}</Tag>) : '-',
     },
     {
       title: 'Allocation Policy',
@@ -149,7 +191,12 @@ const FederationAdvancedPage: React.FC = () => {
       key: 'allocation_policy',
       render: (policy: string) => <Tag>{policy}</Tag>,
     },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   return (
@@ -158,17 +205,29 @@ const FederationAdvancedPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
-            <Statistic title="Total Clusters" value={clusters.length} prefix={<CloudServerOutlined />} />
+            <Statistic
+              title="Total Clusters"
+              value={clusters.length}
+              prefix={<CloudServerOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="Active Clusters" value={clusters.filter(c => c.status === 'active').length} prefix={<ClusterOutlined />} />
+            <Statistic
+              title="Active Clusters"
+              value={clusters.filter((c) => c.status === 'active').length}
+              prefix={<ClusterOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="Running Jobs" value={jobs.filter(j => j.status === 'running').length} prefix={<SwapOutlined />} />
+            <Statistic
+              title="Running Jobs"
+              value={jobs.filter((j) => j.status === 'running').length}
+              prefix={<SwapOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -182,7 +241,11 @@ const FederationAdvancedPage: React.FC = () => {
         items={[
           {
             key: 'clusters',
-            label: <><CloudServerOutlined /> Cluster Management</>,
+            label: (
+              <>
+                <CloudServerOutlined /> Cluster Management
+              </>
+            ),
             children: (
               <Card
                 title="Federated Clusters"
@@ -191,7 +254,9 @@ const FederationAdvancedPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setClusterModal(true)}>
                       Register Cluster
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -206,7 +271,11 @@ const FederationAdvancedPage: React.FC = () => {
           },
           {
             key: 'jobs',
-            label: <><SwapOutlined /> Cross-Cluster Jobs</>,
+            label: (
+              <>
+                <SwapOutlined /> Cross-Cluster Jobs
+              </>
+            ),
             children: (
               <Card
                 title="Cross-Cluster Jobs"
@@ -215,22 +284,23 @@ const FederationAdvancedPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setJobModal(true)}>
                       Submit Job
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
-                <Table
-                  columns={jobColumns}
-                  dataSource={jobs}
-                  rowKey="id"
-                  loading={loading}
-                />
+                <Table columns={jobColumns} dataSource={jobs} rowKey="id" loading={loading} />
               </Card>
             ),
           },
           {
             key: 'pools',
-            label: <><SettingOutlined /> Resource Pools</>,
+            label: (
+              <>
+                <SettingOutlined /> Resource Pools
+              </>
+            ),
             children: (
               <Card
                 title="Resource Pool Management"
@@ -239,22 +309,23 @@ const FederationAdvancedPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setPoolModal(true)}>
                       Create Pool
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
-                <Table
-                  columns={poolColumns}
-                  dataSource={pools}
-                  rowKey="id"
-                  loading={loading}
-                />
+                <Table columns={poolColumns} dataSource={pools} rowKey="id" loading={loading} />
               </Card>
             ),
           },
           {
             key: 'strategies',
-            label: <><ThunderboltOutlined /> Scheduling Strategies</>,
+            label: (
+              <>
+                <ThunderboltOutlined /> Scheduling Strategies
+              </>
+            ),
             children: (
               <Card title="Scheduling Strategy Configuration">
                 <Descriptions bordered column={1} size="middle">
@@ -295,13 +366,15 @@ const FederationAdvancedPage: React.FC = () => {
             <Input placeholder="us-east-1-cluster" />
           </Form.Item>
           <Form.Item label="Provider" name="provider" required>
-            <Select options={[
-              { value: 'aws', label: 'AWS EKS' },
-              { value: 'gcp', label: 'GCP GKE' },
-              { value: 'azure', label: 'Azure AKS' },
-              { value: 'aliyun', label: 'Aliyun ACK' },
-              { value: 'on-premise', label: 'On-Premise' },
-            ]} />
+            <Select
+              options={[
+                { value: 'aws', label: 'AWS EKS' },
+                { value: 'gcp', label: 'GCP GKE' },
+                { value: 'azure', label: 'Azure AKS' },
+                { value: 'aliyun', label: 'Aliyun ACK' },
+                { value: 'on-premise', label: 'On-Premise' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Region" name="region" required>
             <Input placeholder="us-east-1" />
@@ -324,31 +397,40 @@ const FederationAdvancedPage: React.FC = () => {
             <Input placeholder="deploy-service-v2" />
           </Form.Item>
           <Form.Item label="Type" name="type" required>
-            <Select options={[
-              { value: 'deployment', label: 'Deployment' },
-              { value: 'migration', label: 'Migration' },
-              { value: 'sync', label: 'Sync' },
-              { value: 'backup', label: 'Backup' },
-            ]} />
+            <Select
+              options={[
+                { value: 'deployment', label: 'Deployment' },
+                { value: 'migration', label: 'Migration' },
+                { value: 'sync', label: 'Sync' },
+                { value: 'backup', label: 'Backup' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Source Cluster" name="source_cluster" required>
-            <Select options={clusters.map(c => ({
-              value: c.id,
-              label: c.name,
-            }))} />
+            <Select
+              options={clusters.map((c) => ({
+                value: c.id,
+                label: c.name,
+              }))}
+            />
           </Form.Item>
           <Form.Item label="Target Clusters" name="target_clusters">
-            <Select mode="multiple" options={clusters.map(c => ({
-              value: c.id,
-              label: c.name,
-            }))} />
+            <Select
+              mode="multiple"
+              options={clusters.map((c) => ({
+                value: c.id,
+                label: c.name,
+              }))}
+            />
           </Form.Item>
           <Form.Item label="Strategy" name="strategy">
-            <Select options={[
-              { value: 'rollout', label: 'Rolling Update' },
-              { value: 'blue-green', label: 'Blue-Green' },
-              { value: 'canary', label: 'Canary' },
-            ]} />
+            <Select
+              options={[
+                { value: 'rollout', label: 'Rolling Update' },
+                { value: 'blue-green', label: 'Blue-Green' },
+                { value: 'canary', label: 'Canary' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -365,17 +447,22 @@ const FederationAdvancedPage: React.FC = () => {
             <Input placeholder="production-pool" />
           </Form.Item>
           <Form.Item label="Clusters" name="clusters">
-            <Select mode="multiple" options={clusters.map(c => ({
-              value: c.id,
-              label: c.name,
-            }))} />
+            <Select
+              mode="multiple"
+              options={clusters.map((c) => ({
+                value: c.id,
+                label: c.name,
+              }))}
+            />
           </Form.Item>
           <Form.Item label="Allocation Policy" name="allocation_policy" required>
-            <Select options={[
-              { value: 'fair-share', label: 'Fair Share' },
-              { value: 'priority', label: 'Priority' },
-              { value: 'reservation', label: 'Reservation' },
-            ]} />
+            <Select
+              options={[
+                { value: 'fair-share', label: 'Fair Share' },
+                { value: 'priority', label: 'Priority' },
+                { value: 'reservation', label: 'Reservation' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <Input.TextArea rows={2} />

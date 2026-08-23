@@ -59,10 +59,13 @@ const KnowledgeGraphPage: React.FC = () => {
     loadGraph();
   }, [loadGraph]);
 
-  const filteredNodes = graph?.nodes.filter(n => selectedType === 'all' || n.type === selectedType) || [];
-  const filteredEdges = graph?.edges.filter(e =>
-    filteredNodes.some(n => n.id === e.source) && filteredNodes.some(n => n.id === e.target)
-  ) || [];
+  const filteredNodes =
+    graph?.nodes.filter((n) => selectedType === 'all' || n.type === selectedType) || [];
+  const filteredEdges =
+    graph?.edges.filter(
+      (e) =>
+        filteredNodes.some((n) => n.id === e.source) && filteredNodes.some((n) => n.id === e.target)
+    ) || [];
 
   // Simple force-directed layout calculation
   const layout = useCallback(() => {
@@ -72,26 +75,36 @@ const KnowledgeGraphPage: React.FC = () => {
     const centerY = 250;
     const radius = 180;
 
-    const spaces = filteredNodes.filter(n => n.type === 'space');
-    const docs = filteredNodes.filter(n => n.type === 'doc');
-    const tags = filteredNodes.filter(n => n.type === 'tag');
+    const spaces = filteredNodes.filter((n) => n.type === 'space');
+    const docs = filteredNodes.filter((n) => n.type === 'doc');
+    const tags = filteredNodes.filter((n) => n.type === 'tag');
 
     spaces.forEach((n, i) => {
       const angle = (2 * Math.PI * i) / spaces.length - Math.PI / 2;
-      positions[n.id] = { x: centerX + radius * 0.5 * Math.cos(angle), y: centerY + radius * 0.5 * Math.sin(angle) };
+      positions[n.id] = {
+        x: centerX + radius * 0.5 * Math.cos(angle),
+        y: centerY + radius * 0.5 * Math.sin(angle),
+      };
     });
     docs.forEach((n, i) => {
       const angle = (2 * Math.PI * i) / docs.length;
-      positions[n.id] = { x: centerX + radius * 0.9 * Math.cos(angle), y: centerY + radius * 0.9 * Math.sin(angle) };
+      positions[n.id] = {
+        x: centerX + radius * 0.9 * Math.cos(angle),
+        y: centerY + radius * 0.9 * Math.sin(angle),
+      };
     });
     tags.forEach((n, i) => {
       const angle = (2 * Math.PI * i) / tags.length;
-      positions[n.id] = { x: centerX + radius * 1.3 * Math.cos(angle), y: centerY + radius * 1.3 * Math.sin(angle) };
+      positions[n.id] = {
+        x: centerX + radius * 1.3 * Math.cos(angle),
+        y: centerY + radius * 1.3 * Math.sin(angle),
+      };
     });
     return positions;
   }, [filteredNodes]);
 
-  const positions: Record<string, { x: number; y: number }> = (layout() as Record<string, { x: number; y: number }>) || {};
+  const positions: Record<string, { x: number; y: number }> =
+    (layout() as Record<string, { x: number; y: number }>) || {};
 
   return (
     <div>
@@ -116,11 +129,25 @@ const KnowledgeGraphPage: React.FC = () => {
             bodyStyle={{ padding: 0, position: 'relative' }}
           >
             {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 500 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: 500,
+                }}
+              >
                 <Spin size="large" tip="加载知识图谱..." />
               </div>
             ) : !graph || graph.nodes.length === 0 ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 500 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: 500,
+                }}
+              >
                 <Empty description="暂无知识图谱数据" />
               </div>
             ) : (
@@ -133,15 +160,22 @@ const KnowledgeGraphPage: React.FC = () => {
                   return (
                     <g key={`edge-${i}`}>
                       <line
-                        x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
-                        stroke={edge.relation === 'tagged' ? colors.warning[500] : themeVars.borderLight}
+                        x1={src.x}
+                        y1={src.y}
+                        x2={tgt.x}
+                        y2={tgt.y}
+                        stroke={
+                          edge.relation === 'tagged' ? colors.warning[500] : themeVars.borderLight
+                        }
                         strokeWidth={edge.relation === 'tagged' ? 1.5 : 2}
                         strokeDasharray={edge.relation === 'tagged' ? '4,2' : 'none'}
                         opacity={0.6}
                       />
                       <text
-                        x={(src.x + tgt.x) / 2} y={(src.y + tgt.y) / 2 - 4}
-                        textAnchor="middle" fontSize={10}
+                        x={(src.x + tgt.x) / 2}
+                        y={(src.y + tgt.y) / 2 - 4}
+                        textAnchor="middle"
+                        fontSize={10}
                         fill={colors.neutral[400]}
                       >
                         {edge.relation === 'tagged' ? 'tagged' : 'contains'}
@@ -163,15 +197,19 @@ const KnowledgeGraphPage: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     >
                       <circle
-                        cx={pos.x} cy={pos.y} r={r}
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={r}
                         fill={nodeColors[node.type]}
                         stroke={isSelected ? themeVars.textPrimary : 'none'}
                         strokeWidth={isSelected ? 3 : 0}
                         opacity={isSelected ? 1 : 0.85}
                       />
                       <text
-                        x={pos.x} y={pos.y + r + 14}
-                        textAnchor="middle" fontSize={11}
+                        x={pos.x}
+                        y={pos.y + r + 14}
+                        textAnchor="middle"
+                        fontSize={11}
                         fill={isSelected ? colors.primary[500] : colors.neutral[600]}
                         fontWeight={isSelected ? 600 : 400}
                       >
@@ -198,23 +236,33 @@ const KnowledgeGraphPage: React.FC = () => {
                   </Space>
                 </div>
                 <Title level={4}>{selectedNode.label}</Title>
-                <Text type="secondary" style={{ display: 'block', marginBottom: spacing.sm }}>ID: {selectedNode.id}</Text>
+                <Text type="secondary" style={{ display: 'block', marginBottom: spacing.sm }}>
+                  ID: {selectedNode.id}
+                </Text>
                 {selectedNode.spaceId && (
-                  <Text type="secondary" style={{ display: 'block' }}>所属知识库: {selectedNode.spaceId}</Text>
+                  <Text type="secondary" style={{ display: 'block' }}>
+                    所属知识库: {selectedNode.spaceId}
+                  </Text>
                 )}
                 <div style={{ marginTop: spacing.md }}>
                   <Text strong>关联关系</Text>
                   <div style={{ marginTop: spacing.sm }}>
-                    {filteredEdges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).map((e, i) => {
-                      const related = filteredNodes.find(n => n.id === (e.source === selectedNode.id ? e.target : e.source));
-                      return (
-                        <Tag key={String(i)} style={{ marginBottom: 4, cursor: 'pointer' }}
-                          onClick={() => related && setSelectedNode(related)}
-                        >
-                          {e.relation}: {related?.label || 'unknown'}
-                        </Tag>
-                      );
-                    })}
+                    {filteredEdges
+                      .filter((e) => e.source === selectedNode.id || e.target === selectedNode.id)
+                      .map((e, i) => {
+                        const related = filteredNodes.find(
+                          (n) => n.id === (e.source === selectedNode.id ? e.target : e.source)
+                        );
+                        return (
+                          <Tag
+                            key={String(i)}
+                            style={{ marginBottom: 4, cursor: 'pointer' }}
+                            onClick={() => related && setSelectedNode(related)}
+                          >
+                            {e.relation}: {related?.label || 'unknown'}
+                          </Tag>
+                        );
+                      })}
                   </div>
                 </div>
               </div>

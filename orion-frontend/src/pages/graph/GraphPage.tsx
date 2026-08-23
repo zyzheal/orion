@@ -111,7 +111,10 @@ const GraphPage: React.FC = () => {
   const [_serviceDetailLoading, setServiceDetailLoading] = useState(false);
 
   // Infrastructure Topology state
-  const [infraTopology, setInfraTopology] = useState<InfrastructureTopology>({ nodes: [], edges: [] });
+  const [infraTopology, setInfraTopology] = useState<InfrastructureTopology>({
+    nodes: [],
+    edges: [],
+  });
   const [infraLoading, setInfraLoading] = useState(false);
 
   // Impact Analysis state
@@ -121,7 +124,10 @@ const GraphPage: React.FC = () => {
 
   // Cypher Query state
   const [queryForm] = Form.useForm();
-  const [queryResult, setQueryResult] = useState<{ columns: string[]; rows: Record<string, unknown>[] } | null>(null);
+  const [queryResult, setQueryResult] = useState<{
+    columns: string[];
+    rows: Record<string, unknown>[];
+  } | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
 
@@ -231,10 +237,19 @@ const GraphPage: React.FC = () => {
   // ---- Build Tree Data for Service Dependencies ----
 
   const buildTreeData = () => {
-    const rootNodes = services.filter((s) => s.dependencies.length === 0 || s.dependents.length === 0);
+    const rootNodes = services.filter(
+      (s) => s.dependencies.length === 0 || s.dependents.length === 0
+    );
     const seen = new Set<string>();
 
-    const buildChildren = (serviceId: string, depth: number): Array<{ key: string; title: React.ReactNode; children?: Array<{ key: string; title: React.ReactNode }> }> => {
+    const buildChildren = (
+      serviceId: string,
+      depth: number
+    ): Array<{
+      key: string;
+      title: React.ReactNode;
+      children?: Array<{ key: string; title: React.ReactNode }>;
+    }> => {
       if (depth > 2 || seen.has(serviceId)) return [];
       seen.add(serviceId);
       const svc = services.find((s) => s.id === serviceId);
@@ -263,9 +278,7 @@ const GraphPage: React.FC = () => {
         <Space>
           <DeploymentUnitOutlined style={{ color: colors.primary[500] }} />
           <Text strong>{svc.name}</Text>
-          <Tag color={serviceStatusColorMap[svc.status]}>
-            {serviceStatusLabelMap[svc.status]}
-          </Tag>
+          <Tag color={serviceStatusColorMap[svc.status]}>{serviceStatusLabelMap[svc.status]}</Tag>
           <Text type="secondary" style={{ fontSize: 12 }}>
             依赖: {svc.dependencies.length} | 被依赖: {svc.dependents.length}
           </Text>
@@ -277,158 +290,173 @@ const GraphPage: React.FC = () => {
 
   // ---- Columns ----
 
-  const serviceColumns: TableColumn<ServiceDependency>[] = useMemo<TableColumn<ServiceDependency>[]>(() => [
-    {
-      key: 'id',
-      title: '服务ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
-    },
-    {
-      key: 'name',
-      title: '服务名称',
-      dataIndex: 'name',
-      width: 180,
-      render: (v: unknown) => (
-        <Space>
-          <DeploymentUnitOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{String(v)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (v: unknown) => <Text type="secondary">{v ? String(v) : '-'}</Text>,
-    },
-    {
-      key: 'dependencies',
-      title: '依赖数',
-      dataIndex: 'dependencies',
-      width: 80,
-      render: (v: unknown) => <Text>{Array.isArray(v) ? v.length : 0}</Text>,
-    },
-    {
-      key: 'dependents',
-      title: '被依赖数',
-      dataIndex: 'dependents',
-      width: 80,
-      render: (v: unknown) => <Text>{Array.isArray(v) ? v.length : 0}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => (
-        <Badge
-          status={
-            v === 'running' ? 'success' : v === 'stopped' ? 'error' : v === 'degraded' ? 'warning' : 'default'
-          }
-          text={serviceStatusLabelMap[v as ServiceDependency['status']]}
-        />
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: ServiceDependency) => (
-        <Button
-          type="link"
-          size="small"
-          onClick={() => handleSelectService(record.id)}
-        >
-          详情
-        </Button>
-      ),
-    },
-  ], [handleSelectService]);
-
-  const infraColumns: TableColumn<InfrastructureNode>[] = useMemo<TableColumn<InfrastructureNode>[]>(() => [
-    {
-      key: 'id',
-      title: '节点ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 120,
-      render: (v: unknown) => {
-        const type = v as InfrastructureNode['type'];
-        return <Tag color="blue">{infraTypeLabelMap[type] ?? type}</Tag>;
+  const serviceColumns: TableColumn<ServiceDependency>[] = useMemo<
+    TableColumn<ServiceDependency>[]
+  >(
+    () => [
+      {
+        key: 'id',
+        title: '服务ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
       },
-    },
-    {
-      key: 'name',
-      title: '名称',
-      dataIndex: 'name',
-      width: 180,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = v as InfrastructureNode['status'];
-        return (
+      {
+        key: 'name',
+        title: '服务名称',
+        dataIndex: 'name',
+        width: 180,
+        render: (v: unknown) => (
+          <Space>
+            <DeploymentUnitOutlined style={{ color: colors.primary[500] }} />
+            <Text strong>{String(v)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (v: unknown) => <Text type="secondary">{v ? String(v) : '-'}</Text>,
+      },
+      {
+        key: 'dependencies',
+        title: '依赖数',
+        dataIndex: 'dependencies',
+        width: 80,
+        render: (v: unknown) => <Text>{Array.isArray(v) ? v.length : 0}</Text>,
+      },
+      {
+        key: 'dependents',
+        title: '被依赖数',
+        dataIndex: 'dependents',
+        width: 80,
+        render: (v: unknown) => <Text>{Array.isArray(v) ? v.length : 0}</Text>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => (
           <Badge
-            status={status === 'online' ? 'success' : status === 'offline' ? 'error' : 'warning'}
-            text={status}
+            status={
+              v === 'running'
+                ? 'success'
+                : v === 'stopped'
+                  ? 'error'
+                  : v === 'degraded'
+                    ? 'warning'
+                    : 'default'
+            }
+            text={serviceStatusLabelMap[v as ServiceDependency['status']]}
           />
-        );
+        ),
       },
-    },
-  ], []);
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: ServiceDependency) => (
+          <Button type="link" size="small" onClick={() => handleSelectService(record.id)}>
+            详情
+          </Button>
+        ),
+      },
+    ],
+    [handleSelectService]
+  );
 
-  const impactColumns: TableColumn<ImpactNode>[] = useMemo<TableColumn<ImpactNode>[]>(() => [
-    {
-      key: 'service',
-      title: '受影响服务',
-      dataIndex: 'service',
-      width: 200,
-      render: (v: unknown) => {
-        const svc = v as ServiceDependency;
-        return <Text strong>{svc?.name ?? 'Unknown'}</Text>;
+  const infraColumns: TableColumn<InfrastructureNode>[] = useMemo<
+    TableColumn<InfrastructureNode>[]
+  >(
+    () => [
+      {
+        key: 'id',
+        title: '节点ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
       },
-    },
-    {
-      key: 'impactLevel',
-      title: '影响级别',
-      dataIndex: 'impactLevel',
-      width: 100,
-      render: (v: unknown) => {
-        const level = v as ImpactNode['impactLevel'];
-        return <Tag color={impactLevelColorMap[level]}>{impactLevelLabelMap[level]}</Tag>;
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 120,
+        render: (v: unknown) => {
+          const type = v as InfrastructureNode['type'];
+          return <Tag color="blue">{infraTypeLabelMap[type] ?? type}</Tag>;
+        },
       },
-    },
-    {
-      key: 'status',
-      title: '当前状态',
-      dataIndex: 'status' as any,
-      width: 100,
-      render: (v: unknown) => (
-        <Tag color={serviceStatusColorMap[v as ServiceDependency['status']]}>
-          {serviceStatusLabelMap[v as ServiceDependency['status']]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'description',
-      title: '影响描述',
-      dataIndex: 'description',
-      render: (v: unknown) => <Text type="secondary">{v ? String(v) : '-'}</Text>,
-    },
-  ], []);
+      {
+        key: 'name',
+        title: '名称',
+        dataIndex: 'name',
+        width: 180,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = v as InfrastructureNode['status'];
+          return (
+            <Badge
+              status={status === 'online' ? 'success' : status === 'offline' ? 'error' : 'warning'}
+              text={status}
+            />
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const impactColumns: TableColumn<ImpactNode>[] = useMemo<TableColumn<ImpactNode>[]>(
+    () => [
+      {
+        key: 'service',
+        title: '受影响服务',
+        dataIndex: 'service',
+        width: 200,
+        render: (v: unknown) => {
+          const svc = v as ServiceDependency;
+          return <Text strong>{svc?.name ?? 'Unknown'}</Text>;
+        },
+      },
+      {
+        key: 'impactLevel',
+        title: '影响级别',
+        dataIndex: 'impactLevel',
+        width: 100,
+        render: (v: unknown) => {
+          const level = v as ImpactNode['impactLevel'];
+          return <Tag color={impactLevelColorMap[level]}>{impactLevelLabelMap[level]}</Tag>;
+        },
+      },
+      {
+        key: 'status',
+        title: '当前状态',
+        dataIndex: 'status' as any,
+        width: 100,
+        render: (v: unknown) => (
+          <Tag color={serviceStatusColorMap[v as ServiceDependency['status']]}>
+            {serviceStatusLabelMap[v as ServiceDependency['status']]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'description',
+        title: '影响描述',
+        dataIndex: 'description',
+        render: (v: unknown) => <Text type="secondary">{v ? String(v) : '-'}</Text>,
+      },
+    ],
+    []
+  );
 
   // ---- Service Detail View ----
 
@@ -458,8 +486,12 @@ const GraphPage: React.FC = () => {
           {selectedService.description ?? '-'}
         </Descriptions.Item>
         <Descriptions.Item label="负责人">{selectedService.owner ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="上游依赖数">{selectedService.upstreamDependencies.length}</Descriptions.Item>
-        <Descriptions.Item label="下游依赖数">{selectedService.downstreamDependencies.length}</Descriptions.Item>
+        <Descriptions.Item label="上游依赖数">
+          {selectedService.upstreamDependencies.length}
+        </Descriptions.Item>
+        <Descriptions.Item label="下游依赖数">
+          {selectedService.downstreamDependencies.length}
+        </Descriptions.Item>
         <Descriptions.Item label="基础设施节点" span={2}>
           {selectedService.infrastructureNodes.length}
         </Descriptions.Item>
@@ -470,7 +502,11 @@ const GraphPage: React.FC = () => {
           <Text strong>上游依赖:</Text>
           <div style={{ marginTop: spacing.sm }}>
             {selectedService.upstreamDependencies.map((dep) => (
-              <Tag key={dep.id} color={serviceStatusColorMap[dep.status]} style={{ marginBottom: 4 }}>
+              <Tag
+                key={dep.id}
+                color={serviceStatusColorMap[dep.status]}
+                style={{ marginBottom: 4 }}
+              >
                 {dep.name}
               </Tag>
             ))}
@@ -483,7 +519,11 @@ const GraphPage: React.FC = () => {
           <Text strong>下游依赖:</Text>
           <div style={{ marginTop: spacing.sm }}>
             {selectedService.downstreamDependencies.map((dep) => (
-              <Tag key={dep.id} color={serviceStatusColorMap[dep.status]} style={{ marginBottom: 4 }}>
+              <Tag
+                key={dep.id}
+                color={serviceStatusColorMap[dep.status]}
+                style={{ marginBottom: 4 }}
+              >
                 {dep.name}
               </Tag>
             ))}
@@ -501,7 +541,11 @@ const GraphPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="服务总数" value={services.length} prefix={<DeploymentUnitOutlined />} />
+            <Statistic
+              title="服务总数"
+              value={services.length}
+              prefix={<DeploymentUnitOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -593,7 +637,11 @@ const GraphPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="节点总数" value={infraTopology.nodes.length} prefix={<ShareAltOutlined />} />
+            <Statistic
+              title="节点总数"
+              value={infraTopology.nodes.length}
+              prefix={<ShareAltOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -707,7 +755,13 @@ const GraphPage: React.FC = () => {
           >
             分析影响
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => { setImpactData(null); setImpactServiceId(''); }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              setImpactData(null);
+              setImpactServiceId('');
+            }}
+          >
             重置
           </Button>
         </Space>
@@ -956,8 +1010,7 @@ const GraphPage: React.FC = () => {
     },
   ];
 
-  const isInitialLoading =
-    loading && services.length === 0 && infraTopology.nodes.length === 0;
+  const isInitialLoading = loading && services.length === 0 && infraTopology.nodes.length === 0;
 
   return (
     <div style={{ padding: 0 }}>
@@ -968,16 +1021,22 @@ const GraphPage: React.FC = () => {
           {/* Header */}
           <div style={{ marginBottom: spacing.lg }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <ShareAltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <ShareAltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               <ShareAltOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
               图数据库服务
             </Title>
-            <Text type="secondary">
-              服务依赖可视化、基础设施拓扑与影响分析 (Neo4j)
-            </Text>
+            <Text type="secondary">服务依赖可视化、基础设施拓扑与影响分析 (Neo4j)</Text>
             {health && (
               <div style={{ marginTop: spacing.sm }}>
-                <Tag color={health.status === 'healthy' ? 'green' : health.status === 'degraded' ? 'orange' : 'red'}>
+                <Tag
+                  color={
+                    health.status === 'healthy'
+                      ? 'green'
+                      : health.status === 'degraded'
+                        ? 'orange'
+                        : 'red'
+                  }
+                >
                   {health.status}
                 </Tag>
                 <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>

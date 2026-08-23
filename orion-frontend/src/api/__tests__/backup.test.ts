@@ -56,7 +56,10 @@ describe('Backup API', () => {
       config: {},
     } as any);
     await createBackup({ name: 'db-backup', type: 'database' });
-    expect(api.post).toHaveBeenCalledWith('/api/v1/backup', { name: 'db-backup', type: 'database' });
+    expect(api.post).toHaveBeenCalledWith('/api/v1/backup', {
+      name: 'db-backup',
+      type: 'database',
+    });
   });
 
   it('should restore a backup', async () => {

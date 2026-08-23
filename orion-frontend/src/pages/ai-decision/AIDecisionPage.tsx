@@ -31,7 +31,8 @@ import {
   TrophyOutlined,
   LineChartOutlined,
   InfoCircleOutlined,
-  RobotOutlined,} from '@ant-design/icons';
+  RobotOutlined,
+} from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -181,7 +182,12 @@ const ModelVersionsTab: React.FC = () => {
       width: 200,
       render: (_: unknown, record: ModelVersion) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => viewDetail(record)}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => viewDetail(record)}
+          >
             详情
           </Button>
           {record.status === 'testing' && (
@@ -195,12 +201,7 @@ const ModelVersionsTab: React.FC = () => {
             </Button>
           )}
           {record.status === 'active' && (
-            <Button
-              type="link"
-              size="small"
-              danger
-              onClick={() => handleDeprecate(record.id)}
-            >
+            <Button type="link" size="small" danger onClick={() => handleDeprecate(record.id)}>
               废弃
             </Button>
           )}
@@ -272,11 +273,7 @@ const ModelVersionsTab: React.FC = () => {
                   </Col>
                   <Col span={6}>
                     <Card>
-                      <Statistic
-                        title="平均延迟"
-                        value={performance.avgLatencyMs}
-                        suffix="ms"
-                      />
+                      <Statistic title="平均延迟" value={performance.avgLatencyMs} suffix="ms" />
                     </Card>
                   </Col>
                   <Col span={6}>
@@ -351,7 +348,12 @@ const ABTestingTab: React.FC = () => {
             onChange={(e) => setModelName(e.target.value)}
             onPressEnter={loadABTest}
           />
-          <Button type="primary" icon={<ExperimentOutlined />} onClick={loadABTest} loading={loading}>
+          <Button
+            type="primary"
+            icon={<ExperimentOutlined />}
+            onClick={loadABTest}
+            loading={loading}
+          >
             查询 A/B 测试
           </Button>
         </Space>
@@ -362,33 +364,46 @@ const ABTestingTab: React.FC = () => {
           <Card title="A/B 测试结果对比">
             <Row gutter={16}>
               <Col span={11}>
-                <Card
-                  title="Variant A"
-                  size="small"
-                  style={{ borderColor: colors.primary[500] }}
-                >
+                <Card title="Variant A" size="small" style={{ borderColor: colors.primary[500] }}>
                   <Descriptions column={1} size="small">
-                    <Descriptions.Item label="模型 ID">{results.variantA.modelId}</Descriptions.Item>
-                    <Descriptions.Item label="流量分配">{results.variantA.trafficPercent}%</Descriptions.Item>
-                    <Descriptions.Item label="成功率">{(results.variantA.successRate * 100).toFixed(1)}%</Descriptions.Item>
-                    <Descriptions.Item label="平均延迟">{results.variantA.avgLatency}ms</Descriptions.Item>
+                    <Descriptions.Item label="模型 ID">
+                      {results.variantA.modelId}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="流量分配">
+                      {results.variantA.trafficPercent}%
+                    </Descriptions.Item>
+                    <Descriptions.Item label="成功率">
+                      {(results.variantA.successRate * 100).toFixed(1)}%
+                    </Descriptions.Item>
+                    <Descriptions.Item label="平均延迟">
+                      {results.variantA.avgLatency}ms
+                    </Descriptions.Item>
                   </Descriptions>
                 </Card>
               </Col>
-              <Col span={2} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text type="secondary" style={{ fontSize: 24 }}>VS</Text>
+              <Col
+                span={2}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text type="secondary" style={{ fontSize: 24 }}>
+                  VS
+                </Text>
               </Col>
               <Col span={11}>
-                <Card
-                  title="Variant B"
-                  size="small"
-                  style={{ borderColor: colors.purple[500] }}
-                >
+                <Card title="Variant B" size="small" style={{ borderColor: colors.purple[500] }}>
                   <Descriptions column={1} size="small">
-                    <Descriptions.Item label="模型 ID">{results.variantB.modelId}</Descriptions.Item>
-                    <Descriptions.Item label="流量分配">{results.variantB.trafficPercent}%</Descriptions.Item>
-                    <Descriptions.Item label="成功率">{(results.variantB.successRate * 100).toFixed(1)}%</Descriptions.Item>
-                    <Descriptions.Item label="平均延迟">{results.variantB.avgLatency}ms</Descriptions.Item>
+                    <Descriptions.Item label="模型 ID">
+                      {results.variantB.modelId}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="流量分配">
+                      {results.variantB.trafficPercent}%
+                    </Descriptions.Item>
+                    <Descriptions.Item label="成功率">
+                      {(results.variantB.successRate * 100).toFixed(1)}%
+                    </Descriptions.Item>
+                    <Descriptions.Item label="平均延迟">
+                      {results.variantB.avgLatency}ms
+                    </Descriptions.Item>
                   </Descriptions>
                 </Card>
               </Col>
@@ -397,8 +412,13 @@ const ABTestingTab: React.FC = () => {
 
           <Card size="small">
             <Space>
-              <Tag color={results.winner === 'A' ? 'blue' : results.winner === 'B' ? 'purple' : 'default'}>
-                胜出方: {results.winner === 'inconclusive' ? '无明显胜出' : `Variant ${results.winner}`}
+              <Tag
+                color={
+                  results.winner === 'A' ? 'blue' : results.winner === 'B' ? 'purple' : 'default'
+                }
+              >
+                胜出方:{' '}
+                {results.winner === 'inconclusive' ? '无明显胜出' : `Variant ${results.winner}`}
               </Tag>
               <Text type="secondary">置信度: {(results.confidence * 100).toFixed(1)}%</Text>
               <Progress
@@ -497,7 +517,12 @@ const DecisionExplanationTab: React.FC = () => {
             <Input placeholder="如: build_duration, test_coverage, error_count" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} icon={<InfoCircleOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              icon={<InfoCircleOutlined />}
+            >
               生成解释
             </Button>
           </Form.Item>
@@ -536,7 +561,9 @@ const DecisionExplanationTab: React.FC = () => {
                     title: '重要性',
                     dataIndex: 'importance',
                     key: 'importance',
-                    render: (v: number) => <Progress percent={Math.round(v * 100)} size="small" style={{ width: 100 }} />,
+                    render: (v: number) => (
+                      <Progress percent={Math.round(v * 100)} size="small" style={{ width: 100 }} />
+                    ),
                   },
                   {
                     title: '方向',
@@ -545,11 +572,7 @@ const DecisionExplanationTab: React.FC = () => {
                     render: (v: string) => (
                       <Tag
                         color={
-                          v === 'positive'
-                            ? 'success'
-                            : v === 'negative'
-                              ? 'error'
-                              : 'default'
+                          v === 'positive' ? 'success' : v === 'negative' ? 'error' : 'default'
                         }
                       >
                         {v}
@@ -588,7 +611,7 @@ const AIDecisionPage: React.FC = () => {
       {/* Page Header */}
       <div style={{ marginBottom: spacing.lg }}>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
           AI 决策引擎
         </Title>

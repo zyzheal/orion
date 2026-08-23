@@ -55,111 +55,119 @@ const PluginRegistry: React.FC<PluginRegistryProps> = ({
   }, [searchQuery, filters, pluginRegistrations]);
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '已启用', value: 'enabled' },
-        { label: '已禁用', value: 'disabled' },
-        { label: '异常', value: 'error' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '已启用', value: 'enabled' },
+          { label: '已禁用', value: 'disabled' },
+          { label: '异常', value: 'error' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Table columns
-  const columns: TableColumn<PluginRegistration>[] = useMemo<TableColumn<PluginRegistration>[]>(() => [
-    {
-      key: 'pluginName',
-      title: '插件名称',
-      dataIndex: 'pluginName',
-      width: 180,
-      sortable: true,
-      render: (value: unknown) => (
-        <Space>
-          <SafetyOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{String(value)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'spiPoint',
-      title: '扩展点',
-      dataIndex: 'spiPoint',
-      width: 180,
-      render: (value: unknown) => (
-        <Text code style={{ fontSize: 12 }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'provider',
-      title: '提供者',
-      dataIndex: 'provider',
-      width: 160,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 80,
-      sortable: true,
-      render: (value: unknown) => (
-        <Badge count={Number(value)} style={{ backgroundColor: colors.primary[500] }} />
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: PluginRegistration) => (
-        <Tag color={pluginStatusColorMap[record.status]}>{pluginStatusLabelMap[record.status]}</Tag>
-      ),
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'registeredAt',
-      title: '注册时间',
-      dataIndex: 'registeredAt',
-      width: 140,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(value)).format('YYYY-MM-DD')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: PluginRegistration) => (
-        <Space size="small">
-          <Tooltip title={record.status === 'enabled' ? '禁用' : '启用'}>
-            <Button
-              type="link"
-              size="small"
-              icon={record.status === 'enabled' ? <BlockOutlined /> : <CheckCircleOutlined />}
-              onClick={() => onTogglePlugin(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ], [onTogglePlugin]);
+  const columns: TableColumn<PluginRegistration>[] = useMemo<TableColumn<PluginRegistration>[]>(
+    () => [
+      {
+        key: 'pluginName',
+        title: '插件名称',
+        dataIndex: 'pluginName',
+        width: 180,
+        sortable: true,
+        render: (value: unknown) => (
+          <Space>
+            <SafetyOutlined style={{ color: colors.primary[500] }} />
+            <Text strong>{String(value)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'spiPoint',
+        title: '扩展点',
+        dataIndex: 'spiPoint',
+        width: 180,
+        render: (value: unknown) => (
+          <Text code style={{ fontSize: 12 }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'provider',
+        title: '提供者',
+        dataIndex: 'provider',
+        width: 160,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'priority',
+        title: '优先级',
+        dataIndex: 'priority',
+        width: 80,
+        sortable: true,
+        render: (value: unknown) => (
+          <Badge count={Number(value)} style={{ backgroundColor: colors.primary[500] }} />
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: PluginRegistration) => (
+          <Tag color={pluginStatusColorMap[record.status]}>
+            {pluginStatusLabelMap[record.status]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
+      },
+      {
+        key: 'registeredAt',
+        title: '注册时间',
+        dataIndex: 'registeredAt',
+        width: 140,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(value)).format('YYYY-MM-DD')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: PluginRegistration) => (
+          <Space size="small">
+            <Tooltip title={record.status === 'enabled' ? '禁用' : '启用'}>
+              <Button
+                type="link"
+                size="small"
+                icon={record.status === 'enabled' ? <BlockOutlined /> : <CheckCircleOutlined />}
+                onClick={() => onTogglePlugin(record)}
+              />
+            </Tooltip>
+          </Space>
+        ),
+      },
+    ],
+    [onTogglePlugin]
+  );
 
   return (
     <>

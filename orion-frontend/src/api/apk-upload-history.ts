@@ -69,7 +69,9 @@ export function getRecentFailures(_tenantId: string, limit?: number) {
   const params: Record<string, string> = {};
   if (limit) params.limit = limit.toString();
 
-  return api.get<{ data: ApkUploadRecord[] }>(`/api/v1/apk-upload-history/recent-failures`, { params });
+  return api.get<{ data: ApkUploadRecord[] }>(`/api/v1/apk-upload-history/recent-failures`, {
+    params,
+  });
 }
 
 /**

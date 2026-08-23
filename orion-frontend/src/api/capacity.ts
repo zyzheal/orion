@@ -67,8 +67,12 @@ export interface Bottleneck {
 
 // Metrics
 export function recordCapacityMetric(data: {
-  resourceType: string; resourceId: string; metricName: string;
-  currentValue: number; maxValue: number; unit: string;
+  resourceType: string;
+  resourceId: string;
+  metricName: string;
+  currentValue: number;
+  maxValue: number;
+  unit: string;
 }) {
   return api.post('/capacity/metrics', data);
 }

@@ -78,10 +78,7 @@ const Console: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [pluginsRes, flagsRes] = await Promise.all([
-        getInstalledPlugins(),
-        getFeatureFlags(),
-      ]);
+      const [pluginsRes, flagsRes] = await Promise.all([getInstalledPlugins(), getFeatureFlags()]);
       const plugins = pluginsRes.data || [];
       const flags = flagsRes.data || [];
       setStats({
@@ -147,11 +144,7 @@ const Console: React.FC = () => {
           </Title>
           <Text type="secondary">管理系统插件、配置和功能开关</Text>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={handleRefresh}
-          loading={loading}
-        >
+        <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
           刷新
         </Button>
       </div>
@@ -170,7 +163,7 @@ const Console: React.FC = () => {
       {/* 统计卡片区 */}
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card hoverable onClick={() => window.location.href = '/console/plugins'}>
+          <Card hoverable onClick={() => (window.location.href = '/console/plugins')}>
             <Statistic
               title="已安装插件"
               value={stats.totalPlugins}
@@ -178,7 +171,9 @@ const Console: React.FC = () => {
               valueStyle={{ color: colors.primary[500] }}
             />
             <Progress
-              percent={stats.totalPlugins > 0 ? (stats.activePlugins / stats.totalPlugins) * 100 : 0}
+              percent={
+                stats.totalPlugins > 0 ? (stats.activePlugins / stats.totalPlugins) * 100 : 0
+              }
               strokeColor={colors.primary[500]}
               size="small"
               style={{ marginTop: spacing[3] }}
@@ -187,7 +182,7 @@ const Console: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card hoverable onClick={() => window.location.href = '/console/settings'}>
+          <Card hoverable onClick={() => (window.location.href = '/console/settings')}>
             <Statistic
               title="功能开关"
               value={stats.totalFlags}
@@ -204,7 +199,7 @@ const Console: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card hoverable onClick={() => window.location.href = '/console/users'}>
+          <Card hoverable onClick={() => (window.location.href = '/console/users')}>
             <Statistic
               title="系统用户"
               value="-"
@@ -238,7 +233,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/console/plugins'}
+              onClick={() => (window.location.href = '/console/plugins')}
               style={{ height: '100%' }}
             >
               <Space direction="vertical" size={8}>
@@ -253,7 +248,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/console/settings'}
+              onClick={() => (window.location.href = '/console/settings')}
               style={{ height: '100%' }}
             >
               <Space direction="vertical" size={8}>
@@ -268,7 +263,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/console/users'}
+              onClick={() => (window.location.href = '/console/users')}
               style={{ height: '100%' }}
             >
               <Space direction="vertical" size={8}>
@@ -289,7 +284,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/service-registry'}
+              onClick={() => (window.location.href = '/service-registry')}
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>
@@ -304,7 +299,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/gateway-routes'}
+              onClick={() => (window.location.href = '/gateway-routes')}
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>
@@ -319,7 +314,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/health-dashboard'}
+              onClick={() => (window.location.href = '/health-dashboard')}
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>
@@ -334,7 +329,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/service-topology'}
+              onClick={() => (window.location.href = '/service-topology')}
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>
@@ -349,7 +344,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/version-management'}
+              onClick={() => (window.location.href = '/version-management')}
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>
@@ -364,7 +359,7 @@ const Console: React.FC = () => {
           <Col xs={24} sm={12} lg={8}>
             <Card
               hoverable
-              onClick={() => window.location.href = '/traffic-governance'}
+              onClick={() => (window.location.href = '/traffic-governance')}
               style={{ height: '100%', borderRadius: componentRadius.card }}
             >
               <Space direction="vertical" size={8}>

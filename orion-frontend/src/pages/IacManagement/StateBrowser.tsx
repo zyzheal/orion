@@ -2,7 +2,7 @@
  * IaC State Browser - State version history, resource list, state diff
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   Typography,
   Button,
   Space,
@@ -92,98 +92,104 @@ const StateBrowser: React.FC = () => {
 
   const selectedWsName = workspaces.find((w) => w.id === selectedWorkspaceId)?.name || '';
 
-  const versionColumns: TableColumn<IaCStateVersion>[] = useMemo<TableColumn<IaCStateVersion>[]>(() => [
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 80,
-      sortable: true,
-      render: (v: unknown) => <Tag>v{String(v)}</Tag>,
-    },
-    {
-      key: 'serial',
-      title: '序列号',
-      dataIndex: 'serial',
-      width: 100,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'resourcesCount',
-      title: '资源数',
-      dataIndex: 'resourcesCount',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'createdBy',
-      title: '操作人',
-      dataIndex: 'createdBy',
-      width: 140,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />}>
-            查看
-          </Button>
-        </Space>
-      ),
-    },
-  ], []);
+  const versionColumns: TableColumn<IaCStateVersion>[] = useMemo<TableColumn<IaCStateVersion>[]>(
+    () => [
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 80,
+        sortable: true,
+        render: (v: unknown) => <Tag>v{String(v)}</Tag>,
+      },
+      {
+        key: 'serial',
+        title: '序列号',
+        dataIndex: 'serial',
+        width: 100,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'resourcesCount',
+        title: '资源数',
+        dataIndex: 'resourcesCount',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'createdBy',
+        title: '操作人',
+        dataIndex: 'createdBy',
+        width: 140,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown) => (
+          <Space size="small">
+            <Button type="link" size="small" icon={<EyeOutlined />}>
+              查看
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    []
+  );
 
-  const resourceColumns: TableColumn<IaCStateResource>[] = useMemo<TableColumn<IaCStateResource>[]>(() => [
-    {
-      key: 'address',
-      title: '资源地址',
-      dataIndex: 'address',
-      width: 300,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 160,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'name',
-      title: '名称',
-      dataIndex: 'name',
-      width: 160,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'provider',
-      title: 'Provider',
-      dataIndex: 'provider',
-      width: 160,
-      render: (v: unknown) => <Tag>{String(v)}</Tag>,
-    },
-  ], []);
+  const resourceColumns: TableColumn<IaCStateResource>[] = useMemo<TableColumn<IaCStateResource>[]>(
+    () => [
+      {
+        key: 'address',
+        title: '资源地址',
+        dataIndex: 'address',
+        width: 300,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 160,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'name',
+        title: '名称',
+        dataIndex: 'name',
+        width: 160,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'provider',
+        title: 'Provider',
+        dataIndex: 'provider',
+        width: 160,
+        render: (v: unknown) => <Tag>{String(v)}</Tag>,
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -330,7 +336,12 @@ const StateBrowser: React.FC = () => {
         </p>
         <Text type="secondary">工作空间: {selectedWsName}</Text>
         <div
-          style={{ marginTop: spacing.md, padding: spacing.md, background: colors.neutral[50], borderRadius: 4 }}
+          style={{
+            marginTop: spacing.md,
+            padding: spacing.md,
+            background: colors.neutral[50],
+            borderRadius: 4,
+          }}
         >
           <Text>差异对比结果将在此显示</Text>
         </div>

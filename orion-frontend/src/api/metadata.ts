@@ -25,7 +25,13 @@ export interface LineageRelation {
 }
 
 // Catalog
-export function createCatalogItem(data: { name: string; description?: string; type: string; owner?: string; tags?: string[] }) {
+export function createCatalogItem(data: {
+  name: string;
+  description?: string;
+  type: string;
+  owner?: string;
+  tags?: string[];
+}) {
   return api.post('/metadata/catalog', data);
 }
 
@@ -46,7 +52,12 @@ export function deleteCatalogItem(id: string) {
 }
 
 // Lineage
-export function createLineage(data: { sourceId: string; targetId: string; relation: string; description?: string }) {
+export function createLineage(data: {
+  sourceId: string;
+  targetId: string;
+  relation: string;
+  description?: string;
+}) {
   return api.post('/metadata/lineage', data);
 }
 

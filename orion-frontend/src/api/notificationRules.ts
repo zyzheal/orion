@@ -78,10 +78,7 @@ export async function updateIMNotificationRule(
   id: string,
   input: Partial<IMNotificationRuleInput>
 ): Promise<IMNotificationRule> {
-  const response = await api.put<IMNotificationRule>(
-    `/api/v1/notifications/im-rules/${id}`,
-    input
-  );
+  const response = await api.put<IMNotificationRule>(`/api/v1/notifications/im-rules/${id}`, input);
   // 拦截器已自动解包，response.data 直接是 IMNotificationRule
   return response.data ?? ({} as IMNotificationRule);
 }
@@ -111,15 +108,15 @@ export async function toggleIMNotificationRule(
 /**
  * Send a test notification to the IM rule's webhook URL
  */
-export async function testIMNotificationRule(
-  id: string
-): Promise<TestNotificationResult> {
+export async function testIMNotificationRule(id: string): Promise<TestNotificationResult> {
   const response = await api.post<TestNotificationResult>(
     `/api/v1/notifications/im-rules/${id}/test`
   );
   // 拦截器已自动解包，response.data 直接是 TestNotificationResult
-  return response.data ?? {
-    success: false,
-    message: 'No response from server',
-  };
+  return (
+    response.data ?? {
+      success: false,
+      message: 'No response from server',
+    }
+  );
 }

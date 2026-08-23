@@ -23,7 +23,8 @@ import {
   ReloadOutlined,
   DownloadOutlined,
   SearchOutlined,
-  ShopOutlined,} from '@ant-design/icons';
+  ShopOutlined,
+} from '@ant-design/icons';
 import {
   getAvailablePlugins,
   getInstalledPlugins,
@@ -49,10 +50,7 @@ const PluginMarketplacePage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [availRes, instRes] = await Promise.all([
-        getAvailablePlugins(),
-        getInstalledPlugins(),
-      ]);
+      const [availRes, instRes] = await Promise.all([getAvailablePlugins(), getInstalledPlugins()]);
       setAvailablePlugins(((availRes.data as { data?: unknown })?.data ?? []) as Plugin[]);
       setInstalledPlugins(((instRes.data as { data?: unknown })?.data ?? []) as Plugin[]);
     } catch {
@@ -115,8 +113,15 @@ const PluginMarketplacePage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: Plugin) => (
         <Space>
-          <Button size="small" onClick={() => setDetailPlugin(record)}>Details</Button>
-          <Button size="small" type="primary" icon={<DownloadOutlined />} onClick={() => handleInstall(record.id)}>
+          <Button size="small" onClick={() => setDetailPlugin(record)}>
+            Details
+          </Button>
+          <Button
+            size="small"
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={() => handleInstall(record.id)}
+          >
             Install
           </Button>
         </Space>
@@ -131,7 +136,9 @@ const PluginMarketplacePage: React.FC = () => {
       title: 'State',
       dataIndex: 'state',
       key: 'state',
-      render: (v: string) => <Tag color={v === 'ACTIVE' ? 'green' : v === 'INSTALLED' ? 'blue' : 'default'}>{v}</Tag>,
+      render: (v: string) => (
+        <Tag color={v === 'ACTIVE' ? 'green' : v === 'INSTALLED' ? 'blue' : 'default'}>{v}</Tag>
+      ),
     },
     { title: 'Installed At', dataIndex: 'installedAt', key: 'installedAt' },
     {
@@ -139,10 +146,7 @@ const PluginMarketplacePage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: Plugin) => (
         <Space>
-          <Button
-            size="small"
-            onClick={() => handleToggle(record.id, record.state === 'ACTIVE')}
-          >
+          <Button size="small" onClick={() => handleToggle(record.id, record.state === 'ACTIVE')}>
             {record.state === 'ACTIVE' ? 'Deactivate' : 'Activate'}
           </Button>
         </Space>
@@ -214,7 +218,14 @@ const PluginMarketplacePage: React.FC = () => {
         onCancel={() => setDetailPlugin(null)}
         footer={
           detailPlugin ? (
-            <Button type="primary" icon={<DownloadOutlined />} onClick={() => { handleInstall(detailPlugin.id); setDetailPlugin(null); }}>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={() => {
+                handleInstall(detailPlugin.id);
+                setDetailPlugin(null);
+              }}
+            >
               Install
             </Button>
           ) : null
@@ -227,12 +238,22 @@ const PluginMarketplacePage: React.FC = () => {
             <Descriptions.Item label="Author">{detailPlugin.author}</Descriptions.Item>
             <Descriptions.Item label="Description">{detailPlugin.description}</Descriptions.Item>
             <Descriptions.Item label="Security Level">
-              <Tag color={detailPlugin.securityLevel === 'HIGH' ? 'red' : detailPlugin.securityLevel === 'MEDIUM' ? 'orange' : 'green'}>
+              <Tag
+                color={
+                  detailPlugin.securityLevel === 'HIGH'
+                    ? 'red'
+                    : detailPlugin.securityLevel === 'MEDIUM'
+                      ? 'orange'
+                      : 'green'
+                }
+              >
                 {detailPlugin.securityLevel}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Tags">
-              {detailPlugin.tags.map((t) => <Tag key={t}>{t}</Tag>)}
+              {detailPlugin.tags.map((t) => (
+                <Tag key={t}>{t}</Tag>
+              ))}
             </Descriptions.Item>
             <Descriptions.Item label="Permissions">
               {detailPlugin.permissions?.join(', ') || 'None'}

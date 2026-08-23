@@ -20,13 +20,21 @@ export interface TimelineChartProps {
   loading?: boolean;
 }
 
-const statusColor = (status: string | undefined, theme: { success: string; error: string; warning: string; info: string }): string => {
+const statusColor = (
+  status: string | undefined,
+  theme: { success: string; error: string; warning: string; info: string }
+): string => {
   switch (status) {
-    case 'success': return theme.success;
-    case 'error': return theme.error;
-    case 'warning': return theme.warning;
-    case 'info': return theme.info;
-    default: return theme.info;
+    case 'success':
+      return theme.success;
+    case 'error':
+      return theme.error;
+    case 'warning':
+      return theme.warning;
+    case 'info':
+      return theme.info;
+    default:
+      return theme.info;
   }
 };
 
@@ -47,9 +55,7 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
     const endTime = Math.max(...events.map((e) => new Date(e.end).getTime()));
     const padding = (endTime - startTime) * 0.05;
 
-    const groups = showGroup
-      ? [...new Set(events.map((e) => e.group || 'Default'))]
-      : ['All'];
+    const groups = showGroup ? [...new Set(events.map((e) => e.group || 'Default'))] : ['All'];
 
     const data = events.map((e, idx) => ({
       name: e.name,
@@ -97,10 +103,17 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
       series: [
         {
           type: 'custom' as const,
-          renderItem: (params: { dataIndex: number; itemStyle?: { color?: string } }, api: { value: (p: number, d?: number) => number; coord: (v: [number, number]) => [number, number] }) => {
+          renderItem: (
+            params: { dataIndex: number; itemStyle?: { color?: string } },
+            api: {
+              value: (p: number, d?: number) => number;
+              coord: (v: [number, number]) => [number, number];
+            }
+          ) => {
             const xVal = api.value(1, params.dataIndex);
             const endVal = api.value(2, params.dataIndex);
-            if (isNaN(xVal) || isNaN(endVal)) return { type: 'rect' as const, shape: { x: 0, y: 0, width: 0, height: 0 } };
+            if (isNaN(xVal) || isNaN(endVal))
+              return { type: 'rect' as const, shape: { x: 0, y: 0, width: 0, height: 0 } };
             const start = api.coord([api.value(0, params.dataIndex), xVal]);
             const end = api.coord([api.value(0, params.dataIndex), endVal]);
             const barHeight = 20;
@@ -127,7 +140,10 @@ export const TimelineChart: React.FC<TimelineChartProps> = ({
 
   if (loading) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
+      <div
+        style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-busy="true"
+      >
         <Spin />
       </div>
     );

@@ -24,8 +24,7 @@ vi.mock('antd', async (importOriginal) => {
       useForm: () => [{}],
     },
     message: { success: vi.fn(), error: vi.fn() },
-    Modal: ({ open, children }: any) =>
-      open ? <div data-testid="modal">{children}</div> : null,
+    Modal: ({ open, children }: any) => (open ? <div data-testid="modal">{children}</div> : null),
     Empty: ({ description }: any) => <div data-testid="empty">{description}</div>,
   };
 });
@@ -34,7 +33,9 @@ describe('ComponentRegistry', () => {
   beforeEach(() => (vi as { clearAllMocks: () => void }).clearAllMocks());
 
   it('renders without crashing', () => {
-    vi.mocked(lowcodeApi.lowcodeApi as unknown as { listComponents: () => Promise<unknown> }).listComponents.mockResolvedValue([]);
+    vi.mocked(
+      lowcodeApi.lowcodeApi as unknown as { listComponents: () => Promise<unknown> }
+    ).listComponents.mockResolvedValue([]);
     render(<ComponentRegistry />);
     const doc = document.body;
     expect(doc).toBeDefined();

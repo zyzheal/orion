@@ -83,9 +83,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         <div
           style={{
             padding: '8px 14px',
-            borderRadius: isUser
-              ? '18px 4px 18px 18px'
-              : '4px 18px 18px 18px',
+            borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
             background: isUser
               ? `linear-gradient(135deg, ${colors.primary[500]}, ${colors.primary[600]})`
               : colors.light.bg.primary,
@@ -116,7 +114,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               style={{
                 marginTop: 10,
                 paddingTop: 10,
-                borderTop: isUser ? '1px solid rgba(255,255,255,0.15)' : `1px solid ${colors.light.border.light}`,
+                borderTop: isUser
+                  ? '1px solid rgba(255,255,255,0.15)'
+                  : `1px solid ${colors.light.border.light}`,
               }}
             >
               <ActionCard actions={message.actions} status={message.status} />

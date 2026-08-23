@@ -83,7 +83,9 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText || `HTTP ${response.status}` }));
+    const error = await response
+      .json()
+      .catch(() => ({ message: response.statusText || `HTTP ${response.status}` }));
     throw new Error(error.message || `HTTP ${response.status}`);
   }
 
@@ -126,7 +128,9 @@ export const useSubAppStore = create<SubAppStore>()(
       fetchEnabledApps: async () => {
         set({ loading: true, error: null });
         try {
-          const response = await fetchApi<{ success: boolean; data: SubAppConfig[] }>('/subapps/enabled');
+          const response = await fetchApi<{ success: boolean; data: SubAppConfig[] }>(
+            '/subapps/enabled'
+          );
           if (response.success) {
             set({
               apps: response.data,
@@ -170,10 +174,13 @@ export const useSubAppStore = create<SubAppStore>()(
       updateApp: async (key: string, appData: Partial<SubAppConfig>) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetchApi<{ success: boolean; data: SubAppConfig }>(`/subapps/${key}`, {
-            method: 'PUT',
-            body: JSON.stringify(appData),
-          });
+          const response = await fetchApi<{ success: boolean; data: SubAppConfig }>(
+            `/subapps/${key}`,
+            {
+              method: 'PUT',
+              body: JSON.stringify(appData),
+            }
+          );
 
           if (response.success) {
             set((state) => ({
@@ -216,10 +223,13 @@ export const useSubAppStore = create<SubAppStore>()(
       toggleStatus: async (key: string) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetchApi<{ success: boolean; data: SubAppConfig }>(`/subapps/${key}/status`, {
-            method: 'PUT',
-            body: JSON.stringify({}),
-          });
+          const response = await fetchApi<{ success: boolean; data: SubAppConfig }>(
+            `/subapps/${key}/status`,
+            {
+              method: 'PUT',
+              body: JSON.stringify({}),
+            }
+          );
 
           if (response.success) {
             set((state) => ({

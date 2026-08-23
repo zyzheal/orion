@@ -81,7 +81,7 @@ describe('Notification Rules API', () => {
 
   it('should update an IM notification rule', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      data: { id: '1', name: 'Updated' } ,
+      data: { id: '1', name: 'Updated' },
     } as any);
 
     await updateIMNotificationRule('1', { name: 'Updated' });
@@ -97,17 +97,19 @@ describe('Notification Rules API', () => {
 
   it('should toggle IM notification rule', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      data: { id: '1', enabled: false } ,
+      data: { id: '1', enabled: false },
     } as any);
 
     const result = await toggleIMNotificationRule('1', false);
-    expect(api.put).toHaveBeenCalledWith('/api/v1/notifications/im-rules/1/toggle', { enabled: false });
+    expect(api.put).toHaveBeenCalledWith('/api/v1/notifications/im-rules/1/toggle', {
+      enabled: false,
+    });
     expect(result.enabled).toBe(false);
   });
 
   it('should test an IM notification rule', async () => {
     vi.mocked(api.post).mockResolvedValue({
-      data: { success: true, message: 'OK' } ,
+      data: { success: true, message: 'OK' },
     } as any);
 
     const result = await testIMNotificationRule('1');

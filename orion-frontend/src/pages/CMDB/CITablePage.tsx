@@ -311,7 +311,9 @@ const CITablePage: React.FC = () => {
       key: 'environment',
       render: (env: unknown) =>
         env ? (
-          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[700]}>{String(env)}</Tag>
+          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[700]}>
+            {String(env)}
+          </Tag>
         ) : (
           '-'
         ),
@@ -473,7 +475,9 @@ const CITablePage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}
+          >
             <div>
               <Title level={4}>配置项管理</Title>
               <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
@@ -681,11 +685,7 @@ const CITablePage: React.FC = () => {
                 name="target_id"
                 rules={[{ required: true, message: '请选择目标配置项' }]}
               >
-                <Select
-                  placeholder="选择目标配置项"
-                  showSearch
-                  optionFilterProp="label"
-                >
+                <Select placeholder="选择目标配置项" showSearch optionFilterProp="label">
                   {allCIs
                     .filter((ci) => ci.id !== selectedCI?.id)
                     .map((ci) => (
@@ -723,12 +723,18 @@ const CITablePage: React.FC = () => {
                         <Descriptions.Item label="ID">{selectedCI.id}</Descriptions.Item>
                         <Descriptions.Item label="名称">{selectedCI.name}</Descriptions.Item>
                         <Descriptions.Item label="类型">{selectedCI.type}</Descriptions.Item>
-                        <Descriptions.Item label="子类型">{selectedCI.subtype || '-'}</Descriptions.Item>
-                        <Descriptions.Item label="环境">{selectedCI.environment || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="子类型">
+                          {selectedCI.subtype || '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="环境">
+                          {selectedCI.environment || '-'}
+                        </Descriptions.Item>
                         <Descriptions.Item label="状态">
                           <Tag color={statusColorMap[selectedCI.status]}>{selectedCI.status}</Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="负责人">{selectedCI.owner || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="负责人">
+                          {selectedCI.owner || '-'}
+                        </Descriptions.Item>
                         <Descriptions.Item label="标签">
                           <Space>
                             {(selectedCI.tags || []).map((tag) => (

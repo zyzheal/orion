@@ -289,185 +289,191 @@ const UserManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<User>[] = useMemo<TableColumn<User>[]>(() => [
-    {
-      key: 'user',
-      title: '用户',
-      width: 200,
-      render: (_: unknown, record: User) => (
-        <Space>
-          <Avatar
-            size="small"
-            icon={<UserOutlined />}
-            style={{
-              backgroundColor:
-                roleColorMap[record.role] === 'red'
-                  ? colors.error[500]
-                  : roleColorMap[record.role] === 'blue'
-                    ? colors.primary[500]
-                    : roleColorMap[record.role] === 'gold'
-                      ? colors.warning[500]
-                      : colors.neutral[300],
-            }}
-          >
-            {record.name ? record.name.charAt(0) : record.username.charAt(0).toUpperCase()}
-          </Avatar>
-          <Space direction="vertical" size={0}>
-            <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
-              {record.name || record.username}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.username}
-            </Text>
-          </Space>
-        </Space>
-      ),
-    },
-    {
-      key: 'email',
-      title: '邮箱',
-      dataIndex: 'email',
-      width: 200,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {v ? String(v) : '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'role',
-      title: '角色',
-      width: 100,
-      render: (_: unknown, record: User) => (
-        <Tag color={roleColorMap[record.role] || 'default'}>
-          {roleLabelMap[record.role] || record.role}
-        </Tag>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 90,
-      render: (_: unknown, record: User) => (
-        <Tag color={statusColorMap[record.status] || 'default'}>
-          {statusLabelMap[record.status] || record.status}
-        </Tag>
-      ),
-    },
-    {
-      key: 'lastLogin',
-      title: '最后登录',
-      width: 160,
-      render: (_: unknown, record: User) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {record.last_login_at
-            ? dayjs(record.last_login_at).format('YYYY-MM-DD HH:mm')
-            : '从未登录'}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 140,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).format('YYYY-MM-DD')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 260,
-      render: (_: unknown, record: User) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情">
-            <Button
-              type="link"
+  const columns: TableColumn<User>[] = useMemo<TableColumn<User>[]>(
+    () => [
+      {
+        key: 'user',
+        title: '用户',
+        width: 200,
+        render: (_: unknown, record: User) => (
+          <Space>
+            <Avatar
               size="small"
-              icon={<EyeOutlined />}
-              onClick={() => openDetail(record)}
-            >
-              详情
-            </Button>
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openEdit(record)}
-            />
-          </Tooltip>
-          {record.status === 'active' ? (
-            <Tooltip title="禁用">
-              <Popconfirm title="确认禁用该用户?" onConfirm={() => handleDisable(record.id)}>
-                <Button type="link" size="small" danger icon={<LockOutlined />}>
-                  禁用
-                </Button>
-              </Popconfirm>
-            </Tooltip>
-          ) : record.status !== 'deleted' ? (
-            <Tooltip title="启用">
-              <Popconfirm title="确认启用该用户?" onConfirm={() => handleEnable(record.id)}>
-                <Button type="link" size="small" icon={<UnlockOutlined />}>
-                  启用
-                </Button>
-              </Popconfirm>
-            </Tooltip>
-          ) : null}
-          <Tooltip title="重置密码">
-            <Button
-              type="link"
-              size="small"
-              icon={<KeyOutlined />}
-              onClick={() => {
-                setSelectedUser(record);
-                setChangePwModalVisible(true);
+              icon={<UserOutlined />}
+              style={{
+                backgroundColor:
+                  roleColorMap[record.role] === 'red'
+                    ? colors.error[500]
+                    : roleColorMap[record.role] === 'blue'
+                      ? colors.primary[500]
+                      : roleColorMap[record.role] === 'gold'
+                        ? colors.warning[500]
+                        : colors.neutral[300],
               }}
-            />
-          </Tooltip>
-          {record.role !== 'admin' && (
-            <Tooltip title="删除">
-              <Popconfirm title="确认删除该用户?" onConfirm={() => handleDelete(record.id)}>
-                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-              </Popconfirm>
+            >
+              {record.name ? record.name.charAt(0) : record.username.charAt(0).toUpperCase()}
+            </Avatar>
+            <Space direction="vertical" size={0}>
+              <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
+                {record.name || record.username}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.username}
+              </Text>
+            </Space>
+          </Space>
+        ),
+      },
+      {
+        key: 'email',
+        title: '邮箱',
+        dataIndex: 'email',
+        width: 200,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {v ? String(v) : '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'role',
+        title: '角色',
+        width: 100,
+        render: (_: unknown, record: User) => (
+          <Tag color={roleColorMap[record.role] || 'default'}>
+            {roleLabelMap[record.role] || record.role}
+          </Tag>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        width: 90,
+        render: (_: unknown, record: User) => (
+          <Tag color={statusColorMap[record.status] || 'default'}>
+            {statusLabelMap[record.status] || record.status}
+          </Tag>
+        ),
+      },
+      {
+        key: 'lastLogin',
+        title: '最后登录',
+        width: 160,
+        render: (_: unknown, record: User) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.last_login_at
+              ? dayjs(record.last_login_at).format('YYYY-MM-DD HH:mm')
+              : '从未登录'}
+          </Text>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 140,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).format('YYYY-MM-DD')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 260,
+        render: (_: unknown, record: User) => (
+          <Space size="small" wrap>
+            <Tooltip title="详情">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => openDetail(record)}
+              >
+                详情
+              </Button>
             </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleDisable, handleEnable, openDetail, openEdit]);
+            <Tooltip title="编辑">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEdit(record)}
+              />
+            </Tooltip>
+            {record.status === 'active' ? (
+              <Tooltip title="禁用">
+                <Popconfirm title="确认禁用该用户?" onConfirm={() => handleDisable(record.id)}>
+                  <Button type="link" size="small" danger icon={<LockOutlined />}>
+                    禁用
+                  </Button>
+                </Popconfirm>
+              </Tooltip>
+            ) : record.status !== 'deleted' ? (
+              <Tooltip title="启用">
+                <Popconfirm title="确认启用该用户?" onConfirm={() => handleEnable(record.id)}>
+                  <Button type="link" size="small" icon={<UnlockOutlined />}>
+                    启用
+                  </Button>
+                </Popconfirm>
+              </Tooltip>
+            ) : null}
+            <Tooltip title="重置密码">
+              <Button
+                type="link"
+                size="small"
+                icon={<KeyOutlined />}
+                onClick={() => {
+                  setSelectedUser(record);
+                  setChangePwModalVisible(true);
+                }}
+              />
+            </Tooltip>
+            {record.role !== 'admin' && (
+              <Tooltip title="删除">
+                <Popconfirm title="确认删除该用户?" onConfirm={() => handleDelete(record.id)}>
+                  <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
+              </Tooltip>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleDisable, handleEnable, openDetail, openEdit]
+  );
 
   // ---- Filter definitions ----
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'role',
-      label: '角色',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '管理员', value: 'admin' },
-        { label: '开发者', value: 'developer' },
-        { label: '经理', value: 'manager' },
-        { label: '观察者', value: 'viewer' },
-        { label: '普通用户', value: 'user' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '已启用', value: 'active' },
-        { label: '已禁用', value: 'inactive' },
-        { label: '已锁定', value: 'locked' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'role',
+        label: '角色',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '管理员', value: 'admin' },
+          { label: '开发者', value: 'developer' },
+          { label: '经理', value: 'manager' },
+          { label: '观察者', value: 'viewer' },
+          { label: '普通用户', value: 'user' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '已启用', value: 'active' },
+          { label: '已禁用', value: 'inactive' },
+          { label: '已锁定', value: 'locked' },
+        ],
+      },
+    ],
+    []
+  );
 
   // ---- Stats ----
 
@@ -811,9 +817,8 @@ const UserManagement: React.FC = () => {
   );
 };
 
-
 export default () => (
-  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="用户管理">
+  <PermissionGuard requiredRoles={['admin', 'platform_admin']} pageLevel resourceName="用户管理">
     <UserManagement />
   </PermissionGuard>
 );

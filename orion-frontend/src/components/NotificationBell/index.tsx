@@ -72,8 +72,16 @@ interface TabDef {
 const tabs: TabDef[] = [
   { key: 'all', label: '全部' },
   { key: 'unread', label: '未读', filter: (n) => !n.read },
-  { key: 'alerts', label: '告警', filter: (n) => ['system_alert', 'sla_warning', 'sla_breached'].includes(n.type) },
-  { key: 'tickets', label: '工单', filter: (n) => ['ticket_assigned', 'ticket_escalated', 'transfer_request'].includes(n.type) },
+  {
+    key: 'alerts',
+    label: '告警',
+    filter: (n) => ['system_alert', 'sla_warning', 'sla_breached'].includes(n.type),
+  },
+  {
+    key: 'tickets',
+    label: '工单',
+    filter: (n) => ['ticket_assigned', 'ticket_escalated', 'transfer_request'].includes(n.type),
+  },
 ];
 
 export const NotificationBell: React.FC = () => {
@@ -132,14 +140,20 @@ export const NotificationBell: React.FC = () => {
         padding: '12px 16px',
         background: item.read ? 'transparent' : `${colors.primary[500]}08`,
         cursor: 'pointer',
-        borderLeft: item.read ? 'none' : `3px solid ${priorityColorMap[item.priority] || colors.neutral[400]}`,
+        borderLeft: item.read
+          ? 'none'
+          : `3px solid ${priorityColorMap[item.priority] || colors.neutral[400]}`,
         transition: 'background 0.2s',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background = item.read ? `${colors.neutral[400]}10` : `${colors.primary[500]}12`;
+        (e.currentTarget as HTMLElement).style.background = item.read
+          ? `${colors.neutral[400]}10`
+          : `${colors.primary[500]}12`;
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = item.read ? 'transparent' : `${colors.primary[500]}08`;
+        (e.currentTarget as HTMLElement).style.background = item.read
+          ? 'transparent'
+          : `${colors.primary[500]}08`;
       }}
     >
       <List.Item.Meta
@@ -149,12 +163,16 @@ export const NotificationBell: React.FC = () => {
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: item.read ? `${colors.neutral[400]}15` : `${priorityColorMap[item.priority] || colors.primary[500]}15`,
+              background: item.read
+                ? `${colors.neutral[400]}15`
+                : `${priorityColorMap[item.priority] || colors.primary[500]}15`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 14,
-              color: item.read ? colors.neutral[400] : priorityColorMap[item.priority] || colors.primary[500],
+              color: item.read
+                ? colors.neutral[400]
+                : priorityColorMap[item.priority] || colors.primary[500],
             }}
           >
             {typeIconMap[item.type] || <BellOutlined />}
@@ -220,7 +238,9 @@ export const NotificationBell: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <Text strong style={{ fontSize: 14 }}>通知中心</Text>
+        <Text strong style={{ fontSize: 14 }}>
+          通知中心
+        </Text>
         <Space size={12}>
           {unreadCount > 0 && (
             <Button type="link" size="small" onClick={handleMarkAllRead} style={{ padding: 0 }}>
@@ -293,10 +313,13 @@ export const NotificationBell: React.FC = () => {
         offset={[-4, 4]}
         size="small"
         color={
-          unreadCount === 0 ? undefined :
-          notifications.some((n) => n.priority === 'critical' && !n.read) ? colors.error[500] :
-          notifications.some((n) => n.priority === 'high' && !n.read) ? colors.warning[500] :
-          colors.primary[500]
+          unreadCount === 0
+            ? undefined
+            : notifications.some((n) => n.priority === 'critical' && !n.read)
+              ? colors.error[500]
+              : notifications.some((n) => n.priority === 'high' && !n.read)
+                ? colors.warning[500]
+                : colors.primary[500]
         }
       >
         <Button

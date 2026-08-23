@@ -95,8 +95,7 @@ export interface CreateScheduleInput {
 export const listReports = (params?: { category?: string; enabled?: boolean }) =>
   apiClient.get<ReportDefinition[]>('/reports', { params });
 
-export const getReport = (id: string) =>
-  apiClient.get<ReportDefinition>(`/reports/${id}`);
+export const getReport = (id: string) => apiClient.get<ReportDefinition>(`/reports/${id}`);
 
 export const createReport = (data: CreateReportInput) =>
   apiClient.post<ReportDefinition>('/reports', data);
@@ -104,8 +103,7 @@ export const createReport = (data: CreateReportInput) =>
 export const updateReport = (id: string, data: UpdateReportInput) =>
   apiClient.put<ReportDefinition>(`/reports/${id}`, data);
 
-export const deleteReport = (id: string) =>
-  apiClient.delete(`/reports/${id}`);
+export const deleteReport = (id: string) => apiClient.delete(`/reports/${id}`);
 
 export const previewReport = (id: string, params?: Record<string, unknown>) =>
   apiClient.post<Record<string, unknown>>(`/reports/${id}/preview`, params);
@@ -119,8 +117,7 @@ export const getReportExecutions = (reportId?: string, limit?: number) =>
     : apiClient.get<ReportExecution[]>('/reports/executions', { params: { limit } });
 
 // Datasources
-export const listDatasources = () =>
-  apiClient.get<ReportDatasource[]>('/reports/datasources');
+export const listDatasources = () => apiClient.get<ReportDatasource[]>('/reports/datasources');
 
 export const createDatasource = (data: CreateDatasourceInput) =>
   apiClient.post<ReportDatasource>('/reports/datasources', data);
@@ -128,8 +125,7 @@ export const createDatasource = (data: CreateDatasourceInput) =>
 export const updateDatasource = (id: string, data: Partial<CreateDatasourceInput>) =>
   apiClient.put<ReportDatasource>(`/reports/datasources/${id}`, data);
 
-export const deleteDatasource = (id: string) =>
-  apiClient.delete(`/reports/datasources/${id}`);
+export const deleteDatasource = (id: string) => apiClient.delete(`/reports/datasources/${id}`);
 
 // Schedules
 export const listSchedules = (reportId?: string) =>
@@ -143,5 +139,4 @@ export const createSchedule = (data: CreateScheduleInput) =>
 export const updateSchedule = (id: string, data: Partial<CreateScheduleInput>) =>
   apiClient.put<ReportSchedule>(`/reports/schedules/${id}`, data);
 
-export const deleteSchedule = (id: string) =>
-  apiClient.delete(`/reports/schedules/${id}`);
+export const deleteSchedule = (id: string) => apiClient.delete(`/reports/schedules/${id}`);

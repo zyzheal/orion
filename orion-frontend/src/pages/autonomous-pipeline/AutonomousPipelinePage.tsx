@@ -210,7 +210,12 @@ const ErrorClassificationTab: React.FC = () => {
             <Input.TextArea rows={3} placeholder="粘贴完整的错误日志..." />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={classifyLoading} icon={<RobotOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={classifyLoading}
+              icon={<RobotOutlined />}
+            >
               分类错误
             </Button>
           </Form.Item>
@@ -475,12 +480,7 @@ const AutoRetryTab: React.FC = () => {
             onChange={(e) => setPipelineId(e.target.value)}
             onPressEnter={loadRetryStats}
           />
-          <Button
-            type="primary"
-            icon={<RedoOutlined />}
-            onClick={loadRetryStats}
-            loading={loading}
-          >
+          <Button type="primary" icon={<RedoOutlined />} onClick={loadRetryStats} loading={loading}>
             查询重试统计
           </Button>
         </Space>
@@ -491,7 +491,11 @@ const AutoRetryTab: React.FC = () => {
           <Row gutter={16}>
             <Col span={6}>
               <Card>
-                <Statistic title="总重试次数" value={retryStats.totalRetries} prefix={<RedoOutlined />} />
+                <Statistic
+                  title="总重试次数"
+                  value={retryStats.totalRetries}
+                  prefix={<RedoOutlined />}
+                />
               </Card>
             </Col>
             <Col span={6}>
@@ -506,12 +510,20 @@ const AutoRetryTab: React.FC = () => {
             </Col>
             <Col span={6}>
               <Card>
-                <Statistic title="成功重试" value={retryStats.successfulRetries} valueStyle={{ color: colors.success[500] }} />
+                <Statistic
+                  title="成功重试"
+                  value={retryStats.successfulRetries}
+                  valueStyle={{ color: colors.success[500] }}
+                />
               </Card>
             </Col>
             <Col span={6}>
               <Card>
-                <Statistic title="失败重试" value={retryStats.failedRetries} valueStyle={{ color: colors.error[400] }} />
+                <Statistic
+                  title="失败重试"
+                  value={retryStats.failedRetries}
+                  valueStyle={{ color: colors.error[400] }}
+                />
               </Card>
             </Col>
           </Row>
@@ -526,13 +538,22 @@ const AutoRetryTab: React.FC = () => {
                 columns={[
                   { title: '日期', dataIndex: 'date', key: 'date' },
                   { title: '重试次数', dataIndex: 'retries', key: 'retries' },
-                  { title: '成功次数', dataIndex: 'successes', key: 'successes', render: (v: number) => <Text style={{ color: colors.success[500] }}>{v}</Text> },
+                  {
+                    title: '成功次数',
+                    dataIndex: 'successes',
+                    key: 'successes',
+                    render: (v: number) => <Text style={{ color: colors.success[500] }}>{v}</Text>,
+                  },
                   {
                     title: '成功率',
                     key: 'rate',
                     render: (_: unknown, record: { retries: number; successes: number }) => (
                       <Progress
-                        percent={record.retries > 0 ? Math.round((record.successes / record.retries) * 100) : 0}
+                        percent={
+                          record.retries > 0
+                            ? Math.round((record.successes / record.retries) * 100)
+                            : 0
+                        }
                         size="small"
                         style={{ width: 100 }}
                       />
@@ -555,7 +576,12 @@ const AutoRetryTab: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={4}>
-              <Form.Item name="maxRetries" label="最大重试次数" rules={[{ required: true }]} initialValue={3}>
+              <Form.Item
+                name="maxRetries"
+                label="最大重试次数"
+                rules={[{ required: true }]}
+                initialValue={3}
+              >
                 <Input type="number" min={0} max={10} />
               </Form.Item>
             </Col>
@@ -583,7 +609,12 @@ const AutoRetryTab: React.FC = () => {
             </Col>
           </Row>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={retryConfigLoading} icon={<RedoOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={retryConfigLoading}
+              icon={<RedoOutlined />}
+            >
               保存重试策略
             </Button>
           </Form.Item>

@@ -11,11 +11,7 @@
  *   const { data, loading, error } = useBiDashboard('engineer', { engineerId: 'E001' });
  */
 import { useState, useEffect } from 'react';
-import {
-  getExecutiveDashboard,
-  getManagerDashboard,
-  getEngineerDashboard,
-} from '@/api/bi';
+import { getExecutiveDashboard, getManagerDashboard, getEngineerDashboard } from '@/api/bi';
 import type {
   ExecutiveDashboardData,
   ManagerDashboardData,
@@ -24,10 +20,7 @@ import type {
 
 export type BiDashboardType = 'executive' | 'manager' | 'engineer';
 
-export type BiDashboardData =
-  | ExecutiveDashboardData
-  | ManagerDashboardData
-  | EngineerDashboardData;
+export type BiDashboardData = ExecutiveDashboardData | ManagerDashboardData | EngineerDashboardData;
 
 export interface UseBiDashboardResult {
   data: BiDashboardData | null;
@@ -57,11 +50,7 @@ export function useBiDashboard(
         ? () => getExecutiveDashboard({ days: options?.days })
         : type === 'manager'
           ? () => getManagerDashboard({ teamId: options?.teamId, days: options?.days })
-          : () =>
-              getEngineerDashboard(
-                options?.engineerId ?? 'current',
-                { days: options?.days }
-              );
+          : () => getEngineerDashboard(options?.engineerId ?? 'current', { days: options?.days });
 
     fetcher()
       .then((res) => {

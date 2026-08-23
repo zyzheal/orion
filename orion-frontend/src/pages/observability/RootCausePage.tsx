@@ -4,20 +4,46 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Card, Table, Tag, Space, Button, Form, Input,
-  message, Descriptions, Row, Col, Timeline, Drawer,
-  Divider, Statistic, Tabs, List, Alert,
+  Typography,
+  Card,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Form,
+  Input,
+  message,
+  Descriptions,
+  Row,
+  Col,
+  Timeline,
+  Drawer,
+  Divider,
+  Statistic,
+  Tabs,
+  List,
+  Alert,
 } from 'antd';
 import {
-  SearchOutlined, ReloadOutlined, BranchesOutlined,
-  ClockCircleOutlined, EyeOutlined, ThunderboltOutlined,
+  SearchOutlined,
+  ReloadOutlined,
+  BranchesOutlined,
+  ClockCircleOutlined,
+  EyeOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import {
-  getRootCauseAnalyses, getRootCauseAnalysis, triggerRCA,
-  getRcaTimeline, getDependencyGraph, analyzeDependencyRootCause,
+  getRootCauseAnalyses,
+  getRootCauseAnalysis,
+  triggerRCA,
+  getRcaTimeline,
+  getDependencyGraph,
+  analyzeDependencyRootCause,
   analyzeTemporalCorrelation,
-  type RootCauseAnalysis, type TimelineEvent,
-  type ServiceDependency, type TemporalCorrelationResult,
+  type RootCauseAnalysis,
+  type TimelineEvent,
+  type ServiceDependency,
+  type TemporalCorrelationResult,
 } from '@/api/observability';
 import PageSkeleton from '@/components/PageSkeleton';
 import { colors } from '@/tokens/colors';
@@ -53,7 +79,9 @@ const DependencyGraphTab: React.FC = () => {
     try {
       const res = await getDependencyGraph();
       const rawData = (res.data as any)?.data;
-      setDeps(Array.isArray(rawData) ? rawData : ((rawData as any)?.data as ServiceDependency[]) || []);
+      setDeps(
+        Array.isArray(rawData) ? rawData : ((rawData as any)?.data as ServiceDependency[]) || []
+      );
     } catch (error: unknown) {
       message.error(`加载依赖图失败: ${(error as Error).message}`);
     } finally {
@@ -71,10 +99,15 @@ const DependencyGraphTab: React.FC = () => {
       return;
     }
     try {
-      const services = affectedServices.split(',').map((s) => s.trim()).filter(Boolean);
+      const services = affectedServices
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       const res = await analyzeDependencyRootCause(services);
       const rawData = (res.data as any)?.data;
-      setAnalysisResult(Array.isArray(rawData) ? rawData : ((rawData as any)?.data as string[]) || []);
+      setAnalysisResult(
+        Array.isArray(rawData) ? rawData : ((rawData as any)?.data as string[]) || []
+      );
       message.success('根因分析完成');
     } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
@@ -82,7 +115,13 @@ const DependencyGraphTab: React.FC = () => {
   };
 
   const columns = [
-    { title: '服务名称', dataIndex: 'service', key: 'service', width: 180, render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '服务名称',
+      dataIndex: 'service',
+      key: 'service',
+      width: 180,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     {
       title: '依赖类型',
       dataIndex: 'dependencyType',
@@ -96,7 +135,11 @@ const DependencyGraphTab: React.FC = () => {
       key: 'dependsOn',
       render: (deps: string[]) => (
         <Space wrap>
-          {deps.map((d) => <Tag key={d} color="blue">{d}</Tag>)}
+          {deps.map((d) => (
+            <Tag key={d} color="blue">
+              {d}
+            </Tag>
+          ))}
         </Space>
       ),
     },
@@ -115,7 +158,9 @@ const DependencyGraphTab: React.FC = () => {
             />
           </Col>
           <Col>
-            <Button type="primary" icon={<SearchOutlined />} onClick={handleAnalyze}>分析根因</Button>
+            <Button type="primary" icon={<SearchOutlined />} onClick={handleAnalyze}>
+              分析根因
+            </Button>
           </Col>
         </Row>
         {analysisResult.length > 0 && (
@@ -124,7 +169,11 @@ const DependencyGraphTab: React.FC = () => {
             description={
               <Space wrap>
                 <Text>最可能的根因服务：</Text>
-                {analysisResult.map((s) => <Tag key={s} color="error">{s}</Tag>)}
+                {analysisResult.map((s) => (
+                  <Tag key={s} color="error">
+                    {s}
+                  </Tag>
+                ))}
               </Space>
             }
             type="info"
@@ -136,9 +185,18 @@ const DependencyGraphTab: React.FC = () => {
       {/* Dependency Table */}
       <Card title="服务依赖关系">
         <div style={{ marginBottom: spacing.md }}>
-          <Button icon={<ReloadOutlined />} onClick={loadGraph} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadGraph} loading={loading}>
+            刷新
+          </Button>
         </div>
-        <Table columns={columns} dataSource={deps} rowKey="service" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={columns}
+          dataSource={deps}
+          rowKey="service"
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
     </Space>
   );
@@ -161,7 +219,7 @@ const TemporalCorrelationTab: React.FC = () => {
       setLoading(true);
       const res = await analyzeTemporalCorrelation(alerts);
       const rawData = res.data?.data;
-      setResult(rawData as unknown as TemporalCorrelationResult || null);
+      setResult((rawData as unknown as TemporalCorrelationResult) || null);
       message.success('时间关联分析完成');
     } catch (error: unknown) {
       message.error(`分析失败: ${(error as Error).message}`);
@@ -173,9 +231,7 @@ const TemporalCorrelationTab: React.FC = () => {
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       <Card title="时间关联分析">
-        <Text type="secondary">
-          分析在特定时间窗口内聚集的告警，识别告警爆发（burst）
-        </Text>
+        <Text type="secondary">分析在特定时间窗口内聚集的告警，识别告警爆发（burst）</Text>
         <Divider />
         <Form layout="vertical">
           <Form.Item label="告警数据（JSON 格式）">
@@ -189,7 +245,12 @@ const TemporalCorrelationTab: React.FC = () => {
             />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" icon={<ClockCircleOutlined />} onClick={handleAnalyze} loading={loading}>
+            <Button
+              type="primary"
+              icon={<ClockCircleOutlined />}
+              onClick={handleAnalyze}
+              loading={loading}
+            >
               分析时间关联
             </Button>
           </Form.Item>
@@ -209,7 +270,9 @@ const TemporalCorrelationTab: React.FC = () => {
               <Statistic
                 title="告警爆发检测"
                 value={result.burstDetected ? '是' : '否'}
-                valueStyle={{ color: result.burstDetected ? colors.error[400] : colors.success[500] }}
+                valueStyle={{
+                  color: result.burstDetected ? colors.error[400] : colors.success[500],
+                }}
               />
             </Col>
           </Row>
@@ -219,7 +282,14 @@ const TemporalCorrelationTab: React.FC = () => {
             renderItem={(item) => (
               <List.Item>
                 <List.Item.Meta
-                  title={<Space><Tag color={item.severity === 'critical' ? 'error' : 'warning'}>{item.severity}</Tag>{item.name}</Space>}
+                  title={
+                    <Space>
+                      <Tag color={item.severity === 'critical' ? 'error' : 'warning'}>
+                        {item.severity}
+                      </Tag>
+                      {item.name}
+                    </Space>
+                  }
                   description={
                     <Space direction="vertical">
                       <Text>服务: {item.service}</Text>
@@ -256,7 +326,12 @@ const TimelineTab: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRcaTimeline(deploymentId);
-      const t = ((res.data as any) as { timeline?: { events?: unknown[]; totalEvents?: number; criticalEvents?: number } })?.timeline ?? res.data;
+      const t =
+        (
+          res.data as any as {
+            timeline?: { events?: unknown[]; totalEvents?: number; criticalEvents?: number };
+          }
+        )?.timeline ?? res.data;
       if (t) {
         setTimeline({
           events: (t as any).events || [],
@@ -273,9 +348,12 @@ const TimelineTab: React.FC = () => {
 
   const getEventColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return colors.error[400];
-      case 'warning': return colors.warning[400];
-      default: return colors.info[400];
+      case 'critical':
+        return colors.error[400];
+      case 'warning':
+        return colors.warning[400];
+      default:
+        return colors.info[400];
     }
   };
 
@@ -300,7 +378,9 @@ const TimelineTab: React.FC = () => {
       </Card>
 
       {timeline && (
-        <Card title={`时间线事件 (${timeline.totalEvents} 个事件, ${timeline.criticalEvents} 个严重)}`}>
+        <Card
+          title={`时间线事件 (${timeline.totalEvents} 个事件, ${timeline.criticalEvents} 个严重)}`}
+        >
           <Timeline>
             {timeline.events.map((event, i) => (
               <Timeline.Item key={String(i)} color={getEventColor(event.severity)}>
@@ -384,7 +464,13 @@ const RCAAnalysisTab: React.FC = () => {
 
   const columns = [
     { title: '事件 ID', dataIndex: 'incidentId', key: 'incidentId', width: 140 },
-    { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '开始时间',
+      dataIndex: 'startTime',
+      key: 'startTime',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -428,7 +514,12 @@ const RCAAnalysisTab: React.FC = () => {
             <Input placeholder="如: api-gateway, auth-service" style={{ width: 280 }} />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={triggerLoading} icon={<SearchOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={triggerLoading}
+              icon={<SearchOutlined />}
+            >
               触发分析
             </Button>
           </Form.Item>
@@ -437,9 +528,18 @@ const RCAAnalysisTab: React.FC = () => {
 
       <Card title="根因分析列表">
         <div style={{ marginBottom: spacing.md }}>
-          <Button icon={<ReloadOutlined />} onClick={loadAnalyses} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadAnalyses} loading={loading}>
+            刷新
+          </Button>
         </div>
-        <Table columns={columns} dataSource={analyses} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={columns}
+          dataSource={analyses}
+          rowKey="id"
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
       <Drawer
@@ -457,20 +557,36 @@ const RCAAnalysisTab: React.FC = () => {
               <Descriptions.Item label="状态">
                 <Tag color={statusColorMap[selectedAnalysis.status]}>{selectedAnalysis.status}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="开始时间">{new Date(selectedAnalysis.startTime).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label="开始时间">
+                {new Date(selectedAnalysis.startTime).toLocaleString()}
+              </Descriptions.Item>
               <Descriptions.Item label="结束时间">
-                {selectedAnalysis.endTime ? new Date(selectedAnalysis.endTime).toLocaleString() : '进行中'}
+                {selectedAnalysis.endTime
+                  ? new Date(selectedAnalysis.endTime).toLocaleString()
+                  : '进行中'}
               </Descriptions.Item>
             </Descriptions>
 
             {selectedAnalysis.rootCause && (
-              <Card size="small" title="根因" style={{ borderLeft: `3px solid ${colors.error[400]}` }}>
+              <Card
+                size="small"
+                title="根因"
+                style={{ borderLeft: `3px solid ${colors.error[400]}` }}
+              >
                 <Descriptions column={1} size="small">
-                  <Descriptions.Item label="服务">{selectedAnalysis.rootCause.service}</Descriptions.Item>
-                  <Descriptions.Item label="组件">{selectedAnalysis.rootCause.component}</Descriptions.Item>
-                  <Descriptions.Item label="描述">{selectedAnalysis.rootCause.description}</Descriptions.Item>
+                  <Descriptions.Item label="服务">
+                    {selectedAnalysis.rootCause.service}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="组件">
+                    {selectedAnalysis.rootCause.component}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="描述">
+                    {selectedAnalysis.rootCause.description}
+                  </Descriptions.Item>
                   <Descriptions.Item label="置信度">
-                    <Tag color={selectedAnalysis.rootCause.confidence > 0.7 ? 'success' : 'warning'}>
+                    <Tag
+                      color={selectedAnalysis.rootCause.confidence > 0.7 ? 'success' : 'warning'}
+                    >
                       {Math.round(selectedAnalysis.rootCause.confidence * 100)}%
                     </Tag>
                   </Descriptions.Item>
@@ -498,7 +614,9 @@ const RCAAnalysisTab: React.FC = () => {
               <Card size="small" title="建议措施">
                 <ul style={{ paddingLeft: 20, margin: 0 }}>
                   {selectedAnalysis.recommendations.map((r, i) => (
-                    <li key={String(i)}><Text>{r}</Text></li>
+                    <li key={String(i)}>
+                      <Text>{r}</Text>
+                    </li>
                   ))}
                 </ul>
               </Card>
@@ -524,22 +642,52 @@ const RootCausePage: React.FC = () => {
           <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
           根因分析中心
         </Title>
-        <Text type="secondary">
-          根因分析、服务依赖图分析、时间线追踪和时间关联分析
-        </Text>
+        <Text type="secondary">根因分析、服务依赖图分析、时间线追踪和时间关联分析</Text>
       </div>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab={<span><SearchOutlined />根因分析</span>} key="rca">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <SearchOutlined />
+              根因分析
+            </span>
+          }
+          key="rca"
+        >
           <RCAAnalysisTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><BranchesOutlined />依赖图</span>} key="dependency">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <BranchesOutlined />
+              依赖图
+            </span>
+          }
+          key="dependency"
+        >
           <DependencyGraphTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><ClockCircleOutlined />时间线</span>} key="timeline">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <ClockCircleOutlined />
+              时间线
+            </span>
+          }
+          key="timeline"
+        >
           <TimelineTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><ThunderboltOutlined />时间关联</span>} key="temporal">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <ThunderboltOutlined />
+              时间关联
+            </span>
+          }
+          key="temporal"
+        >
           <TemporalCorrelationTab />
         </Tabs.TabPane>
       </Tabs>

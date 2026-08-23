@@ -14,22 +14,19 @@ const OrionStatistic: React.FC<OrionStatisticProps> = ({
   trend,
   trendValue,
 }) => {
-  const trendNode = trend === 'up' || trend === 'down' ? (
-    <span
-      style={{
-        color: trend === 'up' ? colors.success[500] : colors.error[500],
-        marginLeft: spacing.sm,
-        fontSize: 14,
-      }}
-    >
-      {trend === 'up' ? (
-        <ArrowUpOutlined />
-      ) : (
-        <ArrowDownOutlined />
-      )}
-      {trendValue && <span style={{ marginLeft: 4 }}>{trendValue}</span>}
-    </span>
-  ) : null;
+  const trendNode =
+    trend === 'up' || trend === 'down' ? (
+      <span
+        style={{
+          color: trend === 'up' ? colors.success[500] : colors.error[500],
+          marginLeft: spacing.sm,
+          fontSize: 14,
+        }}
+      >
+        {trend === 'up' ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+        {trendValue && <span style={{ marginLeft: 4 }}>{trendValue}</span>}
+      </span>
+    ) : null;
 
   return (
     <Card

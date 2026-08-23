@@ -24,6 +24,8 @@ export interface ExtendedAction {
 }
 
 /** Type guard to check if action has a navigation target */
-export function hasTarget(action: ExtendedAction): action is ExtendedAction & { target: ActionTarget } {
+export function hasTarget(
+  action: ExtendedAction
+): action is ExtendedAction & { target: ActionTarget } {
   return !!action.target;
 }

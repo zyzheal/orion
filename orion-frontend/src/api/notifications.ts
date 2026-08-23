@@ -138,12 +138,15 @@ export const getNotifications = async (
 ): Promise<{ data: MockNotification[]; total: number }> => {
   const userId = getCurrentUserId();
 
-  const response = await api.get<{ data: BackendNotification[]; total?: number }>(`/api/v1/notifications/${userId}`, {
-    params: {
-      limit: params?.pageSize || 20,
-      page: params?.page || 1,
-    },
-  });
+  const response = await api.get<{ data: BackendNotification[]; total?: number }>(
+    `/api/v1/notifications/${userId}`,
+    {
+      params: {
+        limit: params?.pageSize || 20,
+        page: params?.page || 1,
+      },
+    }
+  );
 
   // 拦截器已自动解包，response.data 直接是响应数据
   const result = response.data;
@@ -153,7 +156,7 @@ export const getNotifications = async (
   let notifications: MockNotification[] = Array.isArray(backendNotifications)
     ? backendNotifications.map(mapBackendToNotification)
     : [];
-  let total = (result as { total?: number }).total ?? backendNotifications.length;
+  const total = (result as { total?: number }).total ?? backendNotifications.length;
 
   // Apply client-side filtering for tabs that backend doesn't support directly
   if (params?.type) {
@@ -228,13 +231,18 @@ export const deleteNotification = async (id: string): Promise<void> => {
 export const getNotificationStats = async (): Promise<NotificationStats> => {
   const userId = getCurrentUserId();
 
-  const response1 = await api.get<{ data?: { unreadCount?: number } }>(`/api/v1/notifications/${userId}/unread-count`);
+  const response1 = await api.get<{ data?: { unreadCount?: number } }>(
+    `/api/v1/notifications/${userId}/unread-count`
+  );
   // 拦截器已自动解包，response1.data 直接是响应数据
   const data1 = response1.data as { data?: { unreadCount?: number } };
   const unreadCount = Number(data1.data?.unreadCount) || 0;
 
   // Fetch recent notifications for other stats
-  const response2 = await api.get<{ data?: BackendNotification[] }>(`/api/v1/notifications/${userId}`, { params: { limit: 100 } });
+  const response2 = await api.get<{ data?: BackendNotification[] }>(
+    `/api/v1/notifications/${userId}`,
+    { params: { limit: 100 } }
+  );
   // 拦截器已自动解包，response2.data 直接是响应数据
   const data2 = response2.data as { data?: BackendNotification[] };
   const backendNotifications: BackendNotification[] = data2.data ?? [];

@@ -36,7 +36,10 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = 
   running: { icon: <SyncOutlined spin />, color: colors.primary[500] },
   success: { icon: <CheckCircleOutlined />, color: colors.success[500] },
   failed: { icon: <CloseCircleOutlined />, color: colors.error[500] },
-  skipped: { icon: <PlayCircleOutlined style={{ transform: 'rotate(180deg)' }} />, color: colors.neutral[400] },
+  skipped: {
+    icon: <PlayCircleOutlined style={{ transform: 'rotate(180deg)' }} />,
+    color: colors.neutral[400],
+  },
 };
 
 // Typed node data for ReactFlow NodeProps
@@ -52,7 +55,7 @@ interface StageNodeData {
 }
 // Stage Node Component
 const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
-  const data = (props as any).data as StageNodeData || {};
+  const data = ((props as any).data as StageNodeData) || {};
   const selected = (props as any).selected as boolean;
   const label = data?.label || '';
   const stageType = data?.stageType || 'custom';
@@ -64,27 +67,28 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
   const hasQualityGate = data?.hasQualityGate;
 
   const typeConfig = useMemo(
-    () => (STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom) as { icon: string; color: string; label: string },
+    () =>
+      (STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom) as {
+        icon: string;
+        color: string;
+        label: string;
+      },
     [stageType]
   );
 
-  const statusConfig = useMemo(
-    () => STATUS_CONFIG[status] || STATUS_CONFIG.pending,
-    [status]
-  );
+  const statusConfig = useMemo(() => STATUS_CONFIG[status] || STATUS_CONFIG.pending, [status]);
 
   // 构建工具提示内容
   const tooltipContent = useMemo(() => {
-    const lines = [
-      `阶段: ${label}`,
-      `类型: ${typeConfig.label}`,
-      `状态: ${status}`,
-    ];
+    const lines = [`阶段: ${label}`, `类型: ${typeConfig.label}`, `状态: ${status}`];
 
     if (config) {
-      if ((config as Record<string, unknown>).imageName) lines.push(`镜像: ${String((config as Record<string, unknown>).imageName)}`);
-      if ((config as Record<string, unknown>).containerImage) lines.push(`容器: ${String((config as Record<string, unknown>).containerImage)}`);
-      if ((config as Record<string, unknown>).uses) lines.push(`使用: ${String((config as Record<string, unknown>).uses)}`);
+      if ((config as Record<string, unknown>).imageName)
+        lines.push(`镜像: ${String((config as Record<string, unknown>).imageName)}`);
+      if ((config as Record<string, unknown>).containerImage)
+        lines.push(`容器: ${String((config as Record<string, unknown>).containerImage)}`);
+      if ((config as Record<string, unknown>).uses)
+        lines.push(`使用: ${String((config as Record<string, unknown>).uses)}`);
     }
 
     return (
@@ -108,9 +112,7 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
           background: selected ? colors.primary[50] : colors.neutral[0],
           minWidth: 150,
           maxWidth: 200,
-          boxShadow: selected
-            ? `0 0 12px ${colors.primary[300]}`
-            : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          boxShadow: selected ? `0 0 12px ${colors.primary[300]}` : '0 2px 8px rgba(0, 0, 0, 0.1)',
           transition: 'all 0.2s ease',
           cursor: 'pointer',
         }}
@@ -151,18 +153,22 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
           >
             {(index ?? 0) + 1}
           </div>
-          <span style={{ fontSize: 12, color: statusConfig.color }}>{statusConfig.icon as React.ReactNode}</span>
+          <span style={{ fontSize: 12, color: statusConfig.color }}>
+            {statusConfig.icon as React.ReactNode}
+          </span>
         </div>
 
-        <div style={{
-          display: 'block',
-          fontSize: 13,
-          marginBottom: spacing[1],
-          fontWeight: 'bold',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
+        <div
+          style={{
+            display: 'block',
+            fontSize: 13,
+            marginBottom: spacing[1],
+            fontWeight: 'bold',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
           <span>{typeConfig.icon as React.ReactNode}</span> {String(label)}
         </div>
 
@@ -198,10 +204,54 @@ const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
 
         {/* Indicator Badges (Approval, Timeout, Quality Gate) */}
         {(hasApproval || timeout || hasQualityGate) && (
-          <div style={{ display: 'flex', gap: 4, marginTop: spacing.sm, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {hasApproval && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.purple[500]}14`, color: colors.purple[500] }}>审批</span>}
-            {timeout && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.warning[500]}14`, color: colors.warning[500] }}>{timeout}s</span>}
-            {hasQualityGate && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.success[500]}14`, color: colors.success[500] }}>门禁</span>}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              marginTop: spacing.sm,
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            {hasApproval && (
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: '1px 4px',
+                  borderRadius: radius.xs,
+                  background: `${colors.purple[500]}14`,
+                  color: colors.purple[500],
+                }}
+              >
+                审批
+              </span>
+            )}
+            {timeout && (
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: '1px 4px',
+                  borderRadius: radius.xs,
+                  background: `${colors.warning[500]}14`,
+                  color: colors.warning[500],
+                }}
+              >
+                {timeout}s
+              </span>
+            )}
+            {hasQualityGate && (
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: '1px 4px',
+                  borderRadius: radius.xs,
+                  background: `${colors.success[500]}14`,
+                  color: colors.success[500],
+                }}
+              >
+                门禁
+              </span>
+            )}
           </div>
         )}
 

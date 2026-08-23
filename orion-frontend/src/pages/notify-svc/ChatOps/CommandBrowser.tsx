@@ -72,75 +72,81 @@ const CommandBrowser: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const columns: TableColumn<ChatOpsCommand>[] = useMemo<TableColumn<ChatOpsCommand>[]>(() => [
-    {
-      key: 'name',
-      title: '命令',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown, record: any) => (
-        <Space>
-          <Text strong>
-            <CodeOutlined /> /{String(v)}
-          </Text>
-          {record.subcommand && <Tag>{record.subcommand}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      key: 'permissionLevel',
-      title: '权限',
-      dataIndex: 'permissionLevel',
-      width: 100,
-      render: (v: unknown) => (
-        <Tag color={permissionLevelColorMap[String(v)] || 'default'}>{String(v)}</Tag>
-      ),
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'description',
-      width: 300,
-      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
-    },
-    {
-      key: 'examples',
-      title: '示例数',
-      dataIndex: 'examples',
-      width: 80,
-      render: (v: unknown) => <Text>{Array.isArray(v) ? v.length : 0}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: any) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<InfoCircleOutlined />}
-          onClick={() => handleViewDetail(record)}
-        >
-          详情
-        </Button>
-      ),
-    },
-  ], [handleViewDetail]);
+  const columns: TableColumn<ChatOpsCommand>[] = useMemo<TableColumn<ChatOpsCommand>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '命令',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown, record: any) => (
+          <Space>
+            <Text strong>
+              <CodeOutlined /> /{String(v)}
+            </Text>
+            {record.subcommand && <Tag>{record.subcommand}</Tag>}
+          </Space>
+        ),
+      },
+      {
+        key: 'permissionLevel',
+        title: '权限',
+        dataIndex: 'permissionLevel',
+        width: 100,
+        render: (v: unknown) => (
+          <Tag color={permissionLevelColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+        ),
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'description',
+        width: 300,
+        render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      },
+      {
+        key: 'examples',
+        title: '示例数',
+        dataIndex: 'examples',
+        width: 80,
+        render: (v: unknown) => <Text>{Array.isArray(v) ? v.length : 0}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: any) => (
+          <Button
+            type="link"
+            size="small"
+            icon={<InfoCircleOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
+            详情
+          </Button>
+        ),
+      },
+    ],
+    [handleViewDetail]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'permissionLevel',
-      label: '权限',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Admin', value: 'admin' },
-        { label: 'Maintainer', value: 'maintainer' },
-        { label: 'Developer', value: 'developer' },
-        { label: 'Viewer', value: 'viewer' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'permissionLevel',
+        label: '权限',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Admin', value: 'admin' },
+          { label: 'Maintainer', value: 'maintainer' },
+          { label: 'Developer', value: 'developer' },
+          { label: 'Viewer', value: 'viewer' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: '0 0 16px' }}>
@@ -159,10 +165,7 @@ const CommandBrowser: React.FC = () => {
 
       <Card>
         {apiError && commands.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={apiError}
-          />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={apiError} />
         ) : (
           <>
             <div style={{ marginBottom: spacing.md }}>
@@ -249,7 +252,9 @@ const CommandBrowser: React.FC = () => {
               </>
             )}
 
-            <span style={{ fontSize: 14, fontWeight: 600, marginTop: spacing.md, display: 'block' }}>
+            <span
+              style={{ fontSize: 14, fontWeight: 600, marginTop: spacing.md, display: 'block' }}
+            >
               使用示例
             </span>
             {selectedCommand.examples.map((example, index) => (

@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, message, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, EyeOutlined, FileTextOutlined,} from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -27,7 +27,7 @@ const BuildLogList: React.FC = () => {
     try {
       const response = await getBuildLogs();
       const apiData = response.data;
-      setLogs(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
+      setLogs(Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? []));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建日志失败：${error.message}`);
@@ -58,131 +58,139 @@ const BuildLogList: React.FC = () => {
     });
   }, [searchQuery, filters, logs]);
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'runId',
-      label: 'Run ID',
-      options: [
-        { label: 'All', value: 'all' },
-        ...Array.from(new Set(logs.map((l) => l.runId)))
-          .slice(0, 10)
-          .map((id) => ({
-            label: id,
-            value: id,
-          })),
-      ],
-    },
-    {
-      key: 'stageId',
-      label: 'Stage ID',
-      options: [
-        { label: 'All', value: 'all' },
-        ...Array.from(new Set(logs.map((l) => l.stageId)))
-          .slice(0, 10)
-          .map((id) => ({
-            label: id,
-            value: id,
-          })),
-      ],
-    },
-  ], []);
-
-  const columns: TableColumn<BuildLog>[] = useMemo<TableColumn<BuildLog>[]>(() => [
-    {
-      key: 'id',
-      title: 'Log ID',
-      dataIndex: 'id',
-      width: 200,
-      sortable: true,
-      render: (value) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'runId',
-      title: 'Run ID',
-      dataIndex: 'runId',
-      width: 160,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'stageId',
-      title: 'Stage ID',
-      dataIndex: 'stageId',
-      width: 160,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'podId',
-      title: 'Pod ID',
-      dataIndex: 'podId',
-      width: 200,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      width: 130,
-      render: (value) => {
-        const statusMap: Record<string, unknown> = {
-          streaming: 'running',
-          completed: 'success',
-          failed: 'failed',
-        };
-        return <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />;
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'runId',
+        label: 'Run ID',
+        options: [
+          { label: 'All', value: 'all' },
+          ...Array.from(new Set(logs.map((l) => l.runId)))
+            .slice(0, 10)
+            .map((id) => ({
+              label: id,
+              value: id,
+            })),
+        ],
       },
-    },
-    {
-      key: 'lineCount',
-      title: 'Lines',
-      dataIndex: 'lineCount',
-      width: 100,
-      sortable: true,
-      render: (value) => <Text>{Number(value).toLocaleString()}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: 'Created',
-      dataIndex: 'createdAt',
-      width: 140,
-      sortable: true,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 100,
-      render: (_: unknown, record: BuildLog) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/console/build-env/logs/${record.id}`)}
-        >
-          View
-        </Button>
-      ),
-    },
-  ], [navigate]);
+      {
+        key: 'stageId',
+        label: 'Stage ID',
+        options: [
+          { label: 'All', value: 'all' },
+          ...Array.from(new Set(logs.map((l) => l.stageId)))
+            .slice(0, 10)
+            .map((id) => ({
+              label: id,
+              value: id,
+            })),
+        ],
+      },
+    ],
+    []
+  );
+
+  const columns: TableColumn<BuildLog>[] = useMemo<TableColumn<BuildLog>[]>(
+    () => [
+      {
+        key: 'id',
+        title: 'Log ID',
+        dataIndex: 'id',
+        width: 200,
+        sortable: true,
+        render: (value) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'runId',
+        title: 'Run ID',
+        dataIndex: 'runId',
+        width: 160,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'stageId',
+        title: 'Stage ID',
+        dataIndex: 'stageId',
+        width: 160,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'podId',
+        title: 'Pod ID',
+        dataIndex: 'podId',
+        width: 200,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        dataIndex: 'status',
+        width: 130,
+        render: (value) => {
+          const statusMap: Record<string, unknown> = {
+            streaming: 'running',
+            completed: 'success',
+            failed: 'failed',
+          };
+          return (
+            <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />
+          );
+        },
+      },
+      {
+        key: 'lineCount',
+        title: 'Lines',
+        dataIndex: 'lineCount',
+        width: 100,
+        sortable: true,
+        render: (value) => <Text>{Number(value).toLocaleString()}</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: 'Created',
+        dataIndex: 'createdAt',
+        width: 140,
+        sortable: true,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        width: 100,
+        render: (_: unknown, record: BuildLog) => (
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/console/build-env/logs/${record.id}`)}
+          >
+            View
+          </Button>
+        ),
+      },
+    ],
+    [navigate]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -225,10 +233,7 @@ const BuildLogList: React.FC = () => {
       />
 
       {filteredLogs.length === 0 && !loading && (
-        <Empty
-          description="暂无构建日志"
-          style={{ marginTop: 48 }}
-        />
+        <Empty description="暂无构建日志" style={{ marginTop: 48 }} />
       )}
     </div>
   );

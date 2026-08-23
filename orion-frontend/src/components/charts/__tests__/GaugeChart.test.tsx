@@ -32,15 +32,7 @@ describe('GaugeChart', () => {
   });
 
   it('applies thresholds for color zones', () => {
-    render(
-      wrap(
-        <GaugeChart
-          title="Test"
-          value={85}
-          thresholds={{ warning: 80, danger: 90 }}
-        />
-      )
-    );
+    render(wrap(<GaugeChart title="Test" value={85} thresholds={{ warning: 80, danger: 90 }} />));
     const chart = screen.getByTestId('gauge-chart');
     expect(chart).toBeTruthy();
   });

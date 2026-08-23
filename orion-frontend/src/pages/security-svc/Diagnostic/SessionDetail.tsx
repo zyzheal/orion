@@ -16,7 +16,12 @@ import {
   Table,
   Alert,
 } from 'antd';
-import { DesktopOutlined, ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  DesktopOutlined,
+  ArrowLeftOutlined,
+  CheckCircleOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import { getSession, completeSession, getSessionComplexity } from '@/api/diagnostic';
 import type { DiagnosticSymptom } from '@/api/diagnostic';
 import dayjs from 'dayjs';
@@ -134,7 +139,9 @@ const DiagnosticSessionDetail: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
@@ -219,8 +226,9 @@ const DiagnosticSessionDetail: React.FC = () => {
       {/* Symptoms */}
       <Card title="症状列表">
         {session.symptoms && session.symptoms.length > 0 ? (
-          <Table loading={loading}
-                  columns={symptomColumns}
+          <Table
+            loading={loading}
+            columns={symptomColumns}
             dataSource={session.symptoms}
             rowKey={(record: DiagnosticSymptom, idx) => `${record.type}-${idx}`}
             pagination={false}

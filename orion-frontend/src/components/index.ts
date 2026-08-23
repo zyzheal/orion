@@ -60,7 +60,10 @@ export { InlineScriptEditor } from './InlineScriptEditor';
 export type { InlineScriptEditorProps } from './InlineScriptEditor';
 
 // Plugin Components
-export { StepConfigurationPanel, default as StepConfigurationPanelDefault } from './StepConfigurationPanel';
+export {
+  StepConfigurationPanel,
+  default as StepConfigurationPanelDefault,
+} from './StepConfigurationPanel';
 export type { StepConfigurationPanelProps } from './StepConfigurationPanel';
 
 export { ExecutionTimeline } from './ExecutionTimeline';

@@ -21,10 +21,7 @@ const prefetchingPromises = new Map<string, Promise<void>>();
  * 原理：动态创建 script 标签加载 remoteEntry.js，
  * 浏览器缓存后，后续 loadSubApp 时会命中缓存，加速加载。
  */
-export function prefetchSubAppRemoteEntry(
-  appKey: string,
-  remoteEntryUrl: string
-): Promise<void> {
+export function prefetchSubAppRemoteEntry(appKey: string, remoteEntryUrl: string): Promise<void> {
   if (prefetchedApps.has(appKey)) {
     return Promise.resolve();
   }

@@ -23,11 +23,27 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/skills/marketplace': { icon: <ShopOutlined />, title: '技能市场', subtitle: '浏览和发现可用技能' },
+  '/skills/marketplace': {
+    icon: <ShopOutlined />,
+    title: '技能市场',
+    subtitle: '浏览和发现可用技能',
+  },
   '/skills/my': { icon: <HeartOutlined />, title: '我的技能', subtitle: '管理已安装的技能' },
-  '/skills/submit': { icon: <CloudUploadOutlined />, title: '技能提交', subtitle: '提交新的技能包' },
-  '/skills/admin/pending': { icon: <AuditOutlined />, title: '待审核', subtitle: '审核待处理的技能提交' },
-  '/skills/admin/history': { icon: <HistoryOutlined />, title: '审核历史', subtitle: '查看技能审核历史' },
+  '/skills/submit': {
+    icon: <CloudUploadOutlined />,
+    title: '技能提交',
+    subtitle: '提交新的技能包',
+  },
+  '/skills/admin/pending': {
+    icon: <AuditOutlined />,
+    title: '待审核',
+    subtitle: '审核待处理的技能提交',
+  },
+  '/skills/admin/history': {
+    icon: <HistoryOutlined />,
+    title: '审核历史',
+    subtitle: '查看技能审核历史',
+  },
 };
 
 const SkillManagementLayout: React.FC = () => {
@@ -55,12 +71,14 @@ const SkillManagementLayout: React.FC = () => {
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-              {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+              {pageInfo.icon && (
+                <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                  {pageInfo.icon}
+                </span>
+              )}
               {pageInfo.title}
             </Title>
-            {pageInfo.subtitle && (
-              <Text type="secondary">{pageInfo.subtitle}</Text>
-            )}
+            {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
           </div>
         )}
         <Outlet />

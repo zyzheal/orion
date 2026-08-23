@@ -88,7 +88,12 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     rolled_back: { color: 'error', text: '已回滚' },
   };
   const { color, text } = statusMap[status] || { color: 'default', text: status };
-  return <Badge status={color as 'success' | 'error' | 'processing' | 'warning' | 'default'} text={text} />;
+  return (
+    <Badge
+      status={color as 'success' | 'error' | 'processing' | 'warning' | 'default'}
+      text={text}
+    />
+  );
 };
 
 /** Severity color mapping for alerts */
@@ -265,7 +270,9 @@ const WorkbenchPage: React.FC = () => {
 
   if (error && !data) {
     return (
-      <DataState loading={false} error={error} retry={fetchData}>{null}</DataState>
+      <DataState loading={false} error={error} retry={fetchData}>
+        {null}
+      </DataState>
     );
   }
 
@@ -335,9 +342,7 @@ const WorkbenchPage: React.FC = () => {
       key: 'createdAt',
       width: 150,
       render: (time: string) => (
-        <Tooltip title={dayjs(time).format('YYYY-MM-DD HH:mm:ss')}>
-          {dayjs(time).fromNow()}
-        </Tooltip>
+        <Tooltip title={dayjs(time).format('YYYY-MM-DD HH:mm:ss')}>{dayjs(time).fromNow()}</Tooltip>
       ),
     },
   ];
@@ -391,9 +396,7 @@ const WorkbenchPage: React.FC = () => {
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
-      render: (text: string, record: TicketSummary) => (
-        <a href={`/tickets/${record.id}`}>{text}</a>
-      ),
+      render: (text: string, record: TicketSummary) => <a href={`/tickets/${record.id}`}>{text}</a>,
     },
     {
       title: '优先级',
@@ -413,11 +416,7 @@ const WorkbenchPage: React.FC = () => {
       width: 100,
       render: (hours: number) => {
         const { text, color } = formatSlaRemaining(hours);
-        return (
-          <Text style={{ color, fontWeight: hours < 4 ? 600 : 400 }}>
-            {text}
-          </Text>
-        );
+        return <Text style={{ color, fontWeight: hours < 4 ? 600 : 400 }}>{text}</Text>;
       },
     },
   ];
@@ -455,9 +454,7 @@ const WorkbenchPage: React.FC = () => {
       key: 'deployedAt',
       width: 130,
       render: (time: string) => (
-        <Tooltip title={dayjs(time).format('YYYY-MM-DD HH:mm:ss')}>
-          {dayjs(time).fromNow()}
-        </Tooltip>
+        <Tooltip title={dayjs(time).format('YYYY-MM-DD HH:mm:ss')}>{dayjs(time).fromNow()}</Tooltip>
       ),
     },
   ];
@@ -465,24 +462,26 @@ const WorkbenchPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Page header */}
-      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div
+        style={{
+          marginBottom: spacing.lg,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             个人工作台
           </Title>
           <Text type="secondary">
-            统一运维视角 — 我的流水线 + 我的告警 + 我的工单 + 我的部署
-            {' '}
+            统一运维视角 — 我的流水线 + 我的告警 + 我的工单 + 我的部署{' '}
             <ClockCircleOutlined style={{ marginLeft: spacing.sm }} />
             最后刷新: {dayjs(lastRefresh).format('HH:mm:ss')}
           </Text>
         </div>
-        <Button
-          icon={<ReloadOutlined spin={loading} />}
-          onClick={fetchData}
-          loading={loading}
-        >
+        <Button icon={<ReloadOutlined spin={loading} />} onClick={fetchData} loading={loading}>
           刷新
         </Button>
       </div>
@@ -495,20 +494,21 @@ const WorkbenchPage: React.FC = () => {
             <Card size="small">
               <Statistic
                 title="流水线成功率"
-                value={data.myPipelines.successRate || (data.myPipelines.recentRuns.length > 0
-                  ? Math.round(
-                      (data.myPipelines.recentRuns.filter((r) => r.status === 'success').length /
-                        data.myPipelines.recentRuns.length) *
-                        100
-                    )
-                  : 0)}
+                value={
+                  data.myPipelines.successRate ||
+                  (data.myPipelines.recentRuns.length > 0
+                    ? Math.round(
+                        (data.myPipelines.recentRuns.filter((r) => r.status === 'success').length /
+                          data.myPipelines.recentRuns.length) *
+                          100
+                      )
+                    : 0)
+                }
                 suffix="%"
                 prefix={<ThunderboltOutlined />}
                 valueStyle={{
                   color:
-                    (data.myPipelines.successRate || 100) >= 90
-                      ? COLORS.success
-                      : COLORS.warning,
+                    (data.myPipelines.successRate || 100) >= 90 ? COLORS.success : COLORS.warning,
                 }}
               />
               <Text type="secondary" style={{ fontSize: spacing[2] }}>
@@ -545,9 +545,7 @@ const WorkbenchPage: React.FC = () => {
               />
               <Text type="secondary" style={{ fontSize: spacing[2] }}>
                 {data.myTickets.overdue > 0 ? (
-                  <span style={{ color: COLORS.error }}>
-                    {data.myTickets.overdue} 个超期
-                  </span>
+                  <span style={{ color: COLORS.error }}>{data.myTickets.overdue} 个超期</span>
                 ) : (
                   '无超期'
                 )}

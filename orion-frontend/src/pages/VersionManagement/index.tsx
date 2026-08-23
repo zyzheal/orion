@@ -163,20 +163,12 @@ const VersionManagement: React.FC = () => {
       render: (_: unknown, record: PipelineVersion) => (
         <Space size="small">
           <Tooltip title="回滚到此版本">
-            <Button
-              size="small"
-              icon={<RollbackOutlined />}
-              onClick={() => handleRollback(record)}
-            >
+            <Button size="small" icon={<RollbackOutlined />} onClick={() => handleRollback(record)}>
               回滚
             </Button>
           </Tooltip>
           <Tooltip title="设为基线版本">
-            <Button
-              size="small"
-              icon={<TagOutlined />}
-              onClick={() => handleSetBaseline(record)}
-            >
+            <Button size="small" icon={<TagOutlined />} onClick={() => handleSetBaseline(record)}>
               基线
             </Button>
           </Tooltip>
@@ -245,7 +237,9 @@ const VersionManagement: React.FC = () => {
             boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
           }}
         >
-          <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
+          <div
+            style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}
+          >
             <Space>
               <Button
                 type="primary"
@@ -351,7 +345,12 @@ const VersionManagement: React.FC = () => {
       </Title>
       <Text
         type="secondary"
-        style={{ marginBottom: spacing.md, display: 'block', fontSize: 14, color: colors.neutral[500] }}
+        style={{
+          marginBottom: spacing.md,
+          display: 'block',
+          fontSize: 14,
+          color: colors.neutral[500],
+        }}
       >
         管理 Pipeline、制品和部署版本，支持版本对比、回滚和基线标记
       </Text>

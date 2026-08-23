@@ -46,17 +46,25 @@ export interface GetServicesParams {
 // ==================== Service Registry CRUD ====================
 
 export function getServices(params?: GetServicesParams): Promise<ServiceInfo[]> {
-  return api.get<ServiceInfo[]>('/api/v1/service-registry/services', { params }).then((res) => res.data);
+  return api
+    .get<ServiceInfo[]>('/api/v1/service-registry/services', { params })
+    .then((res) => res.data);
 }
 
 export function registerService(payload: RegisterServicePayload): Promise<ServiceInfo> {
-  return api.post<ServiceInfo>('/api/v1/service-registry/register', payload).then((res) => res.data);
+  return api
+    .post<ServiceInfo>('/api/v1/service-registry/register', payload)
+    .then((res) => res.data);
 }
 
 export function deregisterService(serviceId: string): Promise<void> {
-  return api.delete(`/api/v1/service-registry/services/${serviceId}`).then((res) => res.data) as Promise<void>;
+  return api
+    .delete(`/api/v1/service-registry/services/${serviceId}`)
+    .then((res) => res.data) as Promise<void>;
 }
 
 export function getServiceHealth(serviceId: string): Promise<ServiceHealth> {
-  return api.get<ServiceHealth>(`/api/v1/service-registry/services/${serviceId}/health`).then((res) => res.data);
+  return api
+    .get<ServiceHealth>(`/api/v1/service-registry/services/${serviceId}/health`)
+    .then((res) => res.data);
 }

@@ -24,131 +24,137 @@ interface AgentRunListProps {
 const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove, onReject }) => {
   const navigate = useNavigate();
 
-  const runColumns: TableColumn<AgentRun>[] = useMemo<TableColumn<AgentRun>[]>(() => [
-    {
-      key: 'id',
-      title: '运行 ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (value: unknown) => (
-        <Button type="link" size="small" onClick={() => navigate(`/agent-runs/${String(value)}`)}>
-          {String(value).slice(0, 8)}...
-        </Button>
-      ),
-    },
-    {
-      key: 'triggerEvent',
-      title: '触发事件',
-      dataIndex: 'triggerEvent',
-      width: 160,
-      render: (value: unknown) => <Tag>{String(value)}</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 160,
-      render: (value: unknown) => {
-        const status = String(value);
-        return <StatusBadge status={statusToBadge[status] || 'unknown'} />;
+  const runColumns: TableColumn<AgentRun>[] = useMemo<TableColumn<AgentRun>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '运行 ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (value: unknown) => (
+          <Button type="link" size="small" onClick={() => navigate(`/agent-runs/${String(value)}`)}>
+            {String(value).slice(0, 8)}...
+          </Button>
+        ),
       },
-    },
-    {
-      key: 'progress',
-      title: '进度',
-      width: 180,
-      render: (_: unknown, record: AgentRun) => (
-        <span style={{ fontSize: spacing[3] }}>
-          步骤 {record.currentStep}/{record.totalSteps}
-        </span>
-      ),
-    },
-    {
-      key: 'startedAt',
-      title: '开始时间',
-      dataIndex: 'startedAt',
-      width: 160,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
-        </Text>
-      ),
-    },
-  ], [navigate]);
+      {
+        key: 'triggerEvent',
+        title: '触发事件',
+        dataIndex: 'triggerEvent',
+        width: 160,
+        render: (value: unknown) => <Tag>{String(value)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 160,
+        render: (value: unknown) => {
+          const status = String(value);
+          return <StatusBadge status={statusToBadge[status] || 'unknown'} />;
+        },
+      },
+      {
+        key: 'progress',
+        title: '进度',
+        width: 180,
+        render: (_: unknown, record: AgentRun) => (
+          <span style={{ fontSize: spacing[3] }}>
+            步骤 {record.currentStep}/{record.totalSteps}
+          </span>
+        ),
+      },
+      {
+        key: 'startedAt',
+        title: '开始时间',
+        dataIndex: 'startedAt',
+        width: 160,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {value ? dayjs(String(value)).format('YYYY-MM-DD HH:mm') : '-'}
+          </Text>
+        ),
+      },
+    ],
+    [navigate]
+  );
 
-  const approvalColumns: TableColumn<AgentApproval>[] = useMemo<TableColumn<AgentApproval>[]>(() => [
-    {
-      key: 'id',
-      title: '审批 ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[2] }}>
-          {String(v).slice(0, 8)}
-        </Text>
-      ),
-    },
-    {
-      key: 'agentId',
-      title: 'Agent',
-      dataIndex: 'agentId',
-      width: 120,
-      render: (v: unknown) => <Tag color="purple">{String(v).slice(0, 8)}</Tag>,
-    },
-    {
-      key: 'action',
-      title: '操作',
-      dataIndex: 'action',
-      width: 180,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'reason',
-      title: '原因',
-      dataIndex: 'reason',
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(v || '-')}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm') : '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 140,
-      render: (_v: unknown, record: AgentApproval) => (
-        <Space size="small">
-          <Button
-            type="primary"
-            size="small"
-            icon={<CheckCircleOutlined />}
-            onClick={() => onApprove(record)}
-          >
-            通过
-          </Button>
-          <Button
-            danger
-            size="small"
-            icon={<CloseCircleOutlined />}
-            onClick={() => onReject(record)}
-          >
-            拒绝
-          </Button>
-        </Space>
-      ),
-    },
-  ], [onApprove, onReject]);
+  const approvalColumns: TableColumn<AgentApproval>[] = useMemo<TableColumn<AgentApproval>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '审批 ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[2] }}>
+            {String(v).slice(0, 8)}
+          </Text>
+        ),
+      },
+      {
+        key: 'agentId',
+        title: 'Agent',
+        dataIndex: 'agentId',
+        width: 120,
+        render: (v: unknown) => <Tag color="purple">{String(v).slice(0, 8)}</Tag>,
+      },
+      {
+        key: 'action',
+        title: '操作',
+        dataIndex: 'action',
+        width: 180,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'reason',
+        title: '原因',
+        dataIndex: 'reason',
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(v || '-')}
+          </Text>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {v ? dayjs(String(v)).format('YYYY-MM-DD HH:mm') : '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 140,
+        render: (_v: unknown, record: AgentApproval) => (
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={() => onApprove(record)}
+            >
+              通过
+            </Button>
+            <Button
+              danger
+              size="small"
+              icon={<CloseCircleOutlined />}
+              onClick={() => onReject(record)}
+            >
+              拒绝
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [onApprove, onReject]
+  );
 
   return (
     <>

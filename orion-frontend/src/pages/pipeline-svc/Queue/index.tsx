@@ -356,7 +356,10 @@ const QueueManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <OrderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             队列管理
           </Title>

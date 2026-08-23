@@ -71,13 +71,19 @@ export const chaosApi = {
     return response.data as ChaosExperiment;
   },
 
-  createExperiment: async (data: { name: string; scope: Record<string, unknown>; faults: ChaosFault[] }) => {
+  createExperiment: async (data: {
+    name: string;
+    scope: Record<string, unknown>;
+    faults: ChaosFault[];
+  }) => {
     const response = await apiClient.post('/api/v1/chaos/experiments', data);
     return response.data as ChaosExperiment;
   },
 
   runExperiment: async (experimentId: string, dryRun?: boolean) => {
-    const response = await apiClient.post(`/api/v1/chaos/experiments/${experimentId}/run`, { dry_run: dryRun });
+    const response = await apiClient.post(`/api/v1/chaos/experiments/${experimentId}/run`, {
+      dry_run: dryRun,
+    });
     return response.data as ChaosRun;
   },
 

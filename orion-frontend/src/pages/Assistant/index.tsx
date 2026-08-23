@@ -280,10 +280,7 @@ const AssistantPage: React.FC = () => {
                     maxWidth: '75%',
                     padding: '10px 14px',
                     borderRadius: 10,
-                    background:
-                      m.role === 'user'
-                        ? colors.primary[500]
-                        : themeVars.bgSecondary,
+                    background: m.role === 'user' ? colors.primary[500] : themeVars.bgSecondary,
                     color: m.role === 'user' ? colors.neutral[900] : 'inherit',
                   }}
                 >
@@ -469,7 +466,10 @@ const AssistantPage: React.FC = () => {
                       icon={<PlayCircleOutlined />}
                       loading={actionLoading}
                       onClick={() => handleAction('trigger_pipeline')}
-                      style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
+                      style={{
+                        backgroundColor: colors.purple[500],
+                        borderColor: colors.purple[500],
+                      }}
                     >
                       触发研发流程 Agent (TR-09)
                     </Button>
@@ -487,7 +487,10 @@ const AssistantPage: React.FC = () => {
                       icon={<FunnelPlotOutlined />}
                       loading={actionLoading}
                       onClick={() => handleAction('generate_flow')}
-                      style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
+                      style={{
+                        backgroundColor: colors.purple[500],
+                        borderColor: colors.purple[500],
+                      }}
                     >
                       AI 生成流程 (TR-10)
                     </Button>
@@ -513,7 +516,10 @@ const AssistantPage: React.FC = () => {
                         {actionResult.steps && actionResult.steps.length > 0 && (
                           <Space direction="vertical" size={2}>
                             {actionResult.steps.map((step, i) => (
-                              <Text key={String(i)} style={{ fontSize: 12, color: colors.neutral[500] }}>
+                              <Text
+                                key={String(i)}
+                                style={{ fontSize: 12, color: colors.neutral[500] }}
+                              >
                                 {i + 1}. {step}
                               </Text>
                             ))}

@@ -14,9 +14,7 @@ vi.mock('echarts-for-react', () => ({
   ),
 }));
 
-const wrap = (ui: React.ReactElement) => (
-  <ChartProvider>{ui}</ChartProvider>
-);
+const wrap = (ui: React.ReactElement) => <ChartProvider>{ui}</ChartProvider>;
 
 describe('TrendLineChart', () => {
   const sampleData = [

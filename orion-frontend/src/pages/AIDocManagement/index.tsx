@@ -26,13 +26,41 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/console/ai-docs/spaces': { icon: <BookOutlined />, title: '知识库', subtitle: '管理 AI 知识库空间' },
-  '/console/ai-docs/documents': { icon: <FileOutlined />, title: '文档管理', subtitle: '上传和管理文档' },
-  '/console/ai-docs/rag': { icon: <QuestionCircleOutlined />, title: 'RAG 查询', subtitle: '检索增强生成查询' },
-  '/console/ai-docs/graph': { icon: <ApartmentOutlined />, title: '知识图谱', subtitle: '可视化知识关系图谱' },
-  '/console/ai-docs/eval': { icon: <BarChartOutlined />, title: '评估指标', subtitle: 'RAG 系统评估数据' },
-  '/console/ai-docs/audit': { icon: <SafetyCertificateOutlined />, title: '审计日志', subtitle: 'RAG 查询安全审计' },
-  '/console/ai-docs/rag-admin': { icon: <SettingOutlined />, title: 'RAG 管理', subtitle: '管道配置与提示词模板' },
+  '/console/ai-docs/spaces': {
+    icon: <BookOutlined />,
+    title: '知识库',
+    subtitle: '管理 AI 知识库空间',
+  },
+  '/console/ai-docs/documents': {
+    icon: <FileOutlined />,
+    title: '文档管理',
+    subtitle: '上传和管理文档',
+  },
+  '/console/ai-docs/rag': {
+    icon: <QuestionCircleOutlined />,
+    title: 'RAG 查询',
+    subtitle: '检索增强生成查询',
+  },
+  '/console/ai-docs/graph': {
+    icon: <ApartmentOutlined />,
+    title: '知识图谱',
+    subtitle: '可视化知识关系图谱',
+  },
+  '/console/ai-docs/eval': {
+    icon: <BarChartOutlined />,
+    title: '评估指标',
+    subtitle: 'RAG 系统评估数据',
+  },
+  '/console/ai-docs/audit': {
+    icon: <SafetyCertificateOutlined />,
+    title: '审计日志',
+    subtitle: 'RAG 查询安全审计',
+  },
+  '/console/ai-docs/rag-admin': {
+    icon: <SettingOutlined />,
+    title: 'RAG 管理',
+    subtitle: '管道配置与提示词模板',
+  },
 };
 
 const AIDocManagementLayout: React.FC = () => {
@@ -61,12 +89,14 @@ const AIDocManagementLayout: React.FC = () => {
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-              {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+              {pageInfo.icon && (
+                <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                  {pageInfo.icon}
+                </span>
+              )}
               {pageInfo.title}
             </Title>
-            {pageInfo.subtitle && (
-              <Text type="secondary">{pageInfo.subtitle}</Text>
-            )}
+            {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
           </div>
         )}
         <Spin spinning={loading}>

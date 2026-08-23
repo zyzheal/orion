@@ -17,7 +17,11 @@ vi.mock('antd', async () => {
   return {
     ...actual,
     Drawer: ({ children, open, ...props }: any) =>
-      React.createElement('div', { 'data-testid': 'drawer', 'data-open': open, ...props }, children),
+      React.createElement(
+        'div',
+        { 'data-testid': 'drawer', 'data-open': open, ...props },
+        children
+      ),
     Badge: ({ count, status }: any) =>
       React.createElement('span', {
         'data-testid': 'badge',

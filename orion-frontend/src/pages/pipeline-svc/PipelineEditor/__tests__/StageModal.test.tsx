@@ -124,9 +124,7 @@ describe('StageModal', () => {
       type: 'test',
       qualityGateConfig: {
         enabled: true,
-        rules: [
-          { id: 'rule-1', metric: 'test_pass_rate', operator: '>=', threshold: 95 },
-        ],
+        rules: [{ id: 'rule-1', metric: 'test_pass_rate', operator: '>=', threshold: 95 }],
         failureAction: 'block',
       },
     };

@@ -4,32 +4,67 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select, DatePicker,
-  Descriptions, Timeline, Card, Divider, InputNumber,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  Descriptions,
+  Timeline,
+  Card,
+  Divider,
+  InputNumber,
 } from 'antd';
 import {
-  ReloadOutlined, EyeOutlined, SearchOutlined, ClearOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  SearchOutlined,
+  ClearOutlined,
   AuditOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import {
-  getAuditLogs, getRunAuditTrail, cleanupAuditLogs,
-  type PipelineAuditLog, type AuditLogFilter, type AuditAction, type AuditOutcome,
+  getAuditLogs,
+  getRunAuditTrail,
+  cleanupAuditLogs,
+  type PipelineAuditLog,
+  type AuditLogFilter,
+  type AuditAction,
+  type AuditOutcome,
   type AuditTrailEntry,
 } from '@/api/audit-logs';
 
 const { Title, Text } = Typography;
 
 const actionColor: Record<string, string> = {
-  'stage.start': 'blue', 'stage.complete': 'green', 'stage.fail': 'red', 'stage.skip': 'orange',
-  'task.start': 'blue', 'task.complete': 'green', 'task.fail': 'red', 'task.skip': 'orange',
-  'approval.request': 'purple', 'approval.approve': 'green', 'approval.reject': 'red',
-  'trigger.fire': 'cyan', 'run.create': 'blue', 'run.cancel': 'red', 'run.complete': 'green',
+  'stage.start': 'blue',
+  'stage.complete': 'green',
+  'stage.fail': 'red',
+  'stage.skip': 'orange',
+  'task.start': 'blue',
+  'task.complete': 'green',
+  'task.fail': 'red',
+  'task.skip': 'orange',
+  'approval.request': 'purple',
+  'approval.approve': 'green',
+  'approval.reject': 'red',
+  'trigger.fire': 'cyan',
+  'run.create': 'blue',
+  'run.cancel': 'red',
+  'run.complete': 'green',
 };
 
 const outcomeIcon: Record<string, string> = {
-  success: '✓', failed: '✗', pending: '⋯',
+  success: '✓',
+  failed: '✗',
+  pending: '⋯',
 };
 
 const AuditLogsPage: React.FC = () => {
@@ -68,11 +103,20 @@ const AuditLogsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadLogs(); }, [page]);
+  useEffect(() => {
+    loadLogs();
+  }, [page]);
 
-  const handleSearch = () => { setPage(1); loadLogs(); };
+  const handleSearch = () => {
+    setPage(1);
+    loadLogs();
+  };
 
-  const handleReset = () => { form.resetFields(); setPage(1); loadLogs(); };
+  const handleReset = () => {
+    form.resetFields();
+    setPage(1);
+    loadLogs();
+  };
 
   const handleViewDetail = async (log: PipelineAuditLog) => {
     if (!log.runId) {
@@ -161,19 +205,30 @@ const AuditLogsPage: React.FC = () => {
       title: 'Run ID',
       dataIndex: 'runId',
       width: 100,
-      render: (v: string) => <Text code style={{ fontSize: 11 }}>{v.slice(0, 12)}...</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 11 }}>
+          {v.slice(0, 12)}...
+        </Text>
+      ),
     },
     {
       title: 'Error',
       dataIndex: 'errorMessage',
       ellipsis: true,
-      render: (v: string) => v ? <Text type="danger" style={{ fontSize: 12 }}>{v}</Text> : '-',
+      render: (v: string) =>
+        v ? (
+          <Text type="danger" style={{ fontSize: 12 }}>
+            {v}
+          </Text>
+        ) : (
+          '-'
+        ),
     },
     {
       title: 'Duration',
       dataIndex: 'durationMs',
       width: 90,
-      render: (v: number) => v ? `${v}ms` : '-',
+      render: (v: number) => (v ? `${v}ms` : '-'),
     },
     {
       title: '操作',
@@ -188,7 +243,9 @@ const AuditLogsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <div style={{ flex: 1 }}>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <AuditOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
@@ -221,12 +278,10 @@ const AuditLogsPage: React.FC = () => {
             <Input placeholder="Run ID" style={{ width: 180 }} />
           </Form.Item>
           <Form.Item name="action" label="Action">
-            <Select placeholder="全部" allowClear style={{ width: 150 }}
-              options={allActions} />
+            <Select placeholder="全部" allowClear style={{ width: 150 }} options={allActions} />
           </Form.Item>
           <Form.Item name="outcome" label="Outcome">
-            <Select placeholder="全部" allowClear style={{ width: 120 }}
-              options={allOutcomes} />
+            <Select placeholder="全部" allowClear style={{ width: 120 }} options={allOutcomes} />
           </Form.Item>
           <Form.Item name="dateRange" label="时间范围">
             <DatePicker.RangePicker showTime />
@@ -275,13 +330,27 @@ const AuditLogsPage: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Actor">{selectedLog.actor}</Descriptions.Item>
               <Descriptions.Item label="Outcome">
-                <Tag color={selectedLog.outcome === 'success' ? 'green' : selectedLog.outcome === 'failed' ? 'red' : 'orange'}>
+                <Tag
+                  color={
+                    selectedLog.outcome === 'success'
+                      ? 'green'
+                      : selectedLog.outcome === 'failed'
+                        ? 'red'
+                        : 'orange'
+                  }
+                >
                   {selectedLog.outcome}
                 </Tag>
               </Descriptions.Item>
-              {selectedLog.stageId && <Descriptions.Item label="Stage ID">{selectedLog.stageId}</Descriptions.Item>}
-              {selectedLog.taskId && <Descriptions.Item label="Task ID">{selectedLog.taskId}</Descriptions.Item>}
-              {selectedLog.durationMs && <Descriptions.Item label="Duration">{selectedLog.durationMs}ms</Descriptions.Item>}
+              {selectedLog.stageId && (
+                <Descriptions.Item label="Stage ID">{selectedLog.stageId}</Descriptions.Item>
+              )}
+              {selectedLog.taskId && (
+                <Descriptions.Item label="Task ID">{selectedLog.taskId}</Descriptions.Item>
+              )}
+              {selectedLog.durationMs && (
+                <Descriptions.Item label="Duration">{selectedLog.durationMs}ms</Descriptions.Item>
+              )}
               {selectedLog.errorMessage && (
                 <Descriptions.Item label="Error" span={2} style={{ color: colors.error[500] }}>
                   {selectedLog.errorMessage}
@@ -298,7 +367,13 @@ const AuditLogsPage: React.FC = () => {
                 {trail.map((entry) => (
                   <Timeline.Item
                     key={entry.id}
-                    color={entry.outcome === 'success' ? 'green' : entry.outcome === 'failed' ? 'red' : 'gray'}
+                    color={
+                      entry.outcome === 'success'
+                        ? 'green'
+                        : entry.outcome === 'failed'
+                          ? 'red'
+                          : 'gray'
+                    }
                   >
                     <Text strong>{entry.action}</Text>
                     <Text type="secondary" style={{ marginLeft: 8 }}>
@@ -306,7 +381,9 @@ const AuditLogsPage: React.FC = () => {
                     </Text>
                     {entry.durationMs && <Text type="secondary"> · {entry.durationMs}ms</Text>}
                     {entry.errorMessage && (
-                      <div style={{ color: colors.error[500], marginTop: 4, fontSize: 12 }}>{entry.errorMessage}</div>
+                      <div style={{ color: colors.error[500], marginTop: 4, fontSize: 12 }}>
+                        {entry.errorMessage}
+                      </div>
                     )}
                   </Timeline.Item>
                 ))}

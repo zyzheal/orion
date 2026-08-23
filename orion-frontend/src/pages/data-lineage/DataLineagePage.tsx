@@ -174,7 +174,9 @@ export default function DataLineageEnhancedPage() {
 
       // Build adjacency for upstream/downstream
       const adj: Record<string, { from: string[]; to: string[] }> = {};
-      graph.nodes.forEach((n) => { adj[n.id] = { from: [], to: [] }; });
+      graph.nodes.forEach((n) => {
+        adj[n.id] = { from: [], to: [] };
+      });
       displayEdges.forEach((e) => {
         if (adj[e.from]) adj[e.from].to.push(e.to);
         if (adj[e.to]) adj[e.to].from.push(e.from);
@@ -245,10 +247,7 @@ export default function DataLineageEnhancedPage() {
         const cfg = nodeTypeConfig[record.type] || nodeTypeConfig.source;
         return (
           <Space>
-            <Badge
-              dot={false}
-              count={null}
-            />
+            <Badge dot={false} count={null} />
             <span style={{ color: colors.primary[500] }}>{cfg.icon}</span>
             <div>
               <Text strong>{record.name}</Text>
@@ -287,12 +286,14 @@ export default function DataLineageEnhancedPage() {
       width: 140,
       render: (_: unknown, record: DisplayNode) => (
         <Space size="small" wrap>
-          {record.upstreamIds.length > 0
-            ? record.upstreamIds.map((uId) => {
-                const u = nodes.find((n) => n.id === uId);
-                return u ? <Tag key={uId}>{u.name}</Tag> : null;
-              })
-            : <Text type="secondary">—</Text>}
+          {record.upstreamIds.length > 0 ? (
+            record.upstreamIds.map((uId) => {
+              const u = nodes.find((n) => n.id === uId);
+              return u ? <Tag key={uId}>{u.name}</Tag> : null;
+            })
+          ) : (
+            <Text type="secondary">—</Text>
+          )}
         </Space>
       ),
     },
@@ -302,12 +303,18 @@ export default function DataLineageEnhancedPage() {
       width: 140,
       render: (_: unknown, record: DisplayNode) => (
         <Space size="small" wrap>
-          {record.downstreamIds.length > 0
-            ? record.downstreamIds.map((dId) => {
-                const d = nodes.find((n) => n.id === dId);
-                return d ? <Tag key={dId} color="green">{d.name}</Tag> : null;
-              })
-            : <Text type="secondary">—</Text>}
+          {record.downstreamIds.length > 0 ? (
+            record.downstreamIds.map((dId) => {
+              const d = nodes.find((n) => n.id === dId);
+              return d ? (
+                <Tag key={dId} color="green">
+                  {d.name}
+                </Tag>
+              ) : null;
+            })
+          ) : (
+            <Text type="secondary">—</Text>
+          )}
         </Space>
       ),
     },
@@ -323,7 +330,12 @@ export default function DataLineageEnhancedPage() {
       width: 160,
       render: (_: unknown, record: ApiLineageNode) => (
         <Space size="small">
-          <Button size="small" type="primary" icon={<ThunderboltOutlined />} onClick={() => openNodeDetail(record)}>
+          <Button
+            size="small"
+            type="primary"
+            icon={<ThunderboltOutlined />}
+            onClick={() => openNodeDetail(record)}
+          >
             影响分析
           </Button>
         </Space>
@@ -338,7 +350,11 @@ export default function DataLineageEnhancedPage() {
           title: '列名',
           dataIndex: 'name',
           key: 'name',
-          render: (v: string) => <Text code strong>{v}</Text>,
+          render: (v: string) => (
+            <Text code strong>
+              {v}
+            </Text>
+          ),
         },
         {
           title: '类型',
@@ -350,13 +366,15 @@ export default function DataLineageEnhancedPage() {
           title: '上游来源',
           dataIndex: 'upstreamSource',
           key: 'upstreamSource',
-          render: (v: string | undefined) => (v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>),
+          render: (v: string | undefined) =>
+            v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>,
         },
         {
           title: '上游列',
           dataIndex: 'upstreamColumn',
           key: 'upstreamColumn',
-          render: (v: string | undefined) => (v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>),
+          render: (v: string | undefined) =>
+            v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>,
         },
         {
           title: '转换',
@@ -429,7 +447,11 @@ export default function DataLineageEnhancedPage() {
         <Card
           title={`Edge Mappings — ${selectedNode.name}`}
           style={{ marginBottom: spacing.md }}
-          extra={<Button size="small" onClick={() => setSelectedNode(null)}>Close</Button>}
+          extra={
+            <Button size="small" onClick={() => setSelectedNode(null)}>
+              Close
+            </Button>
+          }
         >
           <Table
             columns={[
@@ -455,7 +477,9 @@ export default function DataLineageEnhancedPage() {
                   return (
                     <Space size="small" wrap>
                       {Object.entries(fm).map(([k, v]) => (
-                        <Tag key={String(k)} color="cyan">{k} → {v}</Tag>
+                        <Tag key={String(k)} color="cyan">
+                          {k} → {v}
+                        </Tag>
                       ))}
                     </Space>
                   );
@@ -465,15 +489,17 @@ export default function DataLineageEnhancedPage() {
                 title: '',
                 key: 'action',
                 render: (_: unknown, record: LineageEdge) => (
-                  <Button size="small" icon={<LinkOutlined />} onClick={() => openEdgeMapping(record)}>
+                  <Button
+                    size="small"
+                    icon={<LinkOutlined />}
+                    onClick={() => openEdgeMapping(record)}
+                  >
                     Detail
                   </Button>
                 ),
               },
             ]}
-            dataSource={edges.filter(
-              (e) => e.from === selectedNode.id || e.to === selectedNode.id,
-            )}
+            dataSource={edges.filter((e) => e.from === selectedNode.id || e.to === selectedNode.id)}
             rowKey="id"
             pagination={false}
             size="small"
@@ -494,7 +520,9 @@ export default function DataLineageEnhancedPage() {
               style={{ width: 160 }}
             >
               {pipelineList.map((p) => (
-                <Option key={p.key} value={p.key}>{p.label}</Option>
+                <Option key={p.key} value={p.key}>
+                  {p.label}
+                </Option>
               ))}
             </Select>
             <Input
@@ -513,7 +541,9 @@ export default function DataLineageEnhancedPage() {
               style={{ width: 110 }}
             >
               {Object.entries(nodeTypeConfig).map(([k, v]) => (
-                <Option key={String(k)} value={k}>{v.label}</Option>
+                <Option key={String(k)} value={k}>
+                  {v.label}
+                </Option>
               ))}
             </Select>
             <Button icon={<ReloadOutlined />} onClick={fetchLineage} loading={loading}>
@@ -589,7 +619,9 @@ export default function DataLineageEnhancedPage() {
                   {(nodeTypeConfig[selectedNode.type] || nodeTypeConfig.source).label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Pipeline">{selectedNode.pipelineId || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Pipeline">
+                {selectedNode.pipelineId || '—'}
+              </Descriptions.Item>
               <Descriptions.Item label="描述">{selectedNode.description || '—'}</Descriptions.Item>
             </Descriptions>
           )}
@@ -651,15 +683,22 @@ export default function DataLineageEnhancedPage() {
                 />
               )}
             </Panel>
-            <Panel header={`受影响的 Pipelines (${impactData?.affectedPipelines.length ?? 0})`} key="pipelines">
+            <Panel
+              header={`受影响的 Pipelines (${impactData?.affectedPipelines.length ?? 0})`}
+              key="pipelines"
+            >
               <Space size="small" wrap>
                 {(() => {
                   const pipelines = impactData?.affectedPipelines ?? [];
-                  return pipelines.length > 0
-                    ? pipelines.map((p) => (
-                      <Tag key={p} color="warning">{p}</Tag>
+                  return pipelines.length > 0 ? (
+                    pipelines.map((p) => (
+                      <Tag key={p} color="warning">
+                        {p}
+                      </Tag>
                     ))
-                    : <Text type="secondary">无受影响 Pipeline</Text>
+                  ) : (
+                    <Text type="secondary">无受影响 Pipeline</Text>
+                  );
                 })()}
               </Space>
             </Panel>
@@ -683,13 +722,15 @@ export default function DataLineageEnhancedPage() {
               <Tag>{edgeMapping.relationship.toUpperCase()}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Field Mapping">
-              {edgeMapping.fieldMapping && Object.keys(edgeMapping.fieldMapping).length > 0
-                ? Object.entries(edgeMapping.fieldMapping).map(([k, v]) => (
-                    <div key={String(k)}>
-                      <Text code>{k}</Text> → <Text code>{v}</Text>
-                    </div>
-                  ))
-                : <Text type="secondary">无字段映射</Text>}
+              {edgeMapping.fieldMapping && Object.keys(edgeMapping.fieldMapping).length > 0 ? (
+                Object.entries(edgeMapping.fieldMapping).map(([k, v]) => (
+                  <div key={String(k)}>
+                    <Text code>{k}</Text> → <Text code>{v}</Text>
+                  </div>
+                ))
+              ) : (
+                <Text type="secondary">无字段映射</Text>
+              )}
             </Descriptions.Item>
           </Descriptions>
         )}

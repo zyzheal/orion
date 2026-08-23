@@ -57,7 +57,9 @@ export const disasterRecoveryApi = {
   },
 
   executeFailoverTest: async (planId: string) => {
-    const response = await apiClient.post(`/api/v1/disaster-recovery/plans/${planId}/failover-test`);
+    const response = await apiClient.post(
+      `/api/v1/disaster-recovery/plans/${planId}/failover-test`
+    );
     return response.data as FailoverTest;
   },
 
@@ -67,7 +69,10 @@ export const disasterRecoveryApi = {
   },
 
   executeFailover: async (planId: string, data?: { reason?: string; dryRun?: boolean }) => {
-    const response = await apiClient.post(`/api/v1/disaster-recovery/plans/${planId}/failover`, data);
+    const response = await apiClient.post(
+      `/api/v1/disaster-recovery/plans/${planId}/failover`,
+      data
+    );
     return response.data;
   },
 

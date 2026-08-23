@@ -17,7 +17,12 @@ import {
   message,
   Radio,
 } from 'antd';
-import { CheckOutlined, CloseOutlined, ReloadOutlined, CheckCircleOutlined,} from '@ant-design/icons';
+import {
+  CheckOutlined,
+  CloseOutlined,
+  ReloadOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons';
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
 import dayjs from 'dayjs';

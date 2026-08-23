@@ -28,13 +28,7 @@ const QUICK_LINKS = [
   { path: '/tickets', label: '工单系统', icon: <SettingOutlined /> },
 ];
 
-const SEARCH_SUGGESTIONS = [
-  'Pipeline 配置',
-  '告警规则',
-  '工单查询',
-  '部署管理',
-  'CMDB 配置项',
-];
+const SEARCH_SUGGESTIONS = ['Pipeline 配置', '告警规则', '工单查询', '部署管理', 'CMDB 配置项'];
 
 const NotFound: React.FC = () => {
   const navigate = useNavigate();
@@ -81,10 +75,17 @@ const NotFound: React.FC = () => {
               </Text>
             }
             extra={
-              <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: spacing.lg }}>
+              <Space
+                direction="vertical"
+                size="middle"
+                style={{ width: '100%', marginTop: spacing.lg }}
+              >
                 {/* 搜索框 */}
                 <div>
-                  <Text type="secondary" style={{ display: 'block', marginBottom: spacing.sm, textAlign: 'left' }}>
+                  <Text
+                    type="secondary"
+                    style={{ display: 'block', marginBottom: spacing.sm, textAlign: 'left' }}
+                  >
                     尝试搜索：
                   </Text>
                   <Input
@@ -100,7 +101,10 @@ const NotFound: React.FC = () => {
 
                 {/* 搜索建议 */}
                 <div style={{ textAlign: 'left' }}>
-                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+                  <Text
+                    type="secondary"
+                    style={{ fontSize: 12, display: 'block', marginBottom: 8 }}
+                  >
                     热门搜索：
                   </Text>
                   <Space wrap>

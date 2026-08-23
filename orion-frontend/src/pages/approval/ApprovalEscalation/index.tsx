@@ -92,10 +92,7 @@ const formatWaitTime = (minutes: number): string => {
   return m > 0 ? `${h} 小时 ${m} 分钟` : `${h} 小时`;
 };
 
-const statusConfig: Record<
-  EscalationStatus,
-  { label: string; color: string; bgColor: string }
-> = {
+const statusConfig: Record<EscalationStatus, { label: string; color: string; bgColor: string }> = {
   normal: { label: '正常', color: colors.success[500], bgColor: colors.success[50] },
   warning: { label: '即将超时', color: colors.warning[500], bgColor: colors.warning[50] },
   timeout: { label: '已超时', color: colors.error[500], bgColor: colors.error[50] },
@@ -236,7 +233,15 @@ const TrendChart: React.FC<{ data: TrendDay[] }> = ({ data }) => {
         <text x={padding.left + 18} y={9} fontSize={11} fill={colors.neutral[600]}>
           平均审批时长
         </text>
-        <line x1={padding.left + 140} y1={6} x2={padding.left + 152} y2={6} stroke={colors.success[500]} strokeDasharray="4,2" strokeWidth={2} />
+        <line
+          x1={padding.left + 140}
+          y1={6}
+          x2={padding.left + 152}
+          y2={6}
+          stroke={colors.success[500]}
+          strokeDasharray="4,2"
+          strokeWidth={2}
+        />
         <text x={padding.left + 158} y={9} fontSize={11} fill={colors.neutral[600]}>
           SLA 达标率
         </text>
@@ -350,9 +355,7 @@ const EscalationRulesCard: React.FC = () => {
     setRules((prev) =>
       prev.map((r) => {
         if (r.id === id) {
-          message.success(
-            `规则「${r.name}」已${r.enabled ? '停用' : '启用'}`
-          );
+          message.success(`规则「${r.name}」已${r.enabled ? '停用' : '启用'}`);
           return { ...r, enabled: !r.enabled };
         }
         return r;
@@ -368,8 +371,7 @@ const EscalationRulesCard: React.FC = () => {
         id: `r${rules.length + 1}`,
         name: values.name,
         threshold: `${values.thresholdUnit === 'min' ? '分钟' : '小时'} ${values.threshold}`,
-        thresholdMinutes:
-          values.thresholdUnit === 'min' ? values.threshold : values.threshold * 60,
+        thresholdMinutes: values.thresholdUnit === 'min' ? values.threshold : values.threshold * 60,
         action: values.action,
         enabled: true,
         priority: rules.length + 1,
@@ -416,9 +418,7 @@ const EscalationRulesCard: React.FC = () => {
               key={rule.id}
               size="small"
               style={{
-                background: rule.enabled
-                  ? colors.primary[50]
-                  : colors.neutral[50],
+                background: rule.enabled ? colors.primary[50] : colors.neutral[50],
                 borderRadius: spacing.sm,
               }}
             >
@@ -435,10 +435,7 @@ const EscalationRulesCard: React.FC = () => {
                     <Text strong style={{ fontSize: 14 }}>
                       {rule.name}
                     </Text>
-                    <Tag
-                      color={rule.enabled ? 'processing' : 'default'}
-                      style={{ fontSize: 11 }}
-                    >
+                    <Tag color={rule.enabled ? 'processing' : 'default'} style={{ fontSize: 11 }}>
                       {rule.enabled ? '启用中' : '已停用'}
                     </Tag>
                   </div>
@@ -450,10 +447,7 @@ const EscalationRulesCard: React.FC = () => {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <Tag
-                      color="orange"
-                      style={{ fontSize: 11 }}
-                    >
+                    <Tag color="orange" style={{ fontSize: 11 }}>
                       {rule.threshold}
                     </Tag>
                     <ArrowUpOutlined
@@ -487,18 +481,16 @@ const EscalationRulesCard: React.FC = () => {
           createForm.resetFields();
         }}
         footer={[
-          <Button key="cancel" onClick={() => {
-            setCreateModalVisible(false);
-            createForm.resetFields();
-          }}>
+          <Button
+            key="cancel"
+            onClick={() => {
+              setCreateModalVisible(false);
+              createForm.resetFields();
+            }}
+          >
             取消
           </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            loading={submitting}
-            onClick={handleCreateRule}
-          >
+          <Button key="submit" type="primary" loading={submitting} onClick={handleCreateRule}>
             创建规则
           </Button>,
         ]}
@@ -534,10 +526,7 @@ const EscalationRulesCard: React.FC = () => {
             name="action"
             rules={[{ required: true, message: '请输入升级动作' }]}
           >
-            <Input.TextArea
-              rows={2}
-              placeholder="例如：通知项目经理"
-            />
+            <Input.TextArea rows={2} placeholder="例如：通知项目经理" />
           </Form.Item>
         </Form>
       </Modal>
@@ -592,7 +581,8 @@ const TrendCard: React.FC = () => {
           <Text type="secondary" style={{ fontSize: 12 }}>
             较前一日{' '}
             <span style={{ color: slaChange >= 0 ? colors.success[500] : colors.error[500] }}>
-              {slaChange >= 0 ? '+' : ''}{slaChange}%
+              {slaChange >= 0 ? '+' : ''}
+              {slaChange}%
             </span>
           </Text>
         </Col>
@@ -619,9 +609,7 @@ const ApprovalEscalation: React.FC = () => {
   });
 
   const handleEscalate = (record: ApprovalRecord) => {
-    message.success(
-      `审批单 ${record.requestNo} 已手动升级至上一级审批人`
-    );
+    message.success(`审批单 ${record.requestNo} 已手动升级至上一级审批人`);
   };
 
   const handleUrgent = (record: ApprovalRecord) => {
@@ -671,11 +659,15 @@ const ApprovalEscalation: React.FC = () => {
       width: 110,
       render: (minutes: number) => {
         const color =
-          minutes > 180 ? colors.purple[500] : minutes > 90 ? colors.error[500] : minutes > 30 ? colors.warning[500] : colors.success[500];
+          minutes > 180
+            ? colors.purple[500]
+            : minutes > 90
+              ? colors.error[500]
+              : minutes > 30
+                ? colors.warning[500]
+                : colors.success[500];
         return (
-          <Text style={{ color, fontWeight: 600, fontSize: 14 }}>
-            {formatWaitTime(minutes)}
-          </Text>
+          <Text style={{ color, fontWeight: 600, fontSize: 14 }}>{formatWaitTime(minutes)}</Text>
         );
       },
     },
@@ -742,9 +734,7 @@ const ApprovalEscalation: React.FC = () => {
       }}
     >
       <Title level={2} style={{ marginBottom: 8 }}>
-        <ClockCircleOutlined
-          style={{ marginRight: 12, color: colors.warning[500] }}
-        />
+        <ClockCircleOutlined style={{ marginRight: 12, color: colors.warning[500] }} />
         审批超时升级
       </Title>
       <Text type="secondary">SLA 监控 · 超时自动升级 · 审批时效分析</Text>
@@ -850,18 +840,12 @@ const ApprovalEscalation: React.FC = () => {
                   {selectedRecord.requestNo}
                 </Text>
               </Descriptions.Item>
-              <Descriptions.Item label="审批类型">
-                {selectedRecord.approvalType}
-              </Descriptions.Item>
+              <Descriptions.Item label="审批类型">{selectedRecord.approvalType}</Descriptions.Item>
               <Descriptions.Item label="申请人">
                 {selectedRecord.applicant}（{selectedRecord.department}）
               </Descriptions.Item>
-              <Descriptions.Item label="当前审批人">
-                {selectedRecord.approver}
-              </Descriptions.Item>
-              <Descriptions.Item label="提交时间">
-                {selectedRecord.submitTime}
-              </Descriptions.Item>
+              <Descriptions.Item label="当前审批人">{selectedRecord.approver}</Descriptions.Item>
+              <Descriptions.Item label="提交时间">{selectedRecord.submitTime}</Descriptions.Item>
               <Descriptions.Item label="已等待">
                 <Text
                   style={{
@@ -873,9 +857,7 @@ const ApprovalEscalation: React.FC = () => {
                   {formatWaitTime(selectedRecord.waitMinutes)}
                 </Text>
               </Descriptions.Item>
-              <Descriptions.Item label="SLA 时限">
-                {selectedRecord.slaLimit}
-              </Descriptions.Item>
+              <Descriptions.Item label="SLA 时限">{selectedRecord.slaLimit}</Descriptions.Item>
               <Descriptions.Item label="当前状态">
                 {statusTag(selectedRecord.status)}
               </Descriptions.Item>
@@ -885,11 +867,9 @@ const ApprovalEscalation: React.FC = () => {
 
             <Text type="secondary" style={{ fontSize: 13 }}>
               <Paragraph>
-                <ExclamationCircleOutlined
-                  style={{ color: colors.warning[500], marginRight: 4 }}
-                />
-                此审批单已等待 {formatWaitTime(selectedRecord.waitMinutes)}，
-                已超过 SLA 时限（{selectedRecord.slaLimit}）。
+                <ExclamationCircleOutlined style={{ color: colors.warning[500], marginRight: 4 }} />
+                此审批单已等待 {formatWaitTime(selectedRecord.waitMinutes)}， 已超过 SLA 时限（
+                {selectedRecord.slaLimit}）。
                 {selectedRecord.status === 'escalated'
                   ? ' 已触发自动升级，当前处理人为上级审批人。'
                   : selectedRecord.status === 'timeout'
@@ -913,27 +893,19 @@ const ApprovalEscalation: React.FC = () => {
                 items={[
                   {
                     color: colors.primary[500],
-                    children: (
-                      <Text>{selectedRecord.approver}（当前审批人）</Text>
-                    ),
+                    children: <Text>{selectedRecord.approver}（当前审批人）</Text>,
                   },
                   {
                     color: colors.warning[500],
-                    children: (
-                      <Text>直属上级（一级升级）</Text>
-                    ),
+                    children: <Text>直属上级（一级升级）</Text>,
                   },
                   {
                     color: colors.error[500],
-                    children: (
-                      <Text>部门负责人（二级升级）</Text>
-                    ),
+                    children: <Text>部门负责人（二级升级）</Text>,
                   },
                   {
                     color: colors.purple[500],
-                    children: (
-                      <Text>管理层（三级升级）</Text>
-                    ),
+                    children: <Text>管理层（三级升级）</Text>,
                   },
                 ]}
               />

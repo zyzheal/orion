@@ -42,11 +42,7 @@ describe('StatCard', () => {
   it('shows downward trend with negative direction', () => {
     render(
       wrap(
-        <StatCard
-          title="Errors"
-          value={5}
-          trend={{ value: 3.2, direction: 'down', good: 'up' }}
-        />
+        <StatCard title="Errors" value={5} trend={{ value: 3.2, direction: 'down', good: 'up' }} />
       )
     );
     expect(screen.getByText('-3.2%')).toBeTruthy();
@@ -54,13 +50,7 @@ describe('StatCard', () => {
 
   it('renders sparkline when data provided', () => {
     render(
-      wrap(
-        <StatCard
-          title="Requests"
-          value={500}
-          sparklineData={[10, 20, 15, 30, 25, 40, 35]}
-        />
-      )
+      wrap(<StatCard title="Requests" value={500} sparklineData={[10, 20, 15, 30, 25, 40, 35]} />)
     );
     const chart = screen.getByTestId('stat-card-sparkline');
     expect(chart).toBeTruthy();

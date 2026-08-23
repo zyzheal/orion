@@ -7,7 +7,12 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Tag, Button, Space, Modal, Form, Input, Select, message } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getProjectMembers, addProjectMember, removeProjectMember, type ProjectMember } from '@/api/project-member';
+import {
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  type ProjectMember,
+} from '@/api/project-member';
 import { spacing } from '@/tokens';
 
 const { Option } = Select;
@@ -96,7 +101,13 @@ const ProjectMemberManagement: React.FC<Props> = ({ projectId: propProjectId }) 
       key: 'action',
       width: 100,
       render: (_: any, record: ProjectMember) => (
-        <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleRemove(record.user_id)}>
+        <Button
+          type="link"
+          size="small"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemove(record.user_id)}
+        >
           移除
         </Button>
       ),
@@ -112,20 +123,44 @@ const ProjectMemberManagement: React.FC<Props> = ({ projectId: propProjectId }) 
             <Input.Search
               placeholder="输入项目ID"
               defaultValue={projectId}
-              onSearch={(val) => { setProjectId(val); }}
+              onSearch={(val) => {
+                setProjectId(val);
+              }}
               style={{ width: 200 }}
             />
-            <Button icon={<ReloadOutlined />} onClick={fetchMembers}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>添加成员</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchMembers}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+              添加成员
+            </Button>
           </Space>
         }
       >
-        <Table dataSource={members} columns={columns} rowKey="user_id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table
+          dataSource={members}
+          columns={columns}
+          rowKey="user_id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
-      <Modal title="添加项目成员" open={modalOpen} onOk={handleAdd} onCancel={() => { setModalOpen(false); form.resetFields(); }}>
+      <Modal
+        title="添加项目成员"
+        open={modalOpen}
+        onOk={handleAdd}
+        onCancel={() => {
+          setModalOpen(false);
+          form.resetFields();
+        }}
+      >
         <Form form={form} layout="vertical">
-          <Form.Item name="userId" label="用户ID" rules={[{ required: true, message: '请输入用户ID' }]}>
+          <Form.Item
+            name="userId"
+            label="用户ID"
+            rules={[{ required: true, message: '请输入用户ID' }]}
+          >
             <Input placeholder="请输入用户ID" />
           </Form.Item>
           <Form.Item name="role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>

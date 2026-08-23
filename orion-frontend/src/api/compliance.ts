@@ -83,7 +83,12 @@ export interface AuditFinding {
 
 export const complianceApi = {
   // Compliance Policies
-  definePolicy: async (data: { name: string; framework: string; description: string; rules: ComplianceRule[] }) => {
+  definePolicy: async (data: {
+    name: string;
+    framework: string;
+    description: string;
+    rules: ComplianceRule[];
+  }) => {
     const response = await apiClient.post(API_PATHS.COMPLIANCE.POLICIES, data);
     return response.data as CompliancePolicy;
   },

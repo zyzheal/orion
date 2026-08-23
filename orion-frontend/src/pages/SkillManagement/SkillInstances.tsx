@@ -195,106 +195,126 @@ const SkillInstances: React.FC = () => {
     return instances;
   }, [instances]);
 
-  const columns: TableColumn<SkillInstance>[] = useMemo<TableColumn<SkillInstance>[]>(() => [
-    {
-      key: 'name',
-      title: '实例名称',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown, record) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{String(v)}</Text>
-          {record.description && (
-            <Text type="secondary" style={{ fontSize: spacing[2] }}>
-              {record.description.slice(0, 50)}
-            </Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v);
-        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
-          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'error' ? 'failed' : 'pending';
-        return <StatusBadge status={badgeStatus} size="small" />;
+  const columns: TableColumn<SkillInstance>[] = useMemo<TableColumn<SkillInstance>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '实例名称',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown, record) => (
+          <Space direction="vertical" size={0}>
+            <Text strong>{String(v)}</Text>
+            {record.description && (
+              <Text type="secondary" style={{ fontSize: spacing[2] }}>
+                {record.description.slice(0, 50)}
+              </Text>
+            )}
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (v: unknown) => (v ? <Tag>v{String(v)}</Tag> : <Text type="secondary">默认</Text>),
-    },
-    {
-      key: 'projectId',
-      title: '项目',
-      dataIndex: 'projectId',
-      width: 140,
-      render: (v: unknown) =>
-        v ? <Tag color="blue">{String(v)}</Tag> : <Text type="secondary">全部项目</Text>,
-    },
-    {
-      key: 'isDefault',
-      title: '默认实例',
-      dataIndex: 'isDefault',
-      width: 100,
-      render: (v: unknown) =>
-        v ? <Tag color="green">默认</Tag> : <Text type="secondary">-</Text>,
-    },
-    {
-      key: 'tenantId',
-      title: '租户',
-      dataIndex: 'tenantId',
-      width: 120,
-      render: (v: unknown) => <Text code style={{ fontSize: spacing[2] }}>{String(v)}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[2] }}>
-          {new Date(String(v)).toLocaleString('zh-CN')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 140,
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            loading={deletingId === record.id}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleOpenEdit]);
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v);
+          const badgeStatus:
+            | 'running'
+            | 'pending'
+            | 'success'
+            | 'failed'
+            | 'warning'
+            | 'cancelled'
+            | 'unknown' =
+            status === 'active'
+              ? 'success'
+              : status === 'inactive'
+                ? 'cancelled'
+                : status === 'error'
+                  ? 'failed'
+                  : 'pending';
+          return <StatusBadge status={badgeStatus} size="small" />;
+        },
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (v: unknown) => (v ? <Tag>v{String(v)}</Tag> : <Text type="secondary">默认</Text>),
+      },
+      {
+        key: 'projectId',
+        title: '项目',
+        dataIndex: 'projectId',
+        width: 140,
+        render: (v: unknown) =>
+          v ? <Tag color="blue">{String(v)}</Tag> : <Text type="secondary">全部项目</Text>,
+      },
+      {
+        key: 'isDefault',
+        title: '默认实例',
+        dataIndex: 'isDefault',
+        width: 100,
+        render: (v: unknown) =>
+          v ? <Tag color="green">默认</Tag> : <Text type="secondary">-</Text>,
+      },
+      {
+        key: 'tenantId',
+        title: '租户',
+        dataIndex: 'tenantId',
+        width: 120,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[2] }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[2] }}>
+            {new Date(String(v)).toLocaleString('zh-CN')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 140,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            >
+              编辑
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+              loading={deletingId === record.id}
+            >
+              删除
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleOpenEdit]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -309,11 +329,7 @@ const SkillInstances: React.FC = () => {
       >
         <div>
           <Space style={{ marginBottom: spacing.sm }}>
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/skills/my')}
-            >
+            <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/skills/my')}>
               返回
             </Button>
           </Space>
@@ -407,7 +423,11 @@ const SkillInstances: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="bindings" label="事件绑定 (JSON)">
-            <TextArea rows={4} placeholder='{"event": "handler"}' style={{ fontFamily: 'monospace' }} />
+            <TextArea
+              rows={4}
+              placeholder='{"event": "handler"}'
+              style={{ fontFamily: 'monospace' }}
+            />
           </Form.Item>
 
           <Form.Item name="isDefault" label="设为默认实例" valuePropName="checked">

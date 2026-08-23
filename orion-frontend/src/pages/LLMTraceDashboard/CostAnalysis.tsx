@@ -16,7 +16,7 @@ import {
   Spin,
   Statistic,
 } from 'antd';
-import { ReloadOutlined, DollarOutlined,} from '@ant-design/icons';
+import { ReloadOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCostBreakdown, type CostBreakdown } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
@@ -53,9 +53,7 @@ const CostAnalysis: React.FC = () => {
     loadData();
   }, [tenantId, dateRange]);
 
-  const handleDateChange = (
-    dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
-  ) => {
+  const handleDateChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {
       setDateRange([dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD')]);
     } else {
@@ -129,27 +127,17 @@ const CostAnalysis: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: spacing[6] }}>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="总调用次数"
-              value={costData?.totalTraces || 0}
-              suffix="次"
-            />
+            <Statistic title="总调用次数" value={costData?.totalTraces || 0} suffix="次" />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="输入 Token"
-              value={costData?.totalInputTokens || 0}
-            />
+            <Statistic title="输入 Token" value={costData?.totalInputTokens || 0} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="输出 Token"
-              value={costData?.totalOutputTokens || 0}
-            />
+            <Statistic title="输出 Token" value={costData?.totalOutputTokens || 0} />
           </Card>
         </Col>
         <Col span={6}>

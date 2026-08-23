@@ -91,10 +91,12 @@ const PRTriggerManagement: React.FC = () => {
       if (pipelinesRes.status === 'fulfilled') {
         const data = pipelinesRes.value.data;
         const list = Array.isArray(data) ? data : [];
-        setPipelines(list.map((p: { id: string; name: string }) => ({
-          label: p.name,
-          value: p.id,
-        })));
+        setPipelines(
+          list.map((p: { id: string; name: string }) => ({
+            label: p.name,
+            value: p.id,
+          }))
+        );
       }
     } catch (error: unknown) {
       message.error(`加载数据失败: ${(error as Error).message}`);
@@ -264,7 +266,9 @@ const PRTriggerManagement: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 3).map((action) => (
-            <Tag key={action} color="blue">{action}</Tag>
+            <Tag key={action} color="blue">
+              {action}
+            </Tag>
           ))}
           {v.length > 3 && <Tag>+{v.length - 3}</Tag>}
         </Space>
@@ -277,7 +281,9 @@ const PRTriggerManagement: React.FC = () => {
       render: (_: unknown, record: PRTriggerRule) => (
         <Space wrap>
           {record.branchFilter?.targetBranches?.slice(0, 2).map((b: string) => (
-            <Tag key={b} color="green">{b}</Tag>
+            <Tag key={b} color="green">
+              {b}
+            </Tag>
           ))}
         </Space>
       ),
@@ -332,7 +338,14 @@ const PRTriggerManagement: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
@@ -443,10 +456,7 @@ const PRTriggerManagement: React.FC = () => {
           触发规则配置
         </Divider>
 
-        <PRTriggerConfig
-          value={prConfig}
-          onChange={setPrConfig}
-        />
+        <PRTriggerConfig value={prConfig} onChange={setPrConfig} />
       </Modal>
     </div>
   );

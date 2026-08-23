@@ -150,102 +150,116 @@ const MonitoringChannels: React.FC = () => {
     }
   };
 
-  const channelColumns: TableColumn<NotificationChannel>[] = useMemo<TableColumn<NotificationChannel>[]>(() => [
-    {
-      key: 'name',
-      title: '渠道名称',
-      dataIndex: 'name',
-      sortable: true,
-      filterable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 100,
-      render: (v: unknown) => {
-        const cfg = typeConfig[String(v)];
-        return (
-          <Tag color={cfg.color}>
-            {cfg.icon} {cfg.label}
-          </Tag>
-        );
+  const channelColumns: TableColumn<NotificationChannel>[] = useMemo<
+    TableColumn<NotificationChannel>[]
+  >(
+    () => [
+      {
+        key: 'name',
+        title: '渠道名称',
+        dataIndex: 'name',
+        sortable: true,
+        filterable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'config',
-      title: '配置',
-      dataIndex: 'config',
-      render: (v: unknown) => (
-        <Text
-          code
-          style={{
-            fontSize: spacing[2],
-            maxWidth: 300,
-            display: 'block',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {JSON.stringify(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_, record: NotificationChannel) => (
-        <Switch
-          checked={record.enabled}
-          onChange={() => handleToggleChannel(record.id)}
-          checkedChildren="开"
-          unCheckedChildren="关"
-          size="small"
-        />
-      ),
-    },
-  ], []);
-
-  const escalationColumns: TableColumn<EscalationPolicy>[] = useMemo<TableColumn<EscalationPolicy>[]>(() => [
-    {
-      key: 'name',
-      title: '策略名称',
-      dataIndex: 'name',
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'steps',
-      title: '升级步骤',
-      dataIndex: 'steps',
-      render: (v: unknown) => (
-        <Space>
-          {(v as Array<unknown>).map((step: any, idx) => (
-            <Tag key={String(idx)} color="blue">
-              #{step.order} → {step.channel} ({step.delayMs}ms)
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 100,
+        render: (v: unknown) => {
+          const cfg = typeConfig[String(v)];
+          return (
+            <Tag color={cfg.color}>
+              {cfg.icon} {cfg.label}
             </Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (v: unknown) => <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>,
-    },
-  ], []);
+          );
+        },
+      },
+      {
+        key: 'config',
+        title: '配置',
+        dataIndex: 'config',
+        render: (v: unknown) => (
+          <Text
+            code
+            style={{
+              fontSize: spacing[2],
+              maxWidth: 300,
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {JSON.stringify(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 80,
+        render: (v: unknown) => (
+          <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_, record: NotificationChannel) => (
+          <Switch
+            checked={record.enabled}
+            onChange={() => handleToggleChannel(record.id)}
+            checkedChildren="开"
+            unCheckedChildren="关"
+            size="small"
+          />
+        ),
+      },
+    ],
+    []
+  );
+
+  const escalationColumns: TableColumn<EscalationPolicy>[] = useMemo<
+    TableColumn<EscalationPolicy>[]
+  >(
+    () => [
+      {
+        key: 'name',
+        title: '策略名称',
+        dataIndex: 'name',
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'steps',
+        title: '升级步骤',
+        dataIndex: 'steps',
+        render: (v: unknown) => (
+          <Space>
+            {(v as Array<unknown>).map((step: any, idx) => (
+              <Tag key={String(idx)} color="blue">
+                #{step.order} → {step.channel} ({step.delayMs}ms)
+              </Tag>
+            ))}
+          </Space>
+        ),
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 80,
+        render: (v: unknown) => (
+          <Tag color={v ? 'green' : 'default'}>{v ? '已启用' : '已禁用'}</Tag>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div>

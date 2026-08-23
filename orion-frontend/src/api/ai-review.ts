@@ -85,7 +85,10 @@ export async function reviewDiff(data: ReviewDiffInput) {
 
 export async function getReviewHistory(params?: ReviewHistoryParams) {
   const res = await api.get('/api/v1/ai-review/history', { params });
-  const body = res.data as { success?: boolean; data?: { items?: AIReviewResult[]; total?: number } };
+  const body = res.data as {
+    success?: boolean;
+    data?: { items?: AIReviewResult[]; total?: number };
+  };
   return { data: { data: { items: body.data?.items || [], total: body.data?.total || 0 } } };
 }
 
@@ -97,17 +100,20 @@ export async function getReviewDetail(reviewId: string) {
 
 export async function getReviewComments(reviewId: string) {
   const res = await api.get('/api/v1/ai-review/comments', { params: { reviewId } });
-  const body = res.data as { success?: boolean; data?: Array<{
-    id: string;
-    ruleId: string;
-    filePath: string;
-    lineNumber: number;
-    severity: string;
-    message: string;
-    suggestion?: string;
-    codeSnippet?: string;
-    source: string;
-  }> };
+  const body = res.data as {
+    success?: boolean;
+    data?: Array<{
+      id: string;
+      ruleId: string;
+      filePath: string;
+      lineNumber: number;
+      severity: string;
+      message: string;
+      suggestion?: string;
+      codeSnippet?: string;
+      source: string;
+    }>;
+  };
   return { data: { data: body.data || [] } };
 }
 

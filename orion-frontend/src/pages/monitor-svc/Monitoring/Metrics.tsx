@@ -162,75 +162,78 @@ const MonitoringMetrics: React.FC = () => {
 
   const filterDefs: FilterDefinition[] = [];
 
-  const columns: TableColumn<Metric>[] = useMemo<TableColumn<Metric>[]>(() => [
-    {
-      key: 'name',
-      title: '指标名称',
-      dataIndex: 'name',
-      sortable: true,
-      filterable: true,
-      render: (v: unknown) => (
-        <Text
-          strong
-          style={{ color: colors.primary[500], cursor: 'pointer' }}
-          onClick={() => {
-            const m = metrics.find((item) => item.name === String(v));
-            if (m) showDetail(m);
-          }}
-        >
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'value',
-      title: '当前值',
-      dataIndex: 'value',
-      sortable: true,
-      width: 120,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'unit',
-      title: '单位',
-      dataIndex: 'unit',
-      width: 80,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'tags',
-      title: '标签',
-      dataIndex: 'tags',
-      render: (v: unknown) => {
-        const tags = v as Record<string, string> | undefined;
-        return (
-          <Space wrap>
-            {tags &&
-              Object.entries(tags)
-                .slice(0, 3)
-                .map(([k, val]) => (
-                  <Tag key={String(k)} style={{ fontSize: spacing[2] }}>
-                    {k}:{val}
-                  </Tag>
-                ))}
-            {tags && Object.keys(tags).length > 3 && <Tag>+{Object.keys(tags).length - 3}</Tag>}
-          </Space>
-        );
+  const columns: TableColumn<Metric>[] = useMemo<TableColumn<Metric>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '指标名称',
+        dataIndex: 'name',
+        sortable: true,
+        filterable: true,
+        render: (v: unknown) => (
+          <Text
+            strong
+            style={{ color: colors.primary[500], cursor: 'pointer' }}
+            onClick={() => {
+              const m = metrics.find((item) => item.name === String(v));
+              if (m) showDetail(m);
+            }}
+          >
+            {String(v)}
+          </Text>
+        ),
       },
-    },
-    {
-      key: 'lastUpdated',
-      title: '更新时间',
-      dataIndex: 'lastUpdated',
-      sortable: true,
-      width: 160,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-  ], []);
+      {
+        key: 'value',
+        title: '当前值',
+        dataIndex: 'value',
+        sortable: true,
+        width: 120,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'unit',
+        title: '单位',
+        dataIndex: 'unit',
+        width: 80,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'tags',
+        title: '标签',
+        dataIndex: 'tags',
+        render: (v: unknown) => {
+          const tags = v as Record<string, string> | undefined;
+          return (
+            <Space wrap>
+              {tags &&
+                Object.entries(tags)
+                  .slice(0, 3)
+                  .map(([k, val]) => (
+                    <Tag key={String(k)} style={{ fontSize: spacing[2] }}>
+                      {k}:{val}
+                    </Tag>
+                  ))}
+              {tags && Object.keys(tags).length > 3 && <Tag>+{Object.keys(tags).length - 3}</Tag>}
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'lastUpdated',
+        title: '更新时间',
+        dataIndex: 'lastUpdated',
+        sortable: true,
+        width: 160,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss')}
+          </Text>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div>
@@ -285,15 +288,22 @@ const MonitoringMetrics: React.FC = () => {
 
       {filteredMetrics.length === 0 && !loading && (
         <Empty
-          description={(
-            <span>
-              暂无指标
-              <br />
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)} style={{ marginTop: spacing.sm }}>
-                注册指标
-              </Button>
-            </span>
-          ) as any}
+          description={
+            (
+              <span>
+                暂无指标
+                <br />
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setRegisterModalVisible(true)}
+                  style={{ marginTop: spacing.sm }}
+                >
+                  注册指标
+                </Button>
+              </span>
+            ) as any
+          }
           style={{ marginTop: 48 }}
         />
       )}

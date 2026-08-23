@@ -92,10 +92,42 @@ interface ApprovalTemplate {
 }
 
 const APPROVAL_TEMPLATES: ApprovalTemplate[] = [
-  { id: 'deployment', name: '生产部署审批', description: '生产环境部署需要技术负责人和运维负责人审批', approverRoles: ['tech-lead', 'ops-manager'], requiredApprovals: 2, slaMinutes: 60, icon: 'deployment' },
-  { id: 'database', name: '数据库变更审批', description: '数据库结构变更需要 DBA 和技术负责人审批', approverRoles: ['dba', 'tech-lead'], requiredApprovals: 2, slaMinutes: 120, icon: 'database' },
-  { id: 'security', name: '安全审批', description: '安全相关变更需要安全团队审批', approverRoles: ['security-lead'], requiredApprovals: 1, slaMinutes: 30, icon: 'security' },
-  { id: 'infrastructure', name: '基础设施审批', description: '基础设施变更需要 SRE 团队审批', approverRoles: ['sre-lead', 'ops-manager'], requiredApprovals: 2, slaMinutes: 120, icon: 'infrastructure' },
+  {
+    id: 'deployment',
+    name: '生产部署审批',
+    description: '生产环境部署需要技术负责人和运维负责人审批',
+    approverRoles: ['tech-lead', 'ops-manager'],
+    requiredApprovals: 2,
+    slaMinutes: 60,
+    icon: 'deployment',
+  },
+  {
+    id: 'database',
+    name: '数据库变更审批',
+    description: '数据库结构变更需要 DBA 和技术负责人审批',
+    approverRoles: ['dba', 'tech-lead'],
+    requiredApprovals: 2,
+    slaMinutes: 120,
+    icon: 'database',
+  },
+  {
+    id: 'security',
+    name: '安全审批',
+    description: '安全相关变更需要安全团队审批',
+    approverRoles: ['security-lead'],
+    requiredApprovals: 1,
+    slaMinutes: 30,
+    icon: 'security',
+  },
+  {
+    id: 'infrastructure',
+    name: '基础设施审批',
+    description: '基础设施变更需要 SRE 团队审批',
+    approverRoles: ['sre-lead', 'ops-manager'],
+    requiredApprovals: 2,
+    slaMinutes: 120,
+    icon: 'infrastructure',
+  },
 ];
 
 // ---- Stats Panel ----
@@ -115,13 +147,28 @@ const StatsPanel: React.FC<{ approvals: ApprovalRequest[] }> = ({ approvals }) =
           <Statistic title="总计" value={stats.total} />
         </Col>
         <Col span={6}>
-          <Statistic title="待审批" value={stats.pending} valueStyle={{ color: colors.primary[500] }} prefix={<ClockCircleOutlined />} />
+          <Statistic
+            title="待审批"
+            value={stats.pending}
+            valueStyle={{ color: colors.primary[500] }}
+            prefix={<ClockCircleOutlined />}
+          />
         </Col>
         <Col span={6}>
-          <Statistic title="已通过" value={stats.approved} valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
+          <Statistic
+            title="已通过"
+            value={stats.approved}
+            valueStyle={{ color: colors.success[500] }}
+            prefix={<CheckCircleOutlined />}
+          />
         </Col>
         <Col span={6}>
-          <Statistic title="已拒绝" value={stats.rejected} valueStyle={{ color: colors.error[400] }} prefix={<StopOutlined />} />
+          <Statistic
+            title="已拒绝"
+            value={stats.rejected}
+            valueStyle={{ color: colors.error[400] }}
+            prefix={<StopOutlined />}
+          />
         </Col>
       </Row>
     </Card>
@@ -222,7 +269,10 @@ const ApprovalPage: React.FC = () => {
         title: `[紧急] ${values.title}`,
         description: values.description,
         requesterId: values.requesterId || currentUserId,
-        approverIds: (values.approverIds as string).split(',').map((s: string) => s.trim()).filter(Boolean),
+        approverIds: (values.approverIds as string)
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean),
         requiredApprovals: 1,
         metadata: { resourceType: values.resourceType, priority: 'urgent' },
       };
@@ -316,7 +366,9 @@ const ApprovalPage: React.FC = () => {
   };
 
   // Calculate SLA status
-  const getSLAStatus = (record: ApprovalRequest): { label: string; color: string; expired: boolean } => {
+  const getSLAStatus = (
+    record: ApprovalRequest
+  ): { label: string; color: string; expired: boolean } => {
     if (record.status !== 'pending') return { label: '已完成', color: 'success', expired: false };
     const createdAt = dayjs(record.createdAt);
     const now = dayjs();
@@ -341,7 +393,8 @@ const ApprovalPage: React.FC = () => {
           </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
             申请人: {record.requesterId}
-            {record.metadata?.resourceType != null && ` | 类型: ${record.metadata.resourceType as string}`}
+            {record.metadata?.resourceType != null &&
+              ` | 类型: ${record.metadata.resourceType as string}`}
           </Text>
         </Space>
       ),
@@ -363,10 +416,18 @@ const ApprovalPage: React.FC = () => {
           <Progress
             percent={approvalProgress(record)}
             size="small"
-            status={record.status === 'rejected' ? 'exception' : record.status === 'approved' ? 'success' : 'active'}
+            status={
+              record.status === 'rejected'
+                ? 'exception'
+                : record.status === 'approved'
+                  ? 'success'
+                  : 'active'
+            }
             format={() => `${record.approvals.length}/${record.requiredApprovals}`}
           />
-          <Text type="secondary" style={{ fontSize: 11 }}>需要 {record.requiredApprovals} 个审批</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            需要 {record.requiredApprovals} 个审批
+          </Text>
         </Space>
       ),
     },
@@ -393,12 +454,19 @@ const ApprovalPage: React.FC = () => {
             const hasApproved = record.approvals.includes(uid);
             const hasRejected = record.rejections.includes(uid);
             return (
-              <Tooltip key={uid} title={`${uid}${hasApproved ? ' (已通过)' : hasRejected ? ' (已拒绝)' : ''}`}>
+              <Tooltip
+                key={uid}
+                title={`${uid}${hasApproved ? ' (已通过)' : hasRejected ? ' (已拒绝)' : ''}`}
+              >
                 <Avatar
                   size="small"
                   icon={<UserOutlined />}
                   style={{
-                    backgroundColor: hasApproved ? colors.success[500] : hasRejected ? colors.error[400] : colors.neutral[300],
+                    backgroundColor: hasApproved
+                      ? colors.success[500]
+                      : hasRejected
+                        ? colors.error[400]
+                        : colors.neutral[300],
                   }}
                 >
                   {uid.substring(0, 2)}
@@ -406,7 +474,9 @@ const ApprovalPage: React.FC = () => {
               </Tooltip>
             );
           })}
-          {record.approverIds.length > 3 && <Text type="secondary">+{record.approverIds.length - 3}</Text>}
+          {record.approverIds.length > 3 && (
+            <Text type="secondary">+{record.approverIds.length - 3}</Text>
+          )}
         </Space>
       ),
     },
@@ -423,11 +493,34 @@ const ApprovalPage: React.FC = () => {
       width: 160,
       render: (_: unknown, record: ApprovalRequest) => (
         <Space size="small" wrap>
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>详情</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => openDetail(record)}
+          >
+            详情
+          </Button>
           {record.status === 'pending' && (
             <>
-              <Button type="link" size="small" style={{ color: colors.success[500] }} icon={<CheckOutlined />} onClick={() => openCommentModal(record.id, 'approve')}>通过</Button>
-              <Button type="link" size="small" danger icon={<CloseOutlined />} onClick={() => openCommentModal(record.id, 'reject')}>拒绝</Button>
+              <Button
+                type="link"
+                size="small"
+                style={{ color: colors.success[500] }}
+                icon={<CheckOutlined />}
+                onClick={() => openCommentModal(record.id, 'approve')}
+              >
+                通过
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => openCommentModal(record.id, 'reject')}
+              >
+                拒绝
+              </Button>
             </>
           )}
         </Space>
@@ -440,8 +533,14 @@ const ApprovalPage: React.FC = () => {
   const detailContent = selectedApproval ? (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
       <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="标题" span={2}>{selectedApproval.title}</Descriptions.Item>
-        <Descriptions.Item label="状态"><Tag color={statusColorMap[selectedApproval.status]}>{statusLabelMap[selectedApproval.status]}</Tag></Descriptions.Item>
+        <Descriptions.Item label="标题" span={2}>
+          {selectedApproval.title}
+        </Descriptions.Item>
+        <Descriptions.Item label="状态">
+          <Tag color={statusColorMap[selectedApproval.status]}>
+            {statusLabelMap[selectedApproval.status]}
+          </Tag>
+        </Descriptions.Item>
         <Descriptions.Item label="SLA">
           {(() => {
             const sla = getSLAStatus(selectedApproval);
@@ -449,18 +548,30 @@ const ApprovalPage: React.FC = () => {
           })()}
         </Descriptions.Item>
         <Descriptions.Item label="申请人">{selectedApproval.requesterId}</Descriptions.Item>
-        <Descriptions.Item label="所需审批数">{selectedApproval.requiredApprovals}</Descriptions.Item>
-        <Descriptions.Item label="创建时间">{dayjs(selectedApproval.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-        <Descriptions.Item label="更新时间" span={2}>{dayjs(selectedApproval.updatedAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+        <Descriptions.Item label="所需审批数">
+          {selectedApproval.requiredApprovals}
+        </Descriptions.Item>
+        <Descriptions.Item label="创建时间">
+          {dayjs(selectedApproval.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+        </Descriptions.Item>
+        <Descriptions.Item label="更新时间" span={2}>
+          {dayjs(selectedApproval.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+        </Descriptions.Item>
         {selectedApproval.description && (
-          <Descriptions.Item label="描述" span={2}>{selectedApproval.description}</Descriptions.Item>
+          <Descriptions.Item label="描述" span={2}>
+            {selectedApproval.description}
+          </Descriptions.Item>
         )}
       </Descriptions>
 
       {/* Approval Steps */}
       <Card size="small" title="审批流程">
         <Steps
-          current={selectedApproval.status === 'approved' ? selectedApproval.approverIds.length : selectedApproval.approvals.length}
+          current={
+            selectedApproval.status === 'approved'
+              ? selectedApproval.approverIds.length
+              : selectedApproval.approvals.length
+          }
           direction="vertical"
           size="small"
         >
@@ -472,9 +583,7 @@ const ApprovalPage: React.FC = () => {
                 key={uid}
                 title={uid}
                 status={hasRejected ? 'error' : hasApproved ? 'finish' : 'wait'}
-                description={
-                  hasApproved ? '已通过' : hasRejected ? '已拒绝' : '待审批'
-                }
+                description={hasApproved ? '已通过' : hasRejected ? '已拒绝' : '待审批'}
               />
             );
           })}
@@ -492,7 +601,10 @@ const ApprovalPage: React.FC = () => {
                 dot={c.action === 'approved' ? <CheckCircleOutlined /> : <StopOutlined />}
               >
                 <Text strong>{c.userId}</Text>
-                <Tag color={c.action === 'approved' ? 'success' : 'error'} style={{ marginLeft: spacing.sm }}>
+                <Tag
+                  color={c.action === 'approved' ? 'success' : 'error'}
+                  style={{ marginLeft: spacing.sm }}
+                >
                   {c.action === 'approved' ? '通过' : '拒绝'}
                 </Tag>
                 <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>
@@ -508,8 +620,21 @@ const ApprovalPage: React.FC = () => {
       {/* Action buttons */}
       {selectedApproval.status === 'pending' && (
         <Space>
-          <Button type="primary" icon={<CheckOutlined />} style={{ backgroundColor: colors.success[500], borderColor: colors.success[500] }} onClick={() => openCommentModal(selectedApproval.id, 'approve')}>通过</Button>
-          <Button danger icon={<CloseOutlined />} onClick={() => openCommentModal(selectedApproval.id, 'reject')}>拒绝</Button>
+          <Button
+            type="primary"
+            icon={<CheckOutlined />}
+            style={{ backgroundColor: colors.success[500], borderColor: colors.success[500] }}
+            onClick={() => openCommentModal(selectedApproval.id, 'approve')}
+          >
+            通过
+          </Button>
+          <Button
+            danger
+            icon={<CloseOutlined />}
+            onClick={() => openCommentModal(selectedApproval.id, 'reject')}
+          >
+            拒绝
+          </Button>
         </Space>
       )}
     </Space>
@@ -524,16 +649,47 @@ const ApprovalPage: React.FC = () => {
       {isInitialLoading ? null : (
         <>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: spacing.lg,
+            }}
+          >
             <div>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />审批工作流</Title>
+                <CheckCircleOutlined
+                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
+                />
+                审批工作流
+              </Title>
               <Text type="secondary">多级审批流程管理，包含待审批列表和紧急审批通道</Text>
             </div>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-              <Button icon={<FormOutlined />} onClick={() => { createForm.resetFields(); setCreateModalVisible(true); }}>创建审批</Button>
-              <Button type="primary" danger icon={<FireOutlined />} onClick={() => { emergencyForm.resetFields(); setEmergencyModalVisible(true); }}>紧急审批</Button>
+              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+                刷新
+              </Button>
+              <Button
+                icon={<FormOutlined />}
+                onClick={() => {
+                  createForm.resetFields();
+                  setCreateModalVisible(true);
+                }}
+              >
+                创建审批
+              </Button>
+              <Button
+                type="primary"
+                danger
+                icon={<FireOutlined />}
+                onClick={() => {
+                  emergencyForm.resetFields();
+                  setEmergencyModalVisible(true);
+                }}
+              >
+                紧急审批
+              </Button>
             </Space>
           </div>
 
@@ -543,26 +699,55 @@ const ApprovalPage: React.FC = () => {
           {/* Filters */}
           <Card>
             <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
-              <Input.Search placeholder="搜索审批标题、描述或申请人..." allowClear style={{ width: 320 }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onSearch={setSearchQuery} />
-              <Select style={{ width: 140 }} value={statusFilter} onChange={(v) => setStatusFilter(v)} options={[
-                { label: '全部状态', value: 'all' },
-                { label: '待审批', value: 'pending' },
-                { label: '已通过', value: 'approved' },
-                { label: '已拒绝', value: 'rejected' },
-                { label: '已取消', value: 'cancelled' },
-              ]} />
+              <Input.Search
+                placeholder="搜索审批标题、描述或申请人..."
+                allowClear
+                style={{ width: 320 }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onSearch={setSearchQuery}
+              />
+              <Select
+                style={{ width: 140 }}
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v)}
+                options={[
+                  { label: '全部状态', value: 'all' },
+                  { label: '待审批', value: 'pending' },
+                  { label: '已通过', value: 'approved' },
+                  { label: '已拒绝', value: 'rejected' },
+                  { label: '已取消', value: 'cancelled' },
+                ]}
+              />
             </div>
 
-            <TableComponent columns={columns} dataSource={filteredData} loading={loading} rowKey="id" size="middle" striped />
+            <TableComponent
+              columns={columns}
+              dataSource={filteredData}
+              loading={loading}
+              rowKey="id"
+              size="middle"
+              striped
+            />
           </Card>
 
           {/* Create Modal */}
-          <Modal title="创建审批请求" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting} width={600} destroyOnClose>
+          <Modal
+            title="创建审批请求"
+            open={createModalVisible}
+            onCancel={() => setCreateModalVisible(false)}
+            onOk={handleCreate}
+            confirmLoading={submitting}
+            width={600}
+            destroyOnClose
+          >
             <div style={{ marginBottom: spacing.md }}>
               <Text type="secondary">快速选择模板：</Text>
               <Space style={{ marginTop: spacing.sm }} wrap>
                 {APPROVAL_TEMPLATES.map((t) => (
-                  <Button key={t.id} size="small" onClick={() => handleTemplateSelect(t)}>{t.name}</Button>
+                  <Button key={t.id} size="small" onClick={() => handleTemplateSelect(t)}>
+                    {t.name}
+                  </Button>
                 ))}
               </Space>
             </div>
@@ -576,28 +761,40 @@ const ApprovalPage: React.FC = () => {
               <Form.Item name="requesterId" label="申请人">
                 <Input placeholder="申请人 ID (默认当前用户)" />
               </Form.Item>
-              <Form.Item name="approverIds" label="审批人列表 (逗号分隔)" rules={[{ required: true }]}>
+              <Form.Item
+                name="approverIds"
+                label="审批人列表 (逗号分隔)"
+                rules={[{ required: true }]}
+              >
                 <Input placeholder="如: tech-lead, ops-manager, security-lead" />
               </Form.Item>
               <Form.Item name="requiredApprovals" label="所需通过数">
                 <Input type="number" placeholder="默认 1" min={1} />
               </Form.Item>
               <Form.Item name="metadata" label="资源类型">
-                <Select placeholder="选择关联资源类型" options={[
-                  { label: '部署 (deployment)', value: 'deployment' },
-                  { label: '数据库 (database)', value: 'database' },
-                  { label: '服务 (service)', value: 'service' },
-                  { label: '安全 (security)', value: 'security' },
-                  { label: '基础设施 (infrastructure)', value: 'infrastructure' },
-                  { label: '通用 (generic)', value: 'generic' },
-                ]} />
+                <Select
+                  placeholder="选择关联资源类型"
+                  options={[
+                    { label: '部署 (deployment)', value: 'deployment' },
+                    { label: '数据库 (database)', value: 'database' },
+                    { label: '服务 (service)', value: 'service' },
+                    { label: '安全 (security)', value: 'security' },
+                    { label: '基础设施 (infrastructure)', value: 'infrastructure' },
+                    { label: '通用 (generic)', value: 'generic' },
+                  ]}
+                />
               </Form.Item>
             </Form>
           </Modal>
 
           {/* Emergency Approval Modal */}
           <Modal
-            title={<span><FireOutlined style={{ color: colors.error[400], marginRight: spacing.sm }} />紧急审批通道</span>}
+            title={
+              <span>
+                <FireOutlined style={{ color: colors.error[400], marginRight: spacing.sm }} />
+                紧急审批通道
+              </span>
+            }
             open={emergencyModalVisible}
             onCancel={() => setEmergencyModalVisible(false)}
             onOk={handleEmergencyCreate}
@@ -605,7 +802,12 @@ const ApprovalPage: React.FC = () => {
             width={600}
             destroyOnClose
           >
-            <Alert message="紧急审批仅需 1 人审批即可通过，请确保情况属实" type="warning" showIcon style={{ marginBottom: spacing.md }} />
+            <Alert
+              message="紧急审批仅需 1 人审批即可通过，请确保情况属实"
+              type="warning"
+              showIcon
+              style={{ marginBottom: spacing.md }}
+            />
             <Form form={emergencyForm} layout="vertical">
               <Form.Item name="title" label="审批标题" rules={[{ required: true }]}>
                 <Input placeholder="紧急审批标题" />
@@ -617,12 +819,14 @@ const ApprovalPage: React.FC = () => {
                 <Input placeholder="申请人 ID" />
               </Form.Item>
               <Form.Item name="resourceType" label="资源类型" rules={[{ required: true }]}>
-                <Select options={[
-                  { label: '紧急部署', value: 'emergency-deployment' },
-                  { label: '紧急回滚', value: 'emergency-rollback' },
-                  { label: '安全修复', value: 'security-fix' },
-                  { label: '基础设施', value: 'infrastructure' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '紧急部署', value: 'emergency-deployment' },
+                    { label: '紧急回滚', value: 'emergency-rollback' },
+                    { label: '安全修复', value: 'security-fix' },
+                    { label: '基础设施', value: 'infrastructure' },
+                  ]}
+                />
               </Form.Item>
               <Form.Item name="approverIds" label="审批人 (逗号分隔)" rules={[{ required: true }]}>
                 <Input placeholder="如: on-call-lead" />
@@ -631,7 +835,13 @@ const ApprovalPage: React.FC = () => {
           </Modal>
 
           {/* Detail Drawer */}
-          <Drawer title={selectedApproval?.title || '审批详情'} open={detailDrawerVisible} onClose={() => setDetailDrawerVisible(false)} width={720} destroyOnClose>
+          <Drawer
+            title={selectedApproval?.title || '审批详情'}
+            open={detailDrawerVisible}
+            onClose={() => setDetailDrawerVisible(false)}
+            width={720}
+            destroyOnClose
+          >
             {detailContent}
           </Drawer>
 
@@ -643,12 +853,31 @@ const ApprovalPage: React.FC = () => {
             onOk={handleCommentSubmit}
             confirmLoading={commentSubmitting}
             okText={commentAction === 'approve' ? '通过' : '拒绝'}
-            okButtonProps={{ danger: commentAction === 'reject', style: commentAction === 'approve' ? { backgroundColor: colors.success[500], borderColor: colors.success[500] } : undefined }}
+            okButtonProps={{
+              danger: commentAction === 'reject',
+              style:
+                commentAction === 'approve'
+                  ? { backgroundColor: colors.success[500], borderColor: colors.success[500] }
+                  : undefined,
+            }}
           >
             <div style={{ marginBottom: spacing.sm }}>
-              <Text type="secondary">{commentAction === 'approve' ? '确认通过该审批？可填写评论理由（可选）。' : '确认拒绝该审批？请填写拒绝理由（可选）。'}</Text>
+              <Text type="secondary">
+                {commentAction === 'approve'
+                  ? '确认通过该审批？可填写评论理由（可选）。'
+                  : '确认拒绝该审批？请填写拒绝理由（可选）。'}
+              </Text>
             </div>
-            <Input.TextArea rows={4} placeholder={commentAction === 'reject' ? '请输入拒绝理由...' : '请输入评论/理由（可选）...'} value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={500} showCount />
+            <Input.TextArea
+              rows={4}
+              placeholder={
+                commentAction === 'reject' ? '请输入拒绝理由...' : '请输入评论/理由（可选）...'
+              }
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              maxLength={500}
+              showCount
+            />
           </Modal>
         </>
       )}

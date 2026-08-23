@@ -15,11 +15,7 @@ import { colors } from '@/tokens';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
 import { spacing } from '@/tokens/spacing';
-import {
-  ApprovalNodeConfig,
-  ApprovalNodeStatus,
-  approvalModeShortLabels,
-} from './types';
+import { ApprovalNodeConfig, ApprovalNodeStatus, approvalModeShortLabels } from './types';
 
 const { Text } = Typography;
 
@@ -31,7 +27,10 @@ interface ApprovalNodeProps {
 }
 
 // 状态颜色映射
-const statusColors: Record<string, { bg: string; border: string; text: string; icon: React.ReactNode }> = {
+const statusColors: Record<
+  string,
+  { bg: string; border: string; text: string; icon: React.ReactNode }
+> = {
   pending: {
     bg: colors.warning[50],
     border: colors.warning[500],
@@ -97,8 +96,8 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
     }
 
     // 显示多人情况
-    const userCount = approvers.filter(a => a.type === 'user').length;
-    const roleCount = approvers.filter(a => a.type === 'role').length;
+    const userCount = approvers.filter((a) => a.type === 'user').length;
+    const roleCount = approvers.filter((a) => a.type === 'role').length;
 
     const parts: string[] = [];
     if (userCount > 0) parts.push(`${userCount}人`);
@@ -164,9 +163,7 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
           borderRadius: componentRadius.card,
           background: style.bg,
           border: `2px solid ${selected ? colors.primary[500] : style.border}`,
-          boxShadow: selected
-            ? shadows.card + `, 0 0 0 2px ${colors.primary[100]}`
-            : shadows.card,
+          boxShadow: selected ? shadows.card + `, 0 0 0 2px ${colors.primary[100]}` : shadows.card,
           cursor: 'pointer',
           transition: 'all 0.2s ease',
           position: 'relative',
@@ -207,9 +204,7 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
           }}
         >
           <Space size={4}>
-            <Text style={{ fontSize: 12, color: colors.primary[600] }}>
-              审批节点
-            </Text>
+            <Text style={{ fontSize: 12, color: colors.primary[600] }}>审批节点</Text>
           </Space>
           <span style={{ color: style.text, fontSize: 14 }}>{style.icon}</span>
         </div>
@@ -263,7 +258,15 @@ const ApprovalNode: React.FC<ApprovalNodeProps> = ({
           >
             <ClockCircleOutlined style={{ fontSize: 12, color: colors.neutral[500] }} />
             <Text type="secondary" style={{ fontSize: 11 }}>
-              超时{config.timeout.action === 'remind' ? '提醒' : '自动' + (config.timeout.action === 'auto_approve' ? '通过' : config.timeout.action === 'auto_reject' ? '拒绝' : '转交')}
+              超时
+              {config.timeout.action === 'remind'
+                ? '提醒'
+                : '自动' +
+                  (config.timeout.action === 'auto_approve'
+                    ? '通过'
+                    : config.timeout.action === 'auto_reject'
+                      ? '拒绝'
+                      : '转交')}
             </Text>
           </div>
         )}

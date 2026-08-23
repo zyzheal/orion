@@ -10,7 +10,21 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Card, Row, Col, Typography, Table, Tag, Statistic, Select, Space, Button, Switch, message, Divider } from 'antd';
+import {
+  Card,
+  Row,
+  Col,
+  Typography,
+  Table,
+  Tag,
+  Statistic,
+  Select,
+  Space,
+  Button,
+  Switch,
+  message,
+  Divider,
+} from 'antd';
 import {
   BranchesOutlined,
   PlayCircleOutlined,
@@ -116,7 +130,9 @@ const DataPipelineMonitor: React.FC = () => {
     const total = pipelines.length;
     const running = pipelines.filter((p) => p.status === 'running').length;
     const error = pipelines.filter((p) => p.status === 'error').length;
-    const avgLatency = pipelines.filter((p) => p.latency > 0).reduce((s, p) => s + p.latency, 0) / Math.max(pipelines.filter((p) => p.latency > 0).length, 1);
+    const avgLatency =
+      pipelines.filter((p) => p.latency > 0).reduce((s, p) => s + p.latency, 0) /
+      Math.max(pipelines.filter((p) => p.latency > 0).length, 1);
     return { total, running, error, avgLatency: avgLatency.toFixed(1) };
   }, [pipelines]);
 
@@ -131,16 +147,18 @@ const DataPipelineMonitor: React.FC = () => {
   const handleTogglePause = (id: string, checked: boolean) => {
     setPipelines((prev) =>
       prev.map((p) =>
-        p.id === id
-          ? { ...p, isPaused: checked, status: checked ? 'paused' : 'running' }
-          : p
+        p.id === id ? { ...p, isPaused: checked, status: checked ? 'paused' : 'running' } : p
       )
     );
     message.info(checked ? '管道已暂停' : '管道已恢复运行');
   };
 
   const handleTrigger = (pipeline: Pipeline) => {
-    message.loading({ content: `正在手动触发管道：${pipeline.name}`, key: pipeline.id, duration: 0 });
+    message.loading({
+      content: `正在手动触发管道：${pipeline.name}`,
+      key: pipeline.id,
+      duration: 0,
+    });
     setTimeout(() => {
       message.success({ content: `管道 ${pipeline.name} 已手动触发成功`, key: pipeline.id });
     }, 1200);
@@ -156,7 +174,11 @@ const DataPipelineMonitor: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       width: 180,
-      render: (text: string) => <Text strong style={{ fontSize: 13 }}>{text}</Text>,
+      render: (text: string) => (
+        <Text strong style={{ fontSize: 13 }}>
+          {text}
+        </Text>
+      ),
     },
     {
       title: '源 → 目标',
@@ -205,7 +227,8 @@ const DataPipelineMonitor: React.FC = () => {
       width: 80,
       render: (val: number) => {
         if (val === 0) return <Text type="secondary">—</Text>;
-        const color = val > 30 ? colors.error[500] : val > 10 ? colors.warning[500] : colors.success[500];
+        const color =
+          val > 30 ? colors.error[500] : val > 10 ? colors.warning[500] : colors.success[500];
         return <Text style={{ color, fontWeight: 500 }}>{val}</Text>;
       },
     },
@@ -216,7 +239,8 @@ const DataPipelineMonitor: React.FC = () => {
       width: 90,
       render: (val: number) => {
         if (val === 0) return <Text type="secondary">—</Text>;
-        const color = val >= 99 ? colors.success[500] : val >= 90 ? colors.warning[500] : colors.error[500];
+        const color =
+          val >= 99 ? colors.success[500] : val >= 90 ? colors.warning[500] : colors.error[500];
         return <Text style={{ color, fontWeight: 500 }}>{val.toFixed(1)}%</Text>;
       },
     },
@@ -226,7 +250,12 @@ const DataPipelineMonitor: React.FC = () => {
       width: 240,
       render: (_: any, record: Pipeline) => (
         <Space size="small" wrap>
-          <Button size="small" type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+          <Button
+            size="small"
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
             详情
           </Button>
           <Button
@@ -386,7 +415,14 @@ const DataPipelineMonitor: React.FC = () => {
                 preserveAspectRatio="xMidYMid meet"
               >
                 <defs>
-                  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                  <marker
+                    id="arrowhead"
+                    markerWidth="8"
+                    markerHeight="6"
+                    refX="8"
+                    refY="3"
+                    orient="auto"
+                  >
                     <polygon points="0 0, 8 3, 0 6" fill={colors.neutral[400]} />
                   </marker>
                 </defs>
@@ -417,8 +453,8 @@ const DataPipelineMonitor: React.FC = () => {
                   node.type === 'source'
                     ? '3px solid'
                     : node.type === 'transform'
-                    ? '2px dashed'
-                    : '3px solid';
+                      ? '2px dashed'
+                      : '3px solid';
                 const bgColor = color + '18';
                 return (
                   <div
@@ -443,8 +479,8 @@ const DataPipelineMonitor: React.FC = () => {
                         node.status === 'error'
                           ? `0 0 12px ${colors.error[500]}66`
                           : node.status === 'running'
-                          ? `0 0 8px ${colors.success[500]}44`
-                          : 'none',
+                            ? `0 0 8px ${colors.success[500]}44`
+                            : 'none',
                     }}
                   >
                     <Text style={{ fontSize: 10, fontWeight: 500 }}>{node.label}</Text>
@@ -474,7 +510,9 @@ const DataPipelineMonitor: React.FC = () => {
                         display: 'inline-block',
                       }}
                     />
-                    <Text type="secondary" style={{ fontSize: 10 }}>运行中</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      运行中
+                    </Text>
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span
@@ -486,7 +524,9 @@ const DataPipelineMonitor: React.FC = () => {
                         display: 'inline-block',
                       }}
                     />
-                    <Text type="secondary" style={{ fontSize: 10 }}>异常</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      异常
+                    </Text>
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span
@@ -498,7 +538,9 @@ const DataPipelineMonitor: React.FC = () => {
                         display: 'inline-block',
                       }}
                     />
-                    <Text type="secondary" style={{ fontSize: 10 }}>空闲</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      空闲
+                    </Text>
                   </span>
                 </Space>
                 <Space size="small">
@@ -513,7 +555,9 @@ const DataPipelineMonitor: React.FC = () => {
                         display: 'inline-block',
                       }}
                     />
-                    <Text type="secondary" style={{ fontSize: 10 }}>源</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      源
+                    </Text>
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span
@@ -526,7 +570,9 @@ const DataPipelineMonitor: React.FC = () => {
                         display: 'inline-block',
                       }}
                     />
-                    <Text type="secondary" style={{ fontSize: 10 }}>转换</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      转换
+                    </Text>
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span
@@ -539,7 +585,9 @@ const DataPipelineMonitor: React.FC = () => {
                         display: 'inline-block',
                       }}
                     />
-                    <Text type="secondary" style={{ fontSize: 10 }}>目标</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      目标
+                    </Text>
                   </span>
                 </Space>
               </div>
@@ -561,7 +609,11 @@ const DataPipelineMonitor: React.FC = () => {
               dataIndex: 'pipelineName',
               key: 'pipelineName',
               width: 160,
-              render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+              render: (text: string) => (
+                <Text strong style={{ fontSize: 12 }}>
+                  {text}
+                </Text>
+              ),
             },
             {
               title: '告警类型',
@@ -585,7 +637,11 @@ const DataPipelineMonitor: React.FC = () => {
               dataIndex: 'time',
               key: 'time',
               width: 160,
-              render: (t: string) => <Text type="secondary" style={{ fontSize: 12 }}>{t}</Text>,
+              render: (t: string) => (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {t}
+                </Text>
+              ),
             },
             {
               title: '状态',

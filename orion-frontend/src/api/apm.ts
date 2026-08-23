@@ -114,11 +114,7 @@ export const apmApi = {
   },
 
   // Database Profiling
-  getSlowQueries: async (params?: {
-    limit?: number;
-    since?: string;
-    tenantId?: string;
-  }) => {
+  getSlowQueries: async (params?: { limit?: number; since?: string; tenantId?: string }) => {
     const response = await apiClient.get('/api/v1/apm/slow-queries', { params });
     return response.data as SlowQuery[];
   },

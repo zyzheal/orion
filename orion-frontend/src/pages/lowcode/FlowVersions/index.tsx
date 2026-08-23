@@ -10,10 +10,29 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Button, Space, Tag, message, Table, Modal, Form, Input, Select, Empty, Card, Descriptions, Tooltip, Popconfirm, Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Empty,
+  Card,
+  Descriptions,
+  Tooltip,
+  Popconfirm,
+  Typography,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EyeOutlined, RollbackOutlined, HistoryOutlined, SaveOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  RollbackOutlined,
+  HistoryOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import { lowcodeApi, type LowcodeFlow, type LowcodeFlowVersion } from '@/api/lowcode';
@@ -169,11 +188,7 @@ const FlowVersionsPage: React.FC = () => {
       render: (_: unknown, record: LowcodeFlowVersion) => (
         <Space size="small">
           <Tooltip title="查看快照">
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewVersion(record)}
-            />
+            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewVersion(record)} />
           </Tooltip>
           <Popconfirm
             title="恢复到此版本"
@@ -203,7 +218,9 @@ const FlowVersionsPage: React.FC = () => {
 
       <Card style={{ marginBottom: spacing.md }}>
         <div style={{ marginBottom: 12 }}>
-          <Text strong style={{ marginRight: 12 }}>选择流程：</Text>
+          <Text strong style={{ marginRight: 12 }}>
+            选择流程：
+          </Text>
           <Select
             placeholder="请选择要管理版本的流程"
             style={{ width: 400 }}
@@ -223,11 +240,7 @@ const FlowVersionsPage: React.FC = () => {
               </Option>
             ))}
           </Select>
-          <Button
-            icon={<ReloadOutlined />}
-            style={{ marginLeft: 8 }}
-            onClick={loadFlows}
-          >
+          <Button icon={<ReloadOutlined />} style={{ marginLeft: 8 }} onClick={loadFlows}>
             刷新
           </Button>
         </div>
@@ -242,7 +255,9 @@ const FlowVersionsPage: React.FC = () => {
                 {selectedFlow.status === 'published' ? '已启用' : '已禁用'}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="创建人">{selectedFlow.createdBy || 'system'}</Descriptions.Item>
+            <Descriptions.Item label="创建人">
+              {selectedFlow.createdBy || 'system'}
+            </Descriptions.Item>
             <Descriptions.Item label="更新时间">
               {dayjs(selectedFlow.updatedAt || selectedFlow.createdAt).format('YYYY-MM-DD HH:mm')}
             </Descriptions.Item>
@@ -266,13 +281,7 @@ const FlowVersionsPage: React.FC = () => {
             )}
           </Space>
         }
-        extra={
-          selectedFlow && (
-            <Text type="secondary">
-              共 {totalVersions} 个版本
-            </Text>
-          )
-        }
+        extra={selectedFlow && <Text type="secondary">共 {totalVersions} 个版本</Text>}
       >
         {!selectedFlow ? (
           <Empty description="请先选择一个流程" />
@@ -281,15 +290,8 @@ const FlowVersionsPage: React.FC = () => {
             加载版本历史...
           </div>
         ) : versions.length === 0 ? (
-          <Empty
-            description="暂无版本记录"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateVisible(true)}
-            >
+          <Empty description="暂无版本记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
               创建第一个版本快照
             </Button>
           </Empty>
@@ -309,7 +311,10 @@ const FlowVersionsPage: React.FC = () => {
       <Modal
         title="创建版本快照"
         open={createVisible}
-        onCancel={() => { setCreateVisible(false); createForm.resetFields(); }}
+        onCancel={() => {
+          setCreateVisible(false);
+          createForm.resetFields();
+        }}
         footer={null}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreateVersion}>
@@ -318,12 +323,7 @@ const FlowVersionsPage: React.FC = () => {
             label="变更说明"
             rules={[{ required: true, message: '请输入变更说明' }]}
           >
-            <TextArea
-              placeholder="描述本次版本的变更内容..."
-              rows={4}
-              maxLength={500}
-              showCount
-            />
+            <TextArea placeholder="描述本次版本的变更内容..." rows={4} maxLength={500} showCount />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit" block icon={<SaveOutlined />}>
@@ -336,23 +336,36 @@ const FlowVersionsPage: React.FC = () => {
       <Modal
         title={`版本详情: ${selectedVersion?.version}`}
         open={detailVisible}
-        onCancel={() => { setDetailVisible(false); setSelectedVersion(null); }}
+        onCancel={() => {
+          setDetailVisible(false);
+          setSelectedVersion(null);
+        }}
         width={700}
         footer={
           <Space>
-            <Button onClick={() => { setDetailVisible(false); setSelectedVersion(null); }}>
+            <Button
+              onClick={() => {
+                setDetailVisible(false);
+                setSelectedVersion(null);
+              }}
+            >
               关闭
             </Button>
             {selectedFlow && selectedVersion && (
               <Popconfirm
                 title="恢复到此版本"
                 description="恢复后将用该版本的节点/连线覆盖当前流程，确定吗？"
-                onConfirm={() => { handleRestoreVersion(selectedVersion); setDetailVisible(false); }}
+                onConfirm={() => {
+                  handleRestoreVersion(selectedVersion);
+                  setDetailVisible(false);
+                }}
                 okText="恢复"
                 cancelText="取消"
                 okButtonProps={{ danger: true }}
               >
-                <Button danger icon={<RollbackOutlined />}>恢复此版本</Button>
+                <Button danger icon={<RollbackOutlined />}>
+                  恢复此版本
+                </Button>
               </Popconfirm>
             )}
           </Space>
@@ -362,24 +375,38 @@ const FlowVersionsPage: React.FC = () => {
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="版本ID">{selectedVersion.id}</Descriptions.Item>
             <Descriptions.Item label="版本号">{selectedVersion.version}</Descriptions.Item>
-            <Descriptions.Item label="变更说明">{selectedVersion.changeLog || '无'}</Descriptions.Item>
+            <Descriptions.Item label="变更说明">
+              {selectedVersion.changeLog || '无'}
+            </Descriptions.Item>
             <Descriptions.Item label="创建人">{selectedVersion.createdBy}</Descriptions.Item>
             <Descriptions.Item label="创建时间">
               {dayjs(selectedVersion.createdAt).format('YYYY-MM-DD HH:mm:ss')}
             </Descriptions.Item>
             <Descriptions.Item label="节点快照">
-              <pre style={{
-                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
-                padding: spacing.sm, borderRadius: 8, fontSize: 12,
-              }}>
+              <pre
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  background: colors.neutral[100],
+                  padding: spacing.sm,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              >
                 {JSON.stringify(selectedVersion.snapshot?.nodes || [], null, 2)}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="连线快照">
-              <pre style={{
-                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
-                padding: spacing.sm, borderRadius: 8, fontSize: 12,
-              }}>
+              <pre
+                style={{
+                  maxHeight: 200,
+                  overflow: 'auto',
+                  background: colors.neutral[100],
+                  padding: spacing.sm,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              >
                 {JSON.stringify(selectedVersion.snapshot?.edges || [], null, 2)}
               </pre>
             </Descriptions.Item>

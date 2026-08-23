@@ -86,13 +86,16 @@ export const createPolicy = async (data: {
   return res.data;
 };
 
-export const updatePolicy = async (id: string, data: {
-  name?: string;
-  description?: string;
-  severity?: string;
-  status?: string;
-  rules?: EscalationRule[];
-}) => {
+export const updatePolicy = async (
+  id: string,
+  data: {
+    name?: string;
+    description?: string;
+    severity?: string;
+    status?: string;
+    rules?: EscalationRule[];
+  }
+) => {
   const res = await api.put(`/api/v1/alert-escalation/policies/${id}`, data);
   return res.data;
 };
@@ -143,7 +146,11 @@ export const acknowledgeAlert = async (alertId: string, operator: string) => {
 };
 
 export const resolveAlert = async (alertId: string, operator: string, resolutionNote?: string) => {
-  const res = await api.post('/api/v1/alert-escalation/resolve', { alertId, operator, resolutionNote });
+  const res = await api.post('/api/v1/alert-escalation/resolve', {
+    alertId,
+    operator,
+    resolutionNote,
+  });
   return res.data;
 };
 

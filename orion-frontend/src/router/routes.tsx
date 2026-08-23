@@ -507,7 +507,10 @@ export const routes: AppRoute[] = [
       // 默认重定向到 pending
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/console/confirmations/pending', replace: true }),
+        element: React.createElement(Navigate, {
+          to: '/console/confirmations/pending',
+          replace: true,
+        }),
       },
       {
         path: '/console/confirmations/pending',
@@ -634,7 +637,10 @@ export const routes: AppRoute[] = [
       // 默认重定向到 overview
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/console/llm-trace/overview', replace: true }),
+        element: React.createElement(Navigate, {
+          to: '/console/llm-trace/overview',
+          replace: true,
+        }),
       },
       {
         path: '/console/llm-trace/overview',
@@ -835,7 +841,10 @@ export const routes: AppRoute[] = [
       // 默认重定向到 dashboard
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/console/ai-review/dashboard', replace: true }),
+        element: React.createElement(Navigate, {
+          to: '/console/ai-review/dashboard',
+          replace: true,
+        }),
       },
       {
         path: '/console/ai-review/dashboard',
@@ -878,7 +887,10 @@ export const routes: AppRoute[] = [
       // 默认重定向到 incidents
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/observability/self-healing/incidents', replace: true }),
+        element: React.createElement(Navigate, {
+          to: '/observability/self-healing/incidents',
+          replace: true,
+        }),
       },
       {
         path: '/observability/self-healing/incidents',
@@ -921,7 +933,10 @@ export const routes: AppRoute[] = [
       // 默认重定向到 dashboard
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/observability/monitoring/dashboard', replace: true }),
+        element: React.createElement(Navigate, {
+          to: '/observability/monitoring/dashboard',
+          replace: true,
+        }),
       },
       {
         path: '/observability/monitoring/dashboard',
@@ -959,7 +974,10 @@ export const routes: AppRoute[] = [
       // 默认重定向到 sessions
       {
         index: true,
-        element: React.createElement(Navigate, { to: '/observability/diagnostic/sessions', replace: true }),
+        element: React.createElement(Navigate, {
+          to: '/observability/diagnostic/sessions',
+          replace: true,
+        }),
       },
       {
         path: '/observability/diagnostic/sessions',
@@ -2104,20 +2122,20 @@ export const routes: AppRoute[] = [
 
   // Automation 自动化作业
   {
-    path: "/automation",
-    element: React.lazy(() => import("@/pages/Automation")),
+    path: '/automation',
+    element: React.lazy(() => import('@/pages/Automation')),
     protected: true,
   },
   // RDM 研发管理
   {
-    path: "/rdm",
-    element: React.lazy(() => import("@/pages/RDM")),
+    path: '/rdm',
+    element: React.lazy(() => import('@/pages/RDM')),
     protected: true,
   },
   // FormDesigner 表单引擎
   {
-    path: "/form-designer",
-    element: React.lazy(() => import("@/pages/FormDesigner")),
+    path: '/form-designer',
+    element: React.lazy(() => import('@/pages/FormDesigner')),
     protected: true,
   },
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前

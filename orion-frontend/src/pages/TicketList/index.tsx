@@ -30,7 +30,14 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { getTickets, deleteTicket, transitionStatus, resolveTicket, closeTicket, assignTicket } from '@/api/ticketing';
+import {
+  getTickets,
+  deleteTicket,
+  transitionStatus,
+  resolveTicket,
+  closeTicket,
+  assignTicket,
+} from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing } from '@/tokens';
@@ -244,48 +251,51 @@ const TicketList: React.FC = () => {
   const slaBreached = tickets.filter((t) => calculateSLA(t).overdue).length;
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '待处理', value: 'open' },
-        { label: '已分配', value: 'assigned' },
-        { label: '处理中', value: 'in-progress' },
-        { label: '已解决', value: 'resolved' },
-        { label: '已关闭', value: 'closed' },
-      ],
-    },
-    {
-      key: 'priority',
-      label: '优先级',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '紧急', value: 'critical' },
-        { label: '高', value: 'high' },
-        { label: '中', value: 'medium' },
-        { label: '低', value: 'low' },
-      ],
-    },
-    {
-      key: 'category',
-      label: '分类',
-      options: [
-        { label: '全部', value: 'all' },
-        ...Object.entries(categoryLabels).map(([key, label]) => ({ label, value: key })),
-      ],
-    },
-    {
-      key: 'assignee',
-      label: '负责人',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '未分配', value: 'unassigned' },
-        ...(engineersLoading ? [] : engineers.map((name) => ({ label: name, value: name }))),
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '待处理', value: 'open' },
+          { label: '已分配', value: 'assigned' },
+          { label: '处理中', value: 'in-progress' },
+          { label: '已解决', value: 'resolved' },
+          { label: '已关闭', value: 'closed' },
+        ],
+      },
+      {
+        key: 'priority',
+        label: '优先级',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '紧急', value: 'critical' },
+          { label: '高', value: 'high' },
+          { label: '中', value: 'medium' },
+          { label: '低', value: 'low' },
+        ],
+      },
+      {
+        key: 'category',
+        label: '分类',
+        options: [
+          { label: '全部', value: 'all' },
+          ...Object.entries(categoryLabels).map(([key, label]) => ({ label, value: key })),
+        ],
+      },
+      {
+        key: 'assignee',
+        label: '负责人',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '未分配', value: 'unassigned' },
+          ...(engineersLoading ? [] : engineers.map((name) => ({ label: name, value: name }))),
+        ],
+      },
+    ],
+    []
+  );
 
   // Action handlers
   const handleRefresh = () => {
@@ -302,7 +312,9 @@ const TicketList: React.FC = () => {
           <Select
             style={{ width: '100%', marginTop: 8 }}
             placeholder="选择工程师"
-            onChange={(v) => { assigneeValue = v; }}
+            onChange={(v) => {
+              assigneeValue = v;
+            }}
             options={engineers.map((name) => ({ label: name, value: name }))}
             loading={engineersLoading}
           />
@@ -383,218 +395,229 @@ const TicketList: React.FC = () => {
   };
 
   // Table columns
-  const columns: TableColumn<Ticket>[] = useMemo<TableColumn<Ticket>[]>(() => [
-    {
-      key: 'id',
-      title: '工单ID',
-      dataIndex: 'id',
-      width: 100,
-      render: (value: unknown, record: MockTicket) => (
-        <Text
-          strong
-          style={{ cursor: 'pointer', color: colors.primary[500] }}
-          onClick={() => navigate(`/tickets/${record.id}`)}
-          data-testid={`ticket-link-${record.id}`}
-        >
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      width: 280,
-      render: (value: unknown, record: MockTicket) => (
-        <Space direction="vertical" size={0}>
+  const columns: TableColumn<Ticket>[] = useMemo<TableColumn<Ticket>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '工单ID',
+        dataIndex: 'id',
+        width: 100,
+        render: (value: unknown, record: MockTicket) => (
           <Text
             strong
             style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/tickets/${record.id}`)}
+            data-testid={`ticket-link-${record.id}`}
           >
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            来源:{' '}
-            {record.source === 'alert'
-              ? '告警'
-              : record.source === 'incident'
-                ? '事件'
-                : record.source === 'api'
-                  ? 'API'
-                  : '手动'}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 110,
-      render: (value: unknown) => (
-        <Tag color="cyan" style={{ margin: 0 }}>
-          {categoryLabels[String(value)] || String(value)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 90,
-      render: (value: unknown) => {
-        const config = priorityConfig[String(value)] || { color: 'default', label: String(value) };
-        return (
-          <Tag color={config.color} style={{ margin: 0, fontWeight: 500 }}>
-            {config.label}
-          </Tag>
-        );
+        ),
       },
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (value: unknown) => {
-        const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
-        return <Badge status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'} text={config.label} />;
-      },
-    },
-    {
-      key: 'assignee',
-      title: '负责人',
-      dataIndex: 'assignee',
-      width: 100,
-      render: (value: unknown) => (
-        <Text>{value ? String(value) : <Text type="secondary">未分配</Text>}</Text>
-      ),
-    },
-    {
-      key: 'sla',
-      title: 'SLA 剩余',
-      width: 110,
-      render: (_: unknown, record: MockTicket) => {
-        const sla = calculateSLA(record);
-        return (
-          <Space size={4}>
-            <ClockCircleOutlined style={{ color: sla.color }} />
-            <Text style={{ color: sla.color, fontWeight: sla.overdue ? 700 : 400 }}>
-              {sla.text}
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        width: 280,
+        render: (value: unknown, record: MockTicket) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => navigate(`/tickets/${record.id}`)}
+            >
+              {String(value)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              来源:{' '}
+              {record.source === 'alert'
+                ? '告警'
+                : record.source === 'incident'
+                  ? '事件'
+                  : record.source === 'api'
+                    ? 'API'
+                    : '手动'}
             </Text>
           </Space>
-        );
+        ),
       },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 140,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).format('MM-DD HH:mm')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 280,
-      render: (_: unknown, record: Ticket) => (
-        <Space size="small" wrap>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/tickets/${record.id}`)}
-            data-testid={`view-ticket-${record.id}`}
-          >
-            详情
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            data-testid={`edit-ticket-${record.id}`}
-          >
-            编辑
-          </Button>
-          {/* Status transition buttons based on current status */}
-          {(record.status === 'open' || record.status === 'assigned') && (
-            <Button
-              type="link"
-              size="small"
-              icon={<CheckOutlined />}
-              onClick={() => handleStatusTransition(record, 'start')}
-              data-testid={`start-ticket-${record.id}`}
-            >
-              处理中
-            </Button>
-          )}
-          {record.status === 'in-progress' && (
-            <Button
-              type="link"
-              size="small"
-              icon={<CheckOutlined />}
-              style={{ color: colors.success[500] }}
-              onClick={() => handleStatusTransition(record, 'resolve')}
-              data-testid={`resolve-ticket-${record.id}`}
-            >
-              解决
-            </Button>
-          )}
-          {record.status === 'resolved' && (
-            <Button
-              type="link"
-              size="small"
-              icon={<CloseOutlined />}
-              onClick={() => handleStatusTransition(record, 'close')}
-              data-testid={`close-ticket-${record.id}`}
-            >
-              关闭
-            </Button>
-          )}
-          {!record.assignee && (
-            <Button
-              type="link"
-              size="small"
-              icon={<UserAddOutlined />}
-              onClick={() => handleAssign(record)}
-              data-testid={`assign-ticket-${record.id}`}
-            >
-              分配
-            </Button>
-          )}
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除这个工单吗？此操作不可恢复。"
-            onConfirm={() => handleDelete(record)}
-            okText="确认"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              data-testid={`delete-ticket-${record.id}`}
-            >
-              删除
-            </Button>
-          </Popconfirm>
-          {record.escalationLevel > 0 && (
-            <Tag color="red" style={{ margin: 0 }}>
-              升级 L{record.escalationLevel}
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 110,
+        render: (value: unknown) => (
+          <Tag color="cyan" style={{ margin: 0 }}>
+            {categoryLabels[String(value)] || String(value)}
+          </Tag>
+        ),
+      },
+      {
+        key: 'priority',
+        title: '优先级',
+        dataIndex: 'priority',
+        width: 90,
+        render: (value: unknown) => {
+          const config = priorityConfig[String(value)] || {
+            color: 'default',
+            label: String(value),
+          };
+          return (
+            <Tag color={config.color} style={{ margin: 0, fontWeight: 500 }}>
+              {config.label}
             </Tag>
-          )}
-        </Space>
-      ),
-    },
-  ], [handleAssign, handleDelete, handleEdit, handleStatusTransition, navigate]);
+          );
+        },
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (value: unknown) => {
+          const config = statusConfig[String(value)] || { color: 'default', label: String(value) };
+          return (
+            <Badge
+              status={config.color as 'success' | 'processing' | 'error' | 'default' | 'warning'}
+              text={config.label}
+            />
+          );
+        },
+      },
+      {
+        key: 'assignee',
+        title: '负责人',
+        dataIndex: 'assignee',
+        width: 100,
+        render: (value: unknown) => (
+          <Text>{value ? String(value) : <Text type="secondary">未分配</Text>}</Text>
+        ),
+      },
+      {
+        key: 'sla',
+        title: 'SLA 剩余',
+        width: 110,
+        render: (_: unknown, record: MockTicket) => {
+          const sla = calculateSLA(record);
+          return (
+            <Space size={4}>
+              <ClockCircleOutlined style={{ color: sla.color }} />
+              <Text style={{ color: sla.color, fontWeight: sla.overdue ? 700 : 400 }}>
+                {sla.text}
+              </Text>
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 140,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).format('MM-DD HH:mm')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 280,
+        render: (_: unknown, record: Ticket) => (
+          <Space size="small" wrap>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/tickets/${record.id}`)}
+              data-testid={`view-ticket-${record.id}`}
+            >
+              详情
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+              data-testid={`edit-ticket-${record.id}`}
+            >
+              编辑
+            </Button>
+            {/* Status transition buttons based on current status */}
+            {(record.status === 'open' || record.status === 'assigned') && (
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => handleStatusTransition(record, 'start')}
+                data-testid={`start-ticket-${record.id}`}
+              >
+                处理中
+              </Button>
+            )}
+            {record.status === 'in-progress' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<CheckOutlined />}
+                style={{ color: colors.success[500] }}
+                onClick={() => handleStatusTransition(record, 'resolve')}
+                data-testid={`resolve-ticket-${record.id}`}
+              >
+                解决
+              </Button>
+            )}
+            {record.status === 'resolved' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => handleStatusTransition(record, 'close')}
+                data-testid={`close-ticket-${record.id}`}
+              >
+                关闭
+              </Button>
+            )}
+            {!record.assignee && (
+              <Button
+                type="link"
+                size="small"
+                icon={<UserAddOutlined />}
+                onClick={() => handleAssign(record)}
+                data-testid={`assign-ticket-${record.id}`}
+              >
+                分配
+              </Button>
+            )}
+            <Popconfirm
+              title="确认删除"
+              description="确定要删除这个工单吗？此操作不可恢复。"
+              onConfirm={() => handleDelete(record)}
+              okText="确认"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                data-testid={`delete-ticket-${record.id}`}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+            {record.escalationLevel > 0 && (
+              <Tag color="red" style={{ margin: 0 }}>
+                升级 L{record.escalationLevel}
+              </Tag>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [handleAssign, handleDelete, handleEdit, handleStatusTransition, navigate]
+  );
 
   return (
     <div style={{ padding: 0 }} data-testid="ticket-list-page">

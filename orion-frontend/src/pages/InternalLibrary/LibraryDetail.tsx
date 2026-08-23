@@ -284,85 +284,88 @@ const VersionTab: React.FC<VersionTabProps> = ({
   onOpenPublish,
   onOpenDeprecateVersion,
 }) => {
-  const versionColumns: TableColumn<LibraryVersion>[] = useMemo<TableColumn<LibraryVersion>[]>(() => [
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 120,
-      render: (v: unknown) => (
-        <Text code>
-          <RocketOutlined /> {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: LibraryVersion) => (
-        <Tag color={versionStatusColorMap[record.status]}>{record.status}</Tag>
-      ),
-    },
-    {
-      key: 'changelog',
-      title: '变更说明',
-      dataIndex: 'changelog',
-      width: 200,
-      render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text>,
-    },
-    {
-      key: 'testCoverage',
-      title: '测试覆盖',
-      width: 100,
-      render: (_: unknown, record: LibraryVersion) =>
-        record.testCoverage != null ? (
-          <Text>{record.testCoverage}%</Text>
-        ) : (
-          <Text type="secondary">-</Text>
+  const versionColumns: TableColumn<LibraryVersion>[] = useMemo<TableColumn<LibraryVersion>[]>(
+    () => [
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 120,
+        render: (v: unknown) => (
+          <Text code>
+            <RocketOutlined /> {String(v)}
+          </Text>
         ),
-    },
-    {
-      key: 'securityScore',
-      title: '安全评分',
-      width: 100,
-      render: (_: unknown, record: LibraryVersion) => {
-        if (record.securityScore == null) return <Text type="secondary">-</Text>;
-        const color =
-          record.securityScore >= 90 ? 'green' : record.securityScore >= 70 ? 'orange' : 'red';
-        return <Tag color={color}>{record.securityScore}</Tag>;
       },
-    },
-    {
-      key: 'releasedAt',
-      title: '发布时间',
-      dataIndex: 'releasedAt',
-      width: 140,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: LibraryVersion) =>
-        record.status !== 'deprecated' ? (
-          <Popconfirm
-            title="确认废弃此版本?"
-            onConfirm={() => onOpenDeprecateVersion(record.version)}
-          >
-            <Button type="link" size="small" danger>
-              废弃
-            </Button>
-          </Popconfirm>
-        ) : (
-          <Text type="secondary">已废弃</Text>
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: LibraryVersion) => (
+          <Tag color={versionStatusColorMap[record.status]}>{record.status}</Tag>
         ),
-    },
-  ], [onOpenDeprecateVersion]);
+      },
+      {
+        key: 'changelog',
+        title: '变更说明',
+        dataIndex: 'changelog',
+        width: 200,
+        render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text>,
+      },
+      {
+        key: 'testCoverage',
+        title: '测试覆盖',
+        width: 100,
+        render: (_: unknown, record: LibraryVersion) =>
+          record.testCoverage != null ? (
+            <Text>{record.testCoverage}%</Text>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'securityScore',
+        title: '安全评分',
+        width: 100,
+        render: (_: unknown, record: LibraryVersion) => {
+          if (record.securityScore == null) return <Text type="secondary">-</Text>;
+          const color =
+            record.securityScore >= 90 ? 'green' : record.securityScore >= 70 ? 'orange' : 'red';
+          return <Tag color={color}>{record.securityScore}</Tag>;
+        },
+      },
+      {
+        key: 'releasedAt',
+        title: '发布时间',
+        dataIndex: 'releasedAt',
+        width: 140,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: LibraryVersion) =>
+          record.status !== 'deprecated' ? (
+            <Popconfirm
+              title="确认废弃此版本?"
+              onConfirm={() => onOpenDeprecateVersion(record.version)}
+            >
+              <Button type="link" size="small" danger>
+                废弃
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Text type="secondary">已废弃</Text>
+          ),
+      },
+    ],
+    [onOpenDeprecateVersion]
+  );
 
   return (
     <div>
@@ -398,78 +401,84 @@ const DependentsTab: React.FC<DependentsTabProps> = ({
   onOpenAddDependent,
   onUpdateDependent,
 }) => {
-  const dependentColumns: TableColumn<LibraryDependent>[] = useMemo<TableColumn<LibraryDependent>[]>(() => [
-    {
-      key: 'repoName',
-      title: '项目',
-      dataIndex: 'repoName',
-      width: 200,
-      render: (v: unknown) => <Text code>{String(v)}</Text>,
-    },
-    {
-      key: 'teamName',
-      title: '团队',
-      dataIndex: 'teamName',
-      width: 120,
-      render: (_: unknown, record: LibraryDependent) => (
-        <Space>
-          <TeamOutlined /> {record.teamName}
-        </Space>
-      ),
-    },
-    {
-      key: 'version',
-      title: '当前版本',
-      dataIndex: 'currentVersion',
-      width: 100,
-      render: (v: unknown) => <Text code>{String(v)}</Text>,
-    },
-    {
-      key: 'upgradeAvailable',
-      title: '升级',
-      width: 100,
-      render: (_: unknown, record: LibraryDependent) => {
-        if (!record.upgradeAvailable) return <Tag color="green">最新</Tag>;
-        return <Tag color="blue">{record.upgradeType || 'upgrade'}</Tag>;
+  const dependentColumns: TableColumn<LibraryDependent>[] = useMemo<
+    TableColumn<LibraryDependent>[]
+  >(
+    () => [
+      {
+        key: 'repoName',
+        title: '项目',
+        dataIndex: 'repoName',
+        width: 200,
+        render: (v: unknown) => <Text code>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'latestVersion',
-      title: '最新版本',
-      dataIndex: 'latestCompatibleVersion',
-      width: 120,
-      render: (v: unknown) => (v ? <Text code>{String(v)}</Text> : <Text type="secondary">-</Text>),
-    },
-    {
-      key: 'lastUpdated',
-      title: '最后更新',
-      dataIndex: 'lastUpdated',
-      width: 140,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: LibraryDependent) =>
-        record.upgradeAvailable && record.latestCompatibleVersion ? (
-          <Popconfirm
-            title={`确认升级到 ${record.latestCompatibleVersion}?`}
-            onConfirm={() => onUpdateDependent(record.repoName, record.latestCompatibleVersion!)}
-          >
-            <Button type="link" size="small">
-              <CheckCircleOutlined /> 升级
-            </Button>
-          </Popconfirm>
-        ) : (
-          <Text type="secondary">-</Text>
+      {
+        key: 'teamName',
+        title: '团队',
+        dataIndex: 'teamName',
+        width: 120,
+        render: (_: unknown, record: LibraryDependent) => (
+          <Space>
+            <TeamOutlined /> {record.teamName}
+          </Space>
         ),
-    },
-  ], [onUpdateDependent]);
+      },
+      {
+        key: 'version',
+        title: '当前版本',
+        dataIndex: 'currentVersion',
+        width: 100,
+        render: (v: unknown) => <Text code>{String(v)}</Text>,
+      },
+      {
+        key: 'upgradeAvailable',
+        title: '升级',
+        width: 100,
+        render: (_: unknown, record: LibraryDependent) => {
+          if (!record.upgradeAvailable) return <Tag color="green">最新</Tag>;
+          return <Tag color="blue">{record.upgradeType || 'upgrade'}</Tag>;
+        },
+      },
+      {
+        key: 'latestVersion',
+        title: '最新版本',
+        dataIndex: 'latestCompatibleVersion',
+        width: 120,
+        render: (v: unknown) =>
+          v ? <Text code>{String(v)}</Text> : <Text type="secondary">-</Text>,
+      },
+      {
+        key: 'lastUpdated',
+        title: '最后更新',
+        dataIndex: 'lastUpdated',
+        width: 140,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: LibraryDependent) =>
+          record.upgradeAvailable && record.latestCompatibleVersion ? (
+            <Popconfirm
+              title={`确认升级到 ${record.latestCompatibleVersion}?`}
+              onConfirm={() => onUpdateDependent(record.repoName, record.latestCompatibleVersion!)}
+            >
+              <Button type="link" size="small">
+                <CheckCircleOutlined /> 升级
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+    ],
+    [onUpdateDependent]
+  );
 
   return (
     <div>

@@ -138,7 +138,8 @@ const StageItem: React.FC<StageItemProps> = ({
                 )}
                 {stage.type === 'buildx' && (stage.config as { imageName?: string })?.imageName && (
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                    {String((stage.config as { imageName?: string; tag?: string }).imageName)}::{String((stage.config as { imageName?: string; tag?: string }).tag) || 'latest'}
+                    {String((stage.config as { imageName?: string; tag?: string }).imageName)}::
+                    {String((stage.config as { imageName?: string; tag?: string }).tag) || 'latest'}
                   </Text>
                 )}
                 {stage.type === 'container' && (stage.config as { image?: string })?.image && (

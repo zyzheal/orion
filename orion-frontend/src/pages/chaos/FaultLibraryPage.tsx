@@ -3,19 +3,7 @@
  * Catalog of chaos fault types with configuration templates
  */
 import React, { useState } from 'react';
-import {
-  Card,
-  Table,
-  Tag,
-  Space,
-  Button,
-  Input,
-  Typography,
-  Tooltip,
-  Row,
-  Col,
-  Empty,
-} from 'antd';
+import { Card, Table, Tag, Space, Button, Input, Typography, Tooltip, Row, Col, Empty } from 'antd';
 import {
   BugOutlined,
   SearchOutlined,
@@ -135,9 +123,9 @@ export default function FaultLibraryPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
-  const categories = [...new Set(faultTemplates.map(f => f.category))];
+  const categories = [...new Set(faultTemplates.map((f) => f.category))];
 
-  const filtered = faultTemplates.filter(f => {
+  const filtered = faultTemplates.filter((f) => {
     const matchSearch = !search || f.name.includes(search) || f.description.includes(search);
     const matchCategory = !categoryFilter || f.category === categoryFilter;
     return matchSearch && matchCategory;
@@ -153,7 +141,9 @@ export default function FaultLibraryPage() {
           <div>
             <Text strong>{record.name}</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.type}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.type}
+            </Text>
           </div>
         </Space>
       ),
@@ -204,7 +194,7 @@ export default function FaultLibraryPage() {
               placeholder="搜索故障类型..."
               prefix={<SearchOutlined />}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               allowClear
             />
           </Col>
@@ -216,7 +206,7 @@ export default function FaultLibraryPage() {
               >
                 全部
               </Button>
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <Button
                   key={cat}
                   type={categoryFilter === cat ? 'primary' : 'default'}

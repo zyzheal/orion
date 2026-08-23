@@ -33,28 +33,34 @@ export const SankeyChart: React.FC<SankeyChartProps> = ({
 }) => {
   const theme = useChartTheme();
 
-  const option = useMemo(() => ({
-    title: title
-      ? { text: title, left: 'center', textStyle: { fontSize: 14, fontWeight: 600 } }
-      : undefined,
-    tooltip: { trigger: 'item' as const, triggerOn: 'mousemove' as const },
-    series: [
-      {
-        type: 'sankey' as const,
-        orient,
-        data: nodes.map((n) => ({ name: n.name })),
-        links: links.map((l) => ({ source: l.source, target: l.target, value: l.value })),
-        emphasis: { focus: 'adjacency' as const },
-        lineStyle: { color: 'source' as const, curveness: 0.5 },
-        label: { color: theme.textColor, fontSize: 11 },
-        itemStyle: { borderWidth: 0 },
-      },
-    ],
-  }), [nodes, links, title, orient, theme]);
+  const option = useMemo(
+    () => ({
+      title: title
+        ? { text: title, left: 'center', textStyle: { fontSize: 14, fontWeight: 600 } }
+        : undefined,
+      tooltip: { trigger: 'item' as const, triggerOn: 'mousemove' as const },
+      series: [
+        {
+          type: 'sankey' as const,
+          orient,
+          data: nodes.map((n) => ({ name: n.name })),
+          links: links.map((l) => ({ source: l.source, target: l.target, value: l.value })),
+          emphasis: { focus: 'adjacency' as const },
+          lineStyle: { color: 'source' as const, curveness: 0.5 },
+          label: { color: theme.textColor, fontSize: 11 },
+          itemStyle: { borderWidth: 0 },
+        },
+      ],
+    }),
+    [nodes, links, title, orient, theme]
+  );
 
   if (loading) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
+      <div
+        style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-busy="true"
+      >
         <Spin />
       </div>
     );

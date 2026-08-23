@@ -82,10 +82,10 @@ describe('OnCallManagement', { timeout: 15000 }, () => {
 
   it('loads schedules from API on mount', async () => {
     vi.spyOn(oncallApi, 'getSchedules').mockResolvedValue({
-      data: { schedules: mockSchedules } ,
+      data: { schedules: mockSchedules },
     } as any);
     vi.spyOn(oncallApi, 'getCurrentOnCall').mockResolvedValue({
-      data: { isOnCall: true, primaryUserId: 'dev-001' } ,
+      data: { isOnCall: true, primaryUserId: 'dev-001' },
     } as any);
     vi.spyOn(usersApi, 'listUsers').mockResolvedValue({
       data: [],

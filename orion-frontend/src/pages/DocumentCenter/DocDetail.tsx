@@ -7,9 +7,7 @@
 import _React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import {
-  Typography, Tag, Space, Divider, Button, Tooltip, Spin, Drawer,
-} from 'antd';
+import { Typography, Tag, Space, Divider, Button, Tooltip, Spin, Drawer } from 'antd';
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
@@ -41,7 +39,10 @@ interface DocDetailProps {
 // 文档类型配置
 // ============================================================================
 
-const DOC_TYPE_CONFIG: Record<DocType, { label: string; color: string; borderColor: string; bgColor: string }> = {
+const DOC_TYPE_CONFIG: Record<
+  DocType,
+  { label: string; color: string; borderColor: string; bgColor: string }
+> = {
   design: {
     label: '设计文档',
     color: colors.info[500],
@@ -86,7 +87,10 @@ function extractToc(content: string): TocItem[] {
     return {
       level,
       text,
-      id: text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-'),
+      id: text
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-'),
     };
   });
 }
@@ -109,7 +113,9 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}
+      >
         <Spin size="large" tip="加载文档中..." />
       </div>
     );
@@ -127,7 +133,15 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
   const typeConfig = DOC_TYPE_CONFIG[docType];
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', background: themeVars.bgPrimary, borderRadius: radius[3], boxShadow: shadows.card }}>
+    <div
+      style={{
+        height: '100%',
+        overflow: 'auto',
+        background: themeVars.bgPrimary,
+        borderRadius: radius[3],
+        boxShadow: shadows.card,
+      }}
+    >
       {/* 顶部工具栏 */}
       <div
         style={{
@@ -144,7 +158,9 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
       >
         <Space>
           <Button icon={<ArrowLeftOutlined />} onClick={onBack} type="text" />
-          <Text strong style={{ fontSize: 16 }}>{doc.title}</Text>
+          <Text strong style={{ fontSize: 16 }}>
+            {doc.title}
+          </Text>
           <Tag color={typeConfig.color}>{typeConfig.label}</Tag>
         </Space>
         <Space>
@@ -200,10 +216,14 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
             <TagOutlined style={{ color: colors.neutral[400] }} />
             {doc.tags && doc.tags.length > 0 ? (
               doc.tags.map((tag) => (
-                <Tag key={tag} style={{ margin: 0, fontSize: 12 }}>{tag}</Tag>
+                <Tag key={tag} style={{ margin: 0, fontSize: 12 }}>
+                  {tag}
+                </Tag>
               ))
             ) : (
-              <Text type="secondary" style={{ fontSize: 13 }}>无标签</Text>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                无标签
+              </Text>
             )}
           </Space>
         </div>
@@ -211,7 +231,16 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
         {/* 版本信息 */}
         <div style={{ marginBottom: spacing[4] }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            版本 v{doc.version} | 状态: <Tag color={doc.status === 'published' ? 'success' : doc.status === 'archived' ? 'default' : 'default'}>
+            版本 v{doc.version} | 状态:{' '}
+            <Tag
+              color={
+                doc.status === 'published'
+                  ? 'success'
+                  : doc.status === 'archived'
+                    ? 'default'
+                    : 'default'
+              }
+            >
               {doc.status}
             </Tag>
           </Text>
@@ -221,9 +250,7 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
 
         {/* Markdown 内容渲染 */}
         <div className="markdown-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {doc.content || '_暂无内容_'}
-          </ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content || '_暂无内容_'}</ReactMarkdown>
         </div>
       </div>
 

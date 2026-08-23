@@ -4,11 +4,26 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Modal, Form, Input,
-  Select, Tag, Tooltip, Popconfirm, message, Empty,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  Popconfirm,
+  message,
+  Empty,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
   PoweroffOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -55,7 +70,9 @@ const StrategyTab: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const loadItems = async () => {
     setLoading(true);
@@ -64,7 +81,9 @@ const StrategyTab: React.FC = () => {
       setItems(data);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载策略列表失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -208,7 +227,12 @@ const StrategyTab: React.FC = () => {
       render: (_: any, record: NotificationStrategy) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            />
           </Tooltip>
           <Tooltip title={record.status === 'active' ? '停用' : '启用'}>
             <Button
@@ -236,11 +260,21 @@ const StrategyTab: React.FC = () => {
 
   return (
     <Card
-      style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+      style={{
+        borderRadius: 12,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
       bodyStyle={{ padding: spacing.md }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Text type="secondary">共 {filteredItems.length} 条策略</Text>
         </Space>
@@ -260,7 +294,9 @@ const StrategyTab: React.FC = () => {
             onChange={setStatusFilter}
           >
             {STATUS_OPTIONS.map((o) => (
-              <Option key={o.value} value={o.value}>{o.label}</Option>
+              <Option key={o.value} value={o.value}>
+                {o.label}
+              </Option>
             ))}
           </Select>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
@@ -276,11 +312,7 @@ const StrategyTab: React.FC = () => {
       {filteredItems.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">
-              暂无通知策略，点击上方「新建策略」开始创建
-            </Text>
-          }
+          description={<Text type="secondary">暂无通知策略，点击上方「新建策略」开始创建</Text>}
         />
       ) : (
         <Table
@@ -289,7 +321,11 @@ const StrategyTab: React.FC = () => {
           rowKey="id"
           loading={loading}
           size="middle"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
           scroll={{ x: 800 }}
         />
       )}
@@ -319,21 +355,27 @@ const StrategyTab: React.FC = () => {
           <Form.Item name="trigger_type" label="触发类型">
             <Select>
               {TRIGGER_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="priority" label="优先级" initialValue={5}>
             <Select>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <Option key={String(n)} value={n}>{n}</Option>
+                <Option key={String(n)} value={n}>
+                  {n}
+                </Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="status" label="状态">
             <Select>
               {STATUS_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -346,7 +388,9 @@ const StrategyTab: React.FC = () => {
           <Form.Item name="channels" label="通知渠道">
             <Select mode="multiple" placeholder="选择通知渠道">
               {CHANNEL_TYPES.map((c) => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
+                <Option key={c.value} value={c.value}>
+                  {c.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -361,7 +405,11 @@ const StrategyTab: React.FC = () => {
 
 function parseJSON(val: string): Record<string, any> | Record<string, any>[] {
   if (!val || typeof val !== 'string') return {};
-  try { return JSON.parse(val); } catch { return {}; }
+  try {
+    return JSON.parse(val);
+  } catch {
+    return {};
+  }
 }
 
 export default StrategyTab;

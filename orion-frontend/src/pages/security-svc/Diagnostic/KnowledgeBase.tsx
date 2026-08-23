@@ -21,7 +21,13 @@ import {
   Card,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, BookOutlined, SearchOutlined, FileTextOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  BookOutlined,
+  SearchOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { searchPatterns, getPattern, addPattern, getKnowledgeStats } from '@/api/diagnostic';
@@ -88,20 +94,23 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     }
   };
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'category',
-      label: '分类',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '性能', value: 'performance' },
-        { label: '可用性', value: 'availability' },
-        { label: '安全', value: 'security' },
-        { label: '配置', value: 'configuration' },
-        { label: '基础设施', value: 'infrastructure' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'category',
+        label: '分类',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '性能', value: 'performance' },
+          { label: '可用性', value: 'availability' },
+          { label: '安全', value: 'security' },
+          { label: '配置', value: 'configuration' },
+          { label: '基础设施', value: 'infrastructure' },
+        ],
+      },
+    ],
+    []
+  );
 
   const handleFilter = async (newFilters: Record<string, string | string[] | undefined>) => {
     setFilters(newFilters);
@@ -159,84 +168,87 @@ const DiagnosticKnowledgeBase: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<DiagnosticPattern>[] = useMemo<TableColumn<DiagnosticPattern>[]>(() => [
-    {
-      key: 'name',
-      title: '模式名称',
-      dataIndex: 'name',
-      sortable: true,
-      filterable: true,
-      render: (v: unknown, record: any) => {
-        const value = v as string;
-        return (
-          <Text
-            strong
-            style={{ color: colors.purple[500], cursor: 'pointer' }}
-            onClick={() => showDetail(record)}
-          >
-            {value}
+  const columns: TableColumn<DiagnosticPattern>[] = useMemo<TableColumn<DiagnosticPattern>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '模式名称',
+        dataIndex: 'name',
+        sortable: true,
+        filterable: true,
+        render: (v: unknown, record: any) => {
+          const value = v as string;
+          return (
+            <Text
+              strong
+              style={{ color: colors.purple[500], cursor: 'pointer' }}
+              onClick={() => showDetail(record)}
+            >
+              {value}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 120,
+        render: (v: unknown) => {
+          const value = v as string;
+          const cfg = categoryConfig[value];
+          return <Tag color={cfg?.color || 'default'}>{value}</Tag>;
+        },
+      },
+      {
+        key: 'symptoms',
+        title: '症状',
+        dataIndex: 'symptoms',
+        render: (v: unknown) => {
+          const symptoms = v as string[];
+          return (
+            <Space wrap>
+              {symptoms.slice(0, 3).map((s, idx) => (
+                <Tag key={String(idx)} style={{ fontSize: spacing[2] }}>
+                  {s}
+                </Tag>
+              ))}
+              {symptoms.length > 3 && <Tag>+{symptoms.length - 3}</Tag>}
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'frequency',
+        title: '出现频率',
+        dataIndex: 'frequency',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{v as number}</Text>,
+      },
+      {
+        key: 'rootCause',
+        title: '根因',
+        dataIndex: 'rootCause',
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {v as string}
           </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 120,
-      render: (v: unknown) => {
-        const value = v as string;
-        const cfg = categoryConfig[value];
-        return <Tag color={cfg?.color || 'default'}>{value}</Tag>;
+      {
+        key: 'actions',
+        title: '操作',
+        width: 80,
+        render: (_: unknown, record: any) => (
+          <Button type="link" size="small" onClick={() => showDetail(record)}>
+            详情
+          </Button>
+        ),
       },
-    },
-    {
-      key: 'symptoms',
-      title: '症状',
-      dataIndex: 'symptoms',
-      render: (v: unknown) => {
-        const symptoms = v as string[];
-        return (
-          <Space wrap>
-            {symptoms.slice(0, 3).map((s, idx) => (
-              <Tag key={String(idx)} style={{ fontSize: spacing[2] }}>
-                {s}
-              </Tag>
-            ))}
-            {symptoms.length > 3 && <Tag>+{symptoms.length - 3}</Tag>}
-          </Space>
-        );
-      },
-    },
-    {
-      key: 'frequency',
-      title: '出现频率',
-      dataIndex: 'frequency',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{v as number}</Text>,
-    },
-    {
-      key: 'rootCause',
-      title: '根因',
-      dataIndex: 'rootCause',
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {v as string}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 80,
-      render: (_: unknown, record: any) => (
-        <Button type="link" size="small" onClick={() => showDetail(record)}>
-          详情
-        </Button>
-      ),
-    },
-  ], [showDetail]);
+    ],
+    [showDetail]
+  );
 
   return (
     <div>

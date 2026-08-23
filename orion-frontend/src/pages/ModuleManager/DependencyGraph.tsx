@@ -61,10 +61,7 @@ const levelLabel: Record<string, string> = {
  * Build a tree structure from module dependencies.
  * Root nodes are modules with no dependencies (or core modules).
  */
-function buildDependencyTree(
-  modules: ModuleDescriptor[],
-  showReverse: boolean
-): React.ReactNode[] {
+function buildDependencyTree(modules: ModuleDescriptor[], showReverse: boolean): React.ReactNode[] {
   const moduleMap = new Map<string, ModuleDescriptor>();
   modules.forEach((m) => moduleMap.set(m.id, m));
 
@@ -82,7 +79,7 @@ function buildDependencyTree(
     const allDependedUpon = new Set(reverseDeps.keys());
     const rootModules = modules.filter((m) => !allDependedUpon.has(m.id));
 
-    function renderReverseNode(moduleId: string): React.ReactNode {
+    const renderReverseNode = (moduleId: string): React.ReactNode => {
       const mod = moduleMap.get(moduleId);
       if (!mod) return null;
       const dependents = reverseDeps.get(moduleId) || [];
@@ -105,7 +102,7 @@ function buildDependencyTree(
           {dependents.map((depId) => renderReverseNode(depId))}
         </TreeNode>
       );
-    }
+    };
 
     return rootModules.map((m) => renderReverseNode(m.id));
   }
@@ -167,7 +164,10 @@ function ModuleNodeTitle({ module, suffix }: ModuleNodeTitleProps) {
         {levelLabel[module.level]}
       </Tag>
       {!module.config.enabled && (
-        <Tag color="default" style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
+        <Tag
+          color="default"
+          style={{ fontSize: 10, margin: 0, padding: '0 4px', lineHeight: '16px' }}
+        >
           已禁用
         </Tag>
       )}
@@ -234,8 +234,8 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({
         ))}
         <span style={{ marginLeft: spacing.sm }}>
           <Text type="secondary">
-            活跃: {stats.stateCounts.active || 0} | 已停止: {stats.stateCounts.stopped || 0} |
-            失败: {stats.stateCounts.failed || 0}
+            活跃: {stats.stateCounts.active || 0} | 已停止: {stats.stateCounts.stopped || 0} | 失败:{' '}
+            {stats.stateCounts.failed || 0}
           </Text>
         </span>
       </div>

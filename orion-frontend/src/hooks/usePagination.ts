@@ -50,10 +50,7 @@ interface PaginationResult<T> {
   reset: () => void;
 }
 
-type Fetcher<T> = (
-  page: number,
-  pageSize: number
-) => Promise<{ data: T[]; total: number }>;
+type Fetcher<T> = (page: number, pageSize: number) => Promise<{ data: T[]; total: number }>;
 
 /**
  * 统一分页 Hook
@@ -65,7 +62,12 @@ export function usePagination<T>(
   fetcher: Fetcher<T>,
   options?: PaginationOptions
 ): PaginationResult<T> {
-  const { defaultPage = 1, pageSize: defaultPageSize = 20, enabled = true, deps = [] } = options || {};
+  const {
+    defaultPage = 1,
+    pageSize: defaultPageSize = 20,
+    enabled = true,
+    deps = [],
+  } = options || {};
 
   const [data, setData] = useState<T[]>([]);
   const [total, setTotal] = useState(0);

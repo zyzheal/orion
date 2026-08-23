@@ -21,9 +21,7 @@ describe('RadarChart', () => {
     { name: '协作', max: 100 },
     { name: '创新', max: 100 },
   ];
-  const series = [
-    { name: '张伟', values: [85, 90, 78, 88, 72] },
-  ];
+  const series = [{ name: '张伟', values: [85, 90, 78, 88, 72] }];
 
   it('renders with title', () => {
     render(wrap(<RadarChart title="能力画像" indicators={indicators} series={series} />));

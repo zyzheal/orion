@@ -142,29 +142,32 @@ const AlertList: React.FC = () => {
   }, [searchQuery, filters, alerts]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'severity',
-      label: '严重级别',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '严重', value: 'critical' },
-        { label: '警告', value: 'warning' },
-        { label: '提示', value: 'info' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '活跃', value: 'active' },
-        { label: '已确认', value: 'acknowledged' },
-        { label: '已解决', value: 'resolved' },
-        { label: '已抑制', value: 'suppressed' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'severity',
+        label: '严重级别',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '严重', value: 'critical' },
+          { label: '警告', value: 'warning' },
+          { label: '提示', value: 'info' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '活跃', value: 'active' },
+          { label: '已确认', value: 'acknowledged' },
+          { label: '已解决', value: 'resolved' },
+          { label: '已抑制', value: 'suppressed' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Count active alerts by severity
   const severityCounts = useMemo(() => {
@@ -312,143 +315,146 @@ const AlertList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(() => [
-    {
-      key: 'severity',
-      title: '级别',
-      dataIndex: 'severity',
-      width: 90,
-      render: (value) => {
-        const config = severityConfig[value as AlertSeverity];
-        return (
-          <Tag color={config.color} style={{ fontWeight: 600 }}>
-            {config.icon} {config.label}
-          </Tag>
-        );
+  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(
+    () => [
+      {
+        key: 'severity',
+        title: '级别',
+        dataIndex: 'severity',
+        width: 90,
+        render: (value) => {
+          const config = severityConfig[value as AlertSeverity];
+          return (
+            <Tag color={config.color} style={{ fontWeight: 600 }}>
+              {config.icon} {config.label}
+            </Tag>
+          );
+        },
       },
-    },
-    {
-      key: 'metric',
-      title: '指标',
-      dataIndex: 'metric',
-      width: 160,
-      sortable: true,
-      filterable: true,
-      render: (value, record) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => showDetail(record)}
-          >
+      {
+        key: 'metric',
+        title: '指标',
+        dataIndex: 'metric',
+        width: 160,
+        sortable: true,
+        filterable: true,
+        render: (value, record) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => showDetail(record)}
+            >
+              {String(value)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {record.source}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'value',
+        title: '当前值',
+        dataIndex: 'value',
+        width: 100,
+        render: (value) => (
+          <Text strong style={{ color: colors.error[600] }}>
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {record.source}
+        ),
+      },
+      {
+        key: 'threshold',
+        title: '阈值',
+        dataIndex: 'threshold',
+        width: 100,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'value',
-      title: '当前值',
-      dataIndex: 'value',
-      width: 100,
-      render: (value) => (
-        <Text strong style={{ color: colors.error[600] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'threshold',
-      title: '阈值',
-      dataIndex: 'threshold',
-      width: 100,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'message',
-      title: '消息',
-      dataIndex: 'message',
-      render: (value: unknown) => (
-        <Text style={{ fontSize: spacing[3] }} title={String(value)}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (value) => {
-        const config = statusConfig[value as AlertStatus];
-        return <Tag color={config.color}>{config.label}</Tag>;
+        ),
       },
-    },
-    {
-      key: 'lastUpdated',
-      title: '更新时间',
-      dataIndex: 'lastUpdated',
-      width: 140,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 230,
-      render: (_, record) => {
-        const isActive = record.status === 'active';
-        const isAcknowledged = record.status === 'acknowledged';
-        return (
-          <Space size="small">
-            {isActive && (
+      {
+        key: 'message',
+        title: '消息',
+        dataIndex: 'message',
+        render: (value: unknown) => (
+          <Text style={{ fontSize: spacing[3] }} title={String(value)}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 110,
+        render: (value) => {
+          const config = statusConfig[value as AlertStatus];
+          return <Tag color={config.color}>{config.label}</Tag>;
+        },
+      },
+      {
+        key: 'lastUpdated',
+        title: '更新时间',
+        dataIndex: 'lastUpdated',
+        width: 140,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 230,
+        render: (_, record) => {
+          const isActive = record.status === 'active';
+          const isAcknowledged = record.status === 'acknowledged';
+          return (
+            <Space size="small">
+              {isActive && (
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={() => handleAcknowledge(record.id)}
+                >
+                  确认
+                </Button>
+              )}
+              {(isActive || isAcknowledged) && (
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={() => handleResolve(record.id)}
+                >
+                  解决
+                </Button>
+              )}
+              <Button type="link" size="small" onClick={() => showDetail(record)}>
+                详情
+              </Button>
               <Button
                 type="link"
                 size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleAcknowledge(record.id)}
+                icon={<BulbOutlined />}
+                loading={explaining}
+                onClick={() => handleExplain(record.id)}
               >
-                确认
+                AI 解释
               </Button>
-            )}
-            {(isActive || isAcknowledged) && (
-              <Button
-                type="link"
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={() => handleResolve(record.id)}
-              >
-                解决
-              </Button>
-            )}
-            <Button type="link" size="small" onClick={() => showDetail(record)}>
-              详情
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<BulbOutlined />}
-              loading={explaining}
-              onClick={() => handleExplain(record.id)}
-            >
-              AI 解释
-            </Button>
-          </Space>
-        );
+            </Space>
+          );
+        },
       },
-    },
-  ], [handleAcknowledge, handleExplain, handleResolve, showDetail]);
+    ],
+    [handleAcknowledge, handleExplain, handleResolve, showDetail]
+  );
 
   return (
     <div style={{ padding: 0 }}>

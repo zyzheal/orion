@@ -33,8 +33,13 @@ interface AdapterOption {
 }
 
 // API 响应包装接口
-interface ApiResponse<T> { data?: T | T[] }
-interface ListResponse<T> { data?: T[]; items?: T[] }
+interface ApiResponse<T> {
+  data?: T | T[];
+}
+interface ListResponse<T> {
+  data?: T[];
+  items?: T[];
+}
 
 const RepoList: React.FC = () => {
   const navigate = useNavigate();
@@ -91,7 +96,10 @@ const RepoList: React.FC = () => {
   const loadRepoDetails = useCallback(async (repo: CodeRepo) => {
     try {
       const branchesResp = await getCodeRepoBranches(repo.adapterId, repo.id);
-      const branches = (branchesResp.data as ApiResponse<string[]>)?.data ?? (branchesResp.data as ListResponse<string>)?.items ?? [];
+      const branches =
+        (branchesResp.data as ApiResponse<string[]>)?.data ??
+        (branchesResp.data as ListResponse<string>)?.items ??
+        [];
       if (Array.isArray(branches)) {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
@@ -100,7 +108,10 @@ const RepoList: React.FC = () => {
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
-      const prs = (prResp.data as ApiResponse<unknown[]>)?.data ?? (prResp.data as ListResponse<unknown>)?.items ?? [];
+      const prs =
+        (prResp.data as ApiResponse<unknown[]>)?.data ??
+        (prResp.data as ListResponse<unknown>)?.items ??
+        [];
       if (Array.isArray(prs)) {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }

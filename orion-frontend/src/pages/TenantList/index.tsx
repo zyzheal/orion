@@ -149,9 +149,18 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     setLoading(true);
     try {
       const res = await listTenants(page, pageSize);
-      const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
+      const body =
+        (res.data as {
+          data?:
+            | TenantEntity[]
+            | { data?: TenantEntity[]; total?: number; page?: number; limit?: number };
+        }) ?? res.data;
       setTenants((body?.data || body || []) as TenantEntity[]);
-      setTotal((body as any)?.total ?? (body as any)?.totalPages ? ((body as any).page * ((body as any).limit || 1)) : 0);
+      setTotal(
+        ((body as any)?.total ?? (body as any)?.totalPages)
+          ? (body as any).page * ((body as any).limit || 1)
+          : 0
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载租户列表失败：${error.message}`);
@@ -178,20 +187,23 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
         settings: values.settings,
         autoAllocateNamespace: values.autoAllocateNamespace,
         initialNamespaceCount: values.initialNamespaceCount || 1,
-        customQuota: values.customQuota ? {
-          maxPipelines: values.maxPipelines,
-          maxPipelineRunsPerDay: values.maxPipelineRunsPerDay,
-          maxConcurrentRuns: values.maxConcurrentRuns,
-          maxRunners: values.maxRunners,
-          maxCpuCores: values.maxCpuCores,
-          maxMemoryGb: values.maxMemoryGb,
-          maxStorageGb: values.maxStorageGb,
-          maxNamespaces: values.maxNamespaces,
-        } : undefined,
+        customQuota: values.customQuota
+          ? {
+              maxPipelines: values.maxPipelines,
+              maxPipelineRunsPerDay: values.maxPipelineRunsPerDay,
+              maxConcurrentRuns: values.maxConcurrentRuns,
+              maxRunners: values.maxRunners,
+              maxCpuCores: values.maxCpuCores,
+              maxMemoryGb: values.maxMemoryGb,
+              maxStorageGb: values.maxStorageGb,
+              maxNamespaces: values.maxNamespaces,
+            }
+          : undefined,
       };
 
       const res = await createTenant(input);
-      const body = (res.data as { message?: string; allocatedNamespaces?: { id: string }[] }) ?? res.data;
+      const body =
+        (res.data as { message?: string; allocatedNamespaces?: { id: string }[] }) ?? res.data;
       message.success(body.message || '租户创建成功');
 
       if (body.allocatedNamespaces && body.allocatedNamespaces.length > 0) {
@@ -205,7 +217,10 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       // P0-5 修复：创建时 name 重复无明确反馈
       const err = error as { response?: { status?: number; data?: { message?: string } } };
       if (err.response?.status === 400) {
-        if (err.response.data?.message?.includes('unique') || err.response.data?.message?.includes('already exist')) {
+        if (
+          err.response.data?.message?.includes('unique') ||
+          err.response.data?.message?.includes('already exist')
+        ) {
           message.error('租户标识已存在，请使用其他标识');
           return;
         }
@@ -300,9 +315,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     // 构建 CSV 内容
     const csvContent = [
       headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ),
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
     ].join('\n');
 
     // 创建 Blob 并下载
@@ -369,7 +382,12 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
     setUsersLoading(true);
     try {
       const res = await getUsersByTenant(tenant.id);
-      const body = (res.data as { data?: TenantEntity[] | { data?: TenantEntity[]; total?: number; page?: number; limit?: number } }) ?? res.data;
+      const body =
+        (res.data as {
+          data?:
+            | TenantEntity[]
+            | { data?: TenantEntity[]; total?: number; page?: number; limit?: number };
+        }) ?? res.data;
       setUsers(Array.isArray(body) ? body : (body as any)?.users || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -391,7 +409,11 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
       render: (name: string, record: TenantEntity) => (
         <Space>
           <Text strong>{record.display_name || name}</Text>
-          {record.display_name && <Text type="secondary" code>{name}</Text>}
+          {record.display_name && (
+            <Text type="secondary" code>
+              {name}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -479,9 +501,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
             <BankOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             租户管理
           </Title>
-          <Text type="secondary">
-            创建和管理租户，分配资源配额和 Namespace
-          </Text>
+          <Text type="secondary">创建和管理租户，分配资源配额和 Namespace</Text>
         </div>
         <Space>
           {/* P2 修复: 批量删除按钮 - 有选中项时显示 */}
@@ -574,11 +594,12 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
           columns={columns}
           locale={{
             emptyText: (
-              <Empty
-                description="暂无租户"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              >
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+              <Empty description="暂无租户" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setCreateModalOpen(true)}
+                >
                   创建第一个租户
                 </Button>
               </Empty>
@@ -695,10 +716,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
           <Form.Item name="customQuota" valuePropName="checked" initialValue={false}>
             <Switch checkedChildren="自定义配额" unCheckedChildren="使用默认配额" />
           </Form.Item>
-          <Form.Item
-            noStyle
-            shouldUpdate={(prev, curr) => prev.customQuota !== curr.customQuota}
-          >
+          <Form.Item noStyle shouldUpdate={(prev, curr) => prev.customQuota !== curr.customQuota}>
             {({ getFieldValue }) =>
               getFieldValue('customQuota') && (
                 <>
@@ -917,7 +935,11 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
                 render: (val: string, record: TenantUser) => (
                   <Space>
                     <Text strong>{record.name || val}</Text>
-                    {record.name && <Text type="secondary" code>{val}</Text>}
+                    {record.name && (
+                      <Text type="secondary" code>
+                        {val}
+                      </Text>
+                    )}
                   </Space>
                 ),
               },
@@ -957,8 +979,7 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
                 title: '最后登录',
                 dataIndex: 'last_login_at',
                 key: 'last_login_at',
-                render: (val: string | null) =>
-                  val ? new Date(val).toLocaleString() : '未登录',
+                render: (val: string | null) => (val ? new Date(val).toLocaleString() : '未登录'),
               },
             ]}
           />

@@ -254,33 +254,31 @@ const WorkflowDependenciesPage: React.FC = () => {
 
     return (
       <div style={{ maxHeight: 300, overflow: 'auto' }}>
-        {Array.from(edgeMap.entries()).slice(0, 30).map(([sourceId, targets]) => (
-          <div
-            key={sourceId}
-            style={{
-              padding: '6px 0',
-              borderBottom: `1px solid ${colors.neutral[100]}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.sm,
-              flexWrap: 'wrap',
-            }}
-          >
-            <Tag color="blue">{getNodeName(sourceId)}</Tag>
-            <Text type="secondary">依赖</Text>
-            {targets.slice(0, 5).map((targetId) => (
-              <Tag key={targetId} color="purple">
-                {getNodeName(targetId)}
-              </Tag>
-            ))}
-            {targets.length > 5 && (
-              <Text type="secondary">...还有 {targets.length - 5} 个</Text>
-            )}
-          </div>
-        ))}
-        {edgeMap.size > 30 && (
-          <Text type="secondary">...还有 {edgeMap.size - 30} 个来源</Text>
-        )}
+        {Array.from(edgeMap.entries())
+          .slice(0, 30)
+          .map(([sourceId, targets]) => (
+            <div
+              key={sourceId}
+              style={{
+                padding: '6px 0',
+                borderBottom: `1px solid ${colors.neutral[100]}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Tag color="blue">{getNodeName(sourceId)}</Tag>
+              <Text type="secondary">依赖</Text>
+              {targets.slice(0, 5).map((targetId) => (
+                <Tag key={targetId} color="purple">
+                  {getNodeName(targetId)}
+                </Tag>
+              ))}
+              {targets.length > 5 && <Text type="secondary">...还有 {targets.length - 5} 个</Text>}
+            </div>
+          ))}
+        {edgeMap.size > 30 && <Text type="secondary">...还有 {edgeMap.size - 30} 个来源</Text>}
       </div>
     );
   };
@@ -314,7 +312,10 @@ const WorkflowDependenciesPage: React.FC = () => {
             <Statistic
               title="循环依赖数"
               value={graphData?.cycles.length ?? 0}
-              valueStyle={{ color: (graphData?.cycles.length ?? 0) > 0 ? colors.error[500] : colors.success[500] }}
+              valueStyle={{
+                color:
+                  (graphData?.cycles.length ?? 0) > 0 ? colors.error[500] : colors.success[500],
+              }}
               prefix={<WarningOutlined />}
             />
           </Card>
@@ -379,11 +380,7 @@ const WorkflowDependenciesPage: React.FC = () => {
             graphData.cycles.map((cycle, index) => renderCyclePath(cycle, index))
           ) : (
             <Empty
-              description={
-                graphData?.isSafe
-                  ? '未检测到循环依赖'
-                  : '暂无数据'
-              }
+              description={graphData?.isSafe ? '未检测到循环依赖' : '暂无数据'}
               image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
           )}
@@ -416,9 +413,7 @@ const WorkflowDependenciesPage: React.FC = () => {
               </Button>
             }
           >
-            <Spin spinning={vizLoading}>
-              {vizData && renderNodeList(vizData.nodes)}
-            </Spin>
+            <Spin spinning={vizLoading}>{vizData && renderNodeList(vizData.nodes)}</Spin>
           </Card>
         </Col>
 
@@ -473,9 +468,7 @@ const WorkflowDependenciesPage: React.FC = () => {
               }}
             >
               <Text strong>循环 #{index + 1}:</Text>
-              <span style={{ marginLeft: spacing.sm }}>
-                {cycle.names.join(' → ')}
-              </span>
+              <span style={{ marginLeft: spacing.sm }}>{cycle.names.join(' → ')}</span>
             </div>
           ))}
         </Card>
@@ -533,10 +526,7 @@ const WorkflowDependenciesPage: React.FC = () => {
             <Row gutter={16}>
               {/* Dependencies */}
               <Col span={12}>
-                <Card
-                  title="直接依赖的子流程"
-                  size="small"
-                >
+                <Card title="直接依赖的子流程" size="small">
                   {checkResult.dependencies.length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {checkResult.dependencies.map((dep) => (
@@ -575,9 +565,7 @@ const WorkflowDependenciesPage: React.FC = () => {
                         }}
                       >
                         <Text strong>循环 #{index + 1}</Text>
-                        <div style={{ marginTop: 4 }}>
-                          {cycle.names.join(' → ')}
-                        </div>
+                        <div style={{ marginTop: 4 }}>{cycle.names.join(' → ')}</div>
                       </div>
                     ))
                   ) : (
@@ -647,9 +635,7 @@ const WorkflowDependenciesPage: React.FC = () => {
               <NodeIndexOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               工作流依赖分析
             </Title>
-            <Text type="secondary">
-              检测工作流定义之间的循环依赖，支持依赖关系可视化
-            </Text>
+            <Text type="secondary">检测工作流定义之间的循环依赖，支持依赖关系可视化</Text>
             {graphData && (
               <div style={{ marginTop: spacing.sm }}>
                 <Badge
@@ -664,12 +650,7 @@ const WorkflowDependenciesPage: React.FC = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={tabItems}
-            size="large"
-          />
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
         </>
       )}
     </div>

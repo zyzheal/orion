@@ -77,28 +77,31 @@ const MonitoringAlerts: React.FC = () => {
     });
   }, [searchQuery, filters, alerts]);
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'severity',
-      label: '严重级别',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '严重', value: 'critical' },
-        { label: '警告', value: 'warning' },
-        { label: '提示', value: 'info' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '活跃', value: 'active' },
-        { label: '已确认', value: 'acknowledged' },
-        { label: '已解决', value: 'resolved' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'severity',
+        label: '严重级别',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '严重', value: 'critical' },
+          { label: '警告', value: 'warning' },
+          { label: '提示', value: 'info' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '活跃', value: 'active' },
+          { label: '已确认', value: 'acknowledged' },
+          { label: '已解决', value: 'resolved' },
+        ],
+      },
+    ],
+    []
+  );
 
   const handleAcknowledge = async (id: string) => {
     try {
@@ -144,100 +147,103 @@ const MonitoringAlerts: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(() => [
-    {
-      key: 'severity',
-      title: '级别',
-      dataIndex: 'severity',
-      width: 90,
-      render: (v: unknown) => {
-        const cfg = severityConfig[String(v)];
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(
+    () => [
+      {
+        key: 'severity',
+        title: '级别',
+        dataIndex: 'severity',
+        width: 90,
+        render: (v: unknown) => {
+          const cfg = severityConfig[String(v)];
+          return <Tag color={cfg.color}>{cfg.label}</Tag>;
+        },
       },
-    },
-    {
-      key: 'ruleName',
-      title: '规则名称',
-      dataIndex: 'ruleName',
-      sortable: true,
-      filterable: true,
-      render: (v: unknown) => <Text strong>{v as string}</Text>,
-    },
-    {
-      key: 'ruleId',
-      title: '规则ID',
-      dataIndex: 'ruleId',
-      width: 120,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {v as string}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (v: unknown) => {
-        const cfg = statusConfig[String(v)];
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      {
+        key: 'ruleName',
+        title: '规则名称',
+        dataIndex: 'ruleName',
+        sortable: true,
+        filterable: true,
+        render: (v: unknown) => <Text strong>{v as string}</Text>,
       },
-    },
-    {
-      key: 'triggeredAt',
-      title: '触发时间',
-      dataIndex: 'triggeredAt',
-      sortable: true,
-      width: 160,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_, record: Alert) => (
-        <Space size="small">
-          {record.status === 'active' && (
-            <>
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleAcknowledge(record.id)}
-              >
-                确认
-              </Button>
-              <Button
-                type="link"
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-                onClick={() => handleResolve(record.id)}
-              >
-                解决
-              </Button>
-            </>
-          )}
-          <Button
-            type="link"
-            size="small"
-            icon={<ArrowUpOutlined />}
-            onClick={() => {
-              setSelectedAlert(record);
-              setEscalateModalVisible(true);
-            }}
-          >
-            升级
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleAcknowledge, handleResolve]);
+      {
+        key: 'ruleId',
+        title: '规则ID',
+        dataIndex: 'ruleId',
+        width: 120,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {v as string}
+          </Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 110,
+        render: (v: unknown) => {
+          const cfg = statusConfig[String(v)];
+          return <Tag color={cfg.color}>{cfg.label}</Tag>;
+        },
+      },
+      {
+        key: 'triggeredAt',
+        title: '触发时间',
+        dataIndex: 'triggeredAt',
+        sortable: true,
+        width: 160,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_, record: Alert) => (
+          <Space size="small">
+            {record.status === 'active' && (
+              <>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={() => handleAcknowledge(record.id)}
+                >
+                  确认
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={() => handleResolve(record.id)}
+                >
+                  解决
+                </Button>
+              </>
+            )}
+            <Button
+              type="link"
+              size="small"
+              icon={<ArrowUpOutlined />}
+              onClick={() => {
+                setSelectedAlert(record);
+                setEscalateModalVisible(true);
+              }}
+            >
+              升级
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleAcknowledge, handleResolve]
+  );
 
   return (
     <div>
@@ -280,10 +286,7 @@ const MonitoringAlerts: React.FC = () => {
       />
 
       {filteredAlerts.length === 0 && !loading && (
-        <Empty
-          description="暂无告警"
-          style={{ marginTop: 48 }}
-        />
+        <Empty description="暂无告警" style={{ marginTop: 48 }} />
       )}
 
       {/* Escalate Modal */}

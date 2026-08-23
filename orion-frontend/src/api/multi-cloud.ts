@@ -217,12 +217,15 @@ export const multiCloudApi = {
   /**
    * 更新云账号
    */
-  updateCloudAccount: async (id: string, data: Partial<{
-    name: string;
-    region: string;
-    monthly_budget: number;
-    tags: Record<string, unknown>;
-  }>) => {
+  updateCloudAccount: async (
+    id: string,
+    data: Partial<{
+      name: string;
+      region: string;
+      monthly_budget: number;
+      tags: Record<string, unknown>;
+    }>
+  ) => {
     const response = await apiClient.put(`/api/v1/multi-cloud/providers/${id}`, data);
     return response.data as { success: boolean; message: string; id: string };
   },

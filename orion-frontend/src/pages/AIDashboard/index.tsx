@@ -105,9 +105,12 @@ export default function AIDashboard() {
 
   const healthyCount = healthData.filter((h) => h.isHealthy).length;
   const totalRequests = healthData.reduce((sum, h) => sum + (h.metrics?.totalRequests || 0), 0);
-  const avgLatency = healthData.length > 0
-    ? Math.round(healthData.reduce((sum, h) => sum + (h.metrics?.avgLatency || 0), 0) / healthData.length)
-    : 0;
+  const avgLatency =
+    healthData.length > 0
+      ? Math.round(
+          healthData.reduce((sum, h) => sum + (h.metrics?.avgLatency || 0), 0) / healthData.length
+        )
+      : 0;
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -160,9 +163,7 @@ export default function AIDashboard() {
           type="warning"
           showIcon
           style={{ marginBottom: spacing.lg }}
-          action={
-            <a onClick={loadAggregateStats}>重试</a>
-          }
+          action={<a onClick={loadAggregateStats}>重试</a>}
         />
       ) : (
         <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
@@ -199,12 +200,15 @@ export default function AIDashboard() {
                 title="合规评分"
                 suffix="%"
                 valueStyle={{
-                  color: aggregateStats.complianceScore < 60 ? colors.error[500] : colors.success[500],
+                  color:
+                    aggregateStats.complianceScore < 60 ? colors.error[500] : colors.success[500],
                 }}
                 prefix={
-                  aggregateStats.complianceScore < 60
-                    ? <CloseCircleOutlined style={{ color: colors.error[500] }} />
-                    : <SafetyOutlined style={{ color: colors.success[500] }} />
+                  aggregateStats.complianceScore < 60 ? (
+                    <CloseCircleOutlined style={{ color: colors.error[500] }} />
+                  ) : (
+                    <SafetyOutlined style={{ color: colors.success[500] }} />
+                  )
                 }
               />
             </Card>
@@ -254,7 +258,8 @@ export default function AIDashboard() {
                       <Tag>{h.circuitState}</Tag>
                     </Space>
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      请求: {h.metrics?.totalRequests || 0} | 延迟: {Math.round(h.metrics?.avgLatency || 0)}ms
+                      请求: {h.metrics?.totalRequests || 0} | 延迟:{' '}
+                      {Math.round(h.metrics?.avgLatency || 0)}ms
                     </Text>
                   </Space>
                 </Card>

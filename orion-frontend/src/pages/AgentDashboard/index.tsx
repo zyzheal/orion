@@ -263,7 +263,14 @@ const AgentDashboard: React.FC = () => {
             onDeleteAgent={handleDeleteAgent}
           />
         ) : (
-          <div style={{ background: themeVars.bgPrimary, borderRadius: componentRadius.card, boxShadow: shadows.card, padding: '48px 0' }}>
+          <div
+            style={{
+              background: themeVars.bgPrimary,
+              borderRadius: componentRadius.card,
+              boxShadow: shadows.card,
+              padding: '48px 0',
+            }}
+          >
             <Empty description="暂无 Agent 数据" />
           </div>
         )}

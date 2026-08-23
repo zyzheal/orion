@@ -3,7 +3,20 @@
  * 系统健康仪表盘：KPI 卡片、服务健康列表、告警列表、趋势图
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Table, Tag, Space, Spin, message, Statistic, Empty, Button } from 'antd';
+import {
+  Typography,
+  Card,
+  Row,
+  Col,
+  Table,
+  Tag,
+  Space,
+  Spin,
+  message,
+  Statistic,
+  Empty,
+  Button,
+} from 'antd';
 import {
   HeartOutlined,
   AlertOutlined,
@@ -45,7 +58,9 @@ const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
     y: padding.top + innerH - (d.healthScore / maxScore) * innerH,
   }));
 
-  const linePath = scorePoints.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(' ');
+  const linePath = scorePoints
+    .map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`))
+    .join(' ');
   const areaPath =
     linePath +
     ` L${scorePoints[scorePoints.length - 1].x},${padding.top + innerH}` +
@@ -62,12 +77,28 @@ const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={{ width: '100%', maxWidth: chartWidth, height: 'auto' }}>
+      <svg
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+        style={{ width: '100%', maxWidth: chartWidth, height: 'auto' }}
+      >
         {/* Grid */}
         {gridLines.map((g) => (
           <g key={g.y}>
-            <line x1={padding.left} y1={g.y} x2={padding.left + innerW} y2={g.y} stroke={colors.neutral[200]} strokeDasharray="4 4" />
-            <text x={padding.left - 6} y={g.y + 4} textAnchor="end" fontSize="10" fill={colors.neutral[500]}>
+            <line
+              x1={padding.left}
+              y1={g.y}
+              x2={padding.left + innerW}
+              y2={g.y}
+              stroke={colors.neutral[200]}
+              strokeDasharray="4 4"
+            />
+            <text
+              x={padding.left - 6}
+              y={g.y + 4}
+              textAnchor="end"
+              fontSize="10"
+              fill={colors.neutral[500]}
+            >
               {g.label}
             </text>
           </g>
@@ -81,7 +112,15 @@ const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
 
         {/* Data points */}
         {scorePoints.map((p, i) => (
-          <circle key={String(i)} cx={p.x} cy={p.y} r="3" fill={colors.primary[500]} stroke={colors.neutral[0]} strokeWidth={1.5} />
+          <circle
+            key={String(i)}
+            cx={p.x}
+            cy={p.y}
+            r="3"
+            fill={colors.primary[500]}
+            stroke={colors.neutral[0]}
+            strokeWidth={1.5}
+          />
         ))}
 
         {/* X labels */}
@@ -150,9 +189,9 @@ const HealthDashboard: React.FC = () => {
 
   const severityTag = (severity: string) => {
     const map: Record<string, { color: string; text: string }> = {
-      critical: { color: colors.error[500],   text: '严重' },
-      warning:  { color: colors.warning[500],  text: '警告' },
-      info:     { color: colors.info[500],     text: '信息' },
+      critical: { color: colors.error[500], text: '严重' },
+      warning: { color: colors.warning[500], text: '警告' },
+      info: { color: colors.info[500], text: '信息' },
     };
     const cfg = map[severity] ?? map.info;
     return <Tag color={cfg.color}>{cfg.text}</Tag>;
@@ -160,9 +199,9 @@ const HealthDashboard: React.FC = () => {
 
   const statusTag = (status: string) => {
     const map: Record<string, { color: string; text: string }> = {
-      active:       { color: colors.error[500],   text: '活跃' },
-      acknowledged: { color: colors.warning[500],  text: '已确认' },
-      resolved:     { color: colors.success[500],  text: '已解决' },
+      active: { color: colors.error[500], text: '活跃' },
+      acknowledged: { color: colors.warning[500], text: '已确认' },
+      resolved: { color: colors.success[500], text: '已解决' },
     };
     const cfg = map[status] ?? { color: colors.neutral[400], text: status };
     return <Tag color={cfg.color}>{cfg.text}</Tag>;
@@ -170,9 +209,9 @@ const HealthDashboard: React.FC = () => {
 
   const serviceStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string }> = {
-      healthy:   { color: colors.success[500], text: '健康' },
-      degraded:  { color: colors.warning[500], text: '降级' },
-      unhealthy: { color: colors.error[500],   text: '异常' },
+      healthy: { color: colors.success[500], text: '健康' },
+      degraded: { color: colors.warning[500], text: '降级' },
+      unhealthy: { color: colors.error[500], text: '异常' },
     };
     const cfg = map[status] ?? { color: colors.neutral[400], text: status };
     return <Tag color={cfg.color}>{cfg.text}</Tag>;
@@ -219,7 +258,8 @@ const HealthDashboard: React.FC = () => {
       dataIndex: 'triggeredAt',
       key: 'triggeredAt',
       width: 170,
-      sorter: (a: HealthAlert, b: HealthAlert) => dayjs(a.triggeredAt).unix() - dayjs(b.triggeredAt).unix(),
+      sorter: (a: HealthAlert, b: HealthAlert) =>
+        dayjs(a.triggeredAt).unix() - dayjs(b.triggeredAt).unix(),
       render: (t: string) => dayjs(t).format('YYYY-MM-DD HH:mm'),
     },
   ];
@@ -254,7 +294,9 @@ const HealthDashboard: React.FC = () => {
       width: 120,
       sorter: (a: ServiceHealthRow, b: ServiceHealthRow) => a.latencyMs - b.latencyMs,
       render: (v: number) => (
-        <Text style={{ color: v > 500 ? colors.error[500] : v > 200 ? colors.warning[500] : undefined }}>
+        <Text
+          style={{ color: v > 500 ? colors.error[500] : v > 200 ? colors.warning[500] : undefined }}
+        >
           {v} ms
         </Text>
       ),
@@ -266,7 +308,11 @@ const HealthDashboard: React.FC = () => {
       width: 120,
       sorter: (a: ServiceHealthRow, b: ServiceHealthRow) => a.errorRate - b.errorRate,
       render: (v: number) => (
-        <Text style={{ color: v > 5 ? colors.error[500] : v > 1 ? colors.warning[500] : colors.success[500] }}>
+        <Text
+          style={{
+            color: v > 5 ? colors.error[500] : v > 1 ? colors.warning[500] : colors.success[500],
+          }}
+        >
           {v.toFixed(2)}%
         </Text>
       ),
@@ -298,7 +344,16 @@ const HealthDashboard: React.FC = () => {
     <Spin spinning={loading}>
       <div style={{ padding: spacing.lg }}>
         {/* Page Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg, flexWrap: 'wrap', gap: spacing.md }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: spacing.lg,
+            flexWrap: 'wrap',
+            gap: spacing.md,
+          }}
+        >
           <div>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
               <HeartOutlined style={{ marginRight: 12, color: colors.error[500] }} />
@@ -307,9 +362,15 @@ const HealthDashboard: React.FC = () => {
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>
               全系统健康状态总览与趋势分析
             </Text>
-            {error && <Tag color={colors.error[500]} style={{ marginLeft: 8 }}>加载失败</Tag>}
+            {error && (
+              <Tag color={colors.error[500]} style={{ marginLeft: 8 }}>
+                加载失败
+              </Tag>
+            )}
           </div>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData}>
+            刷新
+          </Button>
         </div>
 
         {/* KPI Cards */}
@@ -321,18 +382,31 @@ const HealthDashboard: React.FC = () => {
                 value={score?.score ?? 0}
                 suffix="/ 100"
                 valueStyle={{
-                  color: (score?.score ?? 0) >= 80
-                    ? colors.success[500]
-                    : (score?.score ?? 0) >= 60
-                      ? colors.warning[500]
-                      : colors.error[500],
+                  color:
+                    (score?.score ?? 0) >= 80
+                      ? colors.success[500]
+                      : (score?.score ?? 0) >= 60
+                        ? colors.warning[500]
+                        : colors.error[500],
                 }}
                 prefix={<HeartOutlined />}
               />
               {score && (
                 <div style={{ marginTop: 4 }}>
-                  <Tag color={score.level === 'healthy' ? colors.success[500] : score.level === 'warning' ? colors.warning[500] : colors.error[500]}>
-                    {score.level === 'healthy' ? '健康' : score.level === 'warning' ? '警告' : '严重'}
+                  <Tag
+                    color={
+                      score.level === 'healthy'
+                        ? colors.success[500]
+                        : score.level === 'warning'
+                          ? colors.warning[500]
+                          : colors.error[500]
+                    }
+                  >
+                    {score.level === 'healthy'
+                      ? '健康'
+                      : score.level === 'warning'
+                        ? '警告'
+                        : '严重'}
                   </Tag>
                 </div>
               )}
@@ -354,7 +428,9 @@ const HealthDashboard: React.FC = () => {
                 title="平均延迟"
                 value={avgLatencyMs}
                 suffix="ms"
-                valueStyle={{ color: avgLatencyMs > 200 ? colors.warning[500] : colors.success[500] }}
+                valueStyle={{
+                  color: avgLatencyMs > 200 ? colors.warning[500] : colors.success[500],
+                }}
                 prefix={<ClockCircleOutlined />}
               />
             </Card>
@@ -366,7 +442,14 @@ const HealthDashboard: React.FC = () => {
                 value={errorRate}
                 suffix="%"
                 precision={2}
-                valueStyle={{ color: errorRate > 2 ? colors.error[500] : errorRate > 0.5 ? colors.warning[500] : colors.success[500] }}
+                valueStyle={{
+                  color:
+                    errorRate > 2
+                      ? colors.error[500]
+                      : errorRate > 0.5
+                        ? colors.warning[500]
+                        : colors.success[500],
+                }}
                 prefix={<WarningOutlined />}
               />
             </Card>
@@ -423,11 +506,7 @@ const HealthDashboard: React.FC = () => {
             </Space>
           }
         >
-          {trend.length > 0 ? (
-            <TrendChart data={trend} />
-          ) : (
-            <Empty description="暂无趋势数据" />
-          )}
+          {trend.length > 0 ? <TrendChart data={trend} /> : <Empty description="暂无趋势数据" />}
         </Card>
       </div>
     </Spin>

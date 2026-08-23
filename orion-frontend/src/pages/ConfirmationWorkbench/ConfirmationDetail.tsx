@@ -18,7 +18,12 @@ import {
   Divider,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { CheckOutlined, CloseOutlined, ArrowLeftOutlined, FileTextOutlined } from '@ant-design/icons';
+import {
+  CheckOutlined,
+  CloseOutlined,
+  ArrowLeftOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
 import {
   getConfirmation,
   approveConfirmation,
@@ -116,7 +121,7 @@ const ConfirmationDetail: React.FC = () => {
           返回
         </Button>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           确认详情
         </Title>
       </div>

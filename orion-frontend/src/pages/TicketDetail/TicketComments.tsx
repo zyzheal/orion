@@ -11,18 +11,7 @@
  * - Uses mockTicketComments and mockTicketAttachments
  */
 import React, { useState, useMemo } from 'react';
-import {
-  Typography,
-  Tabs,
-  Tag,
-  Avatar,
-  Input,
-  Button,
-  Space,
-  Card,
-  Divider,
-  message,
-} from 'antd';
+import { Typography, Tabs, Tag, Avatar, Input, Button, Space, Card, Divider, message } from 'antd';
 import {
   SendOutlined,
   FileOutlined,
@@ -144,8 +133,10 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         ]);
         const commentsData = commentsRes.data?.items;
         const attachmentsData = attachmentsRes.data?.items;
-        setComments(Array.isArray(commentsData) ? commentsData as TicketComment[] : []);
-        setAttachments(Array.isArray(attachmentsData) ? attachmentsData as TicketAttachment[] : []);
+        setComments(Array.isArray(commentsData) ? (commentsData as TicketComment[]) : []);
+        setAttachments(
+          Array.isArray(attachmentsData) ? (attachmentsData as TicketAttachment[]) : []
+        );
       } catch {
         setComments([]);
         setAttachments([]);
@@ -157,8 +148,9 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   // Filtered engineers for mention autocomplete
   const mentionCandidates = useMemo(() => {
     if (!mentionSearch) return engineers;
-    return engineers
-      .filter((e) => (e.name || e.username).toLowerCase().includes(mentionSearch.toLowerCase()));
+    return engineers.filter((e) =>
+      (e.name || e.username).toLowerCase().includes(mentionSearch.toLowerCase())
+    );
   }, [mentionSearch, engineers]);
 
   // Character count
@@ -219,11 +211,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
   const tabItems = [
     {
       key: 'comment',
-      label: (
-        <span data-testid="tab-comments">
-          评论
-        </span>
-      ),
+      label: <span data-testid="tab-comments">评论</span>,
     },
     {
       key: 'internal-note',
@@ -373,7 +361,10 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
         <>
           <Divider style={{ margin: '0 0 12px' }} />
           <div style={{ marginBottom: spacing.md }} data-testid="attachments-section">
-            <Text strong style={{ fontSize: spacing[3], marginBottom: spacing.sm, display: 'block' }}>
+            <Text
+              strong
+              style={{ fontSize: spacing[3], marginBottom: spacing.sm, display: 'block' }}
+            >
               <PaperClipOutlined style={{ marginRight: 4 }} />
               附件 ({attachments.length})
             </Text>

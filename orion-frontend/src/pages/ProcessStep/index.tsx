@@ -336,10 +336,7 @@ export default function ProcessStepPage() {
     try {
       setStepLoading(true);
       setDetailDrawerOpen(true);
-      const [instRes, historyRes] = await Promise.all([
-        getInstance(id),
-        getStepHistory(id),
-      ]);
+      const [instRes, historyRes] = await Promise.all([getInstance(id), getStepHistory(id)]);
       setDetailInstance(instRes.data.data);
       setStepHistory(historyRes.data.data || []);
     } catch {
@@ -410,13 +407,28 @@ export default function ProcessStepPage() {
       render: (_: unknown, record) => (
         <Space>
           <Tooltip title="查看详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewDefDetail(record.id)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDefDetail(record.id)}
+            />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditDef(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEditDef(record)}
+            />
           </Tooltip>
           <Tooltip title="启动实例">
-            <Button type="link" size="small" icon={<RocketOutlined />} onClick={() => handleStartInstance(record.id)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<RocketOutlined />}
+              onClick={() => handleStartInstance(record.id)}
+            />
           </Tooltip>
           <Popconfirm title="确定删除此流程定义？" onConfirm={() => handleDeleteDef(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
@@ -436,7 +448,9 @@ export default function ProcessStepPage() {
       width: 120,
       ellipsis: true,
       render: (text: string) => (
-        <Text copyable={{ text }} style={{ fontSize: 12 }}>{text.slice(0, 8)}...</Text>
+        <Text copyable={{ text }} style={{ fontSize: 12 }}>
+          {text.slice(0, 8)}...
+        </Text>
       ),
     },
     {
@@ -486,7 +500,12 @@ export default function ProcessStepPage() {
       render: (_: unknown, record) => (
         <Space>
           <Tooltip title="查看详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewInstance(record.id)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewInstance(record.id)}
+            />
           </Tooltip>
         </Space>
       ),
@@ -509,7 +528,9 @@ export default function ProcessStepPage() {
           {
             key: 'definitions',
             label: (
-              <span><ApartmentOutlined /> 流程定义</span>
+              <span>
+                <ApartmentOutlined /> 流程定义
+              </span>
             ),
             children: (
               <Card>
@@ -541,8 +562,12 @@ export default function ProcessStepPage() {
                   </Col>
                   <Col>
                     <Space>
-                      <Button icon={<ReloadOutlined />} onClick={fetchDefinitions}>刷新</Button>
-                      <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDef}>新建定义</Button>
+                      <Button icon={<ReloadOutlined />} onClick={fetchDefinitions}>
+                        刷新
+                      </Button>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateDef}>
+                        新建定义
+                      </Button>
                     </Space>
                   </Col>
                 </Row>
@@ -566,7 +591,9 @@ export default function ProcessStepPage() {
           {
             key: 'instances',
             label: (
-              <span><HistoryOutlined /> 流程实例</span>
+              <span>
+                <HistoryOutlined /> 流程实例
+              </span>
             ),
             children: (
               <Card>
@@ -578,14 +605,25 @@ export default function ProcessStepPage() {
                         allowClear
                         style={{ width: 140 }}
                         onChange={(v) => setInstFilter((f) => ({ ...f, status: v }))}
-                        options={Object.entries(statusLabel).map(([k, v]) => ({ label: v, value: k }))}
+                        options={Object.entries(statusLabel).map(([k, v]) => ({
+                          label: v,
+                          value: k,
+                        }))}
                       />
                     </Space>
                   </Col>
                   <Col>
                     <Space>
-                      <Button icon={<ReloadOutlined />} onClick={fetchInstances}>刷新</Button>
-                      <Button type="primary" icon={<RocketOutlined />} onClick={() => handleStartInstance()}>启动实例</Button>
+                      <Button icon={<ReloadOutlined />} onClick={fetchInstances}>
+                        刷新
+                      </Button>
+                      <Button
+                        type="primary"
+                        icon={<RocketOutlined />}
+                        onClick={() => handleStartInstance()}
+                      >
+                        启动实例
+                      </Button>
                     </Space>
                   </Col>
                 </Row>
@@ -627,7 +665,11 @@ export default function ProcessStepPage() {
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="entityType" label="实体类型" rules={[{ required: true, message: '请选择实体类型' }]}>
+              <Form.Item
+                name="entityType"
+                label="实体类型"
+                rules={[{ required: true, message: '请选择实体类型' }]}
+              >
                 <Select
                   placeholder="选择实体类型"
                   options={[
@@ -660,7 +702,10 @@ export default function ProcessStepPage() {
                         <Form.Item name={[field.name, 'type']} noStyle>
                           <Select
                             placeholder="类型"
-                            options={Object.entries(stepTypeLabel).map(([k, v]) => ({ label: v, value: k }))}
+                            options={Object.entries(stepTypeLabel).map(([k, v]) => ({
+                              label: v,
+                              value: k,
+                            }))}
                           />
                         </Form.Item>
                       </Col>
@@ -671,7 +716,12 @@ export default function ProcessStepPage() {
                       </Col>
                       <Col span={2}>
                         {fields.length > 1 && (
-                          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
+                          <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => remove(field.name)}
+                          />
                         )}
                       </Col>
                     </Row>
@@ -695,7 +745,11 @@ export default function ProcessStepPage() {
         confirmLoading={startModalLoading}
       >
         <Form form={startForm} layout="vertical">
-          <Form.Item name="definitionId" label="流程定义" rules={[{ required: true, message: '请选择流程定义' }]}>
+          <Form.Item
+            name="definitionId"
+            label="流程定义"
+            rules={[{ required: true, message: '请选择流程定义' }]}
+          >
             <Select
               placeholder="选择流程定义"
               showSearch
@@ -738,12 +792,16 @@ export default function ProcessStepPage() {
                   {statusLabel[detailInstance.status] || detailInstance.status}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="当前步骤">{detailInstance.currentStepId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="当前步骤">
+                {detailInstance.currentStepId || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(detailInstance.createdAt).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
               <Descriptions.Item label="完成时间">
-                {detailInstance.completedAt ? dayjs(detailInstance.completedAt).format('YYYY-MM-DD HH:mm') : '-'}
+                {detailInstance.completedAt
+                  ? dayjs(detailInstance.completedAt).format('YYYY-MM-DD HH:mm')
+                  : '-'}
               </Descriptions.Item>
             </Descriptions>
 
@@ -758,20 +816,35 @@ export default function ProcessStepPage() {
             ) : (
               <Timeline
                 items={stepHistory.map((step) => {
-                  const canAdvance = !['success', 'failed', 'close', 'skip', 'aborted', 'rejected'].includes(step.status);
+                  const canAdvance = ![
+                    'success',
+                    'failed',
+                    'close',
+                    'skip',
+                    'aborted',
+                    'rejected',
+                  ].includes(step.status);
                   const allowedActions = getAllowedActions(step.status);
 
                   return {
                     color: getTimelineColor(step.status),
                     children: (
                       <div key={step.id}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
                           <Space>
                             <Text strong>{step.stepName}</Text>
                             <Tag color={statusColor[step.status]}>
                               {statusLabel[step.status] || step.status}
                             </Tag>
-                            {step.stepType && <Tag>{stepTypeLabel[step.stepType] || step.stepType}</Tag>}
+                            {step.stepType && (
+                              <Tag>{stepTypeLabel[step.stepType] || step.stepType}</Tag>
+                            )}
                           </Space>
                           {canAdvance && allowedActions.length > 0 && (
                             <Space size={4}>
@@ -779,10 +852,22 @@ export default function ProcessStepPage() {
                                 <Tooltip key={action} title={actionLabel[action]}>
                                   <Button
                                     size="small"
-                                    type={action === 'success' ? 'primary' : action === 'failed' ? 'primary' : 'default'}
-                                    danger={action === 'failed' || action === 'aborted' || action === 'rejected'}
+                                    type={
+                                      action === 'success'
+                                        ? 'primary'
+                                        : action === 'failed'
+                                          ? 'primary'
+                                          : 'default'
+                                    }
+                                    danger={
+                                      action === 'failed' ||
+                                      action === 'aborted' ||
+                                      action === 'rejected'
+                                    }
                                     icon={actionIcon[action]}
-                                    onClick={() => handleAdvanceStep(detailInstance.id, step.stepId, action)}
+                                    onClick={() =>
+                                      handleAdvanceStep(detailInstance.id, step.stepId, action)
+                                    }
                                   >
                                     {actionLabel[action]}
                                   </Button>
@@ -791,12 +876,23 @@ export default function ProcessStepPage() {
                             </Space>
                           )}
                         </div>
-                        {step.operator && <Text type="secondary" style={{ fontSize: 12 }}>操作人: {step.operator}</Text>}
-                        {step.comment && <div><Text type="secondary" style={{ fontSize: 12 }}>备注: {step.comment}</Text></div>}
+                        {step.operator && (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            操作人: {step.operator}
+                          </Text>
+                        )}
+                        {step.comment && (
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              备注: {step.comment}
+                            </Text>
+                          </div>
+                        )}
                         {step.startedAt && (
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             开始: {dayjs(step.startedAt).format('HH:mm:ss')}
-                            {step.completedAt && ` | 完成: ${dayjs(step.completedAt).format('HH:mm:ss')}`}
+                            {step.completedAt &&
+                              ` | 完成: ${dayjs(step.completedAt).format('HH:mm:ss')}`}
                           </Text>
                         )}
                       </div>
@@ -823,9 +919,14 @@ export default function ProcessStepPage() {
               <Descriptions.Item label="版本">v{defDetail.version}</Descriptions.Item>
               <Descriptions.Item label="实体类型">{defDetail.entityType}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Badge status={defDetail.enabled ? 'success' : 'default'} text={defDetail.enabled ? '启用' : '禁用'} />
+                <Badge
+                  status={defDetail.enabled ? 'success' : 'default'}
+                  text={defDetail.enabled ? '启用' : '禁用'}
+                />
               </Descriptions.Item>
-              <Descriptions.Item label="描述" span={2}>{defDetail.description || '-'}</Descriptions.Item>
+              <Descriptions.Item label="描述" span={2}>
+                {defDetail.description || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="创建时间" span={2}>
                 {dayjs(defDetail.createdAt).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
@@ -843,8 +944,14 @@ export default function ProcessStepPage() {
                   children: (
                     <div key={step.id}>
                       <Text strong>{step.name}</Text>
-                      {step.type && <Tag style={{ marginLeft: 8 }}>{stepTypeLabel[step.type] || step.type}</Tag>}
-                      {step.handler && <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>处理器: {step.handler}</Text>}
+                      {step.type && (
+                        <Tag style={{ marginLeft: 8 }}>{stepTypeLabel[step.type] || step.type}</Tag>
+                      )}
+                      {step.handler && (
+                        <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                          处理器: {step.handler}
+                        </Text>
+                      )}
                     </div>
                   ),
                 }))}
@@ -853,10 +960,23 @@ export default function ProcessStepPage() {
 
             <div style={{ marginTop: spacing.md }}>
               <Space>
-                <Button type="primary" icon={<RocketOutlined />} onClick={() => { setDefDetailOpen(false); handleStartInstance(defDetail.id); }}>
+                <Button
+                  type="primary"
+                  icon={<RocketOutlined />}
+                  onClick={() => {
+                    setDefDetailOpen(false);
+                    handleStartInstance(defDetail.id);
+                  }}
+                >
                   启动实例
                 </Button>
-                <Button icon={<EditOutlined />} onClick={() => { setDefDetailOpen(false); handleEditDef(defDetail); }}>
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setDefDetailOpen(false);
+                    handleEditDef(defDetail);
+                  }}
+                >
                   编辑
                 </Button>
               </Space>

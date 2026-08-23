@@ -161,7 +161,12 @@ export async function getDashboard(id: string) {
   return apiClient.get(`${BASE}/dashboards/${id}`);
 }
 
-export async function createDashboard(data: { name: string; description?: string; category?: string; isPublic?: boolean }) {
+export async function createDashboard(data: {
+  name: string;
+  description?: string;
+  category?: string;
+  isPublic?: boolean;
+}) {
   return apiClient.post(`${BASE}/dashboards`, data);
 }
 
@@ -174,7 +179,16 @@ export async function deleteDashboard(id: string) {
 }
 
 // Widget
-export async function addWidget(dashboardId: string, data: { type: string; title: string; layout: WidgetLayout; config?: Record<string, unknown>; dataSource?: DataSourceRef }) {
+export async function addWidget(
+  dashboardId: string,
+  data: {
+    type: string;
+    title: string;
+    layout: WidgetLayout;
+    config?: Record<string, unknown>;
+    dataSource?: DataSourceRef;
+  }
+) {
   return apiClient.post(`${BASE}/dashboards/${dashboardId}/widgets`, data);
 }
 
@@ -187,7 +201,11 @@ export async function deleteWidget(dashboardId: string, widgetId: string) {
 }
 
 // Report
-export async function listReports(params?: { category?: string; reportType?: string; enabled?: boolean }) {
+export async function listReports(params?: {
+  category?: string;
+  reportType?: string;
+  enabled?: boolean;
+}) {
   const qs = new URLSearchParams();
   if (params?.category) qs.set('category', params.category);
   if (params?.reportType) qs.set('reportType', params.reportType);
@@ -199,7 +217,14 @@ export async function getReport(id: string) {
   return apiClient.get(`${BASE}/reports/${id}`);
 }
 
-export async function createReport(data: { name: string; description?: string; category?: string; reportType?: string; templateId?: string; dashboardId?: string }) {
+export async function createReport(data: {
+  name: string;
+  description?: string;
+  category?: string;
+  reportType?: string;
+  templateId?: string;
+  dashboardId?: string;
+}) {
   return apiClient.post(`${BASE}/reports`, data);
 }
 
@@ -223,7 +248,12 @@ export async function getTemplate(id: string) {
   return apiClient.get(`${BASE}/templates/${id}`);
 }
 
-export async function createTemplate(data: { name: string; description?: string; category?: string; isPublic?: boolean }) {
+export async function createTemplate(data: {
+  name: string;
+  description?: string;
+  category?: string;
+  isPublic?: boolean;
+}) {
   return apiClient.post(`${BASE}/templates`, data);
 }
 
@@ -243,7 +273,13 @@ export async function listScheduledReports(params?: { enabled?: boolean; reportI
   return apiClient.get(`${BASE}/scheduled-reports${qs.toString() ? `?${qs}` : ''}`);
 }
 
-export async function createScheduledReport(data: { reportId: string; name: string; cronExpression: string; exportFormat: string; recipients: string[] }) {
+export async function createScheduledReport(data: {
+  reportId: string;
+  name: string;
+  cronExpression: string;
+  exportFormat: string;
+  recipients: string[];
+}) {
   return apiClient.post(`${BASE}/scheduled-reports`, data);
 }
 
@@ -259,7 +295,10 @@ export async function triggerScheduledReport(id: string) {
   return apiClient.post(`${BASE}/scheduled-reports/${id}/trigger`, {});
 }
 
-export async function listScheduledRecords(params?: { scheduledReportId?: string; status?: string }) {
+export async function listScheduledRecords(params?: {
+  scheduledReportId?: string;
+  status?: string;
+}) {
   const qs = new URLSearchParams();
   if (params?.scheduledReportId) qs.set('scheduledReportId', params.scheduledReportId);
   if (params?.status) qs.set('status', params.status);
@@ -267,11 +306,20 @@ export async function listScheduledRecords(params?: { scheduledReportId?: string
 }
 
 // Permission
-export async function grantPermission(data: { resourceId: string; resourceType: string; userId: string; role: string }) {
+export async function grantPermission(data: {
+  resourceId: string;
+  resourceType: string;
+  userId: string;
+  role: string;
+}) {
   return apiClient.post(`${BASE}/permissions`, data);
 }
 
-export async function listPermissions(params?: { resourceId?: string; resourceType?: string; userId?: string }) {
+export async function listPermissions(params?: {
+  resourceId?: string;
+  resourceType?: string;
+  userId?: string;
+}) {
   const qs = new URLSearchParams();
   if (params?.resourceId) qs.set('resourceId', params.resourceId);
   if (params?.resourceType) qs.set('resourceType', params.resourceType);
@@ -284,7 +332,13 @@ export async function revokePermission(id: string) {
 }
 
 // Share Link
-export async function createShareLink(data: { resourceId: string; resourceType: string; expiresAt?: string; password?: string; maxViews?: number }) {
+export async function createShareLink(data: {
+  resourceId: string;
+  resourceType: string;
+  expiresAt?: string;
+  password?: string;
+  maxViews?: number;
+}) {
   return apiClient.post(`${BASE}/share-links`, data);
 }
 

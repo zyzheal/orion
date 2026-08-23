@@ -3,8 +3,28 @@
  * 查看版本历史、回滚、标签管理
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Button, Space, Tag, Modal, Form, Input, message, Tooltip, Popconfirm, Typography } from 'antd';
-import { HistoryOutlined, RollbackOutlined, TagOutlined, DeleteOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  Card,
+  Table,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  message,
+  Tooltip,
+  Popconfirm,
+  Typography,
+} from 'antd';
+import {
+  HistoryOutlined,
+  RollbackOutlined,
+  TagOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { chatopsAdminApi } from '@/api/chatops-admin';
 import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
@@ -51,7 +71,9 @@ const CommandVersionPage: React.FC = () => {
     }
   }, [page, perPage]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleViewDetail = (record: CommandVersion) => {
     setSelectedVersion(record);
@@ -106,7 +128,8 @@ const CommandVersionPage: React.FC = () => {
       width: 80,
       render: (v: number, record) => (
         <Tag color={record.is_current ? colors.success[500] : colors.neutral[400]}>
-          v{v}{record.is_current ? ' (当前)' : ''}
+          v{v}
+          {record.is_current ? ' (当前)' : ''}
         </Tag>
       ),
     },
@@ -123,7 +146,11 @@ const CommandVersionPage: React.FC = () => {
       width: 150,
       render: (tags: string[]) => (
         <Space wrap>
-          {tags?.map(t => <Tag key={t} icon={<TagOutlined />}>{t}</Tag>)}
+          {tags?.map((t) => (
+            <Tag key={t} icon={<TagOutlined />}>
+              {t}
+            </Tag>
+          ))}
         </Space>
       ),
     },
@@ -147,10 +174,18 @@ const CommandVersionPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Tooltip title="查看详情">
-            <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => handleViewDetail(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<HistoryOutlined />}
+              onClick={() => handleViewDetail(record)}
+            />
           </Tooltip>
           {!record.is_current && (
-            <Popconfirm title={`确认回滚到 v${record.version}?`} onConfirm={() => handleRollback(record)}>
+            <Popconfirm
+              title={`确认回滚到 v${record.version}?`}
+              onConfirm={() => handleRollback(record)}
+            >
               <Tooltip title="回滚">
                 <Button type="link" size="small" icon={<RollbackOutlined />} />
               </Tooltip>
@@ -169,7 +204,16 @@ const CommandVersionPage: React.FC = () => {
   return (
     <div>
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
-        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            marginBottom: spacing.md,
+            paddingBottom: 12,
+            borderBottom: `1px solid ${themeVars.borderLight}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <Space>
             <HistoryOutlined style={{ color: colors.info[500], fontSize: 18 }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: themeVars.textPrimary }}>
@@ -177,7 +221,9 @@ const CommandVersionPage: React.FC = () => {
             </span>
           </Space>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              刷新
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
               新建版本
             </Button>
@@ -210,27 +256,57 @@ const CommandVersionPage: React.FC = () => {
         {selectedVersion && (
           <div>
             <Space style={{ marginBottom: spacing.md }}>
-              <Text strong style={{ fontSize: 16 }}>/{selectedVersion.command_id}</Text>
+              <Text strong style={{ fontSize: 16 }}>
+                /{selectedVersion.command_id}
+              </Text>
               <Tag color={selectedVersion.is_current ? colors.success[500] : 'default'}>
-                v{selectedVersion.version}{selectedVersion.is_current ? ' (当前)' : ''}
+                v{selectedVersion.version}
+                {selectedVersion.is_current ? ' (当前)' : ''}
               </Tag>
             </Space>
-            <p><Text strong>描述:</Text> {selectedVersion.description || '-'}</p>
-            <p><Text strong>变更日志:</Text> {selectedVersion.changelog || '-'}</p>
-            <p><Text strong>命令内容:</Text></p>
-            <pre style={{ background: themeVars.bgSecondary, padding: spacing[3], borderRadius: 6, fontSize: 12 }}>
+            <p>
+              <Text strong>描述:</Text> {selectedVersion.description || '-'}
+            </p>
+            <p>
+              <Text strong>变更日志:</Text> {selectedVersion.changelog || '-'}
+            </p>
+            <p>
+              <Text strong>命令内容:</Text>
+            </p>
+            <pre
+              style={{
+                background: themeVars.bgSecondary,
+                padding: spacing[3],
+                borderRadius: 6,
+                fontSize: 12,
+              }}
+            >
               {selectedVersion.command_text}
             </pre>
             {selectedVersion.parameters && Object.keys(selectedVersion.parameters).length > 0 && (
               <>
-                <p><Text strong>参数:</Text></p>
-                <pre style={{ background: themeVars.bgSecondary, padding: spacing[3], borderRadius: 6, fontSize: 12 }}>
+                <p>
+                  <Text strong>参数:</Text>
+                </p>
+                <pre
+                  style={{
+                    background: themeVars.bgSecondary,
+                    padding: spacing[3],
+                    borderRadius: 6,
+                    fontSize: 12,
+                  }}
+                >
                   {JSON.stringify(selectedVersion.parameters, null, 2)}
                 </pre>
               </>
             )}
-            <p><Text strong>创建者:</Text> {selectedVersion.created_by}</p>
-            <p><Text strong>创建时间:</Text> {dayjs(selectedVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}</p>
+            <p>
+              <Text strong>创建者:</Text> {selectedVersion.created_by}
+            </p>
+            <p>
+              <Text strong>创建时间:</Text>{' '}
+              {dayjs(selectedVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}
+            </p>
           </div>
         )}
       </Modal>

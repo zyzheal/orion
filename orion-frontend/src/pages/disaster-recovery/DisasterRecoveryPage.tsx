@@ -25,7 +25,8 @@ import {
   ReloadOutlined,
   UndoOutlined,
   SafetyCertificateOutlined,
-  SyncOutlined,} from '@ant-design/icons';
+  SyncOutlined,
+} from '@ant-design/icons';
 import {
   getBackups,
   getBackupStats,
@@ -56,10 +57,7 @@ const DisasterRecoveryPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [backupRes, statsRes] = await Promise.all([
-        getBackups(),
-        getBackupStats(),
-      ]);
+      const [backupRes, statsRes] = await Promise.all([getBackups(), getBackupStats()]);
       setBackups(((backupRes.data as { backups?: unknown[] })?.backups ?? []) as BackupRecord[]);
       setStats(((statsRes.data as { stats?: unknown })?.stats ?? null) as BackupStats | null);
     } catch {
@@ -123,7 +121,12 @@ const DisasterRecoveryPage: React.FC = () => {
       key: 'status',
       render: (v: string) => <Tag color={statusColor[v]}>{v}</Tag>,
     },
-    { title: 'Size', dataIndex: 'size', key: 'size', render: (v: number) => v > 0 ? `${(v / (1024 * 1024)).toFixed(0)} MB` : '-' },
+    {
+      title: 'Size',
+      dataIndex: 'size',
+      key: 'size',
+      render: (v: number) => (v > 0 ? `${(v / (1024 * 1024)).toFixed(0)} MB` : '-'),
+    },
     { title: 'Created', dataIndex: 'createdAt', key: 'createdAt' },
     { title: 'Completed', dataIndex: 'completedAt', key: 'completedAt' },
     {
@@ -135,11 +138,16 @@ const DisasterRecoveryPage: React.FC = () => {
             size="small"
             icon={<UndoOutlined />}
             disabled={record.status !== 'completed'}
-            onClick={() => { setSelectedBackup(record); setRestoreModalOpen(true); }}
+            onClick={() => {
+              setSelectedBackup(record);
+              setRestoreModalOpen(true);
+            }}
           >
             Restore
           </Button>
-          <Button size="small" danger onClick={() => handleDelete(record.id)}>Delete</Button>
+          <Button size="small" danger onClick={() => handleDelete(record.id)}>
+            Delete
+          </Button>
         </Space>
       ),
     },
@@ -168,13 +176,27 @@ const DisasterRecoveryPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
-          <Card><Statistic title="Total Backups" value={stats?.total ?? 0} /></Card>
+          <Card>
+            <Statistic title="Total Backups" value={stats?.total ?? 0} />
+          </Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Successful" value={stats?.successful ?? 0} valueStyle={{ color: colors.success[500] }} /></Card>
+          <Card>
+            <Statistic
+              title="Successful"
+              value={stats?.successful ?? 0}
+              valueStyle={{ color: colors.success[500] }}
+            />
+          </Card>
         </Col>
         <Col span={8}>
-          <Card><Statistic title="Failed" value={stats?.failed ?? 0} valueStyle={{ color: colors.error[400] }} /></Card>
+          <Card>
+            <Statistic
+              title="Failed"
+              value={stats?.failed ?? 0}
+              valueStyle={{ color: colors.error[400] }}
+            />
+          </Card>
         </Col>
       </Row>
 
@@ -228,12 +250,16 @@ const DisasterRecoveryPage: React.FC = () => {
             <Descriptions.Item label="Type">{selectedBackup.type}</Descriptions.Item>
             <Descriptions.Item label="Created">{selectedBackup.createdAt}</Descriptions.Item>
             <Descriptions.Item label="Size">
-              {selectedBackup.size > 0 ? `${(selectedBackup.size / (1024 * 1024)).toFixed(0)} MB` : '-'}
+              {selectedBackup.size > 0
+                ? `${(selectedBackup.size / (1024 * 1024)).toFixed(0)} MB`
+                : '-'}
             </Descriptions.Item>
           </Descriptions>
         )}
         <div style={{ marginTop: spacing.md }}>
-          <Text type="danger">Warning: Restoring will overwrite current data. This action cannot be undone.</Text>
+          <Text type="danger">
+            Warning: Restoring will overwrite current data. This action cannot be undone.
+          </Text>
         </div>
       </Modal>
     </div>

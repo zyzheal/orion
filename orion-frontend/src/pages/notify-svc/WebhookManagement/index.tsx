@@ -12,30 +12,59 @@
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input,
-  Switch, message, Popconfirm, Tooltip, Select, Drawer,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Switch,
+  message,
+  Popconfirm,
+  Tooltip,
+  Select,
+  Drawer,
 } from 'antd';
 import {
-  ReloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
-  SendOutlined, EyeOutlined, LinkOutlined, CheckCircleOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SendOutlined,
+  EyeOutlined,
+  LinkOutlined,
+  CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import DataState from '@/components/DataState';
 import { colors, spacing } from '@/tokens';
 import {
-  getWebhooks, createWebhook, updateWebhook,
-  deleteWebhook, testWebhook, getWebhookLogs,
-  type Webhook, type WebhookInput, type WebhookLog,
+  getWebhooks,
+  createWebhook,
+  updateWebhook,
+  deleteWebhook,
+  testWebhook,
+  getWebhookLogs,
+  type Webhook,
+  type WebhookInput,
+  type WebhookLog,
 } from '@/api/webhook';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const EVENT_OPTIONS = [
-  'pipeline.completed', 'pipeline.failed', 'deployment.success',
-  'deployment.failed', 'alert.triggered', 'alert.resolved',
-  'selfhealing.triggered', 'cost.anomaly',
+  'pipeline.completed',
+  'pipeline.failed',
+  'deployment.success',
+  'deployment.failed',
+  'alert.triggered',
+  'alert.resolved',
+  'selfhealing.triggered',
+  'cost.anomaly',
 ];
 
 const WebhookManagement: React.FC = () => {
@@ -62,7 +91,9 @@ const WebhookManagement: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadWebhooks(); }, [loadWebhooks]);
+  useEffect(() => {
+    loadWebhooks();
+  }, [loadWebhooks]);
 
   const handleCreate = async (values: WebhookInput) => {
     try {
@@ -140,96 +171,155 @@ const WebhookManagement: React.FC = () => {
     setModalVisible(true);
   };
 
-  const columns: TableColumn<Webhook>[] = useMemo<TableColumn<Webhook>[]>(() => [
-    {
-      key: 'url',
-      title: 'URL',
-      dataIndex: 'url',
-      ellipsis: true,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v)}</Text>,
-    },
-    {
-      key: 'events',
-      title: '订阅事件',
-      dataIndex: 'events',
-      width: 250,
-      render: (v: unknown) => (
-        <Space wrap>
-          {(v as string[]).map((e) => <Tag key={e} color="blue" style={{ fontSize: 11 }}>{e}</Tag>)}
-        </Space>
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (v: unknown) => v ? <Tag color="success">启用</Tag> : <Tag>禁用</Tag>,
-    },
-    {
-      key: 'failureCount',
-      title: '失败次数',
-      dataIndex: 'failureCount',
-      width: 80,
-      render: (v: unknown) => {
-        const count = typeof v === 'number' ? v : 0;
-        return <Text style={{ color: count > 3 ? colors.error[500] : 'inherit' }}>{count}</Text>;
+  const columns: TableColumn<Webhook>[] = useMemo<TableColumn<Webhook>[]>(
+    () => [
+      {
+        key: 'url',
+        title: 'URL',
+        dataIndex: 'url',
+        ellipsis: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 12 }}>
+            {String(v)}
+          </Text>
+        ),
       },
-    },
-    {
-      key: 'lastStatus',
-      title: '最后状态',
-      dataIndex: 'lastStatus',
-      width: 90,
-      render: (v: unknown) => {
-        if (!v) return <Text type="secondary">—</Text>;
-        const status = typeof v === 'number' ? v : 0;
-        return status >= 200 && status < 300
-          ? <Tag color="success" icon={<CheckCircleOutlined />}>{status}</Tag>
-          : <Tag color="error" icon={<CloseCircleOutlined />}>{status}</Tag>;
+      {
+        key: 'events',
+        title: '订阅事件',
+        dataIndex: 'events',
+        width: 250,
+        render: (v: unknown) => (
+          <Space wrap>
+            {(v as string[]).map((e) => (
+              <Tag key={e} color="blue" style={{ fontSize: 11 }}>
+                {e}
+              </Tag>
+            ))}
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'lastTriggeredAt',
-      title: '最后触发',
-      dataIndex: 'lastTriggeredAt',
-      width: 150,
-      render: (v: unknown) => v ? dayjs(String(v)).format('MM-DD HH:mm') : '—',
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_: unknown, record: Webhook) => (
-        <Space size="small">
-          <Tooltip title="测试">
-            <Button type="link" size="small" icon={<SendOutlined />} onClick={() => handleTest(record.id)} />
-          </Tooltip>
-          <Tooltip title="日志">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewLogs(record)} />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-          </Tooltip>
-          <Popconfirm title="确认删除该 Webhook?" onConfirm={() => handleDelete(record.id)}>
-            <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 80,
+        render: (v: unknown) => (v ? <Tag color="success">启用</Tag> : <Tag>禁用</Tag>),
+      },
+      {
+        key: 'failureCount',
+        title: '失败次数',
+        dataIndex: 'failureCount',
+        width: 80,
+        render: (v: unknown) => {
+          const count = typeof v === 'number' ? v : 0;
+          return <Text style={{ color: count > 3 ? colors.error[500] : 'inherit' }}>{count}</Text>;
+        },
+      },
+      {
+        key: 'lastStatus',
+        title: '最后状态',
+        dataIndex: 'lastStatus',
+        width: 90,
+        render: (v: unknown) => {
+          if (!v) return <Text type="secondary">—</Text>;
+          const status = typeof v === 'number' ? v : 0;
+          return status >= 200 && status < 300 ? (
+            <Tag color="success" icon={<CheckCircleOutlined />}>
+              {status}
+            </Tag>
+          ) : (
+            <Tag color="error" icon={<CloseCircleOutlined />}>
+              {status}
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'lastTriggeredAt',
+        title: '最后触发',
+        dataIndex: 'lastTriggeredAt',
+        width: 150,
+        render: (v: unknown) => (v ? dayjs(String(v)).format('MM-DD HH:mm') : '—'),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_: unknown, record: Webhook) => (
+          <Space size="small">
+            <Tooltip title="测试">
+              <Button
+                type="link"
+                size="small"
+                icon={<SendOutlined />}
+                onClick={() => handleTest(record.id)}
+              />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleTest, handleViewLogs, openEdit]);
+            <Tooltip title="日志">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewLogs(record)}
+              />
+            </Tooltip>
+            <Tooltip title="编辑">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEdit(record)}
+              />
+            </Tooltip>
+            <Popconfirm title="确认删除该 Webhook?" onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title="删除">
+                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleTest, handleViewLogs, openEdit]
+  );
 
-  const logColumns: TableColumn<WebhookLog>[] = useMemo<TableColumn<WebhookLog>[]>(() => [
-    { key: 'event', title: '事件', dataIndex: 'event', width: 180, render: (v: unknown) => <Tag color="blue">{String(v)}</Tag> },
-    { key: 'status', title: 'HTTP 状态', dataIndex: 'status', width: 100, render: (v: unknown) => {
-      const s = typeof v === 'number' ? v : 0;
-      return <Tag color={s >= 200 && s < 300 ? 'success' : 'error'}>{s}</Tag>;
-    }},
-    { key: 'error', title: '错误', dataIndex: 'error', ellipsis: true, render: (v: unknown) => v ? <Text type="danger">{String(v)}</Text> : '—' },
-    { key: 'createdAt', title: '时间', dataIndex: 'createdAt', width: 150, render: (v: unknown) => dayjs(String(v)).format('MM-DD HH:mm:ss') },
-  ], []);
+  const logColumns: TableColumn<WebhookLog>[] = useMemo<TableColumn<WebhookLog>[]>(
+    () => [
+      {
+        key: 'event',
+        title: '事件',
+        dataIndex: 'event',
+        width: 180,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: 'HTTP 状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const s = typeof v === 'number' ? v : 0;
+          return <Tag color={s >= 200 && s < 300 ? 'success' : 'error'}>{s}</Tag>;
+        },
+      },
+      {
+        key: 'error',
+        title: '错误',
+        dataIndex: 'error',
+        ellipsis: true,
+        render: (v: unknown) => (v ? <Text type="danger">{String(v)}</Text> : '—'),
+      },
+      {
+        key: 'createdAt',
+        title: '时间',
+        dataIndex: 'createdAt',
+        width: 150,
+        render: (v: unknown) => dayjs(String(v)).format('MM-DD HH:mm:ss'),
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -243,8 +333,12 @@ const WebhookManagement: React.FC = () => {
           <Text type="secondary">平台 Webhook 配置与监控</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建 Webhook</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新建 Webhook
+          </Button>
         </Space>
       </div>
 
@@ -257,7 +351,14 @@ const WebhookManagement: React.FC = () => {
         retry={loadWebhooks}
       >
         <Card>
-          <Table columns={columns} dataSource={webhooks} loading={loading} rowKey="id" size="middle" striped />
+          <Table
+            columns={columns}
+            dataSource={webhooks}
+            loading={loading}
+            rowKey="id"
+            size="middle"
+            striped
+          />
         </Card>
       </DataState>
 
@@ -265,7 +366,10 @@ const WebhookManagement: React.FC = () => {
       <Modal
         title={editingWebhook ? '编辑 Webhook' : '新建 Webhook'}
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); setEditingWebhook(null); }}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingWebhook(null);
+        }}
         onOk={() => form.submit()}
         width={600}
       >

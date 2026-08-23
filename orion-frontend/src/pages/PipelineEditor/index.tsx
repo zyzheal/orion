@@ -85,7 +85,8 @@ const STAGE_TYPES = [
   { label: '通知 (Notify)', value: 'notify', icon: '📢' },
   { label: '自定义 (Custom)', value: 'custom', icon: '⚙️' },
   { label: '多架构构建 (Buildx)', value: 'buildx', icon: '🏷️' },
-  { label: '容器运行 (Container)', value: 'container', icon: '📦' },];
+  { label: '容器运行 (Container)', value: 'container', icon: '📦' },
+];
 
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();
@@ -486,17 +487,17 @@ const PipelineEditor: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <EditOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {id ? '编辑 Pipeline' : '创建 Pipeline'}
           </Title>
           <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>
         </div>
         <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/pipelines')}
-          >
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
             返回列表
           </Button>
           <Button

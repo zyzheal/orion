@@ -45,10 +45,9 @@ export const pipelineVersionsApi = {
   },
 
   diff: async (pipelineId: string, versionId: string, targetVersionId: string) => {
-    const response = await api.get(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/diff`,
-      { params: { target: targetVersionId } }
-    );
+    const response = await api.get(`/api/v1/pipelines/${pipelineId}/versions/${versionId}/diff`, {
+      params: { target: targetVersionId },
+    });
     return response.data as unknown as VersionDiff;
   },
 
@@ -61,10 +60,9 @@ export const pipelineVersionsApi = {
   },
 
   addTag: async (pipelineId: string, versionId: string, tag: string) => {
-    const response = await api.post(
-      `/api/v1/pipelines/${pipelineId}/versions/${versionId}/tag`,
-      { tag }
-    );
+    const response = await api.post(`/api/v1/pipelines/${pipelineId}/versions/${versionId}/tag`, {
+      tag,
+    });
     return response.data;
   },
 

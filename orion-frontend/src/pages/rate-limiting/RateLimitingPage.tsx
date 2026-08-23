@@ -37,7 +37,8 @@ import {
   DeleteOutlined,
   ThunderboltOutlined,
   WarningOutlined,
-  LockOutlined,} from '@ant-design/icons';
+  LockOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
@@ -252,7 +253,11 @@ const RateLimitingPage: React.FC = () => {
       dataIndex: 'endpoint',
       key: 'endpoint',
       width: 200,
-      render: (text: string) => <Text code style={{ fontSize: 12 }}>{text}</Text>,
+      render: (text: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {text}
+        </Text>
+      ),
     },
     {
       title: '方法',
@@ -268,7 +273,9 @@ const RateLimitingPage: React.FC = () => {
       key: 'limit',
       width: 120,
       render: (_: unknown, record) => (
-        <Text>{record.maxRequests} 次 / {record.windowSeconds}s</Text>
+        <Text>
+          {record.maxRequests} 次 / {record.windowSeconds}s
+        </Text>
       ),
     },
     {
@@ -308,7 +315,12 @@ const RateLimitingPage: React.FC = () => {
       render: (_: unknown, record) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            />
           </Tooltip>
           <Popconfirm title="确认删除该规则?" onConfirm={() => handleDelete(record)}>
             <Tooltip title="删除">
@@ -444,7 +456,9 @@ const RateLimitingPage: React.FC = () => {
           <Form.Item name="method" label="HTTP 方法" initialValue="ALL">
             <Select>
               {METHOD_OPTIONS.map((o) => (
-                <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                <Select.Option key={o.value} value={o.value}>
+                  {o.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -457,7 +471,9 @@ const RateLimitingPage: React.FC = () => {
           <Form.Item name="strategy" label="限流策略" initialValue="fixed">
             <Select>
               {STRATEGY_OPTIONS.map((o) => (
-                <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                <Select.Option key={o.value} value={o.value}>
+                  {o.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -493,7 +509,9 @@ const RateLimitingPage: React.FC = () => {
           <Form.Item name="method" label="HTTP 方法" rules={[{ required: true }]}>
             <Select>
               {METHOD_OPTIONS.map((o) => (
-                <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                <Select.Option key={o.value} value={o.value}>
+                  {o.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -506,7 +524,9 @@ const RateLimitingPage: React.FC = () => {
           <Form.Item name="strategy" label="限流策略" rules={[{ required: true }]}>
             <Select>
               {STRATEGY_OPTIONS.map((o) => (
-                <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                <Select.Option key={o.value} value={o.value}>
+                  {o.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>

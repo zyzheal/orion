@@ -52,8 +52,17 @@ const { Title, Text } = Typography;
 const DORAMetricsTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<{
-    dora?: { deploymentFrequency?: string | number; leadTime?: number; mttr?: number; changeFailureRate?: number };
-    summary?: { totalDeployments?: number; successfulDeployments?: number; failedDeployments?: number };
+    dora?: {
+      deploymentFrequency?: string | number;
+      leadTime?: number;
+      mttr?: number;
+      changeFailureRate?: number;
+    };
+    summary?: {
+      totalDeployments?: number;
+      successfulDeployments?: number;
+      failedDeployments?: number;
+    };
   } | null>(null);
   const [benchmarks, setBenchmarks] = useState<{
     deploymentFrequency?: { elite?: string; high?: string; medium?: string; low?: string };
@@ -108,7 +117,9 @@ const DORAMetricsTab: React.FC = () => {
     <div>
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">DORA 四大核心指标</Text>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       {/* Metric Cards */}
@@ -122,8 +133,24 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<ThunderboltOutlined />}
             />
             <div style={{ marginTop: spacing.sm }}>
-              <Tag color={levelColorMap[getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')]}>
-                {getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')}
+              <Tag
+                color={
+                  levelColorMap[
+                    getLevel(
+                      typeof dora.deploymentFrequency === 'string'
+                        ? parseFloat(dora.deploymentFrequency)
+                        : dora.deploymentFrequency,
+                      'deploymentFrequency'
+                    )
+                  ]
+                }
+              >
+                {getLevel(
+                  typeof dora.deploymentFrequency === 'string'
+                    ? parseFloat(dora.deploymentFrequency)
+                    : dora.deploymentFrequency,
+                  'deploymentFrequency'
+                )}
               </Tag>
             </div>
           </Card>
@@ -135,7 +162,9 @@ const DORAMetricsTab: React.FC = () => {
               value={dora.leadTime || 0}
               suffix="小时"
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: (dora.leadTime || 0) <= 24 ? colors.success[500] : colors.warning[500] }}
+              valueStyle={{
+                color: (dora.leadTime || 0) <= 24 ? colors.success[500] : colors.warning[500],
+              }}
             />
             <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.leadTime, 'leadTimeForChanges')]}>
@@ -151,7 +180,9 @@ const DORAMetricsTab: React.FC = () => {
               value={dora.mttr || 0}
               suffix="分钟"
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: (dora.mttr || 0) <= 60 ? colors.success[500] : colors.error[400] }}
+              valueStyle={{
+                color: (dora.mttr || 0) <= 60 ? colors.success[500] : colors.error[400],
+              }}
             />
             <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.mttr, 'meanTimeToRecovery')]}>
@@ -167,7 +198,9 @@ const DORAMetricsTab: React.FC = () => {
               value={dora.changeFailureRate || 0}
               suffix="%"
               prefix={<WarningOutlined />}
-              valueStyle={{ color: (dora.changeFailureRate || 0) <= 5 ? colors.success[500] : colors.error[400] }}
+              valueStyle={{
+                color: (dora.changeFailureRate || 0) <= 5 ? colors.success[500] : colors.error[400],
+              }}
             />
             <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.changeFailureRate, 'changeFailureRate')]}>
@@ -186,17 +219,31 @@ const DORAMetricsTab: React.FC = () => {
               <Statistic title="总部署次数" value={dashboardData.summary.totalDeployments || 0} />
             </Col>
             <Col span={8}>
-              <Statistic title="成功部署" value={dashboardData.summary.successfulDeployments || 0} valueStyle={{ color: colors.success[500] }} prefix={<CheckCircleOutlined />} />
+              <Statistic
+                title="成功部署"
+                value={dashboardData.summary.successfulDeployments || 0}
+                valueStyle={{ color: colors.success[500] }}
+                prefix={<CheckCircleOutlined />}
+              />
             </Col>
             <Col span={8}>
-              <Statistic title="失败部署" value={dashboardData.summary.failedDeployments || 0} valueStyle={{ color: colors.error[400] }} prefix={<WarningOutlined />} />
+              <Statistic
+                title="失败部署"
+                value={dashboardData.summary.failedDeployments || 0}
+                valueStyle={{ color: colors.error[400] }}
+                prefix={<WarningOutlined />}
+              />
             </Col>
           </Row>
           {dashboardData.summary.totalDeployments && dashboardData.summary.totalDeployments > 0 && (
             <div style={{ marginTop: spacing.md }}>
               <Text type="secondary">成功率: </Text>
               <Progress
-                percent={Math.round(((dashboardData.summary.successfulDeployments || 0) / dashboardData.summary.totalDeployments) * 100)}
+                percent={Math.round(
+                  ((dashboardData.summary.successfulDeployments || 0) /
+                    dashboardData.summary.totalDeployments) *
+                    100
+                )}
                 strokeColor={colors.success[500]}
                 style={{ width: 300 }}
               />
@@ -237,20 +284,42 @@ const DeveloperProfileTab: React.FC = () => {
       width: 160,
       render: (_: unknown, record: DeveloperProfile) => (
         <Space>
-          <Avatar style={{ backgroundColor: colors.primary[500] }} icon={<UserOutlined />}>{record.name.charAt(0)}</Avatar>
+          <Avatar style={{ backgroundColor: colors.primary[500] }} icon={<UserOutlined />}>
+            {record.name.charAt(0)}
+          </Avatar>
           <Space direction="vertical" size={0}>
             <Text strong>{record.name}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.role}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.role}
+            </Text>
           </Space>
         </Space>
       ),
     },
     { title: '团队', dataIndex: 'team', key: 'team', width: 80 },
-    { title: '提交数', dataIndex: 'commits', key: 'commits', width: 80, render: (v: number) => <Text strong>{v}</Text> },
+    {
+      title: '提交数',
+      dataIndex: 'commits',
+      key: 'commits',
+      width: 80,
+      render: (v: number) => <Text strong>{v}</Text>,
+    },
     { title: 'PR数', dataIndex: 'prs', key: 'prs', width: 60 },
     { title: '评审数', dataIndex: 'reviews', key: 'reviews', width: 80 },
-    { title: '修复Bug', dataIndex: 'bugsFixed', key: 'bugsFixed', width: 80, render: (v: number) => <Text style={{ color: colors.success[500] }}>{v}</Text> },
-    { title: '平均评审时间', dataIndex: 'avgReviewTime', key: 'avgReviewTime', width: 120, render: (v: number) => `${v} 分钟` },
+    {
+      title: '修复Bug',
+      dataIndex: 'bugsFixed',
+      key: 'bugsFixed',
+      width: 80,
+      render: (v: number) => <Text style={{ color: colors.success[500] }}>{v}</Text>,
+    },
+    {
+      title: '平均评审时间',
+      dataIndex: 'avgReviewTime',
+      key: 'avgReviewTime',
+      width: 120,
+      render: (v: number) => `${v} 分钟`,
+    },
     {
       title: '代码质量',
       dataIndex: 'codeQuality',
@@ -260,21 +329,33 @@ const DeveloperProfileTab: React.FC = () => {
         <Progress
           percent={v}
           size="small"
-          strokeColor={v >= 90 ? colors.success[500] : v >= 80 ? colors.primary[500] : colors.warning[500]}
+          strokeColor={
+            v >= 90 ? colors.success[500] : v >= 80 ? colors.primary[500] : colors.warning[500]
+          }
           style={{ width: 80 }}
         />
       ),
     },
-    { title: '活跃天数', dataIndex: 'activeDays', key: 'activeDays', width: 80, render: (v: number) => `${v}/22` },
+    {
+      title: '活跃天数',
+      dataIndex: 'activeDays',
+      key: 'activeDays',
+      width: 80,
+      render: (v: number) => `${v}/22`,
+    },
     {
       title: '专长',
       key: 'specialty',
       render: (_: unknown, record: DeveloperProfile) => (
         <Space wrap>
           {record.specialty.slice(0, 2).map((s: string, i: number) => (
-            <Tag key={String(i)} color="blue" style={{ fontSize: 11 }}>{s}</Tag>
+            <Tag key={String(i)} color="blue" style={{ fontSize: 11 }}>
+              {s}
+            </Tag>
           ))}
-          {record.specialty.length > 2 && <Tag style={{ fontSize: 11 }}>+{record.specialty.length - 2}</Tag>}
+          {record.specialty.length > 2 && (
+            <Tag style={{ fontSize: 11 }}>+{record.specialty.length - 2}</Tag>
+          )}
         </Space>
       ),
     },
@@ -292,7 +373,14 @@ const DeveloperProfileTab: React.FC = () => {
         showIcon
         style={{ marginBottom: spacing.md }}
       />
-      <Table columns={columns} dataSource={profiles} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={profiles}
+        rowKey="id"
+        loading={loading}
+        size="middle"
+        pagination={{ pageSize: 10 }}
+      />
     </div>
   );
 };
@@ -366,7 +454,13 @@ const BottleneckAnalysisTab: React.FC = () => {
   };
 
   const bottleneckColumns = [
-    { title: '瓶颈类别', dataIndex: 'category', key: 'category', width: 100, render: (v: string) => <Tag color="purple">{v}</Tag> },
+    {
+      title: '瓶颈类别',
+      dataIndex: 'category',
+      key: 'category',
+      width: 100,
+      render: (v: string) => <Tag color="purple">{v}</Tag>,
+    },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     {
       title: '影响度',
@@ -375,40 +469,135 @@ const BottleneckAnalysisTab: React.FC = () => {
       width: 80,
       render: (v: string) => <Tag color={impactColorMap[v]}>{impactLabelMap[v]}</Tag>,
     },
-    { title: '当前值', dataIndex: 'currentValue', key: 'currentValue', width: 80, render: (v: string) => <Text type="danger">{v}</Text> },
-    { title: '目标值', dataIndex: 'targetValue', key: 'targetValue', width: 80, render: (v: string) => <Text type="success">{v}</Text> },
+    {
+      title: '当前值',
+      dataIndex: 'currentValue',
+      key: 'currentValue',
+      width: 80,
+      render: (v: string) => <Text type="danger">{v}</Text>,
+    },
+    {
+      title: '目标值',
+      dataIndex: 'targetValue',
+      key: 'targetValue',
+      width: 80,
+      render: (v: string) => <Text type="success">{v}</Text>,
+    },
     { title: '优化建议', dataIndex: 'suggestion', key: 'suggestion' },
   ];
 
   const teamColumns = [
-    { title: '团队', dataIndex: 'teamName', key: 'teamName', render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '团队',
+      dataIndex: 'teamName',
+      key: 'teamName',
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     {
       title: '等级',
       dataIndex: 'level',
       key: 'level',
-      render: (v: string) => <Tag color={v === 'elite' ? 'success' : v === 'high' ? 'blue' : v === 'medium' ? 'warning' : 'default'}>{v}</Tag>,
+      render: (v: string) => (
+        <Tag
+          color={
+            v === 'elite'
+              ? 'success'
+              : v === 'high'
+                ? 'blue'
+                : v === 'medium'
+                  ? 'warning'
+                  : 'default'
+          }
+        >
+          {v}
+        </Tag>
+      ),
     },
-    { title: '评分', dataIndex: 'score', key: 'score', render: (v: number) => <Text strong>{v}</Text> },
-    { title: '部署频率', key: 'depFreq', render: (r: TeamMetrics) => `${r.metrics.deploymentFrequency?.toFixed(1)} 次/周` },
-    { title: '前置时间', key: 'leadTime', render: (r: TeamMetrics) => r.metrics.leadTimeMinutes ? `${r.metrics.leadTimeMinutes} min` : '-' },
-    { title: 'MTTR', key: 'mttr', render: (r: TeamMetrics) => r.metrics.mttrMinutes ? `${r.metrics.mttrMinutes} min` : '-' },
-    { title: '失败率', key: 'failRate', render: (r: TeamMetrics) => `${r.metrics.changeFailureRate?.toFixed(1)}%` },
+    {
+      title: '评分',
+      dataIndex: 'score',
+      key: 'score',
+      render: (v: number) => <Text strong>{v}</Text>,
+    },
+    {
+      title: '部署频率',
+      key: 'depFreq',
+      render: (r: TeamMetrics) => `${r.metrics.deploymentFrequency?.toFixed(1)} 次/周`,
+    },
+    {
+      title: '前置时间',
+      key: 'leadTime',
+      render: (r: TeamMetrics) =>
+        r.metrics.leadTimeMinutes ? `${r.metrics.leadTimeMinutes} min` : '-',
+    },
+    {
+      title: 'MTTR',
+      key: 'mttr',
+      render: (r: TeamMetrics) => (r.metrics.mttrMinutes ? `${r.metrics.mttrMinutes} min` : '-'),
+    },
+    {
+      title: '失败率',
+      key: 'failRate',
+      render: (r: TeamMetrics) => `${r.metrics.changeFailureRate?.toFixed(1)}%`,
+    },
   ];
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Bottleneck Table */}
-      <Card title={<span><WarningOutlined style={{ color: colors.warning[500] }} /> 效能瓶颈分析</span>}>
-        <Table columns={bottleneckColumns} dataSource={bottlenecks} rowKey="id" loading={loading} size="middle" pagination={false} />
+      <Card
+        title={
+          <span>
+            <WarningOutlined style={{ color: colors.warning[500] }} /> 效能瓶颈分析
+          </span>
+        }
+      >
+        <Table
+          columns={bottleneckColumns}
+          dataSource={bottlenecks}
+          rowKey="id"
+          loading={loading}
+          size="middle"
+          pagination={false}
+        />
       </Card>
 
       {/* Team Comparison */}
-      <Card title={<span><TeamOutlined /> 团队效能对比</span>} extra={<Button size="small" icon={<ReloadOutlined />} onClick={loadTeamComparison} loading={teamLoading}>刷新</Button>}>
-        <Table columns={teamColumns} dataSource={teamComparison} rowKey="teamId" loading={teamLoading} size="middle" pagination={false} />
+      <Card
+        title={
+          <span>
+            <TeamOutlined /> 团队效能对比
+          </span>
+        }
+        extra={
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            onClick={loadTeamComparison}
+            loading={teamLoading}
+          >
+            刷新
+          </Button>
+        }
+      >
+        <Table
+          columns={teamColumns}
+          dataSource={teamComparison}
+          rowKey="teamId"
+          loading={teamLoading}
+          size="middle"
+          pagination={false}
+        />
       </Card>
 
       {/* Recommendations */}
-      <Card title={<span><LineChartOutlined /> 改进建议</span>}>
+      <Card
+        title={
+          <span>
+            <LineChartOutlined /> 改进建议
+          </span>
+        }
+      >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Alert
             message="优先处理高影响度瓶颈"
@@ -456,13 +645,37 @@ const EfficiencyPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab={<span><ThunderboltOutlined />DORA 指标</span>} key="dora">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <ThunderboltOutlined />
+              DORA 指标
+            </span>
+          }
+          key="dora"
+        >
           <DORAMetricsTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><UserOutlined />开发者画像</span>} key="profiles">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <UserOutlined />
+              开发者画像
+            </span>
+          }
+          key="profiles"
+        >
           <DeveloperProfileTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><LineChartOutlined />瓶颈分析</span>} key="bottlenecks">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <LineChartOutlined />
+              瓶颈分析
+            </span>
+          }
+          key="bottlenecks"
+        >
           <BottleneckAnalysisTab />
         </Tabs.TabPane>
       </Tabs>

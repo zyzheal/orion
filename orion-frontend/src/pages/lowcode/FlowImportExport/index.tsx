@@ -10,12 +10,30 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import {
-  Button, Space, message, Modal, Input, Select,
-  Card, Upload, Divider, Statistic, Row, Col, Alert, Descriptions,
+  Button,
+  Space,
+  message,
+  Modal,
+  Input,
+  Select,
+  Card,
+  Upload,
+  Divider,
+  Statistic,
+  Row,
+  Col,
+  Alert,
+  Descriptions,
 } from 'antd';
 import { Typography } from 'antd';
 import {
-  DownloadOutlined, UploadOutlined, FileTextOutlined, InboxOutlined, CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+  FileTextOutlined,
+  InboxOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
 import { lowcodeApi, type LowcodeFlow } from '@/api/lowcode';
@@ -77,11 +95,17 @@ const FlowImportExportPage: React.FC = () => {
   // Import
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
-  const [validateResult, setValidateResult] = useState<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
+  const [validateResult, setValidateResult] = useState<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+  } | null>(null);
   const [importName, setImportName] = useState('');
   const [importDescription, setImportDescription] = useState('');
   const [importModalVisible, setImportModalVisible] = useState(false);
-  const [importResult, setImportResult] = useState<{ success: boolean; message?: string } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: boolean; message?: string } | null>(
+    null
+  );
 
   // ==================== Load flows ====================
 
@@ -144,7 +168,13 @@ const FlowImportExportPage: React.FC = () => {
       reader.onload = (e) => {
         try {
           const content = e.target?.result as string;
-          const json = JSON.parse(content) as ExportFormat & { name?: string; description?: string; version?: string; nodes?: unknown[]; edges?: unknown[] };
+          const json = JSON.parse(content) as ExportFormat & {
+            name?: string;
+            description?: string;
+            version?: string;
+            nodes?: unknown[];
+            edges?: unknown[];
+          };
           setImportPreview({
             name: json.name || json.definition?.name || '未知流程',
             description: json.description || json.definition?.description,
@@ -164,7 +194,11 @@ const FlowImportExportPage: React.FC = () => {
           setValidateResult(validation);
         } catch {
           setImportPreview(null);
-          setValidateResult({ valid: false, errors: ['JSON 解析失败，请检查文件格式'], warnings: [] });
+          setValidateResult({
+            valid: false,
+            errors: ['JSON 解析失败，请检查文件格式'],
+            warnings: [],
+          });
         }
       };
       reader.readAsText(file.originFileObj);
@@ -233,7 +267,11 @@ const FlowImportExportPage: React.FC = () => {
     edges: Array<Record<string, unknown>>;
     version?: string;
   }): { valid: boolean; errors: string[]; warnings: string[] } {
-    const result = { valid: true, errors: [] as string[], warnings: [] as string[] } as { valid: boolean; errors: string[]; warnings: string[] };
+    const result = { valid: true, errors: [] as string[], warnings: [] as string[] } as {
+      valid: boolean;
+      errors: string[];
+      warnings: string[];
+    };
     if (!data.name || data.name.trim().length === 0) {
       result.valid = false;
       result.errors.push('流程名称不能为空');
@@ -267,16 +305,15 @@ const FlowImportExportPage: React.FC = () => {
             title="导出流程"
             style={{ height: '100%' }}
             extra={
-              <Button
-                icon={<ReloadOutlined />}
-                size="small"
-                onClick={loadFlows}
-              >
+              <Button icon={<ReloadOutlined />} size="small" onClick={loadFlows}>
                 刷新
               </Button>
             }
           >
-            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+            <Typography.Text
+              type="secondary"
+              style={{ display: 'block', marginBottom: spacing.md }}
+            >
               选择流程并导出为 JSON 文件，可用于备份或迁移
             </Typography.Text>
             <Select
@@ -332,7 +369,10 @@ const FlowImportExportPage: React.FC = () => {
               </Button>
             }
           >
-            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+            <Typography.Text
+              type="secondary"
+              style={{ display: 'block', marginBottom: spacing.md }}
+            >
               选择 JSON 文件导入流程定义
             </Typography.Text>
             <Dragger
@@ -349,14 +389,15 @@ const FlowImportExportPage: React.FC = () => {
                 <InboxOutlined style={{ color: colors.primary[500], fontSize: 48 }} />
               </p>
               <p className="ant-upload-text">点击或拖拽 JSON 文件到此处</p>
-              <p className="ant-upload-hint">
-                支持导出时生成的 JSON 文件格式
-              </p>
+              <p className="ant-upload-hint">支持导出时生成的 JSON 文件格式</p>
             </Dragger>
 
             {/* Import preview */}
             {importPreview && (
-              <Card size="small" style={{ marginTop: spacing.sm, background: themeVars.bgSecondary }}>
+              <Card
+                size="small"
+                style={{ marginTop: spacing.sm, background: themeVars.bgSecondary }}
+              >
                 <Statistic
                   title="流程名称"
                   value={importPreview.name}
@@ -419,11 +460,21 @@ const FlowImportExportPage: React.FC = () => {
       <Modal
         title={`导出预览: ${exportData?.definition.name}`}
         open={exportModalVisible}
-        onCancel={() => { setExportModalVisible(false); setExportData(null); setSelectedFlow(null); }}
+        onCancel={() => {
+          setExportModalVisible(false);
+          setExportData(null);
+          setSelectedFlow(null);
+        }}
         width={700}
         footer={
           <Space>
-            <Button onClick={() => { setExportModalVisible(false); setExportData(null); setSelectedFlow(null); }}>
+            <Button
+              onClick={() => {
+                setExportModalVisible(false);
+                setExportData(null);
+                setSelectedFlow(null);
+              }}
+            >
               关闭
             </Button>
             <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownloadJson}>
@@ -435,10 +486,16 @@ const FlowImportExportPage: React.FC = () => {
         {exportData && selectedFlow && (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="流程名称">{exportData.definition.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">{exportData.definition.description || '无'}</Descriptions.Item>
+            <Descriptions.Item label="描述">
+              {exportData.definition.description || '无'}
+            </Descriptions.Item>
             <Descriptions.Item label="版本">{exportData.definition.version}</Descriptions.Item>
-            <Descriptions.Item label="节点数">{exportData.definition.nodes?.length || 0}</Descriptions.Item>
-            <Descriptions.Item label="连线数">{exportData.definition.edges?.length || 0}</Descriptions.Item>
+            <Descriptions.Item label="节点数">
+              {exportData.definition.nodes?.length || 0}
+            </Descriptions.Item>
+            <Descriptions.Item label="连线数">
+              {exportData.definition.edges?.length || 0}
+            </Descriptions.Item>
             <Descriptions.Item label="导出时间">
               {dayjs(exportData.exportedAt).format('YYYY-MM-DD HH:mm:ss')}
             </Descriptions.Item>
@@ -453,7 +510,10 @@ const FlowImportExportPage: React.FC = () => {
       <Modal
         title="确认导入"
         open={importModalVisible}
-        onCancel={() => { setImportModalVisible(false); setImportResult(null); }}
+        onCancel={() => {
+          setImportModalVisible(false);
+          setImportResult(null);
+        }}
         onOk={handleImport}
         confirmLoading={importing}
         okText={importing ? '导入中...' : '确认导入'}

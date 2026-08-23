@@ -65,10 +65,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             {title}
           </Text>
           <div style={{ marginTop: 4, display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            <Text
-              strong
-              style={{ fontSize: 24, color: color ?? theme.textColor }}
-            >
+            <Text strong style={{ fontSize: 24, color: color ?? theme.textColor }}>
               {typeof value === 'number' ? value.toLocaleString() : value}
             </Text>
             {suffix && (

@@ -187,9 +187,7 @@ export default function RunbookManagementPage() {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string, record) => (
-        <a onClick={() => handleViewDetail(record)}>{text}</a>
-      ),
+      render: (text: string, record) => <a onClick={() => handleViewDetail(record)}>{text}</a>,
     },
     {
       title: '分类',
@@ -285,35 +283,39 @@ export default function RunbookManagementPage() {
         Runbook 管理
       </Title>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {
-          key: 'definitions',
-          label: 'Runbook 定义',
-          children: (
-            <Card>
-              <Row justify="space-between" style={{ marginBottom: spacing.md }}>
-                <Col>
-                  <Button icon={<ReloadOutlined />} onClick={fetchRunbooks}>
-                    刷新
-                  </Button>
-                </Col>
-                <Col>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                    创建 Runbook
-                  </Button>
-                </Col>
-              </Row>
-              <Table
-                columns={columns}
-                dataSource={runbooks}
-                rowKey="id"
-                loading={loading}
-                pagination={{ pageSize: 20 }}
-              />
-            </Card>
-          ),
-        },
-      ]} />
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'definitions',
+            label: 'Runbook 定义',
+            children: (
+              <Card>
+                <Row justify="space-between" style={{ marginBottom: spacing.md }}>
+                  <Col>
+                    <Button icon={<ReloadOutlined />} onClick={fetchRunbooks}>
+                      刷新
+                    </Button>
+                  </Col>
+                  <Col>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                      创建 Runbook
+                    </Button>
+                  </Col>
+                </Row>
+                <Table
+                  columns={columns}
+                  dataSource={runbooks}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{ pageSize: 20 }}
+                />
+              </Card>
+            ),
+          },
+        ]}
+      />
 
       {/* Create/Edit Modal */}
       <Modal
@@ -330,7 +332,11 @@ export default function RunbookManagementPage() {
           <Form.Item name="description" label="描述">
             <TextArea rows={2} placeholder="输入描述" />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select placeholder="选择分类">
               <Select.Option value="incident">故障处理</Select.Option>
               <Select.Option value="deployment">部署运维</Select.Option>
@@ -355,13 +361,17 @@ export default function RunbookManagementPage() {
           <>
             <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="分类">{selectedRunbook.category}</Descriptions.Item>
-              <Descriptions.Item label="描述">{selectedRunbook.description ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="描述">
+                {selectedRunbook.description ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={selectedRunbook.enabled ? 'green' : 'default'}>
                   {selectedRunbook.enabled ? '启用' : '禁用'}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="步骤数">{selectedRunbook.steps?.length ?? 0}</Descriptions.Item>
+              <Descriptions.Item label="步骤数">
+                {selectedRunbook.steps?.length ?? 0}
+              </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(selectedRunbook.createdAt).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
@@ -420,8 +430,16 @@ export default function RunbookManagementPage() {
                     <Tag color={statusColor[step.status]} style={{ fontSize: 12 }}>
                       {statusLabel[step.status]}
                     </Tag>
-                    {step.output && <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>{step.output}</Text>}
-                    {step.error && <Text type="danger" style={{ display: 'block', marginTop: 4 }}>{step.error}</Text>}
+                    {step.output && (
+                      <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                        {step.output}
+                      </Text>
+                    )}
+                    {step.error && (
+                      <Text type="danger" style={{ display: 'block', marginTop: 4 }}>
+                        {step.error}
+                      </Text>
+                    )}
                   </div>
                 ),
               }))}

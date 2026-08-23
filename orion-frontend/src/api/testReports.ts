@@ -99,12 +99,15 @@ export function getTestReport(id: string) {
 /**
  * Get test cases for a report
  */
-export function getTestCases(reportId: string, params?: {
-  status?: string;
-  search?: string;
-  page?: number;
-  pageSize?: number;
-}) {
+export function getTestCases(
+  reportId: string,
+  params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }
+) {
   return api.get<PaginatedResult<TestCase>>(`/api/test-reports/${reportId}/cases`, { params });
 }
 

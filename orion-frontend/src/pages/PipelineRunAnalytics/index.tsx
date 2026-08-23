@@ -35,7 +35,13 @@ import {
   PauseCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
-import { getAllPipelineRuns, cancelPipelineRun, retryPipelineRun, getPipelineRunStages, type GetAllPipelineRunsParams } from '@/api/pipelineRuns';
+import {
+  getAllPipelineRuns,
+  cancelPipelineRun,
+  retryPipelineRun,
+  getPipelineRunStages,
+  type GetAllPipelineRunsParams,
+} from '@/api/pipelineRuns';
 import { getPipelines } from '@/api/pipelines';
 import dayjs from 'dayjs';
 
@@ -105,9 +111,10 @@ const computeStats = (runs: RunRecord[]): RunStats => {
   const cancelled = runs.filter((r) => r.status === 'cancelled');
   const running = runs.filter((r) => r.status === 'running');
   const durations = success
-    .map((r) => typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs)
+    .map((r) => (typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs))
     .filter((d): d is number => d != null && d > 0);
-  const avgDurationMs = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+  const avgDurationMs =
+    durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
   const maxDurationMs = durations.length > 0 ? Math.max(...durations) : 0;
   const minDurationMs = durations.length > 0 ? Math.min(...durations) : 0;
   return {
@@ -153,8 +160,14 @@ export default function PipelineRunAnalyticsPage() {
   const loadPipelines = async () => {
     try {
       const res = await getPipelines();
-      const list = res.data as { data?: PipelineSummary[]; pipelines?: PipelineSummary[] } | PipelineSummary[];
-      const pipelines = Array.isArray(list) ? list : (list as { data?: PipelineSummary[] })?.data ?? (list as { pipelines?: PipelineSummary[] })?.pipelines ?? [];
+      const list = res.data as
+        | { data?: PipelineSummary[]; pipelines?: PipelineSummary[] }
+        | PipelineSummary[];
+      const pipelines = Array.isArray(list)
+        ? list
+        : ((list as { data?: PipelineSummary[] })?.data ??
+          (list as { pipelines?: PipelineSummary[] })?.pipelines ??
+          []);
       setPipelines(pipelines);
     } catch {
       // Pipeline list optional
@@ -176,7 +189,11 @@ export default function PipelineRunAnalyticsPage() {
     try {
       const res = await getAllPipelineRuns(buildParams());
       const raw = (res as any).data ?? res;
-      let data = (raw as { data?: RunRecord[]; runs?: RunRecord[] })?.data ?? (raw as { runs?: RunRecord[] })?.runs ?? (raw as RunRecord[]) ?? [];
+      let data =
+        (raw as { data?: RunRecord[]; runs?: RunRecord[] })?.data ??
+        (raw as { runs?: RunRecord[] })?.runs ??
+        (raw as RunRecord[]) ??
+        [];
       if (!Array.isArray(data)) data = [];
 
       // Client-side date filtering
@@ -206,9 +223,14 @@ export default function PipelineRunAnalyticsPage() {
   };
 
   const stats = useMemo(() => computeStats(runs), [runs]);
-  const successRateProgress = stats.total > 0
-    ? { percent: stats.successRate, status: stats.successRate >= 80 ? 'normal' : stats.successRate >= 50 ? 'active' : 'exception' }
-    : { percent: 0 };
+  const successRateProgress =
+    stats.total > 0
+      ? {
+          percent: stats.successRate,
+          status:
+            stats.successRate >= 80 ? 'normal' : stats.successRate >= 50 ? 'active' : 'exception',
+        }
+      : { percent: 0 };
 
   // Bottleneck analysis: per-pipeline success rate + failure count
   const bottlenecks = useMemo((): Bottleneck[] => {
@@ -221,10 +243,14 @@ export default function PipelineRunAnalyticsPage() {
     return Array.from(byPipeline.entries())
       .map(([pid, pruns]) => {
         const failures = pruns.filter((r) => r.status === 'failed');
-        const durations = pruns.filter((r) => r.status === 'success')
-          .map((r) => typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : (r.durationMs ?? 0))
+        const durations = pruns
+          .filter((r) => r.status === 'success')
+          .map((r) =>
+            typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : (r.durationMs ?? 0)
+          )
           .filter((d) => Number.isFinite(d) && d > 0);
-        const avgMs = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+        const avgMs =
+          durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
         const pname = pipelines.find((p) => p.id === pid)?.name || pid;
         return {
           stageName: `${pname}`,
@@ -247,24 +273,30 @@ export default function PipelineRunAnalyticsPage() {
       { label: '5m-15m', items: [] },
       { label: '> 15m', items: [] },
     ];
-    runs.filter((r) => r.status === 'success').forEach((r) => {
-      const ms = typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs;
-      if (ms == null) return;
-      if (ms < 30000) buckets[0].items.push(r);
-      else if (ms < 120000) buckets[1].items.push(r);
-      else if (ms < 300000) buckets[2].items.push(r);
-      else if (ms < 900000) buckets[3].items.push(r);
-      else buckets[4].items.push(r);
-    });
+    runs
+      .filter((r) => r.status === 'success')
+      .forEach((r) => {
+        const ms = typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs;
+        if (ms == null) return;
+        if (ms < 30000) buckets[0].items.push(r);
+        else if (ms < 120000) buckets[1].items.push(r);
+        else if (ms < 300000) buckets[2].items.push(r);
+        else if (ms < 900000) buckets[3].items.push(r);
+        else buckets[4].items.push(r);
+      });
     return buckets.map((b) => ({
       label: b.label,
       count: b.items.length,
-      avgMs: b.items.length > 0
-        ? Math.round(b.items.reduce((sum, r) => {
-            const d = typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs;
-            return sum + (d || 0);
-          }, 0) / b.items.length)
-        : 0,
+      avgMs:
+        b.items.length > 0
+          ? Math.round(
+              b.items.reduce((sum, r) => {
+                const d =
+                  typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs;
+                return sum + (d || 0);
+              }, 0) / b.items.length
+            )
+          : 0,
     }));
   }, [runs]);
 
@@ -322,13 +354,21 @@ export default function PipelineRunAnalyticsPage() {
       title: '耗时',
       key: 'duration',
       width: 90,
-      render: (_: unknown, r: RunRecord) => <Text code>{formatDuration(typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs ?? 0)}</Text>,
+      render: (_: unknown, r: RunRecord) => (
+        <Text code>
+          {formatDuration(
+            typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : (r.durationMs ?? 0)
+          )}
+        </Text>
+      ),
     },
     {
       title: '开始时间',
       key: 'startedAt',
       width: 150,
-      render: (_: unknown, r: RunRecord) => <Text>{r.startedAt ? dayjs(r.startedAt).format('YYYY-MM-DD HH:mm') : '—'}</Text>,
+      render: (_: unknown, r: RunRecord) => (
+        <Text>{r.startedAt ? dayjs(r.startedAt).format('YYYY-MM-DD HH:mm') : '—'}</Text>
+      ),
     },
     {
       title: '',
@@ -337,12 +377,30 @@ export default function PipelineRunAnalyticsPage() {
       render: (_: unknown, r: RunRecord) => (
         <Space size="small">
           {r.status === 'running' && (
-            <Button size="small" danger onClick={() => { cancelPipelineRun(r.id).then(() => loadRuns()); }}>Cancel</Button>
+            <Button
+              size="small"
+              danger
+              onClick={() => {
+                cancelPipelineRun(r.id).then(() => loadRuns());
+              }}
+            >
+              Cancel
+            </Button>
           )}
           {r.status === 'failed' && (
-            <Button size="small" type="primary" onClick={() => { retryPipelineRun(r.id).then(() => loadRuns()); }}>Retry</Button>
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => {
+                retryPipelineRun(r.id).then(() => loadRuns());
+              }}
+            >
+              Retry
+            </Button>
           )}
-          <Button size="small" onClick={() => openStageDetail(r)}>详情</Button>
+          <Button size="small" onClick={() => openStageDetail(r)}>
+            详情
+          </Button>
         </Space>
       ),
     },
@@ -350,15 +408,35 @@ export default function PipelineRunAnalyticsPage() {
 
   const bottleneckColumns = [
     { title: 'Pipeline', dataIndex: 'pipelineName', key: 'pipelineName' },
-    { title: '失败次数', dataIndex: 'failureCount', key: 'failureCount', render: (v: number) => <Tag color={v > 0 ? 'red' : 'green'}>{v}</Tag> },
-    { title: '平均耗时', dataIndex: 'avgDurationMs', key: 'avgDurationMs', render: (v: number) => formatDuration(v) },
+    {
+      title: '失败次数',
+      dataIndex: 'failureCount',
+      key: 'failureCount',
+      render: (v: number) => <Tag color={v > 0 ? 'red' : 'green'}>{v}</Tag>,
+    },
+    {
+      title: '平均耗时',
+      dataIndex: 'avgDurationMs',
+      key: 'avgDurationMs',
+      render: (v: number) => formatDuration(v),
+    },
     {
       title: '成功率',
       key: 'rate',
       render: (_: unknown, b: Bottleneck) => {
         const pruns = runs.filter((r) => r.pipelineId === b.pipelineId);
-        const rate = pruns.length > 0 ? Math.round(pruns.filter((r) => r.status === 'success').length / pruns.length * 100) : 0;
-        return <Progress percent={rate} size="small" status={rate >= 80 ? 'normal' : rate >= 50 ? 'active' : 'exception'} showInfo />;
+        const rate =
+          pruns.length > 0
+            ? Math.round((pruns.filter((r) => r.status === 'success').length / pruns.length) * 100)
+            : 0;
+        return (
+          <Progress
+            percent={rate}
+            size="small"
+            status={rate >= 80 ? 'normal' : rate >= 50 ? 'active' : 'exception'}
+            showInfo
+          />
+        );
       },
     },
   ];
@@ -397,7 +475,11 @@ export default function PipelineRunAnalyticsPage() {
             value={selectedPipeline || undefined}
             onChange={(v) => setSelectedPipeline(v || null)}
           >
-            {pipelines.map((p) => <Option key={p.id} value={p.id}>{p.name}</Option>)}
+            {pipelines.map((p) => (
+              <Option key={p.id} value={p.id}>
+                {p.name}
+              </Option>
+            ))}
           </Select>
           <Select
             placeholder="Status"
@@ -407,7 +489,9 @@ export default function PipelineRunAnalyticsPage() {
             onChange={(v) => setSelectedStatus(v || null)}
           >
             {Object.keys(statusConfig).map((s) => (
-              <Option key={s} value={s}>{statusConfig[s].label}</Option>
+              <Option key={s} value={s}>
+                {statusConfig[s].label}
+              </Option>
             ))}
           </Select>
           <RangePicker
@@ -430,17 +514,29 @@ export default function PipelineRunAnalyticsPage() {
         </Col>
         <Col span={4}>
           <Card>
-            <Statistic title="成功" value={stats.success} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="成功"
+              value={stats.success}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={4}>
           <Card>
-            <Statistic title="失败" value={stats.failed} valueStyle={{ color: colors.error[500] }} />
+            <Statistic
+              title="失败"
+              value={stats.failed}
+              valueStyle={{ color: colors.error[500] }}
+            />
           </Card>
         </Col>
         <Col span={4}>
           <Card>
-            <Statistic title="取消" value={stats.cancelled} valueStyle={{ color: colors.warning[500] }} />
+            <Statistic
+              title="取消"
+              value={stats.cancelled}
+              valueStyle={{ color: colors.warning[500] }}
+            />
           </Card>
         </Col>
         <Col span={4}>
@@ -450,7 +546,11 @@ export default function PipelineRunAnalyticsPage() {
         </Col>
         <Col span={4}>
           <Card>
-            <Statistic title="平均耗时" value={formatDuration(stats.avgDurationMs)} valueStyle={{ fontSize: 14 }} />
+            <Statistic
+              title="平均耗时"
+              value={formatDuration(stats.avgDurationMs)}
+              valueStyle={{ fontSize: 14 }}
+            />
           </Card>
         </Col>
       </Row>
@@ -464,13 +564,29 @@ export default function PipelineRunAnalyticsPage() {
                 percent={stats.successRate}
                 size={120}
                 status={successRateProgress.status as any}
-                format={(p) => <span><TrophyOutlined /> {p}%</span>}
+                format={(p) => (
+                  <span>
+                    <TrophyOutlined /> {p}%
+                  </span>
+                )}
               />
             </div>
             <Row>
-              <Col span={8}><Text>成功</Text> <Text strong>{stats.success}</Text></Col>
-              <Col span={8}><Text>失败</Text> <Text strong style={{ color: colors.error[500] }}>{stats.failed}</Text></Col>
-              <Col span={8}><Text>取消</Text> <Text strong style={{ color: colors.warning[500] }}>{stats.cancelled}</Text></Col>
+              <Col span={8}>
+                <Text>成功</Text> <Text strong>{stats.success}</Text>
+              </Col>
+              <Col span={8}>
+                <Text>失败</Text>{' '}
+                <Text strong style={{ color: colors.error[500] }}>
+                  {stats.failed}
+                </Text>
+              </Col>
+              <Col span={8}>
+                <Text>取消</Text>{' '}
+                <Text strong style={{ color: colors.warning[500] }}>
+                  {stats.cancelled}
+                </Text>
+              </Col>
             </Row>
           </Card>
         </Col>
@@ -489,7 +605,9 @@ export default function PipelineRunAnalyticsPage() {
                       </Col>
                       <Col span={12}>
                         <Progress
-                          percent={stats.success > 0 ? Math.round((bucket.count / stats.success) * 100) : 0}
+                          percent={
+                            stats.success > 0 ? Math.round((bucket.count / stats.success) * 100) : 0
+                          }
                           size="small"
                           showInfo={false}
                           strokeColor={bucket.count > 0 ? colors.primary[500] : colors.neutral[200]}
@@ -502,7 +620,9 @@ export default function PipelineRunAnalyticsPage() {
                   </List.Item>
                 )}
               />
-            ) : <Empty description="无数据" />}
+            ) : (
+              <Empty description="无数据" />
+            )}
           </Card>
         </Col>
 
@@ -513,7 +633,10 @@ export default function PipelineRunAnalyticsPage() {
                 size="small"
                 dataSource={topSlow}
                 renderItem={(r) => {
-                  const dur = typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs ?? 0;
+                  const dur =
+                    typeof r.durationMs === 'string'
+                      ? parseInt(r.durationMs, 10)
+                      : (r.durationMs ?? 0);
                   const p = pipelines.find((pl) => pl.id === r.pipelineId);
                   return (
                     <List.Item>
@@ -526,10 +649,18 @@ export default function PipelineRunAnalyticsPage() {
                         </Col>
                         <Col span={8}>
                           <Progress
-                            percent={stats.maxDurationMs > 0 ? Math.round(dur / stats.maxDurationMs * 100) : 0}
+                            percent={
+                              stats.maxDurationMs > 0
+                                ? Math.round((dur / stats.maxDurationMs) * 100)
+                                : 0
+                            }
                             size="small"
                             showInfo={false}
-                            strokeColor={dur > stats.avgDurationMs * 2 ? colors.error[500] : colors.primary[500]}
+                            strokeColor={
+                              dur > stats.avgDurationMs * 2
+                                ? colors.error[500]
+                                : colors.primary[500]
+                            }
                           />
                         </Col>
                       </Row>
@@ -537,7 +668,9 @@ export default function PipelineRunAnalyticsPage() {
                   );
                 }}
               />
-            ) : <Empty description="无数据" />}
+            ) : (
+              <Empty description="无数据" />
+            )}
           </Card>
         </Col>
       </Row>
@@ -545,7 +678,13 @@ export default function PipelineRunAnalyticsPage() {
       {/* Bottleneck Analysis */}
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={24}>
-          <Card title={<><FireOutlined /> 瓶颈分析 — 按失败次数排序</>}>
+          <Card
+            title={
+              <>
+                <FireOutlined /> 瓶颈分析 — 按失败次数排序
+              </>
+            }
+          >
             {bottlenecks.length > 0 ? (
               <Table
                 columns={bottleneckColumns}
@@ -554,7 +693,9 @@ export default function PipelineRunAnalyticsPage() {
                 pagination={false}
                 size="small"
               />
-            ) : <Empty description="无瓶颈数据" />}
+            ) : (
+              <Empty description="无瓶颈数据" />
+            )}
           </Card>
         </Col>
       </Row>
@@ -581,7 +722,8 @@ export default function PipelineRunAnalyticsPage() {
         {selectedRun && (
           <Descriptions bordered size="small" column={2} style={{ marginBottom: spacing.md }}>
             <Descriptions.Item label="Pipeline">
-              {pipelines.find((p) => p.id === selectedRun.pipelineId)?.name || selectedRun.pipelineId}
+              {pipelines.find((p) => p.id === selectedRun.pipelineId)?.name ||
+                selectedRun.pipelineId}
             </Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={(statusConfig[selectedRun.status] || statusConfig.pending).color}>
@@ -589,20 +731,58 @@ export default function PipelineRunAnalyticsPage() {
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Trigger">{selectedRun.triggerType}</Descriptions.Item>
-            <Descriptions.Item label="耗时">{formatDuration(typeof selectedRun.durationMs === 'string' ? parseInt(selectedRun.durationMs, 10) : selectedRun.durationMs ?? 0)}</Descriptions.Item>
-            <Descriptions.Item label="开始">{selectedRun.startedAt ? dayjs(selectedRun.startedAt).format('YYYY-MM-DD HH:mm:ss') : '—'}</Descriptions.Item>
-            <Descriptions.Item label="完成">{selectedRun.completedAt ? dayjs(selectedRun.completedAt).format('YYYY-MM-DD HH:mm:ss') : '—'}</Descriptions.Item>
+            <Descriptions.Item label="耗时">
+              {formatDuration(
+                typeof selectedRun.durationMs === 'string'
+                  ? parseInt(selectedRun.durationMs, 10)
+                  : (selectedRun.durationMs ?? 0)
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="开始">
+              {selectedRun.startedAt
+                ? dayjs(selectedRun.startedAt).format('YYYY-MM-DD HH:mm:ss')
+                : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="完成">
+              {selectedRun.completedAt
+                ? dayjs(selectedRun.completedAt).format('YYYY-MM-DD HH:mm:ss')
+                : '—'}
+            </Descriptions.Item>
           </Descriptions>
         )}
-        {stageLoading ? <Spin /> : (
+        {stageLoading ? (
+          <Spin />
+        ) : (
           <Table
             columns={[
               { title: 'Stage', dataIndex: 'name', key: 'name' },
-              { title: 'Status', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={statusConfig[v]?.color || 'default'}>{v}</Tag> },
+              {
+                title: 'Status',
+                dataIndex: 'status',
+                key: 'status',
+                render: (v: string) => <Tag color={statusConfig[v]?.color || 'default'}>{v}</Tag>,
+              },
               { title: 'Started At', dataIndex: 'startedAt', key: 'startedAt' },
-              { title: 'Duration', key: 'duration', render: (_: unknown, r: { durationMs?: number | string }) => formatDuration(typeof r.durationMs === 'string' ? parseInt(r.durationMs, 10) : r.durationMs ?? 0) },
+              {
+                title: 'Duration',
+                key: 'duration',
+                render: (_: unknown, r: { durationMs?: number | string }) =>
+                  formatDuration(
+                    typeof r.durationMs === 'string'
+                      ? parseInt(r.durationMs, 10)
+                      : (r.durationMs ?? 0)
+                  ),
+              },
             ]}
-            dataSource={stageDetails as { id?: string; name?: string; status?: string; durationMs?: number | string; startedAt?: string }[]}
+            dataSource={
+              stageDetails as {
+                id?: string;
+                name?: string;
+                status?: string;
+                durationMs?: number | string;
+                startedAt?: string;
+              }[]
+            }
             rowKey="id"
             pagination={false}
             size="small"

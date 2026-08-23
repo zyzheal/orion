@@ -112,10 +112,9 @@ export function uninstallPlugin(pluginId: string) {
  * Get plugin audit logs
  */
 export function getPluginAuditLogs(limit = 50) {
-  return api.get<ApiResponse<{ logs: PluginAuditLog[] }>>(
-    `/api/v1/plugins-enhanced/audit`,
-    { params: { limit } }
-  );
+  return api.get<ApiResponse<{ logs: PluginAuditLog[] }>>(`/api/v1/plugins-enhanced/audit`, {
+    params: { limit },
+  });
 }
 
 // ============================================================================
@@ -165,9 +164,7 @@ export function aiGenerate(prompt: string) {
  * Get execution timeline
  */
 export function getTimeline(runId: string) {
-  return api.get<ApiResponse<TimelineData>>(
-    `/api/v1/plugins-enhanced/${runId}/timeline`
-  );
+  return api.get<ApiResponse<TimelineData>>(`/api/v1/plugins-enhanced/${runId}/timeline`);
 }
 
 /**

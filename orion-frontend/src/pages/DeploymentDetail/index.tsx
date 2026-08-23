@@ -193,7 +193,22 @@ const DeploymentDetail: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <StatusBadge status={(deployment.status as string) === 'success' ? 'success' : (deployment.status as string) === 'running' ? 'running' : (deployment.status as string) === 'failed' ? 'failed' : (deployment.status as string) === 'pending' ? 'pending' : (deployment.status as string) === 'cancelled' ? 'cancelled' : 'unknown'} size="medium" />
+          <StatusBadge
+            status={
+              (deployment.status as string) === 'success'
+                ? 'success'
+                : (deployment.status as string) === 'running'
+                  ? 'running'
+                  : (deployment.status as string) === 'failed'
+                    ? 'failed'
+                    : (deployment.status as string) === 'pending'
+                      ? 'pending'
+                      : (deployment.status as string) === 'cancelled'
+                        ? 'cancelled'
+                        : 'unknown'
+            }
+            size="medium"
+          />
           {canRollback && (
             <Button
               danger
@@ -315,7 +330,22 @@ const DeploymentDetail: React.FC = () => {
                             {stage.details}
                           </Text>
                         )}
-                        <StatusBadge status={stage.status === 'success' ? 'success' : stage.status === 'running' ? 'running' : stage.status === 'failed' ? 'failed' : stage.status === 'pending' ? 'pending' : stage.status === 'cancelled' ? 'cancelled' : 'unknown'} size="small" />
+                        <StatusBadge
+                          status={
+                            stage.status === 'success'
+                              ? 'success'
+                              : stage.status === 'running'
+                                ? 'running'
+                                : stage.status === 'failed'
+                                  ? 'failed'
+                                  : stage.status === 'pending'
+                                    ? 'pending'
+                                    : stage.status === 'cancelled'
+                                      ? 'cancelled'
+                                      : 'unknown'
+                          }
+                          size="small"
+                        />
                       </Space>
                     </div>
                   </Card>

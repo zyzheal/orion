@@ -75,95 +75,112 @@ const ExecutionDashboard: React.FC = () => {
     (e) => e.status === 'running' || e.status === 'pending'
   ).length;
 
-  const columns: TableColumn<ChatOpsExecution>[] = useMemo<TableColumn<ChatOpsExecution>[]>(() => [
-    {
-      key: 'commandId',
-      title: '命令',
-      dataIndex: 'commandId',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => <Text code>/{String(v)}</Text>,
-    },
-    {
-      key: 'platform',
-      title: '平台',
-      dataIndex: 'platform',
-      width: 100,
-      render: (v: unknown) => (
-        <Tag color={platformColorMap[String(v)] || 'default'}>{String(v)}</Tag>
-      ),
-    },
-    {
-      key: 'userId',
-      title: '用户',
-      dataIndex: 'userId',
-      width: 100,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => <Tag color={statusColorMap[String(v)] || 'default'}>{String(v)}</Tag>,
-    },
-    {
-      key: 'startTime',
-      title: '开始时间',
-      dataIndex: 'startTime',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown) => (
-        <Button type="link" size="small" icon={<PlayCircleOutlined />}>
-          查看
-        </Button>
-      ),
-    },
-  ], []);
+  const columns: TableColumn<ChatOpsExecution>[] = useMemo<TableColumn<ChatOpsExecution>[]>(
+    () => [
+      {
+        key: 'commandId',
+        title: '命令',
+        dataIndex: 'commandId',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => <Text code>/{String(v)}</Text>,
+      },
+      {
+        key: 'platform',
+        title: '平台',
+        dataIndex: 'platform',
+        width: 100,
+        render: (v: unknown) => (
+          <Tag color={platformColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+        ),
+      },
+      {
+        key: 'userId',
+        title: '用户',
+        dataIndex: 'userId',
+        width: 100,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => (
+          <Tag color={statusColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+        ),
+      },
+      {
+        key: 'startTime',
+        title: '开始时间',
+        dataIndex: 'startTime',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown) => (
+          <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+            查看
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '待执行', value: 'pending' },
-        { label: '运行中', value: 'running' },
-        { label: '已完成', value: 'completed' },
-        { label: '失败', value: 'failed' },
-        { label: '已取消', value: 'cancelled' },
-      ],
-    },
-    {
-      key: 'platform',
-      label: '平台',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '钉钉', value: 'dingtalk' },
-        { label: '企业微信', value: 'wecom' },
-        { label: '飞书', value: 'feishu' },
-        { label: 'Slack', value: 'slack' },
-        { label: 'CLI', value: 'cli' },
-        { label: 'Web', value: 'web' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '待执行', value: 'pending' },
+          { label: '运行中', value: 'running' },
+          { label: '已完成', value: 'completed' },
+          { label: '失败', value: 'failed' },
+          { label: '已取消', value: 'cancelled' },
+        ],
+      },
+      {
+        key: 'platform',
+        label: '平台',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '钉钉', value: 'dingtalk' },
+          { label: '企业微信', value: 'wecom' },
+          { label: '飞书', value: 'feishu' },
+          { label: 'Slack', value: 'slack' },
+          { label: 'CLI', value: 'cli' },
+          { label: 'Web', value: 'web' },
+        ],
+      },
+    ],
+    []
+  );
 
   if (apiError && executions.length === 0) {
     return (
       <div style={{ padding: spacing.md }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
         </div>
         <Card>
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={apiError} />

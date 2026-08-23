@@ -4,7 +4,19 @@
  * P4d: Cost attribution to TR-09/10/11 business scenarios.
  */
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Space, Button, Empty, Statistic, Row, Col, message } from 'antd';
+import {
+  Card,
+  Table,
+  Tag,
+  Typography,
+  Space,
+  Button,
+  Empty,
+  Statistic,
+  Row,
+  Col,
+  message,
+} from 'antd';
 import { ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import { getModuleCostDashboard, type ModuleCostSummary } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
@@ -13,16 +25,16 @@ const { Title, Text } = Typography;
 
 // Human-readable labels for scenario IDs (mirrors backend ModuleNameMap)
 const SCENARIO_LABEL: Record<string, { label: string; color: string }> = {
-  'dev-agent':     { label: '研发流程 Agent (TR-09)', color: 'purple' },
-  'pipeline':      { label: 'AI 流水线 (TR-09)', color: 'cyan' },
-  'lowcode':       { label: 'LowCode (TR-10)', color: 'blue' },
-  'ai-generate':   { label: 'LowCode AI 生成 (TR-10)', color: 'magenta' },
-  'ops':           { label: 'Ops 问答助手 (TR-11)', color: 'green' },
-  'runbook':       { label: 'Runbook (TR-11)', color: 'orange' },
-  'assistant':     { label: 'AI 助手', color: 'blueviolet' },
-  'chatops':       { label: 'ChatOps', color: 'gold' },
-  'eval':          { label: '评测集 (TR-05)', color: 'red' },
-  'unknown':       { label: '未分类', color: 'default' },
+  'dev-agent': { label: '研发流程 Agent (TR-09)', color: 'purple' },
+  pipeline: { label: 'AI 流水线 (TR-09)', color: 'cyan' },
+  lowcode: { label: 'LowCode (TR-10)', color: 'blue' },
+  'ai-generate': { label: 'LowCode AI 生成 (TR-10)', color: 'magenta' },
+  ops: { label: 'Ops 问答助手 (TR-11)', color: 'green' },
+  runbook: { label: 'Runbook (TR-11)', color: 'orange' },
+  assistant: { label: 'AI 助手', color: 'blueviolet' },
+  chatops: { label: 'ChatOps', color: 'gold' },
+  eval: { label: '评测集 (TR-05)', color: 'red' },
+  unknown: { label: '未分类', color: 'default' },
 };
 
 const ModuleCostDashboard: React.FC = () => {
@@ -80,7 +92,9 @@ const ModuleCostDashboard: React.FC = () => {
       dataIndex: 'cost',
       sorter: (a: ModuleCostSummary, b: ModuleCostSummary) => a.cost - b.cost,
       render: (v: number, row: ModuleCostSummary) => (
-        <Text strong>${(v || 0).toFixed(4)} {row.currency ? <Text type="secondary">{row.currency}</Text> : ''}</Text>
+        <Text strong>
+          ${(v || 0).toFixed(4)} {row.currency ? <Text type="secondary">{row.currency}</Text> : ''}
+        </Text>
       ),
     },
     {
@@ -90,11 +104,7 @@ const ModuleCostDashboard: React.FC = () => {
       sorter: (a: ModuleCostSummary, b: ModuleCostSummary) => a.successRate - b.successRate,
       render: (v: number) => {
         const pct = Math.round((v || 0) * 100);
-        return (
-          <Tag color={pct >= 90 ? 'green' : pct >= 70 ? 'orange' : 'red'}>
-            {pct}%
-          </Tag>
-        );
+        return <Tag color={pct >= 90 ? 'green' : pct >= 70 ? 'orange' : 'red'}>{pct}%</Tag>;
       },
     },
   ];
@@ -132,8 +142,13 @@ const ModuleCostDashboard: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
         <Col span={8}>
           <Card>
-            <Statistic title="总费用" value={totalCost} precision={4} prefix="$"
-              valueStyle={{ color: colors.error[600] }} />
+            <Statistic
+              title="总费用"
+              value={totalCost}
+              precision={4}
+              prefix="$"
+              valueStyle={{ color: colors.error[600] }}
+            />
           </Card>
         </Col>
         <Col span={8}>

@@ -90,7 +90,10 @@ export const RadarChart: React.FC<RadarChartProps> = ({
 
   if (loading) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
+      <div
+        style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-busy="true"
+      >
         <Spin />
       </div>
     );

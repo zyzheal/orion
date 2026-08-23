@@ -49,7 +49,12 @@ export interface CreatePlanInput {
   steps: Omit<ReleasePlanStep, 'id' | 'status' | 'startedAt' | 'completedAt'>[];
 }
 
-export function listPlans(params?: { page?: number; limit?: number; status?: string; search?: string }) {
+export function listPlans(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+}) {
   return api.get('/api/v1/deploy-enhanced/plans', { params });
 }
 
@@ -159,7 +164,12 @@ export interface CreateWindowInput {
   timezone?: string;
 }
 
-export function listWindows(params?: { page?: number; limit?: number; environment?: string; search?: string }) {
+export function listWindows(params?: {
+  page?: number;
+  limit?: number;
+  environment?: string;
+  search?: string;
+}) {
   return api.get('/api/v1/deploy-enhanced/windows', { params });
 }
 
@@ -225,9 +235,14 @@ export function createApproval(planId: string, type: 'plan' | 'strategy' | 'roll
 }
 
 export function respondToApproval(id: string, approved: boolean, comment?: string) {
-  const userId = (localStorage.getItem('userId') || 'current-user');
-  const userName = (localStorage.getItem('userName') || 'Current User');
-  return api.post(`/api/v1/deploy-enhanced/approvals/${id}/respond`, { userId, userName, approved, comment });
+  const userId = localStorage.getItem('userId') || 'current-user';
+  const userName = localStorage.getItem('userName') || 'Current User';
+  return api.post(`/api/v1/deploy-enhanced/approvals/${id}/respond`, {
+    userId,
+    userName,
+    approved,
+    comment,
+  });
 }
 
 export function cancelApproval(id: string) {
@@ -262,7 +277,13 @@ export interface ReleaseRecord {
   rollbackFrom?: string;
 }
 
-export function listRecords(params?: { page?: number; limit?: number; environment?: string; status?: string; search?: string }) {
+export function listRecords(params?: {
+  page?: number;
+  limit?: number;
+  environment?: string;
+  status?: string;
+  search?: string;
+}) {
   return api.get('/api/v1/deploy-enhanced/records', { params });
 }
 
@@ -270,7 +291,13 @@ export function getRecord(id: string) {
   return api.get(`/api/v1/deploy-enhanced/records/${id}`);
 }
 
-export function createRecord(data: { planId?: string; appName: string; version: string; environment: string; strategy: string }) {
+export function createRecord(data: {
+  planId?: string;
+  appName: string;
+  version: string;
+  environment: string;
+  strategy: string;
+}) {
   return api.post('/api/v1/deploy-enhanced/records', data);
 }
 
@@ -310,7 +337,12 @@ export interface CreateVersionInput {
   changelog: string[];
 }
 
-export function listVersions(params?: { page?: number; limit?: number; status?: string; search?: string }) {
+export function listVersions(params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  search?: string;
+}) {
   return api.get('/api/v1/deploy-enhanced/versions', { params });
 }
 
@@ -356,7 +388,13 @@ export interface RollbackRecord {
   createdAt: string;
 }
 
-export function listRollbacks(params?: { page?: number; limit?: number; environment?: string; status?: string; search?: string }) {
+export function listRollbacks(params?: {
+  page?: number;
+  limit?: number;
+  environment?: string;
+  status?: string;
+  search?: string;
+}) {
   return api.get('/api/v1/deploy-enhanced/rollbacks', { params });
 }
 
@@ -364,7 +402,14 @@ export function getRollback(id: string) {
   return api.get(`/api/v1/deploy-enhanced/rollbacks/${id}`);
 }
 
-export function createRollback(data: { planId?: string; appName: string; environment: string; fromVersion: string; toVersion: string; reason: string }) {
+export function createRollback(data: {
+  planId?: string;
+  appName: string;
+  environment: string;
+  fromVersion: string;
+  toVersion: string;
+  reason: string;
+}) {
   return api.post('/api/v1/deploy-enhanced/rollbacks', data);
 }
 

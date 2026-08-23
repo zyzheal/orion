@@ -2,7 +2,7 @@
  * IaC Module Registry - Module browser, search, version management
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
+import {
   Typography,
   Button,
   Space,
@@ -127,101 +127,105 @@ const ModuleRegistry: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<IaCModule>[] = useMemo<TableColumn<IaCModule>[]>(() => [
-    {
-      key: 'name',
-      title: '模块名称',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'description',
-      width: 240,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'provider',
-      title: 'Provider',
-      dataIndex: 'provider',
-      width: 120,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'versions',
-      title: '版本',
-      dataIndex: 'versions',
-      width: 160,
-      render: (v: unknown) => (
-        <Space size={4} wrap>
-          {Array.isArray(v) ? (
-            v.slice(-3).map((ver) => <Tag key={ver}>{ver}</Tag>)
-          ) : (
-            <Tag>{String(v)}</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'source',
-      title: '来源',
-      dataIndex: 'source',
-      width: 200,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'downloadCount',
-      title: '下载量',
-      dataIndex: 'downloadCount',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: '注册时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button type="link" size="small">
-            查看
-          </Button>
-          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+  const columns: TableColumn<IaCModule>[] = useMemo<TableColumn<IaCModule>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '模块名称',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'description',
+        width: 240,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'provider',
+        title: 'Provider',
+        dataIndex: 'provider',
+        width: 120,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'versions',
+        title: '版本',
+        dataIndex: 'versions',
+        width: 160,
+        render: (v: unknown) => (
+          <Space size={4} wrap>
+            {Array.isArray(v) ? (
+              v.slice(-3).map((ver) => <Tag key={ver}>{ver}</Tag>)
+            ) : (
+              <Tag>{String(v)}</Tag>
+            )}
+          </Space>
+        ),
+      },
+      {
+        key: 'source',
+        title: '来源',
+        dataIndex: 'source',
+        width: 200,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'downloadCount',
+        title: '下载量',
+        dataIndex: 'downloadCount',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: '注册时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button type="link" size="small">
+              查看
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete]);
+            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    { key: 'provider', label: 'Provider', options: providerOptions },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [{ key: 'provider', label: 'Provider', options: providerOptions }],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

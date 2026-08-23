@@ -194,114 +194,117 @@ const SessionManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<UserSession>[] = useMemo<TableColumn<UserSession>[]>(() => [
-    {
-      key: 'user',
-      title: '用户',
-      dataIndex: 'userId',
-      width: 180,
-      render: (v: unknown) => (
-        <Space>
-          <UserOutlined style={{ color: colors.neutral[400] }} />
-          <Text strong style={{ fontSize: 13 }}>
-            {String(v)}
+  const columns: TableColumn<UserSession>[] = useMemo<TableColumn<UserSession>[]>(
+    () => [
+      {
+        key: 'user',
+        title: '用户',
+        dataIndex: 'userId',
+        width: 180,
+        render: (v: unknown) => (
+          <Space>
+            <UserOutlined style={{ color: colors.neutral[400] }} />
+            <Text strong style={{ fontSize: 13 }}>
+              {String(v)}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'sessionId',
+        title: 'Session ID',
+        dataIndex: 'sessionId',
+        width: 140,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 11 }}>
+            {String(v).substring(0, 8)}...
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'sessionId',
-      title: 'Session ID',
-      dataIndex: 'sessionId',
-      width: 140,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: 11 }}>
-          {String(v).substring(0, 8)}...
-        </Text>
-      ),
-    },
-    {
-      key: 'ipAddress',
-      title: 'IP 地址',
-      dataIndex: 'ipAddress',
-      width: 130,
-      render: (v: unknown) => (
-        <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{String(v)}</Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (_v: unknown, record: UserSession) => (
-        <Tag color={statusColorMap[record.status]} icon={statusIconMap[record.status]}>
-          {statusLabelMap[record.status]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'startedAt',
-      title: '开始时间',
-      dataIndex: 'startedAt',
-      width: 140,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).format('MM-DD HH:mm')}
-        </Text>
-      ),
-    },
-    {
-      key: 'lastActive',
-      title: '最后活跃',
-      dataIndex: 'lastActive',
-      width: 130,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'duration',
-      title: '时长',
-      dataIndex: 'duration',
-      width: 80,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {formatDuration(typeof v === 'number' ? v : 0)}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: UserSession) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => openDetail(record)}
-            >
-              详情
-            </Button>
-          </Tooltip>
-          {record.status === 'active' && (
-            <Popconfirm title="确认撤销该会话?" onConfirm={() => handleRevoke(record.id)}>
-              <Tooltip title="撤销会话">
-                <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                  撤销
-                </Button>
-              </Tooltip>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ], [handleRevoke, openDetail]);
+        ),
+      },
+      {
+        key: 'ipAddress',
+        title: 'IP 地址',
+        dataIndex: 'ipAddress',
+        width: 130,
+        render: (v: unknown) => (
+          <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{String(v)}</Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: (_v: unknown, record: UserSession) => (
+          <Tag color={statusColorMap[record.status]} icon={statusIconMap[record.status]}>
+            {statusLabelMap[record.status]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'startedAt',
+        title: '开始时间',
+        dataIndex: 'startedAt',
+        width: 140,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).format('MM-DD HH:mm')}
+          </Text>
+        ),
+      },
+      {
+        key: 'lastActive',
+        title: '最后活跃',
+        dataIndex: 'lastActive',
+        width: 130,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'duration',
+        title: '时长',
+        dataIndex: 'duration',
+        width: 80,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {formatDuration(typeof v === 'number' ? v : 0)}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: UserSession) => (
+          <Space size="small" wrap>
+            <Tooltip title="详情">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => openDetail(record)}
+              >
+                详情
+              </Button>
+            </Tooltip>
+            {record.status === 'active' && (
+              <Popconfirm title="确认撤销该会话?" onConfirm={() => handleRevoke(record.id)}>
+                <Tooltip title="撤销会话">
+                  <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                    撤销
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [handleRevoke, openDetail]
+  );
 
   return (
     <div style={{ padding: 0 }}>

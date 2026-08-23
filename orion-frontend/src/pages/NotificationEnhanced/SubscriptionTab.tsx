@@ -4,11 +4,27 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Modal, Form, Input,
-  Select, Switch, Tag, Tooltip, Popconfirm, message, Empty,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
+  Tag,
+  Tooltip,
+  Popconfirm,
+  message,
+  Empty,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -52,7 +68,9 @@ const SubscriptionTab: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const loadItems = async () => {
     setLoading(true);
@@ -61,7 +79,9 @@ const SubscriptionTab: React.FC = () => {
       setItems(data);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载订阅列表失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -161,7 +181,11 @@ const SubscriptionTab: React.FC = () => {
         const more = eventTypes.length - 3;
         return (
           <Space wrap>
-            {show.map((e) => <Tag key={e} color="processing">{e}</Tag>)}
+            {show.map((e) => (
+              <Tag key={e} color="processing">
+                {e}
+              </Tag>
+            ))}
             {more > 0 && <Tag color="default">+{more} more</Tag>}
           </Space>
         );
@@ -220,7 +244,12 @@ const SubscriptionTab: React.FC = () => {
       render: (_: any, record: NotificationSubscription) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            />
           </Tooltip>
           <Popconfirm
             title="确认删除此订阅？"
@@ -239,11 +268,21 @@ const SubscriptionTab: React.FC = () => {
 
   return (
     <Card
-      style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+      style={{
+        borderRadius: 12,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
       bodyStyle={{ padding: spacing.md }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Text type="secondary">共 {filteredItems.length} 条订阅</Text>
         </Space>
@@ -278,11 +317,7 @@ const SubscriptionTab: React.FC = () => {
       {filteredItems.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">
-              暂无消息订阅，点击上方「新建订阅」开始订阅
-            </Text>
-          }
+          description={<Text type="secondary">暂无消息订阅，点击上方「新建订阅」开始订阅</Text>}
         />
       ) : (
         <Table
@@ -291,7 +326,11 @@ const SubscriptionTab: React.FC = () => {
           rowKey="id"
           loading={loading}
           size="middle"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
           scroll={{ x: 900 }}
         />
       )}
@@ -322,7 +361,9 @@ const SubscriptionTab: React.FC = () => {
           >
             <Select mode="multiple" placeholder="选择事件类型">
               {EVENT_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -333,14 +374,18 @@ const SubscriptionTab: React.FC = () => {
           >
             <Select mode="multiple" placeholder="选择通知渠道">
               {CHANNEL_TYPES.map((c) => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
+                <Option key={c.value} value={c.value}>
+                  {c.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="frequency" label="推送频率">
             <Select>
               {FREQUENCY_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>

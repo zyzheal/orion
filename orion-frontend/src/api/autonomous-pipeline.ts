@@ -148,5 +148,8 @@ export function recommendSelfHealing(data: {
 }
 
 export function getSelfHealingActions(params?: { errorType?: string; stageName?: string }) {
-  return api.get<{ actions: SelfHealingAction[]; total: number }>('/api/v1/autonomous/self-healing/actions', { params });
+  return api.get<{ actions: SelfHealingAction[]; total: number }>(
+    '/api/v1/autonomous/self-healing/actions',
+    { params }
+  );
 }

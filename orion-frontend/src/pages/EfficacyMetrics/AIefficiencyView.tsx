@@ -40,7 +40,9 @@ const AIefficiencyView: React.FC = () => {
       ]);
 
       setAgentRuns((agentRunsRes as any)?.data?.runs ?? (agentRunsRes as any)?.data ?? []);
-      setAgentProfiles((agentProfilesRes as any)?.data?.profiles ?? (agentProfilesRes as any)?.data ?? []);
+      setAgentProfiles(
+        (agentProfilesRes as any)?.data?.profiles ?? (agentProfilesRes as any)?.data ?? []
+      );
       setCostSummary((costRes as any)?.data ?? null);
       setRoiReport((roiRes as any)?.data ?? null);
     } catch (err: any) {
@@ -71,20 +73,41 @@ const AIefficiencyView: React.FC = () => {
   const roiValue = roiReport?.roi ?? roiReport?.ratio ?? 3.2;
 
   const runColumns = [
-    { title: 'Agent', dataIndex: 'agentName', key: 'agentName', render: (v: string) => <Text code>{v}</Text> },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
+      title: 'Agent',
+      dataIndex: 'agentName',
+      key: 'agentName',
+      render: (v: string) => <Text code>{v}</Text>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       render: (v: string) => {
-        const color = v === 'completed' ? colors.success[500] : v === 'failed' ? colors.error[500] : colors.warning[500];
+        const color =
+          v === 'completed'
+            ? colors.success[500]
+            : v === 'failed'
+              ? colors.error[500]
+              : colors.warning[500];
         return <span style={{ color }}>{v}</span>;
       },
     },
-    { title: '耗时', dataIndex: 'durationMs', key: 'durationMs', render: (v: number) => (v > 0 ? `${Math.round(v / 1000)}s` : '—') },
+    {
+      title: '耗时',
+      dataIndex: 'durationMs',
+      key: 'durationMs',
+      render: (v: number) => (v > 0 ? `${Math.round(v / 1000)}s` : '—'),
+    },
     { title: '触发时间', dataIndex: 'startedAt', key: 'startedAt' },
   ];
 
   if (loading && refreshKey === 0) {
-    return <div style={{ padding: spacing.lg, textAlign: 'center' }}><Spin size="large" /></div>;
+    return (
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
@@ -97,7 +120,11 @@ const AIefficiencyView: React.FC = () => {
           </Title>
           <Text type="secondary">AI 辅助研发效能度量 · 采纳率 · 提速比 · 成本 ROI</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => setRefreshKey((k) => k + 1)} loading={loading}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => setRefreshKey((k) => k + 1)}
+          loading={loading}
+        >
           刷新
         </Button>
       </div>
@@ -209,12 +236,25 @@ const AIefficiencyView: React.FC = () => {
           <Card title="Agent 画像">
             <div style={{ maxHeight: 300, overflow: 'auto' }}>
               {agentProfiles.map((p: any) => (
-                <div key={p.id} style={{ padding: spacing.sm, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <div
+                  key={p.id}
+                  style={{ padding: spacing.sm, borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: spacing.sm,
+                    }}
+                  >
                     <Text strong>{p.name ?? p.agentName ?? 'Agent'}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{p.status ?? 'active'}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {p.status ?? 'active'}
+                    </Text>
                   </div>
-                  <Text style={{ fontSize: 12, display: 'block' }}>{p.role ?? p.description ?? '—'}</Text>
+                  <Text style={{ fontSize: 12, display: 'block' }}>
+                    {p.role ?? p.description ?? '—'}
+                  </Text>
                 </div>
               ))}
               {agentProfiles.length === 0 && <Text type="secondary">暂无 Agent 画像</Text>}

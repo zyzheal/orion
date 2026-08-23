@@ -74,9 +74,10 @@ export const listCatalogItems = async (params?: {
   if (params?.page) p.page = params.page;
   if (params?.pageSize) p.pageSize = params.pageSize;
   if (params?.q) p.q = params.q;
-  const qs = Object.keys(p).length > 0 ? '?' + new URLSearchParams(
-    Object.entries(p).map(([k, v]) => [k, String(v)])
-  ) : '';
+  const qs =
+    Object.keys(p).length > 0
+      ? '?' + new URLSearchParams(Object.entries(p).map(([k, v]) => [k, String(v)]))
+      : '';
   const res = await api.get<unknown>(`/api/v1/service-catalog${qs}`);
   const data = res.data as unknown;
   if (Array.isArray(data)) return data as ServiceCatalog[];
@@ -124,9 +125,7 @@ export const updateRequestStatus = async (
   return res.data as ServiceRequest;
 };
 
-export const getRequestTimeline = async (
-  id: string
-): Promise<TimelineEntry[]> => {
+export const getRequestTimeline = async (id: string): Promise<TimelineEntry[]> => {
   const res = await api.get<unknown>(`/api/v1/service-catalog/requests/${id}/timeline`);
   const data = res.data as unknown;
   if (Array.isArray(data)) return data as TimelineEntry[];

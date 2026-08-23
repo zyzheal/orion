@@ -60,8 +60,13 @@ export interface HealthScore {
 
 // Rules
 export function createInspectionRule(data: {
-  name: string; description?: string; target: string; checkType: string;
-  threshold: number; operator: string; schedule: string;
+  name: string;
+  description?: string;
+  target: string;
+  checkType: string;
+  threshold: number;
+  operator: string;
+  schedule: string;
 }) {
   return api.post('/inspection/rules', data);
 }

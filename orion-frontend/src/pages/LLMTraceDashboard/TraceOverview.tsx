@@ -2,25 +2,10 @@
  * LLM Trace Overview - Stats cards, daily trends, model distribution
  */
 import React, { useState, useEffect } from 'react';
-import {
-  Typography,
-  Button,
-  Card,
-  Row,
-  Col,
-  Table as AntTable,
-  Tag,
-  message,
-  Spin,
-} from 'antd';
+import { Typography, Button, Card, Row, Col, Table as AntTable, Tag, message, Spin } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import {
-  getDailyStats,
-  getPricing,
-  type DailyStats,
-  type ModelPricing,
-} from '@/api/llm-trace';
+import { getDailyStats, getPricing, type DailyStats, type ModelPricing } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -34,10 +19,7 @@ const TraceOverview: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, pricingRes] = await Promise.all([
-        getDailyStats({ tenantId }),
-        getPricing(),
-      ]);
+      const [statsRes, pricingRes] = await Promise.all([getDailyStats({ tenantId }), getPricing()]);
       setDailyStats(statsRes.data as DailyStats | null);
       const pricingData = pricingRes.data as { pricing?: ModelPricing[] } | null;
       setPricing(pricingData?.pricing || []);

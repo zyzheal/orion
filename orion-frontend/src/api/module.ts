@@ -15,7 +15,9 @@ export interface Module {
   [key: string]: unknown;
 }
 
-export const listModule = async (params?: Record<string, unknown>): Promise<{ data: Module[]; total: number }> => {
+export const listModule = async (
+  params?: Record<string, unknown>
+): Promise<{ data: Module[]; total: number }> => {
   const response = await api.get<{ data: Module[]; total: number }>('/api/v1/modules/', { params });
   return { data: response.data.data, total: response.data.total };
 };

@@ -76,77 +76,80 @@ const DiagnosticReports: React.FC = () => {
     return { color: 'red', label: '低' };
   };
 
-  const columns: TableColumn<DiagnosticReport>[] = useMemo<TableColumn<DiagnosticReport>[]>(() => [
-    {
-      key: 'id',
-      title: '报告ID',
-      dataIndex: 'id',
-      render: (v: unknown, record: any) => (
-        <Text
-          style={{ color: colors.purple[500], cursor: 'pointer' }}
-          onClick={() => showReportDetail(record)}
-        >
-          {v as string}
-        </Text>
-      ),
-    },
-    {
-      key: 'sessionId',
-      title: '会话ID',
-      dataIndex: 'sessionId',
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {v as string}
-        </Text>
-      ),
-    },
-    {
-      key: 'patternMatches',
-      title: '模式匹配数',
-      dataIndex: 'patternMatches',
-      width: 120,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{v as number}</Text>,
-    },
-    {
-      key: 'confidence',
-      title: '置信度',
-      dataIndex: 'confidence',
-      width: 120,
-      sortable: true,
-      render: (v: unknown) => {
-        const value = v as number;
-        const tag = getConfidenceTag(value);
-        return (
-          <Tag color={tag.color}>
-            {(value * 100).toFixed(1)}% ({tag.label})
-          </Tag>
-        );
+  const columns: TableColumn<DiagnosticReport>[] = useMemo<TableColumn<DiagnosticReport>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '报告ID',
+        dataIndex: 'id',
+        render: (v: unknown, record: any) => (
+          <Text
+            style={{ color: colors.purple[500], cursor: 'pointer' }}
+            onClick={() => showReportDetail(record)}
+          >
+            {v as string}
+          </Text>
+        ),
       },
-    },
-    {
-      key: 'generatedAt',
-      title: '生成时间',
-      dataIndex: 'generatedAt',
-      sortable: true,
-      width: 160,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 80,
-      render: (_: unknown, record: any) => (
-        <Button type="link" size="small" onClick={() => showReportDetail(record)}>
-          查看
-        </Button>
-      ),
-    },
-  ], [showReportDetail]);
+      {
+        key: 'sessionId',
+        title: '会话ID',
+        dataIndex: 'sessionId',
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {v as string}
+          </Text>
+        ),
+      },
+      {
+        key: 'patternMatches',
+        title: '模式匹配数',
+        dataIndex: 'patternMatches',
+        width: 120,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{v as number}</Text>,
+      },
+      {
+        key: 'confidence',
+        title: '置信度',
+        dataIndex: 'confidence',
+        width: 120,
+        sortable: true,
+        render: (v: unknown) => {
+          const value = v as number;
+          const tag = getConfidenceTag(value);
+          return (
+            <Tag color={tag.color}>
+              {(value * 100).toFixed(1)}% ({tag.label})
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'generatedAt',
+        title: '生成时间',
+        dataIndex: 'generatedAt',
+        sortable: true,
+        width: 160,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 80,
+        render: (_: unknown, record: any) => (
+          <Button type="link" size="small" onClick={() => showReportDetail(record)}>
+            查看
+          </Button>
+        ),
+      },
+    ],
+    [showReportDetail]
+  );
 
   return (
     <div>

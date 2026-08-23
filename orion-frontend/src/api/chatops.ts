@@ -390,7 +390,6 @@ export function connectSSE(options: SSEConnectionOptions): void {
 
     // ARCH-005: 后端恢复健康且有连接问题时立即重试
     if (health.healthy && !sseState?.eventSource && (sseState?.attempt ?? 0) > 0) {
-
       sseState!.attempt = 0; // 重置重试计数
       doConnect();
     }
@@ -401,7 +400,7 @@ export function connectSSE(options: SSEConnectionOptions): void {
 
     // ARCH-005: 后端处于 fallback 模式时降低重连频率
     if (sseState!.backendFallback) {
-
+      // Fallback mode: lower reconnect frequency handled by BASE_RECONNECT_MS * Math.min(attemptCount, 6)
     }
 
     try {
@@ -665,4 +664,3 @@ export function getCommandConfigs() {
 export function updateCommandConfigs(data: { configs: ChatCommandConfig[] }) {
   return api.put('/api/v1/chatops/settings/commands', data);
 }
-

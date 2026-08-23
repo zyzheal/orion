@@ -46,14 +46,14 @@ const SubAppRoute: React.FC = () => {
     const containerId = appConfig.container.replace('#', '');
     if (containerRef.current) {
       containerRef.current.id = containerId;
-
     }
 
     // 注入全局状态并传递给子应用
     const token = localStorage.getItem('access_token');
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = (appConfig as { api_domain?: string })?.api_domain || appKey;
-    (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
+    (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ =
+      `/api/v1/${apiDomain}`;
 
     // 定义 getApiBase 函数（用于传递给子应用）
     const apiBase = `/api/v1/${apiDomain}`;
@@ -80,7 +80,6 @@ const SubAppRoute: React.FC = () => {
     })
       .then(() => {
         if (!cancelled) {
-
           setError(null);
         }
       })
@@ -117,7 +116,16 @@ const SubAppRoute: React.FC = () => {
   }
 
   return (
-    <div style={{ width: '100%', height: '100vh', position: 'relative', margin: 0, padding: 0, overflow: 'hidden' }}>
+    <div
+      style={{
+        width: '100%',
+        height: '100vh',
+        position: 'relative',
+        margin: 0,
+        padding: 0,
+        overflow: 'hidden',
+      }}
+    >
       <div
         ref={containerRef}
         id={appConfig.container.replace('#', '')}
@@ -125,7 +133,17 @@ const SubAppRoute: React.FC = () => {
         style={{ height: '100vh', width: '100%', margin: 0, padding: 0 }}
       />
       {loading && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white', zIndex: 10 }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'white',
+            zIndex: 10,
+          }}
+        >
           <Loading />
         </div>
       )}

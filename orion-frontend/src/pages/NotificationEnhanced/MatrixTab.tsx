@@ -4,12 +4,22 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Modal, Form, Input,
-  Select, Tag, Tooltip, Popconfirm, message, Empty,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  Popconfirm,
+  message,
+  Empty,
 } from 'antd';
-import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
   getDataMatrices,
@@ -52,7 +62,9 @@ const MatrixTab: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const loadItems = async () => {
     setLoading(true);
@@ -61,7 +73,9 @@ const MatrixTab: React.FC = () => {
       setItems(data);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载矩阵列表失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -179,7 +193,12 @@ const MatrixTab: React.FC = () => {
       render: (_: any, record: DataMatrix) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            />
           </Tooltip>
           <Popconfirm
             title="确认删除此矩阵？"
@@ -198,11 +217,21 @@ const MatrixTab: React.FC = () => {
 
   return (
     <Card
-      style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+      style={{
+        borderRadius: 12,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
       bodyStyle={{ padding: spacing.md }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Text type="secondary">共 {filteredItems.length} 个矩阵</Text>
         </Space>
@@ -221,7 +250,9 @@ const MatrixTab: React.FC = () => {
             onChange={setStatusFilter}
           >
             {STATUS_FILTERS.map((o) => (
-              <Option key={String(o.value ?? 'all')} value={o.value}>{o.label}</Option>
+              <Option key={String(o.value ?? 'all')} value={o.value}>
+                {o.label}
+              </Option>
             ))}
           </Select>
           <Select
@@ -232,7 +263,9 @@ const MatrixTab: React.FC = () => {
             onChange={setTypeFilter}
           >
             {TYPE_OPTIONS.map((o) => (
-              <Option key={o.value} value={o.value}>{o.label}</Option>
+              <Option key={o.value} value={o.value}>
+                {o.label}
+              </Option>
             ))}
           </Select>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
@@ -248,11 +281,7 @@ const MatrixTab: React.FC = () => {
       {filteredItems.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">
-              暂无数据矩阵，点击上方「新建矩阵」开始创建
-            </Text>
-          }
+          description={<Text type="secondary">暂无数据矩阵，点击上方「新建矩阵」开始创建</Text>}
         />
       ) : (
         <Table
@@ -261,7 +290,11 @@ const MatrixTab: React.FC = () => {
           rowKey="id"
           loading={loading}
           size="middle"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
           scroll={{ x: 800 }}
         />
       )}
@@ -295,7 +328,9 @@ const MatrixTab: React.FC = () => {
           >
             <Select>
               {TYPE_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -314,7 +349,11 @@ const MatrixTab: React.FC = () => {
 
 function parseJSON(val: string): Record<string, any> {
   if (!val || typeof val !== 'string') return {};
-  try { return JSON.parse(val); } catch { return {}; }
+  try {
+    return JSON.parse(val);
+  } catch {
+    return {};
+  }
 }
 
 export default MatrixTab;

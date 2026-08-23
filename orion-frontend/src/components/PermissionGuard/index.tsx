@@ -187,13 +187,7 @@ export const PermissionButton: React.FC<PermissionButtonProps> = ({
         </Button>
       }
     >
-      <Button
-        onClick={onClick}
-        disabled={disabled}
-        loading={loading}
-        danger={danger}
-        style={style}
-      >
+      <Button onClick={onClick} disabled={disabled} loading={loading} danger={danger} style={style}>
         {children}
       </Button>
     </PermissionGuard>
@@ -226,11 +220,7 @@ export const PermissionTab: React.FC<PermissionTabProps> = ({
   children,
 }) => {
   return (
-    <PermissionGuard
-      resource={resource}
-      action={action}
-      fallback={null}
-    >
+    <PermissionGuard resource={resource} action={action} fallback={null}>
       <span data-permission-tab={key}>{children}</span>
     </PermissionGuard>
   );

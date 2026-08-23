@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><RateLimitingPage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <RateLimitingPage />
+    </BrowserRouter>
+  );
 }
 
 describe('RateLimitingPage', () => {

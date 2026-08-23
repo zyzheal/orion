@@ -67,8 +67,7 @@ export interface UpdateRunbookInput {
 export const listRunbooks = (params?: { category?: string; enabled?: boolean }) =>
   apiClient.get<RunbookDefinition[]>('/runbooks', { params });
 
-export const getRunbook = (id: string) =>
-  apiClient.get<RunbookDefinition>(`/runbooks/${id}`);
+export const getRunbook = (id: string) => apiClient.get<RunbookDefinition>(`/runbooks/${id}`);
 
 export const createRunbook = (data: CreateRunbookInput) =>
   apiClient.post<RunbookDefinition>('/runbooks', data);
@@ -76,12 +75,13 @@ export const createRunbook = (data: CreateRunbookInput) =>
 export const updateRunbook = (id: string, data: UpdateRunbookInput) =>
   apiClient.put<RunbookDefinition>(`/runbooks/${id}`, data);
 
-export const deleteRunbook = (id: string) =>
-  apiClient.delete(`/runbooks/${id}`);
+export const deleteRunbook = (id: string) => apiClient.delete(`/runbooks/${id}`);
 
 // Runbook Execution
-export const executeRunbook = (id: string, data?: { triggeredBy?: string; context?: Record<string, unknown> }) =>
-  apiClient.post<RunbookExecution>(`/runbooks/${id}/execute`, data);
+export const executeRunbook = (
+  id: string,
+  data?: { triggeredBy?: string; context?: Record<string, unknown> }
+) => apiClient.post<RunbookExecution>(`/runbooks/${id}/execute`, data);
 
 export const getExecutionHistory = (id: string, params?: { limit?: number }) =>
   apiClient.get<RunbookExecution[]>(`/runbooks/${id}/executions`, { params });

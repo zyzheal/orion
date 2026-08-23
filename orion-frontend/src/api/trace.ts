@@ -14,7 +14,7 @@ import _apiClient from './client';
 /** Span 事件 (OTel Span Event) */
 export interface SpanEvent {
   name: string;
-  timestamp: string;       // ISO 时间字符串
+  timestamp: string; // ISO 时间字符串
   attributes?: Record<string, string>;
 }
 
@@ -27,14 +27,14 @@ export interface Span {
   spanId: string;
   parentId?: string;
   name: string;
-  service?: string;         // 所属服务名
-  startTime: string;        // ISO 时间
-  endTime: string;          // ISO 时间
-  durationNs: number;       // 持续时长 (纳秒)
-  durationMs?: number;      // 持续时长 (毫秒，可选)
+  service?: string; // 所属服务名
+  startTime: string; // ISO 时间
+  endTime: string; // ISO 时间
+  durationNs: number; // 持续时长 (纳秒)
+  durationMs?: number; // 持续时长 (毫秒，可选)
   statusCode: 'OK' | 'ERROR' | 'UNSET';
   statusMessage?: string;
-  kind?: string;            // server | client | producer | consumer | internal
+  kind?: string; // server | client | producer | consumer | internal
   attributes?: Record<string, SpanAttributeValue>;
   events?: SpanEvent[];
 }
@@ -103,7 +103,14 @@ export const traceApi = {
 
     // Mock 实现：返回模拟 trace 列表
     await mockDelay();
-    const _mockServices = ['api-gateway', 'user-service', 'order-service', 'payment-service', 'inventory-service', 'notification-service'];
+    const _mockServices = [
+      'api-gateway',
+      'user-service',
+      'order-service',
+      'payment-service',
+      'inventory-service',
+      'notification-service',
+    ];
     void _mockServices;
     const mockTraces: TraceSummary[] = [
       {

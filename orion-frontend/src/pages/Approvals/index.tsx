@@ -246,156 +246,159 @@ const ApprovalManagement: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<ApprovalRequest>[] = useMemo<TableColumn<ApprovalRequest>[]>(() => [
-    {
-      key: 'title',
-      title: '审批标题',
-      dataIndex: 'title',
-      width: 260,
-      render: (v: unknown, record: ApprovalRequest) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
-            {String(v)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            申请人: {record.requesterId}
-            {record.metadata?.resourceType != null &&
-              ` | 类型: ${record.metadata.resourceType as string}`}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: ApprovalRequest) => (
-        <Tag color={statusColorMap[record.status] || 'default'}>
-          {statusLabelMap[record.status] || record.status}
-        </Tag>
-      ),
-    },
-    {
-      key: 'progress',
-      title: '审批进度',
-      width: 180,
-      render: (_: unknown, record: ApprovalRequest) => (
-        <Space direction="vertical" size={0} style={{ width: '100%' }}>
-          <Progress
-            percent={approvalProgress(record)}
-            size="small"
-            status={
-              record.status === 'rejected'
-                ? 'exception'
-                : record.status === 'approved'
-                  ? 'success'
-                  : 'active'
-            }
-            format={() => `${record.approvals.length}/${record.requiredApprovals}`}
-          />
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            需要 {record.requiredApprovals} 个审批
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'approvers',
-      title: '审批人',
-      width: 200,
-      render: (_: unknown, record: ApprovalRequest) => (
-        <Space size={4} wrap>
-          {record.approverIds.slice(0, 3).map((uid: string) => {
-            const hasApproved = record.approvals.includes(uid);
-            const hasRejected = record.rejections.includes(uid);
-            return (
-              <Tooltip
-                key={uid}
-                title={`${uid}${hasApproved ? ' (已通过)' : hasRejected ? ' (已拒绝)' : ''}`}
-              >
-                <Avatar
-                  size="small"
-                  icon={<UserOutlined />}
-                  style={{
-                    backgroundColor: hasApproved
-                      ? colors.success[500]
-                      : hasRejected
-                        ? colors.error[400]
-                        : colors.neutral[300],
-                    fontSize: 10,
-                  }}
-                >
-                  {uid.substring(0, 2)}
-                </Avatar>
-              </Tooltip>
-            );
-          })}
-          {record.approverIds.length > 3 && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              +{record.approverIds.length - 3}
+  const columns: TableColumn<ApprovalRequest>[] = useMemo<TableColumn<ApprovalRequest>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '审批标题',
+        dataIndex: 'title',
+        width: 260,
+        render: (v: unknown, record: ApprovalRequest) => (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
+              {String(v)}
             </Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 140,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record: ApprovalRequest) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情">
-            <Button
-              type="link"
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              申请人: {record.requesterId}
+              {record.metadata?.resourceType != null &&
+                ` | 类型: ${record.metadata.resourceType as string}`}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: ApprovalRequest) => (
+          <Tag color={statusColorMap[record.status] || 'default'}>
+            {statusLabelMap[record.status] || record.status}
+          </Tag>
+        ),
+      },
+      {
+        key: 'progress',
+        title: '审批进度',
+        width: 180,
+        render: (_: unknown, record: ApprovalRequest) => (
+          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Progress
+              percent={approvalProgress(record)}
               size="small"
-              icon={<EyeOutlined />}
-              onClick={() => openDetail(record)}
-            >
-              详情
-            </Button>
-          </Tooltip>
-          {record.status === 'pending' && (
-            <>
-              <Tooltip title="通过">
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ color: colors.success[500] }}
-                  icon={<CheckOutlined />}
-                  onClick={() => openCommentModal(record.id, 'approve')}
+              status={
+                record.status === 'rejected'
+                  ? 'exception'
+                  : record.status === 'approved'
+                    ? 'success'
+                    : 'active'
+              }
+              format={() => `${record.approvals.length}/${record.requiredApprovals}`}
+            />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              需要 {record.requiredApprovals} 个审批
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'approvers',
+        title: '审批人',
+        width: 200,
+        render: (_: unknown, record: ApprovalRequest) => (
+          <Space size={4} wrap>
+            {record.approverIds.slice(0, 3).map((uid: string) => {
+              const hasApproved = record.approvals.includes(uid);
+              const hasRejected = record.rejections.includes(uid);
+              return (
+                <Tooltip
+                  key={uid}
+                  title={`${uid}${hasApproved ? ' (已通过)' : hasRejected ? ' (已拒绝)' : ''}`}
                 >
-                  通过
-                </Button>
-              </Tooltip>
-              <Tooltip title="拒绝">
-                <Button
-                  type="link"
-                  size="small"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => openCommentModal(record.id, 'reject')}
-                >
-                  拒绝
-                </Button>
-              </Tooltip>
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ], [openCommentModal, openDetail]);
+                  <Avatar
+                    size="small"
+                    icon={<UserOutlined />}
+                    style={{
+                      backgroundColor: hasApproved
+                        ? colors.success[500]
+                        : hasRejected
+                          ? colors.error[400]
+                          : colors.neutral[300],
+                      fontSize: 10,
+                    }}
+                  >
+                    {uid.substring(0, 2)}
+                  </Avatar>
+                </Tooltip>
+              );
+            })}
+            {record.approverIds.length > 3 && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                +{record.approverIds.length - 3}
+              </Text>
+            )}
+          </Space>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 140,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record: ApprovalRequest) => (
+          <Space size="small" wrap>
+            <Tooltip title="详情">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => openDetail(record)}
+              >
+                详情
+              </Button>
+            </Tooltip>
+            {record.status === 'pending' && (
+              <>
+                <Tooltip title="通过">
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ color: colors.success[500] }}
+                    icon={<CheckOutlined />}
+                    onClick={() => openCommentModal(record.id, 'approve')}
+                  >
+                    通过
+                  </Button>
+                </Tooltip>
+                <Tooltip title="拒绝">
+                  <Button
+                    type="link"
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => openCommentModal(record.id, 'reject')}
+                  >
+                    拒绝
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [openCommentModal, openDetail]
+  );
 
   // ---- Detail Drawer Content ----
 
@@ -590,7 +593,9 @@ const ApprovalManagement: React.FC = () => {
           >
             <div>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+                <CheckCircleOutlined
+                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
+                />
                 审批管理
               </Title>
               <Text type="secondary">管理多级审批流程，包括创建、审批和跟踪</Text>

@@ -4,14 +4,29 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Tag, message, Table, Modal,
-  Descriptions, Timeline, Divider, Card, Statistic, Row, Col,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Table,
+  Modal,
+  Descriptions,
+  Timeline,
+  Divider,
+  Card,
+  Statistic,
+  Row,
+  Col,
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeftOutlined,
-  TagOutlined, ReloadOutlined, BranchesOutlined,
-  EyeOutlined, RocketOutlined,
+  TagOutlined,
+  ReloadOutlined,
+  BranchesOutlined,
+  EyeOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
@@ -100,7 +115,9 @@ const ArtifactVersionPage: React.FC = () => {
       render: (v: string, r: ArtifactVersion) => (
         <Space direction="vertical" size={0}>
           <Text strong>{v}</Text>
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>v{r.version}</Text>
+          <Text type="secondary" style={{ fontSize: spacing[2] }}>
+            v{r.version}
+          </Text>
         </Space>
       ),
     },
@@ -122,7 +139,7 @@ const ArtifactVersionPage: React.FC = () => {
       title: '分支',
       dataIndex: 'branch',
       width: 120,
-      render: (v: string) => v ? <Tag color="geekblue">{v}</Tag> : '-',
+      render: (v: string) => (v ? <Tag color="geekblue">{v}</Tag> : '-'),
     },
     {
       title: 'Stage',
@@ -133,7 +150,7 @@ const ArtifactVersionPage: React.FC = () => {
       title: 'Commit',
       dataIndex: 'commitSha',
       width: 100,
-      render: (v: string) => v ? <Text code>{v.slice(0, 7)}</Text> : '-',
+      render: (v: string) => (v ? <Text code>{v.slice(0, 7)}</Text> : '-'),
     },
     {
       title: '创建时间',
@@ -165,7 +182,9 @@ const ArtifactVersionPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/artifacts')}>
           返回
         </Button>
@@ -188,13 +207,24 @@ const ArtifactVersionPage: React.FC = () => {
             <Statistic title="总版本数" value={total} />
           </Col>
           <Col span={6}>
-            <Statistic title="今日新增" value={versions.filter(v => dayjs(v.createdAt).isAfter(dayjs().startOf('day'))).length} />
+            <Statistic
+              title="今日新增"
+              value={
+                versions.filter((v) => dayjs(v.createdAt).isAfter(dayjs().startOf('day'))).length
+              }
+            />
           </Col>
           <Col span={6}>
-            <Statistic title="关联分支" value={new Set(versions.map(v => v.branch).filter(Boolean)).size} />
+            <Statistic
+              title="关联分支"
+              value={new Set(versions.map((v) => v.branch).filter(Boolean)).size}
+            />
           </Col>
           <Col span={6}>
-            <Statistic title="关联 Pipeline" value={new Set(versions.map(v => v.pipelineId)).size} />
+            <Statistic
+              title="关联 Pipeline"
+              value={new Set(versions.map((v) => v.pipelineId)).size}
+            />
           </Col>
         </Row>
       </Card>
@@ -228,7 +258,9 @@ const ArtifactVersionPage: React.FC = () => {
               <Descriptions.Item label="Artifact">{selectedVersion.artifactName}</Descriptions.Item>
               <Descriptions.Item label="版本">{selectedVersion.version}</Descriptions.Item>
               <Descriptions.Item label="分支">{selectedVersion.branch || '-'}</Descriptions.Item>
-              <Descriptions.Item label="Commit">{selectedVersion.commitSha ? selectedVersion.commitSha.slice(0, 7) : '-'}</Descriptions.Item>
+              <Descriptions.Item label="Commit">
+                {selectedVersion.commitSha ? selectedVersion.commitSha.slice(0, 7) : '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="Stage">{selectedVersion.stageName}</Descriptions.Item>
               <Descriptions.Item label="Pipeline">{selectedVersion.pipelineId}</Descriptions.Item>
             </Descriptions>
@@ -265,9 +297,7 @@ const ArtifactVersionPage: React.FC = () => {
             </div>
           </>
         )}
-        {selectedVersion && !chain && (
-          <Text type="secondary">加载追溯链中...</Text>
-        )}
+        {selectedVersion && !chain && <Text type="secondary">加载追溯链中...</Text>}
       </Modal>
     </div>
   );

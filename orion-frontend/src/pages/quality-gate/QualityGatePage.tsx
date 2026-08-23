@@ -30,7 +30,8 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   EditOutlined,
-  CheckSquareOutlined,} from '@ant-design/icons';
+  CheckSquareOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   getPolicies,
@@ -160,7 +161,8 @@ const QualityGatePage: React.FC = () => {
         )
           return false;
       }
-      if (filters.severity && filters.severity !== 'all' && v.severity !== filters.severity) return false;
+      if (filters.severity && filters.severity !== 'all' && v.severity !== filters.severity)
+        return false;
       if (filters.status && filters.status !== 'all' && v.status !== filters.status) return false;
       return true;
     });
@@ -171,9 +173,7 @@ const QualityGatePage: React.FC = () => {
     const total = policies.length;
     const enabled = policies.filter((p) => p.enabled).length;
     const openViolations = violations.filter((v) => v.status === 'open').length;
-    const blocked = violations.filter(
-      (v) => v.status === 'open' && v.severity === 'block'
-    ).length;
+    const blocked = violations.filter((v) => v.status === 'open' && v.severity === 'block').length;
     return { total, enabled, openViolations, blocked };
   }, [policies, violations]);
 
@@ -218,7 +218,7 @@ const QualityGatePage: React.FC = () => {
       setGateLoading(true);
       const res = await evaluateGate(values.gateId, {});
       const data = res.data;
-      setGateResult((data && typeof data === 'object') ? data as Record<string, unknown> : null);
+      setGateResult(data && typeof data === 'object' ? (data as Record<string, unknown>) : null);
       message.success('门禁评估完成');
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
@@ -249,9 +249,7 @@ const QualityGatePage: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      render: (v: string) => (
-        <Tag color={categoryColorMap[v] || 'default'}>{v}</Tag>
-      ),
+      render: (v: string) => <Tag color={categoryColorMap[v] || 'default'}>{v}</Tag>,
     },
     {
       title: '严重级别',
@@ -259,9 +257,7 @@ const QualityGatePage: React.FC = () => {
       key: 'severity',
       width: 100,
       render: (v: string) => (
-        <Tag color={severityColorMap[v] || 'default'}>
-          {severityLabelMap[v] || v}
-        </Tag>
+        <Tag color={severityColorMap[v] || 'default'}>{severityLabelMap[v] || v}</Tag>
       ),
     },
     {
@@ -269,16 +265,18 @@ const QualityGatePage: React.FC = () => {
       dataIndex: 'enabled',
       key: 'enabled',
       width: 80,
-      render: (v: boolean) => (
-        <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>
-      ),
+      render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '禁用'}</Tag>,
     },
     {
       title: 'Rego 路径',
       dataIndex: 'regoPath',
       key: 'regoPath',
       ellipsis: true,
-      render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '更新时间',
@@ -309,9 +307,7 @@ const QualityGatePage: React.FC = () => {
       key: 'severity',
       width: 100,
       render: (v: string) => (
-        <Tag color={severityColorMap[v] || 'default'}>
-          {severityLabelMap[v] || v}
-        </Tag>
+        <Tag color={severityColorMap[v] || 'default'}>{severityLabelMap[v] || v}</Tag>
       ),
     },
     {
@@ -325,7 +321,11 @@ const QualityGatePage: React.FC = () => {
       dataIndex: 'resourceId',
       key: 'resourceId',
       width: 160,
-      render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v || '-'}</Text>,
+      render: (v: string) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {v || '-'}
+        </Text>
+      ),
     },
     {
       title: '状态',
@@ -333,9 +333,7 @@ const QualityGatePage: React.FC = () => {
       key: 'status',
       width: 100,
       render: (v: string) => (
-        <Tag color={violationStatusColorMap[v] || 'default'}>
-          {violationStatusLabelMap[v] || v}
-        </Tag>
+        <Tag color={violationStatusColorMap[v] || 'default'}>{violationStatusLabelMap[v] || v}</Tag>
       ),
     },
     {
@@ -386,7 +384,14 @@ const QualityGatePage: React.FC = () => {
           <Text type="secondary">管理质量门禁策略、违规处理和豁免申请</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadPolicies(); loadViolations(); }} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadPolicies();
+              loadViolations();
+            }}
+            loading={loading}
+          >
             刷新
           </Button>
           <Button
@@ -405,11 +410,7 @@ const QualityGatePage: React.FC = () => {
       {/* Stats Panel */}
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
-          <StatCard
-            title="总策略数"
-            value={stats.total}
-            icon={<SafetyCertificateOutlined />}
-          />
+          <StatCard title="总策略数" value={stats.total} icon={<SafetyCertificateOutlined />} />
         </Col>
         <Col span={6}>
           <StatCard
@@ -441,18 +442,36 @@ const QualityGatePage: React.FC = () => {
       <Card title="门禁通过率趋势" style={{ marginBottom: spacing.lg }}>
         <Row gutter={24}>
           <Col span={8}>
-            <Statistic title="通过率" value={stats.total > 0 ? ((stats.total - stats.openViolations) / stats.total * 100).toFixed(1) : 100} suffix="%" />
+            <Statistic
+              title="通过率"
+              value={
+                stats.total > 0
+                  ? (((stats.total - stats.openViolations) / stats.total) * 100).toFixed(1)
+                  : 100
+              }
+              suffix="%"
+            />
             <Progress
-              percent={stats.total > 0 ? Math.round(((stats.total - stats.openViolations) / stats.total) * 100) : 100}
+              percent={
+                stats.total > 0
+                  ? Math.round(((stats.total - stats.openViolations) / stats.total) * 100)
+                  : 100
+              }
               status={stats.blocked > 0 ? 'exception' : 'success'}
               style={{ marginTop: spacing.sm }}
             />
           </Col>
           <Col span={8}>
-            <Statistic title="已解决违规" value={violations.filter((v) => v.status === 'resolved').length} />
+            <Statistic
+              title="已解决违规"
+              value={violations.filter((v) => v.status === 'resolved').length}
+            />
           </Col>
           <Col span={8}>
-            <Statistic title="已豁免违规" value={violations.filter((v) => v.status === 'waived').length} />
+            <Statistic
+              title="已豁免违规"
+              value={violations.filter((v) => v.status === 'waived').length}
+            />
           </Col>
         </Row>
       </Card>
@@ -537,12 +556,18 @@ const QualityGatePage: React.FC = () => {
         destroyOnClose
       >
         <Form form={gateForm} layout="vertical">
-          <Form.Item name="gateId" label="门禁 ID" rules={[{ required: true, message: '请选择门禁' }]}>
+          <Form.Item
+            name="gateId"
+            label="门禁 ID"
+            rules={[{ required: true, message: '请选择门禁' }]}
+          >
             <Select
-              options={policies.filter((p) => p.gateId).map((p) => ({
-                label: p.name,
-                value: p.gateId!,
-              }))}
+              options={policies
+                .filter((p) => p.gateId)
+                .map((p) => ({
+                  label: p.name,
+                  value: p.gateId!,
+                }))}
               placeholder="选择门禁"
             />
           </Form.Item>
@@ -589,7 +614,11 @@ const QualityGatePage: React.FC = () => {
           </div>
         )}
         <Form form={waiveForm} layout="vertical">
-          <Form.Item name="reason" label="豁免原因" rules={[{ required: true, message: '请输入豁免原因' }]}>
+          <Form.Item
+            name="reason"
+            label="豁免原因"
+            rules={[{ required: true, message: '请输入豁免原因' }]}
+          >
             <Input.TextArea rows={3} placeholder="请说明豁免原因..." />
           </Form.Item>
           <Form.Item
@@ -600,11 +629,13 @@ const QualityGatePage: React.FC = () => {
             <Input placeholder="如: 2026-06-01T00:00:00Z" />
           </Form.Item>
           <Form.Item name="scope" label="豁免范围">
-            <Select options={[
-              { label: '项目级', value: 'project' },
-              { label: '全局', value: 'global' },
-              { label: '环境级', value: 'environment' },
-            ]} />
+            <Select
+              options={[
+                { label: '项目级', value: 'project' },
+                { label: '全局', value: 'global' },
+                { label: '环境级', value: 'environment' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -621,9 +652,7 @@ const QualityGatePage: React.FC = () => {
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="策略名称">{selectedPolicy.name}</Descriptions.Item>
             <Descriptions.Item label="分类">
-              <Tag color={categoryColorMap[selectedPolicy.category]}>
-                {selectedPolicy.category}
-              </Tag>
+              <Tag color={categoryColorMap[selectedPolicy.category]}>{selectedPolicy.category}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="严重级别">
               <Tag color={severityColorMap[selectedPolicy.severity]}>

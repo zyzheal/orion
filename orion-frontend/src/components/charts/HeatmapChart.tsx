@@ -37,8 +37,8 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = ({
       colorScale === 'green-red'
         ? [theme.success, theme.warning, theme.error]
         : colorScale === 'blue-red'
-        ? [theme.info, theme.warning, theme.error]
-        : [theme.palette[0], theme.palette[2], theme.palette[3]];
+          ? [theme.info, theme.warning, theme.error]
+          : [theme.palette[0], theme.palette[2], theme.palette[3]];
 
     const seriesData = data.map((cell) => [
       xAxis.indexOf(cell.x),

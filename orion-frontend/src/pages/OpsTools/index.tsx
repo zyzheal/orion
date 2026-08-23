@@ -168,7 +168,12 @@ const OpsTools: React.FC = () => {
 
   // ============ Tagent State ============
   const [tagentClients, setTagentClients] = useState<TagentClient[]>([]);
-  const [tagentStats, setTagentStats] = useState<TagentStats>({ total: 0, online: 0, offline: 0, upgrading: 0 });
+  const [tagentStats, setTagentStats] = useState<TagentStats>({
+    total: 0,
+    online: 0,
+    offline: 0,
+    upgrading: 0,
+  });
   const [tagentLoading, setTagentLoading] = useState(false);
 
   // ============ Batch State ============
@@ -600,8 +605,20 @@ const OpsTools: React.FC = () => {
         </Space>
       ),
     },
-    { title: '上次运行', dataIndex: 'lastRunAt', key: 'lastRunAt', width: 180, render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
-    { title: '下次运行', dataIndex: 'nextRunAt', key: 'nextRunAt', width: 180, render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
+    {
+      title: '上次运行',
+      dataIndex: 'lastRunAt',
+      key: 'lastRunAt',
+      width: 180,
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
+    {
+      title: '下次运行',
+      dataIndex: 'nextRunAt',
+      key: 'nextRunAt',
+      width: 180,
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
     {
       title: '操作',
       key: 'action',
@@ -616,7 +633,12 @@ const OpsTools: React.FC = () => {
               onClick={() => handleCronToggle(record)}
             />
           </Tooltip>
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleCronEdit(record)} />
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleCronEdit(record)}
+          />
           <Popconfirm title="确认删除该定时任务？" onConfirm={() => handleCronDelete(record)}>
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -640,7 +662,12 @@ const OpsTools: React.FC = () => {
         </Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
   ];
 
   const fragmentColumns: TableColumnsType<DatabaseFragment> = [
@@ -652,7 +679,16 @@ const OpsTools: React.FC = () => {
       title: '碎片率',
       dataIndex: 'fragmentRate',
       key: 'fragmentRate',
-      render: (v: number) => <Progress percent={Math.min(v, 100)} size="small" strokeColor={v > 25 ? colors.error[500] : v > 15 ? colors.warning[500] : colors.success[500]} format={() => `${v.toFixed(1)}%`} />,
+      render: (v: number) => (
+        <Progress
+          percent={Math.min(v, 100)}
+          size="small"
+          strokeColor={
+            v > 25 ? colors.error[500] : v > 15 ? colors.warning[500] : colors.success[500]
+          }
+          format={() => `${v.toFixed(1)}%`}
+        />
+      ),
     },
     { title: '建议操作', dataIndex: 'suggestedAction', key: 'suggestedAction' },
   ];
@@ -668,7 +704,11 @@ const OpsTools: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'active' ? '活跃' : v === 'unused' ? '未使用' : '冗余'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'active' ? '活跃' : v === 'unused' ? '未使用' : '冗余'}
+        </Tag>
+      ),
     },
     {
       title: '操作',
@@ -691,10 +731,24 @@ const OpsTools: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'healthy' ? '健康' : v === 'warning' ? '警告' : '严重'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'healthy' ? '健康' : v === 'warning' ? '警告' : '严重'}
+        </Tag>
+      ),
     },
-    { title: '死信数', dataIndex: 'deadLetters', key: 'deadLetters', render: (v: number) => v ? <Tag color="error">{v}</Tag> : '0' },
-    { title: '最后活跃', dataIndex: 'lastActiveAt', key: 'lastActiveAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
+    {
+      title: '死信数',
+      dataIndex: 'deadLetters',
+      key: 'deadLetters',
+      render: (v: number) => (v ? <Tag color="error">{v}</Tag> : '0'),
+    },
+    {
+      title: '最后活跃',
+      dataIndex: 'lastActiveAt',
+      key: 'lastActiveAt',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
   ];
 
   const tagentColumns: TableColumnsType<TagentClient> = [
@@ -706,12 +760,21 @@ const OpsTools: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'online' ? '在线' : v === 'offline' ? '离线' : '升级中'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'online' ? '在线' : v === 'offline' ? '离线' : '升级中'}
+        </Tag>
+      ),
     },
     { title: 'CPU', dataIndex: 'cpuUsage', key: 'cpuUsage', render: (v: number) => `${v}%` },
     { title: '内存', dataIndex: 'memoryUsage', key: 'memoryUsage', render: (v: number) => `${v}%` },
     { title: '磁盘', dataIndex: 'diskUsage', key: 'diskUsage', render: (v: number) => `${v}%` },
-    { title: '最后心跳', dataIndex: 'lastHeartbeat', key: 'lastHeartbeat', render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '最后心跳',
+      dataIndex: 'lastHeartbeat',
+      key: 'lastHeartbeat',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '操作',
       key: 'action',
@@ -741,32 +804,83 @@ const OpsTools: React.FC = () => {
   const batchColumns: TableColumnsType<BatchOperation> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 160 },
     { title: '命令', dataIndex: 'command', key: 'command', ellipsis: true },
-    { title: '目标主机', dataIndex: 'targetHosts', key: 'targetHosts', render: (v: string[]) => v.join(', ') },
+    {
+      title: '目标主机',
+      dataIndex: 'targetHosts',
+      key: 'targetHosts',
+      render: (v: string[]) => v.join(', '),
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'pending' ? '待执行' : v === 'running' ? '运行中' : v === 'completed' ? '已完成' : '失败'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'pending'
+            ? '待执行'
+            : v === 'running'
+              ? '运行中'
+              : v === 'completed'
+                ? '已完成'
+                : '失败'}
+        </Tag>
+      ),
     },
-    { title: '开始时间', dataIndex: 'startedAt', key: 'startedAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
-    { title: '完成时间', dataIndex: 'finishedAt', key: 'finishedAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
-    { title: '结果', dataIndex: 'result', key: 'result', ellipsis: true, render: (v: string) => v || '-' },
+    {
+      title: '开始时间',
+      dataIndex: 'startedAt',
+      key: 'startedAt',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
+    {
+      title: '完成时间',
+      dataIndex: 'finishedAt',
+      key: 'finishedAt',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
+    {
+      title: '结果',
+      dataIndex: 'result',
+      key: 'result',
+      ellipsis: true,
+      render: (v: string) => v || '-',
+    },
   ];
 
   const fileColumns: TableColumnsType<FileInfo> = [
     { title: '文件名', dataIndex: 'name', key: 'name' },
     { title: '路径', dataIndex: 'path', key: 'path' },
-    { title: '大小', dataIndex: 'size', key: 'size', render: (v: number) => `${(v / 1024).toFixed(2)} KB` },
+    {
+      title: '大小',
+      dataIndex: 'size',
+      key: 'size',
+      render: (v: number) => `${(v / 1024).toFixed(2)} KB`,
+    },
     { title: '类型', dataIndex: 'mime', key: 'mime' },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'uploaded' ? '已上传' : v === 'distributing' ? '分发中' : v === 'distributed' ? '已分发' : '失败'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'uploaded'
+            ? '已上传'
+            : v === 'distributing'
+              ? '分发中'
+              : v === 'distributed'
+                ? '已分发'
+                : '失败'}
+        </Tag>
+      ),
     },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '操作',
       key: 'action',
@@ -799,9 +913,27 @@ const OpsTools: React.FC = () => {
       dataIndex: 'primaryColor',
       key: 'primaryColor',
       width: 120,
-      render: (v: string) => <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 24, height: 24, borderRadius: 4, backgroundColor: v, border: `1px solid ${colors.neutral[300]}` }} /><span>{v}</span></div>,
+      render: (v: string) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 4,
+              backgroundColor: v,
+              border: `1px solid ${colors.neutral[300]}`,
+            }}
+          />
+          <span>{v}</span>
+        </div>
+      ),
     },
-    { title: '圆角', dataIndex: 'borderRadius', key: 'borderRadius', render: (v: number) => `${v}px` },
+    {
+      title: '圆角',
+      dataIndex: 'borderRadius',
+      key: 'borderRadius',
+      render: (v: number) => `${v}px`,
+    },
     {
       title: '模式',
       dataIndex: 'mode',
@@ -813,7 +945,14 @@ const OpsTools: React.FC = () => {
       dataIndex: 'enabled',
       key: 'enabled',
       width: 100,
-      render: (v: boolean, record) => <Switch checked={v} onChange={() => handleThemeToggle(record)} size="small" disabled={loading} />,
+      render: (v: boolean, record) => (
+        <Switch
+          checked={v}
+          onChange={() => handleThemeToggle(record)}
+          size="small"
+          disabled={loading}
+        />
+      ),
     },
     {
       title: '操作',
@@ -834,21 +973,37 @@ const OpsTools: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (v: string) => <Tag>{v === 'enterprise' ? '企业版' : v === 'standard' ? '标准版' : '社区版'}</Tag>,
+      render: (v: string) => (
+        <Tag>{v === 'enterprise' ? '企业版' : v === 'standard' ? '标准版' : '社区版'}</Tag>
+      ),
     },
     { title: '席位', dataIndex: 'seats', key: 'seats' },
     { title: '已使用', dataIndex: 'usedSeats', key: 'usedSeats' },
     {
       title: '使用率',
       key: 'usageRate',
-      render: (_, record) => <Progress percent={record.seats > 0 ? Math.round((record.usedSeats / record.seats) * 100) : 0} size="small" />,
+      render: (_, record) => (
+        <Progress
+          percent={record.seats > 0 ? Math.round((record.usedSeats / record.seats) * 100) : 0}
+          size="small"
+        />
+      ),
     },
-    { title: '到期时间', dataIndex: 'expireAt', key: 'expireAt', render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '到期时间',
+      dataIndex: 'expireAt',
+      key: 'expireAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'active' ? '有效' : v === 'expired' ? '已过期' : '宽限期'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'active' ? '有效' : v === 'expired' ? '已过期' : '宽限期'}
+        </Tag>
+      ),
     },
   ];
 
@@ -856,13 +1011,25 @@ const OpsTools: React.FC = () => {
     { title: '模块名', dataIndex: 'name', key: 'name' },
     { title: '描述', dataIndex: 'description', key: 'description' },
     { title: '版本', dataIndex: 'version', key: 'version' },
-    { title: '依赖', dataIndex: 'dependencies', key: 'dependencies', render: (v: string[]) => v.join(', ') || '-' },
+    {
+      title: '依赖',
+      dataIndex: 'dependencies',
+      key: 'dependencies',
+      render: (v: string[]) => v.join(', ') || '-',
+    },
     {
       title: '启用',
       dataIndex: 'enabled',
       key: 'enabled',
       width: 100,
-      render: (v: boolean, record) => <Switch checked={v} onChange={() => handleModuleToggle(record)} size="small" disabled={loading} />,
+      render: (v: boolean, record) => (
+        <Switch
+          checked={v}
+          onChange={() => handleModuleToggle(record)}
+          size="small"
+          disabled={loading}
+        />
+      ),
     },
   ];
 
@@ -878,12 +1045,21 @@ const OpsTools: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>{v === 'normal' ? '正常' : v === 'busy' ? '繁忙' : '饱和'}</Tag>,
+      render: (v: string) => (
+        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
+          {v === 'normal' ? '正常' : v === 'busy' ? '繁忙' : '饱和'}
+        </Tag>
+      ),
     },
     {
       title: '使用率',
       key: 'usage',
-      render: (_, record) => <Progress percent={record.maxSize > 0 ? Math.round((record.activeCount / record.maxSize) * 100) : 0} size="small" />,
+      render: (_, record) => (
+        <Progress
+          percent={record.maxSize > 0 ? Math.round((record.activeCount / record.maxSize) * 100) : 0}
+          size="small"
+        />
+      ),
     },
   ];
 
@@ -895,10 +1071,17 @@ const OpsTools: React.FC = () => {
       title: '结果',
       dataIndex: 'result',
       key: 'result',
-      render: (v: string) => <Tag color={v === 'success' ? 'success' : 'error'}>{v === 'success' ? '成功' : '失败'}</Tag>,
+      render: (v: string) => (
+        <Tag color={v === 'success' ? 'success' : 'error'}>{v === 'success' ? '成功' : '失败'}</Tag>
+      ),
     },
     { title: 'IP', dataIndex: 'ip', key: 'ip' },
-    { title: '时间', dataIndex: 'timestamp', key: 'timestamp', render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '时间',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
   ];
 
   const logColumns: TableColumnsType<LogEntry> = [
@@ -908,13 +1091,19 @@ const OpsTools: React.FC = () => {
       key: 'level',
       width: 80,
       render: (v: string) => {
-        const color = v === 'ERROR' ? 'error' : v === 'WARN' ? 'warning' : v === 'DEBUG' ? 'default' : 'blue';
+        const color =
+          v === 'ERROR' ? 'error' : v === 'WARN' ? 'warning' : v === 'DEBUG' ? 'default' : 'blue';
         return <Tag color={color}>{v}</Tag>;
       },
     },
     { title: '服务', dataIndex: 'service', key: 'service' },
     { title: '消息', dataIndex: 'message', key: 'message', ellipsis: true },
-    { title: '时间', dataIndex: 'timestamp', key: 'timestamp', render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '时间',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
   ];
 
   // ==================== Tab 面板 ====================
@@ -925,8 +1114,19 @@ const OpsTools: React.FC = () => {
       title="系统定时调度管理"
       extra={
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadCronJobs}>刷新</Button>
-          <Button icon={<PlusOutlined />} onClick={() => { setCronEditingJob(null); cronForm.resetFields(); setCronModalOpen(true); }}>新建定时任务</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadCronJobs}>
+            刷新
+          </Button>
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setCronEditingJob(null);
+              cronForm.resetFields();
+              setCronModalOpen(true);
+            }}
+          >
+            新建定时任务
+          </Button>
         </Space>
       }
       style={{ marginTop: spacing.md }}
@@ -948,43 +1148,90 @@ const OpsTools: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card hoverable style={{ height: '100%' }}>
-            <Statistic title="最近 Dump" value={dumps[0]?.filename || '-'} valueStyle={{ color: colors.primary[500], fontSize: 14 }} />
-            <Button icon={<DownloadOutlined />} onClick={handleSqlDump} loading={dumpRunning} style={{ marginTop: spacing.md }}>
+            <Statistic
+              title="最近 Dump"
+              value={dumps[0]?.filename || '-'}
+              valueStyle={{ color: colors.primary[500], fontSize: 14 }}
+            />
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={handleSqlDump}
+              loading={dumpRunning}
+              style={{ marginTop: spacing.md }}
+            >
               执行 SQL Dump
             </Button>
           </Card>
         </Col>
         <Col span={8}>
           <Card hoverable style={{ height: '100%' }}>
-            <Statistic title="碎片表数" value={fragments.length} valueStyle={{ color: colors.warning[500] }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>建议检查碎片率超过 25% 的表</Text>
+            <Statistic
+              title="碎片表数"
+              value={fragments.length}
+              valueStyle={{ color: colors.warning[500] }}
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              建议检查碎片率超过 25% 的表
+            </Text>
           </Card>
         </Col>
         <Col span={8}>
           <Card hoverable style={{ height: '100%' }}>
-            <Statistic title="索引总数" value={indexes.length} valueStyle={{ color: colors.success[500] }} />
-            <Button type="link" icon={<PlusOutlined />} onClick={() => setIndexModalOpen(true)}>新建索引</Button>
+            <Statistic
+              title="索引总数"
+              value={indexes.length}
+              valueStyle={{ color: colors.success[500] }}
+            />
+            <Button type="link" icon={<PlusOutlined />} onClick={() => setIndexModalOpen(true)}>
+              新建索引
+            </Button>
           </Card>
         </Col>
       </Row>
 
       <Card title="SQL Dump 历史" style={{ marginBottom: spacing.md }}>
-        <Table columns={dumpColumns} dataSource={dumps} rowKey="id" size="small" pagination={{ pageSize: 5 }} />
+        <Table
+          columns={dumpColumns}
+          dataSource={dumps}
+          rowKey="id"
+          size="small"
+          pagination={{ pageSize: 5 }}
+        />
       </Card>
 
       <Card title="数据库碎片分析" style={{ marginBottom: spacing.md }}>
-        <Table columns={fragmentColumns} dataSource={fragments} rowKey="id" size="small" pagination={false} />
+        <Table
+          columns={fragmentColumns}
+          dataSource={fragments}
+          rowKey="id"
+          size="small"
+          pagination={false}
+        />
       </Card>
 
       <Card title="索引管理">
-        <Table columns={indexColumns} dataSource={indexes} rowKey="id" size="small" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={indexColumns}
+          dataSource={indexes}
+          rowKey="id"
+          size="small"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
     </div>
   );
 
   // ---- MQ 监控 ----
   const renderMqTab = () => (
-    <Card title="MQ 消息队列监控" extra={<Button icon={<ReloadOutlined />} onClick={loadDBTools}>刷新</Button>} style={{ marginTop: spacing.md }}>
+    <Card
+      title="MQ 消息队列监控"
+      extra={
+        <Button icon={<ReloadOutlined />} onClick={loadDBTools}>
+          刷新
+        </Button>
+      }
+      style={{ marginTop: spacing.md }}
+    >
       <Table columns={mqColumns} dataSource={[]} rowKey="name" size="middle" pagination={false} />
     </Card>
   );
@@ -995,31 +1242,62 @@ const OpsTools: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
-            <Statistic title="总客户端" value={tagentStats.total} prefix={<TeamOutlined />} valueStyle={{ color: colors.primary[500] }} />
+            <Statistic
+              title="总客户端"
+              value={tagentStats.total}
+              prefix={<TeamOutlined />}
+              valueStyle={{ color: colors.primary[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="在线" value={tagentStats.online} prefix={<CheckCircleOutlined />} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="在线"
+              value={tagentStats.online}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="离线" value={tagentStats.offline} prefix={<CloseCircleOutlined />} valueStyle={{ color: colors.error[500] }} />
+            <Statistic
+              title="离线"
+              value={tagentStats.offline}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: colors.error[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="升级中" value={tagentStats.upgrading} prefix={<ThunderboltOutlined />} valueStyle={{ color: colors.warning[500] }} />
+            <Statistic
+              title="升级中"
+              value={tagentStats.upgrading}
+              prefix={<ThunderboltOutlined />}
+              valueStyle={{ color: colors.warning[500] }}
+            />
           </Card>
         </Col>
       </Row>
 
       <Card
         title="Tagent 客户端列表"
-        extra={<Button icon={<ReloadOutlined />} onClick={loadTagent}>刷新</Button>}
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={loadTagent}>
+            刷新
+          </Button>
+        }
       >
-        <Table columns={tagentColumns} dataSource={tagentClients} loading={tagentLoading} rowKey="id" size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={tagentColumns}
+          dataSource={tagentClients}
+          loading={tagentLoading}
+          rowKey="id"
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
     </div>
   );
@@ -1031,26 +1309,53 @@ const OpsTools: React.FC = () => {
         <Form form={batchForm} layout="vertical" onFinish={handleBatchExecute}>
           <Row gutter={16}>
             <Col span={14}>
-              <Form.Item name="command" label="命令" rules={[{ required: true, message: '请输入命令' }]}>
+              <Form.Item
+                name="command"
+                label="命令"
+                rules={[{ required: true, message: '请输入命令' }]}
+              >
                 <Input placeholder="例如: uptime" />
               </Form.Item>
             </Col>
             <Col span={10}>
-              <Form.Item name="targetHosts" label="目标主机（逗号分隔）" rules={[{ required: true, message: '请输入目标主机' }]}>
+              <Form.Item
+                name="targetHosts"
+                label="目标主机（逗号分隔）"
+                rules={[{ required: true, message: '请输入目标主机' }]}
+              >
                 <Input placeholder="prod-web-01,prod-api-01" />
               </Form.Item>
             </Col>
           </Row>
           <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={batchExecLoading}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SendOutlined />}
+              loading={batchExecLoading}
+            >
               执行批量操作
             </Button>
           </Form.Item>
         </Form>
       </Card>
 
-      <Card title="执行历史" extra={<Button icon={<ReloadOutlined />} onClick={loadBatchOps}>刷新</Button>}>
-        <Table columns={batchColumns} dataSource={batchOps} loading={batchLoading} rowKey="id" size="middle" pagination={{ pageSize: 10 }} />
+      <Card
+        title="执行历史"
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={loadBatchOps}>
+            刷新
+          </Button>
+        }
+      >
+        <Table
+          columns={batchColumns}
+          dataSource={batchOps}
+          loading={batchLoading}
+          rowKey="id"
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
     </div>
   );
@@ -1062,12 +1367,29 @@ const OpsTools: React.FC = () => {
         title="文件上传/下载/分发"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadFiles}>刷新</Button>
-            <Button icon={<PlusOutlined />} onClick={() => { uploadForm.resetFields(); setUploadModalOpen(true); }}>上传文件</Button>
+            <Button icon={<ReloadOutlined />} onClick={loadFiles}>
+              刷新
+            </Button>
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => {
+                uploadForm.resetFields();
+                setUploadModalOpen(true);
+              }}
+            >
+              上传文件
+            </Button>
           </Space>
         }
       >
-        <Table columns={fileColumns} dataSource={files} loading={fileLoading} rowKey="id" size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={fileColumns}
+          dataSource={files}
+          loading={fileLoading}
+          rowKey="id"
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
     </div>
   );
@@ -1075,39 +1397,101 @@ const OpsTools: React.FC = () => {
   // ---- 系统配置 ----
   const renderConfigTab = () => (
     <div>
-      <Card title="主题管理" extra={<Button icon={<PlusOutlined />} onClick={() => { themeForm.resetFields(); setThemeModalOpen(true); }}>新建主题</Button>} style={{ marginBottom: spacing.md }}>
-        <Table columns={themeColumns} dataSource={themes} loading={themeLoading} rowKey="id" size="middle" pagination={{ pageSize: 5 }} />
+      <Card
+        title="主题管理"
+        extra={
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => {
+              themeForm.resetFields();
+              setThemeModalOpen(true);
+            }}
+          >
+            新建主题
+          </Button>
+        }
+        style={{ marginBottom: spacing.md }}
+      >
+        <Table
+          columns={themeColumns}
+          dataSource={themes}
+          loading={themeLoading}
+          rowKey="id"
+          size="middle"
+          pagination={{ pageSize: 5 }}
+        />
       </Card>
 
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
         <Col span={12}>
           <Card title="许可证管理">
-            <Table columns={licenseColumns} dataSource={licenses} rowKey="id" size="small" pagination={false} />
+            <Table
+              columns={licenseColumns}
+              dataSource={licenses}
+              rowKey="id"
+              size="small"
+              pagination={false}
+            />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="系统模块">
-            <Table columns={moduleColumns} dataSource={modules} loading={moduleLoading} rowKey="id" size="small" pagination={{ pageSize: 5 }} />
+            <Table
+              columns={moduleColumns}
+              dataSource={modules}
+              loading={moduleLoading}
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 5 }}
+            />
           </Card>
         </Col>
       </Row>
 
       <Card title="线程池状态">
-        <Table columns={threadPoolColumns} dataSource={threadPools} rowKey="name" size="middle" pagination={{ pageSize: 5 }} />
+        <Table
+          columns={threadPoolColumns}
+          dataSource={threadPools}
+          rowKey="name"
+          size="middle"
+          pagination={{ pageSize: 5 }}
+        />
       </Card>
     </div>
   );
 
   // ---- 审计 ----
   const renderAuditTab = () => (
-    <Card title="审计事件" extra={<Button icon={<ReloadOutlined />} onClick={() => loadAudit(auditPage)}>刷新</Button>} style={{ marginTop: spacing.md }}>
-      <Table columns={auditColumns} dataSource={auditEvents} rowKey="id" size="middle" pagination={{ current: auditPage, total: auditTotal, onChange: loadAudit, pageSize: 10 }} />
+    <Card
+      title="审计事件"
+      extra={
+        <Button icon={<ReloadOutlined />} onClick={() => loadAudit(auditPage)}>
+          刷新
+        </Button>
+      }
+      style={{ marginTop: spacing.md }}
+    >
+      <Table
+        columns={auditColumns}
+        dataSource={auditEvents}
+        rowKey="id"
+        size="middle"
+        pagination={{ current: auditPage, total: auditTotal, onChange: loadAudit, pageSize: 10 }}
+      />
     </Card>
   );
 
   // ---- 日志 ----
   const renderLogTab = () => (
-    <Card title="日志管理" extra={<Button icon={<ReloadOutlined />} onClick={loadLogs}>刷新</Button>} style={{ marginTop: spacing.md }}>
+    <Card
+      title="日志管理"
+      extra={
+        <Button icon={<ReloadOutlined />} onClick={loadLogs}>
+          刷新
+        </Button>
+      }
+      style={{ marginTop: spacing.md }}
+    >
       <Space style={{ marginBottom: spacing.md }}>
         <Text>级别:</Text>
         <Select
@@ -1139,7 +1523,13 @@ const OpsTools: React.FC = () => {
           ]}
         />
       </Space>
-      <Table columns={logColumns} dataSource={logs} rowKey="id" size="middle" pagination={{ total: logTotal, pageSize: 10 }} />
+      <Table
+        columns={logColumns}
+        dataSource={logs}
+        rowKey="id"
+        size="middle"
+        pagination={{ total: logTotal, pageSize: 10 }}
+      />
     </Card>
   );
 
@@ -1148,47 +1538,83 @@ const OpsTools: React.FC = () => {
   const tabItems: TabsProps['items'] = [
     {
       key: 'cron',
-      label: <span><ClockCircleOutlined /> 定时调度</span>,
+      label: (
+        <span>
+          <ClockCircleOutlined /> 定时调度
+        </span>
+      ),
       children: renderCronTab(),
     },
     {
       key: 'db',
-      label: <span><DatabaseOutlined /> 数据库工具</span>,
+      label: (
+        <span>
+          <DatabaseOutlined /> 数据库工具
+        </span>
+      ),
       children: renderDbTab(),
     },
     {
       key: 'mq',
-      label: <span><ClusterOutlined /> MQ监控</span>,
+      label: (
+        <span>
+          <ClusterOutlined /> MQ监控
+        </span>
+      ),
       children: renderMqTab(),
     },
     {
       key: 'tagent',
-      label: <span><ToolOutlined /> Tagent管理</span>,
+      label: (
+        <span>
+          <ToolOutlined /> Tagent管理
+        </span>
+      ),
       children: renderTagentTab(),
     },
     {
       key: 'batch',
-      label: <span><ConsoleSqlOutlined /> 批量操作</span>,
+      label: (
+        <span>
+          <ConsoleSqlOutlined /> 批量操作
+        </span>
+      ),
       children: renderBatchTab(),
     },
     {
       key: 'file',
-      label: <span><FileTextOutlined /> 文件管理</span>,
+      label: (
+        <span>
+          <FileTextOutlined /> 文件管理
+        </span>
+      ),
       children: renderFileTab(),
     },
     {
       key: 'config',
-      label: <span><SettingOutlined /> 系统配置</span>,
+      label: (
+        <span>
+          <SettingOutlined /> 系统配置
+        </span>
+      ),
       children: renderConfigTab(),
     },
     {
       key: 'audit',
-      label: <span><AuditOutlined /> 审计</span>,
+      label: (
+        <span>
+          <AuditOutlined /> 审计
+        </span>
+      ),
       children: renderAuditTab(),
     },
     {
       key: 'logs',
-      label: <span><FileSyncOutlined /> 日志</span>,
+      label: (
+        <span>
+          <FileSyncOutlined /> 日志
+        </span>
+      ),
       children: renderLogTab(),
     },
   ];
@@ -1203,7 +1629,9 @@ const OpsTools: React.FC = () => {
           <ToolOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           运维管理工具
         </Title>
-        <Text type="secondary">系统定时任务、数据库工具、Tagent管理、批量操作、文件管理与系统配置</Text>
+        <Text type="secondary">
+          系统定时任务、数据库工具、Tagent管理、批量操作、文件管理与系统配置
+        </Text>
       </div>
 
       {/* 系统信息概览 */}
@@ -1211,22 +1639,42 @@ const OpsTools: React.FC = () => {
         <Card style={{ marginBottom: spacing.md, borderRadius: componentRadius.card }}>
           <Row gutter={[16, 16]}>
             <Col span={4}>
-              <Statistic title="平台版本" value={systemInfo.platformVersion} valueStyle={{ fontSize: 16 }} />
+              <Statistic
+                title="平台版本"
+                value={systemInfo.platformVersion}
+                valueStyle={{ fontSize: 16 }}
+              />
             </Col>
             <Col span={4}>
               <Statistic title="运行时长" value={systemInfo.uptime} valueStyle={{ fontSize: 16 }} />
             </Col>
             <Col span={4}>
-              <Statistic title="定时任务" value={`${systemInfo.enabledCronJobs}/${systemInfo.totalCronJobs}`} valueStyle={{ color: colors.success[500], fontSize: 16 }} />
+              <Statistic
+                title="定时任务"
+                value={`${systemInfo.enabledCronJobs}/${systemInfo.totalCronJobs}`}
+                valueStyle={{ color: colors.success[500], fontSize: 16 }}
+              />
             </Col>
             <Col span={4}>
-              <Statistic title="Tagent 在线" value={`${systemInfo.onlineTagentClients}/${systemInfo.totalTagentClients}`} valueStyle={{ color: colors.success[500], fontSize: 16 }} />
+              <Statistic
+                title="Tagent 在线"
+                value={`${systemInfo.onlineTagentClients}/${systemInfo.totalTagentClients}`}
+                valueStyle={{ color: colors.success[500], fontSize: 16 }}
+              />
             </Col>
             <Col span={4}>
-              <Statistic title="MQ 队列" value={systemInfo.mqQueueCount} valueStyle={{ fontSize: 16 }} />
+              <Statistic
+                title="MQ 队列"
+                value={systemInfo.mqQueueCount}
+                valueStyle={{ fontSize: 16 }}
+              />
             </Col>
             <Col span={4}>
-              <Statistic title="系统模块" value={systemInfo.totalModules} valueStyle={{ fontSize: 16 }} />
+              <Statistic
+                title="系统模块"
+                value={systemInfo.totalModules}
+                valueStyle={{ fontSize: 16 }}
+              />
             </Col>
           </Row>
         </Card>
@@ -1247,7 +1695,11 @@ const OpsTools: React.FC = () => {
       <Modal
         title={cronEditingJob ? '编辑定时任务' : '新建定时任务'}
         open={cronModalOpen}
-        onCancel={() => { setCronModalOpen(false); setCronEditingJob(null); cronForm.resetFields(); }}
+        onCancel={() => {
+          setCronModalOpen(false);
+          setCronEditingJob(null);
+          cronForm.resetFields();
+        }}
         onOk={() => cronForm.submit()}
         confirmLoading={loading}
         width={500}
@@ -1272,7 +1724,10 @@ const OpsTools: React.FC = () => {
       <Modal
         title="新建索引"
         open={indexModalOpen}
-        onCancel={() => { setIndexModalOpen(false); indexForm.resetFields(); }}
+        onCancel={() => {
+          setIndexModalOpen(false);
+          indexForm.resetFields();
+        }}
         onOk={() => indexForm.submit()}
         width={480}
       >
@@ -1293,7 +1748,10 @@ const OpsTools: React.FC = () => {
       <Modal
         title="上传文件"
         open={uploadModalOpen}
-        onCancel={() => { setUploadModalOpen(false); uploadForm.resetFields(); }}
+        onCancel={() => {
+          setUploadModalOpen(false);
+          uploadForm.resetFields();
+        }}
         onOk={() => uploadForm.submit()}
         width={480}
       >
@@ -1314,7 +1772,10 @@ const OpsTools: React.FC = () => {
       <Modal
         title="分发文件"
         open={distributeModalOpen}
-        onCancel={() => { setDistributeModalOpen(false); distributeForm.resetFields(); }}
+        onCancel={() => {
+          setDistributeModalOpen(false);
+          distributeForm.resetFields();
+        }}
         onOk={() => distributeForm.submit()}
         width={480}
       >
@@ -1329,7 +1790,10 @@ const OpsTools: React.FC = () => {
       <Modal
         title="新建主题"
         open={themeModalOpen}
-        onCancel={() => { setThemeModalOpen(false); themeForm.resetFields(); }}
+        onCancel={() => {
+          setThemeModalOpen(false);
+          themeForm.resetFields();
+        }}
         onOk={() => themeForm.submit()}
         width={480}
       >
@@ -1344,7 +1808,13 @@ const OpsTools: React.FC = () => {
             <InputNumber min={0} max={20} style={{ width: '100%' }} defaultValue={6} />
           </Form.Item>
           <Form.Item name="mode" label="模式">
-            <Select options={[{ label: '浅色', value: 'light' }, { label: '深色', value: 'dark' }]} defaultValue="light" />
+            <Select
+              options={[
+                { label: '浅色', value: 'light' },
+                { label: '深色', value: 'dark' },
+              ]}
+              defaultValue="light"
+            />
           </Form.Item>
         </Form>
       </Modal>

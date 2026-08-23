@@ -54,9 +54,23 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
       key: 'type',
       width: 100,
       render: (type: string) => {
-        if (type === 'added') return <Tag color="green"><PlusOutlined /> 新增</Tag>;
-        if (type === 'removed') return <Tag color="red"><MinusOutlined /> 删除</Tag>;
-        return <Tag color="blue"><EditOutlined /> 变更</Tag>;
+        if (type === 'added')
+          return (
+            <Tag color="green">
+              <PlusOutlined /> 新增
+            </Tag>
+          );
+        if (type === 'removed')
+          return (
+            <Tag color="red">
+              <MinusOutlined /> 删除
+            </Tag>
+          );
+        return (
+          <Tag color="blue">
+            <EditOutlined /> 变更
+          </Tag>
+        );
       },
     },
     {
@@ -98,19 +112,15 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
   }, [diff, versionA, versionB]);
 
   return (
-    <Drawer
-      title="版本对比"
-      open={open}
-      onClose={onClose}
-      width={720}
-      destroyOnClose
-    >
+    <Drawer title="版本对比" open={open} onClose={onClose} width={720} destroyOnClose>
       {!versionA || !versionB ? (
         <Empty description="请选择两个版本进行对比" />
       ) : (
         <>
           {/* Version Headers */}
-          <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <Space
+            style={{ width: '100%', justifyContent: 'space-between', marginBottom: spacing.lg }}
+          >
             <Card size="small" style={{ flex: 1 }}>
               <Title level={5} style={{ margin: 0 }}>
                 版本 A: {versionA.version}
@@ -119,7 +129,9 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
                 {dayjs(versionA.createdAt).format('YYYY-MM-DD HH:mm:ss')}
               </Text>
             </Card>
-            <ArrowRightOutlined style={{ fontSize: 20, color: colors.neutral[500], margin: '0 12px' }} />
+            <ArrowRightOutlined
+              style={{ fontSize: 20, color: colors.neutral[500], margin: '0 12px' }}
+            />
             <Card size="small" style={{ flex: 1 }}>
               <Title level={5} style={{ margin: 0 }}>
                 版本 B: {versionB.version}
@@ -141,13 +153,17 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
             <Descriptions.Item label="Commit SHA">
               <Space>
                 {versionA.commitSha ? (
-                  <Text code style={{ fontSize: 11 }}>{versionA.commitSha.slice(0, 7)}</Text>
+                  <Text code style={{ fontSize: 11 }}>
+                    {versionA.commitSha.slice(0, 7)}
+                  </Text>
                 ) : (
                   <Text type="secondary">-</Text>
                 )}
                 <ArrowRightOutlined style={{ fontSize: 12, color: colors.neutral[500] }} />
                 {versionB.commitSha ? (
-                  <Text code style={{ fontSize: 11 }}>{versionB.commitSha.slice(0, 7)}</Text>
+                  <Text code style={{ fontSize: 11 }}>
+                    {versionB.commitSha.slice(0, 7)}
+                  </Text>
                 ) : (
                   <Text type="secondary">-</Text>
                 )}
@@ -244,9 +260,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
                 {diff.changes.metadataChanged.length > 0 && (
                   <Tag color="blue">~{diff.changes.metadataChanged.length} 变更</Tag>
                 )}
-                {metaDiffData.length === 0 && (
-                  <Tag color="default">无变更</Tag>
-                )}
+                {metaDiffData.length === 0 && <Tag color="default">无变更</Tag>}
               </Space>
             </>
           )}

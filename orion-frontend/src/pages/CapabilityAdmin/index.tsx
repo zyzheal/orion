@@ -328,7 +328,10 @@ export const CapabilityAdmin: React.FC = () => {
       dataIndex: 'expires_at',
       key: 'expires_at',
       render: (val: string) => (
-        <Tag icon={<ClockCircleOutlined />} color={new Date(val) < new Date() ? 'error' : 'processing'}>
+        <Tag
+          icon={<ClockCircleOutlined />}
+          color={new Date(val) < new Date() ? 'error' : 'processing'}
+        >
           {new Date(val).toLocaleString()}
         </Tag>
       ),
@@ -336,17 +339,18 @@ export const CapabilityAdmin: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: TemporaryPermission) => (
+      render: (_: unknown, record: TemporaryPermission) =>
         !record.revoked_at && (
           <Popconfirm
             title="确认撤销"
             description="确定要撤销此临时权限吗？"
             onConfirm={() => handleRevokeTempPerm(record.id)}
           >
-            <Button type="link" size="small" danger>撤销</Button>
+            <Button type="link" size="small" danger>
+              撤销
+            </Button>
           </Popconfirm>
-        )
-      ),
+        ),
     },
   ];
 
@@ -362,7 +366,14 @@ export const CapabilityAdmin: React.FC = () => {
       dataIndex: 'action',
       key: 'action',
       render: (val: string) => {
-        const colorMap: Record<string, string> = { granted: 'green', revoked: 'red', expired: 'orange', requested: 'blue', approved: 'cyan', rejected: 'magenta' };
+        const colorMap: Record<string, string> = {
+          granted: 'green',
+          revoked: 'red',
+          expired: 'orange',
+          requested: 'blue',
+          approved: 'cyan',
+          rejected: 'magenta',
+        };
         return <Tag color={colorMap[val] || 'default'}>{val}</Tag>;
       },
     },
@@ -390,7 +401,9 @@ export const CapabilityAdmin: React.FC = () => {
     {
       key: 'capabilities',
       label: (
-        <span><SafetyCertificateOutlined /> 能力管理</span>
+        <span>
+          <SafetyCertificateOutlined /> 能力管理
+        </span>
       ),
       children: (
         <Table
@@ -405,7 +418,9 @@ export const CapabilityAdmin: React.FC = () => {
     {
       key: 'temporary',
       label: (
-        <span><ClockCircleOutlined /> 临时权限</span>
+        <span>
+          <ClockCircleOutlined /> 临时权限
+        </span>
       ),
       children: (
         <Table
@@ -420,7 +435,9 @@ export const CapabilityAdmin: React.FC = () => {
     {
       key: 'audit',
       label: (
-        <span><AuditOutlined /> 审计日志</span>
+        <span>
+          <AuditOutlined /> 审计日志
+        </span>
       ),
       children: (
         <Table
@@ -449,18 +466,25 @@ export const CapabilityAdmin: React.FC = () => {
             <Button onClick={handleCleanup} icon={<ClockCircleOutlined />}>
               清理过期
             </Button>
-            <Button onClick={() => {
-              tempPermForm.resetFields();
-              tempPermForm.setFieldValue('expires_in_hours', 8);
-              setTempPermModalVisible(true);
-            }} icon={<PlusOutlined />}>
+            <Button
+              onClick={() => {
+                tempPermForm.resetFields();
+                tempPermForm.setFieldValue('expires_in_hours', 8);
+                setTempPermModalVisible(true);
+              }}
+              icon={<PlusOutlined />}
+            >
               授予临时权限
             </Button>
-            <Button type="primary" onClick={() => {
-              requestForm.resetFields();
-              requestForm.setFieldValue('duration_hours', 8);
-              setRequestModalVisible(true);
-            }} icon={<SendOutlined />}>
+            <Button
+              type="primary"
+              onClick={() => {
+                requestForm.resetFields();
+                requestForm.setFieldValue('duration_hours', 8);
+                setRequestModalVisible(true);
+              }}
+              icon={<SendOutlined />}
+            >
               申请权限
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
@@ -487,18 +511,11 @@ export const CapabilityAdmin: React.FC = () => {
             <Input placeholder="如: chatops.command.execute" disabled={modalType === 'edit'} />
           </Form.Item>
 
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-          >
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="如: 执行 ChatOps 命令" />
           </Form.Item>
 
-          <Form.Item
-            name="description"
-            label="描述"
-          >
+          <Form.Item name="description" label="描述">
             <TextArea rows={2} placeholder="能力的详细描述" />
           </Form.Item>
 
@@ -517,12 +534,9 @@ export const CapabilityAdmin: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="parent_capability_id"
-            label="父能力"
-          >
+          <Form.Item name="parent_capability_id" label="父能力">
             <Select placeholder="选择父能力（可选）" allowClear>
-              {capabilities.map(cap => (
+              {capabilities.map((cap) => (
                 <Select.Option key={cap.capability_id} value={cap.capability_id}>
                   {cap.name}
                 </Select.Option>
@@ -530,26 +544,15 @@ export const CapabilityAdmin: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="risk_level"
-            label="风险等级"
-            rules={[{ required: true }]}
-          >
+          <Form.Item name="risk_level" label="风险等级" rules={[{ required: true }]}>
             <InputNumber min={1} max={4} style={{ width: '100%' }} />
           </Form.Item>
 
-          <Form.Item
-            name="requires_approval"
-            label="是否需要审批"
-            valuePropName="checked"
-          >
+          <Form.Item name="requires_approval" label="是否需要审批" valuePropName="checked">
             <Switch />
           </Form.Item>
 
-          <Form.Item
-            name="approval_role"
-            label="审批角色"
-          >
+          <Form.Item name="approval_role" label="审批角色">
             <Input placeholder="审批所需的角色名称" />
           </Form.Item>
         </Form>
@@ -578,7 +581,7 @@ export const CapabilityAdmin: React.FC = () => {
             rules={[{ required: true, message: '请选择能力' }]}
           >
             <Select placeholder="选择能力" showSearch>
-              {capabilities.map(cap => (
+              {capabilities.map((cap) => (
                 <Select.Option key={cap.capability_id} value={cap.capability_id}>
                   {cap.name} ({cap.capability_id})
                 </Select.Option>
@@ -586,10 +589,7 @@ export const CapabilityAdmin: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="environment_suffix"
-            label="环境后缀"
-          >
+          <Form.Item name="environment_suffix" label="环境后缀">
             <Input placeholder="如: prod, staging" />
           </Form.Item>
 
@@ -601,10 +601,7 @@ export const CapabilityAdmin: React.FC = () => {
             <InputNumber min={1} max={720} style={{ width: '100%' }} />
           </Form.Item>
 
-          <Form.Item
-            name="reason"
-            label="原因"
-          >
+          <Form.Item name="reason" label="原因">
             <TextArea rows={2} placeholder="授予临时权限的原因" />
           </Form.Item>
         </Form>
@@ -625,7 +622,7 @@ export const CapabilityAdmin: React.FC = () => {
             rules={[{ required: true, message: '请选择能力' }]}
           >
             <Select placeholder="选择要申请的能力" showSearch>
-              {capabilities.map(cap => (
+              {capabilities.map((cap) => (
                 <Select.Option key={cap.capability_id} value={cap.capability_id}>
                   {cap.name} ({cap.capability_id})
                 </Select.Option>
@@ -633,10 +630,7 @@ export const CapabilityAdmin: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="environment_suffix"
-            label="环境"
-          >
+          <Form.Item name="environment_suffix" label="环境">
             <Input placeholder="如: prod, staging" />
           </Form.Item>
 

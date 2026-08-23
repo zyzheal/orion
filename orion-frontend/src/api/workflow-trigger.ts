@@ -109,7 +109,10 @@ export async function createTrigger(data: CreateWorkflowTriggerInput): Promise<W
 /**
  * 更新触发器
  */
-export async function updateTrigger(id: string, data: UpdateWorkflowTriggerInput): Promise<WorkflowTrigger> {
+export async function updateTrigger(
+  id: string,
+  data: UpdateWorkflowTriggerInput
+): Promise<WorkflowTrigger> {
   const response = await api.put(`/api/v1/workflow-triggers/${id}`, data);
   return (response.data as unknown as TriggerResponse).data;
 }

@@ -54,12 +54,12 @@ const { Title, Text } = Typography;
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 6;
-const FRAME_HEIGHT = 22;       // 每层帧高度
-const FRAME_GAP = 1;           // 帧间间隙
-const MIN_FRAME_WIDTH = 3;     // 最小帧宽度 (px)
-const MIN_LABEL_WIDTH = 30;    // 显示标签的最小宽度
-const HEADER_HEIGHT = 56;      // 顶部工具栏高度
-const LEGEND_HEIGHT = 44;      // 底部图例高度
+const FRAME_HEIGHT = 22; // 每层帧高度
+const FRAME_GAP = 1; // 帧间间隙
+const MIN_FRAME_WIDTH = 3; // 最小帧宽度 (px)
+const MIN_LABEL_WIDTH = 30; // 显示标签的最小宽度
+const HEADER_HEIGHT = 56; // 顶部工具栏高度
+const LEGEND_HEIGHT = 44; // 底部图例高度
 const DETAIL_PANEL_WIDTH = 360; // 右侧详情面板宽度
 
 // ---- 火焰图经典配色 (热度由浅到深) ----
@@ -73,13 +73,7 @@ const FLAME_COLORS: string[] = [
 ];
 
 // 文字颜色：浅色帧用深色文字，深色帧用白色文字
-const FLAME_TEXT_COLORS: string[] = [
-  '#1f1f1f',
-  '#1f1f1f',
-  '#ffffff',
-  '#ffffff',
-  '#ffffff',
-];
+const FLAME_TEXT_COLORS: string[] = ['#1f1f1f', '#1f1f1f', '#ffffff', '#ffffff', '#ffffff'];
 
 // ---- 工具函数 ----
 
@@ -98,8 +92,8 @@ const textColorByDepth = (depth: number): string => {
 interface RenderRow {
   frame: FlameGraphFrame;
   depth: number;
-  x: number;       // 在该行中的 x 偏移（相对行宽的比例 0~1）
-  w: number;       // 在该行中的宽度比例 0~1
+  x: number; // 在该行中的 x 偏移（相对行宽的比例 0~1）
+  w: number; // 在该行中的宽度比例 0~1
 }
 
 /**
@@ -111,19 +105,15 @@ const flattenFlameGraph = (
   frame: FlameGraphFrame,
   collapsed: Set<string>,
   depth: number = 0,
-  parentValue: number = 0,
+  parentValue: number = 0
 ): RenderRow[] => {
   const rows: RenderRow[] = [];
 
-  const processLayer = (
-    f: FlameGraphFrame,
-    d: number,
-    layerRows: RenderRow[],
-  ) => {
+  const processLayer = (f: FlameGraphFrame, d: number, layerRows: RenderRow[]) => {
     const total = parentValue > 0 ? parentValue : getTotalValue(f);
     let accum = 0;
 
-    const children = collapsed.has(f.name) ? [] : (f.children || []);
+    const children = collapsed.has(f.name) ? [] : f.children || [];
 
     if (children.length === 0 || total <= 0) {
       layerRows.push({ frame: f, depth: d, x: 0, w: 1 });
@@ -158,7 +148,10 @@ const getMaxDepth = (rows: RenderRow[]): number =>
   rows.length > 0 ? Math.max(...rows.map((r) => r.depth)) : 0;
 
 /** 计算类别统计 */
-const getCategoryStats = (frame: FlameGraphFrame, totalValue: number): Record<string, { value: number; pct: number }> => {
+const getCategoryStats = (
+  frame: FlameGraphFrame,
+  totalValue: number
+): Record<string, { value: number; pct: number }> => {
   const stats: Record<string, { value: number; pct: number }> = {};
   const collect = (f: FlameGraphFrame) => {
     if (f.children && f.children.length > 0) {
@@ -381,7 +374,10 @@ const DetailPanel: React.FC<{
         <Text type="secondary" style={{ fontSize: 12 }}>
           类型
         </Text>
-        <Tag color={isLeaf ? colors.success[500] : colors.info[500]} style={{ marginLeft: spacing.sm, fontSize: 11 }}>
+        <Tag
+          color={isLeaf ? colors.success[500] : colors.info[500]}
+          style={{ marginLeft: spacing.sm, fontSize: 11 }}
+        >
           {isLeaf ? '叶子节点' : '父节点'}
         </Tag>
       </div>
@@ -443,10 +439,7 @@ const DetailPanel: React.FC<{
           调用栈路径
         </Text>
         <div style={{ marginTop: spacing.xs }}>
-          <Text
-            code
-            style={{ fontSize: 10, wordBreak: 'break-all', color: colors.neutral[600] }}
-          >
+          <Text code style={{ fontSize: 10, wordBreak: 'break-all', color: colors.neutral[600] }}>
             {frame.name}
           </Text>
         </div>
@@ -522,7 +515,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
       const hasChildren = frame.children != null && frame.children.length > 0;
       return collapsed.has(frame.name) && hasChildren;
     },
-    [collapsed],
+    [collapsed]
   );
 
   // ---- 展平 ----
@@ -566,7 +559,10 @@ const PerformanceFlameGraphPage: React.FC = () => {
   }, [measureChart, activeType]);
 
   const svgWidth = chartWidth * zoom;
-  const svgHeight = Math.max(400, effectiveMaxDepth * (FRAME_HEIGHT + FRAME_GAP) + HEADER_HEIGHT + LEGEND_HEIGHT);
+  const svgHeight = Math.max(
+    400,
+    effectiveMaxDepth * (FRAME_HEIGHT + FRAME_GAP) + HEADER_HEIGHT + LEGEND_HEIGHT
+  );
 
   // ---- 缩放 ----
 
@@ -577,14 +573,11 @@ const PerformanceFlameGraphPage: React.FC = () => {
     setCollapsed(new Set());
   };
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
-    },
-    [],
-  );
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
+  }, []);
 
   // ---- 鼠标交互 ----
 
@@ -611,7 +604,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
       setSelectedFrame(frame);
       setSelectedDepth(depth);
     },
-    [flatRows],
+    [flatRows]
   );
 
   const handleTabChange = useCallback((key: string) => {
@@ -635,7 +628,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
       Object.entries(categoryStats)
         .sort((a, b) => b[1].value - a[1].value)
         .slice(0, 8),
-    [categoryStats],
+    [categoryStats]
   );
 
   // ---- Tab 配置 ----
@@ -654,9 +647,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
         {t.key === 'memory' && <ThunderboltOutlined />}
         {t.key === 'io' && <SwapOutlined />}
         <span>{t.label}</span>
-        <Tag style={{ fontSize: 10, padding: '0 4px' }}>
-          {formatValue(t.count)}
-        </Tag>
+        <Tag style={{ fontSize: 10, padding: '0 4px' }}>{formatValue(t.count)}</Tag>
       </span>
     ),
   }));
@@ -671,7 +662,15 @@ const PerformanceFlameGraphPage: React.FC = () => {
           性能火焰图
         </Title>
         <Text type="secondary">{description}</Text>
-        <Card style={{ marginTop: spacing.md, height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Card
+          style={{
+            marginTop: spacing.md,
+            height: 400,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <Empty description={<Text type="secondary">加载火焰图数据中...</Text>} />
         </Card>
       </div>
@@ -687,7 +686,9 @@ const PerformanceFlameGraphPage: React.FC = () => {
         </Title>
         <Card>
           <Empty description={<Text type="secondary">{error}</Text>}>
-            <Button type="primary" onClick={() => loadProfile(activeType)}>重试</Button>
+            <Button type="primary" onClick={() => loadProfile(activeType)}>
+              重试
+            </Button>
           </Empty>
         </Card>
       </div>
@@ -706,7 +707,14 @@ const PerformanceFlameGraphPage: React.FC = () => {
       </div>
 
       {/* Tab + 工具栏 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.sm,
+        }}
+      >
         <Tabs
           activeKey={activeType}
           onChange={handleTabChange}
@@ -720,7 +728,9 @@ const PerformanceFlameGraphPage: React.FC = () => {
           <Tooltip title="缩小">
             <Button size="small" icon={<ZoomOutOutlined />} onClick={handleZoomOut} />
           </Tooltip>
-          <Text style={{ fontSize: 11, color: colors.neutral[500], width: 48, textAlign: 'center' }}>
+          <Text
+            style={{ fontSize: 11, color: colors.neutral[500], width: 48, textAlign: 'center' }}
+          >
             {Math.round(zoom * 100)}%
           </Text>
           <Tooltip title="放大">
@@ -757,9 +767,7 @@ const PerformanceFlameGraphPage: React.FC = () => {
               fontSize: 12,
             }}
           >
-            <Text strong>
-              {FLAME_GRAPH_LABELS[activeType]} Flame Graph
-            </Text>
+            <Text strong>{FLAME_GRAPH_LABELS[activeType]} Flame Graph</Text>
             {currentProfile && (
               <>
                 <Text type="secondary" style={{ marginLeft: spacing.md }}>
@@ -808,18 +816,19 @@ const PerformanceFlameGraphPage: React.FC = () => {
                   ))}
                 </defs>
                 {flatRows.map((row, i) => {
-                  const underCollapsed = i > 0
-                    ? (() => {
-                        // 查找上一个深度更小的行作为父节点
-                        for (let j = i - 1; j >= 0; j--) {
-                          if (flatRows[j].depth < row.depth) {
-                            return isNodeCollapsed(flatRows[j].frame);
+                  const underCollapsed =
+                    i > 0
+                      ? (() => {
+                          // 查找上一个深度更小的行作为父节点
+                          for (let j = i - 1; j >= 0; j--) {
+                            if (flatRows[j].depth < row.depth) {
+                              return isNodeCollapsed(flatRows[j].frame);
+                            }
+                            if (flatRows[j].depth === row.depth) break;
                           }
-                          if (flatRows[j].depth === row.depth) break;
-                        }
-                        return false;
-                      })()
-                    : false;
+                          return false;
+                        })()
+                      : false;
 
                   return (
                     <FlameFrame
@@ -868,7 +877,9 @@ const PerformanceFlameGraphPage: React.FC = () => {
                 gap: spacing.xs,
               }}
             >
-              <Text strong style={{ marginRight: spacing.sm }}>图例:</Text>
+              <Text strong style={{ marginRight: spacing.sm }}>
+                图例:
+              </Text>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <span
                   style={{
@@ -907,11 +918,26 @@ const PerformanceFlameGraphPage: React.FC = () => {
                 />
                 <Text type="secondary">折叠子栈</Text>
               </span>
-              <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  display: 'inline-flex',
+                  gap: spacing.sm,
+                  flexWrap: 'wrap',
+                }}
+              >
                 {sortedCategories.map(([cat, stat]) => (
                   <Tag
                     key={cat}
-                    color={cat === 'runtime' ? 'blue' : cat === 'network' ? 'green' : cat === 'database' ? 'orange' : 'default'}
+                    color={
+                      cat === 'runtime'
+                        ? 'blue'
+                        : cat === 'network'
+                          ? 'green'
+                          : cat === 'database'
+                            ? 'orange'
+                            : 'default'
+                    }
                     style={{ fontSize: 10, padding: '0 6px' }}
                   >
                     {cat} {formatValue(stat.value)} ({stat.pct.toFixed(1)}%)
@@ -961,19 +987,47 @@ const PerformanceFlameGraphPage: React.FC = () => {
                 函数详情 / 调用栈 / 占比分析
               </Text>
               {currentProfile && (
-                <div style={{ width: '100%', marginTop: spacing.md, borderTop: `1px solid ${themeVars.borderLight}`, paddingTop: spacing.sm }}>
+                <div
+                  style={{
+                    width: '100%',
+                    marginTop: spacing.md,
+                    borderTop: `1px solid ${themeVars.borderLight}`,
+                    paddingTop: spacing.sm,
+                  }}
+                >
                   <Text strong style={{ fontSize: 12, display: 'block', marginBottom: spacing.xs }}>
                     全局统计
                   </Text>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 11,
+                      marginBottom: 4,
+                    }}
+                  >
                     <Text type="secondary">{unit} 总计</Text>
                     <Text strong>{formatValue(currentProfile.totalValue)}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 11,
+                      marginBottom: 4,
+                    }}
+                  >
                     <Text type="secondary">最大深度</Text>
                     <Text strong>{maxDepth}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 11,
+                      marginBottom: 4,
+                    }}
+                  >
                     <Text type="secondary">总层数</Text>
                     <Text strong>{flatRows.length}</Text>
                   </div>
@@ -992,21 +1046,27 @@ const PerformanceFlameGraphPage: React.FC = () => {
               cat === 'runtime'
                 ? colors.primary[500]
                 : cat === 'network'
-                ? colors.info[500]
-                : cat === 'database'
-                ? colors.warning[500]
-                : cat === 'security'
-                ? colors.error[500]
-                : cat === 'io'
-                ? colors.purple[500]
-                : colors.neutral[600];
+                  ? colors.info[500]
+                  : cat === 'database'
+                    ? colors.warning[500]
+                    : cat === 'security'
+                      ? colors.error[500]
+                      : cat === 'io'
+                        ? colors.purple[500]
+                        : colors.neutral[600];
             return (
               <Card
                 size="small"
                 key={cat}
-                style={{ minWidth: 120, boxShadow: shadows.sm, borderLeft: `3px solid ${catColor}` }}
+                style={{
+                  minWidth: 120,
+                  boxShadow: shadows.sm,
+                  borderLeft: `3px solid ${catColor}`,
+                }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <Text style={{ fontSize: 12, color: catColor, fontWeight: 500 }}>{cat}</Text>
                   <Text strong>{formatValue(stat.value)}</Text>
                 </div>

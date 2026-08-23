@@ -10,13 +10,22 @@
  *   - 连线 hover/selected 状态
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Empty, Space, Tag, Typography, message, Drawer, Form, Modal, Select, Table, Input, Divider } from 'antd';
 import {
-  PlayCircleOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
+  Button,
+  Empty,
+  Space,
+  Tag,
+  Typography,
+  message,
+  Drawer,
+  Form,
+  Modal,
+  Select,
+  Table,
+  Input,
+  Divider,
+} from 'antd';
+import { PlayCircleOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import ReactFlow, {
   type Node,
   type Edge,
@@ -82,10 +91,16 @@ function CustomNode({ data }: CustomNodeProps) {
       style={{
         minWidth: 200,
         maxWidth: 280,
-        background: isSelected ? colors.primary[50] : isHovered ? colors.neutral[50] : colors.neutral[0],
+        background: isSelected
+          ? colors.primary[50]
+          : isHovered
+            ? colors.neutral[50]
+            : colors.neutral[0],
         borderRadius: 12,
         padding: '12px 16px',
-        border: isSelected ? `2px solid ${colors.primary[500]}` : `1px solid ${colors.neutral[200]}`,
+        border: isSelected
+          ? `2px solid ${colors.primary[500]}`
+          : `1px solid ${colors.neutral[200]}`,
         boxShadow: isHovered
           ? '0 3px 8px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06)'
           : '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
@@ -279,42 +294,43 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
   }, [workflowId]);
 
   // ===== 从 WorkflowNode 计算节点预览信息 =====
-  const getNodeConfigPreview = useCallback(
-    (node: WorkflowNode): string => {
-      const c = node.config || {};
-      switch (node.type) {
-        case 'approval': {
-          const approvers = c.approvers;
-          const mode = c.mode;
-          return [
-            approvers ? `审批人：${typeof approvers === 'string' ? approvers : String(approvers)}` : '',
+  const getNodeConfigPreview = useCallback((node: WorkflowNode): string => {
+    const c = node.config || {};
+    switch (node.type) {
+      case 'approval': {
+        const approvers = c.approvers;
+        const mode = c.mode;
+        return (
+          [
+            approvers
+              ? `审批人：${typeof approvers === 'string' ? approvers : String(approvers)}`
+              : '',
             mode ? `模式：${mode}` : '',
           ]
             .filter(Boolean)
-            .join(' · ') || '未配置';
-        }
-        case 'notification':
-          return c.channel ? `渠道：${c.channel}` : '未配置';
-        case 'webhook':
-          return `${c.method || ''} ${c.url || ''}`.trim() || '未配置';
-        case 'condition':
-          return c.expression
-            ? `表达式：${String(c.expression).slice(0, 30)}${String(c.expression).length > 30 ? '...' : ''}`
-            : '未配置';
-        case 'task':
-          return c.title ? `${c.title} · ${c.assignee || '未分配'}` : '未配置';
-        case 'delay':
-          return c.duration ? `延迟 ${c.duration} 秒` : '未配置';
-        case 'timer':
-          return c.cron ? `Cron：${c.cron}` : '未配置';
-        case 'sub-workflow':
-          return c.subWorkflowId ? `子流程：${c.subWorkflowId}` : '未配置';
-        default:
-          return Object.keys(c).length > 0 ? '已配置' : '';
+            .join(' · ') || '未配置'
+        );
       }
-    },
-    [],
-  );
+      case 'notification':
+        return c.channel ? `渠道：${c.channel}` : '未配置';
+      case 'webhook':
+        return `${c.method || ''} ${c.url || ''}`.trim() || '未配置';
+      case 'condition':
+        return c.expression
+          ? `表达式：${String(c.expression).slice(0, 30)}${String(c.expression).length > 30 ? '...' : ''}`
+          : '未配置';
+      case 'task':
+        return c.title ? `${c.title} · ${c.assignee || '未分配'}` : '未配置';
+      case 'delay':
+        return c.duration ? `延迟 ${c.duration} 秒` : '未配置';
+      case 'timer':
+        return c.cron ? `Cron：${c.cron}` : '未配置';
+      case 'sub-workflow':
+        return c.subWorkflowId ? `子流程：${c.subWorkflowId}` : '未配置';
+      default:
+        return Object.keys(c).length > 0 ? '已配置' : '';
+    }
+  }, []);
 
   const isNodeConfigured = useCallback((node: WorkflowNode): boolean => {
     if (!node.config || Object.keys(node.config).length === 0) return false;
@@ -344,7 +360,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         };
       });
     },
-    [workflow, _hoveredNodeId, selectedNode, getNodeConfigPreview, isNodeConfigured],
+    [workflow, _hoveredNodeId, selectedNode, getNodeConfigPreview, isNodeConfigured]
   );
 
   const [displayNodes, setDisplayNodes] = useState<Node[]>([]);
@@ -377,14 +393,14 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         wfNode.position = { x: node.position.x, y: node.position.y };
       }
     },
-    [workflow],
+    [workflow]
   );
 
   const onNodesChangeHandler: OnNodesChange = useCallback(
     (changes) => {
       onNodesChange(changes);
     },
-    [onNodesChange],
+    [onNodesChange]
   );
 
   // ===== 连线事件 =====
@@ -392,7 +408,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
     (changes) => {
       onEdgesChange(changes);
     },
-    [onEdgesChange],
+    [onEdgesChange]
   );
 
   const onConnect: OnConnect = useCallback(
@@ -415,13 +431,13 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           id: edgeId,
           source: connection.source!,
           target: connection.target!,
-          };
+        };
         if (!workflow.edges) workflow.edges = [];
         workflow.edges.push(newWfEdge);
       }
       message.success('连线已创建');
     },
-    [workflow, setRfEdges],
+    [workflow, setRfEdges]
   );
 
   // ===== 选中的变更（处理多选） =====
@@ -442,7 +458,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         }
       }
     },
-    [workflow],
+    [workflow]
   );
 
   // ===== 执行 =====
@@ -522,14 +538,14 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         // 移除节点和关联边
         setRfNodes((nodes) => nodes.filter((n) => n.id !== selectedNode.id));
         setRfEdges((edges) =>
-          edges.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id),
+          edges.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)
         );
         if (workflow.nodes) {
           workflow.nodes = workflow.nodes.filter((n) => n.id !== selectedNode.id);
         }
         if (workflow.edges) {
           workflow.edges = workflow.edges.filter(
-            (e) => e.source !== selectedNode.id && e.target !== selectedNode.id,
+            (e) => e.source !== selectedNode.id && e.target !== selectedNode.id
           );
         }
         message.success(`节点 "${selectedNode.name}" 已删除`);
@@ -572,7 +588,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
             };
           }
           return n;
-        }),
+        })
       );
 
       message.success('节点已保存');
@@ -607,8 +623,10 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         workflow.edges![idx] = updatedEdge;
         setRfEdges((edges) =>
           edges.map((e) =>
-            e.id === updatedEdge.id ? ({ ...e, data: { condition: updatedEdge.condition || '' } } as Edge) : e,
-          ),
+            e.id === updatedEdge.id
+              ? ({ ...e, data: { condition: updatedEdge.condition || '' } } as Edge)
+              : e
+          )
         );
       }
       message.success('连线已更新');
@@ -686,7 +704,11 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
     }
     setInputMappings((prev) => [
       ...prev,
-      { sourceNode: newMappingSourceNode, sourceVar: newMappingSourceVar, localVar: newMappingLocalVar },
+      {
+        sourceNode: newMappingSourceNode,
+        sourceVar: newMappingSourceVar,
+        localVar: newMappingLocalVar,
+      },
     ]);
     setNewMappingSourceNode('');
     setNewMappingSourceVar('');
@@ -714,130 +736,171 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
   // ===== 获取上游节点列表 =====
   const getUpstreamNodes = useCallback((): { id: string; name: string }[] => {
     if (!workflow || !selectedNode) return [];
-    return workflow.edges
-      ?.filter((e) => e.target === selectedNode.id)
-      .map((e) => {
-        const src = workflow.nodes?.find((n) => n.id === e.source);
-        return src ? { id: src.id, name: src.name } : { id: e.source, name: e.source };
-      }) || [];
+    return (
+      workflow.edges
+        ?.filter((e) => e.target === selectedNode.id)
+        .map((e) => {
+          const src = workflow.nodes?.find((n) => n.id === e.source);
+          return src ? { id: src.id, name: src.name } : { id: e.source, name: e.source };
+        }) || []
+    );
   }, [workflow, selectedNode]);
 
   // ===== 渲染节点配置表单 =====
-  const renderNodeForm = useCallback(
-    (node: WorkflowNode, _editable: boolean) => {
-      if (!node) return null;
+  const renderNodeForm = useCallback((node: WorkflowNode, _editable: boolean) => {
+    if (!node) return null;
 
-      switch (node.type) {
-        case 'start':
-          return <Form.Item label="描述" name="description"><Input.TextArea rows={2} /></Form.Item>;
+    switch (node.type) {
+      case 'start':
+        return (
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        );
 
-        case 'end':
-          return <Form.Item label="描述" name="description"><Input.TextArea rows={2} /></Form.Item>;
+      case 'end':
+        return (
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        );
 
-        case 'approval':
-          return (
-            <>
-              <Form.Item label="审批人" name="approvers">
-                <Select mode="tags" placeholder="选择或输入审批人" />
-              </Form.Item>
-              <Form.Item label="审批模式" name="mode">
-                <Select options={[{ label: '一人通过', value: 'one' }, { label: '多数通过', value: 'majority' }, { label: '全员通过', value: 'all' }]} />
-              </Form.Item>
-              <Form.Item label="超时时间(秒)" name="timeout"><Input type="number" /></Form.Item>
-            </>
-          );
+      case 'approval':
+        return (
+          <>
+            <Form.Item label="审批人" name="approvers">
+              <Select mode="tags" placeholder="选择或输入审批人" />
+            </Form.Item>
+            <Form.Item label="审批模式" name="mode">
+              <Select
+                options={[
+                  { label: '一人通过', value: 'one' },
+                  { label: '多数通过', value: 'majority' },
+                  { label: '全员通过', value: 'all' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="超时时间(秒)" name="timeout">
+              <Input type="number" />
+            </Form.Item>
+          </>
+        );
 
-        case 'notification':
-          return (
-            <>
-              <Form.Item label="通知渠道" name="channel">
-                <Select options={[
+      case 'notification':
+        return (
+          <>
+            <Form.Item label="通知渠道" name="channel">
+              <Select
+                options={[
                   { label: '邮件', value: 'email' },
                   { label: '短信', value: 'sms' },
                   { label: '钉钉', value: 'dingtalk' },
                   { label: '飞书', value: 'feishu' },
                   { label: 'Webhook', value: 'webhook' },
-                ]} />
-              </Form.Item>
-              <Form.Item label="接收人" name="recipients">
-                <Input placeholder="多个收件人以逗号分隔" />
-              </Form.Item>
-              <Form.Item label="标题" name="title"><Input /></Form.Item>
-              <Form.Item label="内容模板" name="template"><Input.TextArea rows={3} /></Form.Item>
-            </>
-          );
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="接收人" name="recipients">
+              <Input placeholder="多个收件人以逗号分隔" />
+            </Form.Item>
+            <Form.Item label="标题" name="title">
+              <Input />
+            </Form.Item>
+            <Form.Item label="内容模板" name="template">
+              <Input.TextArea rows={3} />
+            </Form.Item>
+          </>
+        );
 
-        case 'webhook':
-          return (
-            <>
-              <Form.Item label="URL" name="url"><Input placeholder="https://..." /></Form.Item>
-              <Form.Item label="方法" name="method">
-                <Select options={[
+      case 'webhook':
+        return (
+          <>
+            <Form.Item label="URL" name="url">
+              <Input placeholder="https://..." />
+            </Form.Item>
+            <Form.Item label="方法" name="method">
+              <Select
+                options={[
                   { label: 'GET', value: 'GET' },
                   { label: 'POST', value: 'POST' },
                   { label: 'PUT', value: 'PUT' },
                   { label: 'DELETE', value: 'DELETE' },
-                ]} />
-              </Form.Item>
-              <Form.Item label="请求体" name="body"><Input.TextArea rows={3} /></Form.Item>
-            </>
-          );
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="请求体" name="body">
+              <Input.TextArea rows={3} />
+            </Form.Item>
+          </>
+        );
 
-        case 'condition':
-          return (
-            <>
-              <Form.Item label="条件表达式" name="expression">
-                <Input placeholder="${var} === 'value'" />
-              </Form.Item>
-              <Form.Item label="说明" name="description"><Input /></Form.Item>
-            </>
-          );
+      case 'condition':
+        return (
+          <>
+            <Form.Item label="条件表达式" name="expression">
+              <Input placeholder="${var} === 'value'" />
+            </Form.Item>
+            <Form.Item label="说明" name="description">
+              <Input />
+            </Form.Item>
+          </>
+        );
 
-        case 'task':
-          return (
-            <>
-              <Form.Item label="任务标题" name="title"><Input /></Form.Item>
-              <Form.Item label="负责人" name="assignee"><Input /></Form.Item>
-              <Form.Item label="超时时间(分钟)" name="timeout"><Input type="number" /></Form.Item>
-            </>
-          );
-
-        case 'delay':
-          return (
-            <Form.Item label="延迟时长(秒)" name="duration"
-              rules={[{ required: true, message: '请输入延迟时长' },
-                { validator: (_, val) => Promise.resolve(val > 0 ? undefined : Promise.reject(new Error('必须为正整数'))) }
-              ]}
-            >
+      case 'task':
+        return (
+          <>
+            <Form.Item label="任务标题" name="title">
+              <Input />
+            </Form.Item>
+            <Form.Item label="负责人" name="assignee">
+              <Input />
+            </Form.Item>
+            <Form.Item label="超时时间(分钟)" name="timeout">
               <Input type="number" />
             </Form.Item>
-          );
+          </>
+        );
 
-        case 'timer':
-          return (
-            <>
-              <Form.Item label="Cron 表达式" name="cron">
-                <Input placeholder="0 12 * * *" />
-              </Form.Item>
-              <Form.Item label="时区" name="timezone">
-                <Input placeholder="Asia/Shanghai" />
-              </Form.Item>
-            </>
-          );
+      case 'delay':
+        return (
+          <Form.Item
+            label="延迟时长(秒)"
+            name="duration"
+            rules={[
+              { required: true, message: '请输入延迟时长' },
+              {
+                validator: (_, val) =>
+                  Promise.resolve(val > 0 ? undefined : Promise.reject(new Error('必须为正整数'))),
+              },
+            ]}
+          >
+            <Input type="number" />
+          </Form.Item>
+        );
 
-        case 'sub-workflow':
-          return (
-            <Form.Item label="子流程 ID" name="subWorkflowId">
-              <Input placeholder="选择或输入子流程 ID" />
+      case 'timer':
+        return (
+          <>
+            <Form.Item label="Cron 表达式" name="cron">
+              <Input placeholder="0 12 * * *" />
             </Form.Item>
-          );
+            <Form.Item label="时区" name="timezone">
+              <Input placeholder="Asia/Shanghai" />
+            </Form.Item>
+          </>
+        );
 
-        default:
-          return null;
-      }
-    },
-    [],
-  );
+      case 'sub-workflow':
+        return (
+          <Form.Item label="子流程 ID" name="subWorkflowId">
+            <Input placeholder="选择或输入子流程 ID" />
+          </Form.Item>
+        );
+
+      default:
+        return null;
+    }
+  }, []);
 
   // ===== 错误处理配置 =====
   const renderErrorHandlingForm = useCallback(
@@ -846,22 +909,48 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
       return (
         <>
           <Form.Item label="失败策略" name={['errorHandling', 'onFailure']}>
-            <Select options={[
-              { label: '跳过', value: 'skip' },
-              { label: '重试', value: 'retry' },
-              { label: '终止', value: 'abort' },
-            ]} />
+            <Select
+              options={[
+                { label: '跳过', value: 'skip' },
+                { label: '重试', value: 'retry' },
+                { label: '终止', value: 'abort' },
+              ]}
+            />
           </Form.Item>
           {errorHandlingOnFailure === 'retry' && (
-            <Form.Item label="重试次数" name={['errorHandling', 'retryCount']}
-              rules={[{ validator: (_, val) => Promise.resolve(val >= 1 && val <= 3 ? undefined : Promise.reject(new Error('1-3 次'))) }]}
+            <Form.Item
+              label="重试次数"
+              name={['errorHandling', 'retryCount']}
+              rules={[
+                {
+                  validator: (_, val) =>
+                    Promise.resolve(
+                      val >= 1 && val <= 3 ? undefined : Promise.reject(new Error('1-3 次'))
+                    ),
+                },
+              ]}
             >
-              <Select options={[{ label: '1 次', value: 1 }, { label: '2 次', value: 2 }, { label: '3 次', value: 3 }]} />
+              <Select
+                options={[
+                  { label: '1 次', value: 1 },
+                  { label: '2 次', value: 2 },
+                  { label: '3 次', value: 3 },
+                ]}
+              />
             </Form.Item>
           )}
           {errorHandlingOnFailure === 'retry' && (
-            <Form.Item label="重试间隔(秒)" name={['errorHandling', 'retryInterval']}
-              rules={[{ validator: (_, val) => Promise.resolve(val > 0 ? undefined : Promise.reject(new Error('必须为正整数'))) }]}
+            <Form.Item
+              label="重试间隔(秒)"
+              name={['errorHandling', 'retryInterval']}
+              rules={[
+                {
+                  validator: (_, val) =>
+                    Promise.resolve(
+                      val > 0 ? undefined : Promise.reject(new Error('必须为正整数'))
+                    ),
+                },
+              ]}
             >
               <Input type="number" />
             </Form.Item>
@@ -869,7 +958,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         </>
       );
     },
-    [errorHandlingOnFailure],
+    [errorHandlingOnFailure]
   );
 
   // ===== 输入变量映射面板 =====
@@ -885,15 +974,29 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           dataSource={inputMappings}
           pagination={false}
           columns={[
-            { title: '源节点', dataIndex: 'sourceNode', render: (nodeId: string) => {
-              const node = upstream.find((n) => n.id === nodeId);
-              return node ? `${node.name} (${nodeId})` : nodeId;
-            }},
+            {
+              title: '源节点',
+              dataIndex: 'sourceNode',
+              render: (nodeId: string) => {
+                const node = upstream.find((n) => n.id === nodeId);
+                return node ? `${node.name} (${nodeId})` : nodeId;
+              },
+            },
             { title: '源变量', dataIndex: 'sourceVar' },
             { title: '本地变量', dataIndex: 'localVar' },
-            { title: '操作', render: (_, __, index) => (
-              <Button type="link" danger size="small" onClick={() => handleRemoveInputMapping(index)}>删除</Button>
-            )},
+            {
+              title: '操作',
+              render: (_, __, index) => (
+                <Button
+                  type="link"
+                  danger
+                  size="small"
+                  onClick={() => handleRemoveInputMapping(index)}
+                >
+                  删除
+                </Button>
+              ),
+            },
           ]}
         />
         <Form.Item>
@@ -905,9 +1008,21 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
               style={{ width: 150 }}
               options={upstream.map((n) => ({ label: n.name, value: n.id }))}
             />
-            <Input value={newMappingSourceVar} onChange={(e) => setNewMappingSourceVar(e.target.value)} placeholder="源变量" style={{ width: 120 }} />
-            <Input value={newMappingLocalVar} onChange={(e) => setNewMappingLocalVar(e.target.value)} placeholder="本地变量" style={{ width: 120 }} />
-            <Button icon={<PlusOutlined />} onClick={handleAddInputMapping}>添加</Button>
+            <Input
+              value={newMappingSourceVar}
+              onChange={(e) => setNewMappingSourceVar(e.target.value)}
+              placeholder="源变量"
+              style={{ width: 120 }}
+            />
+            <Input
+              value={newMappingLocalVar}
+              onChange={(e) => setNewMappingLocalVar(e.target.value)}
+              placeholder="本地变量"
+              style={{ width: 120 }}
+            />
+            <Button icon={<PlusOutlined />} onClick={handleAddInputMapping}>
+              添加
+            </Button>
           </div>
         </Form.Item>
       </div>
@@ -926,16 +1041,38 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           columns={[
             { title: '变量名', dataIndex: 'name' },
             { title: '描述', dataIndex: 'description' },
-            { title: '操作', render: (_, __, index) => (
-              <Button type="link" danger size="small" onClick={() => handleRemoveOutputVariable(index)}>删除</Button>
-            )},
+            {
+              title: '操作',
+              render: (_, __, index) => (
+                <Button
+                  type="link"
+                  danger
+                  size="small"
+                  onClick={() => handleRemoveOutputVariable(index)}
+                >
+                  删除
+                </Button>
+              ),
+            },
           ]}
         />
         <Form.Item>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <Input value={newOutputName} onChange={(e) => setNewOutputName(e.target.value)} placeholder="变量名" style={{ width: 150 }} />
-            <Input value={newOutputDesc} onChange={(e) => setNewOutputDesc(e.target.value)} placeholder="描述" style={{ width: 150 }} />
-            <Button icon={<PlusOutlined />} onClick={handleAddOutputVariable}>添加</Button>
+            <Input
+              value={newOutputName}
+              onChange={(e) => setNewOutputName(e.target.value)}
+              placeholder="变量名"
+              style={{ width: 150 }}
+            />
+            <Input
+              value={newOutputDesc}
+              onChange={(e) => setNewOutputDesc(e.target.value)}
+              placeholder="描述"
+              style={{ width: 150 }}
+            />
+            <Button icon={<PlusOutlined />} onClick={handleAddOutputVariable}>
+              添加
+            </Button>
           </div>
         </Form.Item>
       </div>
@@ -945,7 +1082,9 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
   // ===== 无工作流 =====
   if (loading) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
         <Empty description="加载中..." />
       </div>
     );
@@ -953,7 +1092,9 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
   if (!workflow) {
     return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
         <Empty description="请先从左侧选择一个工作流" />
       </div>
     );
@@ -1022,12 +1163,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           )}
         </Space>
         <Space>
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={handleOpenAddEdge}
-            title="添加连线"
-          >
+          <Button size="small" icon={<PlusOutlined />} onClick={handleOpenAddEdge} title="添加连线">
             添加连线
           </Button>
           <Button
@@ -1059,11 +1195,10 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
           onNodesChange={onNodesChangeHandler}
           onEdgesChange={onEdgesChangeHandler}
           onConnect={onConnect}
-          // @ts-ignore — reactflow types don't export NodeDragHandler
+          // @ts-expect-error — reactflow types don't export NodeDragHandler
           onNodeDragStop={handleNodeDragStop}
-          // @ts-ignore — reactflow types don't export SelectionChange
           onSelectionChange={onSelectionChange}
-          // @ts-ignore — edge type union mismatch between Edge<Edge> and base Edge
+          // @ts-expect-error — edge type union mismatch between Edge<Edge> and base Edge
           onEdgeClick={handleRfEdgeClick}
           nodeTypes={customNodeTypes}
           defaultEdgeOptions={{
@@ -1125,7 +1260,13 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                   编辑
                 </Button>
               )}
-              <Button danger type="link" icon={<DeleteOutlined />} onClick={handleDeleteNode} size="small">
+              <Button
+                danger
+                type="link"
+                icon={<DeleteOutlined />}
+                onClick={handleDeleteNode}
+                size="small"
+              >
                 删除
               </Button>
             </Space>
@@ -1150,7 +1291,11 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
 
             <Form form={editForm}>
               {editMode && (
-                <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入节点名称' }]}>
+                <Form.Item
+                  label="名称"
+                  name="name"
+                  rules={[{ required: true, message: '请输入节点名称' }]}
+                >
                   <Input />
                 </Form.Item>
               )}
@@ -1162,9 +1307,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
                   {renderErrorHandlingForm(true)}
                 </>
               ) : (
-                <>
-                  {renderNodeForm(selectedNode, false)}
-                </>
+                <>{renderNodeForm(selectedNode, false)}</>
               )}
 
               {editMode && (

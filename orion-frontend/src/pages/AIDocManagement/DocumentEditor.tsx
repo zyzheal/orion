@@ -189,7 +189,15 @@ const DocumentEditor: React.FC = () => {
               <Space>
                 <Text strong>{doc.title}</Text>
                 <Tag>v{doc.version}</Tag>
-                <StatusBadge status={doc.status === 'archived' ? 'cancelled' : doc.status === 'published' ? 'success' : 'pending'} />
+                <StatusBadge
+                  status={
+                    doc.status === 'archived'
+                      ? 'cancelled'
+                      : doc.status === 'published'
+                        ? 'success'
+                        : 'pending'
+                  }
+                />
               </Space>
             </Card>
           ))}
@@ -255,7 +263,12 @@ const DocumentEditor: React.FC = () => {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={24}
-              style={{ border: 'none', padding: spacing.md, resize: 'none', fontFamily: 'monospace' }}
+              style={{
+                border: 'none',
+                padding: spacing.md,
+                resize: 'none',
+                fontFamily: 'monospace',
+              }}
               placeholder="输入 Markdown 内容..."
             />
           </Card>

@@ -8,16 +8,28 @@ import { ChartProvider } from '@/components/charts';
 import FinOpsDashboard from '@/pages/FinOpsDashboard';
 
 vi.mock('@orion-mf/core', () => ({
-  EventBus: class { on = vi.fn(); off = vi.fn(); emit = vi.fn(); },
+  EventBus: class {
+    on = vi.fn();
+    off = vi.fn();
+    emit = vi.fn();
+  },
   eventBus: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
-  loadSubApp: vi.fn(), getSubApp: vi.fn(), getPreloadStrategy: vi.fn(),
+  loadSubApp: vi.fn(),
+  getSubApp: vi.fn(),
+  getPreloadStrategy: vi.fn(),
 }));
 
 vi.mock('@/api/finops', async () => {
   const actual = await vi.importActual<typeof import('@/api/finops')>('@/api/finops');
   return {
     ...actual,
-    getCostSummary: vi.fn().mockResolvedValue({ totalMonthly: 15000, budgetLimit: 20000, previousMonth: 14000, waste: 2000, savings: 3000 }),
+    getCostSummary: vi.fn().mockResolvedValue({
+      totalMonthly: 15000,
+      budgetLimit: 20000,
+      previousMonth: 14000,
+      waste: 2000,
+      savings: 3000,
+    }),
     getCostByService: vi.fn().mockResolvedValue([
       { key: '1', service: 'api-gateway', cost: 5000, percent: 33, trend: 'up' as const },
       { key: '2', service: 'platform', cost: 6000, percent: 40, trend: 'stable' as const },
@@ -45,10 +57,16 @@ vi.mock('antd', async () => {
 });
 
 const renderWithProviders = (ui: React.ReactElement) =>
-  render(<BrowserRouter><ChartProvider>{ui}</ChartProvider></BrowserRouter>);
+  render(
+    <BrowserRouter>
+      <ChartProvider>{ui}</ChartProvider>
+    </BrowserRouter>
+  );
 
 describe('FinOpsDashboard', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders cost analysis title', async () => {
     renderWithProviders(<FinOpsDashboard />);

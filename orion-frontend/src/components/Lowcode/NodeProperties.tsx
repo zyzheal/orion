@@ -15,10 +15,7 @@ import {
   Tag,
   Button,
 } from 'antd';
-import {
-  SettingOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons';
+import { SettingOutlined, DeleteOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens';
 import { componentRadius } from '@/tokens/radius';
 import { shadows } from '@/tokens/shadows';
@@ -163,7 +160,7 @@ const ConditionNodeProperties: React.FC<{
   return (
     <Form form={form} layout="vertical" onValuesChange={handleFinish} size="small">
       <Form.Item label="条件表达式" name="expression">
-        <TextArea rows={3} placeholder='例如: ${amount} > 10000' />
+        <TextArea rows={3} placeholder="例如: ${amount} > 10000" />
       </Form.Item>
 
       <Divider style={{ margin: `${spacing.sm}px 0` }} />
@@ -210,11 +207,7 @@ const NotificationNodeProperties: React.FC<{
     form.setFieldsValue({
       template: config.template || '',
       channels: (config.channels as string[]) || ['email'],
-      contentVariables: JSON.stringify(
-        (config.contentVariables as object) || {},
-        null,
-        2
-      ),
+      contentVariables: JSON.stringify((config.contentVariables as object) || {}, null, 2),
     });
   }, [config, form]);
 
@@ -365,11 +358,7 @@ export interface NodePropertiesProps {
  * NodeProperties - 节点属性面板
  * 根据选中节点的类型展示对应的属性编辑表单
  */
-const NodeProperties: React.FC<NodePropertiesProps> = ({
-  node,
-  onUpdate,
-  onDelete,
-}) => {
+const NodeProperties: React.FC<NodePropertiesProps> = ({ node, onUpdate, onDelete }) => {
   if (!node) {
     return (
       <Card

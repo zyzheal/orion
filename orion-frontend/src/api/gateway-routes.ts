@@ -87,7 +87,10 @@ export async function createGatewayRoute(data: GatewayRouteInput): Promise<Gatew
   return response.data;
 }
 
-export async function updateGatewayRoute(id: string, data: Partial<GatewayRouteInput>): Promise<GatewayRoute> {
+export async function updateGatewayRoute(
+  id: string,
+  data: Partial<GatewayRouteInput>
+): Promise<GatewayRoute> {
   const response = await api.put<GatewayRoute>(`/api/v1/gateway/routes/${id}`, data);
   return response.data;
 }
@@ -97,7 +100,9 @@ export async function deleteGatewayRoute(id: string): Promise<void> {
 }
 
 export async function toggleGatewayRoute(id: string, enabled: boolean): Promise<GatewayRoute> {
-  const response = await api.patch<GatewayRoute>(`/api/v1/gateway/routes/${id}/toggle`, { enabled });
+  const response = await api.patch<GatewayRoute>(`/api/v1/gateway/routes/${id}/toggle`, {
+    enabled,
+  });
   return response.data;
 }
 

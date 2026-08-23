@@ -176,97 +176,100 @@ const EventBusMonitoring: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<EventBusEvent>[] = useMemo<TableColumn<EventBusEvent>[]>(() => [
-    {
-      key: 'eventType',
-      title: '事件类型',
-      dataIndex: 'eventType',
-      width: 220,
-      render: (_v: unknown, record: EventBusEvent) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ fontSize: 13, cursor: 'pointer' }}
-            onClick={() => openDetail(record)}
-          >
-            {record.eventType}
+  const columns: TableColumn<EventBusEvent>[] = useMemo<TableColumn<EventBusEvent>[]>(
+    () => [
+      {
+        key: 'eventType',
+        title: '事件类型',
+        dataIndex: 'eventType',
+        width: 220,
+        render: (_v: unknown, record: EventBusEvent) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ fontSize: 13, cursor: 'pointer' }}
+              onClick={() => openDetail(record)}
+            >
+              {record.eventType}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              Topic: {record.topic}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'source',
+        title: '来源',
+        dataIndex: 'source',
+        width: 140,
+        render: (v: unknown) => (
+          <Tag color="blue" style={{ fontSize: 11 }}>
+            {String(v)}
+          </Tag>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (_v: unknown, record: EventBusEvent) => (
+          <Tag color={statusColorMap[record.status]} icon={statusIconMap[record.status]}>
+            {statusLabelMap[record.status]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'subscribers',
+        title: '订阅数',
+        dataIndex: 'subscriberCount',
+        width: 80,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'payloadSize',
+        title: 'Payload',
+        dataIndex: 'payloadSize',
+        width: 100,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 11, color: colors.neutral[600] }}>
+            {formatPayloadSize(typeof v === 'number' ? v : 0)}
           </Text>
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            Topic: {record.topic}
+        ),
+      },
+      {
+        key: 'timestamp',
+        title: '时间',
+        dataIndex: 'timestamp',
+        width: 140,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).fromNow()}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'source',
-      title: '来源',
-      dataIndex: 'source',
-      width: 140,
-      render: (v: unknown) => (
-        <Tag color="blue" style={{ fontSize: 11 }}>
-          {String(v)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (_v: unknown, record: EventBusEvent) => (
-        <Tag color={statusColorMap[record.status]} icon={statusIconMap[record.status]}>
-          {statusLabelMap[record.status]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'subscribers',
-      title: '订阅数',
-      dataIndex: 'subscriberCount',
-      width: 80,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'payloadSize',
-      title: 'Payload',
-      dataIndex: 'payloadSize',
-      width: 100,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: 11, color: colors.neutral[600] }}>
-          {formatPayloadSize(typeof v === 'number' ? v : 0)}
-        </Text>
-      ),
-    },
-    {
-      key: 'timestamp',
-      title: '时间',
-      dataIndex: 'timestamp',
-      width: 140,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 80,
-      render: (_: unknown, record: EventBusEvent) => (
-        <Tooltip title="详情">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => openDetail(record)}
-          >
-            详情
-          </Button>
-        </Tooltip>
-      ),
-    },
-  ], [openDetail]);
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 80,
+        render: (_: unknown, record: EventBusEvent) => (
+          <Tooltip title="详情">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
+              详情
+            </Button>
+          </Tooltip>
+        ),
+      },
+    ],
+    [openDetail]
+  );
 
   return (
     <div style={{ padding: 0 }}>

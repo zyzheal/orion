@@ -135,7 +135,11 @@ const PipelineRunList: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [run.pipelineId, (run as { pipelineName?: string }).pipelineName || '', run.triggerBy || '']
+        const searchable = [
+          run.pipelineId,
+          (run as { pipelineName?: string }).pipelineName || '',
+          run.triggerBy || '',
+        ]
           .join(' ')
           .toLowerCase();
         if (!searchable.includes(query)) return false;
@@ -172,176 +176,187 @@ const PipelineRunList: React.FC = () => {
   }, [filteredRuns]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '运行中', value: 'running' },
-        { label: '成功', value: 'success' },
-        { label: '失败', value: 'failed' },
-        { label: '已取消', value: 'cancelled' },
-        { label: '等待中', value: 'pending' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '运行中', value: 'running' },
+          { label: '成功', value: 'success' },
+          { label: '失败', value: 'failed' },
+          { label: '已取消', value: 'cancelled' },
+          { label: '等待中', value: 'pending' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Table column definitions
-  const columns: TableColumn<PipelineRunSummary>[] = useMemo<TableColumn<PipelineRunSummary>[]>(() => [
-    {
-      key: 'runId',
-      title: 'Run ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (_value: unknown, record) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          #{record.id.slice(0, 8)}
-        </Text>
-      ),
-    },
-    {
-      key: 'pipelineName',
-      title: 'Pipeline',
-      width: 220,
-      render: (_value: unknown, record) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/pipelines/${record.id}`)}
-          >
-            {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
+  const columns: TableColumn<PipelineRunSummary>[] = useMemo<TableColumn<PipelineRunSummary>[]>(
+    () => [
+      {
+        key: 'runId',
+        title: 'Run ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (_value: unknown, record) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            #{record.id.slice(0, 8)}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            <Tag color={triggerTagColors[record.triggerType] || 'default'}>
-              {triggerLabel[record.triggerType] || record.triggerType}
-            </Tag>
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (value: unknown) => <StatusBadge status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'} size="small" />,
-    },
-    {
-      key: 'environment',
-      title: '环境',
-      width: 100,
-      render: (_value: unknown, record) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(record as { environment?: string }).environment || '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'startedAt',
-      title: '开始时间',
-      width: 180,
-      sortable: true,
-      render: (_value: unknown, record) => {
-        const startTime = record.startedAt || record.createdAt;
-        return (
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {startTime ? dayjs(startTime).fromNow() : '-'}
-          </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      width: 100,
-      render: (_value: unknown, record) => (
-        <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
-          {formatDuration(Number(record.durationMs) || undefined)}
-        </Text>
-      ),
-    },
-    {
-      key: 'triggeredBy',
-      title: '触发人',
-      width: 120,
-      render: (_value: unknown, record) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {record.triggerBy || '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 220,
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
-            查看
-          </Button>
-          {/* Cancel button for running status */}
-          {record.status === 'running' && (
-            <Button
-              type="link"
-              size="small"
-              icon={<StopOutlined />}
-              danger
-              loading={cancellingIds.has(record.id)}
-              disabled={cancellingIds.has(record.id)}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCancelConfirm(record.id);
-              }}
+      {
+        key: 'pipelineName',
+        title: 'Pipeline',
+        width: 220,
+        render: (_value: unknown, record) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => navigate(`/pipelines/${record.id}`)}
             >
-              取消
+              {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              <Tag color={triggerTagColors[record.triggerType] || 'default'}>
+                {triggerLabel[record.triggerType] || record.triggerType}
+              </Tag>
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 120,
+        render: (value: unknown) => (
+          <StatusBadge
+            status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'}
+            size="small"
+          />
+        ),
+      },
+      {
+        key: 'environment',
+        title: '环境',
+        width: 100,
+        render: (_value: unknown, record) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {(record as { environment?: string }).environment || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'startedAt',
+        title: '开始时间',
+        width: 180,
+        sortable: true,
+        render: (_value: unknown, record) => {
+          const startTime = record.startedAt || record.createdAt;
+          return (
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {startTime ? dayjs(startTime).fromNow() : '-'}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'duration',
+        title: '耗时',
+        width: 100,
+        render: (_value: unknown, record) => (
+          <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
+            {formatDuration(Number(record.durationMs) || undefined)}
+          </Text>
+        ),
+      },
+      {
+        key: 'triggeredBy',
+        title: '触发人',
+        width: 120,
+        render: (_value: unknown, record) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {record.triggerBy || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 220,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
+              查看
             </Button>
-          )}
-          {/* Dropdown menu for failed/cancelled status */}
-          {(record.status === 'failed' || record.status === 'cancelled') && (
-            <Dropdown
-              menu={{
-                items: [
-                  {
-                    key: 'retryAll',
-                    label: '完整重试',
-                    icon: <PlayCircleOutlined />,
-                    onClick: () => handleRetryConfirm(record.id),
-                  },
-                  {
-                    key: 'retryFailedOnly',
-                    label: '仅失败阶段',
-                    icon: <ReloadOutlined />,
-                    onClick: () => handleRetry(record.id, { onlyFailed: true }),
-                  },
-                  {
-                    key: 'retryFromStage',
-                    label: '从阶段重试',
-                    icon: <RocketOutlined />,
-                    onClick: () => {
-                      setStageRetryModal({ visible: true, runId: record.id });
-                    },
-                  },
-                ],
-              }}
-              trigger={['click']}
-            >
+            {/* Cancel button for running status */}
+            {record.status === 'running' && (
               <Button
                 type="link"
                 size="small"
-                icon={<PlayCircleOutlined />}
+                icon={<StopOutlined />}
                 danger
-                onClick={(e) => e.stopPropagation()}
+                loading={cancellingIds.has(record.id)}
+                disabled={cancellingIds.has(record.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCancelConfirm(record.id);
+                }}
               >
-                重跑 <DownOutlined />
+                取消
               </Button>
-            </Dropdown>
-          )}
-        </Space>
-      ),
-    },
-  ], [navigate]);
+            )}
+            {/* Dropdown menu for failed/cancelled status */}
+            {(record.status === 'failed' || record.status === 'cancelled') && (
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'retryAll',
+                      label: '完整重试',
+                      icon: <PlayCircleOutlined />,
+                      onClick: () => handleRetryConfirm(record.id),
+                    },
+                    {
+                      key: 'retryFailedOnly',
+                      label: '仅失败阶段',
+                      icon: <ReloadOutlined />,
+                      onClick: () => handleRetry(record.id, { onlyFailed: true }),
+                    },
+                    {
+                      key: 'retryFromStage',
+                      label: '从阶段重试',
+                      icon: <RocketOutlined />,
+                      onClick: () => {
+                        setStageRetryModal({ visible: true, runId: record.id });
+                      },
+                    },
+                  ],
+                }}
+                trigger={['click']}
+              >
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<PlayCircleOutlined />}
+                  danger
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  重跑 <DownOutlined />
+                </Button>
+              </Dropdown>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [navigate]
+  );
 
   // Handle re-run for a failed/cancelled run
   const handleRetry = async (
@@ -484,7 +499,10 @@ const PipelineRunList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Pipeline 运行历史
           </Title>

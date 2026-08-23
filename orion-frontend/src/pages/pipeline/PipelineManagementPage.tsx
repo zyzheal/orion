@@ -72,11 +72,7 @@ const statusConfig: Record<string, { color: string; label: string }> = {
 
 const StatusTag: React.FC<{ status: string }> = ({ status }) => {
   const cfg = statusConfig[status] || statusConfig.pending;
-  return (
-    <Tag color={cfg.color}>
-      {cfg.label}
-    </Tag>
-  );
+  return <Tag color={cfg.color}>{cfg.label}</Tag>;
 };
 
 // ==================== 主组件 ====================
@@ -140,7 +136,8 @@ const PipelineManagementPage: React.FC = () => {
       setEditingPipeline(null);
       loadPipelines();
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : (editingPipeline ? '更新失败' : '创建失败');
+      const msg =
+        error instanceof Error ? error.message : editingPipeline ? '更新失败' : '创建失败';
       message.error(msg);
     } finally {
       setModalLoading(false);
@@ -244,9 +241,7 @@ const PipelineManagementPage: React.FC = () => {
     setDrawerLoading(true);
     try {
       const result = await getDataPipelineLogs(pipeline.id);
-      setDrawerContent(result.logs && result.logs.length > 0
-        ? result.logs.join('\n')
-        : '暂无日志');
+      setDrawerContent(result.logs && result.logs.length > 0 ? result.logs.join('\n') : '暂无日志');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载日志失败';
       message.error(msg);
@@ -292,169 +287,193 @@ const PipelineManagementPage: React.FC = () => {
 
   // ==================== 表格列 ====================
 
-  const columns: TableColumn<DataPipeline>[] = useMemo<TableColumn<DataPipeline>[]>(() => [
-    {
-      key: 'name',
-      title: '管道名称',
-      dataIndex: 'name',
-      width: 200,
-      render: (value: any, record: DataPipeline) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ color: colors.primary[500], cursor: 'pointer' }}
-            onClick={() => navigate(`/data-pipeline/${record.id}`)}>
-            {(value as string) || "-"}
+  const columns: TableColumn<DataPipeline>[] = useMemo<TableColumn<DataPipeline>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '管道名称',
+        dataIndex: 'name',
+        width: 200,
+        render: (value: any, record: DataPipeline) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ color: colors.primary[500], cursor: 'pointer' }}
+              onClick={() => navigate(`/data-pipeline/${record.id}`)}
+            >
+              {(value as string) || '-'}
+            </Text>
+            <Text
+              type="secondary"
+              style={{ fontSize: spacing[3] }}
+              ellipsis={{ tooltip: record.description }}
+            >
+              {record.description || '-'}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'source',
+        title: '源表',
+        dataIndex: 'sourceTable',
+        width: 140,
+        render: (value: any) => (
+          <Tag color="blue" style={{ fontSize: spacing[3] }}>
+            {(value as string) || '-'}
+          </Tag>
+        ),
+      },
+      {
+        key: 'target',
+        title: '目标表',
+        dataIndex: 'targetTable',
+        width: 140,
+        render: (value: any) => (
+          <Tag color="green" style={{ fontSize: spacing[3] }}>
+            {(value as string) || '-'}
+          </Tag>
+        ),
+      },
+      {
+        key: 'schedule',
+        title: '调度',
+        dataIndex: 'schedule',
+        width: 120,
+        render: (value: any) => (
+          <Text type="secondary" style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
+            {(value as string) || '手动'}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }} ellipsis={{ tooltip: record.description }}>
-            {record.description || '-'}
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (value: any) => <StatusTag status={(value as string) || '-'} />,
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 140,
+        render: (value: any) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {(value as string) ? dayjs(value as string).fromNow() : '-'}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'source',
-      title: '源表',
-      dataIndex: 'sourceTable',
-      width: 140,
-      render: (value: any) => (
-        <Tag color="blue" style={{ fontSize: spacing[3] }}>
-          {(value as string) || '-'}
-        </Tag>
-      ),
-    },
-    {
-      key: 'target',
-      title: '目标表',
-      dataIndex: 'targetTable',
-      width: 140,
-      render: (value: any) => (
-        <Tag color="green" style={{ fontSize: spacing[3] }}>
-          {(value as string) || '-'}
-        </Tag>
-      ),
-    },
-    {
-      key: 'schedule',
-      title: '调度',
-      dataIndex: 'schedule',
-      width: 120,
-      render: (value: any) => (
-        <Text type="secondary" style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
-          {(value as string) || '手动'}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (value: any) => <StatusTag status={(value as string) || "-"} />,
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 140,
-      render: (value: any) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(value as string) ? dayjs(value as string).fromNow() : '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: any, record: DataPipeline) => (
-        <Space size="small" wrap>
-          {record.status !== 'running' && (
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: any, record: DataPipeline) => (
+          <Space size="small" wrap>
+            {record.status !== 'running' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                loading={actionLoading[record.id]}
+                onClick={() => handleRun(record)}
+              >
+                运行
+              </Button>
+            )}
+            {record.status === 'running' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<PauseCircleOutlined />}
+                loading={actionLoading[record.id]}
+                onClick={() => handlePause(record)}
+              >
+                暂停
+              </Button>
+            )}
+            {record.status === 'paused' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<ArrowRightOutlined />}
+                loading={actionLoading[record.id]}
+                onClick={() => handleResume(record)}
+              >
+                恢复
+              </Button>
+            )}
             <Button
               type="link"
               size="small"
-              icon={<PlayCircleOutlined />}
-              loading={actionLoading[record.id]}
-              onClick={() => handleRun(record)}
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
             >
-              运行
+              编辑
             </Button>
-          )}
-          {record.status === 'running' && (
             <Button
               type="link"
               size="small"
-              icon={<PauseCircleOutlined />}
-              loading={actionLoading[record.id]}
-              onClick={() => handlePause(record)}
+              icon={<DeleteOutlined />}
+              danger
+              onClick={() => handleDelete(record)}
             >
-              暂停
+              删除
             </Button>
-          )}
-          {record.status === 'paused' && (
             <Button
               type="link"
               size="small"
-              icon={<ArrowRightOutlined />}
-              loading={actionLoading[record.id]}
-              onClick={() => handleResume(record)}
+              icon={<InfoCircleOutlined />}
+              onClick={() => handleViewLogs(record)}
             >
-              恢复
+              日志
             </Button>
-          )}
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<DeleteOutlined />}
-            danger
-            onClick={() => handleDelete(record)}
-          >
-            删除
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<InfoCircleOutlined />}
-            onClick={() => handleViewLogs(record)}
-          >
-            日志
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<DatabaseOutlined />}
-            onClick={() => handleViewLineage(record)}
-          >
-            血缘
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleOpenEdit, handlePause, handleResume, handleRun, handleViewLineage, handleViewLogs, navigate]);
+            <Button
+              type="link"
+              size="small"
+              icon={<DatabaseOutlined />}
+              onClick={() => handleViewLineage(record)}
+            >
+              血缘
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [
+      handleDelete,
+      handleOpenEdit,
+      handlePause,
+      handleResume,
+      handleRun,
+      handleViewLineage,
+      handleViewLogs,
+      navigate,
+    ]
+  );
 
   // ==================== 渲染 ====================
 
   return (
     <div style={{ padding: spacing.lg }}>
       {/* 页面头部 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: spacing.lg,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
-          <Title level={2} style={{
-            marginBottom: spacing.sm,
-            display: 'flex',
-            alignItems: 'center',
-          }}>
+          <Title
+            level={2}
+            style={{
+              marginBottom: spacing.sm,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
             <CloudUploadOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             数据管道管理
           </Title>
@@ -473,7 +492,7 @@ const PipelineManagementPage: React.FC = () => {
       </div>
 
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: spacing.md, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+      <Card style={{ marginBottom: spacing.md, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
         <Row gutter={spacing.md} align="middle">
           <Col flex="auto">
             <Input
@@ -484,11 +503,7 @@ const PipelineManagementPage: React.FC = () => {
             />
           </Col>
           <Col>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: 140 }}
-            >
+            <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 140 }}>
               <Option value="all">全部状态</Option>
               <Option value="running">运行中</Option>
               <Option value="paused">已暂停</Option>
@@ -506,7 +521,9 @@ const PipelineManagementPage: React.FC = () => {
           <Empty
             description={
               <Text type="secondary">
-                {pipelines.length === 0 ? '暂无数据管道，点击上方按钮创建第一个管道' : '没有匹配的管道'}
+                {pipelines.length === 0
+                  ? '暂无数据管道，点击上方按钮创建第一个管道'
+                  : '没有匹配的管道'}
               </Text>
             }
           />
@@ -601,23 +618,22 @@ const PipelineManagementPage: React.FC = () => {
             </Descriptions>
           </Card>
         )}
-        <Card
-          title={drawerTitle.includes('日志') ? '执行日志' : '数据血缘'}
-          size="small"
-        >
+        <Card title={drawerTitle.includes('日志') ? '执行日志' : '数据血缘'} size="small">
           {drawerLoading ? (
             <div style={{ textAlign: 'center', padding: '48px 0' }}>加载中...</div>
           ) : (
-            <pre style={{
-              background: themeVars.bgSecondary,
-              padding: spacing.md,
-              borderRadius: spacing.sm,
-              fontSize: '12px',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              maxHeight: 400,
-              overflow: 'auto',
-            }}>
+            <pre
+              style={{
+                background: themeVars.bgSecondary,
+                padding: spacing.md,
+                borderRadius: spacing.sm,
+                fontSize: '12px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                maxHeight: 400,
+                overflow: 'auto',
+              }}
+            >
               {drawerContent}
             </pre>
           )}

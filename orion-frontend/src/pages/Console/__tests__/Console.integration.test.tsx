@@ -15,8 +15,7 @@ vi.mock('antd', async () => {
   };
 });
 
-const renderWithProviders = (ui: React.ReactElement) =>
-  render(<BrowserRouter>{ui}</BrowserRouter>);
+const renderWithProviders = (ui: React.ReactElement) => render(<BrowserRouter>{ui}</BrowserRouter>);
 
 beforeEach(() => {
   vi.clearAllMocks();

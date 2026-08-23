@@ -27,7 +27,13 @@ const { Title, Text } = Typography;
 
 /** 构造最近 8 周趋势数据 */
 function buildTrendData(
-  doraTrends: Array<{ week: string; deploymentFrequency: number; leadTime: number; mttr: number; changeFailureRate: number }>
+  doraTrends: Array<{
+    week: string;
+    deploymentFrequency: number;
+    leadTime: number;
+    mttr: number;
+    changeFailureRate: number;
+  }>
 ) {
   return doraTrends.map((t) => ({
     week: t.week,
@@ -49,7 +55,12 @@ function doraLevelScore(level?: string): number {
 const EfficacyMetrics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [domainScores, setDomainScores] = useState<Record<DomainKey, number>>({
-    e2e: 50, management: 50, engineering: 50, compliance: 50, aiEfficiency: 50, risk: 50,
+    e2e: 50,
+    management: 50,
+    engineering: 50,
+    compliance: 50,
+    aiEfficiency: 50,
+    risk: 50,
   });
   const [trendData, setTrendData] = useState<any[]>([]);
   const [e2eMetrics, setE2eMetrics] = useState({ deliveryCycle: 12, successRate: 70 });
@@ -65,15 +76,16 @@ const EfficacyMetrics: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dashboardRes, doraRes, teamRes, doraTrendsRes, pipelineRes, riskRes, agentRes] = await Promise.all([
-        getEfficiencyDashboard().catch(() => null),
-        getDoraMetrics().catch(() => null),
-        getTeamComparison().catch(() => null),
-        getDORTrends({ weeks: 8 }).catch(() => null),
-        getAllPipelineRuns({ limit: 100 }).catch(() => null),
-        getRiskAssessments().catch(() => null),
-        getAgentRuns({ pageSize: 100 }).catch(() => null),
-      ]);
+      const [dashboardRes, doraRes, teamRes, doraTrendsRes, pipelineRes, riskRes, agentRes] =
+        await Promise.all([
+          getEfficiencyDashboard().catch(() => null),
+          getDoraMetrics().catch(() => null),
+          getTeamComparison().catch(() => null),
+          getDORTrends({ weeks: 8 }).catch(() => null),
+          getAllPipelineRuns({ limit: 100 }).catch(() => null),
+          getRiskAssessments().catch(() => null),
+          getAgentRuns({ pageSize: 100 }).catch(() => null),
+        ]);
 
       // 工程域
       const doraLevel = (doraRes?.data?.metrics?.deploymentFrequency as string) ?? '';
@@ -85,21 +97,25 @@ const EfficacyMetrics: React.FC = () => {
       // 端到端
       const runs = (pipelineRes as any)?.data?.runs ?? (pipelineRes as any)?.data ?? [];
       const successCount = runs.filter((r: any) => r.status === 'success').length;
-      const successRate = runs.length > 0 ? Math.round(successCount / runs.length * 100) : 70;
+      const successRate = runs.length > 0 ? Math.round((successCount / runs.length) * 100) : 70;
       setE2eMetrics({ deliveryCycle: 12, successRate });
 
       // AI 提效
       const agents = (agentRes as any)?.data?.runs ?? (agentRes as any)?.data ?? [];
-      const completionRate = agents.length > 0
-        ? Math.round(agents.filter((r: any) => r.status === 'completed').length / agents.length * 100)
-        : 70;
+      const completionRate =
+        agents.length > 0
+          ? Math.round(
+              (agents.filter((r: any) => r.status === 'completed').length / agents.length) * 100
+            )
+          : 70;
       setAiMetrics({ adoption: 65, completion: completionRate });
 
       // 管理域
       const teams = (teamRes as any)?.data?.teams ?? [];
-      const avgScore = teams.length > 0
-        ? Math.round(teams.reduce((s: number, t: any) => s + (t.score ?? 50), 0) / teams.length)
-        : 75;
+      const avgScore =
+        teams.length > 0
+          ? Math.round(teams.reduce((s: number, t: any) => s + (t.score ?? 50), 0) / teams.length)
+          : 75;
       setMgmtMetrics({ teams: teams.length, avgScore });
 
       // 风险域
@@ -219,7 +235,11 @@ const EfficacyMetrics: React.FC = () => {
   ];
 
   if (loading) {
-    return <div style={{ padding: spacing.lg, textAlign: 'center' }}><Spin size="large" /></div>;
+    return (
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
@@ -239,12 +259,22 @@ const EfficacyMetrics: React.FC = () => {
           <Col span={6}>
             <ScoreRing domainScores={domainScores} />
           </Col>
-          <Col span={18} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: spacing.sm }}>
+          <Col
+            span={18}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: spacing.sm,
+            }}
+          >
             <Text style={{ fontSize: 15 }}>
-              综合评分由六大域核心指标加权聚合：端到端交付成功率、管理域团队评分、工程域 DORA 等级、合规域合规率、AI 提效采纳率、风险域弹性评分。
+              综合评分由六大域核心指标加权聚合：端到端交付成功率、管理域团队评分、工程域 DORA
+              等级、合规域合规率、AI 提效采纳率、风险域弹性评分。
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              评分基准：Elite (≥80) = 世界级，High (60-79) = 优秀，Medium (40-59) = 中等，Low (&lt;40) = 待改进
+              评分基准：Elite (≥80) = 世界级，High (60-79) = 优秀，Medium (40-59) = 中等，Low
+              (&lt;40) = 待改进
             </Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
               数据来源：DORA API、Pipeline Runs、Team Comparison、Agent Runs、Risk Assessments

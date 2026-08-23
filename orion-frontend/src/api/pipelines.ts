@@ -54,7 +54,6 @@ export interface PipelineRun {
   }>;
 }
 
-
 export interface PipelineListResponse {
   data: Pipeline[];
   total?: number;
@@ -218,10 +217,7 @@ export function deleteArtifact(artifactId: string) {
 
 // ---- Pipeline Error Detail ----
 
-export function batchUpdatePipelines(
-  ids: string[],
-  action: 'activate' | 'deactivate' | 'delete'
-) {
+export function batchUpdatePipelines(ids: string[], action: 'activate' | 'deactivate' | 'delete') {
   return api.post('/api/v1/pipelines/batch', {
     ids,
     action,
@@ -257,8 +253,5 @@ export interface PipelineErrorDetailResponse {
  * Maps to GET /api/v1/pipelines/:runId/error-detail
  */
 export function getPipelineErrorDetail(runId: string) {
-  return api.get<{ data: PipelineErrorDetailResponse }>(
-    `/api/v1/pipelines/${runId}/error-detail`
-  );
+  return api.get<{ data: PipelineErrorDetailResponse }>(`/api/v1/pipelines/${runId}/error-detail`);
 }
-

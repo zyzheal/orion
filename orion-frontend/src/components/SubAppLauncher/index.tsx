@@ -129,9 +129,13 @@ const SubAppCard: React.FC<SubAppCardProps> = ({ app, onClick }) => (
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-        <Text strong style={{ fontSize: 14 }}>{app.name}</Text>
+        <Text strong style={{ fontSize: 14 }}>
+          {app.name}
+        </Text>
       </div>
-      <Text type="secondary" style={{ fontSize: 12 }}>{app.description}</Text>
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        {app.description}
+      </Text>
     </div>
   </div>
 );
@@ -220,7 +224,9 @@ export const SubAppLauncher: React.FC & { Trigger: React.FC<SubAppTriggerProps> 
             >
               <AppstoreOutlined style={{ fontSize: 15, color: colors.neutral[0] }} />
             </div>
-            <Text strong style={{ fontSize: 15 }}>子系统应用</Text>
+            <Text strong style={{ fontSize: 15 }}>
+              子系统应用
+            </Text>
           </div>
           <div
             onClick={() => setOpen(false)}
@@ -256,7 +262,10 @@ export const SubAppLauncher: React.FC & { Trigger: React.FC<SubAppTriggerProps> 
             padding: '16px',
           }}
         >
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: spacing[3], display: 'block' }}>
+          <Text
+            type="secondary"
+            style={{ fontSize: 12, marginBottom: spacing[3], display: 'block' }}
+          >
             点击图标进入相应的子系统
           </Text>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

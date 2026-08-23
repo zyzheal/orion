@@ -177,14 +177,22 @@ const CommandExecTab: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 120,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v.slice(0, 12)}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v.slice(0, 12)}
+        </Text>
+      ),
     },
     {
       title: '命令',
       dataIndex: 'command',
       key: 'command',
       ellipsis: true,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '目标主机',
@@ -194,7 +202,9 @@ const CommandExecTab: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 2).map((name, i) => (
-            <Tag key={String(i)} icon={<CloudServerOutlined />}>{name}</Tag>
+            <Tag key={String(i)} icon={<CloudServerOutlined />}>
+              {name}
+            </Tag>
           ))}
           {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
         </Space>
@@ -205,9 +215,7 @@ const CommandExecTab: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: ExecRecord['status']) => (
-        <Tag color={statusColorMap[v]}>{statusLabelMap[v]}</Tag>
-      ),
+      render: (v: ExecRecord['status']) => <Tag color={statusColorMap[v]}>{statusLabelMap[v]}</Tag>,
     },
     {
       title: '执行时间',
@@ -322,22 +330,46 @@ const CommandExecTab: React.FC = () => {
                 <Text code>{selectedRecord.command}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="开始时间">{selectedRecord.startTime}</Descriptions.Item>
-              <Descriptions.Item label="结束时间">{selectedRecord.endTime || '-'}</Descriptions.Item>
+              <Descriptions.Item label="结束时间">
+                {selectedRecord.endTime || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="操作人">{selectedRecord.operator}</Descriptions.Item>
             </Descriptions>
 
             {selectedRecord.output && (
               <div style={{ marginBottom: spacing.md }}>
                 <Text strong>标准输出:</Text>
-                <pre style={{ background: colors.neutral[50], padding: spacing[3], borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: spacing.sm }}>
+                <pre
+                  style={{
+                    background: colors.neutral[50],
+                    padding: spacing[3],
+                    borderRadius: 6,
+                    fontSize: 12,
+                    maxHeight: 300,
+                    overflow: 'auto',
+                    marginTop: spacing.sm,
+                  }}
+                >
                   {selectedRecord.output}
                 </pre>
               </div>
             )}
             {selectedRecord.errorOutput && (
               <div>
-                <Text strong type="danger">标准错误:</Text>
-                <pre style={{ background: colors.error[50], padding: spacing[3], borderRadius: 6, fontSize: 12, maxHeight: 300, overflow: 'auto', marginTop: spacing.sm }}>
+                <Text strong type="danger">
+                  标准错误:
+                </Text>
+                <pre
+                  style={{
+                    background: colors.error[50],
+                    padding: spacing[3],
+                    borderRadius: 6,
+                    fontSize: 12,
+                    maxHeight: 300,
+                    overflow: 'auto',
+                    marginTop: spacing.sm,
+                  }}
+                >
                   {selectedRecord.errorOutput}
                 </pre>
               </div>
@@ -463,9 +495,16 @@ const ScriptTemplateTab: React.FC = () => {
       width: 200,
       render: (_: unknown, record: ScriptTemplate) => (
         <Space size="small">
-          <Button type="link" size="small" onClick={() => handleUse(record)}>使用</Button>
+          <Button type="link" size="small" onClick={() => handleUse(record)}>
+            使用
+          </Button>
           <Tooltip title="复制脚本内容">
-            <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => handleCopy(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => handleCopy(record)}
+            />
           </Tooltip>
           <Popconfirm title="确认删除此模板？" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
@@ -484,11 +523,29 @@ const ScriptTemplateTab: React.FC = () => {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={templates} rowKey="id" size="middle" loading={loading} pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={templates}
+        rowKey="id"
+        size="middle"
+        loading={loading}
+        pagination={{ pageSize: 10 }}
+      />
 
-      <Modal title="新建脚本模板" open={createVisible} onCancel={() => setCreateVisible(false)} onOk={() => form.submit()} confirmLoading={submitting} width={600}>
+      <Modal
+        title="新建脚本模板"
+        open={createVisible}
+        onCancel={() => setCreateVisible(false)}
+        onOk={() => form.submit()}
+        confirmLoading={submitting}
+        width={600}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入模板名称' }]}>
+          <Form.Item
+            label="名称"
+            name="name"
+            rules={[{ required: true, message: '请输入模板名称' }]}
+          >
             <Input placeholder="例如：检查磁盘空间" />
           </Form.Item>
           <Form.Item label="描述" name="description">
@@ -508,8 +565,16 @@ const ScriptTemplateTab: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="脚本内容" name="content" rules={[{ required: true, message: '请输入脚本内容' }]}>
-            <TextArea rows={8} placeholder="# 输入命令或脚本内容" style={{ fontFamily: 'monospace' }} />
+          <Form.Item
+            label="脚本内容"
+            name="content"
+            rules={[{ required: true, message: '请输入脚本内容' }]}
+          >
+            <TextArea
+              rows={8}
+              placeholder="# 输入命令或脚本内容"
+              style={{ fontFamily: 'monospace' }}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -630,7 +695,12 @@ const CronJobTab: React.FC = () => {
       dataIndex: 'command',
       key: 'command',
       ellipsis: true,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v.slice(0, 50)}{v.length > 50 ? '...' : ''}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v.slice(0, 50)}
+          {v.length > 50 ? '...' : ''}
+        </Text>
+      ),
     },
     {
       title: '目标主机',
@@ -640,7 +710,9 @@ const CronJobTab: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 2).map((name, i) => (
-            <Tag key={String(i)} icon={<CloudServerOutlined />}>{name}</Tag>
+            <Tag key={String(i)} icon={<CloudServerOutlined />}>
+              {name}
+            </Tag>
           ))}
           {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
         </Space>
@@ -651,7 +723,11 @@ const CronJobTab: React.FC = () => {
       dataIndex: 'cronExpression',
       key: 'cronExpression',
       width: 140,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '下次执行',
@@ -676,7 +752,12 @@ const CronJobTab: React.FC = () => {
       render: (_: unknown, record: CronJob) => (
         <Space size="small">
           <Tooltip title="立即执行">
-            <Button type="link" size="small" icon={<PlayCircleOutlined />} onClick={() => handleRunNow(record.id)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              onClick={() => handleRunNow(record.id)}
+            />
           </Tooltip>
           <Popconfirm title="确认删除此任务？" onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
@@ -695,17 +776,43 @@ const CronJobTab: React.FC = () => {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={cronJobs} rowKey="id" size="middle" loading={loading} pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={cronJobs}
+        rowKey="id"
+        size="middle"
+        loading={loading}
+        pagination={{ pageSize: 10 }}
+      />
 
-      <Modal title="新建定时任务" open={createVisible} onCancel={() => setCreateVisible(false)} onOk={() => form.submit()} confirmLoading={submitting} width={600}>
+      <Modal
+        title="新建定时任务"
+        open={createVisible}
+        onCancel={() => setCreateVisible(false)}
+        onOk={() => form.submit()}
+        confirmLoading={submitting}
+        width={600}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="任务名称" name="name" rules={[{ required: true, message: '请输入任务名称' }]}>
+          <Form.Item
+            label="任务名称"
+            name="name"
+            rules={[{ required: true, message: '请输入任务名称' }]}
+          >
             <Input placeholder="例如：每日磁盘检查" />
           </Form.Item>
-          <Form.Item label="命令" name="command" rules={[{ required: true, message: '请输入执行命令' }]}>
+          <Form.Item
+            label="命令"
+            name="command"
+            rules={[{ required: true, message: '请输入执行命令' }]}
+          >
             <TextArea rows={3} placeholder="输入要执行的命令" style={{ fontFamily: 'monospace' }} />
           </Form.Item>
-          <Form.Item label="目标主机" name="hosts" rules={[{ required: true, message: '请选择目标主机' }]}>
+          <Form.Item
+            label="目标主机"
+            name="hosts"
+            rules={[{ required: true, message: '请选择目标主机' }]}
+          >
             <Select
               mode="multiple"
               placeholder="选择主机..."
@@ -714,7 +821,11 @@ const CronJobTab: React.FC = () => {
                 .map((h) => ({ label: `${h.hostname} (${h.ip})`, value: h.ci_id }))}
             />
           </Form.Item>
-          <Form.Item label="Cron 表达式" name="cron" rules={[{ required: true, message: '请输入 Cron 表达式' }]}>
+          <Form.Item
+            label="Cron 表达式"
+            name="cron"
+            rules={[{ required: true, message: '请输入 Cron 表达式' }]}
+          >
             <Input placeholder="例如: 0 8 * * * (每天 8:00)" />
           </Form.Item>
           <Form.Item label="启用" name="enabled" valuePropName="checked" initialValue={true}>
@@ -823,7 +934,9 @@ const FileUploadTab: React.FC = () => {
       render: (v: string[]) => (
         <Space wrap>
           {v.slice(0, 2).map((name, i) => (
-            <Tag key={String(i)} icon={<CloudServerOutlined />}>{name}</Tag>
+            <Tag key={String(i)} icon={<CloudServerOutlined />}>
+              {name}
+            </Tag>
           ))}
           {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
         </Space>
@@ -834,7 +947,11 @@ const FileUploadTab: React.FC = () => {
       dataIndex: 'targetPath',
       key: 'targetPath',
       width: 160,
-      render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: '进度',
@@ -845,7 +962,13 @@ const FileUploadTab: React.FC = () => {
         <Progress
           percent={v}
           size="small"
-          status={record.status === 'failed' ? 'exception' : record.status === 'success' ? 'success' : 'active'}
+          status={
+            record.status === 'failed'
+              ? 'exception'
+              : record.status === 'success'
+                ? 'success'
+                : 'active'
+          }
         />
       ),
     },
@@ -855,8 +978,20 @@ const FileUploadTab: React.FC = () => {
       key: 'status',
       width: 100,
       render: (v: UploadTask['status']) => {
-        const colorMap: Record<string, string> = { pending: 'blue', running: 'orange', success: 'green', failed: 'red', partial: 'orange' };
-        const labelMap: Record<string, string> = { pending: '等待中', running: '上传中', success: '成功', failed: '失败', partial: '部分成功' };
+        const colorMap: Record<string, string> = {
+          pending: 'blue',
+          running: 'orange',
+          success: 'green',
+          failed: 'red',
+          partial: 'orange',
+        };
+        const labelMap: Record<string, string> = {
+          pending: '等待中',
+          running: '上传中',
+          success: '成功',
+          failed: '失败',
+          partial: '部分成功',
+        };
         return <Tag color={colorMap[v]}>{labelMap[v]}</Tag>;
       },
     },
@@ -867,7 +1002,9 @@ const FileUploadTab: React.FC = () => {
       render: (_: unknown, record: UploadTask) =>
         record.status === 'running' || record.status === 'pending' ? (
           <Popconfirm title="取消此上传任务？" onConfirm={() => handleCancel(record.id)}>
-            <Button type="link" size="small" danger icon={<PauseCircleOutlined />}>取消</Button>
+            <Button type="link" size="small" danger icon={<PauseCircleOutlined />}>
+              取消
+            </Button>
           </Popconfirm>
         ) : null,
     },
@@ -893,14 +1030,14 @@ const FileUploadTab: React.FC = () => {
           </Space>
           <Space>
             <Text>目标路径：</Text>
-            <Input style={{ width: 300 }} value={targetPath} onChange={(e) => setTargetPath(e.target.value)} placeholder="/tmp" />
+            <Input
+              style={{ width: 300 }}
+              value={targetPath}
+              onChange={(e) => setTargetPath(e.target.value)}
+              placeholder="/tmp"
+            />
           </Space>
-          <Upload.Dragger
-            multiple
-            beforeUpload={handleUpload}
-            maxCount={10}
-            showUploadList={false}
-          >
+          <Upload.Dragger multiple beforeUpload={handleUpload} maxCount={10} showUploadList={false}>
             <p style={{ fontSize: 16 }}>
               <UploadOutlined style={{ fontSize: 24, color: colors.primary[500] }} />
             </p>
@@ -912,9 +1049,18 @@ const FileUploadTab: React.FC = () => {
       {/* Upload Tasks */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text strong>上传任务列表</Text>
-        <Button icon={<ReloadOutlined />} onClick={loadUploadTasks} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadUploadTasks} loading={loading}>
+          刷新
+        </Button>
       </div>
-      <Table columns={columns} dataSource={uploadTasks} rowKey="id" size="middle" loading={loading} pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={uploadTasks}
+        rowKey="id"
+        size="middle"
+        loading={loading}
+        pagination={{ pageSize: 10 }}
+      />
     </div>
   );
 };
@@ -990,17 +1136,29 @@ const BatchExecPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="成功" value={execStats.success} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="成功"
+              value={execStats.success}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="部分成功" value={execStats.partial} valueStyle={{ color: colors.warning[500] }} />
+            <Statistic
+              title="部分成功"
+              value={execStats.partial}
+              valueStyle={{ color: colors.warning[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="失败" value={execStats.failed} valueStyle={{ color: colors.error[500] }} />
+            <Statistic
+              title="失败"
+              value={execStats.failed}
+              valueStyle={{ color: colors.error[500] }}
+            />
           </Card>
         </Col>
       </Row>

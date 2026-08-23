@@ -50,20 +50,14 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
         <Descriptions.Item label="Agent ID" span={2}>
           <Text code>{agent.id}</Text>
         </Descriptions.Item>
-        <Descriptions.Item label="名称">
-          {config.name || '-'}
-        </Descriptions.Item>
+        <Descriptions.Item label="名称">{config.name || '-'}</Descriptions.Item>
         <Descriptions.Item label="状态">
           <Tag color={statusColorMap[agent.status] || colors.neutral[500]}>
             {agent.status || 'unknown'}
           </Tag>
         </Descriptions.Item>
-        <Descriptions.Item label="类型">
-          {config.type || '-'}
-        </Descriptions.Item>
-        <Descriptions.Item label="模型">
-          {config.model || '-'}
-        </Descriptions.Item>
+        <Descriptions.Item label="类型">{config.type || '-'}</Descriptions.Item>
+        <Descriptions.Item label="模型">{config.model || '-'}</Descriptions.Item>
       </Descriptions>
 
       {/* 工具列表 */}
@@ -72,7 +66,10 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
           <Divider orientation="left">工具列表</Divider>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
             {config.tools.map((tool: string | Record<string, unknown>, index: number) => {
-              const toolName: React.ReactNode = typeof tool === 'string' ? tool : String(tool.toolName || tool.name || `tool-${index}`);
+              const toolName: React.ReactNode =
+                typeof tool === 'string'
+                  ? tool
+                  : String(tool.toolName || tool.name || `tool-${index}`);
               return (
                 <Tag key={String(index)} color="geekblue">
                   {toolName}

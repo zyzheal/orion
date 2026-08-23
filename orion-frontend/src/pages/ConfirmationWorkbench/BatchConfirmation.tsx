@@ -4,7 +4,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Checkbox, message, Select } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, CheckCircleOutlined, BlockOutlined as BulkOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  CheckCircleOutlined,
+  BlockOutlined as BulkOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { getConfirmations, batchApprove, type ConfirmationRequest } from '@/api/confirmations';
 import dayjs from 'dayjs';
@@ -82,71 +86,74 @@ const BatchConfirmation: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<ConfirmationRequest>[] = useMemo<TableColumn<ConfirmationRequest>[]>(() => [
-    {
-      key: 'select',
-      title: '选择',
-      width: 60,
-      render: (_: unknown, record: any) => (
-        <Checkbox
-          checked={selectedIds.includes(record.id)}
-          onChange={(e) => handleSelectOne(record.id, e.target.checked)}
-        />
-      ),
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 80,
-      render: (v: unknown) => (
-        <Tag color={priorityColorMap[String(v)] || 'default'}>{String(v)}</Tag>
-      ),
-    },
-    {
-      key: 'sceneType',
-      title: '场景',
-      dataIndex: 'sceneType',
-      width: 120,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'id',
-      title: '确认 ID',
-      dataIndex: 'id',
-      width: 180,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v).slice(0, 16)}...
-        </Text>
-      ),
-    },
-    {
-      key: 'aiSuggestion',
-      title: 'AI 建议',
-      dataIndex: 'aiSuggestion',
-      width: 240,
-      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
-    },
-    {
-      key: 'aiConfidence',
-      title: 'AI 置信度',
-      dataIndex: 'aiConfidence',
-      width: 100,
-      render: (v: unknown) => <Text>{String(v)}%</Text>,
-    },
-    {
-      key: 'pushTime',
-      title: '推送时间',
-      dataIndex: 'pushTime',
-      width: 160,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-  ], []);
+  const columns: TableColumn<ConfirmationRequest>[] = useMemo<TableColumn<ConfirmationRequest>[]>(
+    () => [
+      {
+        key: 'select',
+        title: '选择',
+        width: 60,
+        render: (_: unknown, record: any) => (
+          <Checkbox
+            checked={selectedIds.includes(record.id)}
+            onChange={(e) => handleSelectOne(record.id, e.target.checked)}
+          />
+        ),
+      },
+      {
+        key: 'priority',
+        title: '优先级',
+        dataIndex: 'priority',
+        width: 80,
+        render: (v: unknown) => (
+          <Tag color={priorityColorMap[String(v)] || 'default'}>{String(v)}</Tag>
+        ),
+      },
+      {
+        key: 'sceneType',
+        title: '场景',
+        dataIndex: 'sceneType',
+        width: 120,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'id',
+        title: '确认 ID',
+        dataIndex: 'id',
+        width: 180,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v).slice(0, 16)}...
+          </Text>
+        ),
+      },
+      {
+        key: 'aiSuggestion',
+        title: 'AI 建议',
+        dataIndex: 'aiSuggestion',
+        width: 240,
+        render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v)}</Text>,
+      },
+      {
+        key: 'aiConfidence',
+        title: 'AI 置信度',
+        dataIndex: 'aiConfidence',
+        width: 100,
+        render: (v: unknown) => <Text>{String(v)}%</Text>,
+      },
+      {
+        key: 'pushTime',
+        title: '推送时间',
+        dataIndex: 'pushTime',
+        width: 160,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

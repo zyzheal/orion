@@ -23,7 +23,7 @@ vi.mock('@/api/health', () => ({
 
 // Mock message
 vi.mock('antd', async () => {
-  const actual = await vi.importActual('antd') as any;
+  const actual = (await vi.importActual('antd')) as any;
   return {
     ...actual,
     message: {

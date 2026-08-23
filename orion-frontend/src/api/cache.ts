@@ -15,8 +15,12 @@ export interface Cache {
   [key: string]: unknown;
 }
 
-export const listCache = async (params?: Record<string, unknown>): Promise<{ data: Cache[]; total: number }> => {
-  const response = await api.get<{ data: Cache[]; total: number }>('/api/v1/cache/stats', { params });
+export const listCache = async (
+  params?: Record<string, unknown>
+): Promise<{ data: Cache[]; total: number }> => {
+  const response = await api.get<{ data: Cache[]; total: number }>('/api/v1/cache/stats', {
+    params,
+  });
   return { data: response.data.data, total: response.data.total };
 };
 

@@ -99,7 +99,6 @@ export class OrionWebSocketClient {
    */
   connect(): void {
     if (this.state === 'connecting' || this.state === 'connected') {
-
       return;
     }
 
@@ -173,14 +172,12 @@ export class OrionWebSocketClient {
 
     // 发送队列中的消息
     this.flushMessageQueue();
-
   }
 
   /**
    * 处理连接关闭
    */
   private handleClose(_event: CloseEvent): void {
-
     // 清除定时器
     this.clearTimers();
 
@@ -313,7 +310,6 @@ export class OrionWebSocketClient {
         this.send({ type: 'ping', timestamp: Date.now() });
       }
     }, this.config.heartbeatInterval);
-
   }
 
   /**
@@ -354,7 +350,6 @@ export class OrionWebSocketClient {
     this.state = state;
 
     if (oldState !== state) {
-
       this.config.onStateChange?.(state);
     }
   }

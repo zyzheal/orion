@@ -179,7 +179,8 @@ const AICMDBRecommendation: React.FC = () => {
         setAnomalies(data.anomalies || []);
         if (data.recommendations && data.recommendations.length > 0) {
           const avgConf =
-            data.recommendations.reduce((s, r) => s + r.confidence, 0) / data.recommendations.length;
+            data.recommendations.reduce((s, r) => s + r.confidence, 0) /
+            data.recommendations.length;
           setModelStatus((prev) => ({
             ...prev,
             trainingDataCount: data.total,
@@ -246,7 +247,9 @@ const AICMDBRecommendation: React.FC = () => {
   const anomalyCount = anomalies.length;
   const avgAccuracy =
     recommendations.length > 0
-      ? Math.round(recommendations.reduce((s, r) => s + r.confidence, 0) / recommendations.length * 10) / 10
+      ? Math.round(
+          (recommendations.reduce((s, r) => s + r.confidence, 0) / recommendations.length) * 10
+        ) / 10
       : 0;
 
   const columns: Array<{
@@ -281,7 +284,12 @@ const AICMDBRecommendation: React.FC = () => {
       key: 'targetCI',
       render: (_value, record) => (
         <Space direction="vertical" size={2}>
-          <Text type="secondary" style={{ fontSize: 12 }}>{String((record as unknown as { targetCIName?: string; targetCI?: string }).targetCIName || (record as unknown as { targetCIName?: string; targetCI?: string }).targetCI)}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {String(
+              (record as unknown as { targetCIName?: string; targetCI?: string }).targetCIName ||
+                (record as unknown as { targetCIName?: string; targetCI?: string }).targetCI
+            )}
+          </Text>
           <Text style={{ fontSize: 12 }}>{record.suggestion}</Text>
         </Space>
       ),
@@ -326,7 +334,12 @@ const AICMDBRecommendation: React.FC = () => {
         if (record.status !== 'pending') return <Text type="secondary">-</Text>;
         return (
           <Space>
-            <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => handleAccept(record.id)}>
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => handleAccept(record.id)}
+            >
               采纳
             </Button>
             <Popconfirm
@@ -337,7 +350,9 @@ const AICMDBRecommendation: React.FC = () => {
               okButtonProps={{ danger: true }}
               cancelText="取消"
             >
-              <Button size="small" danger icon={<CloseOutlined />}>拒绝</Button>
+              <Button size="small" danger icon={<CloseOutlined />}>
+                拒绝
+              </Button>
             </Popconfirm>
           </Space>
         );
@@ -360,16 +375,37 @@ const AICMDBRecommendation: React.FC = () => {
 
         <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
           <Col span={6}>
-            <StatCard title="智能推荐数" value={totalRecs} icon={<RocketOutlined />} color={colors.purple[500]} />
+            <StatCard
+              title="智能推荐数"
+              value={totalRecs}
+              icon={<RocketOutlined />}
+              color={colors.purple[500]}
+            />
           </Col>
           <Col span={6}>
-            <StatCard title="待确认" value={pendingCount} icon={<CloudServerOutlined />} color={colors.info[500]} />
+            <StatCard
+              title="待确认"
+              value={pendingCount}
+              icon={<CloudServerOutlined />}
+              color={colors.info[500]}
+            />
           </Col>
           <Col span={6}>
-            <StatCard title="异常检测结果" value={anomalyCount} icon={<ThunderboltOutlined />} color={colors.warning[500]} />
+            <StatCard
+              title="异常检测结果"
+              value={anomalyCount}
+              icon={<ThunderboltOutlined />}
+              color={colors.warning[500]}
+            />
           </Col>
           <Col span={6}>
-            <StatCard title="推荐准确率" value={avgAccuracy} suffix="%" icon={<CheckCircleOutlined />} color={colors.success[500]} />
+            <StatCard
+              title="推荐准确率"
+              value={avgAccuracy}
+              suffix="%"
+              icon={<CheckCircleOutlined />}
+              color={colors.success[500]}
+            />
           </Col>
         </Row>
 
@@ -378,21 +414,35 @@ const AICMDBRecommendation: React.FC = () => {
             <Card
               title="智能推荐列表"
               extra={
-                <Button icon={<ReloadOutlined />} size="small" onClick={() => fetchRecommendations()}>
+                <Button
+                  icon={<ReloadOutlined />}
+                  size="small"
+                  onClick={() => fetchRecommendations()}
+                >
                   刷新
                 </Button>
               }
               style={{ height: '100%' }}
             >
               <Space style={{ marginBottom: spacing.md }} size={spacing.sm}>
-                <Select style={{ width: 140 }} value={recommendType} onChange={setRecommendType} allowClear>
+                <Select
+                  style={{ width: 140 }}
+                  value={recommendType}
+                  onChange={setRecommendType}
+                  allowClear
+                >
                   <Option value="all">全部类型</Option>
                   <Option value="auto-link">自动关联</Option>
                   <Option value="attribute-fill">属性补全</Option>
                   <Option value="anomaly-detect">异常检测</Option>
                   <Option value="topology-fix">拓扑修正</Option>
                 </Select>
-                <Select style={{ width: 140 }} value={recommendStatus} onChange={setRecommendStatus} allowClear>
+                <Select
+                  style={{ width: 140 }}
+                  value={recommendStatus}
+                  onChange={setRecommendStatus}
+                  allowClear
+                >
                   <Option value="all">全部状态</Option>
                   <Option value="pending">待确认</Option>
                   <Option value="accepted">已采纳</Option>
@@ -434,7 +484,9 @@ const AICMDBRecommendation: React.FC = () => {
                 </Descriptions.Item>
               </Descriptions>
               <div style={{ marginBottom: spacing.md }}>
-                <Text strong style={{ marginBottom: 4, display: 'block' }}>准确率趋势（近 7 天）</Text>
+                <Text strong style={{ marginBottom: 4, display: 'block' }}>
+                  准确率趋势（近 7 天）
+                </Text>
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
                   <AccuracyTrendSVG data={modelStatus.accuracyTrend} />
                 </div>
@@ -444,7 +496,11 @@ const AICMDBRecommendation: React.FC = () => {
                 icon={<RocketOutlined />}
                 onClick={handleRetrain}
                 loading={retraining}
-                style={{ width: '100%', backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
+                style={{
+                  width: '100%',
+                  backgroundColor: colors.purple[500],
+                  borderColor: colors.purple[500],
+                }}
                 disabled={retraining}
               >
                 重新训练模型
@@ -491,7 +547,9 @@ const AICMDBRecommendation: React.FC = () => {
                       </Space>
                     }
                   />
-                  <Text type="secondary" style={{ fontSize: 12 }}>{item.detectedTime}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {item.detectedTime}
+                  </Text>
                 </List.Item>
               )}
             />

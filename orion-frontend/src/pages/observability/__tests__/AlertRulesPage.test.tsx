@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
-import {BrowserRouter} from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import AlertRulesPage from '../AlertRulesPage';
 
 vi.mock('antd', async () => {
@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><AlertRulesPage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <AlertRulesPage />
+    </BrowserRouter>
+  );
 }
 
 describe('AlertRulesPage', () => {

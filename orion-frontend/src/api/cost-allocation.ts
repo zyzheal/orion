@@ -77,11 +77,12 @@ export const getCostTrend = (params?: { months?: number }) =>
   apiClient.get<CostTrend[]>('/cost-allocation/trend', { params });
 
 export const getTopNamespaces = (params?: { month?: string; limit?: number }) =>
-  apiClient.get<{ namespace: string; cost: number }[]>('/cost-allocation/namespaces/top', { params });
+  apiClient.get<{ namespace: string; cost: number }[]>('/cost-allocation/namespaces/top', {
+    params,
+  });
 
 // Budgets
-export const listBudgets = () =>
-  apiClient.get<FinopsBudget[]>('/cost-allocation/budgets');
+export const listBudgets = () => apiClient.get<FinopsBudget[]>('/cost-allocation/budgets');
 
 export const createBudget = (data: CreateBudgetInput) =>
   apiClient.post<FinopsBudget>('/cost-allocation/budgets', data);
@@ -89,8 +90,15 @@ export const createBudget = (data: CreateBudgetInput) =>
 export const updateBudget = (id: string, data: UpdateBudgetInput) =>
   apiClient.put<FinopsBudget>(`/cost-allocation/budgets/${id}`, data);
 
-export const deleteBudget = (id: string) =>
-  apiClient.delete(`/cost-allocation/budgets/${id}`);
+export const deleteBudget = (id: string) => apiClient.delete(`/cost-allocation/budgets/${id}`);
 
 export const checkBudgetAlerts = () =>
-  apiClient.get<{ budgetId: string; budgetName: string; currentSpend: number; limit: number; exceeded: boolean }[]>('/cost-allocation/budgets/alerts');
+  apiClient.get<
+    {
+      budgetId: string;
+      budgetName: string;
+      currentSpend: number;
+      limit: number;
+      exceeded: boolean;
+    }[]
+  >('/cost-allocation/budgets/alerts');

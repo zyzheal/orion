@@ -88,36 +88,33 @@ const ManagerDashboard: React.FC = () => {
   const data = apiData as ManagerDashboardData | undefined;
 
   // Week-over-week metrics (must be before early returns)
-  const wowMetrics = useMemo(
-    () => {
-      if (!data?.weekOverWeek) {
-        return [];
-      }
-      return [
-        {
-          label: '工单创建',
-          value: data.weekOverWeek.ticketsCreatedChange,
-          suffix: '%',
-        },
-        {
-          label: '已解决',
-          value: data.weekOverWeek.resolvedChange,
-          suffix: '%',
-        },
-        {
-          label: '平均解决时间',
-          value: data.weekOverWeek.avgResolutionTimeChange,
-          suffix: '%',
-        },
-        {
-          label: 'SLA合规率',
-          value: data.weekOverWeek.slaComplianceChange,
-          suffix: '%',
-        },
-      ];
-    },
-    [data]
-  );
+  const wowMetrics = useMemo(() => {
+    if (!data?.weekOverWeek) {
+      return [];
+    }
+    return [
+      {
+        label: '工单创建',
+        value: data.weekOverWeek.ticketsCreatedChange,
+        suffix: '%',
+      },
+      {
+        label: '已解决',
+        value: data.weekOverWeek.resolvedChange,
+        suffix: '%',
+      },
+      {
+        label: '平均解决时间',
+        value: data.weekOverWeek.avgResolutionTimeChange,
+        suffix: '%',
+      },
+      {
+        label: 'SLA合规率',
+        value: data.weekOverWeek.slaComplianceChange,
+        suffix: '%',
+      },
+    ];
+  }, [data]);
 
   // Member metrics table columns
   const memberColumns: ColumnsType<NonNullable<typeof data>['memberMetrics'][number]> = [
@@ -229,7 +226,9 @@ const ManagerDashboard: React.FC = () => {
   ];
 
   // Transfer reasons table columns
-  const transferColumns: ColumnsType<NonNullable<typeof data>['transferAnalysis']['topTransferReasons'][number]> = [
+  const transferColumns: ColumnsType<
+    NonNullable<typeof data>['transferAnalysis']['topTransferReasons'][number]
+  > = [
     {
       title: '转派原因',
       dataIndex: 'reason',
@@ -280,146 +279,143 @@ const ManagerDashboard: React.FC = () => {
             <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             经理看板
           </Title>
-          <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
+          <Text type="secondary">
+            团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}
+          </Text>
         </div>
 
-      {/* Team Overview Cards */}
-      <div style={{ marginBottom: spacing.lg }}>
+        {/* Team Overview Cards */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <CardPanel>
+                <StatCard title="总工单数" value={data.teamOverview.totalTickets} suffix="个" />
+              </CardPanel>
+            </Col>
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <CardPanel>
+                <StatCard title="已解决" value={data.teamOverview.resolvedCount} suffix="个" />
+              </CardPanel>
+            </Col>
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <CardPanel>
+                <StatCard
+                  title="平均解决时间"
+                  value={data.teamOverview.avgResolutionTimeHours}
+                  suffix="h"
+                />
+              </CardPanel>
+            </Col>
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <CardPanel>
+                <StatCard
+                  title="SLA合规率"
+                  value={data.teamOverview.slaComplianceRate}
+                  suffix="%"
+                />
+              </CardPanel>
+            </Col>
+            <Col xs={24} sm={12} lg={8} xl={8}>
+              <CardPanel>
+                <GaugeChart
+                  value={data.teamOverview.teamLoadPercentage}
+                  title="团队负载"
+                  max={100}
+                  thresholds={{ warning: 70, danger: 90 }}
+                  size={160}
+                  unit="%"
+                />
+              </CardPanel>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Week-over-Week Comparison */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel title="环比变化（vs 上周）" extra={<Tag color="cyan">周环比</Tag>}>
+            <Row gutter={[16, 16]}>
+              {wowMetrics.map((metric) => {
+                const isGoodUp = !['平均解决时间'].includes(metric.label);
+                const trendDir = metric.value > 0 ? 'up' : metric.value < 0 ? 'down' : 'flat';
+                return (
+                  <Col xs={24} sm={12} lg={6} key={metric.label}>
+                    <StatCard
+                      title={metric.label}
+                      value={`${metric.value > 0 ? '+' : ''}${metric.value}`}
+                      suffix={metric.suffix}
+                      trend={{
+                        value: Math.abs(metric.value),
+                        direction: trendDir,
+                        good: isGoodUp ? 'up' : 'down',
+                      }}
+                    />
+                  </Col>
+                );
+              })}
+            </Row>
+          </CardPanel>
+        </div>
+
+        {/* Team Performance Chart */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel
+            title="团队绩效分布"
+            extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
+          >
+            <BarChart
+              data={data.memberMetrics.map((m) => ({
+                label: m.engineerName,
+                value: m.workload.totalResolved,
+              }))}
+              height={280}
+            />
+          </CardPanel>
+        </div>
+
+        {/* Member Metrics Table */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel
+            title="成员效能明细"
+            extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
+          >
+            <Table
+              dataSource={data.memberMetrics}
+              columns={memberColumns}
+              rowKey="engineerId"
+              pagination={false}
+              scroll={{ x: 900 }}
+              size="middle"
+            />
+          </CardPanel>
+        </div>
+
+        {/* Transfer Analysis */}
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} lg={8} xl={4}>
-            <CardPanel>
-              <StatCard
-                title="总工单数"
-                value={data.teamOverview.totalTickets}
-                suffix="个"
+          <Col xs={24} xl={14}>
+            <CardPanel title="转派分析" extra={<SwapOutlined />}>
+              <PieChart
+                title="转派原因分布"
+                data={data.transferAnalysis.topTransferReasons.map((r) => ({
+                  name: r.reason,
+                  value: r.count,
+                }))}
+                variant="donut"
+                height={200}
               />
             </CardPanel>
           </Col>
-          <Col xs={24} sm={12} lg={8} xl={4}>
-            <CardPanel>
-              <StatCard
-                title="已解决"
-                value={data.teamOverview.resolvedCount}
-                suffix="个"
-              />
-            </CardPanel>
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={4}>
-            <CardPanel>
-              <StatCard
-                title="平均解决时间"
-                value={data.teamOverview.avgResolutionTimeHours}
-                suffix="h"
-              />
-            </CardPanel>
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={4}>
-            <CardPanel>
-              <StatCard
-                title="SLA合规率"
-                value={data.teamOverview.slaComplianceRate}
-                suffix="%"
-              />
-            </CardPanel>
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={8}>
-            <CardPanel>
-              <GaugeChart
-                value={data.teamOverview.teamLoadPercentage}
-                title="团队负载"
-                max={100}
-                thresholds={{ warning: 70, danger: 90 }}
-                size={160}
-                unit="%"
+          <Col xs={24} xl={10}>
+            <CardPanel title="主要转派原因">
+              <Table
+                dataSource={data.transferAnalysis.topTransferReasons}
+                columns={transferColumns}
+                rowKey="reason"
+                pagination={false}
+                size="small"
               />
             </CardPanel>
           </Col>
         </Row>
-      </div>
-
-      {/* Week-over-Week Comparison */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel title="环比变化（vs 上周）" extra={<Tag color="cyan">周环比</Tag>}>
-          <Row gutter={[16, 16]}>
-            {wowMetrics.map((metric) => {
-              const isGoodUp = !['平均解决时间'].includes(metric.label);
-              const trendDir = metric.value > 0 ? 'up' : metric.value < 0 ? 'down' : 'flat';
-              return (
-                <Col xs={24} sm={12} lg={6} key={metric.label}>
-                  <StatCard
-                    title={metric.label}
-                    value={`${metric.value > 0 ? '+' : ''}${metric.value}`}
-                    suffix={metric.suffix}
-                    trend={{
-                      value: Math.abs(metric.value),
-                      direction: trendDir,
-                      good: isGoodUp ? 'up' : 'down',
-                    }}
-                  />
-                </Col>
-              );
-            })}
-          </Row>
-        </CardPanel>
-      </div>
-
-      {/* Team Performance Chart */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel
-          title="团队绩效分布"
-          extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
-        >
-          <BarChart
-            data={data.memberMetrics.map((m) => ({
-              label: m.engineerName,
-              value: m.workload.totalResolved,
-            }))}
-            height={280}
-          />
-        </CardPanel>
-      </div>
-
-      {/* Member Metrics Table */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel
-          title="成员效能明细"
-          extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
-        >
-          <Table
-            dataSource={data.memberMetrics}
-            columns={memberColumns}
-            rowKey="engineerId"
-            pagination={false}
-            scroll={{ x: 900 }}
-            size="middle"
-          />
-        </CardPanel>
-      </div>
-
-      {/* Transfer Analysis */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={14}>
-          <CardPanel title="转派分析" extra={<SwapOutlined />}>
-            <PieChart
-              title="转派原因分布"
-              data={data.transferAnalysis.topTransferReasons.map(r => ({ name: r.reason, value: r.count }))}
-              variant="donut"
-              height={200}
-            />
-          </CardPanel>
-        </Col>
-        <Col xs={24} xl={10}>
-          <CardPanel title="主要转派原因">
-            <Table
-              dataSource={data.transferAnalysis.topTransferReasons}
-              columns={transferColumns}
-              rowKey="reason"
-              pagination={false}
-              size="small"
-            />
-          </CardPanel>
-        </Col>
-      </Row>
       </DataState>
     </div>
   );

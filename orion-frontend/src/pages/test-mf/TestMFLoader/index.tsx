@@ -22,13 +22,15 @@ const tryLoadOrionMF = async () => {
 
   try {
     // 尝试从 @orion-mf/core 导入
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore - 动态导入
     const mod = await import('@orion-mf/core');
     mfLoadSubApp = mod.loadSubApp;
-
   } catch (e1) {
     // 降级方案：在开发环境手动挂载到 window 以供测试
     if (import.meta.env.DEV) {
+      // 开发环境手动挂载 window.OrionMF 供测试
+      void console.debug('OrionMF not found, relying on dev environment mount');
     }
   }
 };
@@ -85,7 +87,7 @@ const TestMFLoader: React.FC = () => {
 
   // 根据环境选择入口
   const isDev = import.meta.env.DEV;
-  const getRemoteEntry = (app: typeof TEST_SUBAPPS[0]) =>
+  const getRemoteEntry = (app: (typeof TEST_SUBAPPS)[0]) =>
     isDev ? app.remoteEntryDev : app.remoteEntryProd;
 
   // 测试加载子应用
@@ -101,13 +103,9 @@ const TestMFLoader: React.FC = () => {
 
     const startTime = Date.now();
     setLoading(appKey);
-    setTestResults((prev) => [
-      ...prev,
-      { appKey, status: 'loading' },
-    ]);
+    setTestResults((prev) => [...prev, { appKey, status: 'loading' }]);
 
     try {
-
       const instance = await mfLoadSubApp!({
         key: app.key,
         name: app.name,
@@ -125,11 +123,7 @@ const TestMFLoader: React.FC = () => {
 
       const duration = Date.now() - startTime;
       setTestResults((prev) =>
-        prev.map((r) =>
-          r.appKey === appKey
-            ? { ...r, status: 'success', duration }
-            : r
-        )
+        prev.map((r) => (r.appKey === appKey ? { ...r, status: 'success', duration } : r))
       );
       message.success(`${app.name} 加载成功 (${duration}ms)`);
     } catch (error) {
@@ -169,15 +163,13 @@ const TestMFLoader: React.FC = () => {
         Orion-MF 微前端框架测试
       </Title>
 
-      <Paragraph>
-        Phase 0: 并行运行验证 - 验证 orion-mf 框架加载子应用的能力
-      </Paragraph>
+      <Paragraph>Phase 0: 并行运行验证 - 验证 orion-mf 框架加载子应用的能力</Paragraph>
 
       <Card style={{ marginBottom: spacing.lg }}>
         <Title level={4}>测试说明</Title>
         <Paragraph>
-          本页面用于验证 orion-mf 框架能否正常加载子应用。
-          当前阶段为 <Text strong>并行运行验证</Text>，wujie 和 orion-mf 共存。
+          本页面用于验证 orion-mf 框架能否正常加载子应用。 当前阶段为{' '}
+          <Text strong>并行运行验证</Text>，wujie 和 orion-mf 共存。
         </Paragraph>
         <Divider />
 
@@ -213,10 +205,7 @@ const TestMFLoader: React.FC = () => {
                 </Button>
               );
             })}
-            <Button
-              icon={<DeleteOutlined />}
-              onClick={handleClear}
-            >
+            <Button icon={<DeleteOutlined />} onClick={handleClear}>
               清理
             </Button>
           </Space>
@@ -235,8 +224,8 @@ const TestMFLoader: React.FC = () => {
                           result.status === 'success'
                             ? colors.success[500]
                             : result.status === 'error'
-                            ? colors.error[500]
-                            : colors.warning[500],
+                              ? colors.error[500]
+                              : colors.warning[500],
                       }}
                     >
                       {result.status === 'loading' && '加载中...'}
@@ -254,9 +243,7 @@ const TestMFLoader: React.FC = () => {
 
       <Card>
         <Title level={4}>容器区域</Title>
-        <Text type="secondary">
-          子应用将渲染到下方容器中（使用 Shadow DOM 隔离）
-        </Text>
+        <Text type="secondary">子应用将渲染到下方容器中（使用 Shadow DOM 隔离）</Text>
         <div
           ref={containerRef}
           style={{

@@ -79,7 +79,15 @@ export default function CostAllocationPage() {
   const [trend, setTrend] = useState<CostTrend[]>([]);
   const [topNamespaces, setTopNamespaces] = useState<{ namespace: string; cost: number }[]>([]);
   const [budgets, setBudgets] = useState<FinopsBudget[]>([]);
-  const [alerts, setAlerts] = useState<{ budgetId: string; budgetName: string; currentSpend: number; limit: number; exceeded: boolean }[]>([]);
+  const [alerts, setAlerts] = useState<
+    {
+      budgetId: string;
+      budgetName: string;
+      currentSpend: number;
+      limit: number;
+      exceeded: boolean;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
@@ -222,7 +230,9 @@ export default function CostAllocationPage() {
       align: 'right',
       sorter: (a, b) => a.cost - b.cost,
       render: (cost: number) => (
-        <Text style={{ color: cost > 10000 ? colors.error[500] : colors.neutral[900], fontWeight: 600 }}>
+        <Text
+          style={{ color: cost > 10000 ? colors.error[500] : colors.neutral[900], fontWeight: 600 }}
+        >
           {formatCost(cost)}
         </Text>
       ),
@@ -271,7 +281,8 @@ export default function CostAllocationPage() {
         const isUp = pct > 0;
         return (
           <Text style={{ color: isUp ? colors.error[500] : colors.success[500] }}>
-            {isUp ? '+' : ''}{pct.toFixed(1)}%
+            {isUp ? '+' : ''}
+            {pct.toFixed(1)}%
           </Text>
         );
       },
@@ -290,7 +301,9 @@ export default function CostAllocationPage() {
       title: '范围类型',
       dataIndex: 'scopeType',
       key: 'scopeType',
-      render: (type: string) => <Tag color={scopeTypeColor[type]}>{scopeTypeLabel[type] ?? type}</Tag>,
+      render: (type: string) => (
+        <Tag color={scopeTypeColor[type]}>{scopeTypeLabel[type] ?? type}</Tag>
+      ),
     },
     {
       title: '范围值',
@@ -339,7 +352,7 @@ export default function CostAllocationPage() {
   ];
 
   // --- Alerts ---
-  const activeAlerts = alerts.filter(a => a.currentSpend / a.limit >= (a.exceeded ? 1 : 0));
+  const activeAlerts = alerts.filter((a) => a.currentSpend / a.limit >= (a.exceeded ? 1 : 0));
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -372,7 +385,10 @@ export default function CostAllocationPage() {
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
           <Card
-            style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             <Statistic
               title={<Text style={{ color: colors.neutral[500] }}>本月总费用</Text>}
@@ -386,7 +402,10 @@ export default function CostAllocationPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card
-            style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             <Statistic
               title={<Text style={{ color: colors.neutral[500] }}>计算费用</Text>}
@@ -400,7 +419,10 @@ export default function CostAllocationPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card
-            style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             <Statistic
               title={<Text style={{ color: colors.neutral[500] }}>存储费用</Text>}
@@ -414,7 +436,10 @@ export default function CostAllocationPage() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card
-            style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             <Statistic
               title={<Text style={{ color: colors.neutral[500] }}>网络费用</Text>}
@@ -445,22 +470,32 @@ export default function CostAllocationPage() {
           }}
         >
           <Row gutter={[16, 16]}>
-            {activeAlerts.map(alert => {
+            {activeAlerts.map((alert) => {
               const pct = Math.min(Math.round((alert.currentSpend / alert.limit) * 100), 100);
               const isOver = alert.exceeded || pct >= 100;
               return (
                 <Col xs={24} sm={12} lg={8} key={alert.budgetId}>
-                  <Card size="small" style={{ borderRadius: componentRadius.card, background: isOver ? colors.error[50] : colors.warning[50] }}>
+                  <Card
+                    size="small"
+                    style={{
+                      borderRadius: componentRadius.card,
+                      background: isOver ? colors.error[50] : colors.warning[50],
+                    }}
+                  >
                     <Space direction="vertical" style={{ width: '100%' }}>
                       <Row justify="space-between">
                         <Text strong>{alert.budgetName}</Text>
-                        <Tag color={isOver ? 'red' : 'orange'}>{isOver ? '已超限' : '接近限额'}</Tag>
+                        <Tag color={isOver ? 'red' : 'orange'}>
+                          {isOver ? '已超限' : '接近限额'}
+                        </Tag>
                       </Row>
                       <Progress
                         percent={pct}
                         status={isOver ? 'exception' : 'active'}
                         strokeColor={isOver ? colors.error[500] : colors.warning[500]}
-                        format={() => `${formatCost(alert.currentSpend)} / ${formatCost(alert.limit)}`}
+                        format={() =>
+                          `${formatCost(alert.currentSpend)} / ${formatCost(alert.limit)}`
+                        }
                       />
                     </Space>
                   </Card>
@@ -481,7 +516,10 @@ export default function CostAllocationPage() {
                 <Text strong>Top 10 高费用命名空间</Text>
               </Space>
             }
-            style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             {topNamespaces.length === 0 ? (
               <Empty description="暂无数据" />
@@ -505,7 +543,10 @@ export default function CostAllocationPage() {
                 <Text strong>费用趋势（近 6 个月）</Text>
               </Space>
             }
-            style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            style={{
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            }}
           >
             {trend.length === 0 ? (
               <Empty description="暂无数据" />
@@ -536,7 +577,10 @@ export default function CostAllocationPage() {
             创建预算
           </Button>
         }
-        style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+        style={{
+          borderRadius: 12,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+        }}
       >
         {budgets.length === 0 ? (
           <Empty description="暂无预算">
@@ -566,12 +610,20 @@ export default function CostAllocationPage() {
         destroyOnClose
       >
         <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item name="name" label="预算名称" rules={[{ required: true, message: '请输入预算名称' }]}>
+          <Form.Item
+            name="name"
+            label="预算名称"
+            rules={[{ required: true, message: '请输入预算名称' }]}
+          >
             <Input placeholder="例如：生产集群-计算预算" style={{ height: 36 }} />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="scopeType" label="范围类型" rules={[{ required: true, message: '请选择范围类型' }]}>
+              <Form.Item
+                name="scopeType"
+                label="范围类型"
+                rules={[{ required: true, message: '请选择范围类型' }]}
+              >
                 <Select placeholder="选择范围类型" style={{ height: 36 }}>
                   <Select.Option value="cluster">集群</Select.Option>
                   <Select.Option value="namespace">命名空间</Select.Option>
@@ -580,14 +632,22 @@ export default function CostAllocationPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="scopeValue" label="范围值" rules={[{ required: true, message: '请输入范围值' }]}>
+              <Form.Item
+                name="scopeValue"
+                label="范围值"
+                rules={[{ required: true, message: '请输入范围值' }]}
+              >
                 <Input placeholder="例如：prod-cluster" style={{ height: 36 }} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="monthlyLimit" label="月度限额" rules={[{ required: true, message: '请输入月度限额' }]}>
+              <Form.Item
+                name="monthlyLimit"
+                label="月度限额"
+                rules={[{ required: true, message: '请输入月度限额' }]}
+              >
                 <InputNumber
                   min={0}
                   precision={2}

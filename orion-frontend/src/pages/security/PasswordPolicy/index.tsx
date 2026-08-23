@@ -49,7 +49,9 @@ const commonStyle = {
 /**
  * 密码强度计算逻辑
  */
-const calculatePasswordStrength = (password: string): { score: number; label: string; color: string } => {
+const calculatePasswordStrength = (
+  password: string
+): { score: number; label: string; color: string } => {
   let score = 0;
   if (password.length >= 8) score += 20;
   else if (password.length >= 6) score += 10;
@@ -90,7 +92,16 @@ const hasConsecutiveChars = (password: string, threshold = 3): boolean => {
 /**
  * 简单字典单词检测
  */
-const commonWords = ['password', 'admin', '123456', 'qwerty', 'letmein', 'welcome', 'monkey', 'dragon'];
+const commonWords = [
+  'password',
+  'admin',
+  '123456',
+  'qwerty',
+  'letmein',
+  'welcome',
+  'monkey',
+  'dragon',
+];
 const containsDictionaryWord = (password: string): boolean => {
   const lower = password.toLowerCase();
   return commonWords.some((word) => lower.includes(word));
@@ -99,7 +110,13 @@ const containsDictionaryWord = (password: string): boolean => {
 /**
  * Mock 密码历史数据
  */
-const mockHistoryData: Array<{ key: string; username: string; updatedAt: string; oldHash: string; status: string }> = [];
+const mockHistoryData: Array<{
+  key: string;
+  username: string;
+  updatedAt: string;
+  oldHash: string;
+  status: string;
+}> = [];
 
 const PasswordPolicyPage: React.FC = () => {
   const [form] = Form.useForm();
@@ -288,7 +305,7 @@ const PasswordPolicyPage: React.FC = () => {
                 </Col>
                 <Col span={12}>
                   <Form.Item
-                    label="禁用连续字符（如 &quot;aaa&quot;）"
+                    label='禁用连续字符（如 "aaa"）'
                     name="disableConsecutive"
                     valuePropName="checked"
                   >
@@ -297,7 +314,7 @@ const PasswordPolicyPage: React.FC = () => {
                 </Col>
                 <Col span={12}>
                   <Form.Item
-                    label="禁用重复字符（如 &quot;111&quot;）"
+                    label='禁用重复字符（如 "111"）'
                     name="disableRepeated"
                     valuePropName="checked"
                   >
@@ -314,11 +331,7 @@ const PasswordPolicyPage: React.FC = () => {
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item
-                    label="密码过期天数"
-                    name="expireDays"
-                    tooltip="0 表示永不过期"
-                  >
+                  <Form.Item label="密码过期天数" name="expireDays" tooltip="0 表示永不过期">
                     <InputNumber min={0} max={3650} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>

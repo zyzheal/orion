@@ -71,7 +71,13 @@ export function ingestSource(data: SourceIngestRequest) {
 
 export interface AssistantActionRequest {
   prompt: string;
-  kind?: 'trigger_pipeline' | 'suggest_command' | 'generate_flow' | 'create_ticket' | 'create_change' | 'auto';
+  kind?:
+    | 'trigger_pipeline'
+    | 'suggest_command'
+    | 'generate_flow'
+    | 'create_ticket'
+    | 'create_change'
+    | 'auto';
   title?: string;
   description?: string;
 }

@@ -26,11 +26,7 @@ import {
   Empty,
   Spin,
 } from 'antd';
-import {
-  ThunderboltOutlined,
-  ClockCircleOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { ThunderboltOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTickets } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
@@ -145,13 +141,17 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
         for (const t of queueEntries) {
           byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
         }
-        const totalWaitMs = queueEntries.reduce((sum, t) => sum + dayjs().diff(dayjs(t.createdAt)), 0);
+        const totalWaitMs = queueEntries.reduce(
+          (sum, t) => sum + dayjs().diff(dayjs(t.createdAt)),
+          0
+        );
         setQueueStatus({
           totalInQueue: queueEntries.length,
           byPriority,
           slaAtRisk: 0, // Would need SLA calculation from backend
           slaBreached: 0,
-          avgWaitTimeMs: queueEntries.length > 0 ? Math.round(totalWaitMs / queueEntries.length) : 0,
+          avgWaitTimeMs:
+            queueEntries.length > 0 ? Math.round(totalWaitMs / queueEntries.length) : 0,
         });
 
         // Load engineers from users API
@@ -169,7 +169,13 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
       } catch {
         setQueueTickets([]);
         setEngineers([]);
-        setQueueStatus({ totalInQueue: 0, byPriority: {}, slaAtRisk: 0, slaBreached: 0, avgWaitTimeMs: 0 });
+        setQueueStatus({
+          totalInQueue: 0,
+          byPriority: {},
+          slaAtRisk: 0,
+          slaBreached: 0,
+          avgWaitTimeMs: 0,
+        });
       } finally {
         setLoading(false);
       }
@@ -387,7 +393,9 @@ const DispatchPanel: React.FC<DispatchPanelProps> = ({ open, onClose }) => {
               <Space direction="vertical" style={{ width: '100%' }}>
                 {engineers.map((engineer) => {
                   const availConfig = availabilityConfig[engineer.availability];
-                  const loadPercent = Math.round((engineer.currentLoad / engineer.maxCapacity) * 100);
+                  const loadPercent = Math.round(
+                    (engineer.currentLoad / engineer.maxCapacity) * 100
+                  );
                   return (
                     <Card
                       key={engineer.id}

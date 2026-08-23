@@ -154,7 +154,12 @@ const ExplainDecisionTab: React.FC = () => {
             </Col>
           </Row>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} icon={<InfoCircleOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              icon={<InfoCircleOutlined />}
+            >
               生成解释
             </Button>
           </Form.Item>
@@ -167,9 +172,7 @@ const ExplainDecisionTab: React.FC = () => {
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="决策类型">{explanation.decisionType}</Descriptions.Item>
               <Descriptions.Item label="决策结果">
-                <Tag color={decisionColorMap[explanation.decision]}>
-                  {explanation.decision}
-                </Tag>
+                <Tag color={decisionColorMap[explanation.decision]}>{explanation.decision}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="置信度">
                 <Progress
@@ -180,14 +183,28 @@ const ExplainDecisionTab: React.FC = () => {
                     explanation.confidence >= 0.8
                       ? colors.success[500]
                       : explanation.confidence >= 0.6
-                      ? colors.warning[500]
-                      : colors.error[400]
+                        ? colors.warning[500]
+                        : colors.error[400]
                   }
                 />
               </Descriptions.Item>
               <Descriptions.Item label="置信度等级">
-                <Tag color={confidenceLevelMap[explanation.confidence >= 0.8 ? 'high' : explanation.confidence >= 0.6 ? 'medium' : 'low']}>
-                  {explanation.confidence >= 0.8 ? 'high' : explanation.confidence >= 0.6 ? 'medium' : 'low'}
+                <Tag
+                  color={
+                    confidenceLevelMap[
+                      explanation.confidence >= 0.8
+                        ? 'high'
+                        : explanation.confidence >= 0.6
+                          ? 'medium'
+                          : 'low'
+                    ]
+                  }
+                >
+                  {explanation.confidence >= 0.8
+                    ? 'high'
+                    : explanation.confidence >= 0.6
+                      ? 'medium'
+                      : 'low'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="解释说明" span={2}>
@@ -224,7 +241,11 @@ const ExplainDecisionTab: React.FC = () => {
                           percent={Math.round(abs * 100)}
                           size="small"
                           style={{ width: 120 }}
-                          strokeColor={directionColorMap[v > 0.05 ? 'positive' : v < -0.05 ? 'negative' : 'neutral']}
+                          strokeColor={
+                            directionColorMap[
+                              v > 0.05 ? 'positive' : v < -0.05 ? 'negative' : 'neutral'
+                            ]
+                          }
                           format={() => v.toFixed(3)}
                         />
                       );
@@ -236,7 +257,11 @@ const ExplainDecisionTab: React.FC = () => {
                     key: 'direction',
                     width: 100,
                     render: (v: string) => (
-                      <Tag color={v === 'positive' ? 'success' : v === 'negative' ? 'error' : 'default'}>
+                      <Tag
+                        color={
+                          v === 'positive' ? 'success' : v === 'negative' ? 'error' : 'default'
+                        }
+                      >
                         {v}
                       </Tag>
                     ),
@@ -274,9 +299,13 @@ const ExplainDecisionTab: React.FC = () => {
                     width: 100,
                     render: (v: boolean) =>
                       v ? (
-                        <Tag color="success" icon={<CheckCircleOutlined />}>匹配</Tag>
+                        <Tag color="success" icon={<CheckCircleOutlined />}>
+                          匹配
+                        </Tag>
                       ) : (
-                        <Tag color="default" icon={<CloseCircleOutlined />}>未匹配</Tag>
+                        <Tag color="default" icon={<CloseCircleOutlined />}>
+                          未匹配
+                        </Tag>
                       ),
                   },
                   {
@@ -292,17 +321,22 @@ const ExplainDecisionTab: React.FC = () => {
           )}
 
           {/* 建议 */}
-          {explanation.matchedRules && explanation.matchedRules.some((r) => r.contribution !== undefined) && (
-            <Card title="建议贡献度" size="small">
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {explanation.matchedRules.filter((r) => r.contribution !== undefined).map((r, i) => (
-                  <li key={String(i)}>
-                    <Text>{r.name}: 贡献 {r.contribution?.toFixed(2)}</Text>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+          {explanation.matchedRules &&
+            explanation.matchedRules.some((r) => r.contribution !== undefined) && (
+              <Card title="建议贡献度" size="small">
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {explanation.matchedRules
+                    .filter((r) => r.contribution !== undefined)
+                    .map((r, i) => (
+                      <li key={String(i)}>
+                        <Text>
+                          {r.name}: 贡献 {r.contribution?.toFixed(2)}
+                        </Text>
+                      </li>
+                    ))}
+                </ul>
+              </Card>
+            )}
         </>
       )}
     </Space>
@@ -457,7 +491,9 @@ const ExplanationHistoryTab: React.FC = () => {
 
       {/* 详情 */}
       {detailLoading ? (
-        <Card><PageSkeleton rows={4} /></Card>
+        <Card>
+          <PageSkeleton rows={4} />
+        </Card>
       ) : detail ? (
         <Card title={`解释详情: ${detail.id}`}>
           <Descriptions bordered size="small" column={2}>
@@ -465,19 +501,22 @@ const ExplanationHistoryTab: React.FC = () => {
             <Descriptions.Item label="结果">
               <Tag color={decisionColorMap[detail.decision]}>{detail.decision}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="置信度">{(detail.confidence * 100).toFixed(1)}%</Descriptions.Item>
-            <Descriptions.Item label="时间">{new Date(detail.createdAt).toLocaleString()}</Descriptions.Item>
-            <Descriptions.Item label="理由" span={2}>{detail.explanation}</Descriptions.Item>
+            <Descriptions.Item label="置信度">
+              {(detail.confidence * 100).toFixed(1)}%
+            </Descriptions.Item>
+            <Descriptions.Item label="时间">
+              {new Date(detail.createdAt).toLocaleString()}
+            </Descriptions.Item>
+            <Descriptions.Item label="理由" span={2}>
+              {detail.explanation}
+            </Descriptions.Item>
           </Descriptions>
 
           {detail.matchedRules && detail.matchedRules.length > 0 && (
             <Card size="small" title="规则匹配" style={{ marginTop: spacing.md }}>
               <Timeline>
                 {detail.matchedRules.map((rule: MatchedRule) => (
-                  <Timeline.Item
-                    key={rule.id}
-                    color={rule.matched ? 'green' : 'gray'}
-                  >
+                  <Timeline.Item key={rule.id} color={rule.matched ? 'green' : 'gray'}>
                     <Text strong>{rule.name}</Text>
                     <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                       {rule.condition}
@@ -532,9 +571,7 @@ const ExplanationPage: React.FC = () => {
           <InfoCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           AI 决策解释
         </Title>
-        <Text type="secondary">
-          生成 SHAP 风格特征重要性解释，查看规则匹配路径和解释历史
-        </Text>
+        <Text type="secondary">生成 SHAP 风格特征重要性解释，查看规则匹配路径和解释历史</Text>
       </div>
 
       <Tabs activeKey={activeTab} onChange={setActiveTab}>

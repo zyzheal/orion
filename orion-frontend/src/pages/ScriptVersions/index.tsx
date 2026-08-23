@@ -4,19 +4,35 @@
  */
 import React, { useState } from 'react';
 import {
-  Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select,
-  Tabs, Empty,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tabs,
+  Empty,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, DeleteOutlined,
-  BranchesOutlined, FileTextOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  BranchesOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import {
-  getScriptVersions, createScriptVersion, deleteScriptVersion,
+  getScriptVersions,
+  createScriptVersion,
+  deleteScriptVersion,
   diffScriptVersions,
-  type ScriptVersion, type ScriptVersionDiff,
+  type ScriptVersion,
+  type ScriptVersionDiff,
 } from '@/api/script-versions';
 
 const { Title, Text } = Typography;
@@ -74,9 +90,10 @@ const ScriptVersionsPage: React.FC = () => {
       let parameters: Record<string, unknown> = {};
       if (values.parameters) {
         try {
-          parameters = typeof values.parameters === 'string'
-            ? JSON.parse(values.parameters)
-            : values.parameters;
+          parameters =
+            typeof values.parameters === 'string'
+              ? JSON.parse(values.parameters)
+              : values.parameters;
         } catch {
           message.error('Parameters 必须是合法 JSON');
           return;
@@ -111,20 +128,28 @@ const ScriptVersionsPage: React.FC = () => {
     }
   };
 
-  const versionList = versions.map(v => v.version);
+  const versionList = versions.map((v) => v.version);
 
   const columns = [
     {
       title: 'Version',
       dataIndex: 'version',
       width: 120,
-      render: (v: string) => <Text strong code>{v}</Text>,
+      render: (v: string) => (
+        <Text strong code>
+          {v}
+        </Text>
+      ),
     },
     {
       title: 'Content Hash',
       dataIndex: 'contentHash',
       width: 80,
-      render: (v: string) => <Text code style={{ fontSize: 11 }}>{v.slice(0, 8)}</Text>,
+      render: (v: string) => (
+        <Text code style={{ fontSize: 11 }}>
+          {v.slice(0, 8)}
+        </Text>
+      ),
     },
     {
       title: 'Change Description',
@@ -147,7 +172,13 @@ const ScriptVersionsPage: React.FC = () => {
       width: 120,
       render: (_: unknown, r: ScriptVersion) => (
         <Space size="small">
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(r)}
+          >
             删除
           </Button>
         </Space>
@@ -157,7 +188,9 @@ const ScriptVersionsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <div style={{ flex: 1 }}>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <FileTextOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
@@ -173,7 +206,15 @@ const ScriptVersionsPage: React.FC = () => {
             style={{ width: 200 }}
             onPressEnter={loadVersions}
           />
-          <Button icon={<BranchesOutlined />} onClick={() => { setDiffVisible(true); setDiffData(null); setDiffV1(''); setDiffV2(''); }}>
+          <Button
+            icon={<BranchesOutlined />}
+            onClick={() => {
+              setDiffVisible(true);
+              setDiffData(null);
+              setDiffV1('');
+              setDiffV2('');
+            }}
+          >
             版本对比
           </Button>
           <Button icon={<PlusOutlined />} type="primary" onClick={handleCreate}>
@@ -187,7 +228,9 @@ const ScriptVersionsPage: React.FC = () => {
 
       {versions.length === 0 && !loading ? (
         <Empty description="暂无版本，点击「创建版本」开始">
-          <Button type="primary" onClick={handleCreate}>创建版本</Button>
+          <Button type="primary" onClick={handleCreate}>
+            创建版本
+          </Button>
         </Empty>
       ) : (
         <Table
@@ -210,10 +253,18 @@ const ScriptVersionsPage: React.FC = () => {
         width={700}
       >
         <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item name="version" label="Version" rules={[{ required: true, message: '请输入版本号' }]}>
+          <Form.Item
+            name="version"
+            label="Version"
+            rules={[{ required: true, message: '请输入版本号' }]}
+          >
             <Input placeholder="如: v1.0.0" />
           </Form.Item>
-          <Form.Item name="content" label="Content" rules={[{ required: true, message: '请输入脚本内容' }]}>
+          <Form.Item
+            name="content"
+            label="Content"
+            rules={[{ required: true, message: '请输入脚本内容' }]}
+          >
             <Input.TextArea rows={8} placeholder="脚本内容" />
           </Form.Item>
           <Form.Item name="parameters" label="Parameters (JSON)">
@@ -243,7 +294,7 @@ const ScriptVersionsPage: React.FC = () => {
             value={diffV1 || undefined}
             onChange={setDiffV1}
             style={{ width: '45%' }}
-            options={versionList.map(v => ({ value: v, label: v }))}
+            options={versionList.map((v) => ({ value: v, label: v }))}
             allowClear
           />
           <span style={{ lineHeight: '32px', color: colors.neutral[500] }}>vs</span>
@@ -252,7 +303,7 @@ const ScriptVersionsPage: React.FC = () => {
             value={diffV2 || undefined}
             onChange={setDiffV2}
             style={{ width: '45%' }}
-            options={versionList.map(v => ({ value: v, label: v }))}
+            options={versionList.map((v) => ({ value: v, label: v }))}
             allowClear
           />
         </Space.Compact>
@@ -265,7 +316,10 @@ const ScriptVersionsPage: React.FC = () => {
                   label: '概要',
                   children: (
                     <div>
-                      <p><Text strong>Summary: </Text>{diffData.summary}</p>
+                      <p>
+                        <Text strong>Summary: </Text>
+                        {diffData.summary}
+                      </p>
                       <Space>
                         <Tag color="green">+{diffData.added.length} Added</Tag>
                         <Tag color="red">-{diffData.removed.length} Removed</Tag>
@@ -278,23 +332,60 @@ const ScriptVersionsPage: React.FC = () => {
                 {
                   key: 'added',
                   label: `Added (${diffData.added.length})`,
-                  children: diffData.added.length > 0
-                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: colors.neutral[200], padding: 12 }}>{diffData.added.join('\n')}</pre>
-                    : <Empty description="无新增行" />,
+                  children:
+                    diffData.added.length > 0 ? (
+                      <pre
+                        style={{
+                          maxHeight: 300,
+                          overflow: 'auto',
+                          background: colors.neutral[200],
+                          padding: 12,
+                        }}
+                      >
+                        {diffData.added.join('\n')}
+                      </pre>
+                    ) : (
+                      <Empty description="无新增行" />
+                    ),
                 },
                 {
                   key: 'removed',
                   label: `Removed (${diffData.removed.length})`,
-                  children: diffData.removed.length > 0
-                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: colors.neutral[200], padding: 12, color: colors.error[500] }}>{diffData.removed.join('\n')}</pre>
-                    : <Empty description="无删除行" />,
+                  children:
+                    diffData.removed.length > 0 ? (
+                      <pre
+                        style={{
+                          maxHeight: 300,
+                          overflow: 'auto',
+                          background: colors.neutral[200],
+                          padding: 12,
+                          color: colors.error[500],
+                        }}
+                      >
+                        {diffData.removed.join('\n')}
+                      </pre>
+                    ) : (
+                      <Empty description="无删除行" />
+                    ),
                 },
                 {
                   key: 'modified',
                   label: `Modified (${diffData.modified.length})`,
-                  children: diffData.modified.length > 0
-                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: colors.neutral[200], padding: 12 }}>{diffData.modified.join('\n')}</pre>
-                    : <Empty description="无变更行" />,
+                  children:
+                    diffData.modified.length > 0 ? (
+                      <pre
+                        style={{
+                          maxHeight: 300,
+                          overflow: 'auto',
+                          background: colors.neutral[200],
+                          padding: 12,
+                        }}
+                      >
+                        {diffData.modified.join('\n')}
+                      </pre>
+                    ) : (
+                      <Empty description="无变更行" />
+                    ),
                 },
               ]}
             />

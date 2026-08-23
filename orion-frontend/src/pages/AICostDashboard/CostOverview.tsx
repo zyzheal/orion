@@ -15,7 +15,12 @@ import {
   message,
   Select,
 } from 'antd';
-import { ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined, BarChartOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  BarChartOutlined,
+} from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -67,7 +72,7 @@ const CostOverview: React.FC = () => {
   // TR-08: Apply model/tenant filter to dashboard data
   const filteredData = useMemo(() => {
     if (!dashboard) return null;
-    let data = { ...dashboard };
+    const data = { ...dashboard };
     if (filterModel && filterModel !== 'all') {
       data.modelDistribution = data.modelDistribution?.filter((d) => d.model === filterModel) || [];
     }

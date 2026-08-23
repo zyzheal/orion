@@ -12,7 +12,4 @@ export type {
   WebSocketStats,
   WebSocketActions,
 } from './webSocketStore';
-export type {
-  ChatOpsQuestionConfig,
-  ChatOpsCommandConfig,
-} from './chatOpsConfigStore';
+export type { ChatOpsQuestionConfig, ChatOpsCommandConfig } from './chatOpsConfigStore';

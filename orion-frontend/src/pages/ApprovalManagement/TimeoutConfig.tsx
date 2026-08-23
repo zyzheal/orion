@@ -21,12 +21,7 @@ import {
   Modal,
   Tooltip,
 } from 'antd';
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  BellOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, BellOutlined } from '@ant-design/icons';
 import {
   type ApprovalTimeoutConfig,
   createTimeoutConfig,
@@ -148,8 +143,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
       dataIndex: 'resourceType',
       key: 'resourceType',
       width: 160,
-      render: (v: string | undefined) =>
-        v ? <Tag color="blue">{v}</Tag> : <Tag>全局默认</Tag>,
+      render: (v: string | undefined) => (v ? <Tag color="blue">{v}</Tag> : <Tag>全局默认</Tag>),
     },
     {
       title: '超时时间',
@@ -164,9 +158,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
       key: 'autoRejectOnTimeout',
       width: 100,
       render: (v: boolean) => (
-        <Tag color={v ? colors.error[400] : colors.neutral[400]}>
-          {v ? '是' : '否'}
-        </Tag>
+        <Tag color={v ? colors.error[400] : colors.neutral[400]}>{v ? '是' : '否'}</Tag>
       ),
     },
     {
@@ -204,12 +196,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
       width: 120,
       render: (_v: unknown, record: ApprovalTimeoutConfig) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openEdit(record)}
-          >
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
             编辑
           </Button>
           <Button
@@ -233,11 +220,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
         <span style={{ color: colors.neutral[500], fontSize: 13 }}>
           共 {configs.length} 个超时配置
         </span>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setCreateModalVisible(true)}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
           新建配置
         </Button>
       </div>
@@ -292,10 +275,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
             valuePropName="checked"
             initialValue={false}
           >
-            <Switch
-              checkedChildren="是"
-              unCheckedChildren="否"
-            />
+            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
           <Form.Item
             name="escalationEnabled"
@@ -308,11 +288,7 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
           <Form.Item name="escalationTarget" label="升级目标">
             <Input placeholder="升级通知的用户/组 ID" />
           </Form.Item>
-          <Form.Item
-            name="reminderIntervalHours"
-            label="提醒间隔 (小时)"
-            initialValue={4}
-          >
+          <Form.Item name="reminderIntervalHours" label="提醒间隔 (小时)" initialValue={4}>
             <InputNumber min={1} max={24} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
@@ -339,18 +315,10 @@ const TimeoutConfig: React.FC<TimeoutConfigProps> = ({ configs, loading, onRefre
           >
             <InputNumber min={1} max={720} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item
-            name="autoRejectOnTimeout"
-            label="超时自动拒绝"
-            valuePropName="checked"
-          >
+          <Form.Item name="autoRejectOnTimeout" label="超时自动拒绝" valuePropName="checked">
             <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
-          <Form.Item
-            name="escalationEnabled"
-            label="启用超时升级"
-            valuePropName="checked"
-          >
+          <Form.Item name="escalationEnabled" label="启用超时升级" valuePropName="checked">
             <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
           <Form.Item name="escalationTarget" label="升级目标">

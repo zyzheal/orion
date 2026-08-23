@@ -15,7 +15,12 @@ interface CreateAgentModalProps {
   agent?: AgentProfile | null; // 当提供时进入编辑模式
 }
 
-const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onSuccess, agent }) => {
+const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
+  open,
+  onCancel,
+  onSuccess,
+  agent,
+}) => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const isEdit = !!agent;
@@ -46,7 +51,8 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ open, onCancel, onS
       setSaving(true);
 
       const toolsStr = values.tools || '[]';
-      let tools: Array<{ toolName: string; permission: string; config?: Record<string, unknown> }> = [];
+      let tools: Array<{ toolName: string; permission: string; config?: Record<string, unknown> }> =
+        [];
       try {
         tools = JSON.parse(toolsStr);
       } catch {

@@ -32,7 +32,11 @@ describe('DataState', () => {
   });
 
   it('renders empty state with default text', () => {
-    render(<DataState loading={false} empty={true}>Content</DataState>);
+    render(
+      <DataState loading={false} empty={true}>
+        Content
+      </DataState>
+    );
     expect(screen.getByText('暂无数据')).toBeInTheDocument();
   });
 

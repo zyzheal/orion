@@ -37,7 +37,10 @@ export interface TicketRelation {
 
 export interface SprintBoard {
   sprint: Sprint;
-  columns: Record<string, { ticketId: string; title: string; priority: string; assignee: string | null }[]>;
+  columns: Record<
+    string,
+    { ticketId: string; title: string; priority: string; assignee: string | null }[]
+  >;
 }
 
 export interface BurndownData {
@@ -67,17 +70,14 @@ export interface UpdateSprintInput {
 export const listSprints = (params?: { status?: string }) =>
   apiClient.get<Sprint[]>('/sprints', { params });
 
-export const getSprint = (id: string) =>
-  apiClient.get<Sprint>(`/sprints/${id}`);
+export const getSprint = (id: string) => apiClient.get<Sprint>(`/sprints/${id}`);
 
-export const createSprint = (data: CreateSprintInput) =>
-  apiClient.post<Sprint>('/sprints', data);
+export const createSprint = (data: CreateSprintInput) => apiClient.post<Sprint>('/sprints', data);
 
 export const updateSprint = (id: string, data: UpdateSprintInput) =>
   apiClient.put<Sprint>(`/sprints/${id}`, data);
 
-export const deleteSprint = (id: string) =>
-  apiClient.delete(`/sprints/${id}`);
+export const deleteSprint = (id: string) => apiClient.delete(`/sprints/${id}`);
 
 // Sprint Board
 export const getSprintBoard = (sprintId: string) =>
@@ -89,12 +89,16 @@ export const addTicketToSprint = (sprintId: string, ticketId: string, sortOrder?
 export const removeTicketFromSprint = (sprintId: string, ticketId: string) =>
   apiClient.delete(`/sprints/${sprintId}/tickets/${ticketId}`);
 
-export const reorderTickets = (sprintId: string, orders: { ticketId: string; sortOrder: number }[]) =>
-  apiClient.put(`/sprints/${sprintId}/tickets/reorder`, { orders });
+export const reorderTickets = (
+  sprintId: string,
+  orders: { ticketId: string; sortOrder: number }[]
+) => apiClient.put(`/sprints/${sprintId}/tickets/reorder`, { orders });
 
 // Backlog
 export const getBacklog = () =>
-  apiClient.get<{ ticketId: string; title: string; priority: string; storyPoints: number | null }[]>('/sprints/backlog');
+  apiClient.get<
+    { ticketId: string; title: string; priority: string; storyPoints: number | null }[]
+  >('/sprints/backlog');
 
 // Burndown
 export const getBurndownData = (sprintId: string) =>

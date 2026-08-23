@@ -42,7 +42,10 @@ interface DocTreeProps {
 // 文档类型配置
 // ============================================================================
 
-const DOC_TYPE_CONFIG: Record<Exclude<DocType, 'all'>, { label: string; color: string; icon: React.ReactNode }> = {
+const DOC_TYPE_CONFIG: Record<
+  Exclude<DocType, 'all'>,
+  { label: string; color: string; icon: React.ReactNode }
+> = {
   design: {
     label: '设计文档',
     color: colors.info[500],
@@ -207,7 +210,10 @@ export default function DocTree({
       {node.icon && <span style={{ color: colors.neutral[500] }}>{node.icon}</span>}
       <span>{node.title}</span>
       {node.count !== undefined && node.count > 0 && (
-        <Badge count={node.count} style={{ backgroundColor: colors.neutral[300], color: colors.neutral[700] }} />
+        <Badge
+          count={node.count}
+          style={{ backgroundColor: colors.neutral[300], color: colors.neutral[700] }}
+        />
       )}
     </span>
   );

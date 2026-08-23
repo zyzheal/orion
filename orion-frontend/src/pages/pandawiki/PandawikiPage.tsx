@@ -226,125 +226,126 @@ const PandawikiPage: React.FC = () => {
 
   // ---- Space Table Columns ----
 
-  const spaceColumns: TableColumn<WikiSpace>[] = useMemo<TableColumn<WikiSpace>[]>(() => [
-    {
-      key: 'name',
-      title: '空间名称',
-      dataIndex: 'name',
-      width: 200,
-      render: (v: unknown) => (
-        <Space>
-          <BookOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{String(v)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'description',
-      ellipsis: true,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'documentCount',
-      title: '文档数',
-      dataIndex: 'documentCount',
-      width: 100,
-      render: (v: unknown) => (
-        <Tag color="blue">{typeof v === 'number' ? v : 0}</Tag>
-      ),
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 180,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: WikiSpace) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => {
-              setSelectedSpaceId(record.id);
-              setActiveTab('documents');
-            }}
-          >
-            查看文档
-          </Button>
-          <Popconfirm
-            title="确认删除此知识库空间？关联文档将被一并删除。"
-            onConfirm={() => handleDeleteSpace(record.id)}
-          >
+  const spaceColumns: TableColumn<WikiSpace>[] = useMemo<TableColumn<WikiSpace>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '空间名称',
+        dataIndex: 'name',
+        width: 200,
+        render: (v: unknown) => (
+          <Space>
+            <BookOutlined style={{ color: colors.primary[500] }} />
+            <Text strong>{String(v)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'description',
+        ellipsis: true,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'documentCount',
+        title: '文档数',
+        dataIndex: 'documentCount',
+        width: 100,
+        render: (v: unknown) => <Tag color="blue">{typeof v === 'number' ? v : 0}</Tag>,
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 180,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: WikiSpace) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => {
+                setSelectedSpaceId(record.id);
+                setActiveTab('documents');
+              }}
+            >
+              查看文档
+            </Button>
+            <Popconfirm
+              title="确认删除此知识库空间？关联文档将被一并删除。"
+              onConfirm={() => handleDeleteSpace(record.id)}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDeleteSpace]
+  );
+
+  // ---- Document Table Columns ----
+
+  const documentColumns: TableColumn<WikiDocument>[] = useMemo<TableColumn<WikiDocument>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '文档标题',
+        dataIndex: 'title',
+        width: 300,
+        render: (v: unknown) => (
+          <Space>
+            <FileTextOutlined style={{ color: colors.primary[500] }} />
+            <Text strong>{String(v)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'content',
+        title: '内容预览',
+        dataIndex: 'content',
+        ellipsis: true,
+        render: (v: unknown) => {
+          const text = String(v);
+          return (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {text.slice(0, 80)}
+              {text.length > 80 ? '...' : ''}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 180,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: WikiDocument) => (
+          <Popconfirm title="确认删除此文档？" onConfirm={() => handleDeleteDocument(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDeleteSpace]);
-
-  // ---- Document Table Columns ----
-
-  const documentColumns: TableColumn<WikiDocument>[] = useMemo<TableColumn<WikiDocument>[]>(() => [
-    {
-      key: 'title',
-      title: '文档标题',
-      dataIndex: 'title',
-      width: 300,
-      render: (v: unknown) => (
-        <Space>
-          <FileTextOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{String(v)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'content',
-      title: '内容预览',
-      dataIndex: 'content',
-      ellipsis: true,
-      render: (v: unknown) => {
-        const text = String(v);
-        return (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {text.slice(0, 80)}
-            {text.length > 80 ? '...' : ''}
-          </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 180,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: WikiDocument) => (
-        <Popconfirm
-          title="确认删除此文档？"
-          onConfirm={() => handleDeleteDocument(record.id)}
-        >
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-            删除
-          </Button>
-        </Popconfirm>
-      ),
-    },
-  ], [handleDeleteDocument]);
+    ],
+    [handleDeleteDocument]
+  );
 
   // ---- Tab Items ----
 
@@ -354,11 +355,7 @@ const PandawikiPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.md }}>
         <Col span={12}>
           <Card size="small">
-            <Statistic
-              title="知识库空间总数"
-              value={spaceStats.total}
-              prefix={<BookOutlined />}
-            />
+            <Statistic title="知识库空间总数" value={spaceStats.total} prefix={<BookOutlined />} />
           </Card>
         </Col>
         <Col span={12}>
@@ -376,19 +373,11 @@ const PandawikiPage: React.FC = () => {
       {/* Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Space>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={loadSpaces}
-            loading={spacesLoading}
-          >
+          <Button icon={<ReloadOutlined />} onClick={loadSpaces} loading={spacesLoading}>
             刷新
           </Button>
         </Space>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setSpaceModalVisible(true)}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setSpaceModalVisible(true)}>
           新建知识库空间
         </Button>
       </div>
@@ -425,10 +414,7 @@ const PandawikiPage: React.FC = () => {
             <Input placeholder="如: 技术文档库" />
           </Form.Item>
           <Form.Item name="description" label="描述">
-            <Input.TextArea
-              rows={3}
-              placeholder="描述该知识库空间的用途..."
-            />
+            <Input.TextArea rows={3} placeholder="描述该知识库空间的用途..." />
           </Form.Item>
         </Form>
       </Modal>
@@ -465,11 +451,7 @@ const PandawikiPage: React.FC = () => {
         <>
           {/* Actions */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setDocModalVisible(true)}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setDocModalVisible(true)}>
               新建文档
             </Button>
           </div>
@@ -545,7 +527,10 @@ const PandawikiPage: React.FC = () => {
             value={searchSpaceId || undefined}
             onChange={(v) => setSearchSpaceId(v)}
             placeholder="全部空间"
-            options={[{ label: '全部空间', value: '' }, ...spaces.map((s) => ({ label: s.name, value: s.id }))]}
+            options={[
+              { label: '全部空间', value: '' },
+              ...spaces.map((s) => ({ label: s.name, value: s.id })),
+            ]}
             allowClear
           />
           <Button
@@ -577,9 +562,7 @@ const PandawikiPage: React.FC = () => {
                       <Tag color="geekblue">
                         {spaces.find((s) => s.id === item.spaceId)?.name || item.spaceId}
                       </Tag>
-                      <Tag color="orange">
-                        相关度: {(item.score * 100).toFixed(1)}%
-                      </Tag>
+                      <Tag color="orange">相关度: {(item.score * 100).toFixed(1)}%</Tag>
                     </Space>
                     <Paragraph
                       type="secondary"

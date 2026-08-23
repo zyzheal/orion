@@ -77,7 +77,11 @@ interface ApprovalRecordTableProps {
 /**
  * 审批记录表格组件
  */
-const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, loading, onRefresh }) => {
+const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({
+  records,
+  loading,
+  onRefresh,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | 'all'>('all');
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
@@ -97,7 +101,9 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const searchable = [r.title, r.requesterId, r.resourceType, r.resourceId].join(' ').toLowerCase();
+        const searchable = [r.title, r.requesterId, r.resourceType, r.resourceId]
+          .join(' ')
+          .toLowerCase();
         if (!searchable.includes(q)) return false;
       }
       return true;
@@ -175,168 +181,181 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
   };
 
   // ---- 表格列 ----
-  const columns: TableColumn<ApprovalChainInfo>[] = useMemo<TableColumn<ApprovalChainInfo>[]>(() => [
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      width: 260,
-      render: (v: unknown, record: ApprovalChainInfo) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }} onClick={() => openDetail(record)}>
-            {String(v)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            申请人: {record.requesterId}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'resource',
-      title: '关联资源',
-      width: 180,
-      render: (_: unknown, record: ApprovalChainInfo) => (
-        <Space direction="vertical" size={0}>
-          <Tag color="blue">{record.resourceType}</Tag>
-          <Text type="secondary" style={{ fontSize: 12 }}>{record.resourceId}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: ApprovalChainInfo) => (
-        <Tag
-          style={{
-            backgroundColor: statusColorMap[record.status] + '18',
-            color: statusColorMap[record.status],
-            borderColor: statusColorMap[record.status] + '40',
-          }}
-        >
-          {statusLabelMap[record.status] || record.status}
-        </Tag>
-      ),
-    },
-    {
-      key: 'progress',
-      title: '审批进度',
-      width: 180,
-      render: (_: unknown, record: ApprovalChainInfo) => {
-        const approvedCount = record.steps.filter((s) => s.status === 'approved').length;
-        const totalCount = record.steps.length;
-        return (
-          <Space direction="vertical" size={0} style={{ width: '100%' }}>
-            <Progress
-              percent={approvalProgress(record)}
-              size="small"
-              status={
-                record.status === 'rejected'
-                  ? 'exception'
-                  : record.status === 'approved'
-                    ? 'success'
-                    : record.status === 'timeout'
-                      ? 'exception'
-                      : 'active'
-              }
-              format={() => `${approvedCount}/${totalCount}`}
-            />
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.totalLevels} 级审批
-            </Text>
-          </Space>
-        );
-      },
-    },
-    {
-      key: 'approvers',
-      title: '当前审批人',
-      width: 160,
-      render: (_: unknown, record: ApprovalChainInfo) => {
-        const pendingSteps = record.steps.filter((s) => s.status === 'pending');
-        if (pendingSteps.length === 0) {
-          return <Text type="secondary" style={{ fontSize: 12 }}>-</Text>;
-        }
-        return (
-          <Space size={4} wrap>
-            {pendingSteps.slice(0, 3).map((step) => (
-              <Tooltip key={step.stepIndex} title={step.approverId}>
-                <Avatar
-                  size="small"
-                  icon={<UserOutlined />}
-                  style={{ backgroundColor: colors.neutral[300], fontSize: 10 }}
-                >
-                  {step.approverId.substring(0, 2)}
-                </Avatar>
-              </Tooltip>
-            ))}
-            {pendingSteps.length > 3 && (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                +{pendingSteps.length - 3}
-              </Text>
-            )}
-          </Space>
-        );
-      },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 140,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(v as string).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record: ApprovalChainInfo) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
+  const columns: TableColumn<ApprovalChainInfo>[] = useMemo<TableColumn<ApprovalChainInfo>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        width: 260,
+        render: (v: unknown, record: ApprovalChainInfo) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
               onClick={() => openDetail(record)}
             >
-              详情
-            </Button>
-          </Tooltip>
-          {record.status === 'pending' && (
-            <>
-              <Tooltip title="通过">
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ color: colors.success[500] }}
-                  icon={<CheckOutlined />}
-                  onClick={() => openCommentModal(record.id, 'approve')}
-                >
-                  通过
-                </Button>
-              </Tooltip>
-              <Tooltip title="拒绝">
-                <Button
-                  type="link"
-                  size="small"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => openCommentModal(record.id, 'reject')}
-                >
-                  拒绝
-                </Button>
-              </Tooltip>
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ], [openCommentModal, openDetail]);
+              {String(v)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              申请人: {record.requesterId}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'resource',
+        title: '关联资源',
+        width: 180,
+        render: (_: unknown, record: ApprovalChainInfo) => (
+          <Space direction="vertical" size={0}>
+            <Tag color="blue">{record.resourceType}</Tag>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.resourceId}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: ApprovalChainInfo) => (
+          <Tag
+            style={{
+              backgroundColor: statusColorMap[record.status] + '18',
+              color: statusColorMap[record.status],
+              borderColor: statusColorMap[record.status] + '40',
+            }}
+          >
+            {statusLabelMap[record.status] || record.status}
+          </Tag>
+        ),
+      },
+      {
+        key: 'progress',
+        title: '审批进度',
+        width: 180,
+        render: (_: unknown, record: ApprovalChainInfo) => {
+          const approvedCount = record.steps.filter((s) => s.status === 'approved').length;
+          const totalCount = record.steps.length;
+          return (
+            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+              <Progress
+                percent={approvalProgress(record)}
+                size="small"
+                status={
+                  record.status === 'rejected'
+                    ? 'exception'
+                    : record.status === 'approved'
+                      ? 'success'
+                      : record.status === 'timeout'
+                        ? 'exception'
+                        : 'active'
+                }
+                format={() => `${approvedCount}/${totalCount}`}
+              />
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {record.totalLevels} 级审批
+              </Text>
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'approvers',
+        title: '当前审批人',
+        width: 160,
+        render: (_: unknown, record: ApprovalChainInfo) => {
+          const pendingSteps = record.steps.filter((s) => s.status === 'pending');
+          if (pendingSteps.length === 0) {
+            return (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                -
+              </Text>
+            );
+          }
+          return (
+            <Space size={4} wrap>
+              {pendingSteps.slice(0, 3).map((step) => (
+                <Tooltip key={step.stepIndex} title={step.approverId}>
+                  <Avatar
+                    size="small"
+                    icon={<UserOutlined />}
+                    style={{ backgroundColor: colors.neutral[300], fontSize: 10 }}
+                  >
+                    {step.approverId.substring(0, 2)}
+                  </Avatar>
+                </Tooltip>
+              ))}
+              {pendingSteps.length > 3 && (
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  +{pendingSteps.length - 3}
+                </Text>
+              )}
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 140,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(v as string).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record: ApprovalChainInfo) => (
+          <Space size="small" wrap>
+            <Tooltip title="详情">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => openDetail(record)}
+              >
+                详情
+              </Button>
+            </Tooltip>
+            {record.status === 'pending' && (
+              <>
+                <Tooltip title="通过">
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ color: colors.success[500] }}
+                    icon={<CheckOutlined />}
+                    onClick={() => openCommentModal(record.id, 'approve')}
+                  >
+                    通过
+                  </Button>
+                </Tooltip>
+                <Tooltip title="拒绝">
+                  <Button
+                    type="link"
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={() => openCommentModal(record.id, 'reject')}
+                  >
+                    拒绝
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [openCommentModal, openDetail]
+  );
 
   // ---- 详情抽屉 ----
   const detailContent = useMemo(() => {
@@ -368,7 +387,13 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
           </Descriptions.Item>
           <Descriptions.Item label="资源ID">{r.resourceId}</Descriptions.Item>
           <Descriptions.Item label="审批模式" span={2}>
-            {r.mode === 'sequential' ? '串行' : r.mode === 'parallel' ? '并行' : r.mode === 'or_gate' ? '或签' : '-'}
+            {r.mode === 'sequential'
+              ? '串行'
+              : r.mode === 'parallel'
+                ? '并行'
+                : r.mode === 'or_gate'
+                  ? '或签'
+                  : '-'}
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss')}
@@ -422,7 +447,10 @@ const ApprovalRecordTable: React.FC<ApprovalRecordTableProps> = ({ records, load
                 timeout: '已超时',
               };
               return (
-                <Space key={step.stepIndex} style={{ padding: '4px 0', width: '100%', justifyContent: 'space-between' }}>
+                <Space
+                  key={step.stepIndex}
+                  style={{ padding: '4px 0', width: '100%', justifyContent: 'space-between' }}
+                >
                   <Space>
                     <Avatar
                       size="small"

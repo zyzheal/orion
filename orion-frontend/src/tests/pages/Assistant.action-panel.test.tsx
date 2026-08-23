@@ -69,7 +69,10 @@ vi.mock('@/tokens', () => ({
     purple: { 500: '#722ED1' },
     info: { 500: '#1677FF' },
     magenta: { 500: '#EB2F96' },
-    light: { bg: { primary: '#FFFFFF', secondary: '#F5F5F7', tertiary: '#FAFAFA' }, border: { light: '#F0F0F0' } },
+    light: {
+      bg: { primary: '#FFFFFF', secondary: '#F5F5F7', tertiary: '#FAFAFA' },
+      border: { light: '#F0F0F0' },
+    },
     success: { 500: '#52C41A' },
     error: { 600: '#CF1322' },
     warning: { 500: '#FAAD14' },
@@ -88,7 +91,8 @@ vi.mock('@/tokens', () => ({
 
 // Re-import after mocks
 import type { ComponentType } from 'react';
-const AssistantPage = (await vi.importActual('../../pages/Assistant/index.tsx')).default as unknown as ComponentType;
+const AssistantPage = (await vi.importActual('../../pages/Assistant/index.tsx'))
+  .default as unknown as ComponentType;
 
 describe('Assistant Action Panel (TR-09/10/11)', () => {
   beforeEach(() => {
@@ -113,13 +117,16 @@ describe('Assistant Action Panel (TR-09/10/11)', () => {
 
     // The Collapse component renders children but may hide via CSS animation.
     // Use container.innerHTML to verify button text is in DOM regardless of visibility.
-    await waitFor(() => {
-      const container = document.body;
-      const html = container.innerHTML;
-      expect(html).toContain('触发研发流程 Agent');
-      expect(html).toContain('AI 生成流程');
-      expect(html).toContain('Ops 问答助手');
-    }, { timeout: 10000 });
+    await waitFor(
+      () => {
+        const container = document.body;
+        const html = container.innerHTML;
+        expect(html).toContain('触发研发流程 Agent');
+        expect(html).toContain('AI 生成流程');
+        expect(html).toContain('Ops 问答助手');
+      },
+      { timeout: 10000 }
+    );
   });
 
   it('shows action prompt textarea when panel is expanded', async () => {
@@ -127,11 +134,14 @@ describe('Assistant Action Panel (TR-09/10/11)', () => {
     const panel = screen.getByText(/智能操作/);
     fireEvent.click(panel);
 
-    await waitFor(() => {
-      const container = document.body;
-      const html = container.innerHTML;
-      expect(html).toContain('帮我触发');
-    }, { timeout: 10000 });
+    await waitFor(
+      () => {
+        const container = document.body;
+        const html = container.innerHTML;
+        expect(html).toContain('帮我触发');
+      },
+      { timeout: 10000 }
+    );
   });
 
   it('calls assistantAsk when user submits a question via Enter', async () => {

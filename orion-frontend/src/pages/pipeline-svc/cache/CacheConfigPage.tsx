@@ -369,45 +369,45 @@ const CacheConfigPage: React.FC = () => {
             <Empty description="暂无推荐配置" style={{ marginTop: spacing.lg }} />
           ) : (
             <Row gutter={spacing[4]}>
-          {recommendations.map((rec) => (
-            <Col span={8} key={rec.type} style={{ marginBottom: spacing[4] }}>
-              <Card
-                hoverable
-                size="small"
-                title={
-                  <Space>
-                    <Tag color={CACHE_TYPE_COLORS[rec.type]}>{CACHE_TYPE_LABELS[rec.type]}</Tag>
-                    <Text strong>{rec.name}</Text>
-                  </Space>
-                }
-                extra={
-                  <Button
-                    type="primary"
+              {recommendations.map((rec) => (
+                <Col span={8} key={rec.type} style={{ marginBottom: spacing[4] }}>
+                  <Card
+                    hoverable
                     size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleApplyRecommendation(rec)}
+                    title={
+                      <Space>
+                        <Tag color={CACHE_TYPE_COLORS[rec.type]}>{CACHE_TYPE_LABELS[rec.type]}</Tag>
+                        <Text strong>{rec.name}</Text>
+                      </Space>
+                    }
+                    extra={
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={() => handleApplyRecommendation(rec)}
+                      >
+                        使用
+                      </Button>
+                    }
                   >
-                    使用
-                  </Button>
-                }
-              >
-                <Space direction="vertical" size={spacing[2]} style={{ width: '100%' }}>
-                  <Text type="secondary">{rec.description}</Text>
-                  <div>
-                    <Text type="secondary">缓存路径: </Text>
-                    <Text code>{rec.paths.join(', ')}</Text>
-                  </div>
-                  <div>
-                    <Text type="secondary">TTL: </Text>
-                    <Text>{rec.ttlDays} 天</Text>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      )}
-      </div>
+                    <Space direction="vertical" size={spacing[2]} style={{ width: '100%' }}>
+                      <Text type="secondary">{rec.description}</Text>
+                      <div>
+                        <Text type="secondary">缓存路径: </Text>
+                        <Text code>{rec.paths.join(', ')}</Text>
+                      </div>
+                      <div>
+                        <Text type="secondary">TTL: </Text>
+                        <Text>{rec.ttlDays} 天</Text>
+                      </div>
+                    </Space>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </div>
       ),
     },
     {
@@ -493,17 +493,19 @@ const CacheConfigPage: React.FC = () => {
           <MetricCard title="策略总数" value={stats.totalStrategies} icon={<DatabaseOutlined />} />
         </Col>
         <Col span={6}>
-          <MetricCard
-            title="启用中"
-            value={stats.enabledCount}
-            color={colors.success[500]}
-          />
+          <MetricCard title="启用中" value={stats.enabledCount} color={colors.success[500]} />
         </Col>
         <Col span={6}>
           <MetricCard
             title="平均命中率"
             value={`${stats.hitRate.toFixed(1)}%`}
-            color={stats.hitRate >= 70 ? colors.success[500] : stats.hitRate >= 40 ? colors.warning[500] : colors.error[500]}
+            color={
+              stats.hitRate >= 70
+                ? colors.success[500]
+                : stats.hitRate >= 40
+                  ? colors.warning[500]
+                  : colors.error[500]
+            }
           />
         </Col>
         <Col span={6}>

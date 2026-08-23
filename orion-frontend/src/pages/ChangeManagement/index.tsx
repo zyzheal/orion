@@ -143,22 +143,14 @@ const statusTransitions: Record<
   string,
   Array<{ status: string; label: string; icon: React.ReactNode; danger?: boolean }>
 > = {
-  draft: [
-    { status: 'submitted', label: '提交审批', icon: <SendOutlined /> },
-  ],
+  draft: [{ status: 'submitted', label: '提交审批', icon: <SendOutlined /> }],
   submitted: [
     { status: 'approved', label: '批准', icon: <CheckCircleOutlined /> },
     { status: 'rejected', label: '拒绝', icon: <CloseCircleOutlined />, danger: true },
   ],
-  approved: [
-    { status: 'in_progress', label: '开始实施', icon: <PlayCircleOutlined /> },
-  ],
-  in_progress: [
-    { status: 'completed', label: '完成', icon: <CheckCircleOutlined /> },
-  ],
-  completed: [
-    { status: 'closed', label: '关闭', icon: <StopOutlined /> },
-  ],
+  approved: [{ status: 'in_progress', label: '开始实施', icon: <PlayCircleOutlined /> }],
+  in_progress: [{ status: 'completed', label: '完成', icon: <CheckCircleOutlined /> }],
+  completed: [{ status: 'closed', label: '关闭', icon: <StopOutlined /> }],
   rejected: [],
   cancelled: [],
   closed: [],
@@ -347,7 +339,10 @@ const ChangeManagement: React.FC = () => {
       const payload = {
         ...values,
         affected_services: values.affected_services
-          ? values.affected_services.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.affected_services
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
         scheduled_start: values.scheduled_start?.toISOString(),
         scheduled_end: values.scheduled_end?.toISOString(),
@@ -374,9 +369,12 @@ const ChangeManagement: React.FC = () => {
       const payload = {
         ...values,
         affected_services: values.affected_services
-          ? (typeof values.affected_services === 'string'
-              ? values.affected_services.split(',').map((s: string) => s.trim()).filter(Boolean)
-              : values.affected_services)
+          ? typeof values.affected_services === 'string'
+            ? values.affected_services
+                .split(',')
+                .map((s: string) => s.trim())
+                .filter(Boolean)
+            : values.affected_services
           : undefined,
         scheduled_start: values.scheduled_start?.toISOString?.() || values.scheduled_start,
         scheduled_end: values.scheduled_end?.toISOString?.() || values.scheduled_end,
@@ -464,7 +462,9 @@ const ChangeManagement: React.FC = () => {
         values.note
       );
       setSelectedChange(updated);
-      message.success(`状态已变更为: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`);
+      message.success(
+        `状态已变更为: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`
+      );
       setStatusNoteModalOpen(false);
       statusNoteForm.resetFields();
       setPendingStatusChange('');
@@ -489,7 +489,9 @@ const ChangeManagement: React.FC = () => {
       impact_description: selectedChange.impact_description,
       rollback_plan: selectedChange.rollback_plan,
       implementation_plan: selectedChange.implementation_plan,
-      scheduled_start: selectedChange.scheduled_start ? dayjs(selectedChange.scheduled_start) : undefined,
+      scheduled_start: selectedChange.scheduled_start
+        ? dayjs(selectedChange.scheduled_start)
+        : undefined,
       scheduled_end: selectedChange.scheduled_end ? dayjs(selectedChange.scheduled_end) : undefined,
       assigned_to: selectedChange.assigned_to,
       affected_services: selectedChange.affected_services?.join(', '),
@@ -588,7 +590,10 @@ const ChangeManagement: React.FC = () => {
         ...values,
         scheduled_at: values.scheduled_at.toISOString(),
         attendees: values.attendees
-          ? values.attendees.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.attendees
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
       };
       await createCABMeeting(payload);
@@ -612,7 +617,10 @@ const ChangeManagement: React.FC = () => {
         payload.scheduled_at = values.scheduled_at.toISOString();
       }
       if (values.attendees && typeof values.attendees === 'string') {
-        payload.attendees = values.attendees.split(',').map((s: string) => s.trim()).filter(Boolean);
+        payload.attendees = values.attendees
+          .split(',')
+          .map((s: string) => s.trim())
+          .filter(Boolean);
       }
       await updateCABMeeting(editCabId, payload);
       message.success('CAB 会议更新成功');
@@ -674,250 +682,279 @@ const ChangeManagement: React.FC = () => {
   // Table Columns
   // ============================================================================
 
-  const changeColumns: TableColumn<ChangeRequest>[] = useMemo<TableColumn<ChangeRequest>[]>(() => [
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      ellipsis: true,
-      render: (_: unknown, record: ChangeRequest) => (
-        <a onClick={() => handleViewDetail(record)}>{record.title}</a>
-      ),
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 80,
-      render: (_: unknown, record: ChangeRequest) => {
-        const cfg = typeConfig[record.type];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.type}</Tag>;
-      },
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 80,
-      render: (_: unknown, record: ChangeRequest) => {
-        const cfg = priorityConfig[record.priority];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.priority}</Tag>;
-      },
-    },
-    {
-      key: 'risk_level',
-      title: '风险',
-      dataIndex: 'risk_level',
-      width: 90,
-      render: (_: unknown, record: ChangeRequest) => {
-        const cfg = riskConfig[record.risk_level];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.risk_level}</Tag>;
-      },
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (_: unknown, record: ChangeRequest) => {
-        const cfg = statusConfig[record.status];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
-      },
-    },
-    {
-      key: 'requester_id',
-      title: '申请人',
-      dataIndex: 'requester_id',
-      width: 100,
-      ellipsis: true,
-    },
-    {
-      key: 'scheduled_start',
-      title: '计划开始',
-      dataIndex: 'scheduled_start',
-      width: 140,
-      render: (_: unknown, record: ChangeRequest) =>
-        record.scheduled_start ? dayjs(record.scheduled_start).format('YYYY-MM-DD HH:mm') : '-',
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      fixed: 'right',
-      render: (_: unknown, record: ChangeRequest) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
-            详情
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setSelectedChange(record);
-              handleOpenEditModal();
-            }}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除此变更请求吗？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleViewDetail]);
-
-  const rfcColumns: TableColumn<RFC>[] = useMemo<TableColumn<RFC>[]>(() => [
-    {
-      key: 'rfc_number',
-      title: 'RFC 编号',
-      dataIndex: 'rfc_number',
-      width: 140,
-      render: (_: unknown, record: RFC) => (
-        <a onClick={() => handleViewRfc(record)}>{record.rfc_number}</a>
-      ),
-    },
-    {
-      key: 'change_request_id',
-      title: '关联变更',
-      dataIndex: 'change_request_id',
-      width: 200,
-      ellipsis: true,
-    },
-    {
-      key: 'justification',
-      title: '变更理由',
-      dataIndex: 'justification',
-      ellipsis: true,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (_: unknown, record: RFC) => {
-        const cfg = rfcStatusConfig[record.status];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
-      },
-    },
-    {
-      key: 'reviewed_by',
-      title: '审核人',
-      dataIndex: 'reviewed_by',
-      width: 100,
-      ellipsis: true,
-      render: (_: unknown, record: RFC) => record.reviewed_by || '-',
-    },
-    {
-      key: 'created_at',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 140,
-      render: (_: unknown, record: RFC) => dayjs(record.created_at).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 140,
-      fixed: 'right',
-      render: (_: unknown, record: RFC) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewRfc(record)}>
-            详情
-          </Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditRfc(record)}>
-            编辑
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleEditRfc, handleViewRfc]);
-
-  const cabColumns: TableColumn<CABMeeting>[] = useMemo<TableColumn<CABMeeting>[]>(() => [
-    {
-      key: 'title',
-      title: '会议标题',
-      dataIndex: 'title',
-      ellipsis: true,
-      render: (_: unknown, record: CABMeeting) => (
-        <a onClick={() => handleViewCab(record)}>{record.title}</a>
-      ),
-    },
-    {
-      key: 'scheduled_at',
-      title: '会议时间',
-      dataIndex: 'scheduled_at',
-      width: 160,
-      render: (_: unknown, record: CABMeeting) =>
-        dayjs(record.scheduled_at).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      key: 'location',
-      title: '地点',
-      dataIndex: 'location',
-      width: 120,
-      ellipsis: true,
-      render: (_: unknown, record: CABMeeting) => record.location || '-',
-    },
-    {
-      key: 'attendees',
-      title: '参会人',
-      dataIndex: 'attendees',
-      width: 200,
-      render: (_: unknown, record: CABMeeting) =>
-        record.attendees?.length ? (
-          <Space size={4} wrap>
-            {record.attendees.slice(0, 3).map((a) => (
-              <Tag key={a}>{a}</Tag>
-            ))}
-            {record.attendees.length > 3 && <Tag>+{record.attendees.length - 3}</Tag>}
-          </Space>
-        ) : (
-          '-'
+  const changeColumns: TableColumn<ChangeRequest>[] = useMemo<TableColumn<ChangeRequest>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        ellipsis: true,
+        render: (_: unknown, record: ChangeRequest) => (
+          <a onClick={() => handleViewDetail(record)}>{record.title}</a>
         ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (_: unknown, record: CABMeeting) => {
-        const cfg = cabStatusConfig[record.status];
-        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
       },
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 140,
-      fixed: 'right',
-      render: (_: unknown, record: CABMeeting) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewCab(record)}>
-            详情
-          </Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditCab(record)}>
-            编辑
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleEditCab, handleViewCab]);
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 80,
+        render: (_: unknown, record: ChangeRequest) => {
+          const cfg = typeConfig[record.type];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.type}</Tag>;
+        },
+      },
+      {
+        key: 'priority',
+        title: '优先级',
+        dataIndex: 'priority',
+        width: 80,
+        render: (_: unknown, record: ChangeRequest) => {
+          const cfg = priorityConfig[record.priority];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.priority}</Tag>;
+        },
+      },
+      {
+        key: 'risk_level',
+        title: '风险',
+        dataIndex: 'risk_level',
+        width: 90,
+        render: (_: unknown, record: ChangeRequest) => {
+          const cfg = riskConfig[record.risk_level];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.risk_level}</Tag>;
+        },
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: (_: unknown, record: ChangeRequest) => {
+          const cfg = statusConfig[record.status];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
+        },
+      },
+      {
+        key: 'requester_id',
+        title: '申请人',
+        dataIndex: 'requester_id',
+        width: 100,
+        ellipsis: true,
+      },
+      {
+        key: 'scheduled_start',
+        title: '计划开始',
+        dataIndex: 'scheduled_start',
+        width: 140,
+        render: (_: unknown, record: ChangeRequest) =>
+          record.scheduled_start ? dayjs(record.scheduled_start).format('YYYY-MM-DD HH:mm') : '-',
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        fixed: 'right',
+        render: (_: unknown, record: ChangeRequest) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetail(record)}
+            >
+              详情
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setSelectedChange(record);
+                handleOpenEditModal();
+              }}
+            >
+              编辑
+            </Button>
+            <Popconfirm
+              title="确认删除"
+              description="确定要删除此变更请求吗？"
+              onConfirm={() => handleDelete(record.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleViewDetail]
+  );
+
+  const rfcColumns: TableColumn<RFC>[] = useMemo<TableColumn<RFC>[]>(
+    () => [
+      {
+        key: 'rfc_number',
+        title: 'RFC 编号',
+        dataIndex: 'rfc_number',
+        width: 140,
+        render: (_: unknown, record: RFC) => (
+          <a onClick={() => handleViewRfc(record)}>{record.rfc_number}</a>
+        ),
+      },
+      {
+        key: 'change_request_id',
+        title: '关联变更',
+        dataIndex: 'change_request_id',
+        width: 200,
+        ellipsis: true,
+      },
+      {
+        key: 'justification',
+        title: '变更理由',
+        dataIndex: 'justification',
+        ellipsis: true,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (_: unknown, record: RFC) => {
+          const cfg = rfcStatusConfig[record.status];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
+        },
+      },
+      {
+        key: 'reviewed_by',
+        title: '审核人',
+        dataIndex: 'reviewed_by',
+        width: 100,
+        ellipsis: true,
+        render: (_: unknown, record: RFC) => record.reviewed_by || '-',
+      },
+      {
+        key: 'created_at',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 140,
+        render: (_: unknown, record: RFC) => dayjs(record.created_at).format('YYYY-MM-DD HH:mm'),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 140,
+        fixed: 'right',
+        render: (_: unknown, record: RFC) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewRfc(record)}
+            >
+              详情
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEditRfc(record)}
+            >
+              编辑
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleEditRfc, handleViewRfc]
+  );
+
+  const cabColumns: TableColumn<CABMeeting>[] = useMemo<TableColumn<CABMeeting>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '会议标题',
+        dataIndex: 'title',
+        ellipsis: true,
+        render: (_: unknown, record: CABMeeting) => (
+          <a onClick={() => handleViewCab(record)}>{record.title}</a>
+        ),
+      },
+      {
+        key: 'scheduled_at',
+        title: '会议时间',
+        dataIndex: 'scheduled_at',
+        width: 160,
+        render: (_: unknown, record: CABMeeting) =>
+          dayjs(record.scheduled_at).format('YYYY-MM-DD HH:mm'),
+      },
+      {
+        key: 'location',
+        title: '地点',
+        dataIndex: 'location',
+        width: 120,
+        ellipsis: true,
+        render: (_: unknown, record: CABMeeting) => record.location || '-',
+      },
+      {
+        key: 'attendees',
+        title: '参会人',
+        dataIndex: 'attendees',
+        width: 200,
+        render: (_: unknown, record: CABMeeting) =>
+          record.attendees?.length ? (
+            <Space size={4} wrap>
+              {record.attendees.slice(0, 3).map((a) => (
+                <Tag key={a}>{a}</Tag>
+              ))}
+              {record.attendees.length > 3 && <Tag>+{record.attendees.length - 3}</Tag>}
+            </Space>
+          ) : (
+            '-'
+          ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: (_: unknown, record: CABMeeting) => {
+          const cfg = cabStatusConfig[record.status];
+          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
+        },
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 140,
+        fixed: 'right',
+        render: (_: unknown, record: CABMeeting) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewCab(record)}
+            >
+              详情
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEditCab(record)}
+            >
+              编辑
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleEditCab, handleViewCab]
+  );
 
   // ============================================================================
   // Stats Computation
@@ -966,26 +1003,42 @@ const ChangeManagement: React.FC = () => {
     <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
       <Row gutter={spacing.md}>
         <Col span={24}>
-          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入变更标题' }]}>
+          <Form.Item
+            name="title"
+            label="标题"
+            rules={[{ required: true, message: '请输入变更标题' }]}
+          >
             <Input placeholder="简要描述变更内容" />
           </Form.Item>
         </Col>
       </Row>
       <Row gutter={spacing.md}>
         <Col span={12}>
-          <Form.Item name="type" label="变更类型" rules={[{ required: true, message: '请选择变更类型' }]}>
+          <Form.Item
+            name="type"
+            label="变更类型"
+            rules={[{ required: true, message: '请选择变更类型' }]}
+          >
             <Select placeholder="选择变更类型">
               {Object.entries(typeConfig).map(([key, cfg]) => (
-                <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                <Select.Option key={key} value={key}>
+                  {cfg.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
         </Col>
         <Col span={12}>
-          <Form.Item name="priority" label="优先级" rules={[{ required: true, message: '请选择优先级' }]}>
+          <Form.Item
+            name="priority"
+            label="优先级"
+            rules={[{ required: true, message: '请选择优先级' }]}
+          >
             <Select placeholder="选择优先级">
               {Object.entries(priorityConfig).map(([key, cfg]) => (
-                <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                <Select.Option key={key} value={key}>
+                  {cfg.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -993,10 +1046,16 @@ const ChangeManagement: React.FC = () => {
       </Row>
       <Row gutter={spacing.md}>
         <Col span={12}>
-          <Form.Item name="risk_level" label="风险等级" rules={[{ required: true, message: '请选择风险等级' }]}>
+          <Form.Item
+            name="risk_level"
+            label="风险等级"
+            rules={[{ required: true, message: '请选择风险等级' }]}
+          >
             <Select placeholder="选择风险等级">
               {Object.entries(riskConfig).map(([key, cfg]) => (
-                <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                <Select.Option key={key} value={key}>
+                  {cfg.label}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
@@ -1082,10 +1141,15 @@ const ChangeManagement: React.FC = () => {
                 allowClear
                 style={{ width: 130 }}
                 value={filterStatus}
-                onChange={(v) => { setFilterStatus(v); setPage(1); }}
+                onChange={(v) => {
+                  setFilterStatus(v);
+                  setPage(1);
+                }}
               >
                 {Object.entries(statusConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                  <Select.Option key={key} value={key}>
+                    {cfg.label}
+                  </Select.Option>
                 ))}
               </Select>
               <Select
@@ -1093,10 +1157,15 @@ const ChangeManagement: React.FC = () => {
                 allowClear
                 style={{ width: 120 }}
                 value={filterType}
-                onChange={(v) => { setFilterType(v); setPage(1); }}
+                onChange={(v) => {
+                  setFilterType(v);
+                  setPage(1);
+                }}
               >
                 {Object.entries(typeConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                  <Select.Option key={key} value={key}>
+                    {cfg.label}
+                  </Select.Option>
                 ))}
               </Select>
               <Select
@@ -1104,10 +1173,15 @@ const ChangeManagement: React.FC = () => {
                 allowClear
                 style={{ width: 120 }}
                 value={filterPriority}
-                onChange={(v) => { setFilterPriority(v); setPage(1); }}
+                onChange={(v) => {
+                  setFilterPriority(v);
+                  setPage(1);
+                }}
               >
                 {Object.entries(priorityConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                  <Select.Option key={key} value={key}>
+                    {cfg.label}
+                  </Select.Option>
                 ))}
               </Select>
               <Button icon={<ReloadOutlined />} onClick={loadChanges}>
@@ -1171,7 +1245,9 @@ const ChangeManagement: React.FC = () => {
             }}
             loading={detailLoading}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
+            >
               <div>
                 <Title level={3} style={{ marginBottom: spacing.sm }}>
                   {selectedChange.title}
@@ -1269,9 +1345,15 @@ const ChangeManagement: React.FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="分类">{selectedChange.category || '-'}</Descriptions.Item>
-              <Descriptions.Item label="申请人">{selectedChange.requester_id || '-'}</Descriptions.Item>
-              <Descriptions.Item label="负责人">{selectedChange.assigned_to || '-'}</Descriptions.Item>
-              <Descriptions.Item label="审批人">{selectedChange.approved_by || '-'}</Descriptions.Item>
+              <Descriptions.Item label="申请人">
+                {selectedChange.requester_id || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="负责人">
+                {selectedChange.assigned_to || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="审批人">
+                {selectedChange.approved_by || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="审批时间">
                 {selectedChange.approved_at
                   ? dayjs(selectedChange.approved_at).format('YYYY-MM-DD HH:mm')
@@ -1313,7 +1395,9 @@ const ChangeManagement: React.FC = () => {
                 {selectedChange.affected_services?.length ? (
                   <Space size={4} wrap>
                     {selectedChange.affected_services.map((s) => (
-                      <Tag key={s} color="blue">{s}</Tag>
+                      <Tag key={s} color="blue">
+                        {s}
+                      </Tag>
                     ))}
                   </Space>
                 ) : (
@@ -1362,7 +1446,10 @@ const ChangeManagement: React.FC = () => {
             ) : timeline.length > 0 ? (
               <Timeline
                 items={timeline.map((event) => {
-                  const cfg = eventTypeConfig[event.event_type] || { color: 'blue', label: event.event_type };
+                  const cfg = eventTypeConfig[event.event_type] || {
+                    color: 'blue',
+                    label: event.event_type,
+                  };
                   return {
                     color: cfg.color,
                     children: (
@@ -1526,11 +1613,7 @@ const ChangeManagement: React.FC = () => {
             boxShadow: shadows.card,
           }}
         >
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={tabItems}
-          />
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         </Card>
 
         {/* ===== Modals ===== */}
@@ -1611,7 +1694,9 @@ const ChangeManagement: React.FC = () => {
             >
               <Select placeholder="选择事件类型">
                 {Object.entries(eventTypeConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
+                  <Select.Option key={key} value={key}>
+                    {cfg.label}
+                  </Select.Option>
                 ))}
               </Select>
             </Form.Item>
@@ -1679,7 +1764,9 @@ const ChangeManagement: React.FC = () => {
           {selectedRfc && (
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="RFC 编号">{selectedRfc.rfc_number}</Descriptions.Item>
-              <Descriptions.Item label="关联变更 ID">{selectedRfc.change_request_id}</Descriptions.Item>
+              <Descriptions.Item label="关联变更 ID">
+                {selectedRfc.change_request_id}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={rfcStatusConfig[selectedRfc.status]?.color}>
                   {rfcStatusConfig[selectedRfc.status]?.label || selectedRfc.status}
@@ -1691,11 +1778,19 @@ const ChangeManagement: React.FC = () => {
                   ? dayjs(selectedRfc.reviewed_at).format('YYYY-MM-DD HH:mm')
                   : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="变更理由">{selectedRfc.justification || '-'}</Descriptions.Item>
-              <Descriptions.Item label="风险评估">{selectedRfc.risk_assessment || '-'}</Descriptions.Item>
+              <Descriptions.Item label="变更理由">
+                {selectedRfc.justification || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="风险评估">
+                {selectedRfc.risk_assessment || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="测试计划">{selectedRfc.test_plan || '-'}</Descriptions.Item>
-              <Descriptions.Item label="沟通计划">{selectedRfc.communication_plan || '-'}</Descriptions.Item>
-              <Descriptions.Item label="退出计划">{selectedRfc.backout_plan || '-'}</Descriptions.Item>
+              <Descriptions.Item label="沟通计划">
+                {selectedRfc.communication_plan || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="退出计划">
+                {selectedRfc.backout_plan || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(selectedRfc.created_at).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
@@ -1787,7 +1882,9 @@ const ChangeManagement: React.FC = () => {
                   {dayjs(selectedCab.scheduled_at).format('YYYY-MM-DD HH:mm')}
                 </Descriptions.Item>
                 <Descriptions.Item label="地点">{selectedCab.location || '-'}</Descriptions.Item>
-                <Descriptions.Item label="创建人">{selectedCab.created_by || '-'}</Descriptions.Item>
+                <Descriptions.Item label="创建人">
+                  {selectedCab.created_by || '-'}
+                </Descriptions.Item>
                 <Descriptions.Item label="描述" span={2}>
                   {selectedCab.description || '-'}
                 </Descriptions.Item>
@@ -1819,8 +1916,8 @@ const ChangeManagement: React.FC = () => {
                         d.decision === 'approved'
                           ? 'green'
                           : d.decision === 'rejected'
-                          ? 'red'
-                          : 'orange',
+                            ? 'red'
+                            : 'orange',
                       children: (
                         <div>
                           <Space>
@@ -1829,15 +1926,15 @@ const ChangeManagement: React.FC = () => {
                                 d.decision === 'approved'
                                   ? 'green'
                                   : d.decision === 'rejected'
-                                  ? 'red'
-                                  : 'orange'
+                                    ? 'red'
+                                    : 'orange'
                               }
                             >
                               {d.decision === 'approved'
                                 ? '批准'
                                 : d.decision === 'rejected'
-                                ? '拒绝'
-                                : '推迟'}
+                                  ? '拒绝'
+                                  : '推迟'}
                             </Tag>
                             <Text type="secondary">变更请求: {d.changeRequestId}</Text>
                           </Space>

@@ -9,7 +9,9 @@ describe('internalRoutes', () => {
       expect(buildInternalRoute('sbom', 'sbom-789')).toBe('/sbom/sbom-789');
       expect(buildInternalRoute('ticket', 'tkt-001')).toBe('/tickets/tkt-001');
       expect(buildInternalRoute('ephemeralEnv', 'env-100')).toBe('/ephemeral-envs/env-100');
-      expect(buildInternalRoute('selfHealing', 'inc-200')).toBe('/console/self-healing/incidents/inc-200');
+      expect(buildInternalRoute('selfHealing', 'inc-200')).toBe(
+        '/console/self-healing/incidents/inc-200'
+      );
     });
 
     it('returns list path for types without id requirement', () => {
@@ -28,8 +30,16 @@ describe('internalRoutes', () => {
   describe('internalRouteMap', () => {
     it('has expected resource types', () => {
       const expectedTypes = [
-        'deployment', 'alert', 'pipeline', 'sbom', 'ticket',
-        'canary-analysis', 'ephemeralEnv', 'buildEnv', 'codeRepo', 'selfHealing',
+        'deployment',
+        'alert',
+        'pipeline',
+        'sbom',
+        'ticket',
+        'canary-analysis',
+        'ephemeralEnv',
+        'buildEnv',
+        'codeRepo',
+        'selfHealing',
       ];
       for (const type of expectedTypes) {
         expect(internalRouteMap[type]).toBeDefined();

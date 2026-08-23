@@ -36,7 +36,8 @@ import {
   DesktopOutlined,
   HddOutlined,
   GlobalOutlined,
-  MonitorOutlined,} from '@ant-design/icons';
+  MonitorOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -59,7 +60,6 @@ import { spacing } from '@/tokens';
 const { Title, Text } = Typography;
 
 // ---- Color Maps ----
-
 
 const hostStatusLabelMap: Record<Host['status'], string> = {
   online: '在线',
@@ -156,9 +156,7 @@ const VisorPage: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadHosts(), loadScripts(), loadResources()]).finally(() =>
-      setLoading(false)
-    );
+    Promise.all([loadHosts(), loadScripts(), loadResources()]).finally(() => setLoading(false));
   }, []);
 
   // ---- Host Handlers ----
@@ -200,7 +198,7 @@ const VisorPage: React.FC = () => {
   const handleViewHostStatus = async (id: string) => {
     try {
       const res = await getHostStatus(id);
-      const data = (res.data as any);
+      const data = res.data as any;
       message.info(`主机状态: ${data?.status || 'unknown'}`);
     } catch (error: unknown) {
       message.error(`获取状态失败: ${(error as Error).message}`);
@@ -233,7 +231,7 @@ const VisorPage: React.FC = () => {
   const handleViewScriptResult = async (id: string) => {
     try {
       const res = await getScriptResult(id);
-      const data = (res.data as any);
+      const data = res.data as any;
       setScriptResult(data);
       setViewingResult(true);
     } catch (error: unknown) {
@@ -277,164 +275,175 @@ const VisorPage: React.FC = () => {
 
   // ---- Host Table Columns ----
 
-  const hostColumns: TableColumn<Host>[] = useMemo<TableColumn<Host>[]>(() => [
-    {
-      key: 'hostname',
-      title: '主机名',
-      dataIndex: 'hostname',
-      width: 180,
-      render: (v: unknown) => (
-        <Space>
-          <CloudServerOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{String(v)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'ip',
-      title: 'IP地址',
-      dataIndex: 'ip',
-      width: 150,
-      render: (v: unknown) => <Text code>{String(v)}</Text>,
-    },
-    {
-      key: 'os',
-      title: '操作系统',
-      dataIndex: 'os',
-      width: 120,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = v as Host['status'];
-        return <Badge status={status === 'online' ? 'success' : status === 'error' ? 'error' : 'default'} text={hostStatusLabelMap[status]} />;
+  const hostColumns: TableColumn<Host>[] = useMemo<TableColumn<Host>[]>(
+    () => [
+      {
+        key: 'hostname',
+        title: '主机名',
+        dataIndex: 'hostname',
+        width: 180,
+        render: (v: unknown) => (
+          <Space>
+            <CloudServerOutlined style={{ color: colors.primary[500] }} />
+            <Text strong>{String(v)}</Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'cpuUsage',
-      title: 'CPU',
-      dataIndex: 'cpuUsage',
-      width: 80,
-      render: (v: unknown) =>
-        v != null ? (
-          <Tag color={(v as number) > 80 ? 'red' : (v as number) > 50 ? 'orange' : 'green'}>
-            {String(v)}%
-          </Tag>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
-    },
-    {
-      key: 'memoryUsage',
-      title: '内存',
-      dataIndex: 'memoryUsage',
-      width: 80,
-      render: (v: unknown) =>
-        v != null ? (
-          <Tag color={(v as number) > 80 ? 'red' : (v as number) > 50 ? 'orange' : 'green'}>
-            {String(v)}%
-          </Tag>
-        ) : (
-          <Text type="secondary">-</Text>
-        ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_: unknown, record: Host) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewHostStatus(record.id)}
-          >
-            状态
-          </Button>
-          <Popconfirm title="确认移除此主机？" onConfirm={() => handleRemoveHost(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              移除
+      {
+        key: 'ip',
+        title: 'IP地址',
+        dataIndex: 'ip',
+        width: 150,
+        render: (v: unknown) => <Text code>{String(v)}</Text>,
+      },
+      {
+        key: 'os',
+        title: '操作系统',
+        dataIndex: 'os',
+        width: 120,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = v as Host['status'];
+          return (
+            <Badge
+              status={status === 'online' ? 'success' : status === 'error' ? 'error' : 'default'}
+              text={hostStatusLabelMap[status]}
+            />
+          );
+        },
+      },
+      {
+        key: 'cpuUsage',
+        title: 'CPU',
+        dataIndex: 'cpuUsage',
+        width: 80,
+        render: (v: unknown) =>
+          v != null ? (
+            <Tag color={(v as number) > 80 ? 'red' : (v as number) > 50 ? 'orange' : 'green'}>
+              {String(v)}%
+            </Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'memoryUsage',
+        title: '内存',
+        dataIndex: 'memoryUsage',
+        width: 80,
+        render: (v: unknown) =>
+          v != null ? (
+            <Tag color={(v as number) > 80 ? 'red' : (v as number) > 50 ? 'orange' : 'green'}>
+              {String(v)}%
+            </Tag>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_: unknown, record: Host) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewHostStatus(record.id)}
+            >
+              状态
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleRemoveHost, handleViewHostStatus]);
+            <Popconfirm title="确认移除此主机？" onConfirm={() => handleRemoveHost(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                移除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleRemoveHost, handleViewHostStatus]
+  );
 
   // ---- Script Table Columns ----
 
-  const scriptColumns: TableColumn<ScriptExecution>[] = useMemo<TableColumn<ScriptExecution>[]>(() => [
-    {
-      key: 'id',
-      title: '执行ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
-    },
-    {
-      key: 'hostname',
-      title: '目标主机',
-      dataIndex: 'hostname',
-      width: 150,
-      render: (v: unknown) => (
-        <Space>
-          <CloudServerOutlined style={{ color: colors.primary[500] }} />
-          <Text>{v ? String(v) : '-'}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'script',
-      title: '脚本',
-      dataIndex: 'script',
-      ellipsis: true,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: 12 }}>
-          {String(v).slice(0, 50)}
-          {String(v).length > 50 ? '...' : ''}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (v: unknown) => (
-        <Tag color={scriptStatusColorMap[v as ScriptExecution['status']]}>
-          {scriptStatusLabelMap[v as ScriptExecution['status']]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '执行时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: ScriptExecution) =>
-        record.status === 'success' || record.status === 'failed' ? (
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewScriptResult(record.id)}
-          >
-            查看结果
-          </Button>
-        ) : null,
-    },
-  ], [handleViewScriptResult]);
+  const scriptColumns: TableColumn<ScriptExecution>[] = useMemo<TableColumn<ScriptExecution>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '执行ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
+      },
+      {
+        key: 'hostname',
+        title: '目标主机',
+        dataIndex: 'hostname',
+        width: 150,
+        render: (v: unknown) => (
+          <Space>
+            <CloudServerOutlined style={{ color: colors.primary[500] }} />
+            <Text>{v ? String(v) : '-'}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'script',
+        title: '脚本',
+        dataIndex: 'script',
+        ellipsis: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 12 }}>
+            {String(v).slice(0, 50)}
+            {String(v).length > 50 ? '...' : ''}
+          </Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: (v: unknown) => (
+          <Tag color={scriptStatusColorMap[v as ScriptExecution['status']]}>
+            {scriptStatusLabelMap[v as ScriptExecution['status']]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '执行时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: ScriptExecution) =>
+          record.status === 'success' || record.status === 'failed' ? (
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewScriptResult(record.id)}
+            >
+              查看结果
+            </Button>
+          ) : null,
+      },
+    ],
+    [handleViewScriptResult]
+  );
 
   // ---- Resource Type Icon Map ----
 
@@ -483,7 +492,11 @@ const VisorPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="离线" value={hostStats.offline} valueStyle={{ color: colors.neutral[500] }} />
+            <Statistic
+              title="离线"
+              value={hostStats.offline}
+              valueStyle={{ color: colors.neutral[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -504,11 +517,7 @@ const VisorPage: React.FC = () => {
             刷新
           </Button>
         </Space>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setHostModalVisible(true)}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setHostModalVisible(true)}>
           添加主机
         </Button>
       </div>
@@ -541,11 +550,7 @@ const VisorPage: React.FC = () => {
           >
             <Input placeholder="如: prod-web-01" />
           </Form.Item>
-          <Form.Item
-            name="ip"
-            label="IP地址"
-            rules={[{ required: true, message: '请输入IP地址' }]}
-          >
+          <Form.Item name="ip" label="IP地址" rules={[{ required: true, message: '请输入IP地址' }]}>
             <Input placeholder="如: 10.0.0.1" />
           </Form.Item>
           <Form.Item name="os" label="操作系统" initialValue="linux">
@@ -627,7 +632,14 @@ const VisorPage: React.FC = () => {
           setScriptResult(null);
         }}
         footer={
-          <Button onClick={() => { setViewingResult(false); setScriptResult(null); }}>关闭</Button>
+          <Button
+            onClick={() => {
+              setViewingResult(false);
+              setScriptResult(null);
+            }}
+          >
+            关闭
+          </Button>
         }
         width={700}
       >
@@ -643,7 +655,9 @@ const VisorPage: React.FC = () => {
               <Descriptions.Item label="退出码">
                 {scriptResult.exitCode != null ? scriptResult.exitCode : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="开始时间">{scriptResult.startedAt || '-'}</Descriptions.Item>
+              <Descriptions.Item label="开始时间">
+                {scriptResult.startedAt || '-'}
+              </Descriptions.Item>
             </Descriptions>
             {scriptResult.stdout && (
               <div style={{ marginBottom: spacing.sm }}>
@@ -664,7 +678,9 @@ const VisorPage: React.FC = () => {
             )}
             {scriptResult.stderr && (
               <div>
-                <Text strong type="danger">标准错误:</Text>
+                <Text strong type="danger">
+                  标准错误:
+                </Text>
                 <pre
                   style={{
                     background: colors.error[50],
@@ -745,15 +761,7 @@ const VisorPage: React.FC = () => {
                           <Text>{resourceTypeLabelMap[r.type] || r.type}</Text>
                         </Space>
                         <Space>
-                          <Tag
-                            color={
-                              r.usage > 80
-                                ? 'red'
-                                : r.usage > 50
-                                  ? 'orange'
-                                  : 'green'
-                            }
-                          >
+                          <Tag color={r.usage > 80 ? 'red' : r.usage > 50 ? 'orange' : 'green'}>
                             {r.usage}
                             {r.unit}
                           </Tag>
@@ -814,8 +822,10 @@ const VisorPage: React.FC = () => {
           {/* Header */}
           <div style={{ marginBottom: spacing.lg }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <MonitorOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-              <CloudServerOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
+              <MonitorOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <CloudServerOutlined
+                style={{ marginRight: spacing.sm, color: colors.primary[500] }}
+              />
               运维可视化
             </Title>
             <Text type="secondary">主机管理、脚本执行与资源监控</Text>

@@ -75,11 +75,11 @@ export const getFlameGraph = async (
     serviceId?: string;
     startTime?: string;
     endTime?: string;
-  },
+  }
 ) => {
   const response = await apiClient.get<FlameGraphProfile>(
     `/api/v1/observability/flamegraph/${type}`,
-    { params },
+    { params }
   );
   return response.data;
 };
@@ -102,7 +102,10 @@ export const generateCpuFlameGraph = (): FlameGraphProfile => {
     serviceId: 'svc-001',
     serviceName: 'orion-platform-service',
     totalValue: 1000,
-    timeWindow: { start: new Date(Date.now() - 60000).toISOString(), end: new Date().toISOString() },
+    timeWindow: {
+      start: new Date(Date.now() - 60000).toISOString(),
+      end: new Date().toISOString(),
+    },
     data: {
       name: 'main.main',
       value: 1000,
@@ -118,7 +121,12 @@ export const generateCpuFlameGraph = (): FlameGraphProfile => {
               value: 80,
               category: 'security',
               children: [
-                { name: 'jwtVerify', value: 50, category: 'security', children: [{ name: 'rsaVerify', value: 40, category: 'crypto' }] },
+                {
+                  name: 'jwtVerify',
+                  value: 50,
+                  category: 'security',
+                  children: [{ name: 'rsaVerify', value: 40, category: 'crypto' }],
+                },
                 { name: 'tokenCacheLookup', value: 25, category: 'cache' },
                 { name: 'aclCheck', value: 5, category: 'security' },
               ],
@@ -129,15 +137,49 @@ export const generateCpuFlameGraph = (): FlameGraphProfile => {
               category: 'app',
               children: [
                 { name: 'validateInput', value: 30, category: 'app' },
-                { name: 'loadPipeline', value: 60, category: 'app', children: [{ name: 'dbQuery', value: 45, category: 'database' }, { name: 'cacheGet', value: 15, category: 'cache' }] },
-                { name: 'executeStage', value: 180, category: 'app', children: [
-                  { name: 'runTask', value: 140, category: 'app', children: [
-                    { name: 'containerStart', value: 90, category: 'runtime', children: [{ name: 'httpCall', value: 70, category: 'network' }, { name: 'logWrite', value: 20, category: 'io' }] },
-                    { name: 'waitResult', value: 50, category: 'runtime' },
-                  ]},
-                  { name: 'notifyWebhook', value: 40, category: 'network' },
-                ]},
-                { name: 'saveResult', value: 50, category: 'database', children: [{ name: 'dbInsert', value: 35, category: 'database' }, { name: 'updateMetrics', value: 15, category: 'metrics' }] },
+                {
+                  name: 'loadPipeline',
+                  value: 60,
+                  category: 'app',
+                  children: [
+                    { name: 'dbQuery', value: 45, category: 'database' },
+                    { name: 'cacheGet', value: 15, category: 'cache' },
+                  ],
+                },
+                {
+                  name: 'executeStage',
+                  value: 180,
+                  category: 'app',
+                  children: [
+                    {
+                      name: 'runTask',
+                      value: 140,
+                      category: 'app',
+                      children: [
+                        {
+                          name: 'containerStart',
+                          value: 90,
+                          category: 'runtime',
+                          children: [
+                            { name: 'httpCall', value: 70, category: 'network' },
+                            { name: 'logWrite', value: 20, category: 'io' },
+                          ],
+                        },
+                        { name: 'waitResult', value: 50, category: 'runtime' },
+                      ],
+                    },
+                    { name: 'notifyWebhook', value: 40, category: 'network' },
+                  ],
+                },
+                {
+                  name: 'saveResult',
+                  value: 50,
+                  category: 'database',
+                  children: [
+                    { name: 'dbInsert', value: 35, category: 'database' },
+                    { name: 'updateMetrics', value: 15, category: 'metrics' },
+                  ],
+                },
               ],
             },
             {
@@ -146,7 +188,12 @@ export const generateCpuFlameGraph = (): FlameGraphProfile => {
               category: 'app',
               children: [
                 { name: 'listArtifacts', value: 40, category: 'database' },
-                { name: 'readMetadata', value: 35, category: 'io', children: [{ name: 'storageRead', value: 25, category: 'storage' }] },
+                {
+                  name: 'readMetadata',
+                  value: 35,
+                  category: 'io',
+                  children: [{ name: 'storageRead', value: 25, category: 'storage' }],
+                },
                 { name: 'compressResponse', value: 25, category: 'runtime' },
                 { name: 'streamResponse', value: 20, category: 'network' },
               ],
@@ -159,10 +206,34 @@ export const generateCpuFlameGraph = (): FlameGraphProfile => {
           value: 250,
           category: 'runtime',
           children: [
-            { name: 'metricsCollector', value: 80, category: 'metrics', children: [{ name: 'prometheusScrape', value: 50, category: 'network' }, { name: 'metricAggregate', value: 30, category: 'app' }] },
-            { name: 'logFlusher', value: 60, category: 'io', children: [{ name: 'fileWrite', value: 40, category: 'io' }, { name: 'rotateLog', value: 20, category: 'io' }] },
+            {
+              name: 'metricsCollector',
+              value: 80,
+              category: 'metrics',
+              children: [
+                { name: 'prometheusScrape', value: 50, category: 'network' },
+                { name: 'metricAggregate', value: 30, category: 'app' },
+              ],
+            },
+            {
+              name: 'logFlusher',
+              value: 60,
+              category: 'io',
+              children: [
+                { name: 'fileWrite', value: 40, category: 'io' },
+                { name: 'rotateLog', value: 20, category: 'io' },
+              ],
+            },
             { name: 'gcWorker', value: 50, category: 'runtime' },
-            { name: 'heartbeat', value: 60, category: 'network', children: [{ name: 'natsPublish', value: 45, category: 'messaging' }, { name: 'healthCheck', value: 15, category: 'app' }] },
+            {
+              name: 'heartbeat',
+              value: 60,
+              category: 'network',
+              children: [
+                { name: 'natsPublish', value: 45, category: 'messaging' },
+                { name: 'healthCheck', value: 15, category: 'app' },
+              ],
+            },
           ],
         },
         {
@@ -170,7 +241,15 @@ export const generateCpuFlameGraph = (): FlameGraphProfile => {
           value: 150,
           category: 'app',
           children: [
-            { name: 'processSagaStep', value: 90, category: 'app', children: [{ name: 'loadTransactionLog', value: 40, category: 'database' }, { name: 'executeCompensation', value: 50, category: 'app' }] },
+            {
+              name: 'processSagaStep',
+              value: 90,
+              category: 'app',
+              children: [
+                { name: 'loadTransactionLog', value: 40, category: 'database' },
+                { name: 'executeCompensation', value: 50, category: 'app' },
+              ],
+            },
             { name: 'reconcileState', value: 60, category: 'database' },
           ],
         },
@@ -185,7 +264,10 @@ export const generateMemoryFlameGraph = (): FlameGraphProfile => {
     serviceId: 'svc-002',
     serviceName: 'orion-ai-service',
     totalValue: 800,
-    timeWindow: { start: new Date(Date.now() - 60000).toISOString(), end: new Date().toISOString() },
+    timeWindow: {
+      start: new Date(Date.now() - 60000).toISOString(),
+      end: new Date().toISOString(),
+    },
     data: {
       name: 'python:app',
       value: 800,
@@ -201,7 +283,15 @@ export const generateMemoryFlameGraph = (): FlameGraphProfile => {
               value: 200,
               category: 'ml',
               children: [
-                { name: 'model_from_disk', value: 150, category: 'io', children: [{ name: 'mmap', value: 100, category: 'runtime' }, { name: 'deserialize', value: 50, category: 'runtime' }] },
+                {
+                  name: 'model_from_disk',
+                  value: 150,
+                  category: 'io',
+                  children: [
+                    { name: 'mmap', value: 100, category: 'runtime' },
+                    { name: 'deserialize', value: 50, category: 'runtime' },
+                  ],
+                },
                 { name: 'model_validate', value: 50, category: 'ml' },
               ],
             },
@@ -210,11 +300,24 @@ export const generateMemoryFlameGraph = (): FlameGraphProfile => {
               value: 130,
               category: 'app',
               children: [
-                { name: 'tokenize', value: 80, category: 'ml', children: [{ name: 'vocab_lookup', value: 60, category: 'runtime' }] },
+                {
+                  name: 'tokenize',
+                  value: 80,
+                  category: 'ml',
+                  children: [{ name: 'vocab_lookup', value: 60, category: 'runtime' }],
+                },
                 { name: 'batch_prepare', value: 50, category: 'ml' },
               ],
             },
-            { name: 'store_result', value: 120, category: 'database', children: [{ name: 'json_serialize', value: 70, category: 'runtime' }, { name: 'db_insert', value: 50, category: 'database' }] },
+            {
+              name: 'store_result',
+              value: 120,
+              category: 'database',
+              children: [
+                { name: 'json_serialize', value: 70, category: 'runtime' },
+                { name: 'db_insert', value: 50, category: 'database' },
+              ],
+            },
           ],
         },
         {
@@ -222,9 +325,22 @@ export const generateMemoryFlameGraph = (): FlameGraphProfile => {
           value: 350,
           category: 'runtime',
           children: [
-            { name: 'cache_manager', value: 120, category: 'cache', children: [{ name: 'lru_evict', value: 80, category: 'runtime' }] },
+            {
+              name: 'cache_manager',
+              value: 120,
+              category: 'cache',
+              children: [{ name: 'lru_evict', value: 80, category: 'runtime' }],
+            },
             { name: 'event_loop', value: 100, category: 'runtime' },
-            { name: 'gunicorn_worker', value: 130, category: 'runtime', children: [{ name: 'request_parse', value: 60, category: 'network' }, { name: 'response_buffer', value: 70, category: 'runtime' }] },
+            {
+              name: 'gunicorn_worker',
+              value: 130,
+              category: 'runtime',
+              children: [
+                { name: 'request_parse', value: 60, category: 'network' },
+                { name: 'response_buffer', value: 70, category: 'runtime' },
+              ],
+            },
           ],
         },
       ],
@@ -238,7 +354,10 @@ export const generateIOFlameGraph = (): FlameGraphProfile => {
     serviceId: 'svc-003',
     serviceName: 'orion-visor',
     totalValue: 1200,
-    timeWindow: { start: new Date(Date.now() - 60000).toISOString(), end: new Date().toISOString() },
+    timeWindow: {
+      start: new Date(Date.now() - 60000).toISOString(),
+      end: new Date().toISOString(),
+    },
     data: {
       name: 'visor-server',
       value: 1200,
@@ -264,7 +383,15 @@ export const generateIOFlameGraph = (): FlameGraphProfile => {
               value: 300,
               category: 'storage',
               children: [
-                { name: 'parquet_write', value: 180, category: 'io', children: [{ name: 'os_write', value: 140, category: 'io' }, { name: 'flush_buffer', value: 40, category: 'io' }] },
+                {
+                  name: 'parquet_write',
+                  value: 180,
+                  category: 'io',
+                  children: [
+                    { name: 'os_write', value: 140, category: 'io' },
+                    { name: 'flush_buffer', value: 40, category: 'io' },
+                  ],
+                },
                 { name: 'index_update', value: 120, category: 'database' },
               ],
             },

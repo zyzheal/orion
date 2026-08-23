@@ -6,15 +6,33 @@
 import React, { useState, useEffect } from 'react';
 import { communityApi, Contribution, Badge, Mentorship } from '@/api/community';
 import {
-  Card, Table, Button, Modal, Form, Select, Input, Tag,
-  message, Space, Statistic, Row, Col, Avatar, Tabs,
-  Badge as AntBadge, List
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Select,
+  Input,
+  Tag,
+  message,
+  Space,
+  Statistic,
+  Row,
+  Col,
+  Avatar,
+  Tabs,
+  Badge as AntBadge,
+  List,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
-  TrophyOutlined, TeamOutlined, StarOutlined,
-  PlusOutlined, ReloadOutlined, UserOutlined,
-  CrownOutlined
+  TrophyOutlined,
+  TeamOutlined,
+  StarOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UserOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 
 const { TextArea } = Input;
@@ -73,21 +91,31 @@ const CommunityAdvancedPage: React.FC = () => {
 
   const getBadgeIcon = (category: string) => {
     switch (category) {
-      case 'contribution': return <TrophyOutlined />;
-      case 'mentorship': return <TeamOutlined />;
-      case 'quality': return <StarOutlined />;
-      case 'milestone': return <CrownOutlined />;
-      default: return <TrophyOutlined />;
+      case 'contribution':
+        return <TrophyOutlined />;
+      case 'mentorship':
+        return <TeamOutlined />;
+      case 'quality':
+        return <StarOutlined />;
+      case 'milestone':
+        return <CrownOutlined />;
+      default:
+        return <TrophyOutlined />;
     }
   };
 
   const getBadgeColor = (level: string) => {
     switch (level) {
-      case 'platinum': return colors.tier.platinum;
-      case 'gold': return colors.warning[400];
-      case 'silver': return colors.neutral[400];
-      case 'bronze': return colors.tier.bronze;
-      default: return colors.neutral[300];
+      case 'platinum':
+        return colors.tier.platinum;
+      case 'gold':
+        return colors.warning[400];
+      case 'silver':
+        return colors.neutral[400];
+      case 'bronze':
+        return colors.tier.bronze;
+      default:
+        return colors.neutral[300];
     }
   };
 
@@ -96,7 +124,12 @@ const CommunityAdvancedPage: React.FC = () => {
       title: 'Author',
       dataIndex: 'username',
       key: 'username',
-      render: (username: string) => <><Avatar size="small" icon={<UserOutlined />} style={{ marginRight: spacing.sm }} />{username}</>,
+      render: (username: string) => (
+        <>
+          <Avatar size="small" icon={<UserOutlined />} style={{ marginRight: spacing.sm }} />
+          {username}
+        </>
+      ),
     },
     { title: 'Title', dataIndex: 'title', key: 'title' },
     {
@@ -118,7 +151,12 @@ const CommunityAdvancedPage: React.FC = () => {
     },
     { title: 'Stars', dataIndex: 'stars', key: 'stars', width: 80 },
     { title: 'Downloads', dataIndex: 'downloads', key: 'downloads', width: 100 },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const mentorshipColumns = [
@@ -136,7 +174,12 @@ const CommunityAdvancedPage: React.FC = () => {
         />
       ),
     },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   return (
@@ -145,7 +188,11 @@ const CommunityAdvancedPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
-            <Statistic title="Total Contributions" value={contributions.length} prefix={<TrophyOutlined />} />
+            <Statistic
+              title="Total Contributions"
+              value={contributions.length}
+              prefix={<TrophyOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -155,12 +202,20 @@ const CommunityAdvancedPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="Active Mentorships" value={mentorships.filter(m => m.status === 'active').length} prefix={<TeamOutlined />} />
+            <Statistic
+              title="Active Mentorships"
+              value={mentorships.filter((m) => m.status === 'active').length}
+              prefix={<TeamOutlined />}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="Approved" value={contributions.filter(c => c.status === 'approved').length} prefix={<StarOutlined />} />
+            <Statistic
+              title="Approved"
+              value={contributions.filter((c) => c.status === 'approved').length}
+              prefix={<StarOutlined />}
+            />
           </Card>
         </Col>
       </Row>
@@ -169,7 +224,11 @@ const CommunityAdvancedPage: React.FC = () => {
         items={[
           {
             key: 'contributions',
-            label: <><TrophyOutlined /> Contributions</>,
+            label: (
+              <>
+                <TrophyOutlined /> Contributions
+              </>
+            ),
             children: (
               <Card
                 title="Community Contributions"
@@ -178,7 +237,9 @@ const CommunityAdvancedPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setContributionModal(true)}>
                       Submit Contribution
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -193,20 +254,36 @@ const CommunityAdvancedPage: React.FC = () => {
           },
           {
             key: 'badges',
-            label: <><CrownOutlined /> Badge Management</>,
+            label: (
+              <>
+                <CrownOutlined /> Badge Management
+              </>
+            ),
             children: (
-              <Card title="Community Badges" extra={<Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>}>
+              <Card
+                title="Community Badges"
+                extra={
+                  <Button icon={<ReloadOutlined />} onClick={loadData}>
+                    Refresh
+                  </Button>
+                }
+              >
                 <Row gutter={16}>
                   {badges.map((badge: Badge) => (
                     <Col span={6} key={badge.id} style={{ marginBottom: spacing.md }}>
                       <Card hoverable size="small" style={{ textAlign: 'center' }}>
                         <Avatar
                           size={48}
-                          style={{ backgroundColor: getBadgeColor(badge.level), marginBottom: spacing.sm }}
+                          style={{
+                            backgroundColor: getBadgeColor(badge.level),
+                            marginBottom: spacing.sm,
+                          }}
                           icon={getBadgeIcon(badge.category)}
                         />
                         <div style={{ fontWeight: 'bold' }}>{badge.name}</div>
-                        <div style={{ color: colors.neutral[500], fontSize: 12, marginTop: 4 }}>{badge.description}</div>
+                        <div style={{ color: colors.neutral[500], fontSize: 12, marginTop: 4 }}>
+                          {badge.description}
+                        </div>
                         <Tag style={{ marginTop: spacing.sm }} color={getBadgeColor(badge.level)}>
                           {badge.level}
                         </Tag>
@@ -214,13 +291,21 @@ const CommunityAdvancedPage: React.FC = () => {
                     </Col>
                   ))}
                 </Row>
-                {badges.length === 0 && <p style={{ color: colors.neutral[500], textAlign: 'center' }}>No badges available</p>}
+                {badges.length === 0 && (
+                  <p style={{ color: colors.neutral[500], textAlign: 'center' }}>
+                    No badges available
+                  </p>
+                )}
               </Card>
             ),
           },
           {
             key: 'mentorship',
-            label: <><TeamOutlined /> Mentorship</>,
+            label: (
+              <>
+                <TeamOutlined /> Mentorship
+              </>
+            ),
             children: (
               <Card
                 title="Mentorship Pairing"
@@ -229,7 +314,9 @@ const CommunityAdvancedPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setMentorshipModal(true)}>
                       Request Mentorship
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -244,15 +331,35 @@ const CommunityAdvancedPage: React.FC = () => {
           },
           {
             key: 'incentives',
-            label: <><StarOutlined /> Incentive Programs</>,
+            label: (
+              <>
+                <StarOutlined /> Incentive Programs
+              </>
+            ),
             children: (
               <Card title="Incentive Programs">
                 <List
                   dataSource={[
-                    { title: 'Top Contributor Q2', desc: 'Most contributions in Q2 2026', reward: 'Platinum Badge + Recognition' },
-                    { title: 'Quality Champion', desc: 'Highest quality score across submissions', reward: 'Gold Badge + Priority Review' },
-                    { title: 'Mentor of the Month', desc: 'Best mentorship feedback and outcomes', reward: 'Silver Badge + Bonus Points' },
-                    { title: 'Plugin Pioneer', desc: 'First to publish 5 approved plugins', reward: 'Exclusive Badge + Feature Spotlight' },
+                    {
+                      title: 'Top Contributor Q2',
+                      desc: 'Most contributions in Q2 2026',
+                      reward: 'Platinum Badge + Recognition',
+                    },
+                    {
+                      title: 'Quality Champion',
+                      desc: 'Highest quality score across submissions',
+                      reward: 'Gold Badge + Priority Review',
+                    },
+                    {
+                      title: 'Mentor of the Month',
+                      desc: 'Best mentorship feedback and outcomes',
+                      reward: 'Silver Badge + Bonus Points',
+                    },
+                    {
+                      title: 'Plugin Pioneer',
+                      desc: 'First to publish 5 approved plugins',
+                      reward: 'Exclusive Badge + Feature Spotlight',
+                    },
                   ]}
                   renderItem={(item) => (
                     <List.Item>
@@ -279,13 +386,15 @@ const CommunityAdvancedPage: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleCreateContribution}>
           <Form.Item label="Type" name="type" required>
-            <Select options={[
-              { value: 'plugin', label: 'Plugin' },
-              { value: 'skill', label: 'Skill' },
-              { value: 'template', label: 'Template' },
-              { value: 'documentation', label: 'Documentation' },
-              { value: 'code', label: 'Code' },
-            ]} />
+            <Select
+              options={[
+                { value: 'plugin', label: 'Plugin' },
+                { value: 'skill', label: 'Skill' },
+                { value: 'template', label: 'Template' },
+                { value: 'documentation', label: 'Documentation' },
+                { value: 'code', label: 'Code' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Title" name="title" required>
             <Input placeholder="My awesome plugin" />
@@ -314,13 +423,15 @@ const CommunityAdvancedPage: React.FC = () => {
             <Input placeholder="Your user ID" />
           </Form.Item>
           <Form.Item label="Skill Area" name="skill_area" required>
-            <Select options={[
-              { value: 'pipeline', label: 'CI/CD Pipeline' },
-              { value: 'testing', label: 'Testing Strategy' },
-              { value: 'architecture', label: 'System Architecture' },
-              { value: 'devops', label: 'DevOps Practices' },
-              { value: 'security', label: 'Security' },
-            ]} />
+            <Select
+              options={[
+                { value: 'pipeline', label: 'CI/CD Pipeline' },
+                { value: 'testing', label: 'Testing Strategy' },
+                { value: 'architecture', label: 'System Architecture' },
+                { value: 'devops', label: 'DevOps Practices' },
+                { value: 'security', label: 'Security' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

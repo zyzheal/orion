@@ -3,17 +3,7 @@
  * Displays resilience scores, trends, and MTTR metrics per service
  */
 import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  Table,
-  Tag,
-  Statistic,
-  Row,
-  Col,
-  Select,
-  Typography,
-  Progress,
-} from 'antd';
+import { Card, Table, Tag, Statistic, Row, Col, Select, Typography, Progress } from 'antd';
 import {
   SafetyOutlined,
   ClockCircleOutlined,
@@ -77,32 +67,27 @@ export default function ResilienceScorePage() {
       title: '日期',
       dataIndex: 'calculated_at',
       key: 'calculated_at',
-      render: (v: string) => v ? new Date(v).toLocaleDateString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
     },
     {
       title: '弹性评分',
       dataIndex: 'score',
       key: 'score',
       render: (v: number) => (
-        <Progress
-          percent={v}
-          size="small"
-          strokeColor={getScoreColor(v)}
-          format={(p) => `${p}`}
-        />
+        <Progress percent={v} size="small" strokeColor={getScoreColor(v)} format={(p) => `${p}`} />
       ),
     },
     {
       title: 'MTTR',
       dataIndex: 'mttr_ms',
       key: 'mttr_ms',
-      render: (v: number) => v ? `${(v / 1000).toFixed(1)}s` : '-',
+      render: (v: number) => (v ? `${(v / 1000).toFixed(1)}s` : '-'),
     },
     {
       title: '成功率',
       dataIndex: 'success_rate',
       key: 'success_rate',
-      render: (v: number) => v ? `${(v * 100).toFixed(1)}%` : '-',
+      render: (v: number) => (v ? `${(v * 100).toFixed(1)}%` : '-'),
     },
     {
       title: '趋势',
@@ -110,7 +95,11 @@ export default function ResilienceScorePage() {
       key: 'trend',
       render: (v: string) => {
         const cfg = trendConfig[v] || trendConfig.stable;
-        return <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>;
+        return (
+          <Tag color={cfg.color} icon={cfg.icon}>
+            {cfg.label}
+          </Tag>
+        );
       },
     },
   ];
@@ -161,7 +150,9 @@ export default function ResilienceScorePage() {
               title="错误预算"
               value={score?.error_budget ?? 0}
               suffix="%"
-              valueStyle={{ color: (score?.error_budget ?? 0) > 10 ? colors.success[500] : colors.error[500] }}
+              valueStyle={{
+                color: (score?.error_budget ?? 0) > 10 ? colors.success[500] : colors.error[500],
+              }}
             />
           </Card>
         </Col>

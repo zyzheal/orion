@@ -82,11 +82,7 @@ export interface AuthApiClientOptions {
  * Create an authenticated API client with automatic token management
  */
 export function createAuthApiClient(options: AuthApiClientOptions): AxiosInstance {
-  const {
-    baseURL,
-    loginUrl = '/auth/login',
-    notifyParent = true,
-  } = options;
+  const { baseURL, loginUrl = '/auth/login', notifyParent = true } = options;
 
   const client = axios.create({ baseURL });
 
@@ -109,9 +105,11 @@ export function createAuthApiClient(options: AuthApiClientOptions): AxiosInstanc
 
         // Notify parent app (for micro-frontends running in Orion-MF)
         if (notifyParent && typeof window !== 'undefined' && window.__POWERED_BY_ORION__) {
-          window.dispatchEvent(new CustomEvent('orion-subapp-need-auth', {
-            detail: { redirectUrl: window.location.pathname },
-          }));
+          window.dispatchEvent(
+            new CustomEvent('orion-subapp-need-auth', {
+              detail: { redirectUrl: window.location.pathname },
+            })
+          );
         } else {
           // Redirect to SSO login page
           const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
@@ -141,20 +139,20 @@ export function getLoginUrl(redirect?: string): string {
 /**
  * Get enabled SSO providers (for dynamic login page)
  */
-export async function getSsoProviders(): Promise<Array<{
-  name: string;
-  type: string;
-  display_name: string;
-  display_icon?: string;
-}>> {
+export async function getSsoProviders(): Promise<
+  Array<{
+    name: string;
+    type: string;
+    display_name: string;
+    display_icon?: string;
+  }>
+> {
   try {
     const response = await axios.get('/api/v1/auth/sso/providers-enabled');
     return response.data || [];
   } catch {
     // Fallback to default providers
-    return [
-      { name: 'local', type: 'local', display_name: '账号密码登录', display_icon: 'user' },
-    ];
+    return [{ name: 'local', type: 'local', display_name: '账号密码登录', display_icon: 'user' }];
   }
 }
 
@@ -186,9 +184,11 @@ export async function logout(): Promise<void> {
 
   // Notify all sub-apps (micro-frontend)
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('orion-logout', {
-      detail: { timestamp: Date.now() },
-    }));
+    window.dispatchEvent(
+      new CustomEvent('orion-logout', {
+        detail: { timestamp: Date.now() },
+      })
+    );
 
     // Redirect to login
     window.location.href = '/auth/login';

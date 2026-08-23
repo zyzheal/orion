@@ -242,7 +242,9 @@ const PipelineRetryRollback: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       render: (_value: any, record: PipelineRunItem) => (
-        <Text code style={{ fontSize: 12 }}>{record.id}</Text>
+        <Text code style={{ fontSize: 12 }}>
+          {record.id}
+        </Text>
       ),
     },
     {
@@ -340,11 +342,7 @@ const PipelineRetryRollback: React.FC = () => {
                 cancelText="继续运行"
                 okButtonProps={{ danger: true }}
               >
-                <Button
-                  size="small"
-                  danger
-                  icon={<StopOutlined />}
-                >
+                <Button size="small" danger icon={<StopOutlined />}>
                   取消
                 </Button>
               </Popconfirm>
@@ -427,7 +425,9 @@ const PipelineRetryRollback: React.FC = () => {
               title="成功率"
               value={stats.successRate}
               suffix="%"
-              valueStyle={{ color: stats.successRate >= 70 ? colors.success[500] : colors.warning[500] }}
+              valueStyle={{
+                color: stats.successRate >= 70 ? colors.success[500] : colors.warning[500],
+              }}
               prefix={<ExclamationCircleOutlined />}
             />
           </Card>
@@ -476,10 +476,7 @@ const PipelineRetryRollback: React.FC = () => {
               />
             ) : (
               <Empty description="暂无匹配的 Pipeline Run 记录">
-                <Button
-                  type="primary"
-                  onClick={() => setStatusFilter('all')}
-                >
+                <Button type="primary" onClick={() => setStatusFilter('all')}>
                   显示全部
                 </Button>
               </Empty>
@@ -492,26 +489,25 @@ const PipelineRetryRollback: React.FC = () => {
           <Card
             title="运行详情"
             bordered={false}
-            extra={selectedRun && <Tag color={statusColorMap[selectedRun.status]}>{selectedRun.status}</Tag>}
+            extra={
+              selectedRun && (
+                <Tag color={statusColorMap[selectedRun.status]}>{selectedRun.status}</Tag>
+              )
+            }
             style={{ minHeight: 520 }}
           >
             {selectedRun ? (
               <>
-                <Descriptions
-                  column={1}
-                  bordered
-                  size="small"
-                  style={{ marginBottom: spacing.md }}
-                >
+                <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
                   <Descriptions.Item label="Run ID">
-                    <Text code style={{ fontSize: 12 }}>{selectedRun.id}</Text>
+                    <Text code style={{ fontSize: 12 }}>
+                      {selectedRun.id}
+                    </Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Pipeline 名称">
                     <Text strong>{selectedRun.pipelineName}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Run 编号">
-                    #{selectedRun.runNumber}
-                  </Descriptions.Item>
+                  <Descriptions.Item label="Run 编号">#{selectedRun.runNumber}</Descriptions.Item>
                   <Descriptions.Item label="触发方式">
                     <Tag color={colors.info[500]}>
                       {selectedRun.trigger === 'manual' && '手动触发'}
@@ -525,19 +521,21 @@ const PipelineRetryRollback: React.FC = () => {
                   </Descriptions.Item>
                   {selectedRun.commit && (
                     <Descriptions.Item label="提交哈希">
-                      <Text code style={{ fontSize: 12 }}>{selectedRun.commit}</Text>
+                      <Text code style={{ fontSize: 12 }}>
+                        {selectedRun.commit}
+                      </Text>
                     </Descriptions.Item>
                   )}
-                  <Descriptions.Item label="操作者">
-                    {selectedRun.author}
-                  </Descriptions.Item>
+                  <Descriptions.Item label="操作者">{selectedRun.author}</Descriptions.Item>
                   <Descriptions.Item label="开始时间">
                     {dayjs(selectedRun.startTime).format('YYYY-MM-DD HH:mm:ss')}
                   </Descriptions.Item>
                   <Descriptions.Item label="结束时间">
-                    {selectedRun.endTime
-                      ? dayjs(selectedRun.endTime).format('YYYY-MM-DD HH:mm:ss')
-                      : <Text type="secondary">运行中</Text>}
+                    {selectedRun.endTime ? (
+                      dayjs(selectedRun.endTime).format('YYYY-MM-DD HH:mm:ss')
+                    ) : (
+                      <Text type="secondary">运行中</Text>
+                    )}
                   </Descriptions.Item>
                   <Descriptions.Item label="状态">
                     <Tag color={statusColorMap[selectedRun.status]}>
@@ -554,7 +552,10 @@ const PipelineRetryRollback: React.FC = () => {
                 </Text>
                 <Space direction="vertical" size={spacing.xs} style={{ marginBottom: spacing.md }}>
                   {selectedRun.stages.map((stage, idx) => (
-                    <div key={String(idx)} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <div
+                      key={String(idx)}
+                      style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}
+                    >
                       <Tag color={stageStatusColorMap[stage.status]} style={{ flex: '0 0 auto' }}>
                         {stage.name}
                       </Tag>
@@ -660,34 +661,37 @@ const PipelineRetryRollback: React.FC = () => {
                   ))}
                 </Select>
               </Form.Item>
-              <div style={{
-                background: colors.warning[50],
-                border: `1px solid ${colors.warning[200]}`,
-                borderRadius: 4,
-                padding: spacing.sm,
-              }}>
+              <div
+                style={{
+                  background: colors.warning[50],
+                  border: `1px solid ${colors.warning[200]}`,
+                  borderRadius: 4,
+                  padding: spacing.sm,
+                }}
+              >
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  <ExclamationCircleOutlined style={{ marginRight: 4, color: colors.warning[500] }} />
+                  <ExclamationCircleOutlined
+                    style={{ marginRight: 4, color: colors.warning[500] }}
+                  />
                   以下阶段将重新执行：
-                  {retryStage === 'all'
-                    ? ' 全部阶段'
-                    : ` "${retryStage}"`
-                  }
+                  {retryStage === 'all' ? ' 全部阶段' : ` "${retryStage}"`}
                 </Text>
               </div>
             </>
           )}
 
           {selectedRun && getFailedStages(selectedRun).length === 0 && (
-            <div style={{
-              background: colors.info[50],
-              border: `1px solid ${colors.info[200]}`,
-              borderRadius: 4,
-              padding: spacing.sm,
-            }}>
+            <div
+              style={{
+                background: colors.info[50],
+                border: `1px solid ${colors.info[200]}`,
+                borderRadius: 4,
+                padding: spacing.sm,
+              }}
+            >
               <Text type="secondary" style={{ fontSize: 12 }}>
-                <InfoCircleOutlined style={{ marginRight: 4, color: colors.info[500] }} />
-                该 Run 已完成，将使用相同的配置从头重新执行。
+                <InfoCircleOutlined style={{ marginRight: 4, color: colors.info[500] }} />该 Run
+                已完成，将使用相同的配置从头重新执行。
               </Text>
             </div>
           )}
@@ -739,7 +743,9 @@ const PipelineRetryRollback: React.FC = () => {
               allowClear
             >
               {mockRuns
-                .filter((r) => r.pipelineName === selectedRun?.pipelineName && r.status === 'success')
+                .filter(
+                  (r) => r.pipelineName === selectedRun?.pipelineName && r.status === 'success'
+                )
                 .map((r) => (
                   <Option key={r.id} value={r.id}>
                     {r.pipelineName} #{r.runNumber} ({dayjs(r.startTime).format('MM-DD HH:mm')})
@@ -749,12 +755,14 @@ const PipelineRetryRollback: React.FC = () => {
           </Form.Item>
 
           {rollbackTargetRunId && (
-            <div style={{
-              background: colors.error[50],
-              border: `1px solid ${colors.error[200]}`,
-              borderRadius: 4,
-              padding: spacing.sm,
-            }}>
+            <div
+              style={{
+                background: colors.error[50],
+                border: `1px solid ${colors.error[200]}`,
+                borderRadius: 4,
+                padding: spacing.sm,
+              }}
+            >
               <Text type="secondary" style={{ fontSize: 12 }}>
                 <ExclamationCircleOutlined style={{ marginRight: 4, color: colors.error[500] }} />
                 回滚将把 Pipeline 恢复到选中 Run 的版本状态，此操作不可逆。
@@ -762,12 +770,14 @@ const PipelineRetryRollback: React.FC = () => {
             </div>
           )}
 
-          <div style={{
-            background: colors.warning[50],
-            border: `1px solid ${colors.warning[200]}`,
-            borderRadius: 4,
-            padding: spacing.sm,
-          }}>
+          <div
+            style={{
+              background: colors.warning[50],
+              border: `1px solid ${colors.warning[200]}`,
+              borderRadius: 4,
+              padding: spacing.sm,
+            }}
+          >
             <Text type="secondary" style={{ fontSize: 12 }}>
               <InfoCircleOutlined style={{ marginRight: 4, color: colors.warning[500] }} />
               回滚操作会自动创建一条新的 Run 记录，原始数据不会被覆盖。
@@ -806,12 +816,14 @@ const PipelineRetryRollback: React.FC = () => {
             <Text type="secondary">Run ID：</Text>
             <Text code>{selectedRun?.id}</Text>
           </div>
-          <div style={{
-            background: colors.error[50],
-            border: `1px solid ${colors.error[200]}`,
-            borderRadius: 4,
-            padding: spacing.sm,
-          }}>
+          <div
+            style={{
+              background: colors.error[50],
+              border: `1px solid ${colors.error[200]}`,
+              borderRadius: 4,
+              padding: spacing.sm,
+            }}
+          >
             <Text type="secondary" style={{ fontSize: 12 }}>
               <ExclamationCircleOutlined style={{ marginRight: 4, color: colors.error[500] }} />
               取消后将无法恢复，当前正在执行的阶段将立即终止。

@@ -35,7 +35,8 @@ import {
   BulbOutlined,
   LineChartOutlined,
   WarningOutlined,
-  RiseOutlined,} from '@ant-design/icons';
+  RiseOutlined,
+} from '@ant-design/icons';
 import {
   performanceApi,
   type PerformanceBaseline,
@@ -132,12 +133,15 @@ const PerformancePage: React.FC = () => {
   };
 
   // Stats
-  const stats = useMemo(() => ({
-    totalBaselines: baselines.length,
-    criticalBottlenecks: bottlenecks.filter((b) => b.severity === 'critical').length,
-    highBottlenecks: bottlenecks.filter((b) => b.severity === 'high').length,
-    totalSuggestions: suggestions.length,
-  }), [baselines, bottlenecks, suggestions]);
+  const stats = useMemo(
+    () => ({
+      totalBaselines: baselines.length,
+      criticalBottlenecks: bottlenecks.filter((b) => b.severity === 'critical').length,
+      highBottlenecks: bottlenecks.filter((b) => b.severity === 'high').length,
+      totalSuggestions: suggestions.length,
+    }),
+    [baselines, bottlenecks, suggestions]
+  );
 
   // Baseline table columns
   const baselineColumns = [
@@ -158,31 +162,36 @@ const PerformancePage: React.FC = () => {
       title: 'P50 (ms)',
       key: 'p50',
       width: 100,
-      render: (_: unknown, record: PerformanceBaseline) => `${record.metrics.p50Latency.toFixed(1)}`,
+      render: (_: unknown, record: PerformanceBaseline) =>
+        `${record.metrics.p50Latency.toFixed(1)}`,
     },
     {
       title: 'P95 (ms)',
       key: 'p95',
       width: 100,
-      render: (_: unknown, record: PerformanceBaseline) => `${record.metrics.p95Latency.toFixed(1)}`,
+      render: (_: unknown, record: PerformanceBaseline) =>
+        `${record.metrics.p95Latency.toFixed(1)}`,
     },
     {
       title: 'P99 (ms)',
       key: 'p99',
       width: 100,
-      render: (_: unknown, record: PerformanceBaseline) => `${record.metrics.p99Latency.toFixed(1)}`,
+      render: (_: unknown, record: PerformanceBaseline) =>
+        `${record.metrics.p99Latency.toFixed(1)}`,
     },
     {
       title: '吞吐量 (RPS)',
       key: 'throughput',
       width: 120,
-      render: (_: unknown, record: PerformanceBaseline) => record.metrics.throughput.toLocaleString(),
+      render: (_: unknown, record: PerformanceBaseline) =>
+        record.metrics.throughput.toLocaleString(),
     },
     {
       title: '错误率',
       key: 'errorRate',
       width: 100,
-      render: (_: unknown, record: PerformanceBaseline) => `${(record.metrics.errorRate * 100).toFixed(2)}%`,
+      render: (_: unknown, record: PerformanceBaseline) =>
+        `${(record.metrics.errorRate * 100).toFixed(2)}%`,
     },
     {
       title: '创建时间',
@@ -354,11 +363,7 @@ const PerformancePage: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             刷新
           </Button>
-          <Button
-            type="primary"
-            icon={<RocketOutlined />}
-            onClick={() => setCreateModalOpen(true)}
-          >
+          <Button type="primary" icon={<RocketOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建基线
           </Button>
         </Space>
@@ -391,22 +396,14 @@ const PerformancePage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="优化建议"
-              value={stats.totalSuggestions}
-              prefix={<BulbOutlined />}
-            />
+            <Statistic title="优化建议" value={stats.totalSuggestions} prefix={<BulbOutlined />} />
           </Card>
         </Col>
       </Row>
 
       {/* Tabbed content */}
       <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-        />
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       </Card>
 
       {/* Create Baseline Modal */}
@@ -479,12 +476,14 @@ const PerformancePage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item
-            label="错误率"
-            name="errorRate"
-            initialValue={0}
-          >
-            <InputNumber min={0} max={1} step={0.01} style={{ width: '100%' }} placeholder="如: 0.01" />
+          <Form.Item label="错误率" name="errorRate" initialValue={0}>
+            <InputNumber
+              min={0}
+              max={1}
+              step={0.01}
+              style={{ width: '100%' }}
+              placeholder="如: 0.01"
+            />
           </Form.Item>
         </Form>
       </Modal>

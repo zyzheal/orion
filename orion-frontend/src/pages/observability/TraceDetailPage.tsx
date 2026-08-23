@@ -17,17 +17,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  Typography,
-  Card,
-  Tag,
-  Space,
-  Button,
-  Empty,
-  Tooltip,
-  Popover,
-  Input,
-} from 'antd';
+import { Typography, Card, Tag, Space, Button, Empty, Tooltip, Popover, Input } from 'antd';
 import { spacing, shadows, radius, themeVars } from '@/tokens';
 import { colors } from '@/tokens/colors';
 import {
@@ -56,13 +46,13 @@ interface SpanNode {
 /** 缩放级别 (1 = 原始比例) */
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 8;
-const ROW_HEIGHT = 36;        // 每行 span 高度
-const BAR_MIN_HEIGHT = 18;    // span 条最小高度
-const BAR_MIN_WIDTH = 2;      // span 条最小宽度 (防止太短不可见)
-const TREE_COL_WIDTH = 320;   // 左侧树形列宽度
-const HEADER_HEIGHT = 40;     // 顶部时间轴标题高度
-const AXIS_HEIGHT = 30;       // 底部时间轴坐标轴高度
-const ROW_GAP = 2;            // 行间间隙
+const ROW_HEIGHT = 36; // 每行 span 高度
+const BAR_MIN_HEIGHT = 18; // span 条最小高度
+const BAR_MIN_WIDTH = 2; // span 条最小宽度 (防止太短不可见)
+const TREE_COL_WIDTH = 320; // 左侧树形列宽度
+const HEADER_HEIGHT = 40; // 顶部时间轴标题高度
+const AXIS_HEIGHT = 30; // 底部时间轴坐标轴高度
+const ROW_GAP = 2; // 行间间隙
 
 // ---- 工具函数 ----
 
@@ -119,9 +109,12 @@ const isSpanError = (span: Span): boolean => span.statusCode === 'ERROR';
  */
 const statusColor = (statusCode: string): string => {
   switch (statusCode) {
-    case 'OK': return colors.success[500];
-    case 'ERROR': return colors.error[500];
-    default: return colors.neutral[500];
+    case 'OK':
+      return colors.success[500];
+    case 'ERROR':
+      return colors.error[500];
+    default:
+      return colors.neutral[500];
   }
 };
 
@@ -130,9 +123,12 @@ const statusColor = (statusCode: string): string => {
  */
 const statusLabel = (statusCode: string): string => {
   switch (statusCode) {
-    case 'OK': return 'OK';
-    case 'ERROR': return 'ERROR';
-    default: return 'UNSET';
+    case 'OK':
+      return 'OK';
+    case 'ERROR':
+      return 'ERROR';
+    default:
+      return 'UNSET';
   }
 };
 
@@ -236,15 +232,29 @@ const SpanDetailPopover: React.FC<{ span: Span }> = ({ span }) => {
         </Tag>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', rowGap: 4, columnGap: 8, fontSize: 12 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '80px 1fr',
+          rowGap: 4,
+          columnGap: 8,
+          fontSize: 12,
+        }}
+      >
         <Text type="secondary">Trace ID</Text>
-        <Text code style={{ wordBreak: 'break-all' }}>{span.traceId}</Text>
+        <Text code style={{ wordBreak: 'break-all' }}>
+          {span.traceId}
+        </Text>
 
         <Text type="secondary">Span ID</Text>
-        <Text code style={{ wordBreak: 'break-all' }}>{span.spanId}</Text>
+        <Text code style={{ wordBreak: 'break-all' }}>
+          {span.spanId}
+        </Text>
 
         <Text type="secondary">Parent ID</Text>
-        <Text code style={{ wordBreak: 'break-all' }}>{span.parentId || '-'}</Text>
+        <Text code style={{ wordBreak: 'break-all' }}>
+          {span.parentId || '-'}
+        </Text>
 
         {span.service && (
           <>
@@ -271,7 +281,9 @@ const SpanDetailPopover: React.FC<{ span: Span }> = ({ span }) => {
 
         {span.statusMessage && (
           <>
-            <Text type="secondary" style={{ color: colors.error[500] }}>Message</Text>
+            <Text type="secondary" style={{ color: colors.error[500] }}>
+              Message
+            </Text>
             <Text style={{ color: colors.error[500] }}>{span.statusMessage}</Text>
           </>
         )}
@@ -282,8 +294,24 @@ const SpanDetailPopover: React.FC<{ span: Span }> = ({ span }) => {
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
             Attributes
           </Text>
-          <div style={{ maxHeight: 120, overflow: 'auto', backgroundColor: themeVars.bgSecondary, borderRadius: radius.xs, padding: 8, fontSize: 11 }}>
-            <pre style={{ margin: 0, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          <div
+            style={{
+              maxHeight: 120,
+              overflow: 'auto',
+              backgroundColor: themeVars.bgSecondary,
+              borderRadius: radius.xs,
+              padding: 8,
+              fontSize: 11,
+            }}
+          >
+            <pre
+              style={{
+                margin: 0,
+                fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+              }}
+            >
               {JSON.stringify(span.attributes, null, 2)}
             </pre>
           </div>
@@ -297,9 +325,19 @@ const SpanDetailPopover: React.FC<{ span: Span }> = ({ span }) => {
           </Text>
           <div style={{ maxHeight: 80, overflow: 'auto', fontSize: 11 }}>
             {span.events.map((ev, i) => (
-              <div key={String(i)} style={{ padding: '2px 0', borderLeft: `2px solid ${colors.primary[400]}`, paddingLeft: 6, marginBottom: 2 }}>
+              <div
+                key={String(i)}
+                style={{
+                  padding: '2px 0',
+                  borderLeft: `2px solid ${colors.primary[400]}`,
+                  paddingLeft: 6,
+                  marginBottom: 2,
+                }}
+              >
                 <Text code>{ev.name}</Text>
-                <Text type="secondary" style={{ marginLeft: 4 }}>{formatTime(ev.timestamp)}</Text>
+                <Text type="secondary" style={{ marginLeft: 4 }}>
+                  {formatTime(ev.timestamp)}
+                </Text>
               </div>
             ))}
           </div>
@@ -347,12 +385,10 @@ const TreeNodeRow: React.FC<{
   const bgColor = isSelected
     ? colors.primary[50]
     : isHovered
-    ? themeVars.bgSecondary
-    : 'transparent';
+      ? themeVars.bgSecondary
+      : 'transparent';
 
-  const toggleIcon = hasChildren
-    ? (isCollapsed ? '▸' : '▾')
-    : '\u00A0'; // non-breaking space
+  const toggleIcon = hasChildren ? (isCollapsed ? '▸' : '▾') : '\u00A0'; // non-breaking space
 
   return (
     <div
@@ -480,7 +516,14 @@ const TimeAxis: React.FC<{
       {/* 刻度线 + 标签 */}
       {ticks.map((tick, i) => (
         <g key={String(i)}>
-          <line x1={tick.x} y1={y} x2={tick.x} y2={y + 4} stroke={colors.neutral[400]} strokeWidth={1} />
+          <line
+            x1={tick.x}
+            y1={y}
+            x2={tick.x}
+            y2={y + 4}
+            stroke={colors.neutral[400]}
+            strokeWidth={1}
+          />
           <text
             x={tick.x}
             y={y + 16}
@@ -658,14 +701,11 @@ const TraceDetailPage: React.FC = () => {
 
   const handleZoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, +(z + 0.25).toFixed(2)));
   const handleZoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, +(z - 0.25).toFixed(2)));
-  const handleWheelZoom = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
-    },
-    [],
-  );
+  const handleWheelZoom = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +(z + delta).toFixed(2))));
+  }, []);
 
   // ---- 查找 span ----
 
@@ -676,9 +716,11 @@ const TraceDetailPage: React.FC = () => {
     const ids = new Set<string>();
     for (const node of flatSpans) {
       const s = node.span;
-      if (s.name.toLowerCase().includes(lower) ||
-          (s.service && s.service.toLowerCase().includes(lower)) ||
-          s.spanId.toLowerCase().includes(lower)) {
+      if (
+        s.name.toLowerCase().includes(lower) ||
+        (s.service && s.service.toLowerCase().includes(lower)) ||
+        s.spanId.toLowerCase().includes(lower)
+      ) {
         ids.add(s.spanId);
       }
     }
@@ -701,10 +743,11 @@ const TraceDetailPage: React.FC = () => {
           Trace 详情
         </Title>
         <Card>
-          <Empty
-            description={<Text type="secondary">{error}</Text>}
-          >
-            <Button type="primary" onClick={() => loadTrace(traceIdParam || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6')}>
+          <Empty description={<Text type="secondary">{error}</Text>}>
+            <Button
+              type="primary"
+              onClick={() => loadTrace(traceIdParam || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6')}
+            >
               重试
             </Button>
           </Empty>
@@ -749,20 +792,32 @@ const TraceDetailPage: React.FC = () => {
           {/* 基本信息卡片 */}
           <Space>
             <Card size="small" style={{ minWidth: 140, boxShadow: shadows.sm }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>总时长</Text>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  总时长
+                </Text>
                 <Text strong>{formatDuration(detail.totalDurationNs)}</Text>
               </div>
             </Card>
             <Card size="small" style={{ minWidth: 100, boxShadow: shadows.sm }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>Span 数</Text>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Span 数
+                </Text>
                 <Text strong>{detail.spanCount}</Text>
               </div>
             </Card>
             <Card size="small" style={{ minWidth: 140, boxShadow: shadows.sm }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>状态</Text>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  状态
+                </Text>
                 <Tag color={statusColor(rootSpan?.span.statusCode || 'OK')}>
                   {statusLabel(rootSpan?.span.statusCode || 'OK')}
                 </Tag>
@@ -773,11 +828,17 @@ const TraceDetailPage: React.FC = () => {
 
         {/* Trace ID */}
         <div style={{ marginTop: spacing.sm }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>Trace ID: </Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Trace ID:{' '}
+          </Text>
           <Text code>{detail.traceId}</Text>
-          <Text type="secondary" style={{ fontSize: 12, marginLeft: spacing.md }}>Root: </Text>
+          <Text type="secondary" style={{ fontSize: 12, marginLeft: spacing.md }}>
+            Root:{' '}
+          </Text>
           <Text strong>{detail.rootSpanName}</Text>
-          <Text type="secondary" style={{ fontSize: 12, marginLeft: spacing.md }}>Service: </Text>
+          <Text type="secondary" style={{ fontSize: 12, marginLeft: spacing.md }}>
+            Service:{' '}
+          </Text>
           <Text>{detail.rootService}</Text>
         </div>
       </div>
@@ -822,13 +883,19 @@ const TraceDetailPage: React.FC = () => {
             <Tooltip title="缩小">
               <Button size="small" icon={<ZoomOutOutlined />} onClick={handleZoomOut} />
             </Tooltip>
-            <Text style={{ fontSize: 11, color: colors.neutral[500], width: 60, textAlign: 'center' }}>
+            <Text
+              style={{ fontSize: 11, color: colors.neutral[500], width: 60, textAlign: 'center' }}
+            >
               {Math.round(zoom * 100)}%
             </Text>
             <Tooltip title="放大">
               <Button size="small" icon={<ZoomInOutlined />} onClick={handleZoomIn} />
             </Tooltip>
-            <Button size="small" icon={<ReloadOutlined />} onClick={() => loadTrace(detail.traceId)} />
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={() => loadTrace(detail.traceId)}
+            />
           </Space>
         </div>
 
@@ -881,7 +948,8 @@ const TraceDetailPage: React.FC = () => {
               zIndex: 2,
             }}
           >
-            Time elapsed (scale: {zoom.toFixed(2)}x, {formatDuration(totalDurationMs * 1_000_000)} total)
+            Time elapsed (scale: {zoom.toFixed(2)}x, {formatDuration(totalDurationMs * 1_000_000)}{' '}
+            total)
           </div>
 
           {/* Time axis header line */}
@@ -964,12 +1032,14 @@ const TraceDetailPage: React.FC = () => {
                   gridLines.push(
                     <line
                       key={`grid-${t}`}
-                      x1={x} y1={0}
-                      x2={x} y2={svgHeight - HEADER_HEIGHT - AXIS_HEIGHT}
+                      x1={x}
+                      y1={0}
+                      x2={x}
+                      y2={svgHeight - HEADER_HEIGHT - AXIS_HEIGHT}
                       stroke={themeVars.borderLight}
                       strokeWidth={1}
                       strokeDasharray="2,4"
-                    />,
+                    />
                   );
                 }
                 return gridLines;
@@ -995,16 +1065,20 @@ const TraceDetailPage: React.FC = () => {
                     {/* Highlight background for search matches */}
                     {isMatch && (
                       <rect
-                        x={0} y={y}
-                        width={chartWidth} height={ROW_HEIGHT + ROW_GAP}
+                        x={0}
+                        y={y}
+                        width={chartWidth}
+                        height={ROW_HEIGHT + ROW_GAP}
                         fill={colors.warning[50]}
                         opacity={0.7}
                       />
                     )}
                     {/* Bar shadow */}
                     <rect
-                      x={x + 1} y={barY + 2}
-                      width={w} height={barH}
+                      x={x + 1}
+                      y={barY + 2}
+                      width={w}
+                      height={barH}
                       fill="rgba(0,0,0,0.08)"
                       rx={radius.xs}
                     />
@@ -1016,8 +1090,10 @@ const TraceDetailPage: React.FC = () => {
                       overlayStyle={{ boxShadow: shadows.dropdown }}
                     >
                       <rect
-                        x={x} y={barY}
-                        width={w} height={barH}
+                        x={x}
+                        y={barY}
+                        width={w}
+                        height={barH}
                         fill={isHovered ? getBarHoverColor(barColor) : barColor}
                         rx={radius.xs}
                         style={{
@@ -1045,40 +1121,35 @@ const TraceDetailPage: React.FC = () => {
                     )}
                     {/* Error indicator dot */}
                     {isSpanError(s) && (
-                      <circle
-                        cx={x + w - 4}
-                        cy={barY + barH / 2}
-                        r={3}
-                        fill={colors.error[700]}
-                      />
+                      <circle cx={x + w - 4} cy={barY + barH / 2} r={3} fill={colors.error[700]} />
                     )}
                   </g>
                 );
               })}
 
               {/* Hovered span horizontal highlight line */}
-              {hoveredSpanId && hoverY !== null && (() => {
-                const y = hoverY * (ROW_HEIGHT + ROW_GAP);
-                return (
-                  <rect
-                    x={0} y={y}
-                    width={chartWidth} height={ROW_HEIGHT + ROW_GAP}
-                    fill={colors.primary[50]}
-                    opacity={0.5}
-                    pointerEvents="none"
-                  />
-                );
-              })()}
+              {hoveredSpanId &&
+                hoverY !== null &&
+                (() => {
+                  const y = hoverY * (ROW_HEIGHT + ROW_GAP);
+                  return (
+                    <rect
+                      x={0}
+                      y={y}
+                      width={chartWidth}
+                      height={ROW_HEIGHT + ROW_GAP}
+                      fill={colors.primary[50]}
+                      opacity={0.5}
+                      pointerEvents="none"
+                    />
+                  );
+                })()}
 
               {/* Current time indicator (if trace is recent) */}
 
               {/* Time axis */}
               <g transform={`translate(0, ${svgHeight - HEADER_HEIGHT - AXIS_HEIGHT})`}>
-                <TimeAxis
-                  chartWidth={chartWidth}
-                  totalDurationMs={totalDurationMs}
-                  zoom={zoom}
-                />
+                <TimeAxis chartWidth={chartWidth} totalDurationMs={totalDurationMs} zoom={zoom} />
               </g>
             </svg>
           </div>
@@ -1122,22 +1193,28 @@ const TraceDetailPage: React.FC = () => {
       {/* Legend */}
       <Card size="small" style={{ marginTop: spacing.md, boxShadow: shadows.sm }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg, flexWrap: 'wrap' }}>
-          <Text strong style={{ fontSize: 12 }}>Legend:</Text>
-          {serviceColorMap.size > 0 && Array.from(serviceColorMap.entries()).map(([svc, color]) => (
-            <span key={svc} style={{ display: 'inline-flex', alignItems: 'center', fontSize: 12 }}>
+          <Text strong style={{ fontSize: 12 }}>
+            Legend:
+          </Text>
+          {serviceColorMap.size > 0 &&
+            Array.from(serviceColorMap.entries()).map(([svc, color]) => (
               <span
-                style={{
-                  display: 'inline-block',
-                  width: 16,
-                  height: 10,
-                  backgroundColor: color,
-                  borderRadius: radius.xs,
-                  marginRight: 4,
-                }}
-              />
-              <Text>{svc}</Text>
-            </span>
-          ))}
+                key={svc}
+                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 12 }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 16,
+                    height: 10,
+                    backgroundColor: color,
+                    borderRadius: radius.xs,
+                    marginRight: 4,
+                  }}
+                />
+                <Text>{svc}</Text>
+              </span>
+            ))}
           <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 12 }}>
             <span
               style={{
@@ -1164,7 +1241,14 @@ const TraceDetailPage: React.FC = () => {
             />
             <Text type="secondary">Search match</Text>
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 12, marginLeft: 'auto' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontSize: 12,
+              marginLeft: 'auto',
+            }}
+          >
             <Text type="secondary">滚轮缩放 &middot; Hover 查看详情 &middot; 点击选中</Text>
           </span>
         </div>
@@ -1174,20 +1258,30 @@ const TraceDetailPage: React.FC = () => {
       <div style={{ marginTop: spacing.md, display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
         {Object.entries(detail.spanCountByService).map(([svc, count]) => {
           const svcColor = serviceColorMap.get(svc) || colors.primary[500];
-          const errorCount = flatSpans
-            .filter((n) => n.span.service === svc && isSpanError(n.span))
-            .length;
+          const errorCount = flatSpans.filter(
+            (n) => n.span.service === svc && isSpanError(n.span)
+          ).length;
           return (
-            <Card size="small" key={svc} style={{ minWidth: 130, boxShadow: shadows.sm, borderLeft: `3px solid ${svcColor}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Card
+              size="small"
+              key={svc}
+              style={{ minWidth: 130, boxShadow: shadows.sm, borderLeft: `3px solid ${svcColor}` }}
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
                 <Text style={{ fontSize: 12, color: svcColor, fontWeight: 500 }}>{svc}</Text>
                 <Text strong>{count}</Text>
               </div>
               <div style={{ marginTop: 4 }}>
                 {errorCount > 0 ? (
-                  <Tag color={colors.error[500]} style={{ fontSize: 10 }}>{errorCount} error</Tag>
+                  <Tag color={colors.error[500]} style={{ fontSize: 10 }}>
+                    {errorCount} error
+                  </Tag>
                 ) : (
-                  <Text type="secondary" style={{ fontSize: 11 }}>{count} spans</Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    {count} spans
+                  </Text>
                 )}
               </div>
             </Card>

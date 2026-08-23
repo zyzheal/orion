@@ -5,11 +5,7 @@
  */
 import React from 'react';
 import { Table, Tag, Button, Space, Typography } from 'antd';
-import {
-  EyeOutlined,
-  PlayCircleOutlined,
-  FileTextOutlined,
-} from '@ant-design/icons';
+import { EyeOutlined, PlayCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { AgentInfo } from '@/api/ai-agents';
 import { colors } from '@/tokens';
@@ -81,9 +77,7 @@ const AgentList: React.FC<AgentListProps> = ({
       key: 'status',
       width: 100,
       render: (status: string) => (
-        <Tag color={statusColorMap[status] || colors.neutral[500]}>
-          {status || 'unknown'}
-        </Tag>
+        <Tag color={statusColorMap[status] || colors.neutral[500]}>{status || 'unknown'}</Tag>
       ),
     },
     {

@@ -283,7 +283,7 @@ const RiskDashboardPage: React.FC = () => {
     assessments.reduce<Record<string, number>>((acc, a) => {
       acc[a.targetType] = (acc[a.targetType] ?? 0) + 1;
       return acc;
-    }, {}),
+    }, {})
   ).map(([label, value]) => ({ label, value }));
 
   return (
@@ -354,11 +354,7 @@ const RiskDashboardPage: React.FC = () => {
           </Col>
           <Col xs={24} lg={10}>
             <CardPanel>
-              <BarChart
-                title="风险类型分布"
-                data={riskTypeData}
-                height={280}
-              />
+              <BarChart title="风险类型分布" data={riskTypeData} height={280} />
             </CardPanel>
           </Col>
         </Row>
@@ -440,9 +436,7 @@ const RiskDashboardPage: React.FC = () => {
                 {selectedAssessment.riskScore.toFixed(0)}
               </Descriptions.Item>
               <Descriptions.Item label="状态">{selectedAssessment.status}</Descriptions.Item>
-              <Descriptions.Item label="评估者">
-                {selectedAssessment.assessedBy}
-              </Descriptions.Item>
+              <Descriptions.Item label="评估者">{selectedAssessment.assessedBy}</Descriptions.Item>
               <Descriptions.Item label="评估时间">
                 {new Date(selectedAssessment.assessedAt).toLocaleString()}
               </Descriptions.Item>
@@ -496,7 +490,15 @@ const RiskDashboardPage: React.FC = () => {
       </Drawer>
 
       {/* Header Actions */}
-      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 100,
+        }}
+      >
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             刷新

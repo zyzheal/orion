@@ -10,9 +10,24 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Typography, Table, Button, Tag, Space, Tabs, message,
-  Modal, Form, Input, Select, Popconfirm, Statistic, Row, Col, Card,
-  Empty, Drawer,
+  Typography,
+  Table,
+  Button,
+  Tag,
+  Space,
+  Tabs,
+  message,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+  Statistic,
+  Row,
+  Col,
+  Card,
+  Empty,
+  Drawer,
 } from 'antd';
 import {
   ExperimentOutlined,
@@ -28,12 +43,25 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import {
-  listExperiments, createExperiment, updateExperiment, deleteExperiment,
-  updateExperimentStatus, getExperimentRuns,
-  listModels, registerModel, deployModel, updateModelStatus,
-  listTrainingJobs, createTrainingJob, updateJobStatus,
+  listExperiments,
+  createExperiment,
+  updateExperiment,
+  deleteExperiment,
+  updateExperimentStatus,
+  getExperimentRuns,
+  listModels,
+  registerModel,
+  deployModel,
+  updateModelStatus,
+  listTrainingJobs,
+  createTrainingJob,
+  updateJobStatus,
   getMLOpsMetrics,
-  type MLExperiment, type MLModel, type TrainingJob, type MLOpsMetrics, type MLExperimentRun,
+  type MLExperiment,
+  type MLModel,
+  type TrainingJob,
+  type MLOpsMetrics,
+  type MLExperimentRun,
 } from '@/api/mlops';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -80,15 +108,17 @@ const MetricsTab: React.FC = () => {
       setMetrics((res.data as { data?: MLOpsMetrics })?.data ?? null);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载 MLOps 指标失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   if (!metrics) {
-    return (
-      <Empty description="暂无 MLOps 指标数据" />
-    );
+    return <Empty description="暂无 MLOps 指标数据" />;
   }
 
   return (
@@ -101,7 +131,9 @@ const MetricsTab: React.FC = () => {
           </Title>
           <Text type="secondary">实验、模型和训练任务的汇总指标</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
@@ -112,7 +144,11 @@ const MetricsTab: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中实验" value={metrics.runningExperiments} valueStyle={{ color: colors.primary[500] }} />
+            <Statistic
+              title="运行中实验"
+              value={metrics.runningExperiments}
+              valueStyle={{ color: colors.primary[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
@@ -122,7 +158,11 @@ const MetricsTab: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="生产中模型" value={metrics.productionModels} valueStyle={{ color: colors.success[500] }} />
+            <Statistic
+              title="生产中模型"
+              value={metrics.productionModels}
+              valueStyle={{ color: colors.success[500] }}
+            />
           </Card>
         </Col>
       </Row>
@@ -135,17 +175,29 @@ const MetricsTab: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中任务" value={metrics.runningJobs} valueStyle={{ color: colors.primary[500] }} />
+            <Statistic
+              title="运行中任务"
+              value={metrics.runningJobs}
+              valueStyle={{ color: colors.primary[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="失败实验" value={metrics.failedExperiments} valueStyle={{ color: colors.error[500] }} />
+            <Statistic
+              title="失败实验"
+              value={metrics.failedExperiments}
+              valueStyle={{ color: colors.error[500] }}
+            />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="失败任务" value={metrics.failedJobs} valueStyle={{ color: colors.error[500] }} />
+            <Statistic
+              title="失败任务"
+              value={metrics.failedJobs}
+              valueStyle={{ color: colors.error[500] }}
+            />
           </Card>
         </Col>
       </Row>
@@ -179,16 +231,22 @@ const ExperimentsTab: React.FC = () => {
       setExperiments((res.data as { data?: MLExperiment[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载实验失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreate = async (values: any) => {
     try {
       await createExperiment({
-        name: values.name, project: values.project,
-        modelType: values.modelType, description: values.description,
+        name: values.name,
+        project: values.project,
+        modelType: values.modelType,
+        description: values.description,
       });
       message.success('实验创建成功');
       setCreateModalOpen(false);
@@ -202,8 +260,10 @@ const ExperimentsTab: React.FC = () => {
   const handleEdit = async (record: MLExperiment) => {
     setCurrentExperiment(record);
     editForm.setFieldsValue({
-      name: record.name, project: record.project,
-      modelType: record.modelType, description: record.description,
+      name: record.name,
+      project: record.project,
+      modelType: record.modelType,
+      description: record.description,
     });
     setEditModalOpen(true);
   };
@@ -212,8 +272,10 @@ const ExperimentsTab: React.FC = () => {
     if (!currentExperiment) return;
     try {
       await updateExperiment(currentExperiment.id, {
-        name: values.name, project: values.project,
-        modelType: values.modelType, description: values.description,
+        name: values.name,
+        project: values.project,
+        modelType: values.modelType,
+        description: values.description,
       });
       message.success('实验更新成功');
       setEditModalOpen(false);
@@ -253,28 +315,82 @@ const ExperimentsTab: React.FC = () => {
       setCurrentRuns((res.data as { data?: MLExperimentRun[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载运行记录失败');
-    } finally { setCurrentRunsLoading(false); }
+    } finally {
+      setCurrentRunsLoading(false);
+    }
   };
 
   const columns = [
     { title: '实验名称', dataIndex: 'name', key: 'name' },
     { title: '项目', dataIndex: 'project', key: 'project', render: (v: string) => v || '-' },
-    { title: '模型类型', dataIndex: 'modelType', key: 'modelType', render: (v: string) => v || '-' },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
+      title: '模型类型',
+      dataIndex: 'modelType',
+      key: 'modelType',
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       render: (s: string) => <Tag color={experimentStatusColor[s]}>{s}</Tag>,
     },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', key: 'actions',
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '操作',
+      key: 'actions',
       render: (_: any, record: MLExperiment) => (
         <Space>
-          <Button size="small" type="link" icon={<FileSearchOutlined />} onClick={() => handleViewRuns(record.id)}>运行记录</Button>
-          <Button size="small" type="link" onClick={() => handleEdit(record)}>编辑</Button>
-          {record.status === 'draft' && <Button size="small" type="link" onClick={() => handleStatusChange(record.id, 'running')}>运行</Button>}
-          {record.status === 'running' && <Button size="small" type="link" onClick={() => handleStatusChange(record.id, 'completed')}>完成</Button>}
-          {record.status === 'running' && <Button size="small" type="link" danger onClick={() => handleStatusChange(record.id, 'failed')}>终止</Button>}
-          <Popconfirm title="确定要删除此实验吗？" onConfirm={() => handleDelete(record.id)} okText="确定" cancelText="取消">
+          <Button
+            size="small"
+            type="link"
+            icon={<FileSearchOutlined />}
+            onClick={() => handleViewRuns(record.id)}
+          >
+            运行记录
+          </Button>
+          <Button size="small" type="link" onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          {record.status === 'draft' && (
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleStatusChange(record.id, 'running')}
+            >
+              运行
+            </Button>
+          )}
+          {record.status === 'running' && (
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleStatusChange(record.id, 'completed')}
+            >
+              完成
+            </Button>
+          )}
+          {record.status === 'running' && (
+            <Button
+              size="small"
+              type="link"
+              danger
+              onClick={() => handleStatusChange(record.id, 'failed')}
+            >
+              终止
+            </Button>
+          )}
+          <Popconfirm
+            title="确定要删除此实验吗？"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确定"
+            cancelText="取消"
+          >
             <Button size="small" type="link" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -285,11 +401,23 @@ const ExperimentsTab: React.FC = () => {
   const runsColumns = [
     { title: '迭代', dataIndex: 'iteration', key: 'iteration' },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       render: (s: string) => <Tag color={jobStatusColor[s]}>{s}</Tag>,
     },
-    { title: '开始时间', dataIndex: 'startedAt', key: 'startedAt', render: (v: string) => new Date(v).toLocaleString() },
-    { title: '完成时间', dataIndex: 'completedAt', key: 'completedAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
+    {
+      title: '开始时间',
+      dataIndex: 'startedAt',
+      key: 'startedAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '完成时间',
+      dataIndex: 'completedAt',
+      key: 'completedAt',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
   ];
 
   // Filtered experiments
@@ -297,11 +425,12 @@ const ExperimentsTab: React.FC = () => {
     let result = experiments;
     if (experimentSearchQuery) {
       const q = experimentSearchQuery.toLowerCase();
-      result = result.filter((e) =>
-        e.name.toLowerCase().includes(q) ||
-        (e.project || '').toLowerCase().includes(q) ||
-        (e.modelType || '').toLowerCase().includes(q) ||
-        (e.description || '').toLowerCase().includes(q),
+      result = result.filter(
+        (e) =>
+          e.name.toLowerCase().includes(q) ||
+          (e.project || '').toLowerCase().includes(q) ||
+          (e.modelType || '').toLowerCase().includes(q) ||
+          (e.description || '').toLowerCase().includes(q)
       );
     }
     if (experimentStatusFilter) {
@@ -321,12 +450,24 @@ const ExperimentsTab: React.FC = () => {
           <Text type="secondary">跟踪和管理 ML 实验</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>创建实验</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            创建实验
+          </Button>
         </Space>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
+          marginBottom: spacing.md,
+          alignItems: 'center',
+        }}
+      >
         <Input
           placeholder="搜索实验名称、项目、模型类型..."
           prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
@@ -356,16 +497,37 @@ const ExperimentsTab: React.FC = () => {
           </Button>
         </Empty>
       ) : (
-        <Table columns={columns} dataSource={filteredExperiments} rowKey="id" loading={loading} pagination={{ pageSize: 10 }}
-          locale={{ emptyText: filteredExperiments.length === 0 ? '暂无实验数据' : undefined }} />
+        <Table
+          columns={columns}
+          dataSource={filteredExperiments}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+          locale={{ emptyText: filteredExperiments.length === 0 ? '暂无实验数据' : undefined }}
+        />
       )}
 
       {/* Create Modal */}
-      <Modal title="创建实验" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={() => createForm.submit()}>
+      <Modal
+        title="创建实验"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => createForm.submit()}
+      >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入实验名称' }]}><Input placeholder="实验名称" /></Form.Item>
-          <Form.Item label="描述" name="description"><Input.TextArea rows={2} placeholder="实验描述" /></Form.Item>
-          <Form.Item label="项目" name="project"><Input placeholder="所属项目" /></Form.Item>
+          <Form.Item
+            label="名称"
+            name="name"
+            rules={[{ required: true, message: '请输入实验名称' }]}
+          >
+            <Input placeholder="实验名称" />
+          </Form.Item>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} placeholder="实验描述" />
+          </Form.Item>
+          <Form.Item label="项目" name="project">
+            <Input placeholder="所属项目" />
+          </Form.Item>
           <Form.Item label="模型类型" name="modelType">
             <Select placeholder="选择模型类型">
               <Select.Option value="llm">LLM</Select.Option>
@@ -379,11 +541,26 @@ const ExperimentsTab: React.FC = () => {
       </Modal>
 
       {/* Edit Modal */}
-      <Modal title="编辑实验" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={() => editForm.submit()}>
+      <Modal
+        title="编辑实验"
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onOk={() => editForm.submit()}
+      >
         <Form form={editForm} layout="vertical" onFinish={handleSaveEdit}>
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入实验名称' }]}><Input placeholder="实验名称" /></Form.Item>
-          <Form.Item label="描述" name="description"><Input.TextArea rows={2} placeholder="实验描述" /></Form.Item>
-          <Form.Item label="项目" name="project"><Input placeholder="所属项目" /></Form.Item>
+          <Form.Item
+            label="名称"
+            name="name"
+            rules={[{ required: true, message: '请输入实验名称' }]}
+          >
+            <Input placeholder="实验名称" />
+          </Form.Item>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} placeholder="实验描述" />
+          </Form.Item>
+          <Form.Item label="项目" name="project">
+            <Input placeholder="所属项目" />
+          </Form.Item>
           <Form.Item label="模型类型" name="modelType">
             <Select placeholder="选择模型类型">
               <Select.Option value="llm">LLM</Select.Option>
@@ -436,16 +613,22 @@ const ModelRegistryTab: React.FC = () => {
       setModels((res.data as { data?: MLModel[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载模型失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleRegister = async (values: any) => {
     try {
       await registerModel({
-        name: values.name, artifactPath: values.artifactPath,
-        experimentId: values.experimentId, description: values.description,
+        name: values.name,
+        artifactPath: values.artifactPath,
+        experimentId: values.experimentId,
+        description: values.description,
       });
       message.success('模型注册成功');
       setRegisterModalOpen(false);
@@ -479,22 +662,71 @@ const ModelRegistryTab: React.FC = () => {
   const columns = [
     { title: '模型名称', dataIndex: 'name', key: 'name' },
     { title: '版本', dataIndex: 'version', key: 'version', render: (v: number) => `v${v}` },
-    { title: 'Artifact', dataIndex: 'artifactPath', key: 'artifactPath', render: (v: string) => v || '-' },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
+      title: 'Artifact',
+      dataIndex: 'artifactPath',
+      key: 'artifactPath',
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       render: (s: string) => <Tag color={modelStatusColor[s]}>{s}</Tag>,
     },
-    { title: '部署端点', dataIndex: 'deployedEndpoint', key: 'deployedEndpoint', render: (v: string) => v || '-' },
-    { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', key: 'actions',
+      title: '部署端点',
+      dataIndex: 'deployedEndpoint',
+      key: 'deployedEndpoint',
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '操作',
+      key: 'actions',
       render: (_: any, record: MLModel) => (
         <Space>
-          {record.status === 'draft' && <Button size="small" type="link" onClick={() => handleStatusChange(record.id, 'staging')}>发布</Button>}
-          {record.status === 'staging' && <Button size="small" type="link" onClick={() => handleStatusChange(record.id, 'production')}>上线</Button>}
-          {record.status === 'production' && <Button size="small" type="link" onClick={() => handleStatusChange(record.id, 'archived')}>归档</Button>}
+          {record.status === 'draft' && (
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleStatusChange(record.id, 'staging')}
+            >
+              发布
+            </Button>
+          )}
+          {record.status === 'staging' && (
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleStatusChange(record.id, 'production')}
+            >
+              上线
+            </Button>
+          )}
+          {record.status === 'production' && (
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleStatusChange(record.id, 'archived')}
+            >
+              归档
+            </Button>
+          )}
           {record.status !== 'production' && (
-            <Button size="small" type="link" icon={<RocketOutlined />} onClick={() => handleDeploy(record.id)}>部署</Button>
+            <Button
+              size="small"
+              type="link"
+              icon={<RocketOutlined />}
+              onClick={() => handleDeploy(record.id)}
+            >
+              部署
+            </Button>
           )}
         </Space>
       ),
@@ -506,10 +738,11 @@ const ModelRegistryTab: React.FC = () => {
     let result = models;
     if (modelSearchQuery) {
       const q = modelSearchQuery.toLowerCase();
-      result = result.filter((m) =>
-        m.name.toLowerCase().includes(q) ||
-        (m.artifactPath || '').toLowerCase().includes(q) ||
-        (m.description || '').toLowerCase().includes(q),
+      result = result.filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          (m.artifactPath || '').toLowerCase().includes(q) ||
+          (m.description || '').toLowerCase().includes(q)
       );
     }
     if (modelStatusFilter) {
@@ -529,12 +762,24 @@ const ModelRegistryTab: React.FC = () => {
           <Text type="secondary">管理 ML 模型版本和生命周期</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalOpen(true)}>注册模型</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterModalOpen(true)}>
+            注册模型
+          </Button>
         </Space>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
+          marginBottom: spacing.md,
+          alignItems: 'center',
+        }}
+      >
         <Input
           placeholder="搜索模型名称、Artifact..."
           prefix={<SearchOutlined style={{ color: colors.neutral[400] }} />}
@@ -564,15 +809,38 @@ const ModelRegistryTab: React.FC = () => {
           </Button>
         </Empty>
       ) : (
-        <Table columns={columns} dataSource={filteredModels} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table
+          columns={columns}
+          dataSource={filteredModels}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       )}
 
-      <Modal title="注册模型" open={registerModalOpen} onCancel={() => setRegisterModalOpen(false)} onOk={() => registerForm.submit()}>
+      <Modal
+        title="注册模型"
+        open={registerModalOpen}
+        onCancel={() => setRegisterModalOpen(false)}
+        onOk={() => registerForm.submit()}
+      >
         <Form form={registerForm} layout="vertical" onFinish={handleRegister}>
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入模型名称' }]}><Input placeholder="模型名称" /></Form.Item>
-          <Form.Item label="描述" name="description"><Input.TextArea rows={2} placeholder="模型描述" /></Form.Item>
-          <Form.Item label="Artifact 的路径" name="artifactPath"><Input placeholder="模型存储路径" /></Form.Item>
-          <Form.Item label="实验 ID" name="experimentId"><Input placeholder="关联的实验 ID" /></Form.Item>
+          <Form.Item
+            label="名称"
+            name="name"
+            rules={[{ required: true, message: '请输入模型名称' }]}
+          >
+            <Input placeholder="模型名称" />
+          </Form.Item>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} placeholder="模型描述" />
+          </Form.Item>
+          <Form.Item label="Artifact 的路径" name="artifactPath">
+            <Input placeholder="模型存储路径" />
+          </Form.Item>
+          <Form.Item label="实验 ID" name="experimentId">
+            <Input placeholder="关联的实验 ID" />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
@@ -596,15 +864,20 @@ const TrainingJobsTab: React.FC = () => {
       setJobs((res.data as { data?: TrainingJob[] })?.data ?? []);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载训练任务失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreate = async (values: any) => {
     try {
       await createTrainingJob({
-        dataset: values.dataset, experimentId: values.experimentId,
+        dataset: values.dataset,
+        experimentId: values.experimentId,
       });
       message.success('训练任务创建成功');
       setCreateModalOpen(false);
@@ -627,25 +900,70 @@ const TrainingJobsTab: React.FC = () => {
 
   const columns = [
     { title: '数据集', dataIndex: 'dataset', key: 'dataset', render: (v: string) => v || '-' },
-    { title: '实验 ID', dataIndex: 'experimentId', key: 'experimentId', render: (v: string) => v || '-' },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
-      render: (s: string) => (
-        <Tag color={jobStatusColor[s]}>{s}</Tag>
-      ),
+      title: '实验 ID',
+      dataIndex: 'experimentId',
+      key: 'experimentId',
+      render: (v: string) => v || '-',
     },
-    { title: '开始时间', dataIndex: 'startedAt', key: 'startedAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
-    { title: '完成时间', dataIndex: 'completedAt', key: 'completedAt', render: (v: string) => v ? new Date(v).toLocaleString() : '-' },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', key: 'actions',
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: string) => <Tag color={jobStatusColor[s]}>{s}</Tag>,
+    },
+    {
+      title: '开始时间',
+      dataIndex: 'startedAt',
+      key: 'startedAt',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
+    {
+      title: '完成时间',
+      dataIndex: 'completedAt',
+      key: 'completedAt',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '操作',
+      key: 'actions',
       render: (_: any, record: TrainingJob) => (
         <Space>
           {record.status === 'pending' && (
-            <Button size="small" type="link" icon={<PlayCircleOutlined />} onClick={() => handleStatusChange(record.id, 'running')}>启动</Button>
+            <Button
+              size="small"
+              type="link"
+              icon={<PlayCircleOutlined />}
+              onClick={() => handleStatusChange(record.id, 'running')}
+            >
+              启动
+            </Button>
           )}
-          {record.status === 'running' && <Button size="small" type="link" onClick={() => handleStatusChange(record.id, 'completed')}>完成</Button>}
-          {record.status === 'running' && <Button size="small" type="link" danger onClick={() => handleStatusChange(record.id, 'failed')}>终止</Button>}
+          {record.status === 'running' && (
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleStatusChange(record.id, 'completed')}
+            >
+              完成
+            </Button>
+          )}
+          {record.status === 'running' && (
+            <Button
+              size="small"
+              type="link"
+              danger
+              onClick={() => handleStatusChange(record.id, 'failed')}
+            >
+              终止
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -662,8 +980,12 @@ const TrainingJobsTab: React.FC = () => {
           <Text type="secondary">管理 ML 模型训练任务</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>创建任务</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            创建任务
+          </Button>
         </Space>
       </div>
 
@@ -674,13 +996,32 @@ const TrainingJobsTab: React.FC = () => {
           </Button>
         </Empty>
       ) : (
-        <Table columns={columns} dataSource={jobs} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table
+          columns={columns}
+          dataSource={jobs}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       )}
 
-      <Modal title="创建训练任务" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={() => createForm.submit()}>
+      <Modal
+        title="创建训练任务"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => createForm.submit()}
+      >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="数据集" name="dataset" rules={[{ required: true, message: '请输入数据集名称' }]}><Input placeholder="数据集名称或路径" /></Form.Item>
-          <Form.Item label="实验 ID" name="experimentId"><Input placeholder="关联的实验 ID" /></Form.Item>
+          <Form.Item
+            label="数据集"
+            name="dataset"
+            rules={[{ required: true, message: '请输入数据集名称' }]}
+          >
+            <Input placeholder="数据集名称或路径" />
+          </Form.Item>
+          <Form.Item label="实验 ID" name="experimentId">
+            <Input placeholder="关联的实验 ID" />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

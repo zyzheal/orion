@@ -15,7 +15,9 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
   const [level, setLevel] = useState<ScriptLevel>('safe');
   const [language, setLanguage] = useState('javascript');
   const [code, setCode] = useState('');
-  const [scanResult, setScanResult] = useState<{ valid: boolean; violations: string[] } | null>(null);
+  const [scanResult, setScanResult] = useState<{ valid: boolean; violations: string[] } | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState<string>('');
 
@@ -73,9 +75,18 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
   };
 
   const quickTemplates = [
-    { name: 'Parse JSON', code: "const config = await readJson('./config.json');\nreturn { version: config.version };" },
-    { name: 'Filter Data', code: 'const items = await fetchData();\nreturn items.filter(i => i.active);' },
-    { name: 'Transform', code: 'const data = await getData();\nreturn data.map(d => ({ ...d, processed: true }));' },
+    {
+      name: 'Parse JSON',
+      code: "const config = await readJson('./config.json');\nreturn { version: config.version };",
+    },
+    {
+      name: 'Filter Data',
+      code: 'const items = await fetchData();\nreturn items.filter(i => i.active);',
+    },
+    {
+      name: 'Transform',
+      code: 'const data = await getData();\nreturn data.map(d => ({ ...d, processed: true }));',
+    },
   ];
 
   return (
@@ -89,8 +100,15 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
             <Radio.Button value="advanced">Advanced</Radio.Button>
           </Radio.Group>
         </Space>
-        <Tag color={level === 'safe' ? 'green' : level === 'standard' ? 'blue' : 'red'} style={{ marginLeft: spacing.sm }}>
-          {level === 'safe' ? 'WASM' : level === 'standard' ? 'Process Pool' : 'Container (Approval Required)'}
+        <Tag
+          color={level === 'safe' ? 'green' : level === 'standard' ? 'blue' : 'red'}
+          style={{ marginLeft: spacing.sm }}
+        >
+          {level === 'safe'
+            ? 'WASM'
+            : level === 'standard'
+              ? 'Process Pool'
+              : 'Container (Approval Required)'}
         </Tag>
       </div>
 
@@ -133,17 +151,29 @@ export const InlineScriptEditor: React.FC<InlineScriptEditorProps> = ({ onAdd, o
       </div>
 
       <Space style={{ marginBottom: spacing.md }}>
-        <Button onClick={handleScan} loading={loading}>Security Scan</Button>
-        <Button onClick={handleDryRun} loading={loading}>Dry Run Test</Button>
+        <Button onClick={handleScan} loading={loading}>
+          Security Scan
+        </Button>
+        <Button onClick={handleDryRun} loading={loading}>
+          Dry Run Test
+        </Button>
       </Space>
 
       {level === 'advanced' && (
         <Card size="small" title="Level 3 Approval" style={{ marginBottom: spacing.md }}>
-          <Input.TextArea placeholder="Reason for requiring advanced access..." rows={2} style={{ marginBottom: spacing.sm }} />
+          <Input.TextArea
+            placeholder="Reason for requiring advanced access..."
+            rows={2}
+            style={{ marginBottom: spacing.sm }}
+          />
           <Button onClick={handleRequestApproval} disabled={!code.trim()}>
             Submit for Approval
           </Button>
-          {approvalStatus && <Tag color="orange" style={{ marginLeft: spacing.sm }}>Status: {approvalStatus}</Tag>}
+          {approvalStatus && (
+            <Tag color="orange" style={{ marginLeft: spacing.sm }}>
+              Status: {approvalStatus}
+            </Tag>
+          )}
         </Card>
       )}
 

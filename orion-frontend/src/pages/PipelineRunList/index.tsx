@@ -18,11 +18,7 @@ import { ReloadOutlined, PlayCircleOutlined, ArrowLeftOutlined } from '@ant-desi
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import {
-  getAllPipelineRuns,
-  retryPipelineRun,
-  type PipelineRunSummary,
-} from '@/api/pipelineRuns';
+import { getAllPipelineRuns, retryPipelineRun, type PipelineRunSummary } from '@/api/pipelineRuns';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -74,12 +70,11 @@ const PipelineRunList: React.FC = () => {
 
   // Load pipeline runs from API
   const loadRuns = useCallback(async () => {
-
     setLoading(true);
     try {
       const response = await getAllPipelineRuns({
         limit: 200,
-        ...(pipelineId ? { pipelineId } : {}),  // 如果有 pipelineId，传给后端过滤
+        ...(pipelineId ? { pipelineId } : {}), // 如果有 pipelineId，传给后端过滤
       });
 
       // 后端返回格式：{ data: [...], total }
@@ -91,22 +86,12 @@ const PipelineRunList: React.FC = () => {
       if (raw && typeof raw === 'object') {
         // 情况1：{ data: [...], total } - 标准格式
         if (Array.isArray(raw.data)) {
-
           items = raw.data;
         }
         // 情况2：直接被当作数组（不应该发生，但作为后备）
         else if (Array.isArray(raw)) {
-
           items = raw;
-        } else {
-
         }
-      } else {
-
-      }
-
-      if (items.length > 0) {
-
       }
 
       // 注意：不再在前端过滤，因为已经通过 API 参数传给后端过滤了
@@ -201,137 +186,148 @@ const PipelineRunList: React.FC = () => {
   }, [filteredRuns]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '运行中', value: 'running' },
-        { label: '成功', value: 'success' },
-        { label: '失败', value: 'failed' },
-        { label: '已取消', value: 'cancelled' },
-        { label: '等待中', value: 'pending' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '运行中', value: 'running' },
+          { label: '成功', value: 'success' },
+          { label: '失败', value: 'failed' },
+          { label: '已取消', value: 'cancelled' },
+          { label: '等待中', value: 'pending' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Table column definitions
-  const columns: TableColumn<PipelineRunSummary>[] = useMemo<TableColumn<PipelineRunSummary>[]>(() => [
-    {
-      key: 'runId',
-      title: 'Run ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (_value: unknown, record) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          #{record.id.slice(0, 8)}
-        </Text>
-      ),
-    },
-    {
-      key: 'pipelineName',
-      title: 'Pipeline',
-      width: 220,
-      render: (_value: unknown, record) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
-          >
-            {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
+  const columns: TableColumn<PipelineRunSummary>[] = useMemo<TableColumn<PipelineRunSummary>[]>(
+    () => [
+      {
+        key: 'runId',
+        title: 'Run ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (_value: unknown, record) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            #{record.id.slice(0, 8)}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            <Tag color={triggerTagColors[record.triggerType] || 'default'}>
-              {triggerLabel[record.triggerType] || record.triggerType}
-            </Tag>
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (value: unknown) => <StatusBadge status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'} size="small" />,
-    },
-    {
-      key: 'environment',
-      title: '环境',
-      width: 100,
-      render: (_value: unknown, record) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {(record as { environment?: string }).environment || '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'startedAt',
-      title: '开始时间',
-      width: 180,
-      sortable: true,
-      render: (_value: unknown, record) => {
-        const startTime = record.startedAt || record.createdAt;
-        return (
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {startTime ? dayjs(startTime).fromNow() : '-'}
-          </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      width: 100,
-      render: (_value: unknown, record) => (
-        <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
-          {formatDuration(record.durationMs)}
-        </Text>
-      ),
-    },
-    {
-      key: 'triggeredBy',
-      title: '触发人',
-      width: 120,
-      render: (_value: unknown, record) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {record.triggerBy || '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Button
-            type="link"
+      {
+        key: 'pipelineName',
+        title: 'Pipeline',
+        width: 220,
+        render: (_value: unknown, record) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
+            >
+              {(record as { pipelineName?: string }).pipelineName || record.pipelineId}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              <Tag color={triggerTagColors[record.triggerType] || 'default'}>
+                {triggerLabel[record.triggerType] || record.triggerType}
+              </Tag>
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 120,
+        render: (value: unknown) => (
+          <StatusBadge
+            status={value as 'success' | 'failed' | 'running' | 'cancelled' | 'pending'}
             size="small"
-            onClick={() => navigate(`/pipelines/${record.pipelineId}/runs/${record.id}`)}
-          >
-            查看
-          </Button>
-          {record.status === 'failed' && (
+          />
+        ),
+      },
+      {
+        key: 'environment',
+        title: '环境',
+        width: 100,
+        render: (_value: unknown, record) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {(record as { environment?: string }).environment || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'startedAt',
+        title: '开始时间',
+        width: 180,
+        sortable: true,
+        render: (_value: unknown, record) => {
+          const startTime = record.startedAt || record.createdAt;
+          return (
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {startTime ? dayjs(startTime).fromNow() : '-'}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'duration',
+        title: '耗时',
+        width: 100,
+        render: (_value: unknown, record) => (
+          <Text style={{ fontSize: spacing[3], fontFamily: 'monospace' }}>
+            {formatDuration(record.durationMs)}
+          </Text>
+        ),
+      },
+      {
+        key: 'triggeredBy',
+        title: '触发人',
+        width: 120,
+        render: (_value: unknown, record) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {record.triggerBy || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record) => (
+          <Space size="small">
             <Button
               type="link"
               size="small"
-              icon={<PlayCircleOutlined />}
-              danger
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRetry(record.id);
-              }}
+              onClick={() => navigate(`/pipelines/${record.pipelineId}/runs/${record.id}`)}
             >
-              重跑
+              查看
             </Button>
-          )}
-        </Space>
-      ),
-    },
-  ], [navigate]);
+            {record.status === 'failed' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                danger
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRetry(record.id);
+                }}
+              >
+                重跑
+              </Button>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [navigate]
+  );
 
   // Handle re-run for a failed run
   const handleRetry = async (runId: string) => {
@@ -365,7 +361,10 @@ const PipelineRunList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <PlayCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipelineName ? `${pipelineName} - 运行历史` : 'Pipeline 运行历史'}
           </Title>
@@ -376,10 +375,7 @@ const PipelineRunList: React.FC = () => {
         </div>
         <Space>
           {pipelineId && (
-            <Button
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/pipelines')}
-            >
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
               返回列表
             </Button>
           )}
@@ -399,7 +395,9 @@ const PipelineRunList: React.FC = () => {
           extra={
             <RangePicker
               value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)}
+              onChange={(dates) =>
+                setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null)
+              }
               placeholder={['开始日期', '结束日期']}
               style={{ minWidth: 240 }}
             />

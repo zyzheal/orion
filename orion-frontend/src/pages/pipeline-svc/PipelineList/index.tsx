@@ -11,7 +11,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, message, Empty, Modal, Input } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, ApiOutlined, PlayCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  ApiOutlined,
+  PlayCircleOutlined,
+  UnorderedListOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -45,7 +51,7 @@ const PipelineList: React.FC = () => {
       const response = await getPipelines();
       // wrapper: {success, data: {data: [...], total}, meta}
       const payload = response.data as { data?: Pipeline[]; total?: number };
-      setPipelines(Array.isArray(payload) ? payload : (payload.data || []));
+      setPipelines(Array.isArray(payload) ? payload : payload.data || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pipeline 列表失败：${error.message}`);
@@ -84,18 +90,21 @@ const PipelineList: React.FC = () => {
   }, [searchQuery, filters]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '启用', value: 'active' },
-        { label: '停用', value: 'inactive' },
-        { label: '已删除', value: 'deleted' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '启用', value: 'active' },
+          { label: '停用', value: 'inactive' },
+          { label: '已删除', value: 'deleted' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Handle run pipeline
   const handleRun = (record: Pipeline) => {
@@ -141,103 +150,112 @@ const PipelineList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<Pipeline>[] = useMemo<TableColumn<Pipeline>[]>(() => [
-    {
-      key: 'name',
-      title: 'Pipeline',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      filterable: true,
-      render: (_value: unknown, record) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/pipelines/${record.id}`)}
-          >
-            {record.name}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            v{record.version}
-            {record.description ? ` · ${record.description}` : ''}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: '12%',
-      render: (value: unknown) => <StatusBadge status={String(value) as StatusType} size="small" />,
-    },
-    {
-      key: 'stages',
-      title: 'Stage 数量',
-      dataIndex: 'spec',
-      width: '12%',
-      render: (spec: any) => {
-        const count = spec?.stages?.length || 0;
-        return <Tag color="blue">{count} 个 Stage</Tag>;
+  const columns: TableColumn<Pipeline>[] = useMemo<TableColumn<Pipeline>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Pipeline',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        filterable: true,
+        render: (_value: unknown, record) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => navigate(`/pipelines/${record.id}`)}
+            >
+              {record.name}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              v{record.version}
+              {record.description ? ` · ${record.description}` : ''}
+            </Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: '15%',
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: '15%',
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 320,
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
-            查看
-          </Button>
-          <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}/edit`)}>
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<PlayCircleOutlined />}
-            onClick={() => handleRun(record)}
-          >
-            运行
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<UnorderedListOutlined />}
-            onClick={() => navigate(`/pipelines/${record.id}/runs`)}
-          >
-            运行记录
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleRun, navigate]);
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: '12%',
+        render: (value: unknown) => (
+          <StatusBadge status={String(value) as StatusType} size="small" />
+        ),
+      },
+      {
+        key: 'stages',
+        title: 'Stage 数量',
+        dataIndex: 'spec',
+        width: '12%',
+        render: (spec: any) => {
+          const count = spec?.stages?.length || 0;
+          return <Tag color="blue">{count} 个 Stage</Tag>;
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: '15%',
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: '15%',
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 320,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => navigate(`/pipelines/${record.id}`)}>
+              查看
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => navigate(`/pipelines/${record.id}/edit`)}
+            >
+              编辑
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              onClick={() => handleRun(record)}
+            >
+              运行
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<UnorderedListOutlined />}
+              onClick={() => navigate(`/pipelines/${record.id}/runs`)}
+            >
+              运行记录
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleRun, navigate]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -251,7 +269,10 @@ const PipelineList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Pipeline 列表
           </Title>
@@ -319,7 +340,9 @@ const PipelineList: React.FC = () => {
         cancelText="取消"
       >
         <div style={{ marginBottom: spacing.md }}>
-          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>分支</label>
+          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>
+            分支
+          </label>
           <Input
             value={runBranch}
             onChange={(e) => setRunBranch(e.target.value)}
@@ -327,7 +350,9 @@ const PipelineList: React.FC = () => {
           />
         </div>
         <div style={{ marginBottom: spacing.md }}>
-          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>参数 (JSON)</label>
+          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>
+            参数 (JSON)
+          </label>
           <Input.TextArea
             value={variablesText}
             onChange={(e) => setVariablesText(e.target.value)}

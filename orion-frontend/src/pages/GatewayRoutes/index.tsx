@@ -10,14 +10,42 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input, Select,
-  message, Popconfirm, Tooltip, Switch, Drawer, Descriptions, Row, Col,
-  Statistic, Alert, Divider, Badge, Table, InputNumber,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
+  Tooltip,
+  Switch,
+  Drawer,
+  Descriptions,
+  Row,
+  Col,
+  Statistic,
+  Alert,
+  Divider,
+  Badge,
+  Table,
+  InputNumber,
 } from 'antd';
 import {
-  ReloadOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
-  EyeOutlined, SearchOutlined, ClearOutlined,
-  GatewayOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  SearchOutlined,
+  ClearOutlined,
+  GatewayOutlined,
+  ApiOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
 import type { GatewayRoute, GatewayRouteStats } from '@/api/gateway-routes';
@@ -235,7 +263,7 @@ const GatewayRoutesPage: React.FC = () => {
           r.path.toLowerCase().includes(q) ||
           r.targetService.toLowerCase().includes(q) ||
           (r.description || '').toLowerCase().includes(q) ||
-          r.method.toLowerCase().includes(q),
+          r.method.toLowerCase().includes(q)
       );
     }
 
@@ -270,136 +298,158 @@ const GatewayRoutesPage: React.FC = () => {
   // Table Columns
   // ============================================================================
 
-  const columns = useMemo(() => [
-    {
-      key: 'path',
-      title: '路径',
-      dataIndex: 'path',
-      width: 220,
-      ellipsis: true,
-      render: (v: unknown, record: GatewayRoute) => (
-        <Space>
-          <Text code style={{ fontSize: 12 }}>{String(v)}</Text>
-          <Tag color={HTTP_METHOD_COLORS[record.method] || 'default'} style={{ margin: 0, borderRadius: componentRadius.tag }}>
-            {METHOD_LABELS[record.method] || record.method}
-          </Tag>
-        </Space>
-      ),
-    },
-    {
-      key: 'targetService',
-      title: '目标服务',
-      dataIndex: 'targetService',
-      width: 140,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'authRequired',
-      title: '认证要求',
-      dataIndex: 'authRequired',
-      width: 100,
-      render: (v: unknown) => (
-        v ? (
-          <Tag icon={<CheckCircleOutlined />} color="success" style={{ borderRadius: componentRadius.tag }}>需要</Tag>
-        ) : (
-          <Tag icon={<CloseCircleOutlined />} color="default" style={{ borderRadius: componentRadius.tag }}>无需</Tag>
-        )
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 100,
-      render: (v: unknown, record: GatewayRoute) => (
-        <Switch
-          checked={Boolean(v)}
-          onChange={(checked) => handleToggle(record.id, checked)}
-          loading={actionLoading === `toggle-${record.id}`}
-          size="small"
-        />
-      ),
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'description',
-      width: 180,
-      ellipsis: true,
-    },
-    {
-      key: 'requestCount',
-      title: '请求量',
-      dataIndex: 'requestCount',
-      width: 100,
-      render: (v: unknown) => (
-        v ? <Text type="secondary">{Number(v).toLocaleString()}</Text> : <Text type="secondary">-</Text>
-      ),
-    },
-    {
-      key: 'errorRate',
-      title: '错误率',
-      dataIndex: 'errorRate',
-      width: 100,
-      render: (v: unknown) => {
-        if (v == null) return <Text type="secondary">-</Text>;
-        const rate = Number(v);
-        const color = rate > 0.1 ? 'error' : rate > 0.05 ? 'warning' : 'success';
-        return <Text type={color as any}>{`${(rate * 100).toFixed(1)}%`}</Text>;
+  const columns = useMemo(
+    () => [
+      {
+        key: 'path',
+        title: '路径',
+        dataIndex: 'path',
+        width: 220,
+        ellipsis: true,
+        render: (v: unknown, record: GatewayRoute) => (
+          <Space>
+            <Text code style={{ fontSize: 12 }}>
+              {String(v)}
+            </Text>
+            <Tag
+              color={HTTP_METHOD_COLORS[record.method] || 'default'}
+              style={{ margin: 0, borderRadius: componentRadius.tag }}
+            >
+              {METHOD_LABELS[record.method] || record.method}
+            </Tag>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 140,
-      render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      fixed: 'right' as const,
-      render: (_: unknown, record: GatewayRoute) => (
-        <Space size={4}>
-          <Tooltip title="查看详情">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleView(record)}
-            />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确定要删除此路由吗？"
-            description="删除后不可恢复"
-            onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="删除">
+      {
+        key: 'targetService',
+        title: '目标服务',
+        dataIndex: 'targetService',
+        width: 140,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'authRequired',
+        title: '认证要求',
+        dataIndex: 'authRequired',
+        width: 100,
+        render: (v: unknown) =>
+          v ? (
+            <Tag
+              icon={<CheckCircleOutlined />}
+              color="success"
+              style={{ borderRadius: componentRadius.tag }}
+            >
+              需要
+            </Tag>
+          ) : (
+            <Tag
+              icon={<CloseCircleOutlined />}
+              color="default"
+              style={{ borderRadius: componentRadius.tag }}
+            >
+              无需
+            </Tag>
+          ),
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 100,
+        render: (v: unknown, record: GatewayRoute) => (
+          <Switch
+            checked={Boolean(v)}
+            onChange={(checked) => handleToggle(record.id, checked)}
+            loading={actionLoading === `toggle-${record.id}`}
+            size="small"
+          />
+        ),
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'description',
+        width: 180,
+        ellipsis: true,
+      },
+      {
+        key: 'requestCount',
+        title: '请求量',
+        dataIndex: 'requestCount',
+        width: 100,
+        render: (v: unknown) =>
+          v ? (
+            <Text type="secondary">{Number(v).toLocaleString()}</Text>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'errorRate',
+        title: '错误率',
+        dataIndex: 'errorRate',
+        width: 100,
+        render: (v: unknown) => {
+          if (v == null) return <Text type="secondary">-</Text>;
+          const rate = Number(v);
+          const color = rate > 0.1 ? 'error' : rate > 0.05 ? 'warning' : 'success';
+          return <Text type={color as any}>{`${(rate * 100).toFixed(1)}%`}</Text>;
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 140,
+        render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm'),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        fixed: 'right' as const,
+        render: (_: unknown, record: GatewayRoute) => (
+          <Space size={4}>
+            <Tooltip title="查看详情">
               <Button
                 type="link"
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
-                loading={actionLoading === `delete-${record.id}`}
+                icon={<EyeOutlined />}
+                onClick={() => handleView(record)}
               />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [actionLoading, handleToggle, handleView, handleEdit, handleDelete]);
+            <Tooltip title="编辑">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+              />
+            </Tooltip>
+            <Popconfirm
+              title="确定要删除此路由吗？"
+              description="删除后不可恢复"
+              onConfirm={() => handleDelete(record.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="删除">
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={actionLoading === `delete-${record.id}`}
+                />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [actionLoading, handleToggle, handleView, handleEdit, handleDelete]
+  );
 
   // ============================================================================
   // Stats Bar
@@ -457,7 +507,9 @@ const GatewayRoutesPage: React.FC = () => {
         >
           <Statistic
             title="总请求量"
-            value={stats?.totalRequests ?? routes.reduce((sum, r) => sum + (r.requestCount || 0), 0)}
+            value={
+              stats?.totalRequests ?? routes.reduce((sum, r) => sum + (r.requestCount || 0), 0)
+            }
             prefix={<ApiOutlined style={{ color: colors.info[500] }} />}
             loading={loading}
           />
@@ -599,17 +651,30 @@ const GatewayRoutesPage: React.FC = () => {
         onClose={() => setDrawerVisible(false)}
         extra={
           <Space>
-            <Button icon={<EditOutlined />} onClick={() => { setDrawerVisible(false); handleEdit(selectedRoute); }}>
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => {
+                setDrawerVisible(false);
+                handleEdit(selectedRoute);
+              }}
+            >
               编辑
             </Button>
             <Popconfirm
               title="确定要删除此路由吗？"
-              onConfirm={() => { setDrawerVisible(false); handleDelete(selectedRoute.id); }}
+              onConfirm={() => {
+                setDrawerVisible(false);
+                handleDelete(selectedRoute.id);
+              }}
               okText="删除"
               cancelText="取消"
               okButtonProps={{ danger: true }}
             >
-              <Button danger icon={<DeleteOutlined />} loading={actionLoading === `delete-${selectedRoute.id}`}>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                loading={actionLoading === `delete-${selectedRoute.id}`}
+              >
                 删除
               </Button>
             </Popconfirm>
@@ -625,14 +690,19 @@ const GatewayRoutesPage: React.FC = () => {
             {/* Header info */}
             <div style={{ marginBottom: spacing.lg }}>
               <Space size={spacing.sm} style={{ marginBottom: spacing.sm }}>
-                <Tag color={methodColor} style={{ borderRadius: componentRadius.tag, fontSize: 13, padding: '2px 8px' }}>
+                <Tag
+                  color={methodColor}
+                  style={{ borderRadius: componentRadius.tag, fontSize: 13, padding: '2px 8px' }}
+                >
                   {METHOD_LABELS[selectedRoute.method] || selectedRoute.method}
                 </Tag>
                 <Tag color={statusColor} style={{ borderRadius: componentRadius.tag }}>
                   {statusText}
                 </Tag>
                 {selectedRoute.authRequired && (
-                  <Tag color="purple" style={{ borderRadius: componentRadius.tag }}>需要认证</Tag>
+                  <Tag color="purple" style={{ borderRadius: componentRadius.tag }}>
+                    需要认证
+                  </Tag>
                 )}
               </Space>
               <Title level={4} style={{ marginBottom: spacing.xs, fontFamily: 'monospace' }}>
@@ -648,7 +718,10 @@ const GatewayRoutesPage: React.FC = () => {
             {/* Descriptions */}
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="目标服务">
-                <Badge status="processing" text={<Text strong>{selectedRoute.targetService}</Text>} />
+                <Badge
+                  status="processing"
+                  text={<Text strong>{selectedRoute.targetService}</Text>}
+                />
               </Descriptions.Item>
               {selectedRoute.targetUrl && (
                 <Descriptions.Item label="目标 URL">
@@ -662,7 +735,9 @@ const GatewayRoutesPage: React.FC = () => {
                 <Descriptions.Item label="允许的角色">
                   <Space size={[4, 8]} wrap>
                     {selectedRoute.allowedRoles.map((role) => (
-                      <Tag key={role} style={{ borderRadius: componentRadius.tag }}>{role}</Tag>
+                      <Tag key={role} style={{ borderRadius: componentRadius.tag }}>
+                        {role}
+                      </Tag>
                     ))}
                   </Space>
                 </Descriptions.Item>
@@ -673,9 +748,7 @@ const GatewayRoutesPage: React.FC = () => {
                 </Descriptions.Item>
               )}
               {selectedRoute.timeoutMs && (
-                <Descriptions.Item label="超时时间">
-                  {selectedRoute.timeoutMs}ms
-                </Descriptions.Item>
+                <Descriptions.Item label="超时时间">{selectedRoute.timeoutMs}ms</Descriptions.Item>
               )}
               <Descriptions.Item label="总请求数">
                 {selectedRoute.requestCount?.toLocaleString() || '-'}
@@ -715,7 +788,14 @@ const GatewayRoutesPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg, alignItems: 'flex-start' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginBottom: spacing.lg,
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <GatewayOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
@@ -724,8 +804,12 @@ const GatewayRoutesPage: React.FC = () => {
           <Text type="secondary">管理和监控 API Gateway 路由规则</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新建路由</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            新建路由
+          </Button>
         </Space>
       </div>
 
@@ -809,11 +893,15 @@ const GatewayRoutesPage: React.FC = () => {
             showSearch
             style={{ width: 160, borderRadius: componentRadius.input }}
             filterOption={(input, option) =>
-              String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+              String(option?.children ?? '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
             }
           >
             {uniqueServices.map((s) => (
-              <Option key={s} value={s}>{s}</Option>
+              <Option key={s} value={s}>
+                {s}
+              </Option>
             ))}
           </Select>
           <div style={{ flex: 1 }} />

@@ -193,14 +193,22 @@ const AlertRulesTab: React.FC = () => {
   };
 
   const columns = [
-    { title: '规则名称', dataIndex: 'name', key: 'name', width: 180, render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '规则名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 180,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     { title: '指标', dataIndex: 'metric', key: 'metric', width: 140 },
     {
       title: '条件',
       key: 'condition',
       width: 100,
       render: (_: unknown, record: AlertRuleType) => (
-        <Tag>{conditionLabels[record.condition] || record.condition} {record.threshold}</Tag>
+        <Tag>
+          {conditionLabels[record.condition] || record.condition} {record.threshold}
+        </Tag>
       ),
     },
     { title: '持续时间', dataIndex: 'duration', key: 'duration', width: 80 },
@@ -219,15 +227,29 @@ const AlertRulesTab: React.FC = () => {
         <Switch checked={record.enabled} size="small" onChange={() => handleToggle(record.id)} />
       ),
     },
-    { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '操作',
       key: 'actions',
       width: 140,
       render: (_: unknown, record: AlertRuleType) => (
         <Space size="small">
-          <Button type="link" size="small" onClick={() => openEditModal(record)}>编辑</Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
+          <Button type="link" size="small" onClick={() => openEditModal(record)}>
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          />
         </Space>
       ),
     },
@@ -238,11 +260,22 @@ const AlertRulesTab: React.FC = () => {
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">管理和配置自定义告警规则</Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>创建规则</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+            创建规则
+          </Button>
         </Space>
       </div>
-      <Table columns={columns} dataSource={rules} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={rules}
+        rowKey="id"
+        loading={loading}
+        size="middle"
+        pagination={{ pageSize: 10 }}
+      />
 
       <Modal
         title={editingRule ? '编辑告警规则' : '创建告警规则'}
@@ -265,14 +298,16 @@ const AlertRulesTab: React.FC = () => {
             </Col>
             <Col span={6}>
               <Form.Item name="condition" label="条件" rules={[{ required: true }]}>
-                <Select options={[
-                  { label: '> 大于', value: 'gt' },
-                  { label: '< 小于', value: 'lt' },
-                  { label: '>= 大于等于', value: 'gte' },
-                  { label: '<= 小于等于', value: 'lte' },
-                  { label: '== 等于', value: 'eq' },
-                  { label: '!= 不等于', value: 'neq' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '> 大于', value: 'gt' },
+                    { label: '< 小于', value: 'lt' },
+                    { label: '>= 大于等于', value: 'gte' },
+                    { label: '<= 小于等于', value: 'lte' },
+                    { label: '== 等于', value: 'eq' },
+                    { label: '!= 不等于', value: 'neq' },
+                  ]}
+                />
               </Form.Item>
             </Col>
             <Col span={6}>
@@ -289,11 +324,13 @@ const AlertRulesTab: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="severity" label="严重度" rules={[{ required: true }]}>
-                <Select options={[
-                  { label: 'Critical', value: 'critical' },
-                  { label: 'Warning', value: 'warning' },
-                  { label: 'Info', value: 'info' },
-                ]} />
+                <Select
+                  options={[
+                    { label: 'Critical', value: 'critical' },
+                    { label: 'Warning', value: 'warning' },
+                    { label: 'Info', value: 'info' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -380,13 +417,27 @@ const SilenceRulesTab: React.FC = () => {
       render: (_: unknown, record: SilenceRuleType) => (
         <Space wrap>
           {record.matchers.map((m, i) => (
-            <Tag key={String(i)} color="blue">{m.name}="{m.value}"</Tag>
+            <Tag key={String(i)} color="blue">
+              {m.name}="{m.value}"
+            </Tag>
           ))}
         </Space>
       ),
     },
-    { title: '开始时间', dataIndex: 'startsAt', key: 'startsAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
-    { title: '结束时间', dataIndex: 'endsAt', key: 'endsAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '开始时间',
+      dataIndex: 'startsAt',
+      key: 'startsAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '结束时间',
+      dataIndex: 'endsAt',
+      key: 'endsAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -401,7 +452,13 @@ const SilenceRulesTab: React.FC = () => {
       key: 'actions',
       width: 80,
       render: (_: unknown, record: SilenceRuleType) => (
-        <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
+        <Button
+          type="link"
+          size="small"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDelete(record.id)}
+        />
       ),
     },
   ];
@@ -411,11 +468,22 @@ const SilenceRulesTab: React.FC = () => {
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">配置告警静默规则，在维护期间抑制告警通知</Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>创建静默规则</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+            创建静默规则
+          </Button>
         </Space>
       </div>
-      <Table columns={columns} dataSource={rules} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={rules}
+        rowKey="id"
+        loading={loading}
+        size="middle"
+        pagination={{ pageSize: 10 }}
+      />
 
       <Modal
         title="创建静默规则"
@@ -516,7 +584,13 @@ const RootCauseAnalysisTab: React.FC = () => {
 
   const columns = [
     { title: '事件 ID', dataIndex: 'incidentId', key: 'incidentId', width: 140 },
-    { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '开始时间',
+      dataIndex: 'startTime',
+      key: 'startTime',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -561,7 +635,12 @@ const RootCauseAnalysisTab: React.FC = () => {
             <Input placeholder="如: api-gateway, auth-service" style={{ width: 280 }} />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={triggerLoading} icon={<SearchOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={triggerLoading}
+              icon={<SearchOutlined />}
+            >
               触发分析
             </Button>
           </Form.Item>
@@ -570,7 +649,14 @@ const RootCauseAnalysisTab: React.FC = () => {
 
       {/* Analysis List */}
       <Card title="根因分析列表">
-        <Table columns={columns} dataSource={analyses} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={columns}
+          dataSource={analyses}
+          rowKey="id"
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
       {/* Detail Modal */}
@@ -591,18 +677,32 @@ const RootCauseAnalysisTab: React.FC = () => {
               <Descriptions.Item label="状态">
                 <Tag color={statusColorMap[selectedAnalysis.status]}>{selectedAnalysis.status}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="开始时间">{new Date(selectedAnalysis.startTime).toLocaleString()}</Descriptions.Item>
+              <Descriptions.Item label="开始时间">
+                {new Date(selectedAnalysis.startTime).toLocaleString()}
+              </Descriptions.Item>
               <Descriptions.Item label="结束时间">
-                {selectedAnalysis.endTime ? new Date(selectedAnalysis.endTime).toLocaleString() : '进行中'}
+                {selectedAnalysis.endTime
+                  ? new Date(selectedAnalysis.endTime).toLocaleString()
+                  : '进行中'}
               </Descriptions.Item>
             </Descriptions>
 
             {selectedAnalysis.rootCause && (
-              <Card size="small" title="根因" style={{ borderLeft: `3px solid ${colors.error[400]}` }}>
+              <Card
+                size="small"
+                title="根因"
+                style={{ borderLeft: `3px solid ${colors.error[400]}` }}
+              >
                 <Descriptions column={1} size="small">
-                  <Descriptions.Item label="服务">{selectedAnalysis.rootCause.service}</Descriptions.Item>
-                  <Descriptions.Item label="组件">{selectedAnalysis.rootCause.component}</Descriptions.Item>
-                  <Descriptions.Item label="描述">{selectedAnalysis.rootCause.description}</Descriptions.Item>
+                  <Descriptions.Item label="服务">
+                    {selectedAnalysis.rootCause.service}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="组件">
+                    {selectedAnalysis.rootCause.component}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="描述">
+                    {selectedAnalysis.rootCause.description}
+                  </Descriptions.Item>
                   <Descriptions.Item label="置信度">
                     <Progress
                       percent={Math.round(selectedAnalysis.rootCause.confidence * 100)}
@@ -614,27 +714,34 @@ const RootCauseAnalysisTab: React.FC = () => {
               </Card>
             )}
 
-            {selectedAnalysis.contributingFactors && selectedAnalysis.contributingFactors.length > 0 && (
-              <Card size="small" title="贡献因素">
-                <Table
-                  dataSource={selectedAnalysis.contributingFactors}
-                  rowKey="service"
-                  size="small"
-                  pagination={false}
-                  columns={[
-                    { title: '服务', dataIndex: 'service', key: 'service' },
-                    { title: '指标', dataIndex: 'metric', key: 'metric' },
-                    {
-                      title: '影响度',
-                      dataIndex: 'impact',
-                      key: 'impact',
-                      render: (v: number) => <Progress percent={Math.round(v * 100)} size="small" style={{ width: 100 }} />,
-                    },
-                    { title: '描述', dataIndex: 'description', key: 'description' },
-                  ]}
-                />
-              </Card>
-            )}
+            {selectedAnalysis.contributingFactors &&
+              selectedAnalysis.contributingFactors.length > 0 && (
+                <Card size="small" title="贡献因素">
+                  <Table
+                    dataSource={selectedAnalysis.contributingFactors}
+                    rowKey="service"
+                    size="small"
+                    pagination={false}
+                    columns={[
+                      { title: '服务', dataIndex: 'service', key: 'service' },
+                      { title: '指标', dataIndex: 'metric', key: 'metric' },
+                      {
+                        title: '影响度',
+                        dataIndex: 'impact',
+                        key: 'impact',
+                        render: (v: number) => (
+                          <Progress
+                            percent={Math.round(v * 100)}
+                            size="small"
+                            style={{ width: 100 }}
+                          />
+                        ),
+                      },
+                      { title: '描述', dataIndex: 'description', key: 'description' },
+                    ]}
+                  />
+                </Card>
+              )}
 
             {selectedAnalysis.timeline && selectedAnalysis.timeline.length > 0 && (
               <Card size="small" title="事件时间线">
@@ -656,7 +763,9 @@ const RootCauseAnalysisTab: React.FC = () => {
               <Card size="small" title="建议措施">
                 <ul style={{ paddingLeft: 20, margin: 0 }}>
                   {selectedAnalysis.recommendations.map((r, i) => (
-                    <li key={String(i)}><Text>{r}</Text></li>
+                    <li key={String(i)}>
+                      <Text>{r}</Text>
+                    </li>
                   ))}
                 </ul>
               </Card>
@@ -693,7 +802,13 @@ const ServiceHealthTab: React.FC = () => {
   }, []);
 
   const columns = [
-    { title: '服务名称', dataIndex: 'serviceName', key: 'serviceName', width: 180, render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '服务名称',
+      dataIndex: 'serviceName',
+      key: 'serviceName',
+      width: 180,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     {
       title: '健康状态',
       dataIndex: 'status',
@@ -705,9 +820,24 @@ const ServiceHealthTab: React.FC = () => {
         </Tag>
       ),
     },
-    { title: 'P50 延迟', key: 'p50', width: 100, render: (_: unknown, r: ServiceHealth) => `${r.latencyP50}ms` },
-    { title: 'P95 延迟', key: 'p95', width: 100, render: (_: unknown, r: ServiceHealth) => `${r.latencyP95}ms` },
-    { title: 'P99 延迟', key: 'p99', width: 100, render: (_: unknown, r: ServiceHealth) => `${r.latencyP99}ms` },
+    {
+      title: 'P50 延迟',
+      key: 'p50',
+      width: 100,
+      render: (_: unknown, r: ServiceHealth) => `${r.latencyP50}ms`,
+    },
+    {
+      title: 'P95 延迟',
+      key: 'p95',
+      width: 100,
+      render: (_: unknown, r: ServiceHealth) => `${r.latencyP95}ms`,
+    },
+    {
+      title: 'P99 延迟',
+      key: 'p99',
+      width: 100,
+      render: (_: unknown, r: ServiceHealth) => `${r.latencyP99}ms`,
+    },
     {
       title: '错误率',
       key: 'errorRate',
@@ -718,7 +848,12 @@ const ServiceHealthTab: React.FC = () => {
         </Text>
       ),
     },
-    { title: '请求速率', key: 'requestRate', width: 120, render: (_: unknown, r: ServiceHealth) => `${r.requestRate.toFixed(1)} req/s` },
+    {
+      title: '请求速率',
+      key: 'requestRate',
+      width: 120,
+      render: (_: unknown, r: ServiceHealth) => `${r.requestRate.toFixed(1)} req/s`,
+    },
     {
       title: '饱和度',
       key: 'saturation',
@@ -738,9 +873,18 @@ const ServiceHealthTab: React.FC = () => {
     <div>
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">查看各服务的健康状态和关键指标</Text>
-        <Button icon={<ReloadOutlined />} onClick={loadHealth} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadHealth} loading={loading}>
+          刷新
+        </Button>
       </div>
-      <Table columns={columns} dataSource={services} rowKey="serviceName" loading={loading} size="middle" pagination={{ pageSize: 15 }} />
+      <Table
+        columns={columns}
+        dataSource={services}
+        rowKey="serviceName"
+        loading={loading}
+        size="middle"
+        pagination={{ pageSize: 15 }}
+      />
     </div>
   );
 };
@@ -773,16 +917,48 @@ const ObservabilityPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab={<span><BellOutlined />告警规则</span>} key="alert-rules">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <BellOutlined />
+              告警规则
+            </span>
+          }
+          key="alert-rules"
+        >
           <AlertRulesTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><SafetyOutlined />静默规则</span>} key="silence-rules">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <SafetyOutlined />
+              静默规则
+            </span>
+          }
+          key="silence-rules"
+        >
           <SilenceRulesTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><SearchOutlined />根因分析</span>} key="rca">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <SearchOutlined />
+              根因分析
+            </span>
+          }
+          key="rca"
+        >
           <RootCauseAnalysisTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><ThunderboltOutlined />服务健康</span>} key="health">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <ThunderboltOutlined />
+              服务健康
+            </span>
+          }
+          key="health"
+        >
           <ServiceHealthTab />
         </Tabs.TabPane>
       </Tabs>

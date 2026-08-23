@@ -81,7 +81,10 @@ interface DrillRecord {
 
 // ==================== Mock Data ====================
 
-const drillResultConfig: Record<DrillResult, { label: string; color: string; icon: React.ReactNode }> = {
+const drillResultConfig: Record<
+  DrillResult,
+  { label: string; color: string; icon: React.ReactNode }
+> = {
   success: { label: '成功', color: 'success', icon: <CheckCircleOutlined /> },
   partial: { label: '部分成功', color: 'warning', icon: <ExclamationCircleOutlined /> },
   failed: { label: '失败', color: 'error', icon: <CloseCircleOutlined /> },
@@ -162,7 +165,7 @@ const DisasterRecovery: React.FC = () => {
       }
 
       if (status) {
-        setCoverage(Math.round((status.plans?.length || 0) / 10 * 100));
+        setCoverage(Math.round(((status.plans?.length || 0) / 10) * 100));
         const last = status.plans?.find((p) => p.lastTestedAt);
         if (last?.lastTestedAt) {
           setLastDrill(last.lastTestedAt.split(' ')[0] || DEFAULT_LAST_DRILL);
@@ -174,7 +177,9 @@ const DisasterRecovery: React.FC = () => {
         setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const rtoRpoColumns: ColumnsType<RtoRpoRecord> = [
@@ -309,17 +314,19 @@ const DisasterRecovery: React.FC = () => {
       message.success('灾备计划已创建');
       await loadDRPlans().then((plans) => {
         if (plans && plans.length > 0) {
-          setRtoRpoRecords(plans.map((p) => ({
-            id: p.id,
-            serviceName: p.name,
-            rtoTarget: p.rto,
-            rtoActual: null,
-            rpoTarget: p.rpo,
-            rpoActual: null,
-            status: 'pass',
-            drLevel: values.drLevel,
-            lastTestedAt: '-',
-          })) as RtoRpoRecord[]);
+          setRtoRpoRecords(
+            plans.map((p) => ({
+              id: p.id,
+              serviceName: p.name,
+              rtoTarget: p.rto,
+              rtoActual: null,
+              rpoTarget: p.rpo,
+              rpoActual: null,
+              status: 'pass',
+              drLevel: values.drLevel,
+              lastTestedAt: '-',
+            })) as RtoRpoRecord[]
+          );
         }
       });
       setCreateModalOpen(false);
@@ -389,7 +396,9 @@ const DisasterRecovery: React.FC = () => {
               valueStyle={{ color: colors.primary[500] }}
               prefix={<ClockCircleOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>恢复时间目标</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              恢复时间目标
+            </Text>
           </Card>
         </Col>
         <Col span={6}>
@@ -406,7 +415,9 @@ const DisasterRecovery: React.FC = () => {
               valueStyle={{ color: colors.success[500] }}
               prefix={<DatabaseOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>恢复点目标</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              恢复点目标
+            </Text>
           </Card>
         </Col>
         <Col span={6}>
@@ -423,7 +434,9 @@ const DisasterRecovery: React.FC = () => {
               valueStyle={{ color: colors.warning[500] }}
               prefix={<HistoryOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>最近演练时间</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              最近演练时间
+            </Text>
           </Card>
         </Col>
         <Col span={6}>
@@ -441,7 +454,9 @@ const DisasterRecovery: React.FC = () => {
               suffix="%"
               prefix={<PieChartOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>系统灾备覆盖比例</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              系统灾备覆盖比例
+            </Text>
           </Card>
         </Col>
       </Row>
@@ -467,17 +482,19 @@ const DisasterRecovery: React.FC = () => {
                     setLoading(true);
                     const plans = await loadDRPlans();
                     if (plans && plans.length > 0) {
-                      setRtoRpoRecords(plans.map((p) => ({
-                        id: p.id,
-                        serviceName: p.name,
-                        rtoTarget: p.rto,
-                        rtoActual: null,
-                        rpoTarget: p.rpo,
-                        rpoActual: null,
-                        status: 'pass',
-                        drLevel: 'active-passive',
-                        lastTestedAt: p.lastTestedAt || '-',
-                      })) as RtoRpoRecord[]);
+                      setRtoRpoRecords(
+                        plans.map((p) => ({
+                          id: p.id,
+                          serviceName: p.name,
+                          rtoTarget: p.rto,
+                          rtoActual: null,
+                          rpoTarget: p.rpo,
+                          rpoActual: null,
+                          status: 'pass',
+                          drLevel: 'active-passive',
+                          lastTestedAt: p.lastTestedAt || '-',
+                        })) as RtoRpoRecord[]
+                      );
                     }
                     setLoading(false);
                     message.success('已刷新');
@@ -513,7 +530,9 @@ const DisasterRecovery: React.FC = () => {
               <Space>
                 <HistoryOutlined />
                 <Text strong>灾备演练历史</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>(最近 5 次)</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  (最近 5 次)
+                </Text>
               </Space>
             }
             style={{ borderRadius: 12 }}
@@ -551,12 +570,7 @@ const DisasterRecovery: React.FC = () => {
         }
         style={{ borderRadius: 12 }}
       >
-        <Descriptions
-          bordered
-          column={3}
-          size="middle"
-          style={{ borderRadius: 6 }}
-        >
+        <Descriptions bordered column={3} size="middle" style={{ borderRadius: 6 }}>
           <Descriptions.Item label="灾备级别">
             <Space>
               <Tag color="blue">多活</Tag>
@@ -614,11 +628,7 @@ const DisasterRecovery: React.FC = () => {
         okText="创建"
         cancelText="取消"
       >
-        <Form
-          form={createForm}
-          layout="vertical"
-          style={{ marginTop: 8 }}
-        >
+        <Form form={createForm} layout="vertical" style={{ marginTop: 8 }}>
           <Form.Item
             label="服务名称"
             name="serviceName"

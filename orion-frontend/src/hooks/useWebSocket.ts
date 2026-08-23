@@ -368,7 +368,6 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       wsRef.current = new WebSocket(wsUrl, protocols);
 
       wsRef.current.onopen = () => {
-
         reconnectAttemptsRef.current = 0;
         resetReconnectAttempts();
         setConnectionState('connected');
@@ -387,7 +386,6 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
         handleError(event as CloseEvent | ErrorEvent);
       };
       wsRef.current.onclose = (event) => {
-
         handleDisconnect(event.code !== 1000); // 非正常关闭触发重连
       };
     } catch (error) {
@@ -500,7 +498,6 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
   useEffect(() => {
     const checkAndRefreshToken = async () => {
       if (isTokenExpiring() && connectionState === 'connected') {
-
         await refreshAuthToken();
       }
     };

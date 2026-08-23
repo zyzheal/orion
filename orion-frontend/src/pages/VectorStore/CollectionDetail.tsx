@@ -3,7 +3,19 @@
  * Shows basic info and document list tabs
  */
 import React, { useState, useMemo } from 'react';
-import { Drawer, Tabs, Descriptions, Tag, Spin, Form, Input, Select, Button, Space, message } from 'antd';
+import {
+  Drawer,
+  Tabs,
+  Descriptions,
+  Tag,
+  Spin,
+  Form,
+  Input,
+  Select,
+  Button,
+  Space,
+  message,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import Table from 'antd/es/table';
 import { Typography, Popconfirm } from 'antd';
@@ -22,7 +34,16 @@ interface CollectionDetailProps {
   documents: VectorDocument[];
   docsLoading: boolean;
   onDeleteDoc: (id: string) => void;
-  onUpdateCollection?: (name: string, data: { displayName?: string; description?: string; dimensions?: number; indexType?: string; distanceMetric?: string }) => Promise<void>;
+  onUpdateCollection?: (
+    name: string,
+    data: {
+      displayName?: string;
+      description?: string;
+      dimensions?: number;
+      indexType?: string;
+      distanceMetric?: string;
+    }
+  ) => Promise<void>;
 }
 
 const CollectionDetail: React.FC<CollectionDetailProps> = ({
@@ -157,54 +178,65 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
   );
 
   // 编辑表单
-  const editFormContent = useMemo(() => (
-    <Form
-      form={form}
-      layout="vertical"
-      style={{ marginTop: spacing.md }}
-      initialValues={{
-        indexType: 'hnsw',
-        distanceMetric: 'cosine',
-      }}
-    >
-      <Form.Item label="显示名称" name="displayName" rules={[{ required: true, message: '请输入显示名称' }]}>
-        <Input placeholder="集合显示名称" />
-      </Form.Item>
-      <Form.Item label="描述" name="description">
-        <Input.TextArea rows={2} placeholder="集合描述..." />
-      </Form.Item>
-      <Form.Item label="向量维度" name="dimensions" rules={[{ required: true, message: '请输入向量维度' }]}>
-        <Select
-          options={[
-            { label: '384 (all-MiniLM)', value: 384 },
-            { label: '768 (BGE-base)', value: 768 },
-            { label: '1024 (BGE-large)', value: 1024 },
-            { label: '1536 (OpenAI/Ada)', value: 1536 },
-            { label: '3072 (GTE-large)', value: 3072 },
-          ]}
-        />
-      </Form.Item>
-      <Form.Item label="索引类型" name="indexType">
-        <Select
-          options={[
-            { label: 'HNSW (推荐)', value: 'hnsw' },
-            { label: 'IVF_FLAT', value: 'ivf_flat' },
-            { label: 'FLAT (精确)', value: 'flat' },
-            { label: 'Annoy', value: 'annoy' },
-          ]}
-        />
-      </Form.Item>
-      <Form.Item label="距离度量" name="distanceMetric">
-        <Select
-          options={[
-            { label: '余弦相似度', value: 'cosine' },
-            { label: '欧氏距离', value: 'euclidean' },
-            { label: '点积', value: 'dot_product' },
-          ]}
-        />
-      </Form.Item>
-    </Form>
-  ), [form]);
+  const editFormContent = useMemo(
+    () => (
+      <Form
+        form={form}
+        layout="vertical"
+        style={{ marginTop: spacing.md }}
+        initialValues={{
+          indexType: 'hnsw',
+          distanceMetric: 'cosine',
+        }}
+      >
+        <Form.Item
+          label="显示名称"
+          name="displayName"
+          rules={[{ required: true, message: '请输入显示名称' }]}
+        >
+          <Input placeholder="集合显示名称" />
+        </Form.Item>
+        <Form.Item label="描述" name="description">
+          <Input.TextArea rows={2} placeholder="集合描述..." />
+        </Form.Item>
+        <Form.Item
+          label="向量维度"
+          name="dimensions"
+          rules={[{ required: true, message: '请输入向量维度' }]}
+        >
+          <Select
+            options={[
+              { label: '384 (all-MiniLM)', value: 384 },
+              { label: '768 (BGE-base)', value: 768 },
+              { label: '1024 (BGE-large)', value: 1024 },
+              { label: '1536 (OpenAI/Ada)', value: 1536 },
+              { label: '3072 (GTE-large)', value: 3072 },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="索引类型" name="indexType">
+          <Select
+            options={[
+              { label: 'HNSW (推荐)', value: 'hnsw' },
+              { label: 'IVF_FLAT', value: 'ivf_flat' },
+              { label: 'FLAT (精确)', value: 'flat' },
+              { label: 'Annoy', value: 'annoy' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="距离度量" name="distanceMetric">
+          <Select
+            options={[
+              { label: '余弦相似度', value: 'cosine' },
+              { label: '欧氏距离', value: 'euclidean' },
+              { label: '点积', value: 'dot_product' },
+            ]}
+          />
+        </Form.Item>
+      </Form>
+    ),
+    [form]
+  );
 
   const detailTabs = useMemo(() => {
     if (!collection) return [];
@@ -214,7 +246,14 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
     const infoContent = editing ? (
       <div>
         {editFormContent}
-        <div style={{ marginTop: spacing.md, display: 'flex', justifyContent: 'flex-end', gap: spacing.sm }}>
+        <div
+          style={{
+            marginTop: spacing.md,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: spacing.sm,
+          }}
+        >
           <Button icon={<CloseOutlined />} onClick={handleCancelEdit} disabled={saving}>
             取消
           </Button>
@@ -230,9 +269,7 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
         <Descriptions.Item label="描述" span={2}>
           {c.description || '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="文档数量">
-          {c.documentCount.toLocaleString()}
-        </Descriptions.Item>
+        <Descriptions.Item label="文档数量">{c.documentCount.toLocaleString()}</Descriptions.Item>
         <Descriptions.Item label="向量维度">{c.dimensions}</Descriptions.Item>
         <Descriptions.Item label="索引类型">
           {indexTypeLabelMap[c.indexType] || c.indexType}

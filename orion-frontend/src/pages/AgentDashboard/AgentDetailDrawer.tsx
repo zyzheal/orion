@@ -44,7 +44,13 @@ const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onCl
       open={open}
       data-testid="agent-detail-drawer"
     >
-      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: spacing.lg }}>
+      <Descriptions
+        title="基本信息"
+        column={1}
+        bordered
+        size="small"
+        style={{ marginBottom: spacing.lg }}
+      >
         <Descriptions.Item label="名称">{agent.name}</Descriptions.Item>
         <Descriptions.Item label="角色">
           <Tag color="blue">{agent.role}</Tag>

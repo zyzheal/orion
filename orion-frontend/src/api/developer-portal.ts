@@ -181,7 +181,9 @@ export const developerPortalApi = {
     return res.data as CategoryInfo[];
   },
   getPopularDocuments: async (limit: number = 5) => {
-    const res = await apiClient.get('/api/v1/developer-portal/documents/popular', { params: { limit } });
+    const res = await apiClient.get('/api/v1/developer-portal/documents/popular', {
+      params: { limit },
+    });
     return res.data as PortalDocument[];
   },
   listDocuments: async (params?: PaginatedParams) => {
@@ -217,7 +219,9 @@ export const developerPortalApi = {
     return res.data;
   },
   createDocumentVersion: async (id: string, version: string) => {
-    const res = await apiClient.post(`/api/v1/developer-portal/documents/${id}/versions`, { version });
+    const res = await apiClient.post(`/api/v1/developer-portal/documents/${id}/versions`, {
+      version,
+    });
     return res.data;
   },
   getDocumentStats: async () => {
@@ -287,7 +291,9 @@ export const developerPortalApi = {
     return res.data;
   },
   rejectSubscription: async (id: string, reason: string) => {
-    const res = await apiClient.post(`/api/v1/developer-portal/subscriptions/${id}/reject`, { reason });
+    const res = await apiClient.post(`/api/v1/developer-portal/subscriptions/${id}/reject`, {
+      reason,
+    });
     return res.data;
   },
   suspendSubscription: async (id: string) => {
@@ -321,7 +327,9 @@ export const developerPortalApi = {
     return res.data;
   },
   getPlaygroundHistory: async (requestId: string) => {
-    const res = await apiClient.get(`/api/v1/developer-portal/playground/requests/${requestId}/history`);
+    const res = await apiClient.get(
+      `/api/v1/developer-portal/playground/requests/${requestId}/history`
+    );
     return res.data;
   },
   getPlaygroundStats: async () => {

@@ -7,17 +7,7 @@
  * loading, error, and empty states. Mock data is kept only in test files.
  */
 import React from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Tag,
-  Table,
-  Typography,
-  Space,
-  Badge,
-  Result,
-} from 'antd';
+import { Card, Row, Col, Tag, Table, Typography, Space, Badge, Result } from 'antd';
 import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -244,236 +234,256 @@ const EngineerDashboard: React.FC = () => {
           </Text>
         </div>
 
-      {/* Personal Overview Card */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel>
-          <Row gutter={[24, 16]} align="middle">
-            {/* Left: Name, Rank, Grade */}
-            <Col xs={24} sm={8} md={6}>
-              <Space direction="vertical" size={8}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
-                  <div
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: '50%',
-                      backgroundColor: `${COLORS.purple}15`,
-                      color: COLORS.purple,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: spacing[6],
-                    }}
-                  >
-                    <UserOutlined />
-                  </div>
-                  <div>
-                    <Title level={4} style={{ margin: 0 }}>
-                      {data.personalOverview.engineerName}
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                      {data.personalOverview.engineerId}
-                    </Text>
-                  </div>
-                </div>
-                <Space size={12}>
-                  <Tag
-                    color="gold"
-                    icon={<TrophyOutlined />}
-                    style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
-                  >
-                    排名 #{data.personalOverview.rank}/{data.personalOverview.totalInTeam}
-                  </Tag>
-                  <Tag
-                    color={
-                      gradeColorMap[data.personalOverview.performanceGrade] || colors.neutral[400]
-                    }
-                    style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
-                  >
-                    等级 {data.personalOverview.performanceGrade}
-                  </Tag>
-                </Space>
-              </Space>
-            </Col>
-
-            {/* Right: Metrics */}
-            <Col xs={24} sm={16} md={18}>
-              <Row gutter={[16, 16]}>
-                <Col xs={12} sm={6}>
-                  <StatCard
-                    title="当前负载"
-                    value={data.personalOverview.currentLoad}
-                    suffix="个"
-                    icon={<ClockCircleOutlined />}
-                  />
-                </Col>
-                <Col xs={12} sm={6}>
-                  <StatCard
-                    title="已解决总数"
-                    value={data.personalOverview.totalResolved}
-                    suffix="个"
-                    icon={<CheckCircleOutlined />}
-                    trend={{ value: 12, direction: 'up', good: 'up' }}
-                    sparklineData={recentTrend.map(d => d.resolved)}
-                  />
-                </Col>
-                <Col xs={12} sm={6}>
-                  <StatCard
-                    title="平均解决时间"
-                    value={data.personalOverview.avgResolutionTimeHours}
-                    suffix="h"
-                    icon={<ThunderboltOutlined />}
-                    trend={{ value: 5, direction: 'down', good: 'down' }}
-                  />
-                </Col>
-                <Col xs={12} sm={6}>
-                  <StatCard
-                    title="SLA合规率"
-                    value={data.personalOverview.slaComplianceRate}
-                    suffix="%"
-                    icon={<FlagOutlined />}
-                  />
-                </Col>
-              </Row>
-            </Col>
-          </Row>
-        </CardPanel>
-      </div>
-
-      {/* Personal Trend Chart */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel title="个人趋势（近14天）" extra={<Tag color="cyan">解决数 & 耗时</Tag>}>
-          <TrendLineChart
-            title=""
-            data={[recentTrend.map(d => ({ period: dayjs(d.period).format('MM/DD'), value: d.resolved, label: '解决数' }))]}
-            height={200}
-            showArea={true}
-            smooth={false}
-          />
-        </CardPanel>
-      </div>
-
-      {/* Strengths & Weaknesses */}
-      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-        {/* Strengths */}
-        <Col xs={24} xl={12}>
-          <CardPanel title="优势领域" extra={<RiseOutlined style={{ color: COLORS.success }} />}>
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
-              {data.strengths.map((s) => (
-                <Card key={s.category} size="small">
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: spacing.sm,
-                    }}
-                  >
-                    <Tag color={COLORS.success}>{categoryName(s.category)}</Tag>
-                    <Space>
-                      <Text style={{ fontSize: spacing[3] }}>解决 {s.resolvedCount} 个</Text>
-                      <Text style={{ fontSize: spacing[3] }}>
-                        SLA {(s.slaComplianceRate * 100).toFixed(0)}%
+        {/* Personal Overview Card */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel>
+            <Row gutter={[24, 16]} align="middle">
+              {/* Left: Name, Rank, Grade */}
+              <Col xs={24} sm={8} md={6}>
+                <Space direction="vertical" size={8}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
+                    <div
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: '50%',
+                        backgroundColor: `${COLORS.purple}15`,
+                        color: COLORS.purple,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: spacing[6],
+                      }}
+                    >
+                      <UserOutlined />
+                    </div>
+                    <div>
+                      <Title level={4} style={{ margin: 0 }}>
+                        {data.personalOverview.engineerName}
+                      </Title>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                        {data.personalOverview.engineerId}
                       </Text>
-                    </Space>
+                    </div>
                   </div>
-                  <GaugeChart value={s.proficiencyScore} title={`熟练度 ${s.proficiencyScore}%`} max={100} size={120} unit="%" />
-                </Card>
-              ))}
-            </Space>
-          </CardPanel>
-        </Col>
-
-        {/* Weaknesses */}
-        <Col xs={24} xl={12}>
-          <CardPanel
-            title="待提升领域"
-            extra={<WarningOutlined style={{ color: COLORS.warning }} />}
-          >
-            <Space direction="vertical" style={{ width: '100%' }} size={16}>
-              {data.weaknesses.map((w) => (
-                <Card
-                  key={w.category}
-                  size="small"
-                  style={{
-                    borderLeft: `3px solid ${
-                      w.slaComplianceRate < 0.6 ? COLORS.error : COLORS.warning
-                    }`,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: spacing.sm,
-                    }}
-                  >
-                    <Tag color={w.slaComplianceRate < 0.6 ? 'error' : 'warning'}>
-                      {categoryName(w.category)}
+                  <Space size={12}>
+                    <Tag
+                      color="gold"
+                      icon={<TrophyOutlined />}
+                      style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
+                    >
+                      排名 #{data.personalOverview.rank}/{data.personalOverview.totalInTeam}
                     </Tag>
-                    <Space>
-                      <Text style={{ fontSize: spacing[3] }}>解决 {w.resolvedCount} 个</Text>
-                      <Text style={{ fontSize: spacing[3] }}>
-                        SLA {(w.slaComplianceRate * 100).toFixed(0)}%
-                      </Text>
-                    </Space>
-                  </div>
-                  <GaugeChart
-                    value={Math.round(w.slaComplianceRate * 100)}
-                    title={`SLA ${Math.round(w.slaComplianceRate * 100)}%`}
-                    max={100}
-                    size={120}
-                    unit="%"
-                    thresholds={{ warning: 70, danger: 60 }}
-                  />
-                  <div style={{ marginTop: spacing.sm }}>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                      <WarningOutlined style={{ marginRight: 4 }} />
-                      建议: {w.suggestion}
-                    </Text>
-                  </div>
-                </Card>
-              ))}
-            </Space>
+                    <Tag
+                      color={
+                        gradeColorMap[data.personalOverview.performanceGrade] || colors.neutral[400]
+                      }
+                      style={{ fontWeight: 700, fontSize: spacing[4], padding: '4px 12px' }}
+                    >
+                      等级 {data.personalOverview.performanceGrade}
+                    </Tag>
+                  </Space>
+                </Space>
+              </Col>
+
+              {/* Right: Metrics */}
+              <Col xs={24} sm={16} md={18}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={12} sm={6}>
+                    <StatCard
+                      title="当前负载"
+                      value={data.personalOverview.currentLoad}
+                      suffix="个"
+                      icon={<ClockCircleOutlined />}
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <StatCard
+                      title="已解决总数"
+                      value={data.personalOverview.totalResolved}
+                      suffix="个"
+                      icon={<CheckCircleOutlined />}
+                      trend={{ value: 12, direction: 'up', good: 'up' }}
+                      sparklineData={recentTrend.map((d) => d.resolved)}
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <StatCard
+                      title="平均解决时间"
+                      value={data.personalOverview.avgResolutionTimeHours}
+                      suffix="h"
+                      icon={<ThunderboltOutlined />}
+                      trend={{ value: 5, direction: 'down', good: 'down' }}
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <StatCard
+                      title="SLA合规率"
+                      value={data.personalOverview.slaComplianceRate}
+                      suffix="%"
+                      icon={<FlagOutlined />}
+                    />
+                  </Col>
+                </Row>
+              </Col>
+            </Row>
           </CardPanel>
-        </Col>
-      </Row>
+        </div>
 
-      {/* Ability Distribution */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel title="能力分布">
-          <BarChart
-            title="各类别熟练度"
-            data={[
-              ...data.strengths.map(s => ({ label: categoryName(s.category), value: s.proficiencyScore, series: '优势' })),
-              ...data.weaknesses.map(w => ({ label: categoryName(w.category), value: Math.round(w.slaComplianceRate * 100), series: '待提升' })),
-            ]}
-            height={200}
-          />
-        </CardPanel>
-      </div>
+        {/* Personal Trend Chart */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel title="个人趋势（近14天）" extra={<Tag color="cyan">解决数 & 耗时</Tag>}>
+            <TrendLineChart
+              title=""
+              data={[
+                recentTrend.map((d) => ({
+                  period: dayjs(d.period).format('MM/DD'),
+                  value: d.resolved,
+                  label: '解决数',
+                })),
+              ]}
+              height={200}
+              showArea={true}
+              smooth={false}
+            />
+          </CardPanel>
+        </div>
 
-      {/* Active Tickets */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <CardPanel
-          title="活跃工单"
-          extra={
-            <Badge count={data.activeTickets.length} style={{ backgroundColor: COLORS.info }}>
-              <Tag>处理中</Tag>
-            </Badge>
-          }
-        >
-          <Table
-            dataSource={data.activeTickets}
-            columns={activeTicketColumns}
-            rowKey="ticketId"
-            pagination={false}
-            size="middle"
-            rowClassName={(record) => (record.isOverdue ? 'overdue-row' : '')}
-          />
-          {/* Inline style for overdue row highlighting */}
-          <style>{`
+        {/* Strengths & Weaknesses */}
+        <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
+          {/* Strengths */}
+          <Col xs={24} xl={12}>
+            <CardPanel title="优势领域" extra={<RiseOutlined style={{ color: COLORS.success }} />}>
+              <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                {data.strengths.map((s) => (
+                  <Card key={s.category} size="small">
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: spacing.sm,
+                      }}
+                    >
+                      <Tag color={COLORS.success}>{categoryName(s.category)}</Tag>
+                      <Space>
+                        <Text style={{ fontSize: spacing[3] }}>解决 {s.resolvedCount} 个</Text>
+                        <Text style={{ fontSize: spacing[3] }}>
+                          SLA {(s.slaComplianceRate * 100).toFixed(0)}%
+                        </Text>
+                      </Space>
+                    </div>
+                    <GaugeChart
+                      value={s.proficiencyScore}
+                      title={`熟练度 ${s.proficiencyScore}%`}
+                      max={100}
+                      size={120}
+                      unit="%"
+                    />
+                  </Card>
+                ))}
+              </Space>
+            </CardPanel>
+          </Col>
+
+          {/* Weaknesses */}
+          <Col xs={24} xl={12}>
+            <CardPanel
+              title="待提升领域"
+              extra={<WarningOutlined style={{ color: COLORS.warning }} />}
+            >
+              <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                {data.weaknesses.map((w) => (
+                  <Card
+                    key={w.category}
+                    size="small"
+                    style={{
+                      borderLeft: `3px solid ${
+                        w.slaComplianceRate < 0.6 ? COLORS.error : COLORS.warning
+                      }`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: spacing.sm,
+                      }}
+                    >
+                      <Tag color={w.slaComplianceRate < 0.6 ? 'error' : 'warning'}>
+                        {categoryName(w.category)}
+                      </Tag>
+                      <Space>
+                        <Text style={{ fontSize: spacing[3] }}>解决 {w.resolvedCount} 个</Text>
+                        <Text style={{ fontSize: spacing[3] }}>
+                          SLA {(w.slaComplianceRate * 100).toFixed(0)}%
+                        </Text>
+                      </Space>
+                    </div>
+                    <GaugeChart
+                      value={Math.round(w.slaComplianceRate * 100)}
+                      title={`SLA ${Math.round(w.slaComplianceRate * 100)}%`}
+                      max={100}
+                      size={120}
+                      unit="%"
+                      thresholds={{ warning: 70, danger: 60 }}
+                    />
+                    <div style={{ marginTop: spacing.sm }}>
+                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                        <WarningOutlined style={{ marginRight: 4 }} />
+                        建议: {w.suggestion}
+                      </Text>
+                    </div>
+                  </Card>
+                ))}
+              </Space>
+            </CardPanel>
+          </Col>
+        </Row>
+
+        {/* Ability Distribution */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel title="能力分布">
+            <BarChart
+              title="各类别熟练度"
+              data={[
+                ...data.strengths.map((s) => ({
+                  label: categoryName(s.category),
+                  value: s.proficiencyScore,
+                  series: '优势',
+                })),
+                ...data.weaknesses.map((w) => ({
+                  label: categoryName(w.category),
+                  value: Math.round(w.slaComplianceRate * 100),
+                  series: '待提升',
+                })),
+              ]}
+              height={200}
+            />
+          </CardPanel>
+        </div>
+
+        {/* Active Tickets */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <CardPanel
+            title="活跃工单"
+            extra={
+              <Badge count={data.activeTickets.length} style={{ backgroundColor: COLORS.info }}>
+                <Tag>处理中</Tag>
+              </Badge>
+            }
+          >
+            <Table
+              dataSource={data.activeTickets}
+              columns={activeTicketColumns}
+              rowKey="ticketId"
+              pagination={false}
+              size="middle"
+              rowClassName={(record) => (record.isOverdue ? 'overdue-row' : '')}
+            />
+            {/* Inline style for overdue row highlighting */}
+            <style>{`
             .overdue-row {
               background-color: ${colors.error[50]} !important;
             }
@@ -481,8 +491,8 @@ const EngineerDashboard: React.FC = () => {
               background-color: ${colors.error[100]} !important;
             }
           `}</style>
-        </CardPanel>
-      </div>
+          </CardPanel>
+        </div>
       </DataState>
     </div>
   );

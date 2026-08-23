@@ -5,7 +5,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Popconfirm, message } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, StopOutlined, CloudServerOutlined,} from '@ant-design/icons';
+import { ReloadOutlined, StopOutlined, CloudServerOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -27,7 +27,7 @@ const BuildPodList: React.FC = () => {
     try {
       const response = await getBuildPods();
       const apiData = response.data;
-      setPods(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
+      setPods(Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? []));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建 Pod 失败：${error.message}`);
@@ -76,165 +76,173 @@ const BuildPodList: React.FC = () => {
     }
   };
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'runId',
-      label: 'Run ID',
-      options: [
-        { label: 'All', value: 'all' },
-        ...Array.from(new Set(pods.map((p) => p.runId)))
-          .slice(0, 10)
-          .map((id) => ({
-            label: id,
-            value: id,
-          })),
-      ],
-    },
-    {
-      key: 'stageId',
-      label: 'Stage ID',
-      options: [
-        { label: 'All', value: 'all' },
-        ...Array.from(new Set(pods.map((p) => p.stageId)))
-          .slice(0, 10)
-          .map((id) => ({
-            label: id,
-            value: id,
-          })),
-      ],
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      options: [
-        { label: 'All', value: 'all' },
-        { label: 'Running', value: 'running' },
-        { label: 'Completed', value: 'completed' },
-        { label: 'Failed', value: 'failed' },
-        { label: 'Cancelled', value: 'cancelled' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'runId',
+        label: 'Run ID',
+        options: [
+          { label: 'All', value: 'all' },
+          ...Array.from(new Set(pods.map((p) => p.runId)))
+            .slice(0, 10)
+            .map((id) => ({
+              label: id,
+              value: id,
+            })),
+        ],
+      },
+      {
+        key: 'stageId',
+        label: 'Stage ID',
+        options: [
+          { label: 'All', value: 'all' },
+          ...Array.from(new Set(pods.map((p) => p.stageId)))
+            .slice(0, 10)
+            .map((id) => ({
+              label: id,
+              value: id,
+            })),
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        options: [
+          { label: 'All', value: 'all' },
+          { label: 'Running', value: 'running' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Failed', value: 'failed' },
+          { label: 'Cancelled', value: 'cancelled' },
+        ],
+      },
+    ],
+    []
+  );
 
-  const columns: TableColumn<BuildPod>[] = useMemo<TableColumn<BuildPod>[]>(() => [
-    {
-      key: 'name',
-      title: 'Pod Name',
-      dataIndex: 'name',
-      width: 220,
-      sortable: true,
-      render: (_value, record) => (
-        <Text
-          strong
-          style={{ cursor: 'pointer', color: colors.primary[500] }}
-          onClick={() => navigate(`/console/build-env/pods/${record.id}`)}
-        >
-          {record.name}
-        </Text>
-      ),
-    },
-    {
-      key: 'namespace',
-      title: 'Namespace',
-      dataIndex: 'namespace',
-      width: 160,
-      render: (value) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'runId',
-      title: 'Run ID',
-      dataIndex: 'runId',
-      width: 160,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'stageId',
-      title: 'Stage ID',
-      dataIndex: 'stageId',
-      width: 160,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      width: 130,
-      render: (value) => {
-        const statusMap: Record<string, unknown> = {
-          running: 'running',
-          completed: 'success',
-          failed: 'failed',
-          cancelled: 'cancelled',
-        };
-        return <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />;
-      },
-    },
-    {
-      key: 'createdAt',
-      title: 'Created',
-      dataIndex: 'createdAt',
-      width: 140,
-      sortable: true,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'duration',
-      title: 'Duration',
-      width: 120,
-      render: (_: unknown, record: BuildPod) => {
-        if (!record.startedAt) return <Text type="secondary">-</Text>;
-        const end = record.completedAt ? dayjs(record.completedAt) : dayjs();
-        const diff = end.diff(dayjs(record.startedAt), 'second');
-        const mins = Math.floor(diff / 60);
-        const secs = diff % 60;
-        return <Text>{mins > 0 ? `${mins}m ${secs}s` : `${secs}s`}</Text>;
-      },
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 140,
-      render: (_: unknown, record: BuildPod) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
+  const columns: TableColumn<BuildPod>[] = useMemo<TableColumn<BuildPod>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Pod Name',
+        dataIndex: 'name',
+        width: 220,
+        sortable: true,
+        render: (_value, record) => (
+          <Text
+            strong
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
             onClick={() => navigate(`/console/build-env/pods/${record.id}`)}
           >
-            View
-          </Button>
-          {record.status === 'running' && (
-            <Popconfirm
-              title="Cancel this build pod?"
-              onConfirm={() => handleCancel(record.id)}
-              okText="Cancel"
-              cancelText="No"
+            {record.name}
+          </Text>
+        ),
+      },
+      {
+        key: 'namespace',
+        title: 'Namespace',
+        dataIndex: 'namespace',
+        width: 160,
+        render: (value) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'runId',
+        title: 'Run ID',
+        dataIndex: 'runId',
+        width: 160,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'stageId',
+        title: 'Stage ID',
+        dataIndex: 'stageId',
+        width: 160,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        dataIndex: 'status',
+        width: 130,
+        render: (value) => {
+          const statusMap: Record<string, unknown> = {
+            running: 'running',
+            completed: 'success',
+            failed: 'failed',
+            cancelled: 'cancelled',
+          };
+          return (
+            <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: 'Created',
+        dataIndex: 'createdAt',
+        width: 140,
+        sortable: true,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'duration',
+        title: 'Duration',
+        width: 120,
+        render: (_: unknown, record: BuildPod) => {
+          if (!record.startedAt) return <Text type="secondary">-</Text>;
+          const end = record.completedAt ? dayjs(record.completedAt) : dayjs();
+          const diff = end.diff(dayjs(record.startedAt), 'second');
+          const mins = Math.floor(diff / 60);
+          const secs = diff % 60;
+          return <Text>{mins > 0 ? `${mins}m ${secs}s` : `${secs}s`}</Text>;
+        },
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        width: 140,
+        render: (_: unknown, record: BuildPod) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              onClick={() => navigate(`/console/build-env/pods/${record.id}`)}
             >
-              <Button type="link" size="small" danger icon={<StopOutlined />}>
-                Cancel
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ], [handleCancel, navigate]);
+              View
+            </Button>
+            {record.status === 'running' && (
+              <Popconfirm
+                title="Cancel this build pod?"
+                onConfirm={() => handleCancel(record.id)}
+                okText="Cancel"
+                cancelText="No"
+              >
+                <Button type="link" size="small" danger icon={<StopOutlined />}>
+                  Cancel
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [handleCancel, navigate]
+  );
 
   return (
     <div style={{ padding: 0 }}>

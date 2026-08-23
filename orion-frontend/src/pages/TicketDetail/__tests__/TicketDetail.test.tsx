@@ -144,7 +144,9 @@ describe('TicketDetail', () => {
   });
 
   it('should show unassigned for tickets without assignee', async () => {
-    vi.mocked(ticketingApi.getTicket).mockResolvedValue({ data: { data: mockTicketTKT004 } } as any);
+    vi.mocked(ticketingApi.getTicket).mockResolvedValue({
+      data: { data: mockTicketTKT004 },
+    } as any);
     renderWithRoute('/tickets/TKT-004');
     await waitFor(() => {
       expect(screen.getAllByText('未分配').length).toBeGreaterThanOrEqual(1);

@@ -222,7 +222,11 @@ const OrchestrationPage: React.FC = () => {
           <Text strong style={{ cursor: 'pointer' }} onClick={() => setDetailFlow(record)}>
             {v}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: record.description }}>
+          <Text
+            type="secondary"
+            style={{ fontSize: 12 }}
+            ellipsis={{ tooltip: record.description }}
+          >
             {record.description}
           </Text>
         </Space>
@@ -241,7 +245,9 @@ const OrchestrationPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (v: string) => <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>,
+      render: (v: string) => (
+        <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>
+      ),
     },
     {
       title: '步骤进度',
@@ -254,7 +260,17 @@ const OrchestrationPage: React.FC = () => {
         const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
         return (
           <Space direction="vertical" size={0} style={{ width: '100%' }}>
-            <Progress percent={percent} size="small" status={record.status === 'failed' ? 'exception' : record.status === 'completed' ? 'success' : 'active'} />
+            <Progress
+              percent={percent}
+              size="small"
+              status={
+                record.status === 'failed'
+                  ? 'exception'
+                  : record.status === 'completed'
+                    ? 'success'
+                    : 'active'
+              }
+            />
             <Text type="secondary" style={{ fontSize: 11 }}>
               {completed}/{total} 步骤
             </Text>
@@ -359,7 +375,11 @@ const OrchestrationPage: React.FC = () => {
       width: 140,
       render: (_: unknown, record: OrchestrationStep) => {
         const deps = record.dependsOn || [];
-        return deps.length > 0 ? deps.map((d: string) => <Tag key={d}>{d}</Tag>) : <Text type="secondary">无</Text>;
+        return deps.length > 0 ? (
+          deps.map((d: string) => <Tag key={d}>{d}</Tag>)
+        ) : (
+          <Text type="secondary">无</Text>
+        );
       },
     },
     {
@@ -443,10 +463,18 @@ const OrchestrationPage: React.FC = () => {
       </Card>
 
       {/* Dependencies */}
-      <Card title={<><AppstoreOutlined /> 步骤依赖关系</>}>
+      <Card
+        title={
+          <>
+            <AppstoreOutlined /> 步骤依赖关系
+          </>
+        }
+      >
         <Table
           columns={dependencyColumns}
-          dataSource={flows.flatMap((f) => (f.steps || []).map((s) => ({ ...s, flowId: f.id, flowName: f.name })))}
+          dataSource={flows.flatMap((f) =>
+            (f.steps || []).map((s) => ({ ...s, flowId: f.id, flowName: f.name }))
+          )}
           rowKey={(record) => `${record.flowId}-${record.id}`}
           loading={loading}
           pagination={{ pageSize: 10 }}
@@ -462,23 +490,29 @@ const OrchestrationPage: React.FC = () => {
         width={700}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入工作流名称' }]}>
+          <Form.Item
+            label="名称"
+            name="name"
+            rules={[{ required: true, message: '请输入工作流名称' }]}
+          >
             <Input placeholder="工作流名称" />
           </Form.Item>
           <Form.Item label="描述" name="description">
             <Input.TextArea rows={2} placeholder="工作流描述" />
           </Form.Item>
-          <Form.Item label="领域" name="domains" rules={[{ required: true, message: '请选择至少一个领域' }]}>
-            <Select
-              mode="multiple"
-              placeholder="选择相关领域"
-              options={domainOptions}
-            />
+          <Form.Item
+            label="领域"
+            name="domains"
+            rules={[{ required: true, message: '请选择至少一个领域' }]}
+          >
+            <Select mode="multiple" placeholder="选择相关领域" options={domainOptions} />
           </Form.Item>
           <Form.Item label="步骤配置 (JSON)" name="stepsJson">
             <Input.TextArea
               rows={6}
-              placeholder={'[\n  {"name": "Build", "domain": "build", "action": "execute"},\n  {"name": "Test", "domain": "test", "action": "execute", "dependsOn": ["Build"]}\n]'}
+              placeholder={
+                '[\n  {"name": "Build", "domain": "build", "action": "execute"},\n  {"name": "Test", "domain": "test", "action": "execute", "dependsOn": ["Build"]}\n]'
+              }
             />
           </Form.Item>
         </Form>
@@ -494,17 +528,29 @@ const OrchestrationPage: React.FC = () => {
         {detailFlow && (
           <>
             <Descriptions column={2} bordered>
-              <Descriptions.Item label="名称" span={2}>{detailFlow.name}</Descriptions.Item>
-              <Descriptions.Item label="描述" span={2}>{detailFlow.description}</Descriptions.Item>
+              <Descriptions.Item label="名称" span={2}>
+                {detailFlow.name}
+              </Descriptions.Item>
+              <Descriptions.Item label="描述" span={2}>
+                {detailFlow.description}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusColorMap[detailFlow.status]}>{statusLabelMap[detailFlow.status]}</Tag>
+                <Tag color={statusColorMap[detailFlow.status]}>
+                  {statusLabelMap[detailFlow.status]}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="创建者">{detailFlow.createdBy}</Descriptions.Item>
               <Descriptions.Item label="领域" span={2}>
-                {(detailFlow.domains || []).map((d: string) => <Tag key={d}>{d}</Tag>)}
+                {(detailFlow.domains || []).map((d: string) => (
+                  <Tag key={d}>{d}</Tag>
+                ))}
               </Descriptions.Item>
-              <Descriptions.Item label="创建时间">{new Date(detailFlow.createdAt).toLocaleString('zh-CN')}</Descriptions.Item>
-              <Descriptions.Item label="更新时间">{new Date(detailFlow.updatedAt).toLocaleString('zh-CN')}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {new Date(detailFlow.createdAt).toLocaleString('zh-CN')}
+              </Descriptions.Item>
+              <Descriptions.Item label="更新时间">
+                {new Date(detailFlow.updatedAt).toLocaleString('zh-CN')}
+              </Descriptions.Item>
             </Descriptions>
 
             {/* Steps */}

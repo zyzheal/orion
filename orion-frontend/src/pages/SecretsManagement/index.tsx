@@ -7,8 +7,25 @@ import { PermissionGuard } from '@/components/PermissionGuard';
  * Uses Ant Design's Password input for secret value fields.
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Modal, Form, Input, Select, message, Tag, Popconfirm } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, KeyOutlined } from '@ant-design/icons';
+import {
+  Typography,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Tag,
+  Popconfirm,
+} from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  KeyOutlined,
+} from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -210,115 +227,117 @@ const SecretsManagementInner: React.FC = () => {
 
   // ---- Filter Definitions ----
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'scope',
-      label: '作用域',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '组织 (org)', value: 'org' },
-        { label: '环境 (environment)', value: 'environment' },
-        { label: '项目 (project)', value: 'project' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'scope',
+        label: '作用域',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '组织 (org)', value: 'org' },
+          { label: '环境 (environment)', value: 'environment' },
+          { label: '项目 (project)', value: 'project' },
+        ],
+      },
+    ],
+    []
+  );
 
   // ---- Column Definitions ----
 
-  const columns: TableColumn<Secret>[] = useMemo<TableColumn<Secret>[]>(() => [
-    {
-      key: 'name',
-      title: '名称',
-      dataIndex: 'name',
-      width: 250,
-      sortable: true,
-      filterable: true,
-      render: (value: unknown, record) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{String(value)}</Text>
-          {record.description && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.description}
-            </Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'scope',
-      title: '作用域',
-      dataIndex: 'scope',
-      width: 160,
-      render: (value: unknown) => {
-        const scope = value as SecretScope;
-        return (
-          <Tag color={scopeColorMap[scope] || 'default'}>
-            {scopeLabelMap[scope] || scope}
-          </Tag>
-        );
+  const columns: TableColumn<Secret>[] = useMemo<TableColumn<Secret>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '名称',
+        dataIndex: 'name',
+        width: 250,
+        sortable: true,
+        filterable: true,
+        render: (value: unknown, record) => (
+          <Space direction="vertical" size={0}>
+            <Text strong>{String(value)}</Text>
+            {record.description && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.description}
+              </Text>
+            )}
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'value',
-      title: 'Secret 值',
-      width: 120,
-      render: () => (
-        <Text type="secondary" style={{ fontFamily: 'monospace' }}>
-          {MASKED_VALUE}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdBy',
-      title: '创建人',
-      dataIndex: 'createdBy',
-      width: 140,
-      render: (value: unknown) => (
-        <Text type="secondary">{value ? String(value) : '-'}</Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description={`确定要删除 Secret "${record.name}" 吗？此操作不可撤销。`}
-            onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+      {
+        key: 'scope',
+        title: '作用域',
+        dataIndex: 'scope',
+        width: 160,
+        render: (value: unknown) => {
+          const scope = value as SecretScope;
+          return (
+            <Tag color={scopeColorMap[scope] || 'default'}>{scopeLabelMap[scope] || scope}</Tag>
+          );
+        },
+      },
+      {
+        key: 'value',
+        title: 'Secret 值',
+        width: 120,
+        render: () => (
+          <Text type="secondary" style={{ fontFamily: 'monospace' }}>
+            {MASKED_VALUE}
+          </Text>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'createdBy',
+        title: '创建人',
+        dataIndex: 'createdBy',
+        width: 140,
+        render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            >
+              编辑
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, openEdit]);
+            <Popconfirm
+              title="确认删除"
+              description={`确定要删除 Secret "${record.name}" 吗？此操作不可撤销。`}
+              onConfirm={() => handleDelete(record.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, openEdit]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -458,7 +477,10 @@ const SecretsManagementInner: React.FC = () => {
               即将编辑 Secret: <Text strong>{editingSecret.name}</Text>
             </Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12, marginTop: spacing.sm, display: 'block' }}>
+            <Text
+              type="secondary"
+              style={{ fontSize: 12, marginTop: spacing.sm, display: 'block' }}
+            >
               注意：更新 Secret 值后，所有引用该 Secret 的 Pipeline 在下一次运行时将使用新的值。
               旧值将被永久删除。
             </Text>
@@ -481,11 +503,7 @@ const SecretsManagementInner: React.FC = () => {
         destroyOnClose
       >
         <Form form={editForm} layout="vertical" autoComplete="off">
-          <Form.Item
-            name="value"
-            label="新 Secret 值"
-            extra="留空则不更新 Secret 值"
-          >
+          <Form.Item name="value" label="新 Secret 值" extra="留空则不更新 Secret 值">
             <Password
               placeholder="输入新的密钥值（将加密存储）"
               autoComplete="new-password"
@@ -506,4 +524,4 @@ export default () => (
   <PermissionGuard resource="secrets" action="read" pageLevel resourceName="Secret 管理">
     <SecretsManagementInner />
   </PermissionGuard>
-)
+);

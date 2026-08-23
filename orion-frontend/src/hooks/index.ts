@@ -19,16 +19,6 @@ export type {
   BackoffConfig,
   HeartbeatConfig,
 } from './useWebSocket';
-export type {
-  BiDashboardType,
-  BiDashboardData,
-  UseBiDashboardResult,
-} from './useBiDashboard';
-export type {
-  ChartPerformanceOptions,
-  useChartPerformanceReturn,
-} from './useChartPerformance';
-export type {
-  UseLazyLoadOptions,
-  UseLazyLoadReturn,
-} from './useLazyLoad';
+export type { BiDashboardType, BiDashboardData, UseBiDashboardResult } from './useBiDashboard';
+export type { ChartPerformanceOptions, useChartPerformanceReturn } from './useChartPerformance';
+export type { UseLazyLoadOptions, UseLazyLoadReturn } from './useLazyLoad';

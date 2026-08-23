@@ -167,7 +167,9 @@ const AuditLogPage: React.FC = () => {
       ) : (
         <div style={{ padding: spacing.lg }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}
+          >
             <div>
               <Title level={2}>审计日志</Title>
               <Text type="secondary">不可逆审计链、完整性验证</Text>

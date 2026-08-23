@@ -113,5 +113,7 @@ export function getEnvironmentLockStatus(id: string) {
 }
 
 export function checkDeploymentAllowed(id: string) {
-  return api.get<{ allowed: boolean; reason?: string }>(`/api/v1/environments/${id}/deployment-allowed`);
+  return api.get<{ allowed: boolean; reason?: string }>(
+    `/api/v1/environments/${id}/deployment-allowed`
+  );
 }

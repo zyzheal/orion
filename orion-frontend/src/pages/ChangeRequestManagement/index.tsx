@@ -326,15 +326,32 @@ export default function ChangeRequestManagementPage() {
   const handleAIRisk = async (record: ChangeRequest) => {
     try {
       const risk = await getChangeRiskAnalysis(record.id);
-      const analysis = (risk && 'data' in risk ? risk.data : risk) as unknown as { riskScore?: string; risk_score?: string; riskLevel?: string; risk_level?: string; riskAssessment?: string; risk_assessment?: string };
+      const analysis = (risk && 'data' in risk ? risk.data : risk) as unknown as {
+        riskScore?: string;
+        risk_score?: string;
+        riskLevel?: string;
+        risk_level?: string;
+        riskAssessment?: string;
+        risk_assessment?: string;
+      };
       if (analysis) {
         message.success({
           content: (
             <div>
               <strong style={{ display: 'block', marginBottom: 4 }}>AI 变更风险评估</strong>
               <div>变更: {record.title}</div>
-              <div>风险分: <span style={{ fontWeight: 600 }}>{String(analysis.riskScore ?? analysis.risk_score ?? '-')}</span></div>
-              <div>风险等级: <span style={{ fontWeight: 600 }}>{String(analysis.riskLevel ?? analysis.risk_level ?? '-')}</span></div>
+              <div>
+                风险分:{' '}
+                <span style={{ fontWeight: 600 }}>
+                  {String(analysis.riskScore ?? analysis.risk_score ?? '-')}
+                </span>
+              </div>
+              <div>
+                风险等级:{' '}
+                <span style={{ fontWeight: 600 }}>
+                  {String(analysis.riskLevel ?? analysis.risk_level ?? '-')}
+                </span>
+              </div>
               <div style={{ marginTop: 4, fontSize: 12, color: colors.neutral[600] }}>
                 {String(analysis.riskAssessment ?? analysis.risk_assessment ?? '暂无详细评估')}
               </div>

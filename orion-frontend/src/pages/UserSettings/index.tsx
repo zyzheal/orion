@@ -246,8 +246,7 @@ export const UserSettingsPage: React.FC = () => {
       title: '过期时间',
       dataIndex: 'expiresAt',
       key: 'expiresAt',
-      render: (text?: string) =>
-        text ? new Date(text).toLocaleString('zh-CN') : '永不过期',
+      render: (text?: string) => (text ? new Date(text).toLocaleString('zh-CN') : '永不过期'),
     },
     {
       title: '操作',
@@ -357,11 +356,7 @@ export const UserSettingsPage: React.FC = () => {
             boxShadow: shadows.card,
           }}
         >
-          <Form
-            form={passwordForm}
-            layout="vertical"
-            onFinish={handlePasswordChange}
-          >
+          <Form form={passwordForm} layout="vertical" onFinish={handlePasswordChange}>
             <Form.Item
               name="currentPassword"
               label="当前密码"
@@ -433,11 +428,7 @@ export const UserSettingsPage: React.FC = () => {
             boxShadow: shadows.card,
           }}
         >
-          <Form
-            form={notificationForm}
-            layout="vertical"
-            onFinish={handleNotificationSave}
-          >
+          <Form form={notificationForm} layout="vertical" onFinish={handleNotificationSave}>
             <Form.Item name="emailEnabled" label="邮件通知" valuePropName="checked">
               <Switch />
             </Form.Item>

@@ -52,9 +52,24 @@ const tagColorMap: Record<string, string> = {
 
 const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
   const items = [
-    { key: 'additions', label: `新增 (${diff.additions.length})`, items: diff.additions, color: 'green' },
-    { key: 'deletions', label: `删除 (${diff.deletions.length})`, items: diff.deletions, color: 'red' },
-    { key: 'modifications', label: `修改 (${diff.modifications.length})`, items: diff.modifications, color: 'blue' },
+    {
+      key: 'additions',
+      label: `新增 (${diff.additions.length})`,
+      items: diff.additions,
+      color: 'green',
+    },
+    {
+      key: 'deletions',
+      label: `删除 (${diff.deletions.length})`,
+      items: diff.deletions,
+      color: 'red',
+    },
+    {
+      key: 'modifications',
+      label: `修改 (${diff.modifications.length})`,
+      items: diff.modifications,
+      color: 'blue',
+    },
   ];
 
   return (
@@ -66,49 +81,57 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
         items={items.map(({ key, label, items: list, color }) => ({
           key,
           label,
-          children: list.length === 0 ? (
-            <Text type="secondary">无变更</Text>
-          ) : (
-            <div>
-              {list.map((item: DiffItem, idx: number) => (
-                <div
-                  key={String(idx)}
-                  style={{
-                    padding: '8px 12px',
-                    marginBottom: spacing.sm,
-                    background: color === 'green' ? colors.success[50] : color === 'red' ? colors.error[50] : colors.primary[50],
-                    borderRadius: 4,
-                    borderLeft: `3px solid ${color === 'green' ? colors.success[500] : color === 'red' ? colors.error[500] : colors.primary[500]}`,
-                  }}
-                >
-                  <Tag color={color}>{item.type}</Tag>
-                  <Text strong style={{ marginLeft: spacing.sm }}>{item.path}</Text>
-                  {item.oldValue !== undefined && item.oldValue !== null && (
-                    <div style={{ marginTop: 4 }}>
-                      <Text type="secondary">旧值: </Text>
-                      <Paragraph
-                        copyable={{ text: JSON.stringify(item.oldValue) }}
-                        style={{ margin: 0, display: 'inline' }}
-                      >
-                        <code>{JSON.stringify(item.oldValue)}</code>
-                      </Paragraph>
-                    </div>
-                  )}
-                  {item.newValue !== undefined && item.newValue !== null && (
-                    <div style={{ marginTop: 4 }}>
-                      <Text type="secondary">新值: </Text>
-                      <Paragraph
-                        copyable={{ text: JSON.stringify(item.newValue) }}
-                        style={{ margin: 0, display: 'inline' }}
-                      >
-                        <code>{JSON.stringify(item.newValue)}</code>
-                      </Paragraph>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ),
+          children:
+            list.length === 0 ? (
+              <Text type="secondary">无变更</Text>
+            ) : (
+              <div>
+                {list.map((item: DiffItem, idx: number) => (
+                  <div
+                    key={String(idx)}
+                    style={{
+                      padding: '8px 12px',
+                      marginBottom: spacing.sm,
+                      background:
+                        color === 'green'
+                          ? colors.success[50]
+                          : color === 'red'
+                            ? colors.error[50]
+                            : colors.primary[50],
+                      borderRadius: 4,
+                      borderLeft: `3px solid ${color === 'green' ? colors.success[500] : color === 'red' ? colors.error[500] : colors.primary[500]}`,
+                    }}
+                  >
+                    <Tag color={color}>{item.type}</Tag>
+                    <Text strong style={{ marginLeft: spacing.sm }}>
+                      {item.path}
+                    </Text>
+                    {item.oldValue !== undefined && item.oldValue !== null && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type="secondary">旧值: </Text>
+                        <Paragraph
+                          copyable={{ text: JSON.stringify(item.oldValue) }}
+                          style={{ margin: 0, display: 'inline' }}
+                        >
+                          <code>{JSON.stringify(item.oldValue)}</code>
+                        </Paragraph>
+                      </div>
+                    )}
+                    {item.newValue !== undefined && item.newValue !== null && (
+                      <div style={{ marginTop: 4 }}>
+                        <Text type="secondary">新值: </Text>
+                        <Paragraph
+                          copyable={{ text: JSON.stringify(item.newValue) }}
+                          style={{ margin: 0, display: 'inline' }}
+                        >
+                          <code>{JSON.stringify(item.newValue)}</code>
+                        </Paragraph>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ),
         }))}
       />
     </div>
@@ -177,11 +200,7 @@ const PipelineVersionPage: React.FC = () => {
     try {
       const values = await rollbackForm.validateFields();
       setRollbackLoading(true);
-      await pipelineVersionsApi.rollback(
-        selectedPipelineId,
-        selectedVersion.id,
-        values.reason
-      );
+      await pipelineVersionsApi.rollback(selectedPipelineId, selectedVersion.id, values.reason);
       message.success('回退成功');
       setRollbackModalVisible(false);
       rollbackForm.resetFields();
@@ -281,7 +300,8 @@ const PipelineVersionPage: React.FC = () => {
       ellipsis: true,
       render: (v: any, record) => {
         // Support both snake_case and camelCase from backend
-        const summary = (v as string) || (record as { changeSummary?: string }).changeSummary || '-';
+        const summary =
+          (v as string) || (record as { changeSummary?: string }).changeSummary || '-';
         return <Text type="secondary">{summary}</Text>;
       },
     },
@@ -295,14 +315,10 @@ const PipelineVersionPage: React.FC = () => {
         return (
           <Space direction="vertical" size={0}>
             {durationMs !== undefined && (
-              <Text style={{ fontSize: 12 }}>
-                耗时: {(durationMs / 1000).toFixed(1)}s
-              </Text>
+              <Text style={{ fontSize: 12 }}>耗时: {(durationMs / 1000).toFixed(1)}s</Text>
             )}
             {successRate !== undefined && (
-              <Text style={{ fontSize: 12 }}>
-                成功率: {(successRate * 100).toFixed(1)}%
-              </Text>
+              <Text style={{ fontSize: 12 }}>成功率: {(successRate * 100).toFixed(1)}%</Text>
             )}
             {durationMs === undefined && successRate === undefined && (
               <Text type="secondary">-</Text>
@@ -330,7 +346,11 @@ const PipelineVersionPage: React.FC = () => {
               {tag}
             </Tag>
           ))}
-          {record.is_baseline && <Tag color="gold" icon={<PushpinOutlined />}>基线</Tag>}
+          {record.is_baseline && (
+            <Tag color="gold" icon={<PushpinOutlined />}>
+              基线
+            </Tag>
+          )}
         </Space>
       ),
     },
@@ -360,15 +380,25 @@ const PipelineVersionPage: React.FC = () => {
       render: (_, record) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
               详情
             </Button>
           </Tooltip>
           <Tooltip title="对比">
-            <Button type="link" size="small" icon={<DiffOutlined />} onClick={() => {
-              diffForm.setFieldsValue({ sourceVersion: record.id });
-              openDiffModal();
-            }} />
+            <Button
+              type="link"
+              size="small"
+              icon={<DiffOutlined />}
+              onClick={() => {
+                diffForm.setFieldsValue({ sourceVersion: record.id });
+                openDiffModal();
+              }}
+            />
           </Tooltip>
           <Tooltip title="回退">
             <Button
@@ -381,13 +411,15 @@ const PipelineVersionPage: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="添加标签">
-            <Button type="link" size="small" icon={<TagsOutlined />} onClick={() => openTagModal(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<TagsOutlined />}
+              onClick={() => openTagModal(record)}
+            />
           </Tooltip>
           {!record.is_baseline && (
-            <Popconfirm
-              title="设为基线版本?"
-              onConfirm={() => handleSetBaseline(record, true)}
-            >
+            <Popconfirm title="设为基线版本?" onConfirm={() => handleSetBaseline(record, true)}>
               <Button type="link" size="small" icon={<PushpinOutlined />}>
                 设为基线
               </Button>
@@ -400,7 +432,11 @@ const PipelineVersionPage: React.FC = () => {
 
   // Version options for diff modal
   const versionOptions = useMemo(
-    () => versions.map((v) => ({ label: `v${v.version}${v.change_summary ? ` - ${v.change_summary}` : ''}`, value: v.id })),
+    () =>
+      versions.map((v) => ({
+        label: `v${v.version}${v.change_summary ? ` - ${v.change_summary}` : ''}`,
+        value: v.id,
+      })),
     [versions]
   );
 
@@ -465,7 +501,9 @@ const PipelineVersionPage: React.FC = () => {
               <Descriptions.Item label="基线">
                 {selectedVersion.is_baseline ? <Tag color="gold">是</Tag> : <Tag>否</Tag>}
               </Descriptions.Item>
-              <Descriptions.Item label="创建人">{selectedVersion.created_by || '-'}</Descriptions.Item>
+              <Descriptions.Item label="创建人">
+                {selectedVersion.created_by || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(selectedVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}
               </Descriptions.Item>
@@ -475,7 +513,9 @@ const PipelineVersionPage: React.FC = () => {
               <Descriptions.Item label="标签" span={2}>
                 <Space wrap>
                   {selectedVersion.tags?.map((tag) => (
-                    <Tag key={tag} color={tagColorMap[tag]}>{tag}</Tag>
+                    <Tag key={tag} color={tagColorMap[tag]}>
+                      {tag}
+                    </Tag>
                   ))}
                   {(!selectedVersion.tags || selectedVersion.tags.length === 0) && (
                     <Text type="secondary">无</Text>
@@ -486,17 +526,25 @@ const PipelineVersionPage: React.FC = () => {
                 {selectedVersion.parent_version_id || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="版本 ID">
-                <Text copyable style={{ fontSize: 12 }}>{selectedVersion.id}</Text>
+                <Text copyable style={{ fontSize: 12 }}>
+                  {selectedVersion.id}
+                </Text>
               </Descriptions.Item>
               {/* Additional metrics if available */}
               {(selectedVersion as { durationMs?: number }).durationMs !== undefined && (
                 <Descriptions.Item label="执行耗时">
-                  {(((selectedVersion as { durationMs?: number }).durationMs as number) / 1000).toFixed(1)}s
+                  {(
+                    ((selectedVersion as { durationMs?: number }).durationMs as number) / 1000
+                  ).toFixed(1)}
+                  s
                 </Descriptions.Item>
               )}
               {(selectedVersion as { successRate?: number }).successRate !== undefined && (
                 <Descriptions.Item label="成功率">
-                  {(((selectedVersion as { successRate?: number }).successRate as number) * 100).toFixed(1)}%
+                  {(
+                    ((selectedVersion as { successRate?: number }).successRate as number) * 100
+                  ).toFixed(1)}
+                  %
                 </Descriptions.Item>
               )}
             </Descriptions>
@@ -524,14 +572,20 @@ const PipelineVersionPage: React.FC = () => {
             <div style={{ marginTop: spacing.lg }}>
               <Title level={5}>快捷操作</Title>
               <Space wrap>
-                <Button icon={<RollbackOutlined />} onClick={() => openRollbackModal(selectedVersion)}>
+                <Button
+                  icon={<RollbackOutlined />}
+                  onClick={() => openRollbackModal(selectedVersion)}
+                >
                   回退到此版本
                 </Button>
                 <Button icon={<TagsOutlined />} onClick={() => openTagModal(selectedVersion)}>
                   添加标签
                 </Button>
                 {!selectedVersion.is_baseline && (
-                  <Button icon={<PushpinOutlined />} onClick={() => handleSetBaseline(selectedVersion, true)}>
+                  <Button
+                    icon={<PushpinOutlined />}
+                    onClick={() => handleSetBaseline(selectedVersion, true)}
+                  >
                     设为基线
                   </Button>
                 )}
@@ -551,14 +605,27 @@ const PipelineVersionPage: React.FC = () => {
         destroyOnClose
       >
         <Form form={diffForm} layout="inline" style={{ marginBottom: spacing.md }}>
-          <Form.Item name="sourceVersion" label="源版本" rules={[{ required: true, message: '请选择源版本' }]}>
+          <Form.Item
+            name="sourceVersion"
+            label="源版本"
+            rules={[{ required: true, message: '请选择源版本' }]}
+          >
             <Select options={versionOptions} style={{ width: 240 }} placeholder="选择源版本" />
           </Form.Item>
-          <Form.Item name="targetVersion" label="目标版本" rules={[{ required: true, message: '请选择目标版本' }]}>
+          <Form.Item
+            name="targetVersion"
+            label="目标版本"
+            rules={[{ required: true, message: '请选择目标版本' }]}
+          >
             <Select options={versionOptions} style={{ width: 240 }} placeholder="选择目标版本" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" icon={<DiffOutlined />} onClick={handleViewDiff} loading={diffLoading}>
+            <Button
+              type="primary"
+              icon={<DiffOutlined />}
+              onClick={handleViewDiff}
+              loading={diffLoading}
+            >
               对比
             </Button>
           </Form.Item>
@@ -590,8 +657,14 @@ const PipelineVersionPage: React.FC = () => {
               </Descriptions.Item>
               <Descriptions.Item label="标签">
                 <Space size={4}>
-                  {selectedVersion.tags?.map((tag) => <Tag key={tag} color={tagColorMap[tag]}>{tag}</Tag>)}
-                  {(!selectedVersion.tags || selectedVersion.tags.length === 0) && <Text type="secondary">无</Text>}
+                  {selectedVersion.tags?.map((tag) => (
+                    <Tag key={tag} color={tagColorMap[tag]}>
+                      {tag}
+                    </Tag>
+                  ))}
+                  {(!selectedVersion.tags || selectedVersion.tags.length === 0) && (
+                    <Text type="secondary">无</Text>
+                  )}
                 </Space>
               </Descriptions.Item>
             </Descriptions>
@@ -604,7 +677,11 @@ const PipelineVersionPage: React.FC = () => {
           </div>
         )}
         <Form form={rollbackForm} layout="vertical">
-          <Form.Item name="reason" label="回退原因" rules={[{ required: true, message: '请输入回退原因' }]}>
+          <Form.Item
+            name="reason"
+            label="回退原因"
+            rules={[{ required: true, message: '请输入回退原因' }]}
+          >
             <Input.TextArea rows={3} placeholder="请说明回退原因..." />
           </Form.Item>
         </Form>
@@ -623,13 +700,21 @@ const PipelineVersionPage: React.FC = () => {
           <div style={{ marginBottom: spacing[3] }}>
             <Text>当前标签: </Text>
             <Space wrap size={4}>
-              {selectedVersion.tags?.map((tag) => <Tag key={tag}>{tag}</Tag>)}
-              {(!selectedVersion.tags || selectedVersion.tags.length === 0) && <Text type="secondary">无</Text>}
+              {selectedVersion.tags?.map((tag) => (
+                <Tag key={tag}>{tag}</Tag>
+              ))}
+              {(!selectedVersion.tags || selectedVersion.tags.length === 0) && (
+                <Text type="secondary">无</Text>
+              )}
             </Space>
           </div>
         )}
         <Form form={tagForm} layout="vertical">
-          <Form.Item name="tag" label="标签名" rules={[{ required: true, message: '请输入标签名' }]}>
+          <Form.Item
+            name="tag"
+            label="标签名"
+            rules={[{ required: true, message: '请输入标签名' }]}
+          >
             <Select
               options={[
                 { label: 'stable', value: 'stable' },

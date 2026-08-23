@@ -61,5 +61,7 @@ export function runQualityCheck(ruleId: string) {
 }
 
 export function listQualityChecks(ruleId?: string) {
-  return api.get<{ data: QualityCheck[] }>('/api/v1/data-quality/checks', { params: ruleId ? { ruleId } : {} });
+  return api.get<{ data: QualityCheck[] }>('/api/v1/data-quality/checks', {
+    params: ruleId ? { ruleId } : {},
+  });
 }

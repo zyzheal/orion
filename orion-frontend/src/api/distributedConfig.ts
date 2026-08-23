@@ -122,7 +122,11 @@ export const listGroups = async (namespaceId?: string) => {
   return res.data;
 };
 
-export const createGroup = async (data: { namespaceId: string; name: string; description?: string }) => {
+export const createGroup = async (data: {
+  namespaceId: string;
+  name: string;
+  description?: string;
+}) => {
   const res = await api.post('/api/v1/config/groups', data);
   return res.data;
 };
@@ -156,13 +160,16 @@ export const getItem = async (id: string) => {
   return res.data;
 };
 
-export const updateItem = async (id: string, data: {
-  value?: string;
-  valueType?: ValueType;
-  encrypted?: boolean;
-  description?: string;
-  labels?: Record<string, string>;
-}) => {
+export const updateItem = async (
+  id: string,
+  data: {
+    value?: string;
+    valueType?: ValueType;
+    encrypted?: boolean;
+    description?: string;
+    labels?: Record<string, string>;
+  }
+) => {
   const res = await api.put(`/api/v1/config/items/${id}`, data);
   return res.data;
 };
@@ -179,7 +186,10 @@ export const getItemHistory = async (id: string) => {
 
 // --- Snapshot ---
 
-export const publishSnapshot = async (groupId: string, data: { environment: string; operator: string }) => {
+export const publishSnapshot = async (
+  groupId: string,
+  data: { environment: string; operator: string }
+) => {
   const res = await api.post(`/api/v1/config/snapshots?groupId=${groupId}`, data);
   return res.data;
 };

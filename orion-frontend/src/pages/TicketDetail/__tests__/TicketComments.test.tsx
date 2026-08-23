@@ -97,9 +97,54 @@ const mockAttachmentsTKT002 = [
 ];
 
 const mockEngineers = [
-  { id: '1', name: '张伟', username: 'zhangwei', email: 'zhangwei@example.com', role: 'engineer', status: 'active', availability: 'available', avatar_url: null, last_login_at: null, last_login_ip: null, settings: {}, created_at: '', updated_at: '', created_by: null },
-  { id: '2', name: '李娜', username: 'lina', email: 'lina@example.com', role: 'engineer', status: 'active', availability: 'busy', avatar_url: null, last_login_at: null, last_login_ip: null, settings: {}, created_at: '', updated_at: '', created_by: null },
-  { id: '3', name: '王磊', username: 'wanglei', email: 'wanglei@example.com', role: 'engineer', status: 'active', availability: 'away', avatar_url: null, last_login_at: null, last_login_ip: null, settings: {}, created_at: '', updated_at: '', created_by: null },
+  {
+    id: '1',
+    name: '张伟',
+    username: 'zhangwei',
+    email: 'zhangwei@example.com',
+    role: 'engineer',
+    status: 'active',
+    availability: 'available',
+    avatar_url: null,
+    last_login_at: null,
+    last_login_ip: null,
+    settings: {},
+    created_at: '',
+    updated_at: '',
+    created_by: null,
+  },
+  {
+    id: '2',
+    name: '李娜',
+    username: 'lina',
+    email: 'lina@example.com',
+    role: 'engineer',
+    status: 'active',
+    availability: 'busy',
+    avatar_url: null,
+    last_login_at: null,
+    last_login_ip: null,
+    settings: {},
+    created_at: '',
+    updated_at: '',
+    created_by: null,
+  },
+  {
+    id: '3',
+    name: '王磊',
+    username: 'wanglei',
+    email: 'wanglei@example.com',
+    role: 'engineer',
+    status: 'active',
+    availability: 'away',
+    avatar_url: null,
+    last_login_at: null,
+    last_login_ip: null,
+    settings: {},
+    created_at: '',
+    updated_at: '',
+    created_by: null,
+  },
 ] as any[];
 
 beforeEach(() => {
@@ -115,7 +160,9 @@ function renderComments(ticketId: string) {
 describe('TicketComments', () => {
   it('should render comment list for TKT-001', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
     expect(screen.getByTestId('ticket-comments-section')).toBeInTheDocument();
     await waitFor(() => {
@@ -126,7 +173,9 @@ describe('TicketComments', () => {
 
   it('should display comment content text', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
     await waitFor(() => {
       const content = screen.getByTestId('comment-content-C001');
@@ -136,7 +185,9 @@ describe('TicketComments', () => {
 
   it('should show both tabs (评论 / 内部备注)', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
     await waitFor(() => {
       expect(screen.getByTestId('tab-comments')).toBeInTheDocument();
@@ -150,7 +201,9 @@ describe('TicketComments', () => {
 
   it('should display internal note badge when switching to internal-note tab', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
 
     await waitFor(() => {
@@ -174,7 +227,9 @@ describe('TicketComments', () => {
 
   it('should show @mentions as tags in comment content', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
 
     await waitFor(() => {
@@ -187,7 +242,9 @@ describe('TicketComments', () => {
 
   it('should render attachments section', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
     await waitFor(() => {
       expect(screen.getByTestId('attachments-section')).toBeInTheDocument();
@@ -208,7 +265,9 @@ describe('TicketComments', () => {
 
   it('should have input area for new comments', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
     await waitFor(() => {
       expect(screen.getByTestId('comment-input-area')).toBeInTheDocument();
@@ -226,7 +285,9 @@ describe('TicketComments', () => {
 
   it('should render attachments for TKT-002', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: [] } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachmentsTKT002 } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachmentsTKT002 },
+    } as any);
     renderComments('TKT-002');
     await waitFor(() => {
       expect(screen.getByTestId('attachments-section')).toBeInTheDocument();
@@ -237,7 +298,9 @@ describe('TicketComments', () => {
 
   it('should show timestamps in comment items', async () => {
     vi.mocked(ticketingApi.getComments).mockResolvedValue({ data: { items: mockComments } } as any);
-    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({ data: { items: mockAttachments } } as any);
+    vi.mocked(ticketingApi.getAttachments).mockResolvedValue({
+      data: { items: mockAttachments },
+    } as any);
     renderComments('TKT-001');
     await waitFor(() => {
       const commentC001 = screen.getByTestId('comment-C001');

@@ -60,7 +60,9 @@ const AlertList: React.FC = () => {
     try {
       const response = await getAlerts();
       const apiData = response.data;
-      setAlerts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
+      setAlerts(
+        Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? [])
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);
@@ -105,29 +107,32 @@ const AlertList: React.FC = () => {
   }, [searchQuery, filters, alerts]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'severity',
-      label: '严重级别',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '严重', value: 'critical' },
-        { label: '警告', value: 'warning' },
-        { label: '提示', value: 'info' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '活跃', value: 'active' },
-        { label: '已确认', value: 'acknowledged' },
-        { label: '已解决', value: 'resolved' },
-        { label: '已抑制', value: 'suppressed' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'severity',
+        label: '严重级别',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '严重', value: 'critical' },
+          { label: '警告', value: 'warning' },
+          { label: '提示', value: 'info' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '活跃', value: 'active' },
+          { label: '已确认', value: 'acknowledged' },
+          { label: '已解决', value: 'resolved' },
+          { label: '已抑制', value: 'suppressed' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Count active alerts by severity
   const severityCounts = useMemo(() => {
@@ -204,7 +209,17 @@ const AlertList: React.FC = () => {
           content: (
             <div>
               <strong style={{ marginBottom: 4, display: 'block' }}>AI 告警分析</strong>
-              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, background: themeVars.bgSecondary, padding: 8, borderRadius: 4, maxHeight: 200, overflow: 'auto' }}>
+              <pre
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontSize: 12,
+                  background: themeVars.bgSecondary,
+                  padding: 8,
+                  borderRadius: 4,
+                  maxHeight: 200,
+                  overflow: 'auto',
+                }}
+              >
                 {resp.answer}
               </pre>
             </div>
@@ -309,372 +324,396 @@ const AlertList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(() => [
-    {
-      key: 'severity',
-      title: '级别',
-      dataIndex: 'severity',
-      width: 90,
-      render: (value) => {
-        const config = severityConfig[value as AlertSeverity];
-        return (
-          <Tag color={config.color} style={{ fontWeight: 600 }}>
-            {config.icon} {config.label}
-          </Tag>
-        );
+  const columns: TableColumn<Alert>[] = useMemo<TableColumn<Alert>[]>(
+    () => [
+      {
+        key: 'severity',
+        title: '级别',
+        dataIndex: 'severity',
+        width: 90,
+        render: (value) => {
+          const config = severityConfig[value as AlertSeverity];
+          return (
+            <Tag color={config.color} style={{ fontWeight: 600 }}>
+              {config.icon} {config.label}
+            </Tag>
+          );
+        },
       },
-    },
-    {
-      key: 'metric',
-      title: '指标',
-      dataIndex: 'metric',
-      width: 160,
-      sortable: true,
-      filterable: true,
-      render: (value, record) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => showDetail(record)}
-          >
+      {
+        key: 'metric',
+        title: '指标',
+        dataIndex: 'metric',
+        width: 160,
+        sortable: true,
+        filterable: true,
+        render: (value, record) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => showDetail(record)}
+            >
+              {String(value)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {record.source}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'value',
+        title: '当前值',
+        dataIndex: 'value',
+        width: 100,
+        render: (value) => (
+          <Text strong style={{ color: colors.error[600] }}>
             {String(value)}
           </Text>
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {record.source}
+        ),
+      },
+      {
+        key: 'threshold',
+        title: '阈值',
+        dataIndex: 'threshold',
+        width: 100,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'value',
-      title: '当前值',
-      dataIndex: 'value',
-      width: 100,
-      render: (value) => (
-        <Text strong style={{ color: colors.error[600] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'threshold',
-      title: '阈值',
-      dataIndex: 'threshold',
-      width: 100,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'message',
-      title: '消息',
-      dataIndex: 'message',
-      render: (value: unknown) => (
-        <Text style={{ fontSize: spacing[3] }} title={String(value)}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 110,
-      render: (value) => {
-        const config = statusConfig[value as AlertStatus];
-        return <Tag color={config.color}>{config.label}</Tag>;
+        ),
       },
-    },
-    {
-      key: 'lastUpdated',
-      title: '更新时间',
-      dataIndex: 'lastUpdated',
-      width: 140,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_, record) => {
-        const isActive = record.status === 'active';
-        const isAcknowledged = record.status === 'acknowledged';
-        const actions = [];
-        if (isActive) {
-          actions.push({ key: 'acknowledge', label: '确认', icon: <CheckOutlined />, onClick: () => handleAcknowledge(record.id) });
-        }
-        if (isActive || isAcknowledged) {
-          actions.push({ key: 'resolve', label: '解决', icon: <CloseOutlined />, onClick: () => handleResolve(record.id) });
-        }
-        actions.push({ key: 'ai-explain', label: 'AI 解释', onClick: () => handleAIExplain(record) });
-        actions.push({ key: 'read', label: '详情', onClick: () => showDetail(record) });
-        return <PermissionActions resource="alert" actions={actions} />;
+      {
+        key: 'message',
+        title: '消息',
+        dataIndex: 'message',
+        render: (value: unknown) => (
+          <Text style={{ fontSize: spacing[3] }} title={String(value)}>
+            {String(value)}
+          </Text>
+        ),
       },
-    },
-  ], [showDetail]);
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 110,
+        render: (value) => {
+          const config = statusConfig[value as AlertStatus];
+          return <Tag color={config.color}>{config.label}</Tag>;
+        },
+      },
+      {
+        key: 'lastUpdated',
+        title: '更新时间',
+        dataIndex: 'lastUpdated',
+        width: 140,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_, record) => {
+          const isActive = record.status === 'active';
+          const isAcknowledged = record.status === 'acknowledged';
+          const actions = [];
+          if (isActive) {
+            actions.push({
+              key: 'acknowledge',
+              label: '确认',
+              icon: <CheckOutlined />,
+              onClick: () => handleAcknowledge(record.id),
+            });
+          }
+          if (isActive || isAcknowledged) {
+            actions.push({
+              key: 'resolve',
+              label: '解决',
+              icon: <CloseOutlined />,
+              onClick: () => handleResolve(record.id),
+            });
+          }
+          actions.push({
+            key: 'ai-explain',
+            label: 'AI 解释',
+            onClick: () => handleAIExplain(record),
+          });
+          actions.push({ key: 'read', label: '详情', onClick: () => showDetail(record) });
+          return <PermissionActions resource="alert" actions={actions} />;
+        },
+      },
+    ],
+    [showDetail]
+  );
 
   return (
     <div style={{ padding: 0 }}>
       <Spin spinning={loading}>
-      {/* Page header with severity summary */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
-        }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            监控告警
-          </Title>
-          <Text type="secondary">共 {alerts.length} 条告警记录</Text>
-          {/* Active alert summary */}
-          {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
-            <div style={{ marginTop: spacing.sm }}>
-              <Space size={12}>
-                {severityCounts.critical > 0 && (
-                  <Tag color="red" style={{ fontWeight: 600 }}>
-                    {severityCounts.critical} 个严重告警
-                  </Tag>
-                )}
-                {severityCounts.warning > 0 && (
-                  <Tag color="orange">{severityCounts.warning} 个警告</Tag>
-                )}
-                {severityCounts.info > 0 && <Tag color="blue">{severityCounts.info} 个提示</Tag>}
-              </Space>
-            </div>
-          )}
-        </div>
-        <Space>
-          {selectedRowKeys.length > 0 && (
-            <>
-              <Popconfirm
-                title={`确认 ${selectedRowKeys.length} 条告警?`}
-                onConfirm={handleBatchAcknowledge}
-                disabled={!canExecute}
-              >
-                <Button icon={<CheckOutlined />} type="primary" ghost disabled={!canExecute}>
-                  批量确认 ({selectedRowKeys.length})
-                </Button>
-              </Popconfirm>
-              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve} disabled={!canExecute}>
-                <Button danger icon={<CloseOutlined />}>
-                  批量解决
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-            刷新
-          </Button>
-        </Space>
-      </div>
-
-      {/* Search and filter bar */}
-      <div style={{ marginBottom: spacing.md }}>
-        <SearchFilterBar
-          onSearch={setSearchQuery}
-          onFilter={setFilters}
-          filters={filterDefs}
-          searchPlaceholder="搜索指标名称、来源、消息..."
-        />
-      </div>
-
-      {/* Alert table */}
-      {filteredAlerts.length > 0 ? (
-        <Table
-          columns={columns}
-          dataSource={filteredAlerts}
-          loading={loading}
-          rowKey="id"
-          size="middle"
-          striped
-          rowSelection={rowSelection}
-        />
-      ) : (
-        !loading && <Empty description="暂无告警数据" />
-      )}
-
-      {/* Alert detail modal */}
-      <Modal
-        title="告警详情"
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          selectedAlert && selectedAlert.status === 'active' && (
-            <Button
-              key="acknowledge"
-              icon={<CheckOutlined />}
-              onClick={() => {
-                handleAcknowledge(selectedAlert.id);
-                setDetailModalVisible(false);
-              }}
-            >
-              确认告警
+        {/* Page header with severity summary */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: spacing.lg,
+          }}
+        >
+          <div>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              监控告警
+            </Title>
+            <Text type="secondary">共 {alerts.length} 条告警记录</Text>
+            {/* Active alert summary */}
+            {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
+              <div style={{ marginTop: spacing.sm }}>
+                <Space size={12}>
+                  {severityCounts.critical > 0 && (
+                    <Tag color="red" style={{ fontWeight: 600 }}>
+                      {severityCounts.critical} 个严重告警
+                    </Tag>
+                  )}
+                  {severityCounts.warning > 0 && (
+                    <Tag color="orange">{severityCounts.warning} 个警告</Tag>
+                  )}
+                  {severityCounts.info > 0 && <Tag color="blue">{severityCounts.info} 个提示</Tag>}
+                </Space>
+              </div>
+            )}
+          </div>
+          <Space>
+            {selectedRowKeys.length > 0 && (
+              <>
+                <Popconfirm
+                  title={`确认 ${selectedRowKeys.length} 条告警?`}
+                  onConfirm={handleBatchAcknowledge}
+                  disabled={!canExecute}
+                >
+                  <Button icon={<CheckOutlined />} type="primary" ghost disabled={!canExecute}>
+                    批量确认 ({selectedRowKeys.length})
+                  </Button>
+                </Popconfirm>
+                <Popconfirm
+                  title={`解决 ${batchableCount} 条告警?`}
+                  onConfirm={handleBatchResolve}
+                  disabled={!canExecute}
+                >
+                  <Button danger icon={<CloseOutlined />}>
+                    批量解决
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+              刷新
             </Button>
-          ),
-          selectedAlert &&
-            (selectedAlert.status === 'active' || selectedAlert.status === 'acknowledged') && (
+          </Space>
+        </div>
+
+        {/* Search and filter bar */}
+        <div style={{ marginBottom: spacing.md }}>
+          <SearchFilterBar
+            onSearch={setSearchQuery}
+            onFilter={setFilters}
+            filters={filterDefs}
+            searchPlaceholder="搜索指标名称、来源、消息..."
+          />
+        </div>
+
+        {/* Alert table */}
+        {filteredAlerts.length > 0 ? (
+          <Table
+            columns={columns}
+            dataSource={filteredAlerts}
+            loading={loading}
+            rowKey="id"
+            size="middle"
+            striped
+            rowSelection={rowSelection}
+          />
+        ) : (
+          !loading && <Empty description="暂无告警数据" />
+        )}
+
+        {/* Alert detail modal */}
+        <Modal
+          title="告警详情"
+          open={detailModalVisible}
+          onCancel={() => setDetailModalVisible(false)}
+          footer={[
+            selectedAlert && selectedAlert.status === 'active' && (
               <Button
-                key="resolve"
-                type="primary"
-                danger
-                icon={<CloseOutlined />}
+                key="acknowledge"
+                icon={<CheckOutlined />}
                 onClick={() => {
-                  handleResolve(selectedAlert.id);
+                  handleAcknowledge(selectedAlert.id);
                   setDetailModalVisible(false);
                 }}
               >
-                解决告警
+                确认告警
               </Button>
             ),
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>
-            关闭
-          </Button>,
-        ]}
-        width={600}
-      >
-        {selectedAlert && (
-          <Space direction="vertical" style={{ width: '100%' }} size={16}>
-            {/* Alert header */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing[3],
-                padding: '12px 16px',
-                background:
-                  selectedAlert.severity === 'critical'
-                    ? 'rgba(245, 34, 45, 0.06)'
-                    : selectedAlert.severity === 'warning'
-                      ? 'rgba(250, 140, 22, 0.06)'
-                      : 'rgba(24, 144, 255, 0.06)',
-                borderRadius: 6,
-              }}
-            >
-              <Tag color={severityConfig[selectedAlert.severity].color} style={{ fontWeight: 600 }}>
-                {severityConfig[selectedAlert.severity].icon}{' '}
-                {severityConfig[selectedAlert.severity].label}
-              </Tag>
-              <Tag color={statusConfig[selectedAlert.status].color}>
-                {statusConfig[selectedAlert.status].label}
-              </Tag>
-            </div>
-
-            {/* Detail info */}
-            <div>
-              <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                指标名称
-              </Text>
-              <div>
-                <Text strong style={{ fontSize: spacing[4] }}>
-                  {selectedAlert.metric}
-                </Text>
+            selectedAlert &&
+              (selectedAlert.status === 'active' || selectedAlert.status === 'acknowledged') && (
+                <Button
+                  key="resolve"
+                  type="primary"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={() => {
+                    handleResolve(selectedAlert.id);
+                    setDetailModalVisible(false);
+                  }}
+                >
+                  解决告警
+                </Button>
+              ),
+            <Button key="close" onClick={() => setDetailModalVisible(false)}>
+              关闭
+            </Button>,
+          ]}
+          width={600}
+        >
+          {selectedAlert && (
+            <Space direction="vertical" style={{ width: '100%' }} size={16}>
+              {/* Alert header */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing[3],
+                  padding: '12px 16px',
+                  background:
+                    selectedAlert.severity === 'critical'
+                      ? 'rgba(245, 34, 45, 0.06)'
+                      : selectedAlert.severity === 'warning'
+                        ? 'rgba(250, 140, 22, 0.06)'
+                        : 'rgba(24, 144, 255, 0.06)',
+                  borderRadius: 6,
+                }}
+              >
+                <Tag
+                  color={severityConfig[selectedAlert.severity].color}
+                  style={{ fontWeight: 600 }}
+                >
+                  {severityConfig[selectedAlert.severity].icon}{' '}
+                  {severityConfig[selectedAlert.severity].label}
+                </Tag>
+                <Tag color={statusConfig[selectedAlert.status].color}>
+                  {statusConfig[selectedAlert.status].label}
+                </Tag>
               </div>
-            </div>
 
-            <div>
-              <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                告警消息
-              </Text>
-              <div>
-                <Text>{selectedAlert.message}</Text>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 32 }}>
+              {/* Detail info */}
               <div>
                 <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  当前值
+                  指标名称
                 </Text>
                 <div>
-                  <Text strong style={{ color: colors.error[600], fontSize: spacing[5] }}>
-                    {selectedAlert.value}
+                  <Text strong style={{ fontSize: spacing[4] }}>
+                    {selectedAlert.metric}
                   </Text>
                 </div>
               </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  阈值
-                </Text>
-                <div>
-                  <Text>{selectedAlert.threshold}</Text>
-                </div>
-              </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  来源
-                </Text>
-                <div>
-                  <Text code>{selectedAlert.source}</Text>
-                </div>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: 32 }}>
               <div>
                 <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  首次触发
+                  告警消息
                 </Text>
                 <div>
-                  <Text style={{ fontSize: spacing[3] }}>
-                    {dayjs(selectedAlert.firstTriggered).format('YYYY-MM-DD HH:mm:ss')}
-                  </Text>
+                  <Text>{selectedAlert.message}</Text>
                 </div>
               </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  最后更新
-                </Text>
-                <div>
-                  <Text style={{ fontSize: spacing[3] }}>
-                    {dayjs(selectedAlert.lastUpdated).format('YYYY-MM-DD HH:mm:ss')}
-                  </Text>
-                </div>
-              </div>
-            </div>
 
-            {selectedAlert.acknowledgedBy && (
-              <div>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  确认信息
-                </Text>
+              <div style={{ display: 'flex', gap: 32 }}>
                 <div>
-                  <Text>
-                    由 <Text code>{selectedAlert.acknowledgedBy}</Text> 于{' '}
-                    {dayjs(selectedAlert.acknowledgedAt).format('YYYY-MM-DD HH:mm:ss')} 确认
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    当前值
                   </Text>
+                  <div>
+                    <Text strong style={{ color: colors.error[600], fontSize: spacing[5] }}>
+                      {selectedAlert.value}
+                    </Text>
+                  </div>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    阈值
+                  </Text>
+                  <div>
+                    <Text>{selectedAlert.threshold}</Text>
+                  </div>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    来源
+                  </Text>
+                  <div>
+                    <Text code>{selectedAlert.source}</Text>
+                  </div>
                 </div>
               </div>
-            )}
 
-            {selectedAlert.resolvedBy && (
-              <div>
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  解决信息
-                </Text>
+              <div style={{ display: 'flex', gap: 32 }}>
                 <div>
-                  <Text>
-                    由 <Text code>{selectedAlert.resolvedBy}</Text> 于{' '}
-                    {dayjs(selectedAlert.resolvedAt).format('YYYY-MM-DD HH:mm:ss')} 解决
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    首次触发
                   </Text>
+                  <div>
+                    <Text style={{ fontSize: spacing[3] }}>
+                      {dayjs(selectedAlert.firstTriggered).format('YYYY-MM-DD HH:mm:ss')}
+                    </Text>
+                  </div>
+                </div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    最后更新
+                  </Text>
+                  <div>
+                    <Text style={{ fontSize: spacing[3] }}>
+                      {dayjs(selectedAlert.lastUpdated).format('YYYY-MM-DD HH:mm:ss')}
+                    </Text>
+                  </div>
                 </div>
               </div>
-            )}
-          </Space>
-        )}
-      </Modal>
+
+              {selectedAlert.acknowledgedBy && (
+                <div>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    确认信息
+                  </Text>
+                  <div>
+                    <Text>
+                      由 <Text code>{selectedAlert.acknowledgedBy}</Text> 于{' '}
+                      {dayjs(selectedAlert.acknowledgedAt).format('YYYY-MM-DD HH:mm:ss')} 确认
+                    </Text>
+                  </div>
+                </div>
+              )}
+
+              {selectedAlert.resolvedBy && (
+                <div>
+                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                    解决信息
+                  </Text>
+                  <div>
+                    <Text>
+                      由 <Text code>{selectedAlert.resolvedBy}</Text> 于{' '}
+                      {dayjs(selectedAlert.resolvedAt).format('YYYY-MM-DD HH:mm:ss')} 解决
+                    </Text>
+                  </div>
+                </div>
+              )}
+            </Space>
+          )}
+        </Modal>
       </Spin>
     </div>
   );

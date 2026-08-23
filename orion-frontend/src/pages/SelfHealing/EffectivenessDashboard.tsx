@@ -11,7 +11,8 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   LineChartOutlined,
-  DashboardOutlined,} from '@ant-design/icons';
+  DashboardOutlined,
+} from '@ant-design/icons';
 import { getEffectiveness, getHealingHistory } from '@/api/self-healing';
 import type { SelfHealingEffectiveness, SelfHealingIncident } from '@/api/self-healing';
 import dayjs from 'dayjs';

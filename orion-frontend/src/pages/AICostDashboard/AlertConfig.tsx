@@ -132,111 +132,117 @@ const AlertConfig: React.FC = () => {
     }
   };
 
-  const alertColumns: TableColumn<CostAlert>[] = useMemo<TableColumn<CostAlert>[]>(() => [
-    {
-      key: 'severity',
-      title: '级别',
-      dataIndex: 'severity',
-      width: 80,
-      render: (v: unknown) => <Tag color={severityColorMap[String(v)]}>{String(v)}</Tag>,
-    },
-    {
-      key: 'message',
-      title: '消息',
-      dataIndex: 'message',
-      width: 300,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'currentUsage',
-      title: '当前使用',
-      dataIndex: 'currentUsage',
-      width: 100,
-      render: (v: unknown) => <Text strong>{Number(v)}%</Text>,
-    },
-    {
-      key: 'threshold',
-      title: '阈值',
-      dataIndex: 'threshold',
-      width: 80,
-      render: (v: unknown) => <Tag>{Number(v)}%</Tag>,
-    },
-    {
-      key: 'createdAt',
-      title: '触发时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      render: (v: unknown) => <Text type="secondary">{dayjs(String(v)).fromNow()}</Text>,
-    },
-  ], []);
+  const alertColumns: TableColumn<CostAlert>[] = useMemo<TableColumn<CostAlert>[]>(
+    () => [
+      {
+        key: 'severity',
+        title: '级别',
+        dataIndex: 'severity',
+        width: 80,
+        render: (v: unknown) => <Tag color={severityColorMap[String(v)]}>{String(v)}</Tag>,
+      },
+      {
+        key: 'message',
+        title: '消息',
+        dataIndex: 'message',
+        width: 300,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'currentUsage',
+        title: '当前使用',
+        dataIndex: 'currentUsage',
+        width: 100,
+        render: (v: unknown) => <Text strong>{Number(v)}%</Text>,
+      },
+      {
+        key: 'threshold',
+        title: '阈值',
+        dataIndex: 'threshold',
+        width: 80,
+        render: (v: unknown) => <Tag>{Number(v)}%</Tag>,
+      },
+      {
+        key: 'createdAt',
+        title: '触发时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        render: (v: unknown) => <Text type="secondary">{dayjs(String(v)).fromNow()}</Text>,
+      },
+    ],
+    []
+  );
 
-  const ruleColumns: TableColumn<AlertRule>[] = useMemo<TableColumn<AlertRule>[]>(() => [
-    {
-      key: 'name',
-      title: '规则名称',
-      dataIndex: 'name',
-      width: 200,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'metric',
-      title: '指标',
-      dataIndex: 'metric',
-      width: 120,
-      render: (v: unknown) => <Tag>{String(v)}</Tag>,
-    },
-    {
-      key: 'condition',
-      title: '条件',
-      dataIndex: 'operator',
-      width: 120,
-      render: (_: unknown, record: any) => (
-        <Text code>
-          {record.operator} {record.threshold}
-        </Text>
-      ),
-    },
-    {
-      key: 'severity',
-      title: '级别',
-      dataIndex: 'severity',
-      width: 80,
-      render: (v: unknown) => <Tag color={severityColorMap[String(v)]}>{String(v)}</Tag>,
-    },
-    {
-      key: 'channels',
-      title: '通知渠道',
-      dataIndex: 'channels',
-      width: 160,
-      render: (v: unknown) => (
-        <Space size={4}>{Array.isArray(v) ? v.map((c) => <Tag key={c}>{c}</Tag>) : null}</Space>
-      ),
-    },
-    {
-      key: 'enabled',
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (v: unknown) => (
-        <StatusBadge status={v ? ('success' as const) : ('warning' as const)} size="small" />
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: any) => (
-        <Popconfirm
-          title="确认删除?"
-          onConfirm={() => setRules((prev) => prev.filter((r) => r.id !== record.id))}
-        >
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-            删除
-          </Button>
-        </Popconfirm>
-      ),
-    },
-  ], [setRules]);
+  const ruleColumns: TableColumn<AlertRule>[] = useMemo<TableColumn<AlertRule>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '规则名称',
+        dataIndex: 'name',
+        width: 200,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'metric',
+        title: '指标',
+        dataIndex: 'metric',
+        width: 120,
+        render: (v: unknown) => <Tag>{String(v)}</Tag>,
+      },
+      {
+        key: 'condition',
+        title: '条件',
+        dataIndex: 'operator',
+        width: 120,
+        render: (_: unknown, record: any) => (
+          <Text code>
+            {record.operator} {record.threshold}
+          </Text>
+        ),
+      },
+      {
+        key: 'severity',
+        title: '级别',
+        dataIndex: 'severity',
+        width: 80,
+        render: (v: unknown) => <Tag color={severityColorMap[String(v)]}>{String(v)}</Tag>,
+      },
+      {
+        key: 'channels',
+        title: '通知渠道',
+        dataIndex: 'channels',
+        width: 160,
+        render: (v: unknown) => (
+          <Space size={4}>{Array.isArray(v) ? v.map((c) => <Tag key={c}>{c}</Tag>) : null}</Space>
+        ),
+      },
+      {
+        key: 'enabled',
+        title: '状态',
+        dataIndex: 'enabled',
+        width: 80,
+        render: (v: unknown) => (
+          <StatusBadge status={v ? ('success' as const) : ('warning' as const)} size="small" />
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: any) => (
+          <Popconfirm
+            title="确认删除?"
+            onConfirm={() => setRules((prev) => prev.filter((r) => r.id !== record.id))}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        ),
+      },
+    ],
+    [setRules]
+  );
 
   const metricOptions = [
     { label: '日费用', value: 'daily_cost' },
@@ -249,7 +255,7 @@ const AlertConfig: React.FC = () => {
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: spacing.lg }}>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           告警设置
         </Title>
         <Text type="secondary">配置成本告警规则与通知</Text>
@@ -286,7 +292,14 @@ const AlertConfig: React.FC = () => {
           </Button>
         }
       >
-        <Table columns={ruleColumns} dataSource={rules} rowKey="id" size="middle" striped loading={loading} />
+        <Table
+          columns={ruleColumns}
+          dataSource={rules}
+          rowKey="id"
+          size="middle"
+          striped
+          loading={loading}
+        />
       </Card>
 
       {/* Create Rule Modal */}

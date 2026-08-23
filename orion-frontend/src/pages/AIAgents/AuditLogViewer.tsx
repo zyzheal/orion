@@ -44,9 +44,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading, onExecut
       key: 'timestamp',
       width: 180,
       render: (ts: string) => (
-        <Text style={{ fontSize: 12 }}>
-          {ts ? new Date(ts).toLocaleString('zh-CN') : '-'}
-        </Text>
+        <Text style={{ fontSize: 12 }}>{ts ? new Date(ts).toLocaleString('zh-CN') : '-'}</Text>
       ),
     },
     {
@@ -99,20 +97,14 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading, onExecut
       key: 'error',
       ellipsis: true,
       render: (error: string) =>
-        error ? (
-          <Tag color="error">{error.slice(0, 50)}</Tag>
-        ) : (
-          <Tag color="success">成功</Tag>
-        ),
+        error ? <Tag color="error">{error.slice(0, 50)}</Tag> : <Tag color="success">成功</Tag>,
     },
   ];
 
   return (
     <div>
       <div style={{ marginBottom: spacing.md }}>
-        <Paragraph type="secondary">
-          共 {logs.length} 条审计日志
-        </Paragraph>
+        <Paragraph type="secondary">共 {logs.length} 条审计日志</Paragraph>
       </div>
       <Table<AuditLogEntry>
         columns={columns}

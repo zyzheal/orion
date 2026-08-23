@@ -62,7 +62,16 @@ export async function getCircuitBreakerStatus(id: string) {
 }
 
 export async function createCircuitBreaker(
-  data: Omit<CircuitBreakerConfig, 'id' | 'createdAt' | 'updatedAt' | 'failureCount' | 'successCount' | 'totalRequests' | 'totalFailures'>
+  data: Omit<
+    CircuitBreakerConfig,
+    | 'id'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'failureCount'
+    | 'successCount'
+    | 'totalRequests'
+    | 'totalFailures'
+  >
 ) {
   return api.post<CircuitBreakerConfig>('/api/v1/circuit-breakers', data);
 }

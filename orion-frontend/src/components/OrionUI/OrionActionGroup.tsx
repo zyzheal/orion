@@ -5,12 +5,7 @@ import type { OrionActionGroupProps } from './types';
 const OrionActionGroup: React.FC<OrionActionGroupProps> = ({ items }) => (
   <Space>
     {items.map((item) => (
-      <Button
-        key={item.key}
-        icon={item.icon}
-        onClick={item.onClick}
-        danger={item.danger}
-      >
+      <Button key={item.key} icon={item.icon} onClick={item.onClick} danger={item.danger}>
         {item.label}
       </Button>
     ))}

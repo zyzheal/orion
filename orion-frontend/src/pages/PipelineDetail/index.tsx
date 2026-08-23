@@ -10,7 +10,20 @@
  * - Per-stage retry ("从该阶段重跑") for failed/completed runs
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Descriptions,
+  Tabs,
+  Badge,
+  message,
+  Result,
+  Table,
+  Modal,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing, themeVars } from '@/tokens';
 import {
@@ -27,11 +40,7 @@ import {
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import { DAGGraph } from '@/components/DAGGraph';
 import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
-import {
-  getPipeline,
-  getPipelineRuns,
-  triggerPipeline,
-} from '@/api/pipelines';
+import { getPipeline, getPipelineRuns, triggerPipeline } from '@/api/pipelines';
 import {
   getPipelineRunDetail,
   getPipelineRunStages,
@@ -217,7 +226,8 @@ function extractData<T = unknown>(response: unknown): T | null {
   if (!res) return null;
 
   // 第一层：AxiosResponse.data → 后端实际响应
-  const backendResponse = (typeof res === 'object' && res !== null && 'data' in res) ? (res as { data?: T }).data : res;
+  const backendResponse =
+    typeof res === 'object' && res !== null && 'data' in res ? (res as { data?: T }).data : res;
 
   if (!backendResponse) return null;
 
@@ -269,100 +279,128 @@ const PipelineDetail: React.FC = () => {
   const [runsLoading, setRunsLoading] = useState(false);
 
   // Load pipeline detail from API
-  const loadPipeline = useCallback(async (pipelineId?: string) => {
-    const pid = pipelineId || id;
-    if (!pid) return;
-    setLoading(true);
-    setApiError(null);
-    try {
-      // Fetch pipeline definition
-      const pipelineRes = await getPipeline(pid);
-      const pipelineData = extractData(pipelineRes);
-
-      if (!pipelineData) {
-        setApiError('未找到该 Pipeline');
-        return;
-      }
-
-      // Fetch latest runs for this pipeline
-      let latestRun: PipelineRunSummary | null = null;
-      let runStages: PipelineStage[] = [];
-      let runsCount = 0;
+  const loadPipeline = useCallback(
+    async (pipelineId?: string) => {
+      const pid = pipelineId || id;
+      if (!pid) return;
+      setLoading(true);
+      setApiError(null);
       try {
-        const runsRes = await getPipelineRuns(pid);
-        const runsData = extractList<PipelineRunSummary>(runsRes);
-        runsCount = runsData.length;
+        // Fetch pipeline definition
+        const pipelineRes = await getPipeline(pid);
+        const pipelineData = extractData(pipelineRes);
 
-        if (runsData.length > 0) {
-          latestRun = runsData[0];
-
-          // Fetch full run detail including stages and tasks
-          // Backend returns: { run: {...}, stages: [...], tasks: [...] }
-          // Axios wraps: response.data = { code, message, data: { run, stages, tasks } }
-          try {
-            const runDetailRes = await getPipelineRunDetail(latestRun.id);
-            const runDetail = extractData<RunDetailPayload>(runDetailRes);
-
-            const rawStagesArr = (runDetail as RunDetailPayload)?.stages as unknown as PipelineStage[] || [];
-            const rawTasks = (runDetail as RunDetailPayload)?.tasks as unknown as PipelineStep[] || [];
-
-            // Fallback: if stages are empty, try the dedicated stages endpoint
-            let stagesToProcess = rawStagesArr;
-            if (stagesToProcess.length === 0) {
-              try {
-                const stagesRes = await getPipelineRunStages(latestRun.id);
-                const stagesData = extractData(stagesRes);
-                const fallbackStages = (stagesData as { data?: unknown[]; stages?: unknown[] })?.data ?? (stagesData as { stages?: unknown[] })?.stages ?? stagesData ?? [];
-                stagesToProcess = Array.isArray(fallbackStages) ? fallbackStages : [];
-              } catch (stagesErr) {
-                console.error('[PipelineDetail] Dedicated stages endpoint failed:', stagesErr);
-              }
-            }
-
-            // Merge tasks into stages as steps
-            runStages = stagesToProcess.map((stage: PipelineStage) => {
-              const stageTasks = rawTasks.filter((t: PipelineStep) => t.stageId === stage.id || t.stageName === stage.name);
-              const durationSec = stage.durationMs ? parseInt(String(stage.durationMs), 10) / 1000 : undefined;
-              return {
-                ...stage,
-                duration: durationSec,
-                steps: stageTasks.map((t: PipelineStep) => ({
-                  ...t,
-                  duration: t.durationMs ? parseInt(String(t.durationMs), 10) / 1000 : undefined,
-                })),
-                logs: stageTasks.flatMap((t: PipelineStep) => t.logs || []),
-              };
-            });
-          } catch (err) {
-            console.error('[PipelineDetail] Failed to get run detail:', err);
-          }
+        if (!pipelineData) {
+          setApiError('未找到该 Pipeline');
+          return;
         }
-      } catch (err) {
-        console.error('[PipelineDetail] Failed to get runs:', err);
-      }
 
-      setPipeline({
-        ...pipelineData as Omit<PipelineDisplay, 'runNumber' | 'branch' | 'status' | 'trigger' | 'stages'>,
-        // Merge latest run data for display
-        status: latestRun?.status || 'pending',
-        runNumber: runsCount || 1,
-        branch: (latestRun as PipelineRunSummary & { branch?: string })?.branch || 'main',
-        commit: (latestRun as PipelineRunSummary & { commit?: string })?.commit,
-        author: (latestRun as PipelineRunSummary & { author?: string })?.author || latestRun?.triggerBy || '-',
-        trigger: (latestRun as PipelineRunSummary & { trigger?: string })?.trigger || latestRun?.triggerType || 'manual',
-        startTime: (latestRun as PipelineRunSummary & { startTime?: string })?.startTime || latestRun?.startedAt,
-        endTime: (latestRun as PipelineRunSummary & { endTime?: string })?.endTime || latestRun?.completedAt,
-        duration: (latestRun as PipelineRunSummary & { duration?: number | string })?.duration ?? latestRun?.durationMs,
-        stages: runStages,
-      });
-    } catch (error: unknown) {
-      const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
-      setApiError(errorMsg);
-      message.error(`加载 Pipeline 详情失败：${errorMsg}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [id, navigate]);
+        // Fetch latest runs for this pipeline
+        let latestRun: PipelineRunSummary | null = null;
+        let runStages: PipelineStage[] = [];
+        let runsCount = 0;
+        try {
+          const runsRes = await getPipelineRuns(pid);
+          const runsData = extractList<PipelineRunSummary>(runsRes);
+          runsCount = runsData.length;
+
+          if (runsData.length > 0) {
+            latestRun = runsData[0];
+
+            // Fetch full run detail including stages and tasks
+            // Backend returns: { run: {...}, stages: [...], tasks: [...] }
+            // Axios wraps: response.data = { code, message, data: { run, stages, tasks } }
+            try {
+              const runDetailRes = await getPipelineRunDetail(latestRun.id);
+              const runDetail = extractData<RunDetailPayload>(runDetailRes);
+
+              const rawStagesArr =
+                ((runDetail as RunDetailPayload)?.stages as unknown as PipelineStage[]) || [];
+              const rawTasks =
+                ((runDetail as RunDetailPayload)?.tasks as unknown as PipelineStep[]) || [];
+
+              // Fallback: if stages are empty, try the dedicated stages endpoint
+              let stagesToProcess = rawStagesArr;
+              if (stagesToProcess.length === 0) {
+                try {
+                  const stagesRes = await getPipelineRunStages(latestRun.id);
+                  const stagesData = extractData(stagesRes);
+                  const fallbackStages =
+                    (stagesData as { data?: unknown[]; stages?: unknown[] })?.data ??
+                    (stagesData as { stages?: unknown[] })?.stages ??
+                    stagesData ??
+                    [];
+                  stagesToProcess = Array.isArray(fallbackStages) ? fallbackStages : [];
+                } catch (stagesErr) {
+                  console.error('[PipelineDetail] Dedicated stages endpoint failed:', stagesErr);
+                }
+              }
+
+              // Merge tasks into stages as steps
+              runStages = stagesToProcess.map((stage: PipelineStage) => {
+                const stageTasks = rawTasks.filter(
+                  (t: PipelineStep) => t.stageId === stage.id || t.stageName === stage.name
+                );
+                const durationSec = stage.durationMs
+                  ? parseInt(String(stage.durationMs), 10) / 1000
+                  : undefined;
+                return {
+                  ...stage,
+                  duration: durationSec,
+                  steps: stageTasks.map((t: PipelineStep) => ({
+                    ...t,
+                    duration: t.durationMs ? parseInt(String(t.durationMs), 10) / 1000 : undefined,
+                  })),
+                  logs: stageTasks.flatMap((t: PipelineStep) => t.logs || []),
+                };
+              });
+            } catch (err) {
+              console.error('[PipelineDetail] Failed to get run detail:', err);
+            }
+          }
+        } catch (err) {
+          console.error('[PipelineDetail] Failed to get runs:', err);
+        }
+
+        setPipeline({
+          ...(pipelineData as Omit<
+            PipelineDisplay,
+            'runNumber' | 'branch' | 'status' | 'trigger' | 'stages'
+          >),
+          // Merge latest run data for display
+          status: latestRun?.status || 'pending',
+          runNumber: runsCount || 1,
+          branch: (latestRun as PipelineRunSummary & { branch?: string })?.branch || 'main',
+          commit: (latestRun as PipelineRunSummary & { commit?: string })?.commit,
+          author:
+            (latestRun as PipelineRunSummary & { author?: string })?.author ||
+            latestRun?.triggerBy ||
+            '-',
+          trigger:
+            (latestRun as PipelineRunSummary & { trigger?: string })?.trigger ||
+            latestRun?.triggerType ||
+            'manual',
+          startTime:
+            (latestRun as PipelineRunSummary & { startTime?: string })?.startTime ||
+            latestRun?.startedAt,
+          endTime:
+            (latestRun as PipelineRunSummary & { endTime?: string })?.endTime ||
+            latestRun?.completedAt,
+          duration:
+            (latestRun as PipelineRunSummary & { duration?: number | string })?.duration ??
+            latestRun?.durationMs,
+          stages: runStages,
+        });
+      } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
+        setApiError(errorMsg);
+        message.error(`加载 Pipeline 详情失败：${errorMsg}`);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [id, navigate]
+  );
 
   // Load pipeline on mount
   useEffect(() => {
@@ -373,7 +411,8 @@ const PipelineDetail: React.FC = () => {
 
   // Calculate progress percentage
   const totalStages = pipeline?.stages?.length || 0;
-  const completedStages = pipeline?.stages?.filter((s: PipelineStage) => s.status === 'success').length || 0;
+  const completedStages =
+    pipeline?.stages?.filter((s: PipelineStage) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   // Format duration — handles both seconds (number) and durationMs (string)
@@ -408,7 +447,9 @@ const PipelineDetail: React.FC = () => {
         return {
           ...prev,
           status: latestRun?.status || 'running',
-          runNumber: (latestRun as PipelineRunSummary & { runNumber?: number })?.runNumber ?? prev.runNumber + 1,
+          runNumber:
+            (latestRun as PipelineRunSummary & { runNumber?: number })?.runNumber ??
+            prev.runNumber + 1,
           stages: [],
         };
       });
@@ -509,7 +550,7 @@ const PipelineDetail: React.FC = () => {
   if (loading) {
     return (
       <div style={{ padding: 0 }}>
-      <Card style={{ padding: '12px 16px' }}>Loading...</Card>
+        <Card style={{ padding: '12px 16px' }}>Loading...</Card>
       </div>
     );
   }
@@ -544,7 +585,10 @@ const PipelineDetail: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline.name}
           </Title>
@@ -554,7 +598,10 @@ const PipelineDetail: React.FC = () => {
             </Tag>
             {pipeline && <StatusBadge status={pipeline.status as StatusType} size="small" />}
             <Text type="secondary" style={{ fontSize: 13 }}>
-              分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
+              分支:{' '}
+              <Text code style={{ fontSize: 12 }}>
+                {pipeline.branch}
+              </Text>
             </Text>
             <Text type="secondary" style={{ fontSize: 13 }}>
               触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
@@ -564,16 +611,16 @@ const PipelineDetail: React.FC = () => {
             </Text>
             {pipeline.commit && (
               <Text type="secondary" style={{ fontSize: 13 }}>
-                Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
+                Commit:{' '}
+                <Text code style={{ fontSize: 12 }}>
+                  {pipeline.commit.slice(0, 7)}
+                </Text>
               </Text>
             )}
           </Space>
         </div>
         <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/pipelines')}
-          >
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
             返回列表
           </Button>
           <Button
@@ -753,7 +800,9 @@ const PipelineDetail: React.FC = () => {
                               type="link"
                               size="small"
                               icon={<ReloadOutlined />}
-                              loading={retryingStageId === stage.id || retryingStageId === stage.name}
+                              loading={
+                                retryingStageId === stage.id || retryingStageId === stage.name
+                              }
                               onClick={() =>
                                 handleRetryFromStage(stage.id || stage.name, stage.name)
                               }
@@ -777,7 +826,11 @@ const PipelineDetail: React.FC = () => {
                                 fontSize: spacing[3],
                               }}
                             >
-                              <StatusBadge status={step.status as StatusType} size="small" variant="subtle" />
+                              <StatusBadge
+                                status={step.status as StatusType}
+                                size="small"
+                                variant="subtle"
+                              />
                               <Text>{step.name}</Text>
                               {step.duration && (
                                 <Text
@@ -836,7 +889,7 @@ const PipelineDetail: React.FC = () => {
                     }}
                   >
                     [{dayjs(stage.startTime || pipeline.startTime).format('HH:mm:ss')}] === Stage:{' '}
-                        {stage.name} ===
+                    {stage.name} ===
                   </div>
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
@@ -902,9 +955,7 @@ const PipelineDetail: React.FC = () => {
                 }))}
                 height={400}
                 showMiniMap={true}
-                onNodeClick={(_: string, __: unknown) => {
-
-                }}
+                onNodeClick={(_: string, __: unknown) => {}}
               />
             ) : (
               <div style={{ textAlign: 'center', padding: 40 }}>
@@ -939,7 +990,11 @@ const PipelineDetail: React.FC = () => {
                   key: 'id',
                   width: 100,
                   render: (id: string) => (
-                    <Button type="link" size="small" onClick={() => navigate(`/pipelines/${id}/runs/${id}`)}>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => navigate(`/pipelines/${id}/runs/${id}`)}
+                    >
                       {id.slice(0, 8)}...
                     </Button>
                   ),
@@ -971,7 +1026,8 @@ const PipelineDetail: React.FC = () => {
                   dataIndex: 'startTime',
                   key: 'startTime',
                   width: 160,
-                  render: (time: string) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'),
+                  render: (time: string) =>
+                    time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-',
                 },
                 {
                   title: '耗时',
@@ -992,7 +1048,11 @@ const PipelineDetail: React.FC = () => {
                   width: 120,
                   render: (_: any, record: PipelineRunSummary) => (
                     <Space>
-                      <Button type="link" size="small" onClick={() => navigate(`/pipelines/${id}/runs/${record.id}`)}>
+                      <Button
+                        type="link"
+                        size="small"
+                        onClick={() => navigate(`/pipelines/${id}/runs/${record.id}`)}
+                      >
                         查看
                       </Button>
                       {record.status === 'failed' && (

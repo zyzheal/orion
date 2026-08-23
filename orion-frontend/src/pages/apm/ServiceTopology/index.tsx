@@ -6,8 +6,26 @@
  * - Node hover shows call metrics
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Card, Button, Tag, Space, message, Spin, Empty, Statistic, Row, Col } from 'antd';
-import { DeploymentUnitOutlined, ReloadOutlined, ArrowRightOutlined, WarningOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import {
+  Typography,
+  Card,
+  Button,
+  Tag,
+  Space,
+  message,
+  Spin,
+  Empty,
+  Statistic,
+  Row,
+  Col,
+} from 'antd';
+import {
+  DeploymentUnitOutlined,
+  ReloadOutlined,
+  ArrowRightOutlined,
+  WarningOutlined,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
 import ReactFlow, {
   Background,
   Controls,
@@ -40,7 +58,9 @@ const ServiceTopologyPage: React.FC = () => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(false);
-  const [serviceStats, setServiceStats] = useState<Map<string, { calls: number; avgLatency: number; errorRate: number }>>(new Map());
+  const [serviceStats, setServiceStats] = useState<
+    Map<string, { calls: number; avgLatency: number; errorRate: number }>
+  >(new Map());
 
   const loadData = async () => {
     setLoading(true);
@@ -50,10 +70,25 @@ const ServiceTopologyPage: React.FC = () => {
       setDependencies(deps);
 
       // Aggregate per-service stats
-      const stats = new Map<string, { calls: number; latencySum: number; latencyCount: number; errorRateSum: number; errorRateCount: number }>();
+      const stats = new Map<
+        string,
+        {
+          calls: number;
+          latencySum: number;
+          latencyCount: number;
+          errorRateSum: number;
+          errorRateCount: number;
+        }
+      >();
       deps.forEach((d) => {
         if (!stats.has(d.source_service)) {
-          stats.set(d.source_service, { calls: 0, latencySum: 0, latencyCount: 0, errorRateSum: 0, errorRateCount: 0 });
+          stats.set(d.source_service, {
+            calls: 0,
+            latencySum: 0,
+            latencyCount: 0,
+            errorRateSum: 0,
+            errorRateCount: 0,
+          });
         }
         const s = stats.get(d.source_service)!;
         s.calls += d.call_count;
@@ -65,18 +100,24 @@ const ServiceTopologyPage: React.FC = () => {
         }
       });
 
-      const finalStats = new Map<string, { calls: number; avgLatency: number; errorRate: number }>();
+      const finalStats = new Map<
+        string,
+        { calls: number; avgLatency: number; errorRate: number }
+      >();
       stats.forEach((v, k) => {
         finalStats.set(k, {
           calls: v.calls,
           avgLatency: v.latencyCount > 0 ? Math.round(v.latencySum / v.latencyCount) : 0,
-          errorRate: v.errorRateCount > 0 ? Math.round((v.errorRateSum / v.errorRateCount) * 100) / 100 : 0,
+          errorRate:
+            v.errorRateCount > 0 ? Math.round((v.errorRateSum / v.errorRateCount) * 100) / 100 : 0,
         });
       });
       setServiceStats(finalStats);
 
       // Convert to ReactFlow nodes
-      const uniqueServices = Array.from(new Set(deps.flatMap((d) => [d.source_service, d.target_service])));
+      const uniqueServices = Array.from(
+        new Set(deps.flatMap((d) => [d.source_service, d.target_service]))
+      );
       const flowNodes: Node[] = uniqueServices.map((name, i) => {
         const stat = finalStats.get(name);
         const isError = (stat?.errorRate ?? 0) > 5;
@@ -117,7 +158,10 @@ const ServiceTopologyPage: React.FC = () => {
           stroke: d.error_rate > 5 ? colors.error[500] : colors.neutral[400],
           strokeWidth: Math.max(1, Math.min(4, d.call_count / 100)),
         },
-        markerEnd: { type: MarkerType.ArrowClosed, color: d.error_rate > 5 ? colors.error[500] : colors.neutral[400] },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: d.error_rate > 5 ? colors.error[500] : colors.neutral[400],
+        },
       }));
       setEdges(flowEdges);
     } catch (error: unknown) {
@@ -131,23 +175,36 @@ const ServiceTopologyPage: React.FC = () => {
     loadData();
   }, []);
 
-  const onNodesChange: OnNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
-  const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
+  const onNodesChange: OnNodesChange = useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    []
+  );
+  const onEdgesChange: OnEdgesChange = useCallback(
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    []
+  );
 
   // Custom node renderer
   const nodeTypes = {
     serviceNode: ({ data }: { data: ServiceNodeData }) => (
       <div style={{ padding: '8px 12px', minWidth: 160 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 6 }}>
-          <DeploymentUnitOutlined style={{ color: (data as any).isError ? colors.error[500] : colors.primary[500] }} />
-          <Text strong style={{ fontSize: 13 }}>{data.name}</Text>
+          <DeploymentUnitOutlined
+            style={{ color: (data as any).isError ? colors.error[500] : colors.primary[500] }}
+          />
+          <Text strong style={{ fontSize: 13 }}>
+            {data.name}
+          </Text>
         </div>
         <div style={{ display: 'flex', gap: spacing.sm, fontSize: 11 }}>
           <Tag style={{ margin: 0, padding: '0 6px', fontSize: 10 }}>
             <ClockCircleOutlined /> {data.avgLatency}ms
           </Tag>
           {data.errorRate > 0 && (
-            <Tag color={data.errorRate > 5 ? colors.error[500] : colors.warning[500]} style={{ margin: 0, padding: '0 6px', fontSize: 10 }}>
+            <Tag
+              color={data.errorRate > 5 ? colors.error[500] : colors.warning[500]}
+              style={{ margin: 0, padding: '0 6px', fontSize: 10 }}
+            >
               <WarningOutlined /> {data.errorRate}%
             </Tag>
           )}
@@ -164,12 +221,18 @@ const ServiceTopologyPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-              <DeploymentUnitOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <DeploymentUnitOutlined
+                style={{ marginRight: spacing[3], color: colors.primary[500] }}
+              />
               服务依赖拓扑
             </Title>
-            <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>服务间调用关系与依赖拓扑可视化</Text>
+            <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>
+              服务间调用关系与依赖拓扑可视化
+            </Text>
           </div>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
         </div>
 
         {/* Stats Overview */}
@@ -199,7 +262,11 @@ const ServiceTopologyPage: React.FC = () => {
                 title="高错误服务"
                 value={Array.from(serviceStats.values()).filter((s) => s.errorRate > 5).length}
                 prefix={<WarningOutlined />}
-                valueStyle={{ color: Array.from(serviceStats.values()).some((s) => s.errorRate > 5) ? colors.error[500] : colors.success[500] }}
+                valueStyle={{
+                  color: Array.from(serviceStats.values()).some((s) => s.errorRate > 5)
+                    ? colors.error[500]
+                    : colors.success[500],
+                }}
               />
             </Card>
           </Col>
@@ -220,7 +287,13 @@ const ServiceTopologyPage: React.FC = () => {
               nodeTypes={nodeTypes}
             >
               <Background color={colors.neutral[200]} gap={16} size={1} />
-              <Controls style={{ background: colors.neutral[0], border: `1px solid ${colors.neutral[200]}`, borderRadius: 8 }} />
+              <Controls
+                style={{
+                  background: colors.neutral[0],
+                  border: `1px solid ${colors.neutral[200]}`,
+                  borderRadius: 8,
+                }}
+              />
               <MiniMap
                 nodeColor={(node) => {
                   const d = node.data as ServiceNodeData;
@@ -234,7 +307,14 @@ const ServiceTopologyPage: React.FC = () => {
               />
             </ReactFlow>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 500 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: 500,
+              }}
+            >
               <Empty description="暂无服务依赖数据" />
             </div>
           )}

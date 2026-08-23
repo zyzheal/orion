@@ -141,8 +141,8 @@ const NotificationDetail: React.FC = () => {
   };
 
   const priorityConf = notification ? priorityConfig[notification.priority] : null;
-  const typeIcon = notification ? (typeIconMap[notification.type] || null) : null;
-  const typeLabel = notification ? (typeLabelMap[notification.type] || notification.type) : '';
+  const typeIcon = notification ? typeIconMap[notification.type] || null : null;
+  const typeLabel = notification ? typeLabelMap[notification.type] || notification.type : '';
 
   if (loading) {
     return (
@@ -186,11 +186,7 @@ const NotificationDetail: React.FC = () => {
         </div>
         <Space>
           {!notification.read && (
-            <Button
-              icon={<CheckOutlined />}
-              onClick={handleMarkAsRead}
-              loading={actionLoading}
-            >
+            <Button icon={<CheckOutlined />} onClick={handleMarkAsRead} loading={actionLoading}>
               标记已读
             </Button>
           )}
@@ -210,16 +206,26 @@ const NotificationDetail: React.FC = () => {
       {/* Notification content */}
       <Card
         style={{
-          background: notification.priority === 'critical' || notification.priority === 'high'
-            ? priorityConf?.bg
-            : 'transparent',
-          borderLeft: notification.read ? '3px solid transparent' : `3px solid ${priorityConf?.color}`,
+          background:
+            notification.priority === 'critical' || notification.priority === 'high'
+              ? priorityConf?.bg
+              : 'transparent',
+          borderLeft: notification.read
+            ? '3px solid transparent'
+            : `3px solid ${priorityConf?.color}`,
         }}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {/* Title & badges */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm,
+                marginBottom: spacing.sm,
+              }}
+            >
               <Title level={3} style={{ margin: 0, flex: 1 }}>
                 {notification.title}
               </Title>

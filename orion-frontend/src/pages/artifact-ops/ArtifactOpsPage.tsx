@@ -21,12 +21,7 @@ import {
   message,
   Typography,
 } from 'antd';
-import {
-  BoxPlotOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  ToolOutlined,
-} from '@ant-design/icons';
+import { BoxPlotOutlined, PlusOutlined, ReloadOutlined, ToolOutlined } from '@ant-design/icons';
 import {
   getArtifacts,
   getArtifactStats,
@@ -53,10 +48,7 @@ const ArtifactOpsPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [artifactRes, statsRes] = await Promise.all([
-        getArtifacts(),
-        getArtifactStats(),
-      ]);
+      const [artifactRes, statsRes] = await Promise.all([getArtifacts(), getArtifactStats()]);
       const data = artifactRes.data ?? artifactRes.data;
       setArtifacts(Array.isArray(data) ? data : []);
       const statsData = statsRes.data ?? statsRes.data;
@@ -152,8 +144,12 @@ const ArtifactOpsPage: React.FC = () => {
               Promote
             </Button>
           )}
-          <Button size="small" onClick={() => handleDeprecate(record.id)}>Deprecate</Button>
-          <Button size="small" danger onClick={() => handleQuarantine(record.id)}>Quarantine</Button>
+          <Button size="small" onClick={() => handleDeprecate(record.id)}>
+            Deprecate
+          </Button>
+          <Button size="small" danger onClick={() => handleQuarantine(record.id)}>
+            Quarantine
+          </Button>
         </Space>
       ),
     },
@@ -183,16 +179,32 @@ const ArtifactOpsPage: React.FC = () => {
       {stats && (
         <Row gutter={24} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
-            <Card><Statistic title="Total Artifacts" value={stats.total} /></Card>
+            <Card>
+              <Statistic title="Total Artifacts" value={stats.total} />
+            </Card>
           </Col>
           <Col span={6}>
-            <Card><Statistic title="Available" value={stats.byStatus?.available || 0} /></Card>
+            <Card>
+              <Statistic title="Available" value={stats.byStatus?.available || 0} />
+            </Card>
           </Col>
           <Col span={6}>
-            <Card><Statistic title="Total Size" value={(stats.totalSizeBytes / (1024 * 1024)).toFixed(0)} suffix="MB" /></Card>
+            <Card>
+              <Statistic
+                title="Total Size"
+                value={(stats.totalSizeBytes / (1024 * 1024)).toFixed(0)}
+                suffix="MB"
+              />
+            </Card>
           </Col>
           <Col span={6}>
-            <Card><Statistic title="Security Score" value={stats.avgSecurityScore ?? 0} suffix="/ 100" /></Card>
+            <Card>
+              <Statistic
+                title="Security Score"
+                value={stats.avgSecurityScore ?? 0}
+                suffix="/ 100"
+              />
+            </Card>
           </Col>
         </Row>
       )}

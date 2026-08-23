@@ -4,16 +4,40 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { digitalTwinApi, TwinSnapshot, TrafficRecording, TrafficReplay, DigitalTwin } from '@/api/digital-twin';
 import {
-  Card, Table, Button, Modal, Form, Select, Input, Tag, Tabs,
-  Progress, message, Space, Statistic, Row, Col, Badge
+  digitalTwinApi,
+  TwinSnapshot,
+  TrafficRecording,
+  TrafficReplay,
+  DigitalTwin,
+} from '@/api/digital-twin';
+import {
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Select,
+  Input,
+  Tag,
+  Tabs,
+  Progress,
+  message,
+  Space,
+  Statistic,
+  Row,
+  Col,
+  Badge,
 } from 'antd';
 import { spacing } from '@/tokens';
 import {
-  CameraOutlined, PlayCircleOutlined, ControlOutlined,
-  CloudServerOutlined, ReloadOutlined, PlusOutlined,
-  SwapOutlined
+  CameraOutlined,
+  PlayCircleOutlined,
+  ControlOutlined,
+  CloudServerOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 
 const DigitalTwinPage: React.FC = () => {
@@ -114,14 +138,21 @@ const DigitalTwinPage: React.FC = () => {
       key: 'status',
       render: (status: string) => (
         <Badge
-          status={status === 'active' ? 'success' : status === 'creating' ? 'processing' : 'default'}
+          status={
+            status === 'active' ? 'success' : status === 'creating' ? 'processing' : 'default'
+          }
           text={status}
         />
       ),
     },
     { title: 'Environment', dataIndex: 'environment', key: 'environment' },
     { title: 'Services', dataIndex: ['services', 'length'], key: 'services' },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const snapshotColumns = [
@@ -138,8 +169,16 @@ const DigitalTwinPage: React.FC = () => {
       ),
     },
     { title: 'Components', dataIndex: 'components', render: (c: any[]) => c?.length || 0 },
-    { title: 'Size', dataIndex: 'size_bytes', render: (s: number) => `${(s / 1024).toFixed(1)} KB` },
-    { title: 'Created', dataIndex: 'created_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Size',
+      dataIndex: 'size_bytes',
+      render: (s: number) => `${(s / 1024).toFixed(1)} KB`,
+    },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   const recordingColumns = [
@@ -156,7 +195,11 @@ const DigitalTwinPage: React.FC = () => {
       ),
     },
     { title: 'Requests', dataIndex: 'request_count' },
-    { title: 'Size', dataIndex: 'size_bytes', render: (s: number) => `${(s / 1024).toFixed(1)} KB` },
+    {
+      title: 'Size',
+      dataIndex: 'size_bytes',
+      render: (s: number) => `${(s / 1024).toFixed(1)} KB`,
+    },
     {
       title: 'Actions',
       key: 'actions',
@@ -181,7 +224,17 @@ const DigitalTwinPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={status === 'running' ? 'blue' : status === 'completed' ? 'green' : status === 'failed' ? 'red' : 'default'}>
+        <Tag
+          color={
+            status === 'running'
+              ? 'blue'
+              : status === 'completed'
+                ? 'green'
+                : status === 'failed'
+                  ? 'red'
+                  : 'default'
+          }
+        >
           {status}
         </Tag>
       ),
@@ -194,7 +247,11 @@ const DigitalTwinPage: React.FC = () => {
     },
     { title: 'Matched', dataIndex: 'matched_count', key: 'matched_count' },
     { title: 'Mismatched', dataIndex: 'mismatched_count', key: 'mismatched_count' },
-    { title: 'Started', dataIndex: 'started_at', render: (d: string) => new Date(d).toLocaleString() },
+    {
+      title: 'Started',
+      dataIndex: 'started_at',
+      render: (d: string) => new Date(d).toLocaleString(),
+    },
   ];
 
   return (
@@ -203,7 +260,11 @@ const DigitalTwinPage: React.FC = () => {
         items={[
           {
             key: 'twins',
-            label: <><CloudServerOutlined /> Twin Bodies</>,
+            label: (
+              <>
+                <CloudServerOutlined /> Twin Bodies
+              </>
+            ),
             children: (
               <Card
                 title="Digital Twin Registry"
@@ -212,7 +273,9 @@ const DigitalTwinPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setSandboxModal(true)}>
                       Create Sandbox
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -224,7 +287,10 @@ const DigitalTwinPage: React.FC = () => {
                   </Col>
                   <Col span={6}>
                     <Card>
-                      <Statistic title="Active" value={twins.filter(t => t.status === 'active').length} />
+                      <Statistic
+                        title="Active"
+                        value={twins.filter((t) => t.status === 'active').length}
+                      />
                     </Card>
                   </Col>
                   <Col span={6}>
@@ -238,18 +304,17 @@ const DigitalTwinPage: React.FC = () => {
                     </Card>
                   </Col>
                 </Row>
-                <Table
-                  columns={twinColumns}
-                  dataSource={twins}
-                  rowKey="id"
-                  loading={loading}
-                />
+                <Table columns={twinColumns} dataSource={twins} rowKey="id" loading={loading} />
               </Card>
             ),
           },
           {
             key: 'snapshots',
-            label: <><CameraOutlined /> Environment Snapshots</>,
+            label: (
+              <>
+                <CameraOutlined /> Environment Snapshots
+              </>
+            ),
             children: (
               <Card
                 title="Environment Snapshots"
@@ -258,7 +323,9 @@ const DigitalTwinPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setSnapshotModal(true)}>
                       Create Snapshot
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -273,7 +340,11 @@ const DigitalTwinPage: React.FC = () => {
           },
           {
             key: 'recordings',
-            label: <><ControlOutlined /> Traffic Recording</>,
+            label: (
+              <>
+                <ControlOutlined /> Traffic Recording
+              </>
+            ),
             children: (
               <Card
                 title="Traffic Recording"
@@ -282,7 +353,9 @@ const DigitalTwinPage: React.FC = () => {
                     <Button icon={<PlusOutlined />} onClick={() => setRecordingModal(true)}>
                       Start Recording
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
@@ -297,7 +370,11 @@ const DigitalTwinPage: React.FC = () => {
           },
           {
             key: 'replays',
-            label: <><SwapOutlined /> Traffic Replay</>,
+            label: (
+              <>
+                <SwapOutlined /> Traffic Replay
+              </>
+            ),
             children: (
               <Card
                 title="Traffic Replay"
@@ -306,16 +383,13 @@ const DigitalTwinPage: React.FC = () => {
                     <Button icon={<PlayCircleOutlined />} onClick={() => setReplayModal(true)}>
                       Start Replay
                     </Button>
-                    <Button icon={<ReloadOutlined />} onClick={loadData}>Refresh</Button>
+                    <Button icon={<ReloadOutlined />} onClick={loadData}>
+                      Refresh
+                    </Button>
                   </Space>
                 }
               >
-                <Table
-                  columns={replayColumns}
-                  dataSource={replays}
-                  rowKey="id"
-                  loading={loading}
-                />
+                <Table columns={replayColumns} dataSource={replays} rowKey="id" loading={loading} />
               </Card>
             ),
           },
@@ -331,11 +405,13 @@ const DigitalTwinPage: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleCreateSnapshot}>
           <Form.Item label="Environment" name="environment" required>
-            <Select options={[
-              { value: 'production', label: 'Production' },
-              { value: 'staging', label: 'Staging' },
-              { value: 'development', label: 'Development' },
-            ]} />
+            <Select
+              options={[
+                { value: 'production', label: 'Production' },
+                { value: 'staging', label: 'Staging' },
+                { value: 'development', label: 'Development' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Note" name="note">
             <Input.TextArea rows={2} />
@@ -352,10 +428,12 @@ const DigitalTwinPage: React.FC = () => {
       >
         <Form form={form} layout="vertical" onFinish={handleStartRecording}>
           <Form.Item label="Source Environment" name="source_env" required>
-            <Select options={[
-              { value: 'production', label: 'Production' },
-              { value: 'staging', label: 'Staging' },
-            ]} />
+            <Select
+              options={[
+                { value: 'production', label: 'Production' },
+                { value: 'staging', label: 'Staging' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Path Prefixes" name="path_prefixes">
             <Input placeholder="/api/v1/*" />
@@ -375,19 +453,23 @@ const DigitalTwinPage: React.FC = () => {
             <Input placeholder="Enter recording ID" />
           </Form.Item>
           <Form.Item label="Target Environment" name="target_env" required>
-            <Select options={[
-              { value: 'staging', label: 'Staging' },
-              { value: 'development', label: 'Development' },
-              { value: 'sandbox', label: 'Sandbox' },
-            ]} />
+            <Select
+              options={[
+                { value: 'staging', label: 'Staging' },
+                { value: 'development', label: 'Development' },
+                { value: 'sandbox', label: 'Sandbox' },
+              ]}
+            />
           </Form.Item>
           <Form.Item label="Speed Multiplier" name="speed_multiplier">
-            <Select options={[
-              { value: 0.5, label: '0.5x (Slow)' },
-              { value: 1, label: '1x (Normal)' },
-              { value: 2, label: '2x (Fast)' },
-              { value: 5, label: '5x (Very Fast)' },
-            ]} />
+            <Select
+              options={[
+                { value: 0.5, label: '0.5x (Slow)' },
+                { value: 1, label: '1x (Normal)' },
+                { value: 2, label: '2x (Fast)' },
+                { value: 5, label: '5x (Very Fast)' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -405,7 +487,7 @@ const DigitalTwinPage: React.FC = () => {
           </Form.Item>
           <Form.Item label="Base Snapshot" name="snapshot_id">
             <Select
-              options={snapshots.map(s => ({
+              options={snapshots.map((s) => ({
                 value: s.id,
                 label: `${s.environment} - ${s.id.slice(0, 8)}`,
               }))}

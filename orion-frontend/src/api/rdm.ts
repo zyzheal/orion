@@ -38,11 +38,13 @@ export interface CreateRequirementInput {
   labels?: string[];
 }
 
-export const listRequirements = (params?: { status?: string; priority?: string; projectId?: string }) =>
-  apiClient.get<Requirement[]>('/rdm/requirements', { params });
+export const listRequirements = (params?: {
+  status?: string;
+  priority?: string;
+  projectId?: string;
+}) => apiClient.get<Requirement[]>('/rdm/requirements', { params });
 
-export const getRequirement = (id: string) =>
-  apiClient.get<Requirement>(`/rdm/requirements/${id}`);
+export const getRequirement = (id: string) => apiClient.get<Requirement>(`/rdm/requirements/${id}`);
 
 export const createRequirement = (data: CreateRequirementInput) =>
   apiClient.post<Requirement>('/rdm/requirements', data);
@@ -50,8 +52,7 @@ export const createRequirement = (data: CreateRequirementInput) =>
 export const updateRequirement = (id: string, data: Partial<Requirement>) =>
   apiClient.put<Requirement>(`/rdm/requirements/${id}`, data);
 
-export const deleteRequirement = (id: string) =>
-  apiClient.delete(`/rdm/requirements/${id}`);
+export const deleteRequirement = (id: string) => apiClient.delete(`/rdm/requirements/${id}`);
 
 export const getRequirementPool = (params?: { projectId?: string }) =>
   apiClient.get<Requirement[]>('/rdm/requirements/pool', { params });
@@ -89,8 +90,7 @@ export interface CreateDefectInput {
 export const listDefects = (params?: { severity?: string; status?: string; projectId?: string }) =>
   apiClient.get<Defect[]>('/rdm/defects', { params });
 
-export const getDefect = (id: string) =>
-  apiClient.get<Defect>(`/rdm/defects/${id}`);
+export const getDefect = (id: string) => apiClient.get<Defect>(`/rdm/defects/${id}`);
 
 export const createDefect = (data: CreateDefectInput) =>
   apiClient.post<Defect>('/rdm/defects', data);
@@ -98,11 +98,13 @@ export const createDefect = (data: CreateDefectInput) =>
 export const updateDefect = (id: string, data: Partial<Defect>) =>
   apiClient.put<Defect>(`/rdm/defects/${id}`, data);
 
-export const deleteDefect = (id: string) =>
-  apiClient.delete(`/rdm/defects/${id}`);
+export const deleteDefect = (id: string) => apiClient.delete(`/rdm/defects/${id}`);
 
 export const getDefectStats = (params?: { projectId?: string }) =>
-  apiClient.get<{ bySeverity: { severity: string; count: number }[]; byStatus: { status: string; count: number }[] }>('/rdm/defects/stats', { params });
+  apiClient.get<{
+    bySeverity: { severity: string; count: number }[];
+    byStatus: { status: string; count: number }[];
+  }>('/rdm/defects/stats', { params });
 
 // ── Sprint ──
 
@@ -134,8 +136,7 @@ export interface CreateSprintInput {
 export const listSprints = (params?: { status?: string; projectId?: string }) =>
   apiClient.get<Sprint[]>('/rdm/sprints', { params });
 
-export const getSprint = (id: string) =>
-  apiClient.get<Sprint>(`/rdm/sprints/${id}`);
+export const getSprint = (id: string) => apiClient.get<Sprint>(`/rdm/sprints/${id}`);
 
 export const createSprint = (data: CreateSprintInput) =>
   apiClient.post<Sprint>('/rdm/sprints', data);
@@ -143,11 +144,16 @@ export const createSprint = (data: CreateSprintInput) =>
 export const updateSprint = (id: string, data: Partial<Sprint>) =>
   apiClient.put<Sprint>(`/rdm/sprints/${id}`, data);
 
-export const deleteSprint = (id: string) =>
-  apiClient.delete(`/rdm/sprints/${id}`);
+export const deleteSprint = (id: string) => apiClient.delete(`/rdm/sprints/${id}`);
 
 export const getSprintBoard = (sprintId: string) =>
-  apiClient.get<{ sprint: Sprint; columns: Record<string, { id: string; title: string; priority: string; assignee: string | null }[]> }>('/rdm/sprints/' + sprintId + '/board');
+  apiClient.get<{
+    sprint: Sprint;
+    columns: Record<
+      string,
+      { id: string; title: string; priority: string; assignee: string | null }[]
+    >;
+  }>('/rdm/sprints/' + sprintId + '/board');
 
 // ── Task ──
 
@@ -180,20 +186,16 @@ export interface CreateTaskInput {
 export const listTasks = (params?: { status?: string; assignee?: string; projectId?: string }) =>
   apiClient.get<Task[]>('/rdm/tasks', { params });
 
-export const getTask = (id: string) =>
-  apiClient.get<Task>(`/rdm/tasks/${id}`);
+export const getTask = (id: string) => apiClient.get<Task>(`/rdm/tasks/${id}`);
 
-export const createTask = (data: CreateTaskInput) =>
-  apiClient.post<Task>('/rdm/tasks', data);
+export const createTask = (data: CreateTaskInput) => apiClient.post<Task>('/rdm/tasks', data);
 
 export const updateTask = (id: string, data: Partial<Task>) =>
   apiClient.put<Task>(`/rdm/tasks/${id}`, data);
 
-export const deleteTask = (id: string) =>
-  apiClient.delete(`/rdm/tasks/${id}`);
+export const deleteTask = (id: string) => apiClient.delete(`/rdm/tasks/${id}`);
 
-export const getMyTasks = () =>
-  apiClient.get<Task[]>('/rdm/tasks/my');
+export const getMyTasks = () => apiClient.get<Task[]>('/rdm/tasks/my');
 
 // ── Document ──
 
@@ -228,8 +230,7 @@ export interface UpdateDocumentInput {
 export const listDocuments = (params?: { status?: string; projectId?: string; tags?: string }) =>
   apiClient.get<Document[]>('/rdm/documents', { params });
 
-export const getDocument = (id: string) =>
-  apiClient.get<Document>(`/rdm/documents/${id}`);
+export const getDocument = (id: string) => apiClient.get<Document>(`/rdm/documents/${id}`);
 
 export const createDocument = (data: CreateDocumentInput) =>
   apiClient.post<Document>('/rdm/documents', data);
@@ -237,8 +238,7 @@ export const createDocument = (data: CreateDocumentInput) =>
 export const updateDocument = (id: string, data: UpdateDocumentInput) =>
   apiClient.put<Document>(`/rdm/documents/${id}`, data);
 
-export const deleteDocument = (id: string) =>
-  apiClient.delete(`/rdm/documents/${id}`);
+export const deleteDocument = (id: string) => apiClient.delete(`/rdm/documents/${id}`);
 
 export const getDocumentVersions = (id: string) =>
   apiClient.get<Document[]>('/rdm/documents/' + id + '/versions');
@@ -283,20 +283,20 @@ export interface CodeReviewComment {
 export const listCodeReviews = (params?: { status?: string; projectId?: string }) =>
   apiClient.get<CodeReview[]>('/rdm/code-reviews', { params });
 
-export const getCodeReview = (id: string) =>
-  apiClient.get<CodeReview>(`/rdm/code-reviews/${id}`);
+export const getCodeReview = (id: string) => apiClient.get<CodeReview>(`/rdm/code-reviews/${id}`);
 
 export const createCodeReview = (data: CreateCodeReviewInput) =>
   apiClient.post<CodeReview>('/rdm/code-reviews', data);
 
-export const deleteCodeReview = (id: string) =>
-  apiClient.delete(`/rdm/code-reviews/${id}`);
+export const deleteCodeReview = (id: string) => apiClient.delete(`/rdm/code-reviews/${id}`);
 
 export const getCodeReviewComments = (reviewId: string) =>
   apiClient.get<CodeReviewComment[]>('/rdm/code-reviews/' + reviewId + '/comments');
 
-export const addCodeReviewComment = (reviewId: string, data: { content: string; file?: string; line?: number }) =>
-  apiClient.post<CodeReviewComment>('/rdm/code-reviews/' + reviewId + '/comments', data);
+export const addCodeReviewComment = (
+  reviewId: string,
+  data: { content: string; file?: string; line?: number }
+) => apiClient.post<CodeReviewComment>('/rdm/code-reviews/' + reviewId + '/comments', data);
 
 // ── Release ──
 
@@ -327,8 +327,7 @@ export interface CreateReleaseInput {
 export const listReleases = (params?: { status?: string; projectId?: string }) =>
   apiClient.get<Release[]>('/rdm/releases', { params });
 
-export const getRelease = (id: string) =>
-  apiClient.get<Release>(`/rdm/releases/${id}`);
+export const getRelease = (id: string) => apiClient.get<Release>(`/rdm/releases/${id}`);
 
 export const createRelease = (data: CreateReleaseInput) =>
   apiClient.post<Release>('/rdm/releases', data);
@@ -336,8 +335,7 @@ export const createRelease = (data: CreateReleaseInput) =>
 export const updateRelease = (id: string, data: Partial<Release>) =>
   apiClient.put<Release>(`/rdm/releases/${id}`, data);
 
-export const deleteRelease = (id: string) =>
-  apiClient.delete(`/rdm/releases/${id}`);
+export const deleteRelease = (id: string) => apiClient.delete(`/rdm/releases/${id}`);
 
 // ── Statistics ──
 
@@ -359,7 +357,19 @@ export const getVelocityData = (params?: { projectId?: string; limit?: number })
   apiClient.get<VelocityPoint[]>('/rdm/statistics/velocity', { params });
 
 export const getDefectStatsAPI = (params?: { projectId?: string }) =>
-  apiClient.get<{ bySeverity: { severity: string; count: number }[]; byStatus: { status: string; count: number }[] }>('/rdm/statistics/defects', { params });
+  apiClient.get<{
+    bySeverity: { severity: string; count: number }[];
+    byStatus: { status: string; count: number }[];
+  }>('/rdm/statistics/defects', { params });
 
 export const getSprintStats = (params?: { projectId?: string }) =>
-  apiClient.get<{ sprintId: string; sprintName: string; totalTasks: number; completedTasks: number; totalPoints: number; completedPoints: number }[]>('/rdm/statistics/sprints', { params });
+  apiClient.get<
+    {
+      sprintId: string;
+      sprintName: string;
+      totalTasks: number;
+      completedTasks: number;
+      totalPoints: number;
+      completedPoints: number;
+    }[]
+  >('/rdm/statistics/sprints', { params });

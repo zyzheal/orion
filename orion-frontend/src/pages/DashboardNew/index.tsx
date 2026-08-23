@@ -4,19 +4,7 @@
  * 对接真实后端API获取数据
  */
 import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Tag,
-  Table,
-  Typography,
-  Badge,
-  Button,
-  Space,
-  Spin,
-  Alert,
-} from 'antd';
+import { Card, Row, Col, Tag, Table, Typography, Badge, Button, Space, Spin, Alert } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import { StatCard } from '@/components/charts';
@@ -126,8 +114,18 @@ const quickActions: QuickAction[] = [
     color: colors.primary[500],
     path: '/pipelines/new',
   },
-  { name: '运行记录', icon: <HistoryOutlined />, color: colors.success[500], path: '/pipeline-runs' },
-  { name: '部署管理', icon: <PlayCircleOutlined />, color: colors.purple[500], path: '/deployments' },
+  {
+    name: '运行记录',
+    icon: <HistoryOutlined />,
+    color: colors.success[500],
+    path: '/pipeline-runs',
+  },
+  {
+    name: '部署管理',
+    icon: <PlayCircleOutlined />,
+    color: colors.purple[500],
+    path: '/deployments',
+  },
   { name: '告警管理', icon: <AlertOutlined />, color: colors.warning[500], path: '/alerts' },
 ];
 
@@ -229,7 +227,12 @@ const DashboardNew: React.FC = () => {
         if (healthRes.data?.status) {
           setSystemHealth([
             { name: 'API Gateway', status: 'healthy', latency: '-', uptime: '-' },
-            { name: 'Platform Service', status: healthRes.data.status === 'ok' ? 'healthy' : 'warning', latency: '-', uptime: '-' },
+            {
+              name: 'Platform Service',
+              status: healthRes.data.status === 'ok' ? 'healthy' : 'warning',
+              latency: '-',
+              uptime: '-',
+            },
             { name: 'Database', status: 'healthy', latency: '-', uptime: '-' },
             { name: 'Redis', status: 'healthy', latency: '-', uptime: '-' },
           ]);
@@ -392,7 +395,17 @@ const DashboardNew: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: spacing[3] }}>
+      <div
+        style={{
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 400,
+          gap: spacing[3],
+        }}
+      >
         <Spin size="large" />
         <Typography.Text type="secondary">加载数据中...</Typography.Text>
       </div>
@@ -412,7 +425,14 @@ const DashboardNew: React.FC = () => {
         />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
@@ -465,7 +485,14 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 最近 Pipeline */}
-          <Card title="最近 Pipeline 执行" extra={<Button type="link" onClick={() => navigate('/pipeline-runs')}>查看全部</Button>}>
+          <Card
+            title="最近 Pipeline 执行"
+            extra={
+              <Button type="link" onClick={() => navigate('/pipeline-runs')}>
+                查看全部
+              </Button>
+            }
+          >
             <Table
               columns={pipelineColumns}
               dataSource={recentPipelineRecords}
@@ -591,19 +618,27 @@ const DashboardNew: React.FC = () => {
           {/* 公告/提醒 */}
           <Card title="系统提醒">
             {pipelineStats.failed > 0 && (
-              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+              <Paragraph
+                type="secondary"
+                style={{ fontSize: spacing[3], marginBottom: spacing.sm }}
+              >
                 <WarningOutlined style={{ color: colors.warning[500], marginRight: spacing.sm }} />
                 {pipelineStats.failed} 个 Pipeline 运行失败，请检查
               </Paragraph>
             )}
             {pipelineStats.running > 0 && (
-              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+              <Paragraph
+                type="secondary"
+                style={{ fontSize: spacing[3], marginBottom: spacing.sm }}
+              >
                 <RocketOutlined style={{ color: colors.primary[500], marginRight: spacing.sm }} />
                 {pipelineStats.running} 个 Pipeline 正在运行中
               </Paragraph>
             )}
             <Paragraph type="secondary" style={{ fontSize: spacing[3] }}>
-              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: spacing.sm }} />
+              <CheckCircleOutlined
+                style={{ color: colors.success[500], marginRight: spacing.sm }}
+              />
               系统运行正常
             </Paragraph>
           </Card>

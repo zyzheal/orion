@@ -8,7 +8,17 @@ import { api } from './client';
 
 // ==================== 类型定义 ====================
 
-export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'task' | 'sub-workflow' | 'delay' | 'timer' | 'end';
+export type WorkflowNodeType =
+  | 'start'
+  | 'approval'
+  | 'condition'
+  | 'notification'
+  | 'webhook'
+  | 'task'
+  | 'sub-workflow'
+  | 'delay'
+  | 'timer'
+  | 'end';
 
 export interface WorkflowNode {
   id: string;
@@ -51,7 +61,13 @@ export interface WorkflowHistory {
   duration?: number;
 }
 
-export type WorkflowInstanceStatus = 'pending' | 'running' | 'suspended' | 'completed' | 'failed' | 'terminated';
+export type WorkflowInstanceStatus =
+  | 'pending'
+  | 'running'
+  | 'suspended'
+  | 'completed'
+  | 'failed'
+  | 'terminated';
 
 export interface WorkflowExecution {
   id: string;
@@ -84,14 +100,23 @@ function normalizeWorkflow(raw: unknown): WorkflowDefinition {
     tenantId: (w.tenantId || '') as string,
     name: (w.name || '') as string,
     description: (w.description as string) || undefined,
-    version: typeof w.version === 'number' ? w.version : typeof w.version === 'string' ? parseInt(w.version, 10) || 1 : 1,
+    version:
+      typeof w.version === 'number'
+        ? w.version
+        : typeof w.version === 'string'
+          ? parseInt(w.version, 10) || 1
+          : 1,
     enabled: w.enabled === true,
-    nodes: Array.isArray(w.nodes) ? (w.nodes as WorkflowNode[]) :
-      w.nodes && typeof w.nodes === 'object' && 'nodes' in w.nodes ? (w.nodes as { nodes?: WorkflowNode[] }).nodes || [] :
-      [],
-    edges: Array.isArray(w.edges) ? (w.edges as WorkflowEdge[]) :
-      w.edges && typeof w.edges === 'object' && 'edges' in w.edges ? (w.edges as { edges?: WorkflowEdge[] }).edges || [] :
-      [],
+    nodes: Array.isArray(w.nodes)
+      ? (w.nodes as WorkflowNode[])
+      : w.nodes && typeof w.nodes === 'object' && 'nodes' in w.nodes
+        ? (w.nodes as { nodes?: WorkflowNode[] }).nodes || []
+        : [],
+    edges: Array.isArray(w.edges)
+      ? (w.edges as WorkflowEdge[])
+      : w.edges && typeof w.edges === 'object' && 'edges' in w.edges
+        ? (w.edges as { edges?: WorkflowEdge[] }).edges || []
+        : [],
     createdBy: (w.createdBy as string) || '',
     createdAt: (w.createdAt as string) || '',
     updatedAt: (w.updatedAt as string) || '',

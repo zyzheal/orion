@@ -18,21 +18,52 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Typography, Button, Space, Card, Modal, Form, Input,
-  Select, Tag, Tooltip, message, Empty, Tabs, Badge,
+  Typography,
+  Button,
+  Space,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  message,
+  Empty,
+  Tabs,
+  Badge,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import TableWrapper, { type TableColumn } from '@/components/Table';
 import {
-  Requirement, CreateRequirementInput, Defect, Sprint, Task,
-  listRequirements, createRequirement, updateRequirement, deleteRequirement,
-  listDefects, createDefect, updateDefect, deleteDefect,
-  listSprints, createSprint, updateSprint, deleteSprint,
-  listTasks, createTask, updateTask, deleteTask,
+  Requirement,
+  CreateRequirementInput,
+  Defect,
+  Sprint,
+  Task,
+  listRequirements,
+  createRequirement,
+  updateRequirement,
+  deleteRequirement,
+  listDefects,
+  createDefect,
+  updateDefect,
+  deleteDefect,
+  listSprints,
+  createSprint,
+  updateSprint,
+  deleteSprint,
+  listTasks,
+  createTask,
+  updateTask,
+  deleteTask,
 } from '@/api/rdm';
 
 const { Title } = Typography;
@@ -107,7 +138,9 @@ const RDM: React.FC = () => {
     }
   }, [activeTab]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -130,10 +163,18 @@ const RDM: React.FC = () => {
       onOk: async () => {
         try {
           switch (activeTab) {
-            case 'requirements': await deleteRequirement(id); break;
-            case 'defects': await deleteDefect(id); break;
-            case 'sprints': await deleteSprint(id); break;
-            case 'tasks': await deleteTask(id); break;
+            case 'requirements':
+              await deleteRequirement(id);
+              break;
+            case 'defects':
+              await deleteDefect(id);
+              break;
+            case 'sprints':
+              await deleteSprint(id);
+              break;
+            case 'tasks':
+              await deleteTask(id);
+              break;
           }
           message.success('删除成功');
           fetchData();
@@ -149,18 +190,34 @@ const RDM: React.FC = () => {
       const values = await form.validateFields();
       if (editingItem) {
         switch (activeTab) {
-          case 'requirements': await updateRequirement(editingItem.id, values); break;
-          case 'defects': await updateDefect(editingItem.id, values); break;
-          case 'sprints': await updateSprint(editingItem.id, values); break;
-          case 'tasks': await updateTask(editingItem.id, values); break;
+          case 'requirements':
+            await updateRequirement(editingItem.id, values);
+            break;
+          case 'defects':
+            await updateDefect(editingItem.id, values);
+            break;
+          case 'sprints':
+            await updateSprint(editingItem.id, values);
+            break;
+          case 'tasks':
+            await updateTask(editingItem.id, values);
+            break;
         }
         message.success('更新成功');
       } else {
         switch (activeTab) {
-          case 'requirements': await createRequirement(values as CreateRequirementInput); break;
-          case 'defects': await createDefect(values); break;
-          case 'sprints': await createSprint(values); break;
-          case 'tasks': await createTask(values); break;
+          case 'requirements':
+            await createRequirement(values as CreateRequirementInput);
+            break;
+          case 'defects':
+            await createDefect(values);
+            break;
+          case 'sprints':
+            await createSprint(values);
+            break;
+          case 'tasks':
+            await createTask(values);
+            break;
         }
         message.success('创建成功');
       }
@@ -173,30 +230,35 @@ const RDM: React.FC = () => {
 
   const getEntityName = (): EntityType => {
     switch (activeTab) {
-      case 'requirements': return 'requirement';
-      case 'defects': return 'defect';
-      case 'sprints': return 'sprint';
-      case 'tasks': return 'task';
+      case 'requirements':
+        return 'requirement';
+      case 'defects':
+        return 'defect';
+      case 'sprints':
+        return 'sprint';
+      case 'tasks':
+        return 'task';
     }
   };
 
-  const tagRender = (map: Record<string, { color: string; label: string }>) =>
-  (_: unknown, record: Record<string, unknown>) => {
-    const v = record.status as string;
-    return <Tag color={map[v]?.color}>{map[v]?.label || v}</Tag>;
+  const tagRender =
+    (map: Record<string, { color: string; label: string }>) =>
+    (_: unknown, record: Record<string, unknown>) => {
+      const v = record.status as string;
+      return <Tag color={map[v]?.color}>{map[v]?.label || v}</Tag>;
+    };
+
+  const priorityRender = (_: unknown, record: Record<string, unknown>) => {
+    const v = record.priority as string;
+    return <Tag color={PRIORITY_MAP[v]?.color}>{PRIORITY_MAP[v]?.label || v}</Tag>;
   };
 
-const priorityRender = (_: unknown, record: Record<string, unknown>) => {
-  const v = record.priority as string;
-  return <Tag color={PRIORITY_MAP[v]?.color}>{PRIORITY_MAP[v]?.label || v}</Tag>;
-};
+  const severityRender = (_: unknown, record: Record<string, unknown>) => {
+    const v = record.severity as string;
+    return <Tag color={PRIORITY_MAP[v]?.color}>{v}</Tag>;
+  };
 
-const severityRender = (_: unknown, record: Record<string, unknown>) => {
-  const v = record.severity as string;
-  return <Tag color={PRIORITY_MAP[v]?.color}>{v}</Tag>;
-};
-
-const columns: Record<string, TableColumn[]> = {
+  const columns: Record<string, TableColumn[]> = {
     requirements: [
       { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
       { title: '优先级', dataIndex: 'priority', key: 'priority', render: priorityRender },
@@ -229,14 +291,26 @@ const columns: Record<string, TableColumn[]> = {
     width: 180,
     render: (_: any, record: any) => (
       <Space>
-        <Tooltip title="编辑"><Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} /></Tooltip>
-        <Tooltip title="删除"><Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} /></Tooltip>
+        <Tooltip title="编辑">
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+        </Tooltip>
+        <Tooltip title="删除">
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          />
+        </Tooltip>
       </Space>
     ),
   };
 
   const currentData = {
-    requirements, defects, sprints, tasks,
+    requirements,
+    defects,
+    sprints,
+    tasks,
   }[activeTab] as unknown as Record<string, unknown>[];
 
   const renderModalForm = () => {
@@ -266,11 +340,17 @@ const columns: Record<string, TableColumn[]> = {
         )}
         {entityName === 'sprint' && (
           <>
-            <Form.Item name="startDate" label="开始日期"><Input type="date" /></Form.Item>
-            <Form.Item name="endDate" label="结束日期"><Input type="date" /></Form.Item>
+            <Form.Item name="startDate" label="开始日期">
+              <Input type="date" />
+            </Form.Item>
+            <Form.Item name="endDate" label="结束日期">
+              <Input type="date" />
+            </Form.Item>
           </>
         )}
-        <Form.Item name="assignee" label="经办人"><Input /></Form.Item>
+        <Form.Item name="assignee" label="经办人">
+          <Input />
+        </Form.Item>
       </Form>
     );
   };
@@ -284,15 +364,55 @@ const columns: Record<string, TableColumn[]> = {
 
       <Card style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
         <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as TabKey)}>
-          <Tabs.TabPane tab={<span><Badge count={requirements.length} size="small">需求</Badge></span>} key="requirements" />
-          <Tabs.TabPane tab={<span><Badge count={defects.length} size="small">缺陷</Badge></span>} key="defects" />
-          <Tabs.TabPane tab={<span><Badge count={sprints.length} size="small">迭代</Badge></span>} key="sprints" />
-          <Tabs.TabPane tab={<span><Badge count={tasks.length} size="small">任务</Badge></span>} key="tasks" />
+          <Tabs.TabPane
+            tab={
+              <span>
+                <Badge count={requirements.length} size="small">
+                  需求
+                </Badge>
+              </span>
+            }
+            key="requirements"
+          />
+          <Tabs.TabPane
+            tab={
+              <span>
+                <Badge count={defects.length} size="small">
+                  缺陷
+                </Badge>
+              </span>
+            }
+            key="defects"
+          />
+          <Tabs.TabPane
+            tab={
+              <span>
+                <Badge count={sprints.length} size="small">
+                  迭代
+                </Badge>
+              </span>
+            }
+            key="sprints"
+          />
+          <Tabs.TabPane
+            tab={
+              <span>
+                <Badge count={tasks.length} size="small">
+                  任务
+                </Badge>
+              </span>
+            }
+            key="tasks"
+          />
         </Tabs>
 
         <Space style={{ marginBottom: spacing.md }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新建</Button>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            新建
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+            刷新
+          </Button>
         </Space>
 
         <TableWrapper

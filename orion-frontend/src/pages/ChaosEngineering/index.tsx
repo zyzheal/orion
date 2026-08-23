@@ -42,13 +42,7 @@ import {
   ExperimentOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
-import {
-  chaosApi,
-  resilienceApi,
-  ChaosExperiment,
-  ChaosFault,
-  ResilienceScore,
-} from '@/api/chaos';
+import { chaosApi, resilienceApi, ChaosExperiment, ChaosFault, ResilienceScore } from '@/api/chaos';
 import type { ColumnsType } from 'antd/es/table';
 import { spacing } from '@/tokens';
 

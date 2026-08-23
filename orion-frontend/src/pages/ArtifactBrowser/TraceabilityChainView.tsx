@@ -3,15 +3,7 @@
  * Shows: Artifact Version -> Pipeline Run -> Source Commit -> Deployment
  */
 import React from 'react';
-import {
-  Timeline,
-  Tag,
-  Space,
-  Descriptions,
-  Typography,
-  Card,
-  Tooltip,
-} from 'antd';
+import { Timeline, Tag, Space, Descriptions, Typography, Card, Tooltip } from 'antd';
 import {
   GithubOutlined,
   BranchesOutlined,
@@ -81,13 +73,17 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
         <Descriptions column={2} size="small">
           <Descriptions.Item label="制品名称">{version.artifactName}</Descriptions.Item>
           <Descriptions.Item label="存储路径">
-            <Text code style={{ fontSize: 11 }}>{version.storagePath}</Text>
+            <Text code style={{ fontSize: 11 }}>
+              {version.storagePath}
+            </Text>
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss')}
           </Descriptions.Item>
           <Descriptions.Item label="Run ID">
-            <Text code style={{ fontSize: 11 }}>{version.runId}</Text>
+            <Text code style={{ fontSize: 11 }}>
+              {version.runId}
+            </Text>
           </Descriptions.Item>
           {version.commitSha && (
             <Descriptions.Item label="Commit SHA">
@@ -100,7 +96,9 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
           )}
           {version.branch && (
             <Descriptions.Item label="分支">
-              <Tag color="geekblue"><BranchesOutlined /> {version.branch}</Tag>
+              <Tag color="geekblue">
+                <BranchesOutlined /> {version.branch}
+              </Tag>
             </Descriptions.Item>
           )}
           {Object.keys(version.metadata).length > 0 && (
@@ -158,9 +156,7 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
             // 2. Pipeline Run
             {
               color: pipelineRun ? (pipelineRun.status === 'success' ? 'green' : 'red') : 'gray',
-              dot: pipelineRun ? (
-                statusIconMap[pipelineRun.status] || <SyncOutlined />
-              ) : undefined,
+              dot: pipelineRun ? statusIconMap[pipelineRun.status] || <SyncOutlined /> : undefined,
               children: (
                 <Card size="small" type="inner">
                   <Title level={5} style={{ margin: '0 0 8px' }}>
@@ -170,7 +166,9 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
                     <Space direction="vertical" size={4}>
                       <Space>
                         <Text>Run ID:</Text>
-                        <Text code style={{ fontSize: 11 }}>{pipelineRun.id}</Text>
+                        <Text code style={{ fontSize: 11 }}>
+                          {pipelineRun.id}
+                        </Text>
                       </Space>
                       <Space>
                         <Text>触发方式:</Text>
@@ -181,8 +179,8 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
                             pipelineRun.status === 'success'
                               ? 'green'
                               : pipelineRun.status === 'failed'
-                              ? 'red'
-                              : 'orange'
+                                ? 'red'
+                                : 'orange'
                           }
                         >
                           {pipelineRun.status}
@@ -200,7 +198,10 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
                             <Text type="secondary">
                               {' '}
                               (耗时{' '}
-                              {dayjs(pipelineRun.completedAt).diff(dayjs(pipelineRun.startedAt), 'second')}
+                              {dayjs(pipelineRun.completedAt).diff(
+                                dayjs(pipelineRun.startedAt),
+                                'second'
+                              )}
                               秒)
                             </Text>
                           )}
@@ -226,9 +227,7 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
                     <Text>
                       版本: <Text strong>{version.version}</Text>
                     </Text>
-                    <Text>
-                      名称: {version.artifactName}
-                    </Text>
+                    <Text>名称: {version.artifactName}</Text>
                     <Text type="secondary">
                       {dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                     </Text>
@@ -252,8 +251,8 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
                           d.status === 'success'
                             ? 'green'
                             : d.status === 'failed'
-                            ? 'red'
-                            : 'orange',
+                              ? 'red'
+                              : 'orange',
                         dot: statusIconMap[d.status] || undefined,
                         children: (
                           <Space direction="vertical" size={0}>
@@ -263,8 +262,8 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
                                   d.status === 'success'
                                     ? 'green'
                                     : d.status === 'failed'
-                                    ? 'red'
-                                    : 'orange'
+                                      ? 'red'
+                                      : 'orange'
                                 }
                               >
                                 {d.environment}

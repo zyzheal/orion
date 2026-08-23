@@ -20,10 +20,26 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/console/confirmations/pending': { icon: <CheckSquareOutlined />, title: '确认工作台', subtitle: '处理待确认事项' },
-  '/console/confirmations/batch': { icon: <CheckCircleOutlined />, title: '批量确认', subtitle: '批量确认操作' },
-  '/console/confirmations/notifications': { icon: <BellOutlined />, title: '通知设置', subtitle: '配置确认通知' },
-  '/console/confirmations/audit': { icon: <AuditOutlined />, title: '审计日志', subtitle: '查看确认审计记录' },
+  '/console/confirmations/pending': {
+    icon: <CheckSquareOutlined />,
+    title: '确认工作台',
+    subtitle: '处理待确认事项',
+  },
+  '/console/confirmations/batch': {
+    icon: <CheckCircleOutlined />,
+    title: '批量确认',
+    subtitle: '批量确认操作',
+  },
+  '/console/confirmations/notifications': {
+    icon: <BellOutlined />,
+    title: '通知设置',
+    subtitle: '配置确认通知',
+  },
+  '/console/confirmations/audit': {
+    icon: <AuditOutlined />,
+    title: '审计日志',
+    subtitle: '查看确认审计记录',
+  },
 };
 
 const ConfirmationLayout: React.FC = () => {
@@ -52,12 +68,14 @@ const ConfirmationLayout: React.FC = () => {
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-              {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+              {pageInfo.icon && (
+                <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                  {pageInfo.icon}
+                </span>
+              )}
               {pageInfo.title}
             </Title>
-            {pageInfo.subtitle && (
-              <Text type="secondary">{pageInfo.subtitle}</Text>
-            )}
+            {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
           </div>
         )}
         <Spin spinning={loading}>

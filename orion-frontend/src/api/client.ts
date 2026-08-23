@@ -70,11 +70,23 @@ apiClient.interceptors.response.use(
       // 如果 success 为 false，不解包，保留原始错误信息供调用方处理
     }
     // 兼容旧格式: { code: 200, message: 'OK', data: T } — 过渡期支持
-    else if (wrapped && typeof wrapped === 'object' && 'code' in wrapped && wrapped.code === 200 && wrapped.data !== undefined) {
+    else if (
+      wrapped &&
+      typeof wrapped === 'object' &&
+      'code' in wrapped &&
+      wrapped.code === 200 &&
+      wrapped.data !== undefined
+    ) {
       response.data = wrapped.data as unknown as typeof response.data;
     }
     // 兼容直接返回 data 字段的格式: { data: T } — 过渡期支持
-    else if (wrapped && typeof wrapped === 'object' && 'data' in wrapped && !('success' in wrapped) && !('code' in wrapped)) {
+    else if (
+      wrapped &&
+      typeof wrapped === 'object' &&
+      'data' in wrapped &&
+      !('success' in wrapped) &&
+      !('code' in wrapped)
+    ) {
       response.data = wrapped.data as unknown as typeof response.data;
     }
     return response;
@@ -128,11 +140,7 @@ apiClient.interceptors.response.use(
         const { accessToken, refreshToken: newRefreshToken, expiresAt } = response.data.data;
 
         // 更新 authStore
-        useAuthStore.getState().setTokens(
-          accessToken,
-          newRefreshToken || refreshToken,
-          expiresAt
-        );
+        useAuthStore.getState().setTokens(accessToken, newRefreshToken || refreshToken, expiresAt);
 
         // 处理队列中的等待请求
         processQueue(null, accessToken);
@@ -172,9 +180,13 @@ apiClient.interceptors.response.use(
         const source = details?.source || 'unknown';
         const reason = details?.reason || errMsg;
         const label =
-          source === 'abac' ? 'ABAC 策略拒绝' :
-          source === 'rbac' ? '角色权限不足' :
-          source === 'relationship' ? '项目权限不足' : '权限不足';
+          source === 'abac'
+            ? 'ABAC 策略拒绝'
+            : source === 'rbac'
+              ? '角色权限不足'
+              : source === 'relationship'
+                ? '项目权限不足'
+                : '权限不足';
         message.error(`${label}：${reason}`);
         if (requestId) console.warn(`[403] requestId=${requestId}`);
       } else if (status === 404) {
@@ -212,10 +224,7 @@ apiClient.interceptors.response.use(
 
 // 导出请求方法
 export const api = {
-  get<T = unknown>(
-    url: string,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
+  get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
     return apiClient.get(url, config) as Promise<AxiosResponse<T>>;
   },
 
@@ -235,10 +244,7 @@ export const api = {
     return apiClient.put(url, data, config) as Promise<AxiosResponse<T>>;
   },
 
-  delete<T = unknown>(
-    url: string,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
+  delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
     return apiClient.delete(url, config) as Promise<AxiosResponse<T>>;
   },
 

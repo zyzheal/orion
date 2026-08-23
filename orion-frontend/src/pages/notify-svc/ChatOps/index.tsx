@@ -37,7 +37,15 @@ export default function ChatOpsPage() {
     {
       key: 'overview',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
           <DashboardOutlined />
           总览看板
         </span>
@@ -47,7 +55,15 @@ export default function ChatOpsPage() {
     {
       key: 'executions',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
           <PlayCircleOutlined />
           执行记录
         </span>
@@ -57,7 +73,15 @@ export default function ChatOpsPage() {
     {
       key: 'audit',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
           <AuditOutlined />
           审计日志
         </span>
@@ -67,7 +91,15 @@ export default function ChatOpsPage() {
     {
       key: 'admin',
       label: (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 14,
+            fontWeight: 500,
+          }}
+        >
           <SettingOutlined />
           管理配置
         </span>
@@ -77,7 +109,15 @@ export default function ChatOpsPage() {
   ];
 
   return (
-    <div style={{ padding: 0, height: 'calc(100vh - 64px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div
+      style={{
+        padding: 0,
+        height: 'calc(100vh - 64px)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* 使用引导 */}
       {showGuide && (
         <Alert
@@ -85,18 +125,29 @@ export default function ChatOpsPage() {
           style={{ margin: '8px 16px 0', borderRadius: 8 }}
           message={
             <span style={{ fontSize: 13 }}>
-              <strong>如何使用 ChatOps？</strong>
-              {' '}本页为<span style={{ color: colors.primary[500], fontWeight: 500 }}>管理中心</span>（数据看板、命令文档、执行记录、配置管理）。
-              {' '}需要对话操作？点击页面<span style={{ color: colors.primary[500], fontWeight: 500 }}>右下角</span>的悬浮按钮打开 AI 助手。
+              <strong>如何使用 ChatOps？</strong> 本页为
+              <span style={{ color: colors.primary[500], fontWeight: 500 }}>管理中心</span>
+              （数据看板、命令文档、执行记录、配置管理）。 需要对话操作？点击页面
+              <span style={{ color: colors.primary[500], fontWeight: 500 }}>右下角</span>
+              的悬浮按钮打开 AI 助手。
             </span>
           }
           action={
-            <a onClick={() => { setShowGuide(false); localStorage.setItem('chatops-guide-dismissed', 'true'); }} style={{ fontSize: 12 }}>
+            <a
+              onClick={() => {
+                setShowGuide(false);
+                localStorage.setItem('chatops-guide-dismissed', 'true');
+              }}
+              style={{ fontSize: 12 }}
+            >
               <CloseOutlined /> 不再提示
             </a>
           }
           closable
-          onClose={() => { setShowGuide(false); localStorage.setItem('chatops-guide-dismissed', 'true'); }}
+          onClose={() => {
+            setShowGuide(false);
+            localStorage.setItem('chatops-guide-dismissed', 'true');
+          }}
         />
       )}
 

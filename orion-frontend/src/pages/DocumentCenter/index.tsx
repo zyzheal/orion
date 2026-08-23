@@ -5,9 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Card, Typography } from 'antd';
-import {
-  FileTextOutlined,
-} from '@ant-design/icons';
+import { FileTextOutlined } from '@ant-design/icons';
 import DocTree from './DocTree';
 import DocList from './DocList';
 import DocDetail from './DocDetail';
@@ -52,13 +50,22 @@ const DocumentCenter: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: spacing.lg,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <FileTextOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
             文档中心
           </Title>
-          <Paragraph type="secondary" style={{ marginBottom: 0 }}>浏览、搜索和管理项目设计文档、规范和运维手册</Paragraph>
+          <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            浏览、搜索和管理项目设计文档、规范和运维手册
+          </Paragraph>
         </div>
         <SyncPanel visible={syncVisible} onClose={() => setSyncVisible(false)} />
       </div>

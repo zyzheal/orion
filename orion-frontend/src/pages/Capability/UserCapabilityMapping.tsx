@@ -21,7 +21,6 @@ import {
   Badge,
   Tooltip,
   Avatar,
-  Collapse,
   Empty,
 } from 'antd';
 import {
@@ -40,7 +39,7 @@ import { capabilityApi, type Capability as ApiCapability } from '@/api/capabilit
 import { userApi, type UserProfile } from '@/api/user';
 
 const { Text } = Typography;
-const {} = Collapse;
+// Collapse component not needed in this file
 
 // ==================== 类型定义 ====================
 
@@ -153,14 +152,16 @@ const UserCapabilityMapping: React.FC = () => {
     try {
       const capRes = await capabilityApi.list();
       const capData = (capRes.data as any)?.data || [];
-      setCapabilities(capData.map((c: ApiCapability) => ({
-        id: c.capability_id || c.id,
-        name: c.name,
-        description: c.description || '',
-        category: c.category,
-        riskLevel: (c.risk_level || 1) as 1 | 2 | 3 | 4,
-        requiresApproval: c.requires_approval ?? false,
-      })));
+      setCapabilities(
+        capData.map((c: ApiCapability) => ({
+          id: c.capability_id || c.id,
+          name: c.name,
+          description: c.description || '',
+          category: c.category,
+          riskLevel: (c.risk_level || 1) as 1 | 2 | 3 | 4,
+          requiresApproval: c.requires_approval ?? false,
+        }))
+      );
 
       // 加载所有用户的覆盖
       const allOverrides: UserCapabilityOverride[] = [];
@@ -182,7 +183,9 @@ const UserCapabilityMapping: React.FC = () => {
               expiresAt: o.expires_at,
             });
           }
-        } catch { /* skip user */ }
+        } catch {
+          /* skip user */
+        }
       }
       setOverrides(allOverrides);
     } catch {
@@ -217,17 +220,20 @@ const UserCapabilityMapping: React.FC = () => {
   );
 
   // 删除覆盖
-  const handleDeleteOverride = useCallback(async (overrideId: string) => {
-    const override = overrides.find(o => o.id === overrideId);
-    if (!override) return;
-    try {
-      await capabilityApi.removeUserOverride(override.userId, override.capabilityId);
-      message.success('覆盖已撤销');
-      loadData();
-    } catch {
-      message.error('撤销失败');
-    }
-  }, [overrides, loadData]);
+  const handleDeleteOverride = useCallback(
+    async (overrideId: string) => {
+      const override = overrides.find((o) => o.id === overrideId);
+      if (!override) return;
+      try {
+        await capabilityApi.removeUserOverride(override.userId, override.capabilityId);
+        message.success('覆盖已撤销');
+        loadData();
+      } catch {
+        message.error('撤销失败');
+      }
+    },
+    [overrides, loadData]
+  );
 
   // 打开添加覆盖弹窗
   const handleOpenModal = useCallback(

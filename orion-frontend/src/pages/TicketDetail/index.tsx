@@ -43,7 +43,14 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { getTicket, assignTicket, resolveTicket, closeTicket, getTicketRelations, getTransferHistory } from '@/api/ticketing';
+import {
+  getTicket,
+  assignTicket,
+  resolveTicket,
+  closeTicket,
+  getTicketRelations,
+  getTransferHistory,
+} from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
 import { colors, spacing, themeVars } from '@/tokens';
@@ -242,7 +249,8 @@ const TicketDetail: React.FC = () => {
         ]);
         setRelations(relationsRes.data?.items || []);
         setTransfers(transfersRes.data?.items || []);
-      } catch (error) {
+      } catch {
+        // Relations/transfer history are non-critical; silently fail
       }
     };
     loadRelatedData();
@@ -404,7 +412,10 @@ const TicketDetail: React.FC = () => {
             <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             {ticket.id}
           </Title>
-          <Badge status={sConfig.color as 'success' | 'warning' | 'error' | 'processing' | 'default'} text={sConfig.label} />
+          <Badge
+            status={sConfig.color as 'success' | 'warning' | 'error' | 'processing' | 'default'}
+            text={sConfig.label}
+          />
           <Tag color={pConfig.color} style={{ fontWeight: 500, padding: '2px 12px' }}>
             {pConfig.label}
           </Tag>

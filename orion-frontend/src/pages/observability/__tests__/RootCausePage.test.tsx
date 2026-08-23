@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
-import {BrowserRouter} from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import RootCausePage from '../RootCausePage';
 
 vi.mock('antd', async () => {
@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><RootCausePage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <RootCausePage />
+    </BrowserRouter>
+  );
 }
 
 describe('RootCausePage', () => {

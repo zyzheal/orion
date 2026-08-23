@@ -30,7 +30,13 @@ export interface CreateOrchestrationInput {
   name: string;
   description: string;
   domains: string[];
-  steps: { name: string; domain: string; action: string; config: Record<string, unknown>; dependsOn?: string[] }[];
+  steps: {
+    name: string;
+    domain: string;
+    action: string;
+    config: Record<string, unknown>;
+    dependsOn?: string[];
+  }[];
 }
 
 export const orchestrationApi = {

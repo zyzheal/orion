@@ -41,7 +41,6 @@ const { TextArea } = Input;
 
 // ==================== Icons Map ====================
 
-
 // ==================== Main Component ====================
 
 const SubAppManagement: React.FC = () => {
@@ -174,7 +173,8 @@ const SubAppManagement: React.FC = () => {
   // Copy access link
   const handleCopyLink = (path: string) => {
     const url = `${window.location.origin}${path}`;
-    navigator.clipboard.writeText(url)
+    navigator.clipboard
+      .writeText(url)
       .then(() => message.success(`链接已复制: ${url}`))
       .catch(() => message.error('复制失败，请手动复制'));
   };
@@ -274,9 +274,7 @@ const SubAppManagement: React.FC = () => {
       key: 'api_domain',
       width: 100,
       render: (domain: string | null, record: SubAppConfig) => (
-        <Tag color={domain ? 'blue' : 'default'}>
-          {domain || record.key}
-        </Tag>
+        <Tag color={domain ? 'blue' : 'default'}>{domain || record.key}</Tag>
       ),
     },
     {
@@ -385,7 +383,10 @@ const SubAppManagement: React.FC = () => {
             label="唯一标识"
             rules={[
               { required: true, message: '请输入唯一标识' },
-              { pattern: /^[a-z][a-z0-9-]*$/, message: '必须以小写字母开头，只包含小写字母、数字、中划线' },
+              {
+                pattern: /^[a-z][a-z0-9-]*$/,
+                message: '必须以小写字母开头，只包含小写字母、数字、中划线',
+              },
             ]}
             extra="用于路由路径，例如：dba → /dba"
           >
@@ -430,10 +431,12 @@ const SubAppManagement: React.FC = () => {
 
           <Space>
             <Form.Item name="keep_alive" valuePropName="checked" initialValue={false}>
-              <Switch />保持存活
+              <Switch />
+              保持存活
             </Form.Item>
             <Form.Item name="preload" valuePropName="checked" initialValue={false}>
-              <Switch />预加载
+              <Switch />
+              预加载
             </Form.Item>
           </Space>
 
@@ -446,7 +449,10 @@ const SubAppManagement: React.FC = () => {
             label="API 路由域"
             extra="子应用后端 API 的路由前缀，例如 'dba' 对应 /api/v1/dba/*"
             rules={[
-              { pattern: /^[a-z][a-z0-9-]*$/, message: '必须以小写字母开头，只包含小写字母、数字、中划线' },
+              {
+                pattern: /^[a-z][a-z0-9-]*$/,
+                message: '必须以小写字母开头，只包含小写字母、数字、中划线',
+              },
             ]}
           >
             <Input placeholder="例如：dba（留空则使用 key）" />
@@ -467,7 +473,8 @@ const SubAppManagement: React.FC = () => {
         ) : (
           <Timeline
             items={historyData.map((item) => ({
-              color: item.action === 'created' ? 'green' : item.action === 'deleted' ? 'red' : 'blue',
+              color:
+                item.action === 'created' ? 'green' : item.action === 'deleted' ? 'red' : 'blue',
               children: (
                 <div>
                   <Text strong>

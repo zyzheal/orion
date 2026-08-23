@@ -29,12 +29,26 @@ vi.mock('@/components/Table', () => ({
 
 vi.mock('@/components/MetricCard', () => ({
   default: ({ title, value }: any) => (
-    <div data-testid="metric-card">{title}: {value}</div>
+    <div data-testid="metric-card">
+      {title}: {value}
+    </div>
   ),
 }));
 
 const mockJobs = [
-  { id: '1', name: 'daily-cleanup', schedule: '0 2 * * *', command: 'npm run cleanup', enabled: true, status: 'idle', runCount: 42, lastRunAt: '2026-04-29T02:00:00Z', nextRunAt: '2026-04-30T02:00:00Z', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-04-29T02:00:00Z' },
+  {
+    id: '1',
+    name: 'daily-cleanup',
+    schedule: '0 2 * * *',
+    command: 'npm run cleanup',
+    enabled: true,
+    status: 'idle',
+    runCount: 42,
+    lastRunAt: '2026-04-29T02:00:00Z',
+    nextRunAt: '2026-04-30T02:00:00Z',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-04-29T02:00:00Z',
+  },
 ];
 
 const mockStats = { running: 1, total: 5, enabled: 4 };

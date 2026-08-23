@@ -19,7 +19,12 @@ import {
 } from 'antd';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
-import { ReloadOutlined, DeleteOutlined, ThunderboltOutlined, DatabaseOutlined,} from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
+  DatabaseOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import {
@@ -192,201 +197,207 @@ const BuildCachePage: React.FC = () => {
     setConfigModalOpen(true);
   };
 
-  const configColumns: TableColumn<BuildCacheConfig>[] = useMemo<TableColumn<BuildCacheConfig>[]>(() => [
-    {
-      key: 'name',
-      title: 'Name',
-      dataIndex: 'name',
-      width: 180,
-      sortable: true,
-      render: (value) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      key: 'pipeline',
-      title: 'Pipeline',
-      dataIndex: 'pipeline',
-      width: 160,
-      render: (value) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'stage',
-      title: 'Stage',
-      dataIndex: 'stage',
-      width: 120,
-      render: (value) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'strategy',
-      title: 'Strategy',
-      dataIndex: 'strategy',
-      width: 120,
-      render: (value) => {
-        const colorMap: Record<string, string> = {
-          volume: 'blue',
-          s3: 'orange',
-          registry: 'purple',
-        };
-        return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+  const configColumns: TableColumn<BuildCacheConfig>[] = useMemo<TableColumn<BuildCacheConfig>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Name',
+        dataIndex: 'name',
+        width: 180,
+        sortable: true,
+        render: (value) => <Text strong>{String(value)}</Text>,
       },
-    },
-    {
-      key: 'paths',
-      title: 'Paths',
-      dataIndex: 'paths',
-      width: 250,
-      render: (value) => {
-        const paths = value as string[];
-        return (
-          <Space wrap size={4}>
-            {paths.slice(0, 3).map((p, i) => (
-              <Tag key={String(i)} style={{ margin: 0 }}>
-                {p}
-              </Tag>
-            ))}
-            {paths.length > 3 && <Tag>+{paths.length - 3}</Tag>}
-          </Space>
-        );
+      {
+        key: 'pipeline',
+        title: 'Pipeline',
+        dataIndex: 'pipeline',
+        width: 160,
+        render: (value) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
       },
-    },
-    {
-      key: 'ttlDays',
-      title: 'TTL (days)',
-      dataIndex: 'ttlDays',
-      width: 100,
-      render: (value) => <Text>{String(value)}d</Text>,
-    },
-    {
-      key: 'enabled',
-      title: 'Enabled',
-      dataIndex: 'enabled',
-      width: 100,
-      render: (value) => (
-        <StatusBadge
-          status={value ? 'success' : 'cancelled'}
-          label={value ? 'Yes' : 'No'}
-          size="small"
-          showDot={false}
-        />
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 200,
-      render: (_: unknown, record: BuildCacheConfig) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => openEditConfigModal(record)}>
-            Edit
-          </Button>
-          <Popconfirm
-            title="Clear this cache config?"
-            onConfirm={() => handleClearConfig(record.id)}
-            okText="Clear"
-            cancelText="Cancel"
-          >
-            <Button type="link" size="small" icon={<ThunderboltOutlined />}>
-              Clear
+      {
+        key: 'stage',
+        title: 'Stage',
+        dataIndex: 'stage',
+        width: 120,
+        render: (value) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'strategy',
+        title: 'Strategy',
+        dataIndex: 'strategy',
+        width: 120,
+        render: (value) => {
+          const colorMap: Record<string, string> = {
+            volume: 'blue',
+            s3: 'orange',
+            registry: 'purple',
+          };
+          return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+        },
+      },
+      {
+        key: 'paths',
+        title: 'Paths',
+        dataIndex: 'paths',
+        width: 250,
+        render: (value) => {
+          const paths = value as string[];
+          return (
+            <Space wrap size={4}>
+              {paths.slice(0, 3).map((p, i) => (
+                <Tag key={String(i)} style={{ margin: 0 }}>
+                  {p}
+                </Tag>
+              ))}
+              {paths.length > 3 && <Tag>+{paths.length - 3}</Tag>}
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'ttlDays',
+        title: 'TTL (days)',
+        dataIndex: 'ttlDays',
+        width: 100,
+        render: (value) => <Text>{String(value)}d</Text>,
+      },
+      {
+        key: 'enabled',
+        title: 'Enabled',
+        dataIndex: 'enabled',
+        width: 100,
+        render: (value) => (
+          <StatusBadge
+            status={value ? 'success' : 'cancelled'}
+            label={value ? 'Yes' : 'No'}
+            size="small"
+            showDot={false}
+          />
+        ),
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        width: 200,
+        render: (_: unknown, record: BuildCacheConfig) => (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => openEditConfigModal(record)}>
+              Edit
             </Button>
-          </Popconfirm>
+            <Popconfirm
+              title="Clear this cache config?"
+              onConfirm={() => handleClearConfig(record.id)}
+              okText="Clear"
+              cancelText="Cancel"
+            >
+              <Button type="link" size="small" icon={<ThunderboltOutlined />}>
+                Clear
+              </Button>
+            </Popconfirm>
+            <Popconfirm
+              title="Delete this cache config?"
+              description="This will also remove all associated cache entries."
+              onConfirm={() => handleDeleteConfig(record.id)}
+              okText="Delete"
+              cancelText="Cancel"
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleClearConfig, handleDeleteConfig, openEditConfigModal]
+  );
+
+  const entryColumns: TableColumn<BuildCacheEntry>[] = useMemo<TableColumn<BuildCacheEntry>[]>(
+    () => [
+      {
+        key: 'key',
+        title: 'Cache Key',
+        dataIndex: 'key',
+        width: 300,
+        sortable: true,
+        render: (value) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'configId',
+        title: 'Config ID',
+        dataIndex: 'configId',
+        width: 140,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'size',
+        title: 'Size',
+        dataIndex: 'size',
+        width: 120,
+        sortable: true,
+        render: (value) => {
+          const bytes = Number(value);
+          if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(1)} MB</Text>;
+          if (bytes >= 1024) return <Text>{(bytes / 1024).toFixed(1)} KB</Text>;
+          return <Text>{bytes} B</Text>;
+        },
+      },
+      {
+        key: 'createdAt',
+        title: 'Created',
+        dataIndex: 'createdAt',
+        width: 140,
+        sortable: true,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'lastAccessedAt',
+        title: 'Last Accessed',
+        dataIndex: 'lastAccessedAt',
+        width: 140,
+        sortable: true,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        width: 100,
+        render: (_: unknown, record: BuildCacheEntry) => (
           <Popconfirm
-            title="Delete this cache config?"
-            description="This will also remove all associated cache entries."
-            onConfirm={() => handleDeleteConfig(record.id)}
+            title="Delete this cache entry?"
+            onConfirm={() => handleDeleteEntry(record.id)}
             okText="Delete"
             cancelText="Cancel"
           >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+            <Button type="link" size="small" danger>
               Delete
             </Button>
           </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleClearConfig, handleDeleteConfig, openEditConfigModal]);
-
-  const entryColumns: TableColumn<BuildCacheEntry>[] = useMemo<TableColumn<BuildCacheEntry>[]>(() => [
-    {
-      key: 'key',
-      title: 'Cache Key',
-      dataIndex: 'key',
-      width: 300,
-      sortable: true,
-      render: (value) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'configId',
-      title: 'Config ID',
-      dataIndex: 'configId',
-      width: 140,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'size',
-      title: 'Size',
-      dataIndex: 'size',
-      width: 120,
-      sortable: true,
-      render: (value) => {
-        const bytes = Number(value);
-        if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(1)} MB</Text>;
-        if (bytes >= 1024) return <Text>{(bytes / 1024).toFixed(1)} KB</Text>;
-        return <Text>{bytes} B</Text>;
+        ),
       },
-    },
-    {
-      key: 'createdAt',
-      title: 'Created',
-      dataIndex: 'createdAt',
-      width: 140,
-      sortable: true,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'lastAccessedAt',
-      title: 'Last Accessed',
-      dataIndex: 'lastAccessedAt',
-      width: 140,
-      sortable: true,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 100,
-      render: (_: unknown, record: BuildCacheEntry) => (
-        <Popconfirm
-          title="Delete this cache entry?"
-          onConfirm={() => handleDeleteEntry(record.id)}
-          okText="Delete"
-          cancelText="Cancel"
-        >
-          <Button type="link" size="small" danger>
-            Delete
-          </Button>
-        </Popconfirm>
-      ),
-    },
-  ], [handleDeleteEntry]);
+    ],
+    [handleDeleteEntry]
+  );
 
   const tabItems = [
     {

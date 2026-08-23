@@ -136,10 +136,22 @@ export default function UserProfilePage() {
             </div>
 
             <Descriptions column={1} size="small">
-              <Descriptions.Item label={<><MailOutlined /> 邮箱</>}>
+              <Descriptions.Item
+                label={
+                  <>
+                    <MailOutlined /> 邮箱
+                  </>
+                }
+              >
                 {profile?.email || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label={<><PhoneOutlined /> 手机</>}>
+              <Descriptions.Item
+                label={
+                  <>
+                    <PhoneOutlined /> 手机
+                  </>
+                }
+              >
                 {profile?.phone || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="状态">
@@ -176,22 +188,23 @@ export default function UserProfilePage() {
                       <TeamOutlined /> 所属团队
                     </span>
                   ),
-                  children: teams.length > 0 ? (
-                    <List
-                      dataSource={teams}
-                      renderItem={(team) => (
-                        <List.Item>
-                          <List.Item.Meta
-                            avatar={<Avatar icon={<TeamOutlined />} />}
-                            title={team.name}
-                            description={`角色: ${team.role}`}
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  ) : (
-                    <Empty description="暂无团队信息" />
-                  ),
+                  children:
+                    teams.length > 0 ? (
+                      <List
+                        dataSource={teams}
+                        renderItem={(team) => (
+                          <List.Item>
+                            <List.Item.Meta
+                              avatar={<Avatar icon={<TeamOutlined />} />}
+                              title={team.name}
+                              description={`角色: ${team.role}`}
+                            />
+                          </List.Item>
+                        )}
+                      />
+                    ) : (
+                      <Empty description="暂无团队信息" />
+                    ),
                 },
                 {
                   key: 'activities',
@@ -200,28 +213,29 @@ export default function UserProfilePage() {
                       <HistoryOutlined /> 最近活动
                     </span>
                   ),
-                  children: activities.length > 0 ? (
-                    <List
-                      dataSource={activities.slice(0, 10)}
-                      renderItem={(activity) => (
-                        <List.Item>
-                          <List.Item.Meta
-                            title={activity.action}
-                            description={
-                              <Space>
-                                {activity.resourceType && <Tag>{activity.resourceType}</Tag>}
-                                <Text type="secondary">
-                                  {new Date(activity.createdAt).toLocaleString('zh-CN')}
-                                </Text>
-                              </Space>
-                            }
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  ) : (
-                    <Empty description="暂无活动记录" />
-                  ),
+                  children:
+                    activities.length > 0 ? (
+                      <List
+                        dataSource={activities.slice(0, 10)}
+                        renderItem={(activity) => (
+                          <List.Item>
+                            <List.Item.Meta
+                              title={activity.action}
+                              description={
+                                <Space>
+                                  {activity.resourceType && <Tag>{activity.resourceType}</Tag>}
+                                  <Text type="secondary">
+                                    {new Date(activity.createdAt).toLocaleString('zh-CN')}
+                                  </Text>
+                                </Space>
+                              }
+                            />
+                          </List.Item>
+                        )}
+                      />
+                    ) : (
+                      <Empty description="暂无活动记录" />
+                    ),
                 },
                 {
                   key: 'permissions',
@@ -230,27 +244,30 @@ export default function UserProfilePage() {
                       <SafetyCertificateOutlined /> 权限
                     </span>
                   ),
-                  children: profile?.permissions && profile.permissions.length > 0 ? (
-                    <List
-                      dataSource={profile.permissions}
-                      renderItem={(perm) => (
-                        <List.Item>
-                          <List.Item.Meta
-                            title={perm.resource}
-                            description={
-                              <Space>
-                                {perm.actions.map((a) => (
-                                  <Tag key={a} color="blue">{a}</Tag>
-                                ))}
-                              </Space>
-                            }
-                          />
-                        </List.Item>
-                      )}
-                    />
-                  ) : (
-                    <Empty description="暂无权限信息" />
-                  ),
+                  children:
+                    profile?.permissions && profile.permissions.length > 0 ? (
+                      <List
+                        dataSource={profile.permissions}
+                        renderItem={(perm) => (
+                          <List.Item>
+                            <List.Item.Meta
+                              title={perm.resource}
+                              description={
+                                <Space>
+                                  {perm.actions.map((a) => (
+                                    <Tag key={a} color="blue">
+                                      {a}
+                                    </Tag>
+                                  ))}
+                                </Space>
+                              }
+                            />
+                          </List.Item>
+                        )}
+                      />
+                    ) : (
+                      <Empty description="暂无权限信息" />
+                    ),
                 },
               ]}
             />
@@ -268,10 +285,18 @@ export default function UserProfilePage() {
         cancelText="取消"
       >
         <Form form={form} layout="vertical">
-          <Form.Item label="用户名" name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+          <Form.Item
+            label="用户名"
+            name="username"
+            rules={[{ required: true, message: '请输入用户名' }]}
+          >
             <Input prefix={<UserOutlined />} />
           </Form.Item>
-          <Form.Item label="邮箱" name="email" rules={[{ type: 'email', message: '请输入有效邮箱' }]}>
+          <Form.Item
+            label="邮箱"
+            name="email"
+            rules={[{ type: 'email', message: '请输入有效邮箱' }]}
+          >
             <Input prefix={<MailOutlined />} />
           </Form.Item>
           <Form.Item label="手机" name="phone">

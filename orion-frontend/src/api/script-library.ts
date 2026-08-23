@@ -94,8 +94,7 @@ export interface ExecuteScriptInput {
 export const listScripts = (params?: { category?: string; scriptType?: string }) =>
   apiClient.get<ScriptEntry[]>('/scripts', { params });
 
-export const getScript = (id: string) =>
-  apiClient.get<ScriptEntry>(`/scripts/${id}`);
+export const getScript = (id: string) => apiClient.get<ScriptEntry>(`/scripts/${id}`);
 
 export const createScript = (data: CreateScriptInput) =>
   apiClient.post<ScriptEntry>('/scripts', data);
@@ -103,8 +102,7 @@ export const createScript = (data: CreateScriptInput) =>
 export const updateScript = (id: string, data: UpdateScriptInput) =>
   apiClient.put<ScriptEntry>(`/scripts/${id}`, data);
 
-export const deleteScript = (id: string) =>
-  apiClient.delete(`/scripts/${id}`);
+export const deleteScript = (id: string) => apiClient.delete(`/scripts/${id}`);
 
 // Versions
 export const listVersions = (scriptId: string) =>

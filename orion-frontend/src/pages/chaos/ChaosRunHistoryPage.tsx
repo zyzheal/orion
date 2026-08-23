@@ -60,7 +60,9 @@ export default function ChaosRunHistoryPage() {
     }
   };
 
-  useEffect(() => { fetchRuns(); }, []);
+  useEffect(() => {
+    fetchRuns();
+  }, []);
 
   const handleRollback = async (runId: string) => {
     try {
@@ -92,34 +94,45 @@ export default function ChaosRunHistoryPage() {
       key: 'status',
       render: (v: string) => {
         const cfg = statusConfig[v] || statusConfig.running;
-        return <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>;
+        return (
+          <Tag color={cfg.color} icon={cfg.icon}>
+            {cfg.label}
+          </Tag>
+        );
       },
     },
     {
       title: 'MTTR',
       dataIndex: ['metrics', 'mttr_ms'],
       key: 'mttr',
-      render: (v: number) => v ? `${(v / 1000).toFixed(1)}s` : '-',
+      render: (v: number) => (v ? `${(v / 1000).toFixed(1)}s` : '-'),
     },
     {
       title: '受影响服务',
       dataIndex: ['metrics', 'affected_services'],
       key: 'affected',
-      render: (v: string[]) => v?.length ? v.map(s => <Tag key={s}>{s}</Tag>) : '-',
+      render: (v: string[]) => (v?.length ? v.map((s) => <Tag key={s}>{s}</Tag>) : '-'),
     },
     {
       title: '恢复',
       dataIndex: ['metrics', 'recovered'],
       key: 'recovered',
-      render: (v: boolean) => v
-        ? <Tag color="success" icon={<CheckCircleOutlined />}>已恢复</Tag>
-        : <Tag color="error" icon={<CloseCircleOutlined />}>未恢复</Tag>,
+      render: (v: boolean) =>
+        v ? (
+          <Tag color="success" icon={<CheckCircleOutlined />}>
+            已恢复
+          </Tag>
+        ) : (
+          <Tag color="error" icon={<CloseCircleOutlined />}>
+            未恢复
+          </Tag>
+        ),
     },
     {
       title: '开始时间',
       dataIndex: 'started_at',
       key: 'started_at',
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -129,7 +142,10 @@ export default function ChaosRunHistoryPage() {
           <Button
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => { setSelectedRun(record); setDetailVisible(true); }}
+            onClick={() => {
+              setSelectedRun(record);
+              setDetailVisible(true);
+            }}
           >
             详情
           </Button>
@@ -183,9 +199,13 @@ export default function ChaosRunHistoryPage() {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="MTTR">
-                {selectedRun.metrics?.mttr_ms ? `${(selectedRun.metrics.mttr_ms / 1000).toFixed(1)}s` : '-'}
+                {selectedRun.metrics?.mttr_ms
+                  ? `${(selectedRun.metrics.mttr_ms / 1000).toFixed(1)}s`
+                  : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="错误数">{selectedRun.metrics?.error_count ?? 0}</Descriptions.Item>
+              <Descriptions.Item label="错误数">
+                {selectedRun.metrics?.error_count ?? 0}
+              </Descriptions.Item>
               <Descriptions.Item label="恢复状态">
                 {selectedRun.metrics?.recovered ? '已恢复' : '未恢复'}
               </Descriptions.Item>
@@ -193,7 +213,7 @@ export default function ChaosRunHistoryPage() {
 
             <Card title="事件时间线" size="small">
               <Timeline
-                items={(selectedRun.timeline || []).map(evt => ({
+                items={(selectedRun.timeline || []).map((evt) => ({
                   color: evt.type === 'inject' ? 'red' : evt.type === 'recover' ? 'green' : 'blue',
                   children: (
                     <div>

@@ -20,19 +20,59 @@ const { Title, Text } = Typography;
 
 // 统一菜单项配置
 const menuItems = [
-  { key: '/observability/self-healing/incidents', icon: <MedicineBoxOutlined />, label: 'Incidents' },
-  { key: '/observability/self-healing/history', icon: <HistoryOutlined />, label: 'Healing History' },
-  { key: '/observability/self-healing/strategies', icon: <ExperimentOutlined />, label: 'Strategies' },
-  { key: '/observability/self-healing/approvals', icon: <CheckSquareOutlined />, label: 'Approval Queue' },
-  { key: '/observability/self-healing/effectiveness', icon: <DashboardOutlined />, label: 'Effectiveness' },
+  {
+    key: '/observability/self-healing/incidents',
+    icon: <MedicineBoxOutlined />,
+    label: 'Incidents',
+  },
+  {
+    key: '/observability/self-healing/history',
+    icon: <HistoryOutlined />,
+    label: 'Healing History',
+  },
+  {
+    key: '/observability/self-healing/strategies',
+    icon: <ExperimentOutlined />,
+    label: 'Strategies',
+  },
+  {
+    key: '/observability/self-healing/approvals',
+    icon: <CheckSquareOutlined />,
+    label: 'Approval Queue',
+  },
+  {
+    key: '/observability/self-healing/effectiveness',
+    icon: <DashboardOutlined />,
+    label: 'Effectiveness',
+  },
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/observability/self-healing/incidents': { icon: <MedicineBoxOutlined />, title: 'Incidents', subtitle: '当前待处理的自我修复事件' },
-  '/observability/self-healing/history': { icon: <HistoryOutlined />, title: 'Healing History', subtitle: '查看历史修复记录' },
-  '/observability/self-healing/strategies': { icon: <ExperimentOutlined />, title: 'Strategies', subtitle: '管理修复策略配置' },
-  '/observability/self-healing/approvals': { icon: <CheckSquareOutlined />, title: 'Approval Queue', subtitle: '待审核的修复操作' },
-  '/observability/self-healing/effectiveness': { icon: <DashboardOutlined />, title: 'Effectiveness', subtitle: '自我修复效果分析' },
+  '/observability/self-healing/incidents': {
+    icon: <MedicineBoxOutlined />,
+    title: 'Incidents',
+    subtitle: '当前待处理的自我修复事件',
+  },
+  '/observability/self-healing/history': {
+    icon: <HistoryOutlined />,
+    title: 'Healing History',
+    subtitle: '查看历史修复记录',
+  },
+  '/observability/self-healing/strategies': {
+    icon: <ExperimentOutlined />,
+    title: 'Strategies',
+    subtitle: '管理修复策略配置',
+  },
+  '/observability/self-healing/approvals': {
+    icon: <CheckSquareOutlined />,
+    title: 'Approval Queue',
+    subtitle: '待审核的修复操作',
+  },
+  '/observability/self-healing/effectiveness': {
+    icon: <DashboardOutlined />,
+    title: 'Effectiveness',
+    subtitle: '自我修复效果分析',
+  },
 };
 
 // 统一的 Layout 配置
@@ -72,7 +112,10 @@ const SelfHealingLayout: React.FC = () => {
       >
         {!collapsed && (
           <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
-            <Title level={LAYOUT_CONFIG.titleLevel} style={{ margin: 0, color: colors.primary[500] }}>
+            <Title
+              level={LAYOUT_CONFIG.titleLevel}
+              style={{ margin: 0, color: colors.primary[500] }}
+            >
               Self-Healing
             </Title>
           </div>
@@ -96,12 +139,14 @@ const SelfHealingLayout: React.FC = () => {
           {pageInfo.title && (
             <div style={{ marginBottom: spacing.md }}>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.icon && (
+                  <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                    {pageInfo.icon}
+                  </span>
+                )}
                 {pageInfo.title}
               </Title>
-              {pageInfo.subtitle && (
-                <Text type="secondary">{pageInfo.subtitle}</Text>
-              )}
+              {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
             </div>
           )}
           <Outlet />

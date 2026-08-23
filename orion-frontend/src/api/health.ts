@@ -8,7 +8,7 @@ import { api } from './client';
 // ==================== Types ====================
 
 export interface HealthScore {
-  score: number;        // 0-100
+  score: number; // 0-100
   level: 'healthy' | 'warning' | 'critical';
   updatedAt: string;
 }
@@ -63,10 +63,17 @@ export function getServiceHealthList(): Promise<ServiceHealthRow[]> {
   return api.get<ServiceHealthRow[]>('/api/v1/service-health/services').then((res) => res.data);
 }
 
-export function getHealthAlerts(params?: { status?: string; limit?: number }): Promise<HealthAlert[]> {
-  return api.get<HealthAlert[]>('/api/v1/service-health/alerts', { params }).then((res) => res.data);
+export function getHealthAlerts(params?: {
+  status?: string;
+  limit?: number;
+}): Promise<HealthAlert[]> {
+  return api
+    .get<HealthAlert[]>('/api/v1/service-health/alerts', { params })
+    .then((res) => res.data);
 }
 
 export function getHealthTrend(since?: string): Promise<TrendPoint[]> {
-  return api.get<TrendPoint[]>('/api/v1/service-health/trend', { params: { since } }).then((res) => res.data);
+  return api
+    .get<TrendPoint[]>('/api/v1/service-health/trend', { params: { since } })
+    .then((res) => res.data);
 }

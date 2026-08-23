@@ -126,18 +126,31 @@ const ExecutorManagementPage: React.FC = () => {
         try {
           const h = await federationApi.getClusterHealth(cluster.id);
           healthResults.push(mapHealthToExecutor(h));
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
       setHealth(healthResults);
 
       const totalRunningJobs = mapped.reduce((s, e) => s + e.running_jobs, 0);
-      const avgCpu = healthResults.length > 0 ? Math.round((healthResults.reduce((s, h) => s + h.cpu_usage_pct, 0) / healthResults.length) * 10) / 10 : 0;
-      const avgMem = healthResults.length > 0 ? Math.round((healthResults.reduce((s, h) => s + h.memory_usage_pct, 0) / healthResults.length) * 10) / 10 : 0;
+      const avgCpu =
+        healthResults.length > 0
+          ? Math.round(
+              (healthResults.reduce((s, h) => s + h.cpu_usage_pct, 0) / healthResults.length) * 10
+            ) / 10
+          : 0;
+      const avgMem =
+        healthResults.length > 0
+          ? Math.round(
+              (healthResults.reduce((s, h) => s + h.memory_usage_pct, 0) / healthResults.length) *
+                10
+            ) / 10
+          : 0;
       setDashboard({
         total_executors: mapped.length,
-        online_executors: mapped.filter(e => e.status === 'online').length,
-        offline_executors: mapped.filter(e => e.status === 'offline').length,
-        degraded_executors: mapped.filter(e => e.status === 'degraded').length,
+        online_executors: mapped.filter((e) => e.status === 'online').length,
+        offline_executors: mapped.filter((e) => e.status === 'offline').length,
+        degraded_executors: mapped.filter((e) => e.status === 'degraded').length,
         total_running_jobs: totalRunningJobs,
         avg_cpu_usage: avgCpu,
         avg_memory_usage: avgMem,
@@ -151,7 +164,9 @@ const ExecutorManagementPage: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCreateExecutor = async (values: any) => {
     try {
@@ -173,8 +188,8 @@ const ExecutorManagementPage: React.FC = () => {
   const handleDeregister = async (id: string) => {
     try {
       // Federation API doesn't have a delete endpoint, remove from local state
-      setExecutors(executors.filter(e => e.id !== id));
-      setHealth(health.filter(h => h.executor_id !== id));
+      setExecutors(executors.filter((e) => e.id !== id));
+      setHealth(health.filter((h) => h.executor_id !== id));
       message.success('执行器已移除');
       loadData();
     } catch {
@@ -187,25 +202,68 @@ const ExecutorManagementPage: React.FC = () => {
     setHealthModalOpen(true);
   };
 
-  const statusColor: Record<string, string> = { online: 'green', offline: 'red', degraded: 'orange' };
-  const healthColor: Record<string, string> = { healthy: 'green', unhealthy: 'red', degraded: 'orange' };
+  const statusColor: Record<string, string> = {
+    online: 'green',
+    offline: 'red',
+    degraded: 'orange',
+  };
+  const healthColor: Record<string, string> = {
+    healthy: 'green',
+    unhealthy: 'red',
+    degraded: 'orange',
+  };
 
   const executorColumns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Cluster', dataIndex: 'cluster_id', key: 'cluster_id' },
     { title: 'Region', dataIndex: 'region', key: 'region' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={statusColor[v]}>{v}</Tag> },
-    { title: 'Jobs', dataIndex: 'running_jobs', key: 'running_jobs', render: (v: number, r: ExecutorInfo) => `${v}/${r.max_concurrent_jobs}` },
-    { title: 'CPU', dataIndex: 'cpu_used', key: 'cpu_used', render: (v: number, r: ExecutorInfo) => `${v}/${r.cpu_capacity} cores` },
-    { title: 'Memory', dataIndex: 'memory_used_mb', key: 'memory_used_mb', render: (v: number, r: ExecutorInfo) => `${Math.round(v / 1024)}/${Math.round(r.memory_capacity_mb / 1024)} GB` },
-    { title: 'Last Heartbeat', dataIndex: 'last_heartbeat', key: 'last_heartbeat', render: (v: string) => v ? new Date(v).toLocaleString() : 'Never' },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (v: string) => <Tag color={statusColor[v]}>{v}</Tag>,
+    },
+    {
+      title: 'Jobs',
+      dataIndex: 'running_jobs',
+      key: 'running_jobs',
+      render: (v: number, r: ExecutorInfo) => `${v}/${r.max_concurrent_jobs}`,
+    },
+    {
+      title: 'CPU',
+      dataIndex: 'cpu_used',
+      key: 'cpu_used',
+      render: (v: number, r: ExecutorInfo) => `${v}/${r.cpu_capacity} cores`,
+    },
+    {
+      title: 'Memory',
+      dataIndex: 'memory_used_mb',
+      key: 'memory_used_mb',
+      render: (v: number, r: ExecutorInfo) =>
+        `${Math.round(v / 1024)}/${Math.round(r.memory_capacity_mb / 1024)} GB`,
+    },
+    {
+      title: 'Last Heartbeat',
+      dataIndex: 'last_heartbeat',
+      key: 'last_heartbeat',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : 'Never'),
+    },
     {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: ExecutorInfo) => (
         <Space>
-          <Button size="small" icon={<HeartOutlined />} onClick={() => showHealthDetail(record)}>Health</Button>
-          <Button size="small" danger icon={<DeleteOutlined />} onClick={() => handleDeregister(record.id)}>Deregister</Button>
+          <Button size="small" icon={<HeartOutlined />} onClick={() => showHealthDetail(record)}>
+            Health
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeregister(record.id)}
+          >
+            Deregister
+          </Button>
         </Space>
       ),
     },
@@ -216,23 +274,58 @@ const ExecutorManagementPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} /> Executor Management
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />{' '}
+            Executor Management
           </Title>
-          <Text type="secondary">Executor registration, heartbeat monitoring, and health dashboard</Text>
+          <Text type="secondary">
+            Executor registration, heartbeat monitoring, and health dashboard
+          </Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>Register Executor</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            Refresh
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            Register Executor
+          </Button>
         </Space>
       </div>
 
       {/* Dashboard Stats */}
       {dashboard && (
         <Row gutter={24} style={{ marginBottom: spacing.lg }}>
-          <Col span={6}><Card><Statistic title="Total Executors" value={dashboard.total_executors} prefix={<DashboardOutlined />} /></Card></Col>
-          <Col span={6}><Card><Statistic title="Online" value={dashboard.online_executors} valueStyle={{ color: colors.success[500] }} /></Card></Col>
-          <Col span={6}><Card><Statistic title="Degraded" value={dashboard.degraded_executors} valueStyle={{ color: colors.warning[500] }} /></Card></Col>
-          <Col span={6}><Card><Statistic title="Running Jobs" value={dashboard.total_running_jobs} /></Card></Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Total Executors"
+                value={dashboard.total_executors}
+                prefix={<DashboardOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Online"
+                value={dashboard.online_executors}
+                valueStyle={{ color: colors.success[500] }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Degraded"
+                value={dashboard.degraded_executors}
+                valueStyle={{ color: colors.warning[500] }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic title="Running Jobs" value={dashboard.total_running_jobs} />
+            </Card>
+          </Col>
         </Row>
       )}
 
@@ -242,11 +335,17 @@ const ExecutorManagementPage: React.FC = () => {
           <Row gutter={24}>
             <Col span={12}>
               <Text>CPU Usage (avg)</Text>
-              <Progress percent={Math.round(dashboard.avg_cpu_usage)} status={dashboard.avg_cpu_usage > 80 ? 'exception' : 'normal'} />
+              <Progress
+                percent={Math.round(dashboard.avg_cpu_usage)}
+                status={dashboard.avg_cpu_usage > 80 ? 'exception' : 'normal'}
+              />
             </Col>
             <Col span={12}>
               <Text>Memory Usage (avg)</Text>
-              <Progress percent={Math.round(dashboard.avg_memory_usage)} status={dashboard.avg_memory_usage > 80 ? 'exception' : 'normal'} />
+              <Progress
+                percent={Math.round(dashboard.avg_memory_usage)}
+                status={dashboard.avg_memory_usage > 80 ? 'exception' : 'normal'}
+              />
             </Col>
           </Row>
         </Card>
@@ -254,44 +353,97 @@ const ExecutorManagementPage: React.FC = () => {
 
       {/* Executor List */}
       <Card title="Registered Executors">
-        <Table columns={executorColumns} dataSource={executors} rowKey="id" loading={loading} pagination={false}
-          locale={{ emptyText: executors.length === 0 ? '暂无执行器数据' : undefined }} />
+        <Table
+          columns={executorColumns}
+          dataSource={executors}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+          locale={{ emptyText: executors.length === 0 ? '暂无执行器数据' : undefined }}
+        />
       </Card>
 
       {/* Create Executor Modal */}
-      <Modal title="Register Executor" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={() => form.submit()} width={600}>
+      <Modal
+        title="Register Executor"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => form.submit()}
+        width={600}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreateExecutor}>
-          <Form.Item label="Executor Name" name="name" rules={[{ required: true }]}><Input placeholder="executor-name" /></Form.Item>
+          <Form.Item label="Executor Name" name="name" rules={[{ required: true }]}>
+            <Input placeholder="executor-name" />
+          </Form.Item>
           <Row gutter={16}>
-            <Col span={12}><Form.Item label="Cluster ID" name="cluster_id" rules={[{ required: true }]}><Input placeholder="cluster-id" /></Form.Item></Col>
-            <Col span={12}><Form.Item label="Region" name="region" rules={[{ required: true }]}><Input placeholder="us-east" /></Form.Item></Col>
+            <Col span={12}>
+              <Form.Item label="Cluster ID" name="cluster_id" rules={[{ required: true }]}>
+                <Input placeholder="cluster-id" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="Region" name="region" rules={[{ required: true }]}>
+                <Input placeholder="us-east" />
+              </Form.Item>
+            </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item label="CPU Capacity" name="cpu_capacity" initialValue="16"><Input placeholder="cores" /></Form.Item></Col>
-            <Col span={8}><Form.Item label="Memory (GB)" name="memory_capacity_mb" initialValue="32"><Input placeholder="GB" /></Form.Item></Col>
-            <Col span={8}><Form.Item label="Max Jobs" name="max_concurrent_jobs" initialValue="10"><Input placeholder="concurrent jobs" /></Form.Item></Col>
+            <Col span={8}>
+              <Form.Item label="CPU Capacity" name="cpu_capacity" initialValue="16">
+                <Input placeholder="cores" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Memory (GB)" name="memory_capacity_mb" initialValue="32">
+                <Input placeholder="GB" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="Max Jobs" name="max_concurrent_jobs" initialValue="10">
+                <Input placeholder="concurrent jobs" />
+              </Form.Item>
+            </Col>
           </Row>
         </Form>
       </Modal>
 
       {/* Health Detail Modal */}
-      <Modal title="Executor Health Detail" open={healthModalOpen} onCancel={() => setHealthModalOpen(false)} footer={null} width={600}>
-        {selectedExecutor && (() => {
-          const h = health.find(x => x.executor_id === selectedExecutor.id);
-          return h ? (
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="Executor">{selectedExecutor.name}</Descriptions.Item>
-              <Descriptions.Item label="Health Status"><Tag color={healthColor[h.status]}>{h.status}</Tag></Descriptions.Item>
-              <Descriptions.Item label="CPU Usage"><Progress percent={Math.round(h.cpu_usage_pct)} size="small" /></Descriptions.Item>
-              <Descriptions.Item label="Memory Usage"><Progress percent={Math.round(h.memory_usage_pct)} size="small" /></Descriptions.Item>
-              <Descriptions.Item label="Running Jobs">{h.running_jobs}</Descriptions.Item>
-              <Descriptions.Item label="Queue Depth">{h.queue_depth}</Descriptions.Item>
-              <Descriptions.Item label="Response Time">{h.response_time_ms} ms</Descriptions.Item>
-              <Descriptions.Item label="Errors (last hour)">{h.errors_last_hour}</Descriptions.Item>
-              <Descriptions.Item label="Last Heartbeat">{new Date(h.last_heartbeat).toLocaleString()}</Descriptions.Item>
-            </Descriptions>
-          ) : <Text>No health data available</Text>;
-        })()}
+      <Modal
+        title="Executor Health Detail"
+        open={healthModalOpen}
+        onCancel={() => setHealthModalOpen(false)}
+        footer={null}
+        width={600}
+      >
+        {selectedExecutor &&
+          (() => {
+            const h = health.find((x) => x.executor_id === selectedExecutor.id);
+            return h ? (
+              <Descriptions column={1} bordered>
+                <Descriptions.Item label="Executor">{selectedExecutor.name}</Descriptions.Item>
+                <Descriptions.Item label="Health Status">
+                  <Tag color={healthColor[h.status]}>{h.status}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="CPU Usage">
+                  <Progress percent={Math.round(h.cpu_usage_pct)} size="small" />
+                </Descriptions.Item>
+                <Descriptions.Item label="Memory Usage">
+                  <Progress percent={Math.round(h.memory_usage_pct)} size="small" />
+                </Descriptions.Item>
+                <Descriptions.Item label="Running Jobs">{h.running_jobs}</Descriptions.Item>
+                <Descriptions.Item label="Queue Depth">{h.queue_depth}</Descriptions.Item>
+                <Descriptions.Item label="Response Time">{h.response_time_ms} ms</Descriptions.Item>
+                <Descriptions.Item label="Errors (last hour)">
+                  {h.errors_last_hour}
+                </Descriptions.Item>
+                <Descriptions.Item label="Last Heartbeat">
+                  {new Date(h.last_heartbeat).toLocaleString()}
+                </Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Text>No health data available</Text>
+            );
+          })()}
       </Modal>
     </div>
   );

@@ -37,17 +37,43 @@ const { Text } = Typography;
 
 // ============== Role Management Tab ==============
 const RoleManagementTab: React.FC = () => {
-  const [roles, setRoles] = useState<{ id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[]>([]);
+  const [roles, setRoles] = useState<
+    {
+      id?: string;
+      name?: string;
+      description?: string;
+      command_count?: number;
+      user_count?: number;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingRole, setEditingRole] = useState<{ id?: string; name?: string; description?: string } | null>(null);
+  const [editingRole, setEditingRole] = useState<{
+    id?: string;
+    name?: string;
+    description?: string;
+  } | null>(null);
   const [form] = Form.useForm();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await chatopsAdminApi.getRoles();
-      setRoles((res as { data?: { data?: { id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[] } })?.data?.data ?? []);
+      setRoles(
+        (
+          res as {
+            data?: {
+              data?: {
+                id?: string;
+                name?: string;
+                description?: string;
+                command_count?: number;
+                user_count?: number;
+              }[];
+            };
+          }
+        )?.data?.data ?? []
+      );
     } catch {
       message.error('获取角色列表失败');
     } finally {
@@ -55,7 +81,9 @@ const RoleManagementTab: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleAdd = () => {
     setEditingRole(null);
@@ -130,7 +158,12 @@ const RoleManagementTab: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
             编辑
           </Button>
           <Popconfirm title="确认删除此角色?" onConfirm={() => handleDelete(record.id)}>
@@ -148,7 +181,9 @@ const RoleManagementTab: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">管理 ChatOps 命令执行权限角色</Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             新建角色
           </Button>
@@ -171,7 +206,11 @@ const RoleManagementTab: React.FC = () => {
         width={500}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="角色名称" rules={[{ required: true, message: '请输入角色名称' }]}>
+          <Form.Item
+            name="name"
+            label="角色名称"
+            rules={[{ required: true, message: '请输入角色名称' }]}
+          >
             <Input placeholder="如：运维管理员" />
           </Form.Item>
           <Form.Item name="description" label="描述">
@@ -185,11 +224,26 @@ const RoleManagementTab: React.FC = () => {
 
 // ============== Command Permission Tab ==============
 const CommandPermissionTab: React.FC = () => {
-  const [permissions, setPermissions] = useState<{ id?: string; command?: string; risk_level?: number; assigned_roles?: string[] }[]>([]);
-  const [roles, setRoles] = useState<{ id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[]>([]);
+  const [permissions, setPermissions] = useState<
+    { id?: string; command?: string; risk_level?: number; assigned_roles?: string[] }[]
+  >([]);
+  const [roles, setRoles] = useState<
+    {
+      id?: string;
+      name?: string;
+      description?: string;
+      command_count?: number;
+      user_count?: number;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<{ id?: string; command?: string; risk_level?: number; assigned_roles?: string[] } | null>(null);
+  const [editingPermission, setEditingPermission] = useState<{
+    id?: string;
+    command?: string;
+    risk_level?: number;
+    assigned_roles?: string[];
+  } | null>(null);
   const [form] = Form.useForm();
 
   const loadData = useCallback(async () => {
@@ -199,8 +253,35 @@ const CommandPermissionTab: React.FC = () => {
         chatopsAdminApi.getCommandPermissions(),
         chatopsAdminApi.getRoles(),
       ]);
-      setPermissions((permRes as { data?: { data?: { id?: string; command?: string; risk_level?: number; assigned_roles?: string[] }[] } })?.data?.data ?? []);
-      setRoles((roleRes as { data?: { data?: { id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[] } })?.data?.data ?? []);
+      setPermissions(
+        (
+          permRes as {
+            data?: {
+              data?: {
+                id?: string;
+                command?: string;
+                risk_level?: number;
+                assigned_roles?: string[];
+              }[];
+            };
+          }
+        )?.data?.data ?? []
+      );
+      setRoles(
+        (
+          roleRes as {
+            data?: {
+              data?: {
+                id?: string;
+                name?: string;
+                description?: string;
+                command_count?: number;
+                user_count?: number;
+              }[];
+            };
+          }
+        )?.data?.data ?? []
+      );
     } catch {
       message.error('获取权限列表失败');
     } finally {
@@ -208,7 +289,9 @@ const CommandPermissionTab: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const riskLevelColors: Record<number, string> = {
     1: colors.success[500],
@@ -266,7 +349,11 @@ const CommandPermissionTab: React.FC = () => {
       title: 'Capability',
       dataIndex: 'capability',
       key: 'capability',
-      render: (cap: string) => <Text code style={{ fontSize: 11 }}>{cap}</Text>,
+      render: (cap: string) => (
+        <Text code style={{ fontSize: 11 }}>
+          {cap}
+        </Text>
+      ),
     },
     {
       title: '风险等级',
@@ -282,16 +369,19 @@ const CommandPermissionTab: React.FC = () => {
       dataIndex: 'requires_approval',
       key: 'requires_approval',
       width: 80,
-      render: (required: boolean) => (
-        required ? <Tag color="purple">是</Tag> : <Tag>否</Tag>
-      ),
+      render: (required: boolean) => (required ? <Tag color="purple">是</Tag> : <Tag>否</Tag>),
     },
     {
       title: '操作',
       key: 'action',
       width: 100,
       render: (_, record) => (
-        <Button type="link" size="small" icon={<SettingOutlined />} onClick={() => handleEdit(record)}>
+        <Button
+          type="link"
+          size="small"
+          icon={<SettingOutlined />}
+          onClick={() => handleEdit(record)}
+        >
           配置
         </Button>
       ),
@@ -339,7 +429,7 @@ const CommandPermissionTab: React.FC = () => {
             <Select
               mode="multiple"
               placeholder="选择授权角色"
-              options={roles.map(r => ({ label: r.name, value: r.id }))}
+              options={roles.map((r) => ({ label: r.name, value: r.id }))}
             />
           </Form.Item>
         </Form>
@@ -350,11 +440,25 @@ const CommandPermissionTab: React.FC = () => {
 
 // ============== Environment Permission Tab ==============
 const EnvironmentPermissionTab: React.FC = () => {
-  const [permissions, setPermissions] = useState<{ id?: string; environment?: string; assigned_roles?: string[] }[]>([]);
-  const [roles, setRoles] = useState<{ id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[]>([]);
+  const [permissions, setPermissions] = useState<
+    { id?: string; environment?: string; assigned_roles?: string[] }[]
+  >([]);
+  const [roles, setRoles] = useState<
+    {
+      id?: string;
+      name?: string;
+      description?: string;
+      command_count?: number;
+      user_count?: number;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<{ id?: string; environment?: string; assigned_roles?: string[] } | null>(null);
+  const [editingPermission, setEditingPermission] = useState<{
+    id?: string;
+    environment?: string;
+    assigned_roles?: string[];
+  } | null>(null);
   const [form] = Form.useForm();
 
   const loadData = useCallback(async () => {
@@ -364,8 +468,28 @@ const EnvironmentPermissionTab: React.FC = () => {
         chatopsAdminApi.getEnvironmentPermissions(),
         chatopsAdminApi.getRoles(),
       ]);
-      setPermissions((permRes as { data?: { data?: { id?: string; environment?: string; assigned_roles?: string[] }[] } })?.data?.data ?? []);
-      setRoles((roleRes as { data?: { data?: { id?: string; name?: string; description?: string; command_count?: number; user_count?: number }[] } })?.data?.data ?? []);
+      setPermissions(
+        (
+          permRes as {
+            data?: { data?: { id?: string; environment?: string; assigned_roles?: string[] }[] };
+          }
+        )?.data?.data ?? []
+      );
+      setRoles(
+        (
+          roleRes as {
+            data?: {
+              data?: {
+                id?: string;
+                name?: string;
+                description?: string;
+                command_count?: number;
+                user_count?: number;
+              }[];
+            };
+          }
+        )?.data?.data ?? []
+      );
     } catch {
       message.error('获取环境权限列表失败');
     } finally {
@@ -373,7 +497,9 @@ const EnvironmentPermissionTab: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const envColors: Record<string, string> = {
     prod: colors.error[500],
@@ -413,7 +539,9 @@ const EnvironmentPermissionTab: React.FC = () => {
       dataIndex: 'environment',
       key: 'environment',
       render: (env: string) => (
-        <Tag color={envColors[env]} style={{ textTransform: 'uppercase' }}>{env}</Tag>
+        <Tag color={envColors[env]} style={{ textTransform: 'uppercase' }}>
+          {env}
+        </Tag>
       ),
     },
     {
@@ -427,7 +555,9 @@ const EnvironmentPermissionTab: React.FC = () => {
       key: 'allowed_commands',
       render: (cmds: string[]) => (
         <Space wrap>
-          {(cmds || []).slice(0, 3).map(c => <Tag key={c}>{c}</Tag>)}
+          {(cmds || []).slice(0, 3).map((c) => (
+            <Tag key={c}>{c}</Tag>
+          ))}
           {(cmds || []).length > 3 && <Tag>+{(cmds || []).length - 3}</Tag>}
         </Space>
       ),
@@ -444,16 +574,19 @@ const EnvironmentPermissionTab: React.FC = () => {
       dataIndex: 'require_approval',
       key: 'require_approval',
       width: 80,
-      render: (required: boolean) => (
-        required ? <Tag color="purple">是</Tag> : <Tag>否</Tag>
-      ),
+      render: (required: boolean) => (required ? <Tag color="purple">是</Tag> : <Tag>否</Tag>),
     },
     {
       title: '操作',
       key: 'action',
       width: 100,
       render: (_, record) => (
-        <Button type="link" size="small" icon={<SettingOutlined />} onClick={() => handleEdit(record)}>
+        <Button
+          type="link"
+          size="small"
+          icon={<SettingOutlined />}
+          onClick={() => handleEdit(record)}
+        >
           配置
         </Button>
       ),
@@ -497,7 +630,7 @@ const EnvironmentPermissionTab: React.FC = () => {
             <Select
               mode="multiple"
               placeholder="选择授权角色"
-              options={roles.map(r => ({ label: r.name, value: r.id }))}
+              options={roles.map((r) => ({ label: r.name, value: r.id }))}
             />
           </Form.Item>
         </Form>
@@ -542,11 +675,7 @@ const PermissionAdmin: React.FC = () => {
 
   return (
     <div style={{ padding: '0 0 16px' }}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-      />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
     </div>
   );
 };

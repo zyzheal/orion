@@ -65,8 +65,6 @@ interface RoleCapability {
   grantedAt?: string;
 }
 
-
-
 // ==================== 工具函数 ====================
 
 const getCategoryColor = (category: string): string => {
@@ -110,7 +108,7 @@ const RoleCapabilityMapping: React.FC = () => {
     setLoading(true);
     try {
       const res = await capabilityApi.getCapabilityMatrix();
-      const data = (res.data as any)?.data || res.data as any;
+      const data = (res.data as any)?.data || (res.data as any);
       if (data) {
         const apiRoles: Role[] = (data.roles || []).map((r: any) => ({
           id: r.role_id,
@@ -152,7 +150,9 @@ const RoleCapabilityMapping: React.FC = () => {
     setLoading(false);
   }, [selectedRole]);
 
-  useEffect(() => { loadMatrix(); }, []);
+  useEffect(() => {
+    loadMatrix();
+  }, []);
 
   // 获取当前角色的能力
   const currentRoleCaps = useMemo(() => {
@@ -210,7 +210,7 @@ const RoleCapabilityMapping: React.FC = () => {
     try {
       await capabilityApi.updateRoleCapabilities({
         role_id: selectedRole,
-        capabilities: currentRoleCaps.map(rc => ({
+        capabilities: currentRoleCaps.map((rc) => ({
           capability_id: rc.capabilityId,
           granted: rc.granted,
         })),
@@ -239,13 +239,13 @@ const RoleCapabilityMapping: React.FC = () => {
         grantedMap.get(rc.roleId)!.add(rc.capabilityId);
       }
     }
-    const header = ['能力', '分类', ...roles.map(r => r.name)];
-    const rows = capabilities.map(cap => [
+    const header = ['能力', '分类', ...roles.map((r) => r.name)];
+    const rows = capabilities.map((cap) => [
       cap.name,
       cap.category,
-      ...roles.map(r => grantedMap.get(r.id)?.has(cap.id) ? '是' : '否'),
+      ...roles.map((r) => (grantedMap.get(r.id)?.has(cap.id) ? '是' : '否')),
     ]);
-    const csv = [header, ...rows].map(row => row.join(',')).join('\n');
+    const csv = [header, ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -303,9 +303,7 @@ const RoleCapabilityMapping: React.FC = () => {
           const hasCapability = roleCapabilities.some(
             (rc) => rc.roleId === role.id && rc.capabilityId === record.key && rc.granted
           );
-          const requiresApproval = capabilities.find(
-            (c) => c.id === record.key
-          )?.requiresApproval;
+          const requiresApproval = capabilities.find((c) => c.id === record.key)?.requiresApproval;
 
           if (hasCapability) {
             if (requiresApproval) {

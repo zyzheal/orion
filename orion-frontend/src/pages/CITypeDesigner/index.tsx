@@ -281,7 +281,13 @@ export default function CITypeDesignerPage() {
       attrType: record.attrType,
       required: record.required,
       defaultValue: record.defaultValue,
-      options: (() => { try { return JSON.parse(record.options || '[]').join('\n'); } catch { return ''; } })(),
+      options: (() => {
+        try {
+          return JSON.parse(record.options || '[]').join('\n');
+        } catch {
+          return '';
+        }
+      })(),
       validationRule: record.validationRule,
       sortOrder: record.sortOrder,
     });
@@ -317,7 +323,13 @@ export default function CITypeDesignerPage() {
         attrType: a.attrType ?? undefined,
         required: a.required,
         defaultValue: a.defaultValue ?? undefined,
-        options: (() => { try { return JSON.parse(a.options || '[]'); } catch { return []; } })(),
+        options: (() => {
+          try {
+            return JSON.parse(a.options || '[]');
+          } catch {
+            return [];
+          }
+        })(),
         validationRule: a.validationRule ?? undefined,
         sortOrder: a.sortOrder,
       });
@@ -349,7 +361,13 @@ export default function CITypeDesignerPage() {
           attrType: a.attrType,
           required: a.required,
           defaultValue: a.defaultValue ?? undefined,
-          options: (() => { try { return JSON.parse(a.options || '[]'); } catch { return []; } })(),
+          options: (() => {
+            try {
+              return JSON.parse(a.options || '[]');
+            } catch {
+              return [];
+            }
+          })(),
           validationRule: a.validationRule ?? undefined,
           sortOrder: a.sortOrder,
         }));
@@ -445,7 +463,9 @@ export default function CITypeDesignerPage() {
       key: 'status',
       width: 80,
       render: (status: string) => (
-        <Tag color={status === 'active' ? 'green' : 'default'}>{status === 'active' ? '启用' : '禁用'}</Tag>
+        <Tag color={status === 'active' ? 'green' : 'default'}>
+          {status === 'active' ? '启用' : '禁用'}
+        </Tag>
       ),
     },
     {
@@ -554,7 +574,11 @@ export default function CITypeDesignerPage() {
       key: 'attributesSnapshot',
       render: (snapshot: string) => {
         let parsed = snapshot;
-        try { parsed = JSON.stringify(JSON.parse(snapshot || '[]'), null, 1); } catch { /* ignore */ }
+        try {
+          parsed = JSON.stringify(JSON.parse(snapshot || '[]'), null, 1);
+        } catch {
+          /* ignore */
+        }
         return (
           <Text ellipsis style={{ maxWidth: 400, fontFamily: 'monospace', fontSize: 12 }}>
             {parsed}

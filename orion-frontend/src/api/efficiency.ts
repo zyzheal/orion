@@ -162,7 +162,10 @@ export function getTeams() {
   return api.get<{ teams: TeamInfo[] }>('/efficiency/teams');
 }
 
-export function getTeamComparison(query?: { teamIds?: string; interval?: 'daily' | 'weekly' | 'monthly' }) {
+export function getTeamComparison(query?: {
+  teamIds?: string;
+  interval?: 'daily' | 'weekly' | 'monthly';
+}) {
   return api.get<TeamComparisonResult>('/efficiency/compare', { params: query });
 }
 
@@ -201,6 +204,10 @@ export interface BottleneckItem {
   suggestion: string;
 }
 
-export function getBottlenecks(params?: { tenantId?: string; timeWindow?: string; windowSize?: number }) {
+export function getBottlenecks(params?: {
+  tenantId?: string;
+  timeWindow?: string;
+  windowSize?: number;
+}) {
   return api.get<{ bottlenecks: BottleneckItem[] }>('/efficiency/bottlenecks', { params });
 }

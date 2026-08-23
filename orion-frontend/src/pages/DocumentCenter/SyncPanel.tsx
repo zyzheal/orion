@@ -6,8 +6,18 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Card, Button, Space, Progress, Tag, Typography, List, Modal, Spin, message,
-  Tooltip, Badge,
+  Card,
+  Button,
+  Space,
+  Progress,
+  Tag,
+  Typography,
+  List,
+  Modal,
+  Spin,
+  message,
+  Tooltip,
+  Badge,
 } from 'antd';
 import {
   SyncOutlined,
@@ -122,7 +132,9 @@ export default function SyncPanel({ visible, onClose }: SyncPanelProps) {
         failed: result.failedCount,
         skipped: result.skippedCount,
       });
-      message.success(`同步完成：成功 ${result.successCount}，失败 ${result.failedCount}，跳过 ${result.skippedCount}`);
+      message.success(
+        `同步完成：成功 ${result.successCount}，失败 ${result.failedCount}，跳过 ${result.skippedCount}`
+      );
 
       // Reload logs
       await loadSyncLogs();
@@ -223,12 +235,18 @@ export default function SyncPanel({ visible, onClose }: SyncPanelProps) {
               <div style={{ marginTop: spacing[4] }}>
                 <Space size="large">
                   <Tooltip title="总数">
-                    <Badge count={syncResult.total} style={{ backgroundColor: colors.neutral[400] }}>
+                    <Badge
+                      count={syncResult.total}
+                      style={{ backgroundColor: colors.neutral[400] }}
+                    >
                       <Text type="secondary">总计</Text>
                     </Badge>
                   </Tooltip>
                   <Tooltip title="成功">
-                    <Badge count={syncResult.success} style={{ backgroundColor: colors.success[500] }}>
+                    <Badge
+                      count={syncResult.success}
+                      style={{ backgroundColor: colors.success[500] }}
+                    >
                       <Text type="secondary">成功</Text>
                     </Badge>
                   </Tooltip>
@@ -238,7 +256,10 @@ export default function SyncPanel({ visible, onClose }: SyncPanelProps) {
                     </Badge>
                   </Tooltip>
                   <Tooltip title="跳过">
-                    <Badge count={syncResult.skipped} style={{ backgroundColor: colors.warning[500] }}>
+                    <Badge
+                      count={syncResult.skipped}
+                      style={{ backgroundColor: colors.warning[500] }}
+                    >
                       <Text type="secondary">跳过</Text>
                     </Badge>
                   </Tooltip>
@@ -271,7 +292,9 @@ export default function SyncPanel({ visible, onClose }: SyncPanelProps) {
                       avatar={getStatusIcon(log.status)}
                       title={
                         <Space>
-                          <Text strong style={{ fontSize: 13 }}>{log.file_path || 'N/A'}</Text>
+                          <Text strong style={{ fontSize: 13 }}>
+                            {log.file_path || 'N/A'}
+                          </Text>
                           <Tag
                             color={STATUS_CONFIG[log.status]?.color || colors.neutral[400]}
                             style={{ fontSize: 10, padding: '0 4px' }}

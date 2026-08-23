@@ -110,9 +110,7 @@ const TaskTimeoutsPage: React.FC = () => {
     setChecking(true);
     try {
       const result = await triggerCheckNow();
-      message.success(
-        `检查完成，已处理 ${result?.checkedTasks || 0} 个超时任务`
-      );
+      message.success(`检查完成，已处理 ${result?.checkedTasks || 0} 个超时任务`);
       fetchTimedOutTasks();
       fetchStatus();
     } catch (error: unknown) {
@@ -132,7 +130,9 @@ const TaskTimeoutsPage: React.FC = () => {
       ellipsis: true,
       render: (id: string) => (
         <Tooltip title={id}>
-          <Text code style={{ fontSize: 12 }}>{id.slice(0, 8)}...</Text>
+          <Text code style={{ fontSize: 12 }}>
+            {id.slice(0, 8)}...
+          </Text>
         </Tooltip>
       ),
     },
@@ -159,9 +159,8 @@ const TaskTimeoutsPage: React.FC = () => {
       dataIndex: ['task', 'assigneeName'],
       key: 'assigneeName',
       width: 120,
-      render: (name: string | undefined, record: TimedOutTask) => (
-        name || record.task.assigneeId || '-'
-      ),
+      render: (name: string | undefined, record: TimedOutTask) =>
+        name || record.task.assigneeId || '-',
     },
     {
       title: '超时时长',
@@ -179,17 +178,13 @@ const TaskTimeoutsPage: React.FC = () => {
                 color: isCritical
                   ? colors.error[500]
                   : isWarning
-                  ? colors.warning[500]
-                  : colors.neutral[500],
+                    ? colors.warning[500]
+                    : colors.neutral[500],
               }}
             />
             <Text
               style={{
-                color: isCritical
-                  ? colors.error[500]
-                  : isWarning
-                  ? colors.warning[500]
-                  : 'inherit',
+                color: isCritical ? colors.error[500] : isWarning ? colors.warning[500] : 'inherit',
               }}
             >
               {hours.toFixed(1)}h
@@ -204,9 +199,7 @@ const TaskTimeoutsPage: React.FC = () => {
       key: 'timeoutAction',
       width: 120,
       render: (action: string) => (
-        <Tooltip title={actionDescriptions[action] || ''}>
-          {getActionTag(action)}
-        </Tooltip>
+        <Tooltip title={actionDescriptions[action] || ''}>{getActionTag(action)}</Tooltip>
       ),
     },
     {
@@ -214,8 +207,7 @@ const TaskTimeoutsPage: React.FC = () => {
       dataIndex: ['task', 'dueDate'],
       key: 'dueDate',
       width: 180,
-      render: (date: string | undefined) =>
-        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+      render: (date: string | undefined) => (date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'),
     },
   ];
 
@@ -227,18 +219,13 @@ const TaskTimeoutsPage: React.FC = () => {
           <FieldTimeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           任务超时管理
         </Title>
-        <Text type="secondary">
-          监控工作流任务超时情况，自动处理超时任务
-        </Text>
+        <Text type="secondary">监控工作流任务超时情况，自动处理超时任务</Text>
       </div>
 
       {/* 统计卡片和操作 */}
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} md={6}>
-          <Card
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: spacing.md }}
-          >
+          <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: spacing.md }}>
             <Statistic
               title="待处理超时任务"
               value={timedOutTasks.length}
@@ -250,19 +237,13 @@ const TaskTimeoutsPage: React.FC = () => {
                 )
               }
               valueStyle={{
-                color:
-                  timedOutTasks.length > 0
-                    ? colors.error[500]
-                    : colors.success[500],
+                color: timedOutTasks.length > 0 ? colors.error[500] : colors.success[500],
               }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: spacing.md }}
-          >
+          <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: spacing.md }}>
             <Statistic
               title="检查器状态"
               value={status.isRunning ? '运行中' : '已停止'}
@@ -274,18 +255,13 @@ const TaskTimeoutsPage: React.FC = () => {
                 )
               }
               valueStyle={{
-                color: status.isRunning
-                  ? colors.success[500]
-                  : colors.neutral[500],
+                color: status.isRunning ? colors.success[500] : colors.neutral[500],
               }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: spacing.md }}
-          >
+          <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: spacing.md }}>
             <Statistic
               title="已处理事件数"
               value={status.processedEventsCount}
@@ -337,9 +313,7 @@ const TaskTimeoutsPage: React.FC = () => {
           <Space>
             <ClockCircleOutlined />
             <span>超时任务列表</span>
-            <Tag color={timedOutTasks.length > 0 ? 'error' : 'success'}>
-              {timedOutTasks.length}
-            </Tag>
+            <Tag color={timedOutTasks.length > 0 ? 'error' : 'success'}>{timedOutTasks.length}</Tag>
           </Space>
         }
         style={{ borderRadius: 12 }}

@@ -100,7 +100,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadNamespaces = useCallback(async () => {
     try {
       const res = await listNamespaces();
-      setNamespaces(Array.isArray(res) ? res : ([]));
+      setNamespaces(Array.isArray(res) ? res : []);
     } catch {
       setNamespaces([]);
     }
@@ -109,7 +109,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadGroups = useCallback(async (nsId?: string) => {
     try {
       const res = await listGroups(nsId);
-      setGroups(Array.isArray(res) ? res : ([]));
+      setGroups(Array.isArray(res) ? res : []);
     } catch {
       setGroups([]);
     }
@@ -119,7 +119,7 @@ const ConfigCenterPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await listItems(selectedGroup || undefined);
-      setItems(Array.isArray(res) ? res : ([]));
+      setItems(Array.isArray(res) ? res : []);
     } catch {
       setItems([]);
     } finally {
@@ -130,7 +130,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadSnapshots = useCallback(async () => {
     try {
       const res = await listSnapshots(selectedGroup || undefined, selectedEnv || undefined);
-      setSnapshots(Array.isArray(res) ? res : ([]));
+      setSnapshots(Array.isArray(res) ? res : []);
     } catch {
       setSnapshots([]);
     }
@@ -139,7 +139,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadReleases = useCallback(async () => {
     try {
       const res = await listReleases(selectedEnv || undefined);
-      setReleases(Array.isArray(res) ? res : ([]));
+      setReleases(Array.isArray(res) ? res : []);
     } catch {
       setReleases([]);
     }
@@ -148,7 +148,7 @@ const ConfigCenterPage: React.FC = () => {
   const loadAudit = useCallback(async () => {
     try {
       const res = await listAudit(100);
-      setAudits(Array.isArray(res) ? res : ([]));
+      setAudits(Array.isArray(res) ? res : []);
     } catch {
       setAudits([]);
     }
@@ -183,7 +183,7 @@ const ConfigCenterPage: React.FC = () => {
 
   const handleCreateNamespace = async (values: { name: string; description?: string }) => {
     try {
-      const ns = await createNamespace(values) as ConfigNamespace;
+      const ns = (await createNamespace(values)) as ConfigNamespace;
       setNamespaces((prev) => [...prev, ns]);
       message.success('命名空间创建成功');
       setNsModalOpen(false);
@@ -193,9 +193,13 @@ const ConfigCenterPage: React.FC = () => {
     }
   };
 
-  const handleCreateGroup = async (values: { namespaceId: string; name: string; description?: string }) => {
+  const handleCreateGroup = async (values: {
+    namespaceId: string;
+    name: string;
+    description?: string;
+  }) => {
     try {
-      const g = await createGroup(values) as ConfigGroup;
+      const g = (await createGroup(values)) as ConfigGroup;
       setGroups((prev) => [...prev, g]);
       setSelectedGroup(g.id);
       message.success('配置分组创建成功');
@@ -214,9 +218,9 @@ const ConfigCenterPage: React.FC = () => {
       }
       const item = (await createItem({
         groupId: selectedGroup,
-        namespaceId: namespaces.find((n) =>
-          groups.find((g) => g.id === selectedGroup)?.namespaceId === n.id
-        )?.id || '',
+        namespaceId:
+          namespaces.find((n) => groups.find((g) => g.id === selectedGroup)?.namespaceId === n.id)
+            ?.id || '',
         keyName: values.keyName,
         value: String(values.value),
         valueType: values.valueType,
@@ -264,7 +268,7 @@ const ConfigCenterPage: React.FC = () => {
   const handleViewHistory = async (item: ConfigItem) => {
     try {
       const res = await getItemHistory(item.id);
-      const data = Array.isArray(res) ? res : ([]);
+      const data = Array.isArray(res) ? res : [];
       setHistoryData(data);
       setHistoryOpen(true);
     } catch {
@@ -273,10 +277,16 @@ const ConfigCenterPage: React.FC = () => {
   };
 
   const handlePublishSnapshot = async () => {
-    if (!selectedGroup) { message.warning('请先选择分组'); return; }
+    if (!selectedGroup) {
+      message.warning('请先选择分组');
+      return;
+    }
     setLoading(true);
     try {
-      const snap = await publishSnapshot(selectedGroup, { environment: selectedEnv, operator }) as ConfigSnapshot;
+      const snap = (await publishSnapshot(selectedGroup, {
+        environment: selectedEnv,
+        operator,
+      })) as ConfigSnapshot;
       setSnapshots((prev) => [snap, ...prev]);
       message.success('快照发布成功');
       loadSnapshots();
@@ -287,7 +297,11 @@ const ConfigCenterPage: React.FC = () => {
     }
   };
 
-  const handlePublishRelease = async (values: { snapshotId: string; environment: string; releaseNote?: string }) => {
+  const handlePublishRelease = async (values: {
+    snapshotId: string;
+    environment: string;
+    releaseNote?: string;
+  }) => {
     setLoading(true);
     try {
       const rel = (await publishRelease({
@@ -310,7 +324,11 @@ const ConfigCenterPage: React.FC = () => {
   const handleRollback = async (values: { snapshotId: string; reason?: string }) => {
     setLoading(true);
     try {
-      const rel = (await rollbackRelease({ snapshotId: values.snapshotId, operator, reason: values.reason })) as ConfigRelease;
+      const rel = (await rollbackRelease({
+        snapshotId: values.snapshotId,
+        operator,
+        reason: values.reason,
+      })) as ConfigRelease;
       setReleases((prev) => [rel, ...prev]);
       message.success('回滚成功');
       rollbackForm.resetFields();
@@ -331,7 +349,9 @@ const ConfigCenterPage: React.FC = () => {
       dataIndex: 'value',
       key: 'value',
       ellipsis: true,
-      render: (v: string) => <Text copyable={{ text: v }}>{v.length > 50 ? v.slice(0, 50) + '...' : v}</Text>,
+      render: (v: string) => (
+        <Text copyable={{ text: v }}>{v.length > 50 ? v.slice(0, 50) + '...' : v}</Text>
+      ),
     },
     {
       title: 'Type',
@@ -345,14 +365,14 @@ const ConfigCenterPage: React.FC = () => {
       dataIndex: 'encrypted',
       key: 'encrypted',
       width: 60,
-      render: (v: boolean) => v ? <Tag color="red">Yes</Tag> : <Tag>No</Tag>,
+      render: (v: boolean) => (v ? <Tag color="red">Yes</Tag> : <Tag>No</Tag>),
     },
     {
       title: '更新时间',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -385,7 +405,9 @@ const ConfigCenterPage: React.FC = () => {
             编辑
           </Button>
           <Popconfirm title="确认删除？" onConfirm={() => handleDeleteItem(record.id)}>
-            <Button size="small" type="link" danger>删除</Button>
+            <Button size="small" type="link" danger>
+              删除
+            </Button>
           </Popconfirm>
         </Space>
       ),
@@ -408,27 +430,34 @@ const ConfigCenterPage: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
       key: 'action',
       width: 120,
       render: (_: any, record: ConfigSnapshot) => (
-        <Button size="small" type="primary" onClick={() => {
-          releaseForm.setFieldsValue({ snapshotId: record.id, environment: record.environment });
-          Modal.confirm({
-            title: '发布配置快照',
-            content: <Form form={releaseForm} layout="vertical">
-              <Form.Item name="releaseNote" label="发布说明">
-                <TextArea rows={2} />
-              </Form.Item>
-            </Form>,
-            onOk: () => releaseForm.validateFields().then((values) => handlePublishRelease(values)),
-            okButtonProps: { loading: false },
-          });
-          releaseForm.resetFields();
-        }}>
+        <Button
+          size="small"
+          type="primary"
+          onClick={() => {
+            releaseForm.setFieldsValue({ snapshotId: record.id, environment: record.environment });
+            Modal.confirm({
+              title: '发布配置快照',
+              content: (
+                <Form form={releaseForm} layout="vertical">
+                  <Form.Item name="releaseNote" label="发布说明">
+                    <TextArea rows={2} />
+                  </Form.Item>
+                </Form>
+              ),
+              onOk: () =>
+                releaseForm.validateFields().then((values) => handlePublishRelease(values)),
+              okButtonProps: { loading: false },
+            });
+            releaseForm.resetFields();
+          }}
+        >
           发布
         </Button>
       ),
@@ -449,7 +478,12 @@ const ConfigCenterPage: React.FC = () => {
       key: 'status',
       width: 100,
       render: (v: string) => {
-        const c: Record<string, string> = { released: 'green', rollback: 'orange', failed: 'red', pending: 'gold' };
+        const c: Record<string, string> = {
+          released: 'green',
+          rollback: 'orange',
+          failed: 'red',
+          pending: 'gold',
+        };
         return <Tag color={c[v] || 'default'}>{v}</Tag>;
       },
     },
@@ -462,7 +496,7 @@ const ConfigCenterPage: React.FC = () => {
       dataIndex: 'releasedAt',
       key: 'releasedAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
   ];
 
@@ -489,7 +523,7 @@ const ConfigCenterPage: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
   ];
 
@@ -501,7 +535,14 @@ const ConfigCenterPage: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: spacing.md,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: 8, color: colors.neutral[900], fontWeight: 600 }}>
             <SettingOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
@@ -518,25 +559,33 @@ const ConfigCenterPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <Text type="secondary">命名空间</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>{namespaces.length}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>
+              {namespaces.length}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Text type="secondary">配置项</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.info[500] }}>{totalItems}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.info[500] }}>
+              {totalItems}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Text type="secondary">快照</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>{totalSnapshots}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>
+              {totalSnapshots}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Text type="secondary">发布记录</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.purple[500] }}>{totalReleases}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.purple[500] }}>
+              {totalReleases}
+            </div>
           </Card>
         </Col>
       </Row>
@@ -553,12 +602,20 @@ const ConfigCenterPage: React.FC = () => {
           title="配置项列表"
           extra={
             <Space>
-              <Button icon={<ReloadOutlined />} size="small" onClick={loadItems} loading={loading}>刷新</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => {
-                setEditingItem(null);
-                itemForm.resetFields();
-                setItemModalOpen(true);
-              }}>新增配置</Button>
+              <Button icon={<ReloadOutlined />} size="small" onClick={loadItems} loading={loading}>
+                刷新
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setEditingItem(null);
+                  itemForm.resetFields();
+                  setItemModalOpen(true);
+                }}
+              >
+                新增配置
+              </Button>
             </Space>
           }
         >
@@ -572,7 +629,9 @@ const ConfigCenterPage: React.FC = () => {
               placeholder="选择命名空间"
             >
               {namespaces.map((n) => (
-                <Option key={n.id} value={n.id}>{n.name}</Option>
+                <Option key={n.id} value={n.id}>
+                  {n.name}
+                </Option>
               ))}
             </Select>
             <Text type="secondary">分组：</Text>
@@ -584,7 +643,9 @@ const ConfigCenterPage: React.FC = () => {
               placeholder="选择分组"
             >
               {groups.map((g) => (
-                <Option key={g.id} value={g.id}>{g.name}</Option>
+                <Option key={g.id} value={g.id}>
+                  {g.name}
+                </Option>
               ))}
             </Select>
             <Divider type="vertical" style={{ height: 24 }} />
@@ -594,23 +655,32 @@ const ConfigCenterPage: React.FC = () => {
                 创建
               </Button>
               <Text type="secondary">新建分组：</Text>
-              <Button size="small" onClick={() => {
-                if (!selectedNamespace) { message.warning('请先选择命名空间'); return; }
-                groupForm.setFieldsValue({ namespaceId: selectedNamespace });
-                Modal.confirm({
-                  title: '新建配置分组',
-                  content: <Form form={groupForm} layout="vertical">
-                    <Form.Item name="name" label="分组名称" rules={[{ required: true }]}>
-                      <Input />
-                    </Form.Item>
-                    <Form.Item name="description" label="描述">
-                      <Input />
-                    </Form.Item>
-                  </Form>,
-                  onOk: () => groupForm.validateFields().then((values) => handleCreateGroup(values)),
-                });
-                groupForm.resetFields();
-              }}>
+              <Button
+                size="small"
+                onClick={() => {
+                  if (!selectedNamespace) {
+                    message.warning('请先选择命名空间');
+                    return;
+                  }
+                  groupForm.setFieldsValue({ namespaceId: selectedNamespace });
+                  Modal.confirm({
+                    title: '新建配置分组',
+                    content: (
+                      <Form form={groupForm} layout="vertical">
+                        <Form.Item name="name" label="分组名称" rules={[{ required: true }]}>
+                          <Input />
+                        </Form.Item>
+                        <Form.Item name="description" label="描述">
+                          <Input />
+                        </Form.Item>
+                      </Form>
+                    ),
+                    onOk: () =>
+                      groupForm.validateFields().then((values) => handleCreateGroup(values)),
+                  });
+                  groupForm.resetFields();
+                }}
+              >
                 创建
               </Button>
             </Space>
@@ -642,7 +712,12 @@ const ConfigCenterPage: React.FC = () => {
                 <Option value="staging">staging</Option>
                 <Option value="production">production</Option>
               </Select>
-              <Button type="primary" icon={<CloudUploadOutlined />} onClick={handlePublishSnapshot} loading={loading}>
+              <Button
+                type="primary"
+                icon={<CloudUploadOutlined />}
+                onClick={handlePublishSnapshot}
+                loading={loading}
+              >
                 发布快照
               </Button>
             </Space>
@@ -674,21 +749,31 @@ const ConfigCenterPage: React.FC = () => {
                 <Option value="staging">staging</Option>
                 <Option value="production">production</Option>
               </Select>
-              <Button icon={<RollbackOutlined />} onClick={() => {
-                Modal.confirm({
-                  title: '回滚发布',
-                  content: <Form form={rollbackForm} layout="vertical">
-                    <Form.Item name="snapshotId" label="目标快照 ID" rules={[{ required: true }]}>
-                      <Input placeholder="请输入快照 ID" />
-                    </Form.Item>
-                    <Form.Item name="reason" label="回滚原因">
-                      <TextArea rows={2} />
-                    </Form.Item>
-                  </Form>,
-                  onOk: () => rollbackForm.validateFields().then((values) => handleRollback(values)),
-                });
-                rollbackForm.resetFields();
-              }}>
+              <Button
+                icon={<RollbackOutlined />}
+                onClick={() => {
+                  Modal.confirm({
+                    title: '回滚发布',
+                    content: (
+                      <Form form={rollbackForm} layout="vertical">
+                        <Form.Item
+                          name="snapshotId"
+                          label="目标快照 ID"
+                          rules={[{ required: true }]}
+                        >
+                          <Input placeholder="请输入快照 ID" />
+                        </Form.Item>
+                        <Form.Item name="reason" label="回滚原因">
+                          <TextArea rows={2} />
+                        </Form.Item>
+                      </Form>
+                    ),
+                    onOk: () =>
+                      rollbackForm.validateFields().then((values) => handleRollback(values)),
+                  });
+                  rollbackForm.resetFields();
+                }}
+              >
                 回滚
               </Button>
             </Space>
@@ -707,7 +792,11 @@ const ConfigCenterPage: React.FC = () => {
       {activeTab === 'audit' && (
         <Card
           title="变更审计"
-          extra={<Button icon={<ReloadOutlined />} size="small" onClick={loadAudit}>刷新</Button>}
+          extra={
+            <Button icon={<ReloadOutlined />} size="small" onClick={loadAudit}>
+              刷新
+            </Button>
+          }
         >
           <Table
             columns={auditColumns}
@@ -723,7 +812,11 @@ const ConfigCenterPage: React.FC = () => {
       <Modal
         title={editingItem ? '编辑配置项' : '新增配置项'}
         open={itemModalOpen}
-        onCancel={() => { setItemModalOpen(false); setEditingItem(null); itemForm.resetFields(); }}
+        onCancel={() => {
+          setItemModalOpen(false);
+          setEditingItem(null);
+          itemForm.resetFields();
+        }}
         onOk={() => itemForm.submit()}
         width={600}
       >
@@ -799,7 +892,7 @@ const ConfigCenterPage: React.FC = () => {
               dataIndex: 'createdAt',
               key: 'createdAt',
               width: 160,
-              render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+              render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
             },
           ]}
         />

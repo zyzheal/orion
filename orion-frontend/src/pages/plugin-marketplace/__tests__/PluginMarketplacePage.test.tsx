@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><PluginMarketplacePage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <PluginMarketplacePage />
+    </BrowserRouter>
+  );
 }
 
 describe('PluginMarketplacePage', () => {

@@ -185,99 +185,104 @@ const AIGatewayPage: React.FC = () => {
     <DashboardLayout padding={24} columns={4}>
       {/* Header - spans all columns */}
       <Spin spinning={loading}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg, gridColumn: '1 / -1' }}>
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            AI 网关管理
-          </Title>
-          <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginBottom: spacing.lg,
+            gridColumn: '1 / -1',
+          }}
+        >
+          <div>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              AI 网关管理
+            </Title>
+            <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              刷新
+            </Button>
+            <Button icon={<SettingOutlined />}>配置</Button>
+          </Space>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-          <Button icon={<SettingOutlined />}>配置</Button>
-        </Space>
-      </div>
 
-      {/* Summary Cards - 4 columns */}
-      <Card>
-        <Statistic
-          title="场景总数"
-          value={healthData.length}
-          prefix={<ThunderboltOutlined />}
-        />
-      </Card>
-      <Card>
-        <Statistic
-          title="健康场景"
-          value={healthData.filter((h) => h.isHealthy).length}
-          valueStyle={{ color: colors.success[500] }}
-          prefix={<CheckCircleOutlined />}
-        />
-      </Card>
-      <Card>
-        <Statistic
-          title="熔断场景"
-          value={healthData.filter((h) => h.circuitState === 'OPEN').length}
-          valueStyle={{ color: colors.error[500] }}
-          prefix={<CloseCircleOutlined />}
-        />
-      </Card>
-      <Card>
-        <Statistic
-          title="降级激活"
-          value={healthData.filter((h) => h.degradationActive).length}
-          valueStyle={{ color: colors.warning[500] }}
-          prefix={<SafetyOutlined />}
-        />
-      </Card>
+        {/* Summary Cards - 4 columns */}
+        <Card>
+          <Statistic title="场景总数" value={healthData.length} prefix={<ThunderboltOutlined />} />
+        </Card>
+        <Card>
+          <Statistic
+            title="健康场景"
+            value={healthData.filter((h) => h.isHealthy).length}
+            valueStyle={{ color: colors.success[500] }}
+            prefix={<CheckCircleOutlined />}
+          />
+        </Card>
+        <Card>
+          <Statistic
+            title="熔断场景"
+            value={healthData.filter((h) => h.circuitState === 'OPEN').length}
+            valueStyle={{ color: colors.error[500] }}
+            prefix={<CloseCircleOutlined />}
+          />
+        </Card>
+        <Card>
+          <Statistic
+            title="降级激活"
+            value={healthData.filter((h) => h.degradationActive).length}
+            valueStyle={{ color: colors.warning[500] }}
+            prefix={<SafetyOutlined />}
+          />
+        </Card>
 
-      {/* Gateway Status - spans all columns */}
-      <Card title="网关状态" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
-        <Space size="large">
-          <div>
-            <Text type="secondary">网关状态:</Text>{' '}
-            <Tag color={gatewayStatus?.status === 'healthy' ? 'green' : 'red'}>
-              {gatewayStatus?.status || '未知'}
-            </Tag>
-          </div>
-          <div>
-            <Text type="secondary">缓存:</Text>{' '}
-            <Tag color={engineStatus?.cacheEnabled ? 'green' : 'default'}>
-              {engineStatus?.cacheEnabled ? '启用' : '禁用'}
-            </Tag>
-          </div>
-          <div>
-            <Text type="secondary">审计:</Text>{' '}
-            <Tag color={engineStatus?.auditEnabled ? 'green' : 'default'}>
-              {engineStatus?.auditEnabled ? '启用' : '禁用'}
-            </Tag>
-          </div>
-        </Space>
-      </Card>
+        {/* Gateway Status - spans all columns */}
+        <Card title="网关状态" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
+          <Space size="large">
+            <div>
+              <Text type="secondary">网关状态:</Text>{' '}
+              <Tag color={gatewayStatus?.status === 'healthy' ? 'green' : 'red'}>
+                {gatewayStatus?.status || '未知'}
+              </Tag>
+            </div>
+            <div>
+              <Text type="secondary">缓存:</Text>{' '}
+              <Tag color={engineStatus?.cacheEnabled ? 'green' : 'default'}>
+                {engineStatus?.cacheEnabled ? '启用' : '禁用'}
+              </Tag>
+            </div>
+            <div>
+              <Text type="secondary">审计:</Text>{' '}
+              <Tag color={engineStatus?.auditEnabled ? 'green' : 'default'}>
+                {engineStatus?.auditEnabled ? '启用' : '禁用'}
+              </Tag>
+            </div>
+          </Space>
+        </Card>
 
-      {/* Health Table - spans all columns */}
-      <Card title="场景健康监控" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
-        {tableData.length > 0 ? (
-          <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
-        ) : (
-          !loading && <Empty description="暂无场景健康数据" />
-        )}
-      </Card>
+        {/* Health Table - spans all columns */}
+        <Card title="场景健康监控" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
+          {tableData.length > 0 ? (
+            <Table columns={columns} dataSource={tableData} loading={loading} pagination={false} />
+          ) : (
+            !loading && <Empty description="暂无场景健康数据" />
+          )}
+        </Card>
 
-      {/* Rules Info - spans all columns */}
-      <Card title="规则引擎" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
+        {/* Rules Info - spans all columns */}
+        <Card title="规则引擎" style={{ marginTop: spacing.lg, gridColumn: '1 / -1' }}>
           {rules ? (
             <div>
               <Text>内置降级规则覆盖 {rules.scenarios?.length || 15} 个 AI 场景</Text>
               <div style={{ marginTop: spacing[3] }}>
-                {rules.scenarios?.length > 0 ? rules.scenarios.map((s: string) => (
-                  <Tag key={s} style={{ marginBottom: spacing.sm }}>
-                    {s}
-                  </Tag>
-                )) : (
+                {rules.scenarios?.length > 0 ? (
+                  rules.scenarios.map((s: string) => (
+                    <Tag key={s} style={{ marginBottom: spacing.sm }}>
+                      {s}
+                    </Tag>
+                  ))
+                ) : (
                   <Empty description="暂无规则数据" />
                 )}
               </div>

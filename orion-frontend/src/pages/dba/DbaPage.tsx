@@ -328,9 +328,7 @@ const DbaPage: React.FC = () => {
   // ---- Filtered Data ----
 
   const filteredOrders =
-    orderStatusFilter === 'all'
-      ? orders
-      : orders.filter((o) => o.status === orderStatusFilter);
+    orderStatusFilter === 'all' ? orders : orders.filter((o) => o.status === orderStatusFilter);
 
   // ---- Stats ----
 
@@ -343,169 +341,175 @@ const DbaPage: React.FC = () => {
 
   // ---- Order Table Columns ----
 
-  const orderColumns: TableColumn<SqlOrder>[] = useMemo<TableColumn<SqlOrder>[]>(() => [
-    {
-      key: 'id',
-      title: '工单ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
-    },
-    {
-      key: 'database',
-      title: '数据库',
-      dataIndex: 'database',
-      width: 140,
-      render: (v: unknown) => (
-        <Space>
-          <DatabaseOutlined style={{ color: colors.primary[500] }} />
-          <Text>{String(v)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'sql',
-      title: 'SQL',
-      dataIndex: 'sql',
-      ellipsis: true,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: 12 }}>
-          {String(v).slice(0, 60)}
-          {String(v).length > 60 ? '...' : ''}
-        </Text>
-      ),
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 80,
-      render: (v: unknown) => (
-        <Tag color={sqlTypeColorMap[v as SqlOrder['type']]}>
-          {sqlTypeLabelMap[v as SqlOrder['type']]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => (
-        <Tag color={orderStatusColorMap[v as SqlOrder['status']]}>
-          {orderStatusLabelMap[v as SqlOrder['status']]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: unknown, record: SqlOrder) => (
-        <Space size="small">
-          {record.status === 'pending' && (
-            <>
+  const orderColumns: TableColumn<SqlOrder>[] = useMemo<TableColumn<SqlOrder>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '工单ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
+      },
+      {
+        key: 'database',
+        title: '数据库',
+        dataIndex: 'database',
+        width: 140,
+        render: (v: unknown) => (
+          <Space>
+            <DatabaseOutlined style={{ color: colors.primary[500] }} />
+            <Text>{String(v)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'sql',
+        title: 'SQL',
+        dataIndex: 'sql',
+        ellipsis: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 12 }}>
+            {String(v).slice(0, 60)}
+            {String(v).length > 60 ? '...' : ''}
+          </Text>
+        ),
+      },
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 80,
+        render: (v: unknown) => (
+          <Tag color={sqlTypeColorMap[v as SqlOrder['type']]}>
+            {sqlTypeLabelMap[v as SqlOrder['type']]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => (
+          <Tag color={orderStatusColorMap[v as SqlOrder['status']]}>
+            {orderStatusLabelMap[v as SqlOrder['status']]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: unknown, record: SqlOrder) => (
+          <Space size="small">
+            {record.status === 'pending' && (
+              <>
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ color: colors.success[500] }}
+                  icon={<CheckOutlined />}
+                  onClick={() => handleApproveOrder(record.id)}
+                >
+                  审批
+                </Button>
+                <Popconfirm title="确认拒绝此工单？" onConfirm={() => handleRejectOrder(record.id)}>
+                  <Button type="link" size="small" danger icon={<CloseOutlined />}>
+                    拒绝
+                  </Button>
+                </Popconfirm>
+              </>
+            )}
+            {record.status === 'approved' && (
               <Button
                 type="link"
                 size="small"
-                style={{ color: colors.success[500] }}
-                icon={<CheckOutlined />}
-                onClick={() => handleApproveOrder(record.id)}
+                style={{ color: colors.primary[500] }}
+                icon={<PlayCircleOutlined />}
+                onClick={() => handleExecuteOrder(record.id)}
               >
-                审批
+                执行
               </Button>
-              <Popconfirm title="确认拒绝此工单？" onConfirm={() => handleRejectOrder(record.id)}>
-                <Button type="link" size="small" danger icon={<CloseOutlined />}>
-                  拒绝
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-          {record.status === 'approved' && (
-            <Button
-              type="link"
-              size="small"
-              style={{ color: colors.primary[500] }}
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleExecuteOrder(record.id)}
-            >
-              执行
-            </Button>
-          )}
-          {record.status === 'completed' || record.status === 'failed' ? (
-            <Button type="link" size="small" onClick={() => getOrder(record.id)}>
-              查看结果
-            </Button>
-          ) : null}
-        </Space>
-      ),
-    },
-  ], [getOrder, handleApproveOrder, handleExecuteOrder, handleRejectOrder]);
+            )}
+            {record.status === 'completed' || record.status === 'failed' ? (
+              <Button type="link" size="small" onClick={() => getOrder(record.id)}>
+                查看结果
+              </Button>
+            ) : null}
+          </Space>
+        ),
+      },
+    ],
+    [getOrder, handleApproveOrder, handleExecuteOrder, handleRejectOrder]
+  );
 
   // ---- Audit Rule Columns ----
 
-  const ruleColumns: TableColumn<AuditRule>[] = useMemo<TableColumn<AuditRule>[]>(() => [
-    {
-      key: 'id',
-      title: '规则ID',
-      dataIndex: 'id',
-      width: 100,
-      render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
-    },
-    {
-      key: 'name',
-      title: '规则名称',
-      dataIndex: 'name',
-      width: 180,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'pattern',
-      title: '匹配模式',
-      dataIndex: 'pattern',
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: 12 }}>
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'severity',
-      title: '严重级别',
-      dataIndex: 'severity',
-      width: 100,
-      render: (v: unknown) => {
-        const severity = v as AuditRule['severity'];
-        const colorMap: Record<AuditRule['severity'], string> = {
-          info: 'blue',
-          warning: 'orange',
-          error: 'red',
-        };
-        const labelMap: Record<AuditRule['severity'], string> = {
-          info: '信息',
-          warning: '警告',
-          error: '错误',
-        };
-        return <Tag color={colorMap[severity]}>{labelMap[severity]}</Tag>;
+  const ruleColumns: TableColumn<AuditRule>[] = useMemo<TableColumn<AuditRule>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '规则ID',
+        dataIndex: 'id',
+        width: 100,
+        render: (v: unknown) => <Text code>{String(v).slice(0, 8)}</Text>,
       },
-    },
-    {
-      key: 'enabled',
-      title: '启用',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (enabled: unknown, record: AuditRule) => (
-        <Switch size="small" checked={!!enabled} onChange={() => handleToggleRule(record)} />
-      ),
-    },
-  ], []);
+      {
+        key: 'name',
+        title: '规则名称',
+        dataIndex: 'name',
+        width: 180,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'pattern',
+        title: '匹配模式',
+        dataIndex: 'pattern',
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 12 }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'severity',
+        title: '严重级别',
+        dataIndex: 'severity',
+        width: 100,
+        render: (v: unknown) => {
+          const severity = v as AuditRule['severity'];
+          const colorMap: Record<AuditRule['severity'], string> = {
+            info: 'blue',
+            warning: 'orange',
+            error: 'red',
+          };
+          const labelMap: Record<AuditRule['severity'], string> = {
+            info: '信息',
+            warning: '警告',
+            error: '错误',
+          };
+          return <Tag color={colorMap[severity]}>{labelMap[severity]}</Tag>;
+        },
+      },
+      {
+        key: 'enabled',
+        title: '启用',
+        dataIndex: 'enabled',
+        width: 80,
+        render: (enabled: unknown, record: AuditRule) => (
+          <Switch size="small" checked={!!enabled} onChange={() => handleToggleRule(record)} />
+        ),
+      },
+    ],
+    []
+  );
 
   // ---- Tab Items ----
 
@@ -568,11 +572,7 @@ const DbaPage: React.FC = () => {
             刷新
           </Button>
         </Space>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setOrderModalVisible(true)}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOrderModalVisible(true)}>
           新建工单
         </Button>
       </div>
@@ -588,7 +588,11 @@ const DbaPage: React.FC = () => {
         locale={{
           emptyText: (
             <Empty description="暂无SQL工单">
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setOrderModalVisible(true)}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setOrderModalVisible(true)}
+              >
                 新建工单
               </Button>
             </Empty>
@@ -788,11 +792,7 @@ const DbaPage: React.FC = () => {
           >
             <Input placeholder="如: 10.0.0.1" />
           </Form.Item>
-          <Form.Item
-            name="port"
-            label="端口"
-            rules={[{ required: true, message: '请输入端口号' }]}
-          >
+          <Form.Item name="port" label="端口" rules={[{ required: true, message: '请输入端口号' }]}>
             <Input placeholder="如: 3306" />
           </Form.Item>
           <Form.Item
@@ -876,12 +876,7 @@ const DbaPage: React.FC = () => {
           </div>
 
           {/* Tabs */}
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={tabItems}
-            size="large"
-          />
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
         </>
       )}
     </div>

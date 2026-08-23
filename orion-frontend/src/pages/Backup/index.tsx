@@ -307,153 +307,159 @@ const BackupManagement: React.FC = () => {
 
   // ---- Table Columns ----
 
-  const columns: TableColumn<BackupRecord>[] = useMemo<TableColumn<BackupRecord>[]>(() => [
-    {
-      key: 'name',
-      title: '备份名称',
-      dataIndex: 'name',
-      width: 240,
-      sortable: true,
-      render: (value: unknown, record: BackupRecord) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{String(value)}</Text>
-          {record.description && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.description}
-            </Text>
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'type',
-      title: '类型',
-      width: 100,
-      render: (_: unknown, record: BackupRecord) => (
-        <Tag icon={typeIconMap[record.type]} color="blue">
-          {typeLabelMap[record.type]}
-        </Tag>
-      ),
-    },
-    {
-      key: 'size',
-      title: '大小',
-      width: 100,
-      sortable: true,
-      render: (_: unknown, record: BackupRecord) => (
-        <Text type="secondary">{formatSize(record.size)}</Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: BackupRecord) => (
-        <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
-      ),
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      width: 90,
-      render: (_: unknown, record: BackupRecord) =>
-        record.duration ? (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {formatDuration(record.duration)}
-          </Text>
-        ) : (
-          <Text type="secondary">-</Text>
+  const columns: TableColumn<BackupRecord>[] = useMemo<TableColumn<BackupRecord>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '备份名称',
+        dataIndex: 'name',
+        width: 240,
+        sortable: true,
+        render: (value: unknown, record: BackupRecord) => (
+          <Space direction="vertical" size={0}>
+            <Text strong>{String(value)}</Text>
+            {record.description && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.description}
+              </Text>
+            )}
+          </Space>
         ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(value)).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdBy',
-      title: '创建人',
-      dataIndex: 'createdBy',
-      width: 90,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: unknown, record: BackupRecord) => (
-        <Space size="small" wrap>
-          {record.status === 'success' && (
-            <Button
-              type="link"
-              size="small"
-              icon={<RollbackOutlined />}
-              onClick={() => openRestore(record)}
+      },
+      {
+        key: 'type',
+        title: '类型',
+        width: 100,
+        render: (_: unknown, record: BackupRecord) => (
+          <Tag icon={typeIconMap[record.type]} color="blue">
+            {typeLabelMap[record.type]}
+          </Tag>
+        ),
+      },
+      {
+        key: 'size',
+        title: '大小',
+        width: 100,
+        sortable: true,
+        render: (_: unknown, record: BackupRecord) => (
+          <Text type="secondary">{formatSize(record.size)}</Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: BackupRecord) => (
+          <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
+        ),
+      },
+      {
+        key: 'duration',
+        title: '耗时',
+        width: 90,
+        render: (_: unknown, record: BackupRecord) =>
+          record.duration ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {formatDuration(record.duration)}
+            </Text>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(value)).format('YYYY-MM-DD HH:mm:ss')}
+          </Text>
+        ),
+      },
+      {
+        key: 'createdBy',
+        title: '创建人',
+        dataIndex: 'createdBy',
+        width: 90,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: unknown, record: BackupRecord) => (
+          <Space size="small" wrap>
+            {record.status === 'success' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<RollbackOutlined />}
+                onClick={() => openRestore(record)}
+              >
+                恢复
+              </Button>
+            )}
+            {record.status === 'success' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<CloudDownloadOutlined />}
+                onClick={() => handleDownload(record)}
+              >
+                下载
+              </Button>
+            )}
+            <Popconfirm
+              title="确认删除该备份?"
+              description="删除后无法恢复"
+              onConfirm={() => handleDelete(record.id)}
             >
-              恢复
-            </Button>
-          )}
-          {record.status === 'success' && (
-            <Button
-              type="link"
-              size="small"
-              icon={<CloudDownloadOutlined />}
-              onClick={() => handleDownload(record)}
-            >
-              下载
-            </Button>
-          )}
-          <Popconfirm
-            title="确认删除该备份?"
-            description="删除后无法恢复"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleDownload, openRestore]);
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleDownload, openRestore]
+  );
 
   // ---- Filter Definitions ----
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'type',
-      label: '备份类型',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '数据库', value: 'database' },
-        { label: '配置', value: 'config' },
-        { label: '完整备份', value: 'full' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '成功', value: 'success' },
-        { label: '失败', value: 'failed' },
-        { label: '运行中', value: 'running' },
-        { label: '等待中', value: 'pending' },
-        { label: '已恢复', value: 'restored' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'type',
+        label: '备份类型',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '数据库', value: 'database' },
+          { label: '配置', value: 'config' },
+          { label: '完整备份', value: 'full' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '成功', value: 'success' },
+          { label: '失败', value: 'failed' },
+          { label: '运行中', value: 'running' },
+          { label: '等待中', value: 'pending' },
+          { label: '已恢复', value: 'restored' },
+        ],
+      },
+    ],
+    []
+  );
 
   // ---- Render ----
 

@@ -167,122 +167,133 @@ const WorkspaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<IaCWorkspace>[] = useMemo<TableColumn<IaCWorkspace>[]>(() => [
-    {
-      key: 'name',
-      title: '工作空间',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'environment',
-      title: '环境',
-      dataIndex: 'environment',
-      width: 140,
-      render: (v: unknown) => <Tag color={envColorMap[String(v)] || 'default'}>{String(v)}</Tag>,
-    },
-    {
-      key: 'provider',
-      title: '引擎',
-      dataIndex: 'provider',
-      width: 140,
-      render: (v: unknown) => <Tag>{String(v)}</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
-    },
-    {
-      key: 'lockedBy',
-      title: '锁定',
-      dataIndex: 'lockedBy',
-      width: 140,
-      render: (v: unknown) =>
-        v ? (
-          <Space>
-            <LockOutlined style={{ color: colors.warning[500] }} />
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>
-              {String(v)}
-            </Text>
-          </Space>
-        ) : (
-          <Space>
-            <UnlockOutlined style={{ color: colors.success[500] }} />
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>
-              未锁定
-            </Text>
+  const columns: TableColumn<IaCWorkspace>[] = useMemo<TableColumn<IaCWorkspace>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '工作空间',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'environment',
+        title: '环境',
+        dataIndex: 'environment',
+        width: 140,
+        render: (v: unknown) => <Tag color={envColorMap[String(v)] || 'default'}>{String(v)}</Tag>,
+      },
+      {
+        key: 'provider',
+        title: '引擎',
+        dataIndex: 'provider',
+        width: 140,
+        render: (v: unknown) => <Tag>{String(v)}</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 120,
+        render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
+      },
+      {
+        key: 'lockedBy',
+        title: '锁定',
+        dataIndex: 'lockedBy',
+        width: 140,
+        render: (v: unknown) =>
+          v ? (
+            <Space>
+              <LockOutlined style={{ color: colors.warning[500] }} />
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                {String(v)}
+              </Text>
+            </Space>
+          ) : (
+            <Space>
+              <UnlockOutlined style={{ color: colors.success[500] }} />
+              <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                未锁定
+              </Text>
+            </Space>
+          ),
+      },
+      {
+        key: 'projectId',
+        title: '项目',
+        dataIndex: 'projectId',
+        width: 140,
+        render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+              Plan
+            </Button>
+            <Button type="link" size="small" icon={<PlayCircleOutlined />}>
+              Apply
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            >
+              编辑
+            </Button>
+            <Popconfirm title="确认删除?" onConfirm={() => message.info('删除功能待后端支持')}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
           </Space>
         ),
-    },
-    {
-      key: 'projectId',
-      title: '项目',
-      dataIndex: 'projectId',
-      width: 140,
-      render: (v: unknown) => <Text type="secondary">{String(v)}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<PlayCircleOutlined />}>
-            Plan
-          </Button>
-          <Button type="link" size="small" icon={<PlayCircleOutlined />}>
-            Apply
-          </Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除?" onConfirm={() => message.info('删除功能待后端支持')}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [openEdit]);
+      },
+    ],
+    [openEdit]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    { key: 'environment', label: '环境', options: environmentOptions },
-    {
-      key: 'provider',
-      label: '引擎',
-      options: [{ label: '全部', value: 'all' }, ...providerOptions],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Idle', value: 'idle' },
-        { label: 'Planning', value: 'planning' },
-        { label: 'Applying', value: 'applying' },
-        { label: 'Error', value: 'error' },
-        { label: 'Locked', value: 'locked' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      { key: 'environment', label: '环境', options: environmentOptions },
+      {
+        key: 'provider',
+        label: '引擎',
+        options: [{ label: '全部', value: 'all' }, ...providerOptions],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Idle', value: 'idle' },
+          { label: 'Planning', value: 'planning' },
+          { label: 'Applying', value: 'applying' },
+          { label: 'Error', value: 'error' },
+          { label: 'Locked', value: 'locked' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

@@ -40,8 +40,8 @@ const E2EAnalysis: React.FC = () => {
     try {
       const res = await getAllPipelineRuns({ limit: 50 });
       const list = (res as any).data?.runs ?? (res as any).data ?? [];
-      const sorted = (list as PipelineRunSummary[]).sort(
-        (a, b) => (b.startedAt ?? '').localeCompare(a.startedAt ?? '')
+      const sorted = (list as PipelineRunSummary[]).sort((a, b) =>
+        (b.startedAt ?? '').localeCompare(a.startedAt ?? '')
       );
       setRuns(sorted);
       if (sorted.length > 0 && !selectedRunId) {
@@ -72,7 +72,7 @@ const E2EAnalysis: React.FC = () => {
   const durations = runs.map((r) => Number(r.durationMs ?? 0)).filter((d) => d > 0);
   const avgDuration =
     durations.length > 0
-      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length / 60000 * 10) / 10
+      ? Math.round((durations.reduce((a, b) => a + b, 0) / durations.length / 60000) * 10) / 10
       : 0;
 
   const topSlow = [...runs]
@@ -81,16 +81,30 @@ const E2EAnalysis: React.FC = () => {
     .slice(0, 5);
 
   const runColumns = [
-    { title: 'Pipeline', dataIndex: 'pipelineId', key: 'pipelineId', render: (v: string) => <Text code>{v}</Text> },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
+      title: 'Pipeline',
+      dataIndex: 'pipelineId',
+      key: 'pipelineId',
+      render: (v: string) => <Text code>{v}</Text>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       render: (v: string) => {
-        const color = v === 'succeeded' ? colors.success[500] : v === 'failed' ? colors.error[500] : colors.warning[500];
+        const color =
+          v === 'succeeded'
+            ? colors.success[500]
+            : v === 'failed'
+              ? colors.error[500]
+              : colors.warning[500];
         return <span style={{ color }}>{v}</span>;
       },
     },
     {
-      title: '耗时', dataIndex: 'durationMs', key: 'durationMs',
+      title: '耗时',
+      dataIndex: 'durationMs',
+      key: 'durationMs',
       render: (v: number) =>
         v > 0 ? `${Math.round(v / 60000)}m ${Math.round((v % 60000) / 1000)}s` : '—',
     },
@@ -101,18 +115,33 @@ const E2EAnalysis: React.FC = () => {
   const stageColumns = [
     { title: '阶段', dataIndex: 'stageName', key: 'stageName', render: (v: string) => v || '—' },
     {
-      title: '状态', dataIndex: 'status', key: 'status',
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
       render: (v: string) => {
         const color =
-          v === 'succeeded' ? colors.success[500] : v === 'failed' ? colors.error[500] : colors.warning[500];
+          v === 'succeeded'
+            ? colors.success[500]
+            : v === 'failed'
+              ? colors.error[500]
+              : colors.warning[500];
         return <span style={{ color }}>{v}</span>;
       },
     },
-    { title: '耗时', dataIndex: 'durationMs', key: 'durationMs', render: (v: number) => (v > 0 ? `${Math.round(v / 1000)}s` : '—') },
+    {
+      title: '耗时',
+      dataIndex: 'durationMs',
+      key: 'durationMs',
+      render: (v: number) => (v > 0 ? `${Math.round(v / 1000)}s` : '—'),
+    },
   ];
 
   if (loading && refreshKey === 0) {
-    return <div style={{ padding: spacing.lg, textAlign: 'center' }}><Spin size="large" /></div>;
+    return (
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
@@ -125,7 +154,11 @@ const E2EAnalysis: React.FC = () => {
           </Title>
           <Text type="secondary">Commit → Build → Test → Deploy → Production 全链路周期</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => setRefreshKey((k) => k + 1)} loading={loading}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => setRefreshKey((k) => k + 1)}
+          loading={loading}
+        >
           刷新
         </Button>
       </div>
@@ -187,7 +220,10 @@ const E2EAnalysis: React.FC = () => {
             >
               {runs.map((r) => (
                 <Option key={r.id} value={r.id}>
-                  {r.pipelineId} · {r.status} · {Number(r.durationMs ?? 0) > 0 ? `${Math.round(Number(r.durationMs ?? 0) / 60000)}m` : ''}
+                  {r.pipelineId} · {r.status} ·{' '}
+                  {Number(r.durationMs ?? 0) > 0
+                    ? `${Math.round(Number(r.durationMs ?? 0) / 60000)}m`
+                    : ''}
                 </Option>
               ))}
             </Select>
@@ -208,7 +244,13 @@ const E2EAnalysis: React.FC = () => {
       </Row>
 
       <Card title="Top 5 慢速交付" style={{ marginBottom: spacing.md }}>
-        <Table columns={runColumns} dataSource={topSlow} rowKey="id" pagination={false} size="small" />
+        <Table
+          columns={runColumns}
+          dataSource={topSlow}
+          rowKey="id"
+          pagination={false}
+          size="small"
+        />
       </Card>
 
       <Card title="最近 Pipeline 执行记录">

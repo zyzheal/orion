@@ -72,7 +72,7 @@ const NotificationSettingsPage: React.FC = () => {
     <div style={{ padding: 0 }}>
       <div style={{ marginBottom: spacing.lg }}>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           通知设置
         </Title>
         <Text type="secondary">配置确认通知渠道和自动化规则</Text>

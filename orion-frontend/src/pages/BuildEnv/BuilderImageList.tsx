@@ -16,7 +16,7 @@ import {
   message,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, PictureOutlined,} from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, PictureOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -49,7 +49,9 @@ const BuilderImageList: React.FC = () => {
     try {
       const response = await getBuilderImages();
       const apiData = response.data;
-      setImages(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
+      setImages(
+        Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? [])
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建镜像失败：${error.message}`);
@@ -162,131 +164,139 @@ const BuilderImageList: React.FC = () => {
     setModalOpen(true);
   };
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'type',
-      label: 'Type',
-      options: [
-        { label: 'All', value: 'all' },
-        { label: 'Node.js', value: 'nodejs' },
-        { label: 'Go', value: 'go' },
-        { label: 'Java', value: 'java' },
-        { label: 'Python', value: 'python' },
-        { label: 'Custom', value: 'custom' },
-      ],
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      options: [
-        { label: 'All', value: 'all' },
-        { label: 'Active', value: 'active' },
-        { label: 'Deprecated', value: 'deprecated' },
-        { label: 'Building', value: 'building' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'type',
+        label: 'Type',
+        options: [
+          { label: 'All', value: 'all' },
+          { label: 'Node.js', value: 'nodejs' },
+          { label: 'Go', value: 'go' },
+          { label: 'Java', value: 'java' },
+          { label: 'Python', value: 'python' },
+          { label: 'Custom', value: 'custom' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        options: [
+          { label: 'All', value: 'all' },
+          { label: 'Active', value: 'active' },
+          { label: 'Deprecated', value: 'deprecated' },
+          { label: 'Building', value: 'building' },
+        ],
+      },
+    ],
+    []
+  );
 
-  const columns: TableColumn<BuilderImage>[] = useMemo<TableColumn<BuilderImage>[]>(() => [
-    {
-      key: 'name',
-      title: 'Name',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (_value, record) => (
-        <Text strong style={{ color: colors.primary[500] }}>
-          {record.name}
-        </Text>
-      ),
-    },
-    {
-      key: 'type',
-      title: 'Type',
-      dataIndex: 'type',
-      width: 120,
-      render: (value) => {
-        const colorMap: Record<string, string> = {
-          nodejs: 'green',
-          go: 'cyan',
-          java: 'orange',
-          python: 'blue',
-          custom: 'purple',
-        };
-        return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+  const columns: TableColumn<BuilderImage>[] = useMemo<TableColumn<BuilderImage>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Name',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (_value, record) => (
+          <Text strong style={{ color: colors.primary[500] }}>
+            {record.name}
+          </Text>
+        ),
       },
-    },
-    {
-      key: 'baseImage',
-      title: 'Base Image',
-      dataIndex: 'baseImage',
-      width: 250,
-      render: (value) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'version',
-      title: 'Version',
-      dataIndex: 'version',
-      width: 100,
-      render: (value) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      width: 130,
-      render: (value) => {
-        const statusMap: Record<string, unknown> = {
-          active: 'success',
-          deprecated: 'warning',
-          building: 'running',
-        };
-        return <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />;
+      {
+        key: 'type',
+        title: 'Type',
+        dataIndex: 'type',
+        width: 120,
+        render: (value) => {
+          const colorMap: Record<string, string> = {
+            nodejs: 'green',
+            go: 'cyan',
+            java: 'orange',
+            python: 'blue',
+            custom: 'purple',
+          };
+          return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+        },
       },
-    },
-    {
-      key: 'updatedAt',
-      title: 'Updated',
-      dataIndex: 'updatedAt',
-      width: 140,
-      sortable: true,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 180,
-      render: (_: unknown, record: BuilderImage) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => openEditModal(record)}>
-            Edit
-          </Button>
-          <Button type="link" size="small" onClick={() => handleToggleDeprecated(record)}>
-            {record.status === 'deprecated' ? 'Restore' : 'Deprecate'}
-          </Button>
-          <Popconfirm
-            title="Delete this builder image?"
-            description="This action cannot be undone."
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
-            cancelText="Cancel"
-          >
-            <Button type="link" size="small" danger>
-              Delete
+      {
+        key: 'baseImage',
+        title: 'Base Image',
+        dataIndex: 'baseImage',
+        width: 250,
+        render: (value) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'version',
+        title: 'Version',
+        dataIndex: 'version',
+        width: 100,
+        render: (value) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        dataIndex: 'status',
+        width: 130,
+        render: (value) => {
+          const statusMap: Record<string, unknown> = {
+            active: 'success',
+            deprecated: 'warning',
+            building: 'running',
+          };
+          return (
+            <StatusBadge status={(statusMap[String(value)] as any) || 'unknown'} size="small" />
+          );
+        },
+      },
+      {
+        key: 'updatedAt',
+        title: 'Updated',
+        dataIndex: 'updatedAt',
+        width: 140,
+        sortable: true,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        width: 180,
+        render: (_: unknown, record: BuilderImage) => (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => openEditModal(record)}>
+              Edit
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleToggleDeprecated, openEditModal]);
+            <Button type="link" size="small" onClick={() => handleToggleDeprecated(record)}>
+              {record.status === 'deprecated' ? 'Restore' : 'Deprecate'}
+            </Button>
+            <Popconfirm
+              title="Delete this builder image?"
+              description="This action cannot be undone."
+              onConfirm={() => handleDelete(record.id)}
+              okText="Delete"
+              cancelText="Cancel"
+            >
+              <Button type="link" size="small" danger>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleToggleDeprecated, openEditModal]
+  );
 
   return (
     <div style={{ padding: 0 }}>

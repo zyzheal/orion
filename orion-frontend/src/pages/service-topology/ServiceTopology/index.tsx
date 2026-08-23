@@ -13,7 +13,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Card, Table, Tag, Space, Select, Button, message, Empty, Spin } from 'antd';
 import { ClusterOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';
-import { serviceTopologyApi, type TopologyGraph, type TopologyEdge, type ServiceDependencies } from '@/api/service-topology';
+import {
+  serviceTopologyApi,
+  type TopologyGraph,
+  type TopologyEdge,
+  type ServiceDependencies,
+} from '@/api/service-topology';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -86,46 +91,49 @@ const ServiceTopologyPage: React.FC = () => {
     return <Tag color={color}>{label}</Tag>;
   };
 
-  const dependencyColumns: TableColumn<TopologyEdge>[] = useMemo(() => [
-    {
-      key: 'source',
-      title: '源服务',
-      dataIndex: 'source',
-      width: '25%',
-      render: (value: unknown) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      key: 'target',
-      title: '目标服务',
-      dataIndex: 'target',
-      width: '25%',
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'type',
-      title: '依赖类型',
-      dataIndex: 'type',
-      width: '15%',
-      render: (value: unknown) => edgeTypeTag(String(value)),
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'type',
-      width: '35%',
-      render: (value: unknown) => {
-        const type = String(value);
-        const descriptions: Record<string, string> = {
-          database: '数据库依赖',
-          cache: '缓存依赖',
-          queue: '消息队列依赖',
-          external: '外部服务依赖',
-          calls: '服务间调用',
-        };
-        return <Text type="secondary">{descriptions[type] || '未知依赖类型'}</Text>;
+  const dependencyColumns: TableColumn<TopologyEdge>[] = useMemo(
+    () => [
+      {
+        key: 'source',
+        title: '源服务',
+        dataIndex: 'source',
+        width: '25%',
+        render: (value: unknown) => <Text strong>{String(value)}</Text>,
       },
-    },
-  ], []);
+      {
+        key: 'target',
+        title: '目标服务',
+        dataIndex: 'target',
+        width: '25%',
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'type',
+        title: '依赖类型',
+        dataIndex: 'type',
+        width: '15%',
+        render: (value: unknown) => edgeTypeTag(String(value)),
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'type',
+        width: '35%',
+        render: (value: unknown) => {
+          const type = String(value);
+          const descriptions: Record<string, string> = {
+            database: '数据库依赖',
+            cache: '缓存依赖',
+            queue: '消息队列依赖',
+            external: '外部服务依赖',
+            calls: '服务间调用',
+          };
+          return <Text type="secondary">{descriptions[type] || '未知依赖类型'}</Text>;
+        },
+      },
+    ],
+    []
+  );
 
   const subGraphEdges = dependencies
     ? dependencies.outgoingDependencies
@@ -136,7 +144,7 @@ const ServiceTopologyPage: React.FC = () => {
           target: e.target,
           type: e.type,
         }))
-    : topology?.edges ?? [];
+    : (topology?.edges ?? []);
 
   const nodeOptions = useMemo(() => {
     if (!topology) return [];
@@ -158,7 +166,10 @@ const ServiceTopologyPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <ClusterOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             服务拓扑
           </Title>
@@ -193,8 +204,8 @@ const ServiceTopologyPage: React.FC = () => {
           ) : (
             <Space direction="vertical" style={{ width: '100%' }} size={spacing.md}>
               <Text type="secondary">
-                当前注册服务共 <Text strong>{topology?.nodes.length ?? 0}</Text> 个，
-                依赖关系共 <Text strong>{topology?.edges.length ?? 0}</Text> 条。
+                当前注册服务共 <Text strong>{topology?.nodes.length ?? 0}</Text> 个， 依赖关系共{' '}
+                <Text strong>{topology?.edges.length ?? 0}</Text> 条。
               </Text>
 
               {/* Service selector */}
@@ -221,9 +232,7 @@ const ServiceTopologyPage: React.FC = () => {
       <Card
         title={
           <Space>
-            <Text strong>
-              {selectedServiceId ? '服务依赖详情' : '依赖关系总览'}
-            </Text>
+            <Text strong>{selectedServiceId ? '服务依赖详情' : '依赖关系总览'}</Text>
           </Space>
         }
         styles={{ body: { padding: 0 } }}
@@ -240,7 +249,11 @@ const ServiceTopologyPage: React.FC = () => {
               loading={loading && selectedServiceId !== undefined}
               rowKey="key"
               size="middle"
-              pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showTotal: (total) => `共 ${total} 条`,
+              }}
             />
           )}
         </Spin>

@@ -15,12 +15,19 @@ export interface Confirmation {
   [key: string]: unknown;
 }
 
-export const listConfirmation = async (params?: Record<string, unknown>): Promise<{ data: Confirmation[]; total: number }> => {
-  const response = await api.get<{ data: Confirmation[]; total: number }>('/api/v1/confirmations/', { params });
+export const listConfirmation = async (
+  params?: Record<string, unknown>
+): Promise<{ data: Confirmation[]; total: number }> => {
+  const response = await api.get<{ data: Confirmation[]; total: number }>(
+    '/api/v1/confirmations/',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
-export const updateConfirmationSettings = async (data: Partial<Confirmation>): Promise<Confirmation> => {
+export const updateConfirmationSettings = async (
+  data: Partial<Confirmation>
+): Promise<Confirmation> => {
   const response = await api.put<Confirmation>('/api/v1/confirmations/settings', data);
   return response.data;
 };
@@ -30,7 +37,9 @@ export const createConfirmation = async (data?: Partial<Confirmation>): Promise<
   return response.data;
 };
 
-export const createConfirmationBatchApprove = async (data?: Partial<Confirmation>): Promise<Confirmation> => {
+export const createConfirmationBatchApprove = async (
+  data?: Partial<Confirmation>
+): Promise<Confirmation> => {
   const response = await api.post<Confirmation>('/api/v1/confirmations/batch-approve', data);
   return response.data;
 };
@@ -40,12 +49,18 @@ export const getConfirmation = async (id: string): Promise<Confirmation> => {
   return response.data;
 };
 
-export const createConfirmationApprove = async (id: string, data?: Partial<Confirmation>): Promise<Confirmation> => {
+export const createConfirmationApprove = async (
+  id: string,
+  data?: Partial<Confirmation>
+): Promise<Confirmation> => {
   const response = await api.post<Confirmation>('/api/v1/confirmations/' + id + '/approve', data);
   return response.data;
 };
 
-export const createConfirmationReject = async (id: string, data?: Partial<Confirmation>): Promise<Confirmation> => {
+export const createConfirmationReject = async (
+  id: string,
+  data?: Partial<Confirmation>
+): Promise<Confirmation> => {
   const response = await api.post<Confirmation>('/api/v1/confirmations/' + id + '/reject', data);
   return response.data;
 };

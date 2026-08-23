@@ -119,9 +119,7 @@ const ChangeIntelligence: React.FC = () => {
         getChangeReportDetail(report.id),
         getBlastRadius(report.id),
       ]);
-      const detailData = detailRes.data as
-        | { affectedServices?: AffectedService[] }
-        | undefined;
+      const detailData = detailRes.data as { affectedServices?: AffectedService[] } | undefined;
       const svcList = detailData?.affectedServices;
       setAffectedServices(Array.isArray(svcList) ? svcList : []);
       setBlastRadius((blastRes.data as BlastRadiusData) || null);
@@ -139,118 +137,128 @@ const ChangeIntelligence: React.FC = () => {
     critical: 'red',
   };
 
-  const columns: TableColumn<ChangeIntelligenceReport>[] = useMemo<TableColumn<ChangeIntelligenceReport>[]>(() => [
-    {
-      key: 'prId',
-      title: 'PR',
-      dataIndex: 'prId',
-      width: 140,
-      sortable: true,
-      render: (_value: unknown, record: ChangeIntelligenceReport) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ color: colors.primary[500] }}>
-            PR #{record.prId}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {record.repoId}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'commitSha',
-      title: 'Commit',
-      dataIndex: 'commitSha',
-      width: 140,
-      render: (value: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value).slice(0, 7)}
-        </Text>
-      ),
-    },
-    {
-      key: 'riskScore',
-      title: '风险评分',
-      dataIndex: 'riskScore',
-      width: 120,
-      sortable: true,
-      render: (value: unknown) => {
-        const score = Number(value);
-        const color =
-          score >= 0.8
-            ? colors.error[600]
-            : score >= 0.5
-              ? colors.warning[500]
-              : colors.success[600];
-        return (
-          <Text strong style={{ color, fontSize: spacing[4] }}>
-            {(score * 100).toFixed(0)}%
-          </Text>
-        );
+  const columns: TableColumn<ChangeIntelligenceReport>[] = useMemo<
+    TableColumn<ChangeIntelligenceReport>[]
+  >(
+    () => [
+      {
+        key: 'prId',
+        title: 'PR',
+        dataIndex: 'prId',
+        width: 140,
+        sortable: true,
+        render: (_value: unknown, record: ChangeIntelligenceReport) => (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ color: colors.primary[500] }}>
+              PR #{record.prId}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {record.repoId}
+            </Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'riskLevel',
-      title: '风险级别',
-      dataIndex: 'riskLevel',
-      width: 120,
-      render: (value: unknown) => (
-        <Tag color={riskLevelColor[String(value)] || 'default'}>{String(value).toUpperCase()}</Tag>
-      ),
-    },
-    {
-      key: 'affectedServices',
-      title: '影响服务',
-      dataIndex: 'affectedServices',
-      width: 100,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'gitlabCommentPosted',
-      title: 'GitLab 评论',
-      dataIndex: 'gitlabCommentPosted',
-      width: 120,
-      render: (value: unknown) => (
-        <StatusBadge status={value ? 'success' : 'pending'} size="small" />
-      ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 100,
-      render: (_: unknown, record: ChangeIntelligenceReport) => (
-        <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
-          详情
-        </Button>
-      ),
-    },
-  ], [handleViewDetail]);
+      {
+        key: 'commitSha',
+        title: 'Commit',
+        dataIndex: 'commitSha',
+        width: 140,
+        render: (value: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value).slice(0, 7)}
+          </Text>
+        ),
+      },
+      {
+        key: 'riskScore',
+        title: '风险评分',
+        dataIndex: 'riskScore',
+        width: 120,
+        sortable: true,
+        render: (value: unknown) => {
+          const score = Number(value);
+          const color =
+            score >= 0.8
+              ? colors.error[600]
+              : score >= 0.5
+                ? colors.warning[500]
+                : colors.success[600];
+          return (
+            <Text strong style={{ color, fontSize: spacing[4] }}>
+              {(score * 100).toFixed(0)}%
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'riskLevel',
+        title: '风险级别',
+        dataIndex: 'riskLevel',
+        width: 120,
+        render: (value: unknown) => (
+          <Tag color={riskLevelColor[String(value)] || 'default'}>
+            {String(value).toUpperCase()}
+          </Tag>
+        ),
+      },
+      {
+        key: 'affectedServices',
+        title: '影响服务',
+        dataIndex: 'affectedServices',
+        width: 100,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'gitlabCommentPosted',
+        title: 'GitLab 评论',
+        dataIndex: 'gitlabCommentPosted',
+        width: 120,
+        render: (value: unknown) => (
+          <StatusBadge status={value ? 'success' : 'pending'} size="small" />
+        ),
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 100,
+        render: (_: unknown, record: ChangeIntelligenceReport) => (
+          <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
+        ),
+      },
+    ],
+    [handleViewDetail]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'riskLevel',
-      label: '风险级别',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Low', value: 'low' },
-        { label: 'Medium', value: 'medium' },
-        { label: 'High', value: 'high' },
-        { label: 'Critical', value: 'critical' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'riskLevel',
+        label: '风险级别',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Low', value: 'low' },
+          { label: 'Medium', value: 'medium' },
+          { label: 'High', value: 'high' },
+          { label: 'Critical', value: 'critical' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

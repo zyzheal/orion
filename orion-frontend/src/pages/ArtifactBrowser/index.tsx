@@ -195,12 +195,12 @@ const ArtifactBrowser: React.FC = () => {
           >
             <div>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <FolderOpenOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+                <FolderOpenOutlined
+                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
+                />
                 制品版本浏览器
               </Title>
-              <Text type="secondary">
-                查看制品版本追溯链、对比版本差异、触发部署
-              </Text>
+              <Text type="secondary">查看制品版本追溯链、对比版本差异、触发部署</Text>
             </div>
             <button
               onClick={loadVersions}

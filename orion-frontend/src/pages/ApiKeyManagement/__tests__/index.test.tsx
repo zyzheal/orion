@@ -27,12 +27,21 @@ vi.mock('@/components/Table', () => ({
 
 vi.mock('@/components/MetricCard', () => ({
   default: ({ title, value }: any) => (
-    <div data-testid="metric-card">{title}: {value}</div>
+    <div data-testid="metric-card">
+      {title}: {value}
+    </div>
   ),
 }));
 
 const mockKeys = [
-  { id: '1', name: 'ci-pipeline-key', key: 'sk_live_abc123def456', userId: 'u1', enabled: true, createdAt: '2026-01-01T00:00:00Z' },
+  {
+    id: '1',
+    name: 'ci-pipeline-key',
+    key: 'sk_live_abc123def456',
+    userId: 'u1',
+    enabled: true,
+    createdAt: '2026-01-01T00:00:00Z',
+  },
 ];
 
 const mockStats = { total: 5, active: 4, expired: 1 };

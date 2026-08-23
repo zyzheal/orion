@@ -23,10 +23,26 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/console/llm-trace/overview': { icon: <BarChartOutlined />, title: '追踪总览', subtitle: 'LLM 调用追踪概览' },
-  '/console/llm-trace/traces': { icon: <UnorderedListOutlined />, title: '调用记录', subtitle: '查看详细 LLM 调用记录' },
-  '/console/llm-trace/cost': { icon: <WalletOutlined />, title: '成本分析', subtitle: 'LLM 调用成本分析' },
-  '/console/llm-trace/accuracy': { icon: <AimOutlined />, title: '追踪精度', subtitle: '评估追踪准确度' },
+  '/console/llm-trace/overview': {
+    icon: <BarChartOutlined />,
+    title: '追踪总览',
+    subtitle: 'LLM 调用追踪概览',
+  },
+  '/console/llm-trace/traces': {
+    icon: <UnorderedListOutlined />,
+    title: '调用记录',
+    subtitle: '查看详细 LLM 调用记录',
+  },
+  '/console/llm-trace/cost': {
+    icon: <WalletOutlined />,
+    title: '成本分析',
+    subtitle: 'LLM 调用成本分析',
+  },
+  '/console/llm-trace/accuracy': {
+    icon: <AimOutlined />,
+    title: '追踪精度',
+    subtitle: '评估追踪准确度',
+  },
 };
 
 const LLMTraceDashboardLayout: React.FC = () => {
@@ -54,12 +70,14 @@ const LLMTraceDashboardLayout: React.FC = () => {
         {pageInfo.title && (
           <div style={{ marginBottom: spacing.md }}>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-              {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+              {pageInfo.icon && (
+                <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                  {pageInfo.icon}
+                </span>
+              )}
               {pageInfo.title}
             </Title>
-            {pageInfo.subtitle && (
-              <Text type="secondary">{pageInfo.subtitle}</Text>
-            )}
+            {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
           </div>
         )}
         <Outlet />

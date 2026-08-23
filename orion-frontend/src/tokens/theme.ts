@@ -27,23 +27,23 @@ const designTokens = {
   colorInfo: colors.info[500],
 
   // 间距 (Ant Design padding 系列)
-  paddingXS: spacing.xs,    // 4px
-  paddingSM: spacing.sm,    // 8px
-  padding: spacing.md,      // 16px
-  paddingLG: spacing.lg,    // 24px
-  paddingXL: spacing.xl,    // 32px
+  paddingXS: spacing.xs, // 4px
+  paddingSM: spacing.sm, // 8px
+  padding: spacing.md, // 16px
+  paddingLG: spacing.lg, // 24px
+  paddingXL: spacing.xl, // 32px
 
   // 圆角
-  borderRadiusXS: radius.xs,  // 4px
-  borderRadiusSM: radius.sm,  // 6px
-  borderRadius: radius.md,    // 8px
-  borderRadiusLG: radius.lg,  // 12px
+  borderRadiusXS: radius.xs, // 4px
+  borderRadiusSM: radius.sm, // 6px
+  borderRadius: radius.md, // 8px
+  borderRadiusLG: radius.lg, // 12px
 
   // 字体
-  fontSizeSM: typography.fontSize.sm,   // 12px
-  fontSize: typography.fontSize.md,     // 14px
-  fontSizeLG: typography.fontSize.lg,   // 16px
-  fontSizeXL: typography.fontSize.xl,   // 20px
+  fontSizeSM: typography.fontSize.sm, // 12px
+  fontSize: typography.fontSize.md, // 14px
+  fontSizeLG: typography.fontSize.lg, // 16px
+  fontSizeXL: typography.fontSize.xl, // 20px
   fontFamily: typography.fontFamily.base,
 
   // 阴影
@@ -52,9 +52,9 @@ const designTokens = {
   boxShadowTertiary: shadows.xs,
 
   // 动画
-  motionDurationFast: `${animation.duration.fast}ms`,     // 200ms
-  motionDurationMid: `${animation.duration.normal}ms`,    // 300ms
-  motionDurationSlow: `${animation.duration.slow}ms`,     // 400ms
+  motionDurationFast: `${animation.duration.fast}ms`, // 200ms
+  motionDurationMid: `${animation.duration.normal}ms`, // 300ms
+  motionDurationSlow: `${animation.duration.slow}ms`, // 400ms
   motionEaseInOut: animation.easing.easeInOut,
   motionEaseOut: animation.easing.easeOut,
 } as const;
@@ -70,39 +70,39 @@ const designTokens = {
 const componentOverrides = {
   // Card 组件
   Card: {
-    paddingLG: spacing.lg,           // 卡片内边距 24px
-    borderRadiusLG: componentRadius.card,     // 卡片圆角 8px
-    boxShadow: shadows.card,         // 卡片专属阴影
+    paddingLG: spacing.lg, // 卡片内边距 24px
+    borderRadiusLG: componentRadius.card, // 卡片圆角 8px
+    boxShadow: shadows.card, // 卡片专属阴影
   },
 
   // Button 组件
   Button: {
-    paddingXS: spacing.xs,           // 按钮水平内边距 4px (基础)
-    paddingSM: spacing.sm,           // 按钮垂直内边距 8px
+    paddingXS: spacing.xs, // 按钮水平内边距 4px (基础)
+    paddingSM: spacing.sm, // 按钮垂直内边距 8px
     borderRadiusSM: componentRadius.button.md, // 按钮圆角 4px
     boxShadowSecondary: shadows.button, // 按钮阴影
   },
 
   // Table 组件
   Table: {
-    paddingSM: spacing.sm,           // 表格单元格内边距 8px
-    padding: spacing.md,             // 表格单元格内边距 16px
-    borderRadiusLG: radius.md,       // 表格圆角 6px
+    paddingSM: spacing.sm, // 表格单元格内边距 8px
+    padding: spacing.md, // 表格单元格内边距 16px
+    borderRadiusLG: radius.md, // 表格圆角 6px
   },
 
   // Input 组件
   Input: {
-    paddingSM: spacing.sm,           // 输入框内边距 8px
-    padding: spacing.md,             // 输入框内边距 16px
-    borderRadiusSM: componentRadius.input,    // 输入框圆角 6px
+    paddingSM: spacing.sm, // 输入框内边距 8px
+    padding: spacing.md, // 输入框内边距 16px
+    borderRadiusSM: componentRadius.input, // 输入框圆角 6px
     boxShadowSecondary: shadows.none, // 输入框无阴影
   },
 
   // Statistic 组件
   Statistic: {
-    padding: spacing.md,             // 统计卡片内边距 16px
-    borderRadiusLG: radius.lg,       // 统计卡片圆角 8px
-    boxShadow: shadows.sm,           // 统计卡片轻微阴影
+    padding: spacing.md, // 统计卡片内边距 16px
+    borderRadiusLG: radius.lg, // 统计卡片圆角 8px
+    boxShadow: shadows.sm, // 统计卡片轻微阴影
   },
 } as const;
 
@@ -155,7 +155,7 @@ export const lightTheme = {
 export const darkTheme = {
   token: {
     // 继承浅色主题的所有 token
-    colorPrimary: colors.primary[400],     // 暗黑模式降低饱和度
+    colorPrimary: colors.primary[400], // 暗黑模式降低饱和度
     colorSuccess: colors.success[400],
     colorWarning: colors.warning[400],
     colorError: colors.error[400],
@@ -211,7 +211,7 @@ export const darkTheme = {
     // 组件默认
     lineWidth: 1,
     lineWidthBold: 2,
-    componentSize: 36,   // Apple style: was 32
+    componentSize: 36, // Apple style: was 32
     wireframe: false,
   },
   components: {
@@ -269,7 +269,9 @@ export const getThemeConfig = (theme: 'light' | 'dark'): typeof lightTheme | typ
  */
 export function getAntdThemeConfig(
   options: { algorithm?: 'default' | 'dark' } = {}
-): AntdThemeConfig & { algorithm?: typeof antdTheme.defaultAlgorithm | typeof antdTheme.darkAlgorithm } {
+): AntdThemeConfig & {
+  algorithm?: typeof antdTheme.defaultAlgorithm | typeof antdTheme.darkAlgorithm;
+} {
   const { algorithm = 'default' } = options;
 
   if (algorithm === 'dark') {

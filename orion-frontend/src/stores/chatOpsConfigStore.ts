@@ -50,12 +50,54 @@ interface ChatOpsConfigState {
 
 // 默认问答卡片配置
 const defaultQuestions: ChatOpsQuestionConfig[] = [
-  { key: 'pipeline', icon: 'RocketOutlined', title: '部署流水线', desc: '查看当前流水线状态', question: '查看最近 5 条流水线执行状态', enabled: true },
-  { key: 'troubleshoot', icon: 'BugOutlined', title: '故障排查', desc: '分析最近的告警', question: '分析最近 3 条告警信息', enabled: true },
-  { key: 'efficiency', icon: 'BarChartOutlined', title: '效能分析', desc: '查看团队效能数据', question: '本周团队效能如何？', enabled: true },
-  { key: 'env-status', icon: 'CloudServerOutlined', title: '环境状态', desc: '检查服务健康度', question: '检查各环境服务健康状态', enabled: true },
-  { key: 'security', icon: 'SecurityScanOutlined', title: '安全检查', desc: '扫描安全风险', question: '当前系统有哪些安全风险？', enabled: true },
-  { key: 'config-query', icon: 'SettingOutlined', title: '配置查询', desc: '查看系统配置', question: '查看当前系统配置', enabled: true },
+  {
+    key: 'pipeline',
+    icon: 'RocketOutlined',
+    title: '部署流水线',
+    desc: '查看当前流水线状态',
+    question: '查看最近 5 条流水线执行状态',
+    enabled: true,
+  },
+  {
+    key: 'troubleshoot',
+    icon: 'BugOutlined',
+    title: '故障排查',
+    desc: '分析最近的告警',
+    question: '分析最近 3 条告警信息',
+    enabled: true,
+  },
+  {
+    key: 'efficiency',
+    icon: 'BarChartOutlined',
+    title: '效能分析',
+    desc: '查看团队效能数据',
+    question: '本周团队效能如何？',
+    enabled: true,
+  },
+  {
+    key: 'env-status',
+    icon: 'CloudServerOutlined',
+    title: '环境状态',
+    desc: '检查服务健康度',
+    question: '检查各环境服务健康状态',
+    enabled: true,
+  },
+  {
+    key: 'security',
+    icon: 'SecurityScanOutlined',
+    title: '安全检查',
+    desc: '扫描安全风险',
+    question: '当前系统有哪些安全风险？',
+    enabled: true,
+  },
+  {
+    key: 'config-query',
+    icon: 'SettingOutlined',
+    title: '配置查询',
+    desc: '查看系统配置',
+    question: '查看当前系统配置',
+    enabled: true,
+  },
 ];
 
 // 默认底部命令配置
@@ -71,7 +113,10 @@ const defaultCommands: ChatOpsCommandConfig[] = [
 const STORAGE_KEY = 'orion_chatops_config';
 
 /** 从 localStorage 读取缓存 */
-function loadFromCache(): { questions: ChatOpsQuestionConfig[]; commands: ChatOpsCommandConfig[] } | null {
+function loadFromCache(): {
+  questions: ChatOpsQuestionConfig[];
+  commands: ChatOpsCommandConfig[];
+} | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -137,17 +182,16 @@ export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
     set({ isLoading: true });
     try {
       // 优先从 API 拉取
-      const [qRes, cRes] = await Promise.allSettled([
-        getQuestionConfigs(),
-        getCommandConfigs(),
-      ]);
+      const [qRes, cRes] = await Promise.allSettled([getQuestionConfigs(), getCommandConfigs()]);
 
-      const remoteQuestions = qRes.status === 'fulfilled' && qRes.value?.data
-        ? (qRes.value.data as ChatOpsQuestionConfig[])
-        : null;
-      const remoteCommands = cRes.status === 'fulfilled' && cRes.value?.data
-        ? (cRes.value.data as ChatOpsCommandConfig[])
-        : null;
+      const remoteQuestions =
+        qRes.status === 'fulfilled' && qRes.value?.data
+          ? (qRes.value.data as ChatOpsQuestionConfig[])
+          : null;
+      const remoteCommands =
+        cRes.status === 'fulfilled' && cRes.value?.data
+          ? (cRes.value.data as ChatOpsCommandConfig[])
+          : null;
 
       if (remoteQuestions !== null || remoteCommands !== null) {
         // API 成功，使用远程数据合并
@@ -240,8 +284,12 @@ export const useChatOpsConfigStore = create<ChatOpsConfigState>((set, get) => ({
     set({ questions: [...defaultQuestions], commands: [...defaultCommands] });
     // 异步调用 API 重置
     Promise.all([
-      updateQuestionConfigs({ configs: [...defaultQuestions] }).catch((err: unknown) => console.error('Failed to reset questions:', err)),
-      updateCommandConfigs({ configs: [...defaultCommands] }).catch((err: unknown) => console.error('Failed to reset commands:', err)),
+      updateQuestionConfigs({ configs: [...defaultQuestions] }).catch((err: unknown) =>
+        console.error('Failed to reset questions:', err)
+      ),
+      updateCommandConfigs({ configs: [...defaultCommands] }).catch((err: unknown) =>
+        console.error('Failed to reset commands:', err)
+      ),
     ]);
   },
 }));

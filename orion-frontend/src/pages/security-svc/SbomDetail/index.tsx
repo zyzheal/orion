@@ -3,7 +3,7 @@
  * SBOM document detail with package list, vulnerability scan results, attestation status
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   Typography,
   Button,
   Space,
@@ -16,7 +16,12 @@ import {
   Spin,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { SafetyCertificateOutlined, ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  SafetyCertificateOutlined,
+  ArrowLeftOutlined,
+  DownloadOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import type { TableColumn } from '@/components/Table';
 import {
@@ -135,194 +140,203 @@ const SbomDetail: React.FC = () => {
     }
   };
 
-  const packageColumns: TableColumn<SbomPackage>[] = useMemo<TableColumn<SbomPackage>[]>(() => [
-    {
-      title: '包名',
-      dataIndex: 'name',
-      key: 'name',
-      width: 200,
-      render: (value: unknown) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      title: '版本',
-      dataIndex: 'version',
-      key: 'version',
-      width: 100,
-      render: (value: unknown) => <Tag color="blue">{String(value)}</Tag>,
-    },
-    {
-      title: '许可证',
-      dataIndex: 'license',
-      key: 'license',
-      width: 120,
-      render: (value: unknown) =>
-        value ? <Tag>{String(value)}</Tag> : <Text type="secondary">-</Text>,
-    },
-    {
-      title: 'PURL',
-      dataIndex: 'purl',
-      key: 'purl',
-      width: 250,
-      render: (value: unknown) => (
-        <Text code ellipsis style={{ maxWidth: 250 }}>
-          {value ? String(value) : '-'}
-        </Text>
-      ),
-    },
-    {
-      title: '供应商',
-      dataIndex: 'supplier',
-      key: 'supplier',
-      width: 150,
-      render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
-    },
-  ], []);
+  const packageColumns: TableColumn<SbomPackage>[] = useMemo<TableColumn<SbomPackage>[]>(
+    () => [
+      {
+        title: '包名',
+        dataIndex: 'name',
+        key: 'name',
+        width: 200,
+        render: (value: unknown) => <Text strong>{String(value)}</Text>,
+      },
+      {
+        title: '版本',
+        dataIndex: 'version',
+        key: 'version',
+        width: 100,
+        render: (value: unknown) => <Tag color="blue">{String(value)}</Tag>,
+      },
+      {
+        title: '许可证',
+        dataIndex: 'license',
+        key: 'license',
+        width: 120,
+        render: (value: unknown) =>
+          value ? <Tag>{String(value)}</Tag> : <Text type="secondary">-</Text>,
+      },
+      {
+        title: 'PURL',
+        dataIndex: 'purl',
+        key: 'purl',
+        width: 250,
+        render: (value: unknown) => (
+          <Text code ellipsis style={{ maxWidth: 250 }}>
+            {value ? String(value) : '-'}
+          </Text>
+        ),
+      },
+      {
+        title: '供应商',
+        dataIndex: 'supplier',
+        key: 'supplier',
+        width: 150,
+        render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
+      },
+    ],
+    []
+  );
 
-  const vulnColumns: TableColumn<SbomVulnResult>[] = useMemo<TableColumn<SbomVulnResult>[]>(() => [
-    {
-      title: '扫描器',
-      dataIndex: 'scanner',
-      key: 'scanner',
-      width: 100,
-      render: (value: unknown) => <Tag>{String(value)}</Tag>,
-    },
-    {
-      title: '总计',
-      dataIndex: 'totalVulns',
-      key: 'totalVulns',
-      width: 80,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      title: '严重',
-      dataIndex: 'criticalCount',
-      key: 'criticalCount',
-      width: 80,
-      render: (value: unknown) => {
-        const v = Number(value);
-        return v > 0 ? (
-          <Text style={{ color: colors.error[600] }}>{String(v)}</Text>
-        ) : (
-          <Text type="secondary">0</Text>
-        );
+  const vulnColumns: TableColumn<SbomVulnResult>[] = useMemo<TableColumn<SbomVulnResult>[]>(
+    () => [
+      {
+        title: '扫描器',
+        dataIndex: 'scanner',
+        key: 'scanner',
+        width: 100,
+        render: (value: unknown) => <Tag>{String(value)}</Tag>,
       },
-    },
-    {
-      title: '高危',
-      dataIndex: 'highCount',
-      key: 'highCount',
-      width: 80,
-      render: (value: unknown) => {
-        const v = Number(value);
-        return v > 0 ? (
-          <Text style={{ color: colors.warning[500] }}>{String(v)}</Text>
-        ) : (
-          <Text type="secondary">0</Text>
-        );
+      {
+        title: '总计',
+        dataIndex: 'totalVulns',
+        key: 'totalVulns',
+        width: 80,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
       },
-    },
-    {
-      title: '中危',
-      dataIndex: 'mediumCount',
-      key: 'mediumCount',
-      width: 80,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      title: '低危',
-      dataIndex: 'lowCount',
-      key: 'lowCount',
-      width: 80,
-      render: (value: unknown) => <Text type="secondary">{String(value)}</Text>,
-    },
-    {
-      title: '门禁',
-      dataIndex: 'gatePassed',
-      key: 'gatePassed',
-      width: 100,
-      render: (value: unknown) => (
-        <StatusBadge status={value ? 'success' : 'failed'} size="small" />
-      ),
-    },
-    {
-      title: '扫描时间',
-      dataIndex: 'scannedAt',
-      key: 'scannedAt',
-      width: 160,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 100,
-      render: (_: unknown, record: any) => (
-        <Button type="link" size="small" onClick={() => handleViewVulnDetails(record.id)}>
-          详情
-        </Button>
-      ),
-    },
-  ], [handleViewVulnDetails]);
+      {
+        title: '严重',
+        dataIndex: 'criticalCount',
+        key: 'criticalCount',
+        width: 80,
+        render: (value: unknown) => {
+          const v = Number(value);
+          return v > 0 ? (
+            <Text style={{ color: colors.error[600] }}>{String(v)}</Text>
+          ) : (
+            <Text type="secondary">0</Text>
+          );
+        },
+      },
+      {
+        title: '高危',
+        dataIndex: 'highCount',
+        key: 'highCount',
+        width: 80,
+        render: (value: unknown) => {
+          const v = Number(value);
+          return v > 0 ? (
+            <Text style={{ color: colors.warning[500] }}>{String(v)}</Text>
+          ) : (
+            <Text type="secondary">0</Text>
+          );
+        },
+      },
+      {
+        title: '中危',
+        dataIndex: 'mediumCount',
+        key: 'mediumCount',
+        width: 80,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        title: '低危',
+        dataIndex: 'lowCount',
+        key: 'lowCount',
+        width: 80,
+        render: (value: unknown) => <Text type="secondary">{String(value)}</Text>,
+      },
+      {
+        title: '门禁',
+        dataIndex: 'gatePassed',
+        key: 'gatePassed',
+        width: 100,
+        render: (value: unknown) => (
+          <StatusBadge status={value ? 'success' : 'failed'} size="small" />
+        ),
+      },
+      {
+        title: '扫描时间',
+        dataIndex: 'scannedAt',
+        key: 'scannedAt',
+        width: 160,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        title: '操作',
+        key: 'actions',
+        width: 100,
+        render: (_: unknown, record: any) => (
+          <Button type="link" size="small" onClick={() => handleViewVulnDetails(record.id)}>
+            详情
+          </Button>
+        ),
+      },
+    ],
+    [handleViewVulnDetails]
+  );
 
-  const vulnDetailColumns: TableColumn<SbomVulnDetail>[] = useMemo<TableColumn<SbomVulnDetail>[]>(() => [
-    {
-      title: 'CVE ID',
-      dataIndex: 'cveId',
-      key: 'cveId',
-      width: 160,
-      render: (value: unknown) => (
-        <Text code style={{ color: colors.primary[500] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      title: '严重级别',
-      dataIndex: 'severity',
-      key: 'severity',
-      width: 100,
-      render: (value: unknown) => {
-        const colorMap: Record<string, string> = {
-          critical: 'red',
-          high: 'orange',
-          medium: 'gold',
-          low: 'default',
-        };
-        return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+  const vulnDetailColumns: TableColumn<SbomVulnDetail>[] = useMemo<TableColumn<SbomVulnDetail>[]>(
+    () => [
+      {
+        title: 'CVE ID',
+        dataIndex: 'cveId',
+        key: 'cveId',
+        width: 160,
+        render: (value: unknown) => (
+          <Text code style={{ color: colors.primary[500] }}>
+            {String(value)}
+          </Text>
+        ),
       },
-    },
-    {
-      title: 'CVSS',
-      dataIndex: 'cvssScore',
-      key: 'cvssScore',
-      width: 80,
-      render: (value: unknown) => (value ? String(value) : '-'),
-    },
-    {
-      title: '受影响包',
-      dataIndex: 'affectedPackage',
-      key: 'affectedPackage',
-      width: 180,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      title: '修复版本',
-      dataIndex: 'fixedVersion',
-      key: 'fixedVersion',
-      width: 120,
-      render: (value: unknown) =>
-        value ? <Tag color="green">{String(value)}</Tag> : <Text type="secondary">无</Text>,
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
-    },
-  ], []);
+      {
+        title: '严重级别',
+        dataIndex: 'severity',
+        key: 'severity',
+        width: 100,
+        render: (value: unknown) => {
+          const colorMap: Record<string, string> = {
+            critical: 'red',
+            high: 'orange',
+            medium: 'gold',
+            low: 'default',
+          };
+          return <Tag color={colorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+        },
+      },
+      {
+        title: 'CVSS',
+        dataIndex: 'cvssScore',
+        key: 'cvssScore',
+        width: 80,
+        render: (value: unknown) => (value ? String(value) : '-'),
+      },
+      {
+        title: '受影响包',
+        dataIndex: 'affectedPackage',
+        key: 'affectedPackage',
+        width: 180,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        title: '修复版本',
+        dataIndex: 'fixedVersion',
+        key: 'fixedVersion',
+        width: 120,
+        render: (value: unknown) =>
+          value ? <Tag color="green">{String(value)}</Tag> : <Text type="secondary">无</Text>,
+      },
+      {
+        title: '描述',
+        dataIndex: 'description',
+        key: 'description',
+        render: (value: unknown) => <Text type="secondary">{value ? String(value) : '-'}</Text>,
+      },
+    ],
+    []
+  );
 
   if (!doc && !loading) {
     return <Text type="secondary">SBOM document not found</Text>;
@@ -340,7 +354,9 @@ const SbomDetail: React.FC = () => {
             返回
           </Button>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <SafetyCertificateOutlined
+              style={{ marginRight: spacing[3], color: colors.primary[500] }}
+            />
             SBOM 详情
           </Title>
         </div>
@@ -355,7 +371,18 @@ const SbomDetail: React.FC = () => {
               <Descriptions.Item label="Pipeline Run">{doc.pipelineRunId}</Descriptions.Item>
               <Descriptions.Item label="包数量">{doc.packageCount}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <StatusBadge status={doc.status === 'failed' ? 'failed' : doc.status === 'success' ? 'success' : doc.status === 'expired' ? 'cancelled' : 'pending'} size="small" />
+                <StatusBadge
+                  status={
+                    doc.status === 'failed'
+                      ? 'failed'
+                      : doc.status === 'success'
+                        ? 'success'
+                        : doc.status === 'expired'
+                          ? 'cancelled'
+                          : 'pending'
+                  }
+                  size="small"
+                />
               </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(doc.createdAt).format('YYYY-MM-DD HH:mm')}

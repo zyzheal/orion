@@ -63,17 +63,30 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
 
 // 可用图标列表
 const AVAILABLE_ICONS = [
-  'RocketOutlined', 'BarChartOutlined', 'BugOutlined', 'CloudServerOutlined',
-  'SecurityScanOutlined', 'SettingOutlined', 'DashboardOutlined', 'SearchOutlined',
-  'FileTextOutlined', 'BulbOutlined', 'ThunderboltOutlined', 'WarningOutlined',
-  'InfoCircleOutlined', 'ClockCircleOutlined', 'PlayCircleOutlined', 'CloseOutlined',
+  'RocketOutlined',
+  'BarChartOutlined',
+  'BugOutlined',
+  'CloudServerOutlined',
+  'SecurityScanOutlined',
+  'SettingOutlined',
+  'DashboardOutlined',
+  'SearchOutlined',
+  'FileTextOutlined',
+  'BulbOutlined',
+  'ThunderboltOutlined',
+  'WarningOutlined',
+  'InfoCircleOutlined',
+  'ClockCircleOutlined',
+  'PlayCircleOutlined',
+  'CloseOutlined',
 ];
 
 // ============================================================================
 // 问答卡片配置 Tab
 // ============================================================================
 const QuestionConfigTab: React.FC = () => {
-  const { questions, updateQuestion, addQuestion, removeQuestion, saveConfig, resetToDefault } = useChatOpsConfigStore();
+  const { questions, updateQuestion, addQuestion, removeQuestion, saveConfig, resetToDefault } =
+    useChatOpsConfigStore();
 
   const handleSave = () => {
     saveConfig();
@@ -102,9 +115,15 @@ const QuestionConfigTab: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">配置 ChatOps 启动时展示的问答卡片</Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={handleReset}>恢复默认</Button>
-          <Button icon={<PlusOutlined />} onClick={handleAdd}>添加卡片</Button>
-          <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>保存配置</Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            恢复默认
+          </Button>
+          <Button icon={<PlusOutlined />} onClick={handleAdd}>
+            添加卡片
+          </Button>
+          <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
+            保存配置
+          </Button>
         </Space>
       </div>
 
@@ -161,7 +180,10 @@ const QuestionConfigTab: React.FC = () => {
                 onChange={(v) => updateQuestion(q.key, { icon: v })}
                 style={{ width: 160 }}
                 size="small"
-                options={AVAILABLE_ICONS.map((icon) => ({ label: icon.replace('Outlined', '').replace('Icon', ''), value: icon }))}
+                options={AVAILABLE_ICONS.map((icon) => ({
+                  label: icon.replace('Outlined', '').replace('Icon', ''),
+                  value: icon,
+                }))}
               />
             </div>
           </Card>
@@ -175,7 +197,8 @@ const QuestionConfigTab: React.FC = () => {
 // 命令配置 Tab
 // ============================================================================
 const CommandConfigTab: React.FC = () => {
-  const { commands, updateCommand, addCommand, removeCommand, saveConfig, resetToDefault } = useChatOpsConfigStore();
+  const { commands, updateCommand, addCommand, removeCommand, saveConfig, resetToDefault } =
+    useChatOpsConfigStore();
 
   const handleSave = () => {
     saveConfig();
@@ -202,9 +225,15 @@ const CommandConfigTab: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">配置 ChatOps 底部快捷命令</Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={handleReset}>恢复默认</Button>
-          <Button icon={<PlusOutlined />} onClick={handleAdd}>添加命令</Button>
-          <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>保存配置</Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            恢复默认
+          </Button>
+          <Button icon={<PlusOutlined />} onClick={handleAdd}>
+            添加命令
+          </Button>
+          <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
+            保存配置
+          </Button>
         </Space>
       </div>
 
@@ -399,7 +428,8 @@ const NotificationDNDTab: React.FC = () => {
   const loadDNDSettings = async () => {
     try {
       const res = await getDNDSettings();
-      const data = (res as { data?: { data?: DNDSettings | null } })?.data?.data as DNDSettings | null;
+      const data = (res as { data?: { data?: DNDSettings | null } })?.data
+        ?.data as DNDSettings | null;
       if (data) {
         setDndEnabled(data.enabled);
         dndForm.setFieldsValue({

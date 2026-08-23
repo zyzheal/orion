@@ -24,7 +24,9 @@ describe('HeatmapChart', () => {
   const yAxis = ['0-4h', '4-8h', '8-12h'];
 
   it('renders with title', () => {
-    render(wrap(<HeatmapChart title="Risk Heatmap" data={sampleData} xAxis={xAxis} yAxis={yAxis} />));
+    render(
+      wrap(<HeatmapChart title="Risk Heatmap" data={sampleData} xAxis={xAxis} yAxis={yAxis} />)
+    );
     expect(screen.getByText('Risk Heatmap')).toBeTruthy();
   });
 

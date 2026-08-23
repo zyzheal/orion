@@ -53,7 +53,15 @@ export interface NotificationIntegration {
   id: string;
   tenant_id: string;
   name: string;
-  channel_type: 'email' | 'sms' | 'webhook' | 'dingtalk' | 'wecom' | 'feishu' | 'telegram' | 'slack';
+  channel_type:
+    | 'email'
+    | 'sms'
+    | 'webhook'
+    | 'dingtalk'
+    | 'wecom'
+    | 'feishu'
+    | 'telegram'
+    | 'slack';
   description: string;
   config: Record<string, any>;
   secret_ref?: string;
@@ -67,7 +75,15 @@ export interface NotificationIntegration {
 
 export interface NotificationIntegrationInput {
   name: string;
-  channel_type: 'email' | 'sms' | 'webhook' | 'dingtalk' | 'wecom' | 'feishu' | 'telegram' | 'slack';
+  channel_type:
+    | 'email'
+    | 'sms'
+    | 'webhook'
+    | 'dingtalk'
+    | 'wecom'
+    | 'feishu'
+    | 'telegram'
+    | 'slack';
   description?: string;
   config: Record<string, any>;
   rate_limit_per_minute?: number;
@@ -369,17 +385,15 @@ export const getUserSubscriptionPreferences = async (): Promise<UserSubscription
 // History API
 // ============================================================================
 
-export const getNotificationHistory = async (
-  params?: {
-    strategyId?: string;
-    integrationId?: string;
-    userId?: string;
-    channelType?: string;
-    status?: string;
-    page?: number;
-    pageSize?: number;
-  }
-): Promise<NotificationHistoryPage> => {
+export const getNotificationHistory = async (params?: {
+  strategyId?: string;
+  integrationId?: string;
+  userId?: string;
+  channelType?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<NotificationHistoryPage> => {
   const response = await api.get(`${BASE}/history`, { params });
   return response.data as NotificationHistoryPage;
 };
@@ -450,7 +464,10 @@ export const createDataMatrix = async (input: DataMatrixInput): Promise<DataMatr
   return response.data as DataMatrix;
 };
 
-export const updateDataMatrix = async (id: string, input: Partial<DataMatrixInput>): Promise<DataMatrix> => {
+export const updateDataMatrix = async (
+  id: string,
+  input: Partial<DataMatrixInput>
+): Promise<DataMatrix> => {
   const response = await api.put(`${BASE}/matrices/${id}`, input);
   return response.data as DataMatrix;
 };

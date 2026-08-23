@@ -57,11 +57,7 @@ export const DataState: React.FC<DataStateProps> = ({
 
   // Empty state
   if (empty) {
-    return (
-      <Empty description={emptyText}>
-        {emptyAction}
-      </Empty>
-    );
+    return <Empty description={emptyText}>{emptyAction}</Empty>;
   }
 
   // Normal state

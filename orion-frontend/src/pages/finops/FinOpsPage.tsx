@@ -471,7 +471,11 @@ const FinOpsPage: React.FC = () => {
                 sorter: (a, b) => a.cost - b.cost,
                 render: (v: number) => (
                   <Text strong style={{ color: colors.primary[500] }}>
-                    ¥{v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ¥
+                    {v.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </Text>
                 ),
               },
@@ -507,9 +511,7 @@ const FinOpsPage: React.FC = () => {
                 />
               </div>
             ))}
-            {costBreakdown.length === 0 && (
-              <Empty description="暂无费用构成数据" />
-            )}
+            {costBreakdown.length === 0 && <Empty description="暂无费用构成数据" />}
           </Space>
         </Card>
       </div>
@@ -524,14 +526,8 @@ const FinOpsPage: React.FC = () => {
     return (
       <div>
         <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
-          <Text type="secondary">
-            管理项目/租户/团队的预算配置
-          </Text>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => handleOpenBudgetModal()}
-          >
+          <Text type="secondary">管理项目/租户/团队的预算配置</Text>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenBudgetModal()}>
             创建预算
           </Button>
         </div>
@@ -568,14 +564,16 @@ const FinOpsPage: React.FC = () => {
               dataIndex: 'period',
               key: 'period',
               width: 80,
-              render: (v: string) => <Tag>{periodOptions.find(o => o.value === v)?.label || v}</Tag>,
+              render: (v: string) => (
+                <Tag>{periodOptions.find((o) => o.value === v)?.label || v}</Tag>
+              ),
             },
             {
               title: '环境',
               dataIndex: 'environment',
               key: 'environment',
               width: 100,
-              render: (v?: string) => v ? <Tag color="geekblue">{v}</Tag> : '-',
+              render: (v?: string) => (v ? <Tag color="geekblue">{v}</Tag> : '-'),
             },
             {
               title: '描述',
@@ -604,12 +602,7 @@ const FinOpsPage: React.FC = () => {
                     okText="确认"
                     cancelText="取消"
                   >
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                    >
+                    <Button type="link" size="small" danger icon={<DeleteOutlined />}>
                       删除
                     </Button>
                   </Popconfirm>
@@ -622,10 +615,7 @@ const FinOpsPage: React.FC = () => {
           loading={loading}
           locale={{
             emptyText: (
-              <Empty
-                description="暂无预算配置"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              >
+              <Empty description="暂无预算配置" image={Empty.PRESENTED_IMAGE_SIMPLE}>
                 <Button type="primary" onClick={() => handleOpenBudgetModal()}>
                   <PlusOutlined /> 创建第一个预算
                 </Button>
@@ -648,11 +638,7 @@ const FinOpsPage: React.FC = () => {
           cancelText="取消"
           width={600}
         >
-          <Form
-            form={budgetForm}
-            layout="vertical"
-            style={{ marginTop: spacing.lg }}
-          >
+          <Form form={budgetForm} layout="vertical" style={{ marginTop: spacing.lg }}>
             <Form.Item
               name="entityType"
               label="实体类型"
@@ -713,11 +699,7 @@ const FinOpsPage: React.FC = () => {
       <div>
         <div style={{ marginBottom: spacing.md }}>
           <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              loading={forecastLoading}
-              onClick={loadForecasts}
-            >
+            <Button icon={<ReloadOutlined />} loading={forecastLoading} onClick={loadForecasts}>
               刷新预测
             </Button>
           </Space>
@@ -735,28 +717,39 @@ const FinOpsPage: React.FC = () => {
                   <Descriptions column={2} size="small">
                     <Descriptions.Item label="当前花费">
                       <Text strong style={{ color: colors.primary[500] }}>
-                        ¥{forecast.currentSpend.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        ¥
+                        {forecast.currentSpend.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="预测花费">
                       <Text strong style={{ color: colors.warning[500] }}>
-                        ¥{forecast.forecastedSpend.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        ¥
+                        {forecast.forecastedSpend.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="预计超支">
                       <Text
                         strong
                         style={{
-                          color: forecast.projectedOverage > 0
-                            ? colors.error[500]
-                            : colors.success[500],
+                          color:
+                            forecast.projectedOverage > 0 ? colors.error[500] : colors.success[500],
                         }}
                       >
-                        ¥{forecast.projectedOverage.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        ¥
+                        {forecast.projectedOverage.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="每日花费率">
-                      ¥{forecast.dailySpendRate.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      ¥
+                      {forecast.dailySpendRate.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}
                     </Descriptions.Item>
                     <Descriptions.Item label="耗尽天数">
                       {forecast.daysUntilExhausted > 0
@@ -783,10 +776,7 @@ const FinOpsPage: React.FC = () => {
             ))}
           </Row>
         ) : (
-          <Empty
-            description="暂无成本预测数据"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
+          <Empty description="暂无成本预测数据" image={Empty.PRESENTED_IMAGE_SIMPLE}>
             <Button type="primary" onClick={loadForecasts} loading={forecastLoading}>
               <ReloadOutlined /> 刷新预测数据
             </Button>
@@ -804,9 +794,7 @@ const FinOpsPage: React.FC = () => {
     return (
       <div>
         <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
-          <Text type="secondary">
-            系统自动识别的成本优化机会
-          </Text>
+          <Text type="secondary">系统自动识别的成本优化机会</Text>
           <Button
             icon={<ReloadOutlined />}
             loading={recommendationsLoading}
@@ -867,9 +855,7 @@ const FinOpsPage: React.FC = () => {
               key: 'status',
               width: 100,
               render: (v: string) => (
-                <Tag color={statusConfig[v]?.color || 'default'}>
-                  {statusConfig[v]?.label || v}
-                </Tag>
+                <Tag color={statusConfig[v]?.color || 'default'}>{statusConfig[v]?.label || v}</Tag>
               ),
             },
             {
@@ -910,7 +896,11 @@ const FinOpsPage: React.FC = () => {
                     </Space>
                   );
                 }
-                return <Tag color={statusConfig[record.status]?.color}>{statusConfig[record.status]?.label}</Tag>;
+                return (
+                  <Tag color={statusConfig[record.status]?.color}>
+                    {statusConfig[record.status]?.label}
+                  </Tag>
+                );
               },
             },
           ]}
@@ -919,10 +909,7 @@ const FinOpsPage: React.FC = () => {
           loading={recommendationsLoading}
           locale={{
             emptyText: (
-              <Empty
-                description="暂无优化建议"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              >
+              <Empty description="暂无优化建议" image={Empty.PRESENTED_IMAGE_SIMPLE}>
                 <Button type="primary" onClick={loadRecommendations}>
                   <ReloadOutlined /> 刷新优化建议
                 </Button>
@@ -992,10 +979,13 @@ const FinOpsPage: React.FC = () => {
           <Button icon={<ExportOutlined />} onClick={handleExportReport}>
             导出报表
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => {
-            loadCostOverview();
-            loadCostBreakdown();
-          }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadCostOverview();
+              loadCostBreakdown();
+            }}
+          >
             刷新
           </Button>
         </Space>
@@ -1003,12 +993,7 @@ const FinOpsPage: React.FC = () => {
 
       {/* Main Tabs */}
       <Card bordered={false} style={{ borderRadius: componentRadius.card }}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          size="large"
-        />
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
       </Card>
     </div>
   );

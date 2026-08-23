@@ -365,8 +365,7 @@ export const capabilityApi = {
     api.post('/api/v1/capabilities/request/permission', data),
 
   // 获取用户的权限申请记录
-  getUserPermissionRequests: (userId: string) =>
-    api.get(`/capabilities/request/user/${userId}`),
+  getUserPermissionRequests: (userId: string) => api.get(`/capabilities/request/user/${userId}`),
 
   // 审批权限申请
   approveRequest: (ticketId: number, tenantId?: string) =>

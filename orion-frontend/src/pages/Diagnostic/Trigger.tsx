@@ -6,7 +6,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Card, Form, Input, Select, Button, Space, message, Alert, Tag } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ThunderboltOutlined, RocketOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  ThunderboltOutlined,
+  RocketOutlined,
+  ArrowLeftOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import { triggerDiagnostic } from '@/api/diagnostic';
 
 const { Title, Text } = Typography;
@@ -69,7 +75,9 @@ const DiagnosticTrigger: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}

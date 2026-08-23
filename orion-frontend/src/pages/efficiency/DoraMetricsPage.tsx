@@ -269,9 +269,10 @@ const DoraMetricsPage: React.FC = () => {
   const benchmarksData = benchmarks || fallbackBenchmarks;
   const trendData = trends.length > 0 ? trends : fallbackTrends;
 
-  const depFreq = typeof metrics.deploymentFrequency === 'string'
-    ? parseFloat(metrics.deploymentFrequency)
-    : (metrics.deploymentFrequency as number);
+  const depFreq =
+    typeof metrics.deploymentFrequency === 'string'
+      ? parseFloat(metrics.deploymentFrequency)
+      : (metrics.deploymentFrequency as number);
 
   const currentDeploymentLevel = determineDeploymentFrequencyLevel(depFreq || 0);
   const currentLeadTimeLevel = determineLeadTimeLevel(metrics.leadTimeForChanges || 0);
@@ -332,7 +333,11 @@ const DoraMetricsPage: React.FC = () => {
       dataIndex: 'currentValue',
       key: 'currentValue',
       width: 140,
-      render: (v: string) => <Text strong style={{ color: colors.primary[500] }}>{v}</Text>,
+      render: (v: string) => (
+        <Text strong style={{ color: colors.primary[500] }}>
+          {v}
+        </Text>
+      ),
     },
     {
       title: 'Elite 基准',
@@ -361,7 +366,9 @@ const DoraMetricsPage: React.FC = () => {
       key: 'level',
       width: 120,
       render: (v: DorMetricLevel) => (
-        <Tag color={levelColorMap[v]} style={{ fontWeight: 600 }}>{v}</Tag>
+        <Tag color={levelColorMap[v]} style={{ fontWeight: 600 }}>
+          {v}
+        </Tag>
       ),
     },
   ];
@@ -392,7 +399,12 @@ const DoraMetricsPage: React.FC = () => {
       >
         <Text type="secondary">时间窗口</Text>
         <Space>
-          <Radio.Group value={timeWindow} onChange={handleWindowChange} buttonStyle="solid" size="small">
+          <Radio.Group
+            value={timeWindow}
+            onChange={handleWindowChange}
+            buttonStyle="solid"
+            size="small"
+          >
             <Radio.Button value="7d">7 天</Radio.Button>
             <Radio.Button value="30d">30 天</Radio.Button>
             <Radio.Button value="90d">90 天</Radio.Button>
@@ -466,7 +478,9 @@ const DoraMetricsPage: React.FC = () => {
               value={metrics.changeFailureRate}
               suffix="%"
               prefix={<WarningOutlined style={{ color: colors.error[500] }} />}
-              valueStyle={{ color: metrics.changeFailureRate <= 10 ? colors.success[500] : colors.error[500] }}
+              valueStyle={{
+                color: metrics.changeFailureRate <= 10 ? colors.success[500] : colors.error[500],
+              }}
             />
             <div style={{ marginTop: spacing.sm, textAlign: 'right' }}>
               <Tag color={levelColorMap[currentCfrLevel]}>{currentCfrLevel}</Tag>
@@ -497,10 +511,7 @@ const DoraMetricsPage: React.FC = () => {
       </Row>
 
       {/* Benchmark Assessment Table */}
-      <Card
-        title="DORA 等级评估"
-        style={{ marginBottom: spacing.lg }}
-      >
+      <Card title="DORA 等级评估" style={{ marginBottom: spacing.lg }}>
         <Table
           columns={benchmarkColumns}
           dataSource={benchmarkRows}

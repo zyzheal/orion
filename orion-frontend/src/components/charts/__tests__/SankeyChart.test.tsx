@@ -15,12 +15,7 @@ const wrap = (ui: React.ReactElement) => <ChartProvider>{ui}</ChartProvider>;
 
 describe('SankeyChart', () => {
   const sampleData = {
-    nodes: [
-      { name: '来源 A' },
-      { name: '来源 B' },
-      { name: '中转' },
-      { name: '目标' },
-    ],
+    nodes: [{ name: '来源 A' }, { name: '来源 B' }, { name: '中转' }, { name: '目标' }],
     links: [
       { source: '来源 A', target: '中转', value: 10 },
       { source: '来源 B', target: '中转', value: 20 },
@@ -40,7 +35,9 @@ describe('SankeyChart', () => {
   });
 
   it('renders vertical orientation', () => {
-    render(wrap(<SankeyChart nodes={sampleData.nodes} links={sampleData.links} orient="vertical" />));
+    render(
+      wrap(<SankeyChart nodes={sampleData.nodes} links={sampleData.links} orient="vertical" />)
+    );
     const chart = screen.getByTestId('sankey-chart');
     expect(chart).toBeTruthy();
   });

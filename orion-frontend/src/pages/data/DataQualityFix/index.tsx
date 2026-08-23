@@ -5,12 +5,27 @@
  */
 import React, { useMemo, useState } from 'react';
 import {
-  Typography, Card, Row, Col, Table, Statistic, Tag,
-  Button, Progress, Space, Select, Popconfirm, message,
+  Typography,
+  Card,
+  Row,
+  Col,
+  Table,
+  Statistic,
+  Tag,
+  Button,
+  Progress,
+  Space,
+  Select,
+  Popconfirm,
+  message,
 } from 'antd';
 import {
-  DatabaseOutlined, EyeOutlined, PlayCircleOutlined,
-  CloseCircleOutlined, CheckCircleOutlined, WarningOutlined,
+  DatabaseOutlined,
+  EyeOutlined,
+  PlayCircleOutlined,
+  CloseCircleOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
@@ -118,15 +133,17 @@ const QualityTrendChart: React.FC = () => {
   const min = Math.min(...MOCK_TREND) - 5;
   const max = Math.max(...MOCK_TREND) + 5;
   const scaleX = (i: number) => padding + (width - 2 * padding) * (i / (MOCK_TREND.length - 1));
-  const scaleY = (v: number) => height - padding - (height - 2 * padding) * ((v - min) / (max - min));
+  const scaleY = (v: number) =>
+    height - padding - (height - 2 * padding) * ((v - min) / (max - min));
 
-  const pathD = MOCK_TREND
-    .map((v, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(v)}`)
-    .join(' ');
+  const pathD = MOCK_TREND.map((v, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(v)}`).join(
+    ' '
+  );
 
-  const areaD = `M ${scaleX(0)} ${scaleY(MOCK_TREND[0])} `
-    + MOCK_TREND.map((v, i) => `L ${scaleX(i)} ${scaleY(v)}`).join(' ')
-    + ` L ${scaleX(MOCK_TREND.length - 1)} ${height - padding} L ${scaleX(0)} ${height - padding} Z`;
+  const areaD =
+    `M ${scaleX(0)} ${scaleY(MOCK_TREND[0])} ` +
+    MOCK_TREND.map((v, i) => `L ${scaleX(i)} ${scaleY(v)}`).join(' ') +
+    ` L ${scaleX(MOCK_TREND.length - 1)} ${height - padding} L ${scaleX(0)} ${height - padding} Z`;
 
   return (
     <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
@@ -347,7 +364,9 @@ const DataQualityFixPage: React.FC = () => {
                 onChange={(v) => setFilterType(v)}
               >
                 {Object.entries(PROBLEM_TYPE_CONFIG).map(([key, cfg]) => (
-                  <Option key={key} value={key}>{cfg.label}</Option>
+                  <Option key={key} value={key}>
+                    {cfg.label}
+                  </Option>
                 ))}
               </Select>
               <Select
@@ -358,7 +377,9 @@ const DataQualityFixPage: React.FC = () => {
                 onChange={(v) => setFilterSeverity(v)}
               >
                 {Object.entries(SEVERITY_CONFIG).map(([key, cfg]) => (
-                  <Option key={key} value={key}>{cfg.label}</Option>
+                  <Option key={key} value={key}>
+                    {cfg.label}
+                  </Option>
                 ))}
               </Select>
               <Select
@@ -369,7 +390,9 @@ const DataQualityFixPage: React.FC = () => {
                 onChange={(v) => setFilterStatus(v)}
               >
                 {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                  <Option key={key} value={key}>{cfg.label}</Option>
+                  <Option key={key} value={key}>
+                    {cfg.label}
+                  </Option>
                 ))}
               </Select>
             </Space>
@@ -396,7 +419,9 @@ const DataQualityFixPage: React.FC = () => {
                 <div key={dim.name}>
                   <div style={{ marginBottom: 4 }}>
                     <Text>{dim.name}</Text>
-                    <Text style={{ float: 'right', color: getScoreColor(dim.score) }}>{dim.score}</Text>
+                    <Text style={{ float: 'right', color: getScoreColor(dim.score) }}>
+                      {dim.score}
+                    </Text>
                   </div>
                   <Progress
                     percent={dim.score}
@@ -431,11 +456,7 @@ const DataQualityFixPage: React.FC = () => {
               key: 'result',
               width: 100,
               render: (val: string) =>
-                val === 'success' ? (
-                  <Tag color="success">成功</Tag>
-                ) : (
-                  <Tag color="error">失败</Tag>
-                ),
+                val === 'success' ? <Tag color="success">成功</Tag> : <Tag color="error">失败</Tag>,
             },
           ]}
         />

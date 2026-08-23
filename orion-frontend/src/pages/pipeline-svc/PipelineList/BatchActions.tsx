@@ -14,7 +14,11 @@ interface BatchActionsProps {
   onClearSelection: () => void;
 }
 
-const BatchActions: React.FC<BatchActionsProps> = ({ selectedIds, onRefresh, onClearSelection }) => {
+const BatchActions: React.FC<BatchActionsProps> = ({
+  selectedIds,
+  onRefresh,
+  onClearSelection,
+}) => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   if (selectedIds.length === 0) return null;
@@ -45,15 +49,17 @@ const BatchActions: React.FC<BatchActionsProps> = ({ selectedIds, onRefresh, onC
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '8px 16px',
-      background: colors.primary[50],
-      borderRadius: 6,
-      marginBottom: spacing[3],
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '8px 16px',
+        background: colors.primary[50],
+        borderRadius: 6,
+        marginBottom: spacing[3],
+      }}
+    >
       <span style={{ fontSize: 13 }}>
         已选择 <Tag color="blue">{selectedIds.length}</Tag> 个 Pipeline
       </span>

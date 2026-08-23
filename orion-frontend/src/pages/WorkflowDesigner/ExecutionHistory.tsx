@@ -2,7 +2,19 @@
  * 工作流执行历史
  */
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Empty, Space, Typography, Drawer, Descriptions, Timeline, Divider, Button, message } from 'antd';
+import {
+  Table,
+  Tag,
+  Empty,
+  Space,
+  Typography,
+  Drawer,
+  Descriptions,
+  Timeline,
+  Divider,
+  Button,
+  message,
+} from 'antd';
 import { ClockCircleOutlined, FileTextOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   getExecutionHistory,
@@ -111,9 +123,7 @@ const ExecutionHistory: React.FC<ExecutionHistoryProps> = ({ workflowId }) => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: string) => (
-        <Tag color={statusColors[status]}>{statusText[status]}</Tag>
-      ),
+      render: (status: string) => <Tag color={statusColors[status]}>{statusText[status]}</Tag>,
     },
     {
       title: '触发人',

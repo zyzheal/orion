@@ -3,17 +3,25 @@
  * Cross-pipeline shared parameters with tenant/global scope
  */
 import React, { useState, useEffect } from 'react';
+import { Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select } from 'antd';
 import {
-  Typography, Button, Space, Tag, message, Table, Modal, Form, Input, Select,
-} from 'antd';
-import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  ApiOutlined, PlayCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ApiOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
-  getGlobalParams, createGlobalParam, updateGlobalParam, deleteGlobalParam, resolveGlobalParams,
-  type GlobalParam, type CreateGlobalParamInput, type UpdateGlobalParamInput,
+  getGlobalParams,
+  createGlobalParam,
+  updateGlobalParam,
+  deleteGlobalParam,
+  resolveGlobalParams,
+  type GlobalParam,
+  type CreateGlobalParamInput,
+  type UpdateGlobalParamInput,
 } from '@/api/global-params';
 
 const { Title, Text } = Typography;
@@ -40,7 +48,9 @@ const GlobalParamsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -137,13 +147,17 @@ const GlobalParamsPage: React.FC = () => {
       title: 'Key',
       dataIndex: 'key',
       width: 200,
-      render: (v: string) => <Text code strong>{v}</Text>,
+      render: (v: string) => (
+        <Text code strong>
+          {v}
+        </Text>
+      ),
     },
     {
       title: 'Value',
       dataIndex: 'value',
       ellipsis: true,
-      render: (v: string, r: GlobalParam) => r.isSecret ? '••••••••' : v,
+      render: (v: string, r: GlobalParam) => (r.isSecret ? '••••••••' : v),
     },
     {
       title: 'Scope',
@@ -160,7 +174,7 @@ const GlobalParamsPage: React.FC = () => {
       title: '过期时间',
       dataIndex: 'expiresAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -170,7 +184,13 @@ const GlobalParamsPage: React.FC = () => {
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>
             编辑
           </Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(r)}>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(r)}
+          >
             删除
           </Button>
         </Space>
@@ -180,16 +200,27 @@ const GlobalParamsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <div style={{ flex: 1 }}>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ApiOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
             全局参数管理
           </Title>
-          <Text type="secondary">跨 Pipeline 共享的参数配置，支持 tenant / pipeline / global 三级作用域</Text>
+          <Text type="secondary">
+            跨 Pipeline 共享的参数配置，支持 tenant / pipeline / global 三级作用域
+          </Text>
         </div>
         <Space>
-          <Button icon={<PlayCircleOutlined />} onClick={() => { setResolveVisible(true); setResolveResult({}); resolveForm.resetFields(); }}>
+          <Button
+            icon={<PlayCircleOutlined />}
+            onClick={() => {
+              setResolveVisible(true);
+              setResolveResult({});
+              resolveForm.resetFields();
+            }}
+          >
             批量解析
           </Button>
           <Button icon={<PlusOutlined />} type="primary" onClick={handleCreate}>
@@ -223,24 +254,32 @@ const GlobalParamsPage: React.FC = () => {
           <Form.Item name="key" label="Key" rules={[{ required: true, message: '请输入 Key' }]}>
             <Input placeholder="参数键名" disabled={!!editingItem} />
           </Form.Item>
-          <Form.Item name="value" label="Value" rules={[{ required: true, message: '请输入 Value' }]}>
+          <Form.Item
+            name="value"
+            label="Value"
+            rules={[{ required: true, message: '请输入 Value' }]}
+          >
             <Input.TextArea rows={3} placeholder="参数值" />
           </Form.Item>
           <Form.Item name="scope" label="Scope" rules={[{ required: true }]}>
-            <Select options={[
-              { value: 'tenant', label: 'Tenant' },
-              { value: 'pipeline', label: 'Pipeline' },
-              { value: 'global', label: 'Global' },
-            ]} />
+            <Select
+              options={[
+                { value: 'tenant', label: 'Tenant' },
+                { value: 'pipeline', label: 'Pipeline' },
+                { value: 'global', label: 'Global' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="description" label="Description">
             <Input.TextArea rows={2} placeholder="参数描述（可选）" />
           </Form.Item>
           <Form.Item name="isSecret" label="是否加密" valuePropName="checked">
-            <Select options={[
-              { value: true, label: '是' },
-              { value: false, label: '否' },
-            ]} />
+            <Select
+              options={[
+                { value: true, label: '是' },
+                { value: false, label: '否' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="expiresAt" label="过期时间">
             <Input placeholder="ISO 8601 格式，留空表示永不过期" />
@@ -258,17 +297,25 @@ const GlobalParamsPage: React.FC = () => {
         width={600}
       >
         <Form form={resolveForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item name="keys" label="Keys (JSON)" rules={[{ required: true, message: '请输入 keys JSON' }]}>
-            <Input.TextArea
-              rows={4}
-              placeholder='{"DB_HOST": "prod-db", "DB_PORT": "5432"}'
-            />
+          <Form.Item
+            name="keys"
+            label="Keys (JSON)"
+            rules={[{ required: true, message: '请输入 keys JSON' }]}
+          >
+            <Input.TextArea rows={4} placeholder='{"DB_HOST": "prod-db", "DB_PORT": "5432"}' />
           </Form.Item>
         </Form>
         {Object.keys(resolveResult).length > 0 && (
           <div style={{ marginTop: spacing.md }}>
             <Text strong>解析结果：</Text>
-            <pre style={{ background: colors.neutral[200], padding: spacing.md, borderRadius: 6, marginTop: spacing.sm }}>
+            <pre
+              style={{
+                background: colors.neutral[200],
+                padding: spacing.md,
+                borderRadius: 6,
+                marginTop: spacing.sm,
+              }}
+            >
               {JSON.stringify(resolveResult, null, 2)}
             </pre>
           </div>

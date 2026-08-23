@@ -89,12 +89,12 @@ const YamlDiffViewer: React.FC<YamlDiffViewerProps> = ({
               >
                 {currentLineNumB}
               </span>
-              <span style={{ color: colors.success[500], marginRight: spacing[2], fontWeight: 'bold' }}>
+              <span
+                style={{ color: colors.success[500], marginRight: spacing[2], fontWeight: 'bold' }}
+              >
                 +
               </span>
-              <code style={{ fontFamily: 'monospace', fontSize: 13, flex: 1 }}>
-                {line || ' '}
-              </code>
+              <code style={{ fontFamily: 'monospace', fontSize: 13, flex: 1 }}>{line || ' '}</code>
             </div>
           );
         });
@@ -140,12 +140,12 @@ const YamlDiffViewer: React.FC<YamlDiffViewerProps> = ({
               >
                 -
               </span>
-              <span style={{ color: colors.error[500], marginRight: spacing[2], fontWeight: 'bold' }}>
+              <span
+                style={{ color: colors.error[500], marginRight: spacing[2], fontWeight: 'bold' }}
+              >
                 -
               </span>
-              <code style={{ fontFamily: 'monospace', fontSize: 13, flex: 1 }}>
-                {line || ' '}
-              </code>
+              <code style={{ fontFamily: 'monospace', fontSize: 13, flex: 1 }}>{line || ' '}</code>
             </div>
           );
         });
@@ -190,9 +190,7 @@ const YamlDiffViewer: React.FC<YamlDiffViewerProps> = ({
             >
               {currentLineNumB}
             </span>
-            <span style={{ color: colors.neutral[300], marginRight: spacing[2] }}>
-
-            </span>
+            <span style={{ color: colors.neutral[300], marginRight: spacing[2] }}></span>
             <code
               style={{
                 fontFamily: 'monospace',

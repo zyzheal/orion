@@ -79,7 +79,13 @@ const PluginDetailDrawer: React.FC<PluginDetailDrawerProps> = ({
       data-testid="plugin-detail-drawer"
     >
       {/* Plugin metadata */}
-      <Descriptions title="基本信息" column={1} bordered size="small" style={{ marginBottom: spacing.lg }}>
+      <Descriptions
+        title="基本信息"
+        column={1}
+        bordered
+        size="small"
+        style={{ marginBottom: spacing.lg }}
+      >
         <Descriptions.Item label="插件名称">{plugin.name}</Descriptions.Item>
         <Descriptions.Item label="当前版本">{plugin.version}</Descriptions.Item>
         {plugin.latestVersion && (

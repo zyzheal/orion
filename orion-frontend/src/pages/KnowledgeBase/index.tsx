@@ -4,17 +4,43 @@
  */
 import _React, { useState, useEffect, useMemo } from 'react';
 import {
-  Typography, Button, Space, Card, Modal, Form, Input, Select, message,
-  Table as _AntTable, Tag, Row, Col, Input as AntInput, Popconfirm, Tooltip,
+  Typography,
+  Button,
+  Space,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Table as _AntTable,
+  Tag,
+  Row,
+  Col,
+  Input as AntInput,
+  Popconfirm,
+  Tooltip,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  SearchOutlined, BookOutlined, FolderOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  BookOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
-import { getDocs, getDocTags, searchDocs, createKnowledge as apiCreateKnowledge, updateKnowledge as apiUpdateKnowledge, deleteKnowledge as apiDeleteKnowledge } from '@/api/knowledge';
+import {
+  getDocs,
+  getDocTags,
+  searchDocs,
+  createKnowledge as apiCreateKnowledge,
+  updateKnowledge as apiUpdateKnowledge,
+  deleteKnowledge as apiDeleteKnowledge,
+} from '@/api/knowledge';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -54,7 +80,11 @@ const mapDocToItem = (d: any): KnowledgeItem => ({
   updatedAt: d.updated_at || '',
 });
 
-async function fetchKnowledgeList(category?: string, limit = 50, offset = 0): Promise<KnowledgeListResponse> {
+async function fetchKnowledgeList(
+  category?: string,
+  limit = 50,
+  offset = 0
+): Promise<KnowledgeListResponse> {
   const page = Math.floor(offset / limit) + 1;
   const res = await getDocs({ pageSize: limit, page, tag: category });
   return { items: (res.data || []).map(mapDocToItem), total: res.total || 0 };
@@ -66,10 +96,21 @@ async function fetchKnowledgeCategories(): Promise<string[]> {
 
 async function searchKnowledge(q: string, limit = 10): Promise<KnowledgeSearchResponse> {
   const result = await searchDocs(q, undefined, limit);
-  return { results: (result.results || []).map((r) => ({
-    item: { id: r.docId, title: r.title, content: r.snippet, category: '', tags: [], createdBy: '', createdAt: '', updatedAt: '' },
-    similarity: r.score,
-  })) };
+  return {
+    results: (result.results || []).map((r) => ({
+      item: {
+        id: r.docId,
+        title: r.title,
+        content: r.snippet,
+        category: '',
+        tags: [],
+        createdBy: '',
+        createdAt: '',
+        updatedAt: '',
+      },
+      similarity: r.score,
+    })),
+  };
 }
 
 export default function KnowledgeBase() {
@@ -182,80 +223,105 @@ export default function KnowledgeBase() {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<KnowledgeItem>[] = useMemo<TableColumn<KnowledgeItem>[]>(() => [
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      width: 250,
-      render: (value: unknown) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      key: 'category',
-      title: '分类',
-      width: 120,
-      render: (_: unknown, record: KnowledgeItem) => (
-        <Tag icon={<FolderOutlined />} color="blue">{record.category}</Tag>
-      ),
-    },
-    {
-      key: 'tags',
-      title: '标签',
-      width: 200,
-      render: (_: unknown, record: KnowledgeItem) => (
-        <Space wrap>
-          {record.tags.map((tag, i) => (
-            <Tag key={String(i)}>{tag}</Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      key: 'createdBy',
-      title: '创建人',
-      dataIndex: 'createdBy',
-      width: 100,
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 160,
-      render: (value: unknown) => dayjs(String(value)).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: KnowledgeItem) => (
-        <Space size="small">
-          <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-          </Tooltip>
-          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+  const columns: TableColumn<KnowledgeItem>[] = useMemo<TableColumn<KnowledgeItem>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        width: 250,
+        render: (value: unknown) => <Text strong>{String(value)}</Text>,
+      },
+      {
+        key: 'category',
+        title: '分类',
+        width: 120,
+        render: (_: unknown, record: KnowledgeItem) => (
+          <Tag icon={<FolderOutlined />} color="blue">
+            {record.category}
+          </Tag>
+        ),
+      },
+      {
+        key: 'tags',
+        title: '标签',
+        width: 200,
+        render: (_: unknown, record: KnowledgeItem) => (
+          <Space wrap>
+            {record.tags.map((tag, i) => (
+              <Tag key={String(i)}>{tag}</Tag>
+            ))}
+          </Space>
+        ),
+      },
+      {
+        key: 'createdBy',
+        title: '创建人',
+        dataIndex: 'createdBy',
+        width: 100,
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 160,
+        render: (value: unknown) => dayjs(String(value)).format('YYYY-MM-DD HH:mm'),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: KnowledgeItem) => (
+          <Space size="small">
+            <Tooltip title="编辑">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEdit(record)}
+              />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, openEdit]);
+            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title="删除">
+                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, openEdit]
+  );
 
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[6] }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing[6],
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <BookOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI 知识库
           </Title>
-          <Paragraph type="secondary" style={{ marginBottom: 0 }}>知识沉淀与智能检索</Paragraph>
+          <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            知识沉淀与智能检索
+          </Paragraph>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+          >
             新建知识
           </Button>
         </Space>
@@ -279,7 +345,10 @@ export default function KnowledgeBase() {
               style={{ width: '100%' }}
               placeholder="选择分类"
               value={selectedCategory}
-              onChange={(v) => { setSelectedCategory(v); setSearchQuery(''); }}
+              onChange={(v) => {
+                setSelectedCategory(v);
+                setSearchQuery('');
+              }}
               allowClear
               options={categories.map((c) => ({ label: c, value: c }))}
             />
@@ -289,7 +358,14 @@ export default function KnowledgeBase() {
 
       {/* Table */}
       <Card>
-        <Table columns={columns} dataSource={items} loading={loading} rowKey="id" size="middle" striped />
+        <Table
+          columns={columns}
+          dataSource={items}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+        />
       </Card>
 
       {/* Create Modal */}
@@ -305,14 +381,22 @@ export default function KnowledgeBase() {
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input placeholder="知识条目标题" />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择或输入分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择或输入分类' }]}
+          >
             <Select
               showSearch
               placeholder="选择或输入新分类"
               options={categories.map((c) => ({ label: c, value: c }))}
             />
           </Form.Item>
-          <Form.Item name="content" label="内容" rules={[{ required: true, message: '请输入内容' }]}>
+          <Form.Item
+            name="content"
+            label="内容"
+            rules={[{ required: true, message: '请输入内容' }]}
+          >
             <TextArea rows={6} placeholder="知识内容..." />
           </Form.Item>
           <Form.Item name="tags" label="标签">
@@ -326,7 +410,10 @@ export default function KnowledgeBase() {
         title="编辑知识条目"
         open={editModalVisible}
         onOk={handleEdit}
-        onCancel={() => { setEditModalVisible(false); setEditItem(null); }}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditItem(null);
+        }}
         width={600}
         destroyOnClose
       >
@@ -334,10 +421,18 @@ export default function KnowledgeBase() {
           <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="category" label="分类" rules={[{ required: true, message: '请选择分类' }]}>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select options={categories.map((c) => ({ label: c, value: c }))} />
           </Form.Item>
-          <Form.Item name="content" label="内容" rules={[{ required: true, message: '请输入内容' }]}>
+          <Form.Item
+            name="content"
+            label="内容"
+            rules={[{ required: true, message: '请输入内容' }]}
+          >
             <TextArea rows={6} />
           </Form.Item>
           <Form.Item name="tags" label="标签">

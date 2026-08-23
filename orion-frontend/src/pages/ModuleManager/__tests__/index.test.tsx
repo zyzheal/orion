@@ -7,7 +7,7 @@ import * as moduleManagerApi from '@/api/module-manager';
 
 // Mock antd components and hooks
 vi.mock('antd', async () => {
-  const actual = await vi.importActual('antd') as Record<string, unknown>;
+  const actual = (await vi.importActual('antd')) as Record<string, unknown>;
   return {
     ...actual,
     Typography: {
@@ -102,10 +102,10 @@ describe('ModuleManager', { timeout: 15000 }, () => {
       data: [],
     } as any);
     vi.mocked(moduleManagerApi.validateDependencies).mockResolvedValue({
-      data: { validation: { valid: true, missingDependencies: [] } } ,
+      data: { validation: { valid: true, missingDependencies: [] } },
     } as any);
     vi.mocked(moduleManagerApi.getStartupOrder).mockResolvedValue({
-      data: { order: [] } ,
+      data: { order: [] },
     } as any);
 
     const ModuleManagerPage = (await import('@/pages/ModuleManager')).default;
@@ -138,10 +138,10 @@ describe('ModuleManager', { timeout: 15000 }, () => {
       data: mockModules,
     } as any);
     vi.mocked(moduleManagerApi.validateDependencies).mockResolvedValue({
-      data: { validation: { valid: true, missingDependencies: [] } } ,
+      data: { validation: { valid: true, missingDependencies: [] } },
     } as any);
     vi.mocked(moduleManagerApi.getStartupOrder).mockResolvedValue({
-      data: { order: ['core:auth', 'service:api'] } ,
+      data: { order: ['core:auth', 'service:api'] },
     } as any);
 
     const ModuleManagerPage = (await import('@/pages/ModuleManager')).default;
@@ -159,10 +159,10 @@ describe('ModuleManager', { timeout: 15000 }, () => {
       data: [],
     } as any);
     vi.mocked(moduleManagerApi.validateDependencies).mockResolvedValue({
-      data: { validation: { valid: true, missingDependencies: [] } } ,
+      data: { validation: { valid: true, missingDependencies: [] } },
     } as any);
     vi.mocked(moduleManagerApi.getStartupOrder).mockResolvedValue({
-      data: { order: [] } ,
+      data: { order: [] },
     } as any);
 
     const ModuleManagerPage = (await import('@/pages/ModuleManager')).default;

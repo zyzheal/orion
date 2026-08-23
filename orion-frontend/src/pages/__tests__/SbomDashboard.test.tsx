@@ -8,21 +8,47 @@ import { ChartProvider } from '@/components/charts';
 import SbomDashboard from '@/pages/SbomDashboard';
 
 vi.mock('@orion-mf/core', () => ({
-  EventBus: class { on = vi.fn(); off = vi.fn(); emit = vi.fn(); },
+  EventBus: class {
+    on = vi.fn();
+    off = vi.fn();
+    emit = vi.fn();
+  },
   eventBus: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
-  loadSubApp: vi.fn(), getSubApp: vi.fn(), getPreloadStrategy: vi.fn(),
+  loadSubApp: vi.fn(),
+  getSubApp: vi.fn(),
+  getPreloadStrategy: vi.fn(),
 }));
 
 vi.mock('@/api/sbom', async () => {
   const actual = await vi.importActual<typeof import('@/api/sbom')>('@/api/sbom');
   return {
     ...actual,
-    getSbomDocuments: vi.fn().mockResolvedValue({ data: [
-      { id: '1', documentId: 'DOC-001', buildId: 'build-1', format: 'cyclonedx', packageCount: 50, status: 'active', createdAt: '2024-01-01' },
-      { id: '2', documentId: 'DOC-002', buildId: 'build-2', format: 'spdx', packageCount: 30, status: 'active', createdAt: '2024-02-01' },
-    ]}),
+    getSbomDocuments: vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: '1',
+          documentId: 'DOC-001',
+          buildId: 'build-1',
+          format: 'cyclonedx',
+          packageCount: 50,
+          status: 'active',
+          createdAt: '2024-01-01',
+        },
+        {
+          id: '2',
+          documentId: 'DOC-002',
+          buildId: 'build-2',
+          format: 'spdx',
+          packageCount: 30,
+          status: 'active',
+          createdAt: '2024-02-01',
+        },
+      ],
+    }),
     getSbomWaivers: vi.fn().mockResolvedValue({ data: [] }),
-    getSbomComplianceReport: vi.fn().mockResolvedValue({ data: { totalSboms: 2, compliantSboms: 2, criticalVulns: 0, complianceRate: 95.5 } }),
+    getSbomComplianceReport: vi.fn().mockResolvedValue({
+      data: { totalSboms: 2, compliantSboms: 2, criticalVulns: 0, complianceRate: 95.5 },
+    }),
   };
 });
 
@@ -38,10 +64,16 @@ vi.mock('antd', async () => {
 });
 
 const renderWithProviders = (ui: React.ReactElement) =>
-  render(<BrowserRouter><ChartProvider>{ui}</ChartProvider></BrowserRouter>);
+  render(
+    <BrowserRouter>
+      <ChartProvider>{ui}</ChartProvider>
+    </BrowserRouter>
+  );
 
 describe('SbomDashboard', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('renders dashboard title', async () => {
     renderWithProviders(<SbomDashboard />);

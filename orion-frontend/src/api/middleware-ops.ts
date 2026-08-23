@@ -62,8 +62,12 @@ export interface MiddlewareAlert {
 
 // Instances
 export function createMiddlewareInstance(data: {
-  name: string; type: string; host: string; port: number;
-  version?: string; config?: Record<string, unknown>;
+  name: string;
+  type: string;
+  host: string;
+  port: number;
+  version?: string;
+  config?: Record<string, unknown>;
 }) {
   return api.post('/middleware/instances', data);
 }
@@ -86,7 +90,10 @@ export function deleteMiddlewareInstance(id: string) {
 
 // Metrics
 export function recordMiddlewareMetric(data: {
-  middlewareId: string; metricName: string; value: number; unit: string;
+  middlewareId: string;
+  metricName: string;
+  value: number;
+  unit: string;
 }) {
   return api.post('/middleware/metrics', data);
 }
@@ -97,7 +104,12 @@ export function listMiddlewareMetrics(params?: { middlewareId?: string; metricNa
 
 // Connection Pools
 export function recordConnectionPool(data: {
-  middlewareId: string; poolName: string; active: number; idle: number; max: number; waiting: number;
+  middlewareId: string;
+  poolName: string;
+  active: number;
+  idle: number;
+  max: number;
+  waiting: number;
 }) {
   return api.post('/middleware/connection-pools', data);
 }
@@ -108,8 +120,13 @@ export function listConnectionPools(params?: { middlewareId?: string }) {
 
 // MQ Stats
 export function recordMqStats(data: {
-  middlewareId: string; queueName: string; messageCount: number; consumerCount: number;
-  messagesPerSecond: number; avgLatencyMs: number; deadLetterCount: number;
+  middlewareId: string;
+  queueName: string;
+  messageCount: number;
+  consumerCount: number;
+  messagesPerSecond: number;
+  avgLatencyMs: number;
+  deadLetterCount: number;
 }) {
   return api.post('/middleware/mq-stats', data);
 }
@@ -129,5 +146,15 @@ export function deleteMiddlewareAlert(id: string) {
 
 // Health
 export function getMiddlewareHealthSummary() {
-  return api.get<{ data: { totalInstances: number; healthyCount: number; degradedCount: number; unhealthyCount: number; totalAlerts: number; criticalAlerts: number; healthScore: number } }>('/middleware/health-summary');
+  return api.get<{
+    data: {
+      totalInstances: number;
+      healthyCount: number;
+      degradedCount: number;
+      unhealthyCount: number;
+      totalAlerts: number;
+      criticalAlerts: number;
+      healthScore: number;
+    };
+  }>('/middleware/health-summary');
 }

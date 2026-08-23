@@ -29,14 +29,23 @@ vi.mock('@/api/llm-trace', () => ({
     data: {
       data: {
         currency: 'CNY',
-        pricing: [{ modelId: 'gpt-4', provider: 'openai', inputPricePerToken: 0.03, outputPricePerToken: 0.06 }],
+        pricing: [
+          {
+            modelId: 'gpt-4',
+            provider: 'openai',
+            inputPricePerToken: 0.03,
+            outputPricePerToken: 0.06,
+          },
+        ],
       },
     },
   }),
   getTraces: vi.fn().mockResolvedValue({
     data: {
       data: {
-        data: [{ traceId: 'trace-001', scenarioId: 'autofix', modelId: 'gpt-4', status: 'completed' }],
+        data: [
+          { traceId: 'trace-001', scenarioId: 'autofix', modelId: 'gpt-4', status: 'completed' },
+        ],
         total: 1,
       },
     },
@@ -69,7 +78,9 @@ vi.mock('@/api/llm-trace', () => ({
 
 describe('LLMTraceDashboard', { timeout: 20000 }, () => {
   it('should render layout with navigation', async () => {
-    const LLMTraceDashboardLayout = await import('@/pages/LLMTraceDashboard').then((m) => m.default);
+    const LLMTraceDashboardLayout = await import('@/pages/LLMTraceDashboard').then(
+      (m) => m.default
+    );
     render(
       <BrowserRouter>
         <LLMTraceDashboardLayout />
@@ -84,7 +95,9 @@ describe('LLMTraceDashboard', { timeout: 20000 }, () => {
   });
 
   it('should render TraceOverview with stats', async () => {
-    const TraceOverview = await import('@/pages/LLMTraceDashboard/TraceOverview').then((m) => m.default);
+    const TraceOverview = await import('@/pages/LLMTraceDashboard/TraceOverview').then(
+      (m) => m.default
+    );
     render(
       <BrowserRouter>
         <TraceOverview />
@@ -109,7 +122,9 @@ describe('LLMTraceDashboard', { timeout: 20000 }, () => {
   });
 
   it('should render CostAnalysis with date picker', async () => {
-    const CostAnalysis = await import('@/pages/LLMTraceDashboard/CostAnalysis').then((m) => m.default);
+    const CostAnalysis = await import('@/pages/LLMTraceDashboard/CostAnalysis').then(
+      (m) => m.default
+    );
     render(
       <BrowserRouter>
         <CostAnalysis />
@@ -122,7 +137,9 @@ describe('LLMTraceDashboard', { timeout: 20000 }, () => {
   });
 
   it('should render TrackingAccuracy with progress', async () => {
-    const TrackingAccuracy = await import('@/pages/LLMTraceDashboard/TrackingAccuracy').then((m) => m.default);
+    const TrackingAccuracy = await import('@/pages/LLMTraceDashboard/TrackingAccuracy').then(
+      (m) => m.default
+    );
     render(
       <BrowserRouter>
         <TrackingAccuracy />

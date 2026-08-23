@@ -626,7 +626,9 @@ const OnCallManagement: React.FC = () => {
           >
             <div>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <ClockCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+                <ClockCircleOutlined
+                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
+                />
                 OnCall 值班管理
               </Title>
               <Text type="secondary">管理值班排班、轮换分配和代班设置</Text>

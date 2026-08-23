@@ -284,7 +284,7 @@ const RiskDashboardPage: React.FC = () => {
     assessments.reduce<Record<string, number>>((acc, a) => {
       acc[a.targetType] = (acc[a.targetType] ?? 0) + 1;
       return acc;
-    }, {}),
+    }, {})
   ).map(([label, value]) => ({ label, value }));
 
   return (
@@ -363,11 +363,7 @@ const RiskDashboardPage: React.FC = () => {
           </Col>
           <Col span={10}>
             <Card>
-              <BarChart
-                title="风险类型分布"
-                data={riskTypeData}
-                height={280}
-              />
+              <BarChart title="风险类型分布" data={riskTypeData} height={280} />
             </Card>
           </Col>
         </Row>

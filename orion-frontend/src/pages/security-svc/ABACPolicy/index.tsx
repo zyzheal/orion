@@ -4,10 +4,36 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Button, Space, Modal, Form, Input, Select, Switch, message, Drawer } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  Card,
+  Table,
+  Tag,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Switch,
+  message,
+  Drawer,
+} from 'antd';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getAllPolicies, createPolicy, updatePolicy, deletePolicy, togglePolicy, type AbacPolicy } from '@/api/abac-policy';
+import {
+  getAllPolicies,
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
+  togglePolicy,
+  type AbacPolicy,
+} from '@/api/abac-policy';
 import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
@@ -107,7 +133,10 @@ const ABACPolicyManagement: React.FC = () => {
       render: (val, record) => (
         <Space>
           <span>{val}</span>
-          <InfoCircleOutlined onClick={() => openDetail(record)} style={{ cursor: 'pointer', color: colors.primary[500] }} />
+          <InfoCircleOutlined
+            onClick={() => openDetail(record)}
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
+          />
         </Space>
       ),
     },
@@ -136,7 +165,9 @@ const ABACPolicyManagement: React.FC = () => {
       dataIndex: 'effect',
       key: 'effect',
       width: 80,
-      render: (val) => <Tag color={val === 'allow' ? 'green' : 'red'}>{val === 'allow' ? '允许' : '拒绝'}</Tag>,
+      render: (val) => (
+        <Tag color={val === 'allow' ? 'green' : 'red'}>{val === 'allow' ? '允许' : '拒绝'}</Tag>
+      ),
     },
     {
       title: '优先级',
@@ -151,7 +182,12 @@ const ABACPolicyManagement: React.FC = () => {
       key: 'enabled',
       width: 80,
       render: (val, record) => (
-        <Switch checked={val} onChange={() => handleToggle(record.id)} checkedChildren="启用" unCheckedChildren="禁用" />
+        <Switch
+          checked={val}
+          onChange={() => handleToggle(record.id)}
+          checkedChildren="启用"
+          unCheckedChildren="禁用"
+        />
       ),
     },
     {
@@ -160,8 +196,19 @@ const ABACPolicyManagement: React.FC = () => {
       width: 120,
       render: (_: any, record: AbacPolicy) => (
         <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>编辑</Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} disabled={record.id.startsWith('system-')}>删除</Button>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+            disabled={record.id.startsWith('system-')}
+          >
+            删除
+          </Button>
         </Space>
       ),
     },
@@ -169,19 +216,54 @@ const ABACPolicyManagement: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <Card title="ABAC 策略管理" extra={
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchPolicies}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setSelectedPolicy(null); form.resetFields(); setModalOpen(true); }}>新建策略</Button>
-        </Space>
-      }>
-        <Table dataSource={policies} columns={columns} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+      <Card
+        title="ABAC 策略管理"
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchPolicies}>
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setSelectedPolicy(null);
+                form.resetFields();
+                setModalOpen(true);
+              }}
+            >
+              新建策略
+            </Button>
+          </Space>
+        }
+      >
+        <Table
+          dataSource={policies}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
-      <Modal title={selectedPolicy ? '编辑策略' : '新建策略'} open={modalOpen} onOk={selectedPolicy ? handleUpdate : handleCreate} onCancel={() => { setModalOpen(false); form.resetFields(); setSelectedPolicy(null); }} width={600}>
+      <Modal
+        title={selectedPolicy ? '编辑策略' : '新建策略'}
+        open={modalOpen}
+        onOk={selectedPolicy ? handleUpdate : handleCreate}
+        onCancel={() => {
+          setModalOpen(false);
+          form.resetFields();
+          setSelectedPolicy(null);
+        }}
+        width={600}
+      >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="策略名称" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="description" label="描述"><Input /></Form.Item>
+          <Form.Item name="name" label="策略名称" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input />
+          </Form.Item>
           <Form.Item name="resourceType" label="资源类型" rules={[{ required: true }]}>
             <Select mode="multiple" placeholder="选择资源类型">
               <Option value="*">所有资源</Option>
@@ -203,26 +285,62 @@ const ABACPolicyManagement: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="effect" label="效果" rules={[{ required: true }]}>
-            <Select placeholder="选择效果"><Option value="allow">允许</Option><Option value="deny">拒绝</Option></Select>
+            <Select placeholder="选择效果">
+              <Option value="allow">允许</Option>
+              <Option value="deny">拒绝</Option>
+            </Select>
           </Form.Item>
-          <Form.Item name="priority" label="优先级" initialValue={50}><Input type="number" /></Form.Item>
-          <Form.Item name="conditions" label="条件 (JSON)"><TextArea rows={4} placeholder='{"condition": {"attribute": "user.role", "operator": "equals", "value": "admin"}}' /></Form.Item>
+          <Form.Item name="priority" label="优先级" initialValue={50}>
+            <Input type="number" />
+          </Form.Item>
+          <Form.Item name="conditions" label="条件 (JSON)">
+            <TextArea
+              rows={4}
+              placeholder='{"condition": {"attribute": "user.role", "operator": "equals", "value": "admin"}}'
+            />
+          </Form.Item>
         </Form>
       </Modal>
 
       <Drawer title="策略详情" open={drawerOpen} onClose={() => setDrawerOpen(false)} width={500}>
         {selectedPolicy && (
           <>
-            <p><strong>ID:</strong> {selectedPolicy.id}</p>
-            <p><strong>名称:</strong> {selectedPolicy.name}</p>
-            <p><strong>描述:</strong> {selectedPolicy.description || '-'}</p>
-            <p><strong>资源类型:</strong> {Array.isArray(selectedPolicy.resourceType) ? selectedPolicy.resourceType.join(', ') : selectedPolicy.resourceType}</p>
-            <p><strong>操作类型:</strong> {Array.isArray(selectedPolicy.actionType) ? selectedPolicy.actionType.join(', ') : selectedPolicy.actionType}</p>
-            <p><strong>效果:</strong> {selectedPolicy.effect === 'allow' ? '允许' : '拒绝'}</p>
-            <p><strong>优先级:</strong> {selectedPolicy.priority}</p>
-            <p><strong>状态:</strong> {selectedPolicy.enabled ? '启用' : '禁用'}</p>
-            <p><strong>条件:</strong></p>
-            <pre style={{ background: colors.neutral[100], padding: spacing[3], borderRadius: 4 }}>{JSON.stringify(selectedPolicy.conditions, null, 2)}</pre>
+            <p>
+              <strong>ID:</strong> {selectedPolicy.id}
+            </p>
+            <p>
+              <strong>名称:</strong> {selectedPolicy.name}
+            </p>
+            <p>
+              <strong>描述:</strong> {selectedPolicy.description || '-'}
+            </p>
+            <p>
+              <strong>资源类型:</strong>{' '}
+              {Array.isArray(selectedPolicy.resourceType)
+                ? selectedPolicy.resourceType.join(', ')
+                : selectedPolicy.resourceType}
+            </p>
+            <p>
+              <strong>操作类型:</strong>{' '}
+              {Array.isArray(selectedPolicy.actionType)
+                ? selectedPolicy.actionType.join(', ')
+                : selectedPolicy.actionType}
+            </p>
+            <p>
+              <strong>效果:</strong> {selectedPolicy.effect === 'allow' ? '允许' : '拒绝'}
+            </p>
+            <p>
+              <strong>优先级:</strong> {selectedPolicy.priority}
+            </p>
+            <p>
+              <strong>状态:</strong> {selectedPolicy.enabled ? '启用' : '禁用'}
+            </p>
+            <p>
+              <strong>条件:</strong>
+            </p>
+            <pre style={{ background: colors.neutral[100], padding: spacing[3], borderRadius: 4 }}>
+              {JSON.stringify(selectedPolicy.conditions, null, 2)}
+            </pre>
           </>
         )}
       </Drawer>

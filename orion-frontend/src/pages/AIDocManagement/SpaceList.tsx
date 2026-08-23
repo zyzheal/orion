@@ -15,7 +15,13 @@ import {
   message,
   Popconfirm,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, FolderOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  FolderOutlined,
+} from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -150,73 +156,81 @@ const SpaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const columns: TableColumn<SpaceType>[] = useMemo<TableColumn<SpaceType>[]>(() => [
-    {
-      key: 'name',
-      title: '知识库名称',
-      dataIndex: 'name',
-      width: 180,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 80,
-      render: (v: unknown) => <Tag color={typeColorMap[String(v)]}>{String(v)}</Tag>,
-    },
-    {
-      key: 'description',
-      title: '描述',
-      dataIndex: 'description',
-      width: 200,
-      render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text>,
-    },
-    {
-      key: 'documentCount',
-      title: '文档数',
-      dataIndex: 'documentCount',
-      width: 80,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'ownerId',
-      title: '所有者',
-      dataIndex: 'ownerId',
-      width: 120,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+  const columns: TableColumn<SpaceType>[] = useMemo<TableColumn<SpaceType>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '知识库名称',
+        dataIndex: 'name',
+        width: 180,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
+      },
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 80,
+        render: (v: unknown) => <Tag color={typeColorMap[String(v)]}>{String(v)}</Tag>,
+      },
+      {
+        key: 'description',
+        title: '描述',
+        dataIndex: 'description',
+        width: 200,
+        render: (v: unknown) => <Text type="secondary">{String(v || '-')}</Text>,
+      },
+      {
+        key: 'documentCount',
+        title: '文档数',
+        dataIndex: 'documentCount',
+        width: 80,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'ownerId',
+        title: '所有者',
+        dataIndex: 'ownerId',
+        width: 120,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            >
+              编辑
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, openEdit]);
+            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, openEdit]
+  );
 
   const filterDefs: FilterDefinition[] = [{ key: 'type', label: '类型', options: typeOptions }];
 

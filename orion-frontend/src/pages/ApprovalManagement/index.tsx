@@ -5,11 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Card, Tabs, Typography } from 'antd';
-import {
-  SettingOutlined,
-  HistoryOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
+import { SettingOutlined, HistoryOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import FlowConfigForm from './FlowConfigForm';
 import ApprovalRecordTable from './ApprovalRecordTable';
 import TimeoutConfig from './TimeoutConfig';
@@ -81,7 +77,9 @@ const ApprovalManagement: React.FC = () => {
           审批记录
         </span>
       ),
-      children: <ApprovalRecordTable records={records} loading={loading} onRefresh={fetchRecords} />,
+      children: (
+        <ApprovalRecordTable records={records} loading={loading} onRefresh={fetchRecords} />
+      ),
     },
     {
       key: 'timeout',
@@ -91,7 +89,9 @@ const ApprovalManagement: React.FC = () => {
           超时管理
         </span>
       ),
-      children: <TimeoutConfig configs={timeoutConfigs} loading={false} onRefresh={fetchTimeoutConfigs} />,
+      children: (
+        <TimeoutConfig configs={timeoutConfigs} loading={false} onRefresh={fetchTimeoutConfigs} />
+      ),
     },
   ];
 

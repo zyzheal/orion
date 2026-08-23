@@ -4,8 +4,19 @@
  */
 import _React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, Input, Button, Avatar, Spin, Typography, Space, Tag, Empty } from 'antd';
-import { SendOutlined, RobotOutlined, UserOutlined, ToolOutlined, ClearOutlined } from '@ant-design/icons';
-import { sendChatMessage, getAvailableTools, type ChatResponse, type ToolInfo } from '@/api/chatops';
+import {
+  SendOutlined,
+  RobotOutlined,
+  UserOutlined,
+  ToolOutlined,
+  ClearOutlined,
+} from '@ant-design/icons';
+import {
+  sendChatMessage,
+  getAvailableTools,
+  type ChatResponse,
+  type ToolInfo,
+} from '@/api/chatops';
 import { colors, spacing, themeVars } from '@/tokens';
 
 const { TextArea } = Input;
@@ -18,14 +29,20 @@ interface ChatMsg {
   timestamp: Date;
   intent?: string;
   confidence?: number;
-  toolCalls?: Array<{ tool: string; params: Record<string, unknown>; status: string; result?: unknown }>;
+  toolCalls?: Array<{
+    tool: string;
+    params: Record<string, unknown>;
+    status: string;
+    result?: unknown;
+  }>;
   suggestions?: string[];
 }
 
 const WELCOME_MESSAGE: ChatMsg = {
   id: 'welcome',
   role: 'assistant',
-  content: '你好！我是 Orion AI 运维助手。可以用自然语言让我帮你执行运维操作，例如：\n\n• "查询 CPU 使用率"\n• "部署应用到生产环境"\n• "诊断服务问题"\n• "查看部署状态"',
+  content:
+    '你好！我是 Orion AI 运维助手。可以用自然语言让我帮你执行运维操作，例如：\n\n• "查询 CPU 使用率"\n• "部署应用到生产环境"\n• "诊断服务问题"\n• "查看部署状态"',
   timestamp: new Date(),
 };
 
@@ -131,7 +148,13 @@ export default function ChatOpsChat() {
           >
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Space size={4}>
-                <Text strong style={{ fontSize: 12, color: isUser ? 'rgba(255,255,255,0.8)' : themeVars.textSecondary }}>
+                <Text
+                  strong
+                  style={{
+                    fontSize: 12,
+                    color: isUser ? 'rgba(255,255,255,0.8)' : themeVars.textSecondary,
+                  }}
+                >
                   {isUser ? '你' : 'AI 助手'}
                 </Text>
                 {msg.intent && (
@@ -140,7 +163,12 @@ export default function ChatOpsChat() {
                   </Tag>
                 )}
                 {msg.confidence != null && (
-                  <Text style={{ fontSize: 10, color: isUser ? 'rgba(255,255,255,0.6)' : themeVars.textTertiary }}>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: isUser ? 'rgba(255,255,255,0.6)' : themeVars.textTertiary,
+                    }}
+                  >
                     {Math.round(msg.confidence * 100)}%
                   </Text>
                 )}
@@ -148,7 +176,12 @@ export default function ChatOpsChat() {
               <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
               {msg.toolCalls && msg.toolCalls.length > 0 && (
                 <Space direction="vertical" size={2}>
-                  <Text style={{ fontSize: 11, color: isUser ? 'rgba(255,255,255,0.7)' : themeVars.textSecondary }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: isUser ? 'rgba(255,255,255,0.7)' : themeVars.textSecondary,
+                    }}
+                  >
                     <ToolOutlined /> 工具调用:
                   </Text>
                   <Space wrap>
@@ -167,7 +200,11 @@ export default function ChatOpsChat() {
                       key={String(i)}
                       size="small"
                       type={isUser ? 'default' : 'link'}
-                      style={isUser ? { color: colors.neutral[0], borderColor: 'rgba(255,255,255,0.5)' } : undefined}
+                      style={
+                        isUser
+                          ? { color: colors.neutral[0], borderColor: 'rgba(255,255,255,0.5)' }
+                          : undefined
+                      }
                       onClick={() => handleSend(s)}
                     >
                       {s}
@@ -186,13 +223,25 @@ export default function ChatOpsChat() {
   };
 
   return (
-    <div style={{ height: 'calc(100vh - 180px)', display: 'flex', flexDirection: 'column', padding: spacing.md }}>
+    <div
+      style={{
+        height: 'calc(100vh - 180px)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: spacing.md,
+      }}
+    >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
-          {tools.length > 0 && (
-            <Tag color="blue">{tools.length} 个可用工具</Tag>
-          )}
+          {tools.length > 0 && <Tag color="blue">{tools.length} 个可用工具</Tag>}
           <Button icon={<ClearOutlined />} size="small" onClick={handleClear}>
             清空对话
           </Button>
@@ -210,13 +259,11 @@ export default function ChatOpsChat() {
             borderRadius: 12,
           }}
         >
-          {messages.length === 0 ? (
-            <Empty description="开始对话吧" />
-          ) : (
-            messages.map(renderMessage)
-          )}
+          {messages.length === 0 ? <Empty description="开始对话吧" /> : messages.map(renderMessage)}
           {isLoading && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: spacing[4] }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: spacing[4] }}
+            >
               <Space>
                 <Avatar icon={<RobotOutlined />} style={{ backgroundColor: colors.primary[500] }} />
                 <Spin size="small" />

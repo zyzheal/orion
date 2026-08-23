@@ -4,11 +4,27 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Button, Space, Table, Card, Modal, Form, Input,
-  Select, Tag, Tooltip, Popconfirm, message, Empty, DatePicker,
+  Typography,
+  Button,
+  Space,
+  Table,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  Popconfirm,
+  message,
+  Empty,
+  DatePicker,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
   GlobalOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -72,7 +88,9 @@ const NoticeTab: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const loadItems = async () => {
     setLoading(true);
@@ -81,7 +99,9 @@ const NoticeTab: React.FC = () => {
       setItems(data);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '加载公告列表失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenCreate = () => {
@@ -110,8 +130,12 @@ const NoticeTab: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      const publishAt = values.publish_at ? values.publish_at.format('YYYY-MM-DD HH:mm:ss') : undefined;
-      const expireAt = values.expire_at ? values.expire_at.format('YYYY-MM-DD HH:mm:ss') : undefined;
+      const publishAt = values.publish_at
+        ? values.publish_at.format('YYYY-MM-DD HH:mm:ss')
+        : undefined;
+      const expireAt = values.expire_at
+        ? values.expire_at.format('YYYY-MM-DD HH:mm:ss')
+        : undefined;
 
       const payload: NoticeInput = {
         title: values.title,
@@ -216,7 +240,7 @@ const NoticeTab: React.FC = () => {
       dataIndex: 'published_at',
       key: 'published_at',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
     },
     {
       title: '创建时间',
@@ -233,11 +257,21 @@ const NoticeTab: React.FC = () => {
       render: (_: any, record: Notice) => (
         <Space size="small">
           <Tooltip title="编辑">
-            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEdit(record)} />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            />
           </Tooltip>
           {record.status === 'draft' && (
             <Tooltip title="发布">
-              <Button type="text" size="small" icon={<GlobalOutlined />} onClick={() => handlePublish(record.id)} />
+              <Button
+                type="text"
+                size="small"
+                icon={<GlobalOutlined />}
+                onClick={() => handlePublish(record.id)}
+              />
             </Tooltip>
           )}
           {record.status === 'published' && (
@@ -248,7 +282,9 @@ const NoticeTab: React.FC = () => {
               cancelText="取消"
             >
               <Tooltip title="撤回">
-                <Button type="text" size="small" danger>撤回</Button>
+                <Button type="text" size="small" danger>
+                  撤回
+                </Button>
               </Tooltip>
             </Popconfirm>
           )}
@@ -269,11 +305,21 @@ const NoticeTab: React.FC = () => {
 
   return (
     <Card
-      style={{ borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+      style={{
+        borderRadius: 12,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
       bodyStyle={{ padding: spacing.md }}
     >
       {/* Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.md,
+        }}
+      >
         <Space>
           <Text type="secondary">共 {filteredItems.length} 条公告</Text>
         </Space>
@@ -292,7 +338,9 @@ const NoticeTab: React.FC = () => {
             onChange={setStatusFilter}
           >
             {STATUS_OPTIONS.map((o) => (
-              <Option key={String(o.value ?? 'all')} value={o.value}>{o.label}</Option>
+              <Option key={String(o.value ?? 'all')} value={o.value}>
+                {o.label}
+              </Option>
             ))}
           </Select>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
@@ -308,11 +356,7 @@ const NoticeTab: React.FC = () => {
       {filteredItems.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">
-              暂无公告，点击上方「新建公告」发布
-            </Text>
-          }
+          description={<Text type="secondary">暂无公告，点击上方「新建公告」发布</Text>}
         />
       ) : (
         <Table
@@ -321,7 +365,11 @@ const NoticeTab: React.FC = () => {
           rowKey="id"
           loading={loading}
           size="middle"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
           scroll={{ x: 900 }}
         />
       )}
@@ -358,14 +406,18 @@ const NoticeTab: React.FC = () => {
           <Form.Item name="type" label="公告类型">
             <Select>
               {TYPE_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="priority" label="优先级">
             <Select>
               {PRIORITY_OPTIONS.map((o) => (
-                <Option key={o.value} value={o.value}>{o.label}</Option>
+                <Option key={o.value} value={o.value}>
+                  {o.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>
@@ -375,7 +427,9 @@ const NoticeTab: React.FC = () => {
           <Form.Item name="target_channels" label="推送渠道">
             <Select mode="multiple" placeholder="选择推送渠道（可选）">
               {CHANNEL_TYPES.map((c) => (
-                <Option key={c.value} value={c.value}>{c.label}</Option>
+                <Option key={c.value} value={c.value}>
+                  {c.label}
+                </Option>
               ))}
             </Select>
           </Form.Item>

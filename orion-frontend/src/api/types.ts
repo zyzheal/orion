@@ -54,7 +54,7 @@ export interface UserInfo {
   username: string;
   email: string;
   role: string;
-  roles?: string[];  // 多角色支持
+  roles?: string[]; // 多角色支持
   avatar?: string;
 }
 

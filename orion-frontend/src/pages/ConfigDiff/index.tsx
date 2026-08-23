@@ -96,7 +96,9 @@ const ConfigDiffPage: React.FC = () => {
     try {
       const res = await getConfigs();
       const configsData = res.data as { configs?: ConfigItem[]; data?: ConfigItem[] };
-      const list = (configsData?.configs ?? (configsData?.data as ConfigItem[]) ?? []) as ConfigItem[];
+      const list = (configsData?.configs ??
+        (configsData?.data as ConfigItem[]) ??
+        []) as ConfigItem[];
       setConfigs(list);
     } catch {
       message.error('Failed to load config list');
@@ -109,7 +111,9 @@ const ConfigDiffPage: React.FC = () => {
     try {
       const res = await getConfigVersions(id);
       const verData = res.data as { versions?: ConfigVersion[]; data?: ConfigVersion[] };
-      const list = (verData?.versions ?? (verData?.data as ConfigVersion[]) ?? []) as ConfigVersion[];
+      const list = (verData?.versions ??
+        (verData?.data as ConfigVersion[]) ??
+        []) as ConfigVersion[];
       const sorted = list.sort((a, b) => a.version - b.version);
       setVersions(sorted);
       if (sorted.length >= 2) {
@@ -134,7 +138,9 @@ const ConfigDiffPage: React.FC = () => {
     try {
       const res = await compareConfigs(selectedConfigId, fromVersion, toVersion);
       setDiffResult(res.data as ConfigDiff);
-      message.success(`Diff loaded: ${(res.data as ConfigDiff).changes?.length ?? 0} changes found`);
+      message.success(
+        `Diff loaded: ${(res.data as ConfigDiff).changes?.length ?? 0} changes found`
+      );
     } catch {
       message.error('Failed to compute diff');
     } finally {
@@ -259,7 +265,9 @@ const ConfigDiffPage: React.FC = () => {
             <DiffOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Config Version Diff
           </Title>
-          <Text type="secondary">Compare configuration versions, visualize changes, and rollback</Text>
+          <Text type="secondary">
+            Compare configuration versions, visualize changes, and rollback
+          </Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadConfigs} loading={configLoading}>
@@ -310,7 +318,9 @@ const ConfigDiffPage: React.FC = () => {
                 disabled={!selectedConfigId}
               >
                 {versionOptions.map((o) => (
-                  <Option key={o.value} value={o.value}>{o.label}</Option>
+                  <Option key={o.value} value={o.value}>
+                    {o.label}
+                  </Option>
                 ))}
               </Select>
               <Select
@@ -321,7 +331,9 @@ const ConfigDiffPage: React.FC = () => {
                 disabled={!selectedConfigId}
               >
                 {versionOptions.map((o) => (
-                  <Option key={o.value} value={o.value}>{o.label}</Option>
+                  <Option key={o.value} value={o.value}>
+                    {o.label}
+                  </Option>
                 ))}
               </Select>
               <Button
@@ -382,11 +394,7 @@ const ConfigDiffPage: React.FC = () => {
               >
                 Rollback to v{toVersion}
               </Button>
-              <Button
-                icon={<FileTextOutlined />}
-                onClick={handleReport}
-                loading={reportLoading}
-              >
+              <Button icon={<FileTextOutlined />} onClick={handleReport} loading={reportLoading}>
                 Load Diff Report
               </Button>
             </Space>
@@ -413,7 +421,9 @@ const ConfigDiffPage: React.FC = () => {
           <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.neutral[500] }}>
             <DiffOutlined style={{ fontSize: 48, marginBottom: spacing.md, display: 'block' }} />
             <Title level={4}>Select a config to compare versions</Title>
-            <Text type="secondary">Choose a config from the list above, pick two versions, and hit Compare</Text>
+            <Text type="secondary">
+              Choose a config from the list above, pick two versions, and hit Compare
+            </Text>
           </div>
         </Card>
       )}
@@ -429,7 +439,11 @@ const ConfigDiffPage: React.FC = () => {
               <Statistic title="Total Differences" value={report.summary?.totalDifferences ?? 0} />
             </Col>
             <Col span={6}>
-              <Statistic title="Generated" value={report.generatedAt} valueStyle={{ fontSize: 12 }} />
+              <Statistic
+                title="Generated"
+                value={report.generatedAt}
+                valueStyle={{ fontSize: 12 }}
+              />
             </Col>
             <Col span={6}>
               <Statistic title="Environments" value={report.environments?.length ?? 0} />
@@ -466,7 +480,11 @@ const ConfigDiffPage: React.FC = () => {
               {changeDetail.oldValue !== undefined && changeDetail.oldValue !== null ? (
                 <TextArea
                   autoSize={{ minRows: 2, maxRows: 6 }}
-                  value={typeof changeDetail.oldValue === 'string' ? changeDetail.oldValue : JSON.stringify(changeDetail.oldValue, null, 2)}
+                  value={
+                    typeof changeDetail.oldValue === 'string'
+                      ? changeDetail.oldValue
+                      : JSON.stringify(changeDetail.oldValue, null, 2)
+                  }
                 />
               ) : (
                 <Text type="secondary">—</Text>
@@ -476,7 +494,11 @@ const ConfigDiffPage: React.FC = () => {
               {changeDetail.newValue !== undefined && changeDetail.newValue !== null ? (
                 <TextArea
                   autoSize={{ minRows: 2, maxRows: 6 }}
-                  value={typeof changeDetail.newValue === 'string' ? changeDetail.newValue : JSON.stringify(changeDetail.newValue, null, 2)}
+                  value={
+                    typeof changeDetail.newValue === 'string'
+                      ? changeDetail.newValue
+                      : JSON.stringify(changeDetail.newValue, null, 2)
+                  }
                 />
               ) : (
                 <Text type="secondary">—</Text>
@@ -497,8 +519,7 @@ const ConfigDiffPage: React.FC = () => {
       >
         <p>
           <Text>
-            Rollback <Text code>{selectedConfig?.key}</Text> to{' '}
-            <Text code>v{toVersion}</Text>.
+            Rollback <Text code>{selectedConfig?.key}</Text> to <Text code>v{toVersion}</Text>.
           </Text>
         </p>
         <p>

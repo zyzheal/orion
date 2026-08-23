@@ -270,7 +270,14 @@ const CircuitBreakerPage: React.FC = () => {
       key: 'endpoint',
       width: 160,
       ellipsis: true,
-      render: (text?: string) => (text ? <Text code style={{ fontSize: 12 }}>{text}</Text> : '-'),
+      render: (text?: string) =>
+        text ? (
+          <Text code style={{ fontSize: 12 }}>
+            {text}
+          </Text>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '状态',
@@ -290,7 +297,9 @@ const CircuitBreakerPage: React.FC = () => {
       key: 'threshold',
       width: 100,
       render: (_: unknown, record) => (
-        <Text>{record.failureThreshold} 次 / {record.timeoutSeconds}s</Text>
+        <Text>
+          {record.failureThreshold} 次 / {record.timeoutSeconds}s
+        </Text>
       ),
     },
     {
@@ -298,9 +307,10 @@ const CircuitBreakerPage: React.FC = () => {
       key: 'failureRate',
       width: 120,
       render: (_: unknown, record) => {
-        const rate = record.totalRequests > 0
-          ? Math.round((record.totalFailures / record.totalRequests) * 100)
-          : 0;
+        const rate =
+          record.totalRequests > 0
+            ? Math.round((record.totalFailures / record.totalRequests) * 100)
+            : 0;
         return (
           <Progress
             percent={rate}
@@ -338,13 +348,31 @@ const CircuitBreakerPage: React.FC = () => {
       render: (_: unknown, record) => (
         <Space size="small">
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setSelectedBreaker(record); setDetailModalVisible(true); }} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => {
+                setSelectedBreaker(record);
+                setDetailModalVisible(true);
+              }}
+            />
           </Tooltip>
           <Tooltip title="重置">
-            <Button type="link" size="small" icon={<RestOutlined />} onClick={() => handleReset(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<RestOutlined />}
+              onClick={() => handleReset(record)}
+            />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            />
           </Tooltip>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record)}>
             <Tooltip title="删除">
@@ -509,7 +537,11 @@ const CircuitBreakerPage: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="halfOpenMaxRequests" label="半开最大请求" rules={[{ required: true }]}>
+              <Form.Item
+                name="halfOpenMaxRequests"
+                label="半开最大请求"
+                rules={[{ required: true }]}
+              >
                 <InputNumber min={1} style={{ width: '100%' }} placeholder="3" />
               </Form.Item>
             </Col>
@@ -565,7 +597,11 @@ const CircuitBreakerPage: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="halfOpenMaxRequests" label="半开最大请求" rules={[{ required: true }]}>
+              <Form.Item
+                name="halfOpenMaxRequests"
+                label="半开最大请求"
+                rules={[{ required: true }]}
+              >
                 <InputNumber min={1} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
@@ -582,7 +618,13 @@ const CircuitBreakerPage: React.FC = () => {
           setSelectedBreaker(null);
         }}
         footer={[
-          <Button key="close" onClick={() => { setDetailModalVisible(false); setSelectedBreaker(null); }}>
+          <Button
+            key="close"
+            onClick={() => {
+              setDetailModalVisible(false);
+              setSelectedBreaker(null);
+            }}
+          >
             关闭
           </Button>,
         ]}
@@ -594,21 +636,36 @@ const CircuitBreakerPage: React.FC = () => {
             <Descriptions.Item label="服务">{selectedBreaker.service}</Descriptions.Item>
             <Descriptions.Item label="端点">{selectedBreaker.endpoint || '-'}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={stateColor[selectedBreaker.state]} icon={stateIcon[selectedBreaker.state]}>
+              <Tag
+                color={stateColor[selectedBreaker.state]}
+                icon={stateIcon[selectedBreaker.state]}
+              >
                 {stateLabel[selectedBreaker.state]}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="失败阈值">{selectedBreaker.failureThreshold}</Descriptions.Item>
-            <Descriptions.Item label="恢复阈值">{selectedBreaker.successThreshold}</Descriptions.Item>
-            <Descriptions.Item label="超时时间">{selectedBreaker.timeoutSeconds}s</Descriptions.Item>
-            <Descriptions.Item label="半开最大请求">{selectedBreaker.halfOpenMaxRequests}</Descriptions.Item>
+            <Descriptions.Item label="失败阈值">
+              {selectedBreaker.failureThreshold}
+            </Descriptions.Item>
+            <Descriptions.Item label="恢复阈值">
+              {selectedBreaker.successThreshold}
+            </Descriptions.Item>
+            <Descriptions.Item label="超时时间">
+              {selectedBreaker.timeoutSeconds}s
+            </Descriptions.Item>
+            <Descriptions.Item label="半开最大请求">
+              {selectedBreaker.halfOpenMaxRequests}
+            </Descriptions.Item>
             <Descriptions.Item label="当前失败数">{selectedBreaker.failureCount}</Descriptions.Item>
             <Descriptions.Item label="当前成功数">{selectedBreaker.successCount}</Descriptions.Item>
             <Descriptions.Item label="总请求数">{selectedBreaker.totalRequests}</Descriptions.Item>
             <Descriptions.Item label="总失败数">{selectedBreaker.totalFailures}</Descriptions.Item>
-            <Descriptions.Item label="启用">{selectedBreaker.enabled ? '是' : '否'}</Descriptions.Item>
+            <Descriptions.Item label="启用">
+              {selectedBreaker.enabled ? '是' : '否'}
+            </Descriptions.Item>
             <Descriptions.Item label="最后状态变更">
-              {selectedBreaker.lastStateChange ? dayjs(selectedBreaker.lastStateChange).format('YYYY-MM-DD HH:mm') : '-'}
+              {selectedBreaker.lastStateChange
+                ? dayjs(selectedBreaker.lastStateChange).format('YYYY-MM-DD HH:mm')
+                : '-'}
             </Descriptions.Item>
           </Descriptions>
         )}

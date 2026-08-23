@@ -27,11 +27,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Button, Space, Dropdown, message, Tooltip } from 'antd';
-import {
-  PlusOutlined,
-  SaveOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, SaveOutlined, DeleteOutlined } from '@ant-design/icons';
 import { spacing, colors } from '@/tokens';
 import StageNodeComponent from './StageNode';
 
@@ -80,7 +76,11 @@ interface PipelineCanvasProps {
   onAddStage?: (type: string, position: { x: number; y: number }) => void;
   readOnly?: boolean;
   initialViewport?: { x: number; y: number; zoom: number };
-  onSaveLayout?: (nodes: Node[], edges: Edge[], viewport: { x: number; y: number; zoom: number }) => void;
+  onSaveLayout?: (
+    nodes: Node[],
+    edges: Edge[],
+    viewport: { x: number; y: number; zoom: number }
+  ) => void;
 }
 
 // ==================== Helper Functions ====================
@@ -117,9 +117,7 @@ const PipelineCanvasInner: React.FC<PipelineCanvasProps> = ({
     const newNodes: Node<StageNodeData>[] = stages.map((stage, index) => {
       // Calculate position based on dependencies (simple layout)
       const level = calculateLevel(stage, stages);
-      const nodesInLevel = stages.filter(
-        (s) => calculateLevel(s, stages) === level
-      );
+      const nodesInLevel = stages.filter((s) => calculateLevel(s, stages) === level);
       const posInLevel = nodesInLevel.findIndex((s) => s.name === stage.name);
 
       const nodeWidth = 180;
@@ -433,11 +431,14 @@ const PipelineCanvasInner: React.FC<PipelineCanvasProps> = ({
               )}
               {onSaveLayout && (
                 <Tooltip title="保存布局">
-                  <Button icon={<SaveOutlined />} onClick={() => {
-                    const viewport = { x: 0, y: 0, zoom: 1 };
-                    onSaveLayout(nodes, edges, viewport);
-                    message.success('布局已保存');
-                  }}>
+                  <Button
+                    icon={<SaveOutlined />}
+                    onClick={() => {
+                      const viewport = { x: 0, y: 0, zoom: 1 };
+                      onSaveLayout(nodes, edges, viewport);
+                      message.success('布局已保存');
+                    }}
+                  >
                     保存布局
                   </Button>
                 </Tooltip>

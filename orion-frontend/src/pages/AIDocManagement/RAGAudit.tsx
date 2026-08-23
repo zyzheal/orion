@@ -18,9 +18,8 @@ const RAGAuditPage: React.FC = () => {
     setLoading(true);
     try {
       const params = { limit: pageSize, offset: (page - 1) * pageSize };
-      const res = tab === 'all'
-        ? await getRAGAuditLogs(params)
-        : await getRAGFlaggedQueries(params);
+      const res =
+        tab === 'all' ? await getRAGAuditLogs(params) : await getRAGFlaggedQueries(params);
       setLogs(res.data.data);
       setTotal(res.data.total);
     } catch (err) {
@@ -84,9 +83,14 @@ const RAGAuditPage: React.FC = () => {
       title: '安全',
       dataIndex: 'safety_flagged',
       width: 100,
-      render: (v: boolean, record: RAGAuditLog) => v
-        ? <Tag color="error" title={record.safety_reason}>已标记</Tag>
-        : <Tag color="success">正常</Tag>,
+      render: (v: boolean, record: RAGAuditLog) =>
+        v ? (
+          <Tag color="error" title={record.safety_reason}>
+            已标记
+          </Tag>
+        ) : (
+          <Tag color="success">正常</Tag>
+        ),
     },
     {
       title: 'IP',
@@ -98,9 +102,14 @@ const RAGAuditPage: React.FC = () => {
       title: '反馈',
       dataIndex: 'has_feedback',
       width: 80,
-      render: (v: boolean, record: RAGAuditLog) => v
-        ? <Tag color={record.feedback_positive ? 'success' : 'warning'}>{record.feedback_positive ? '👍' : '👎'}</Tag>
-        : <Text type="secondary">-</Text>,
+      render: (v: boolean, record: RAGAuditLog) =>
+        v ? (
+          <Tag color={record.feedback_positive ? 'success' : 'warning'}>
+            {record.feedback_positive ? '👍' : '👎'}
+          </Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        ),
     },
   ];
 
@@ -124,7 +133,10 @@ const RAGAuditPage: React.FC = () => {
           pageSize,
           total,
           onChange: setPage,
-          onShowSizeChange: (_c, s) => { setPageSize(s); setPage(1); },
+          onShowSizeChange: (_c, s) => {
+            setPageSize(s);
+            setPage(1);
+          },
           showSizeChanger: true,
           showTotal: (t) => `共 ${t} 条`,
         }}
@@ -132,11 +144,19 @@ const RAGAuditPage: React.FC = () => {
           expandedRowRender: (record) => (
             <div style={{ paddingLeft: spacing.lg }}>
               <Space direction="vertical" size={4}>
-                <Text type="secondary">Query Hash: <Text code>{record.query_hash}</Text></Text>
+                <Text type="secondary">
+                  Query Hash: <Text code>{record.query_hash}</Text>
+                </Text>
                 <Text type="secondary">Answer Length: {record.answer_length} 字符</Text>
-                {record.safety_flagged && <Text style={{ color: colors.error[500] }}>安全原因: {record.safety_reason}</Text>}
+                {record.safety_flagged && (
+                  <Text style={{ color: colors.error[500] }}>安全原因: {record.safety_reason}</Text>
+                )}
                 {record.has_correction && <Text type="secondary">含用户纠正</Text>}
-                {record.user_agent && <Text type="secondary" ellipsis>User-Agent: {record.user_agent}</Text>}
+                {record.user_agent && (
+                  <Text type="secondary" ellipsis>
+                    User-Agent: {record.user_agent}
+                  </Text>
+                )}
               </Space>
             </div>
           ),

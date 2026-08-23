@@ -109,149 +109,158 @@ const PlanViewer: React.FC = () => {
   const deleteCount = (changes: IaCResourceChange[]) =>
     changes.filter((c) => c.action === 'delete').length;
 
-  const columns: TableColumn<IaCPlan>[] = useMemo<TableColumn<IaCPlan>[]>(() => [
-    {
-      key: 'id',
-      title: '计划 ID',
-      dataIndex: 'id',
-      width: 180,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v).slice(0, 12)}...
-        </Text>
-      ),
-    },
-    {
-      key: 'workspace',
-      title: '工作空间',
-      dataIndex: 'workspaceId',
-      width: 160,
-      render: (v: unknown) => <Tag color="blue">{getWorkspaceName(String(v))}</Tag>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
-    },
-    {
-      key: 'changes',
-      title: '变更',
-      dataIndex: 'resourceChanges',
-      width: 200,
-      render: (v: unknown) => {
-        const changes = Array.isArray(v) ? v : [];
-        return (
-          <Space size={4} wrap>
-            {createCount(changes) > 0 && <Tag color="green">+{createCount(changes)}</Tag>}
-            {updateCount(changes) > 0 && <Tag color="blue">~{updateCount(changes)}</Tag>}
-            {deleteCount(changes) > 0 && <Tag color="red">-{deleteCount(changes)}</Tag>}
-            {changes.length === 0 && <Text type="secondary">0</Text>}
-          </Space>
-        );
-      },
-    },
-    {
-      key: 'costEstimate',
-      title: '费用预估',
-      dataIndex: 'costEstimate',
-      width: 120,
-      sortable: true,
-      render: (v: unknown) =>
-        v !== null && v !== undefined ? (
-          <Text strong style={{ color: Number(v) > 100 ? colors.error[600] : colors.success[600] }}>
-            ${Number(v).toFixed(2)}
+  const columns: TableColumn<IaCPlan>[] = useMemo<TableColumn<IaCPlan>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '计划 ID',
+        dataIndex: 'id',
+        width: 180,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v).slice(0, 12)}...
           </Text>
-        ) : (
-          <Text type="secondary">N/A</Text>
         ),
-    },
-    {
-      key: 'aiReview',
-      title: 'AI 审查',
-      dataIndex: 'aiReview',
-      width: 120,
-      render: (v: unknown) => {
-        if (!v || typeof v !== 'object') return <Text type="secondary">未审查</Text>;
-        const review = v as { score: number };
-        const score = review.score;
-        return (
-          <Progress
-            type="circle"
-            size={32}
-            percent={score}
-            strokeColor={
-              score >= 80
-                ? colors.success[500]
-                : score >= 60
-                  ? colors.warning[500]
-                  : colors.error[400]
-            }
-            format={() => `${score}`}
-          />
-        );
       },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<InfoCircleOutlined />}
-            onClick={() => setSelectedPlan(record)}
-          >
-            详情
-          </Button>
-          {record.status === 'pending' && (
-            <>
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                style={{ color: colors.success[500] }}
-              >
-                应用
-              </Button>
-              <Button type="link" size="small" icon={<CloseCircleOutlined />} danger>
-                丢弃
-              </Button>
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ], [setSelectedPlan]);
+      {
+        key: 'workspace',
+        title: '工作空间',
+        dataIndex: 'workspaceId',
+        width: 160,
+        render: (v: unknown) => <Tag color="blue">{getWorkspaceName(String(v))}</Tag>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
+      },
+      {
+        key: 'changes',
+        title: '变更',
+        dataIndex: 'resourceChanges',
+        width: 200,
+        render: (v: unknown) => {
+          const changes = Array.isArray(v) ? v : [];
+          return (
+            <Space size={4} wrap>
+              {createCount(changes) > 0 && <Tag color="green">+{createCount(changes)}</Tag>}
+              {updateCount(changes) > 0 && <Tag color="blue">~{updateCount(changes)}</Tag>}
+              {deleteCount(changes) > 0 && <Tag color="red">-{deleteCount(changes)}</Tag>}
+              {changes.length === 0 && <Text type="secondary">0</Text>}
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'costEstimate',
+        title: '费用预估',
+        dataIndex: 'costEstimate',
+        width: 120,
+        sortable: true,
+        render: (v: unknown) =>
+          v !== null && v !== undefined ? (
+            <Text
+              strong
+              style={{ color: Number(v) > 100 ? colors.error[600] : colors.success[600] }}
+            >
+              ${Number(v).toFixed(2)}
+            </Text>
+          ) : (
+            <Text type="secondary">N/A</Text>
+          ),
+      },
+      {
+        key: 'aiReview',
+        title: 'AI 审查',
+        dataIndex: 'aiReview',
+        width: 120,
+        render: (v: unknown) => {
+          if (!v || typeof v !== 'object') return <Text type="secondary">未审查</Text>;
+          const review = v as { score: number };
+          const score = review.score;
+          return (
+            <Progress
+              type="circle"
+              size={32}
+              percent={score}
+              strokeColor={
+                score >= 80
+                  ? colors.success[500]
+                  : score >= 60
+                    ? colors.warning[500]
+                    : colors.error[400]
+              }
+              format={() => `${score}`}
+            />
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<InfoCircleOutlined />}
+              onClick={() => setSelectedPlan(record)}
+            >
+              详情
+            </Button>
+            {record.status === 'pending' && (
+              <>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CheckCircleOutlined />}
+                  style={{ color: colors.success[500] }}
+                >
+                  应用
+                </Button>
+                <Button type="link" size="small" icon={<CloseCircleOutlined />} danger>
+                  丢弃
+                </Button>
+              </>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [setSelectedPlan]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Pending', value: 'pending' },
-        { label: 'Applied', value: 'applied' },
-        { label: 'Discarded', value: 'discarded' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Pending', value: 'pending' },
+          { label: 'Applied', value: 'applied' },
+          { label: 'Discarded', value: 'discarded' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

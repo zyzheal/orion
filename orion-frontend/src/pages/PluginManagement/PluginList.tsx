@@ -178,179 +178,188 @@ const PluginList: React.FC<PluginListProps> = ({
   };
 
   // Filter definitions
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'category',
-      label: '分类',
-      options: [
-        { label: '全部', value: 'all' },
-        ...Object.entries(categoryLabels).map(([key, label]) => ({ label, value: key })),
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '已启用', value: 'enabled' },
-        { label: '已禁用', value: 'disabled' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'category',
+        label: '分类',
+        options: [
+          { label: '全部', value: 'all' },
+          ...Object.entries(categoryLabels).map(([key, label]) => ({ label, value: key })),
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '已启用', value: 'enabled' },
+          { label: '已禁用', value: 'disabled' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Table columns
-  const columns: TableColumn<ApiPlugin>[] = useMemo<TableColumn<ApiPlugin>[]>(() => [
-    {
-      key: 'name',
-      title: '插件名称',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (value: unknown) => (
-        <Space>
-          <AppstoreOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{String(value)}</Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 140,
-      sortable: true,
-      render: (value: unknown, record: ApiPlugin) => (
-        <Space>
-          <Tag>v{String(value)}</Tag>
-          {record.latestVersion && (
-            <Badge count="新" style={{ backgroundColor: colors.primary[500] }} />
-          )}
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'state',
-      width: 100,
-      render: (value: unknown) => {
-        const isActive = value === 'ACTIVE';
-        return (
-          <Badge status={isActive ? 'success' : 'default'} text={isActive ? '已启用' : '已禁用'} />
-        );
-      },
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 100,
-      render: (value: unknown, record: ApiPlugin) => {
-        const category = (value as string) || mapPluginTypeToCategory(record.type);
-        return (
-          <Tag color="cyan" style={{ margin: 0 }}>
-            {categoryLabels[String(category)] || record.type}
-          </Tag>
-        );
-      },
-    },
-    {
-      key: 'author',
-      title: '作者',
-      dataIndex: 'author',
-      width: 100,
-      render: (value: unknown) => <Text>{String(value)}</Text>,
-    },
-    {
-      key: 'installedAt',
-      title: '安装时间',
-      dataIndex: 'installedAt',
-      width: 140,
-      sortable: true,
-      render: (value: unknown) => (
-        <Space>
-          <ClockCircleOutlined style={{ color: colors.neutral[500] }} />
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {value ? dayjs(String(value)).format('YYYY-MM-DD') : '-'}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'health',
-      title: '健康状态',
-      dataIndex: 'healthStatus',
-      width: 100,
-      render: (value: unknown) => {
-        const status = (String(value) as PluginHealthStatus) || 'healthy';
-        const config = healthConfig[status] || healthConfig.healthy;
-        return (
+  const columns: TableColumn<ApiPlugin>[] = useMemo<TableColumn<ApiPlugin>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '插件名称',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (value: unknown) => (
           <Space>
-            <span style={{ color: config.color }}>{config.icon}</span>
-            <Text style={{ color: config.color, fontSize: spacing[3] }}>
-              {healthStatusLabels[status]}
+            <AppstoreOutlined style={{ color: colors.primary[500] }} />
+            <Text strong>{String(value)}</Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 140,
+        sortable: true,
+        render: (value: unknown, record: ApiPlugin) => (
+          <Space>
+            <Tag>v{String(value)}</Tag>
+            {record.latestVersion && (
+              <Badge count="新" style={{ backgroundColor: colors.primary[500] }} />
+            )}
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'state',
+        width: 100,
+        render: (value: unknown) => {
+          const isActive = value === 'ACTIVE';
+          return (
+            <Badge
+              status={isActive ? 'success' : 'default'}
+              text={isActive ? '已启用' : '已禁用'}
+            />
+          );
+        },
+      },
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 100,
+        render: (value: unknown, record: ApiPlugin) => {
+          const category = (value as string) || mapPluginTypeToCategory(record.type);
+          return (
+            <Tag color="cyan" style={{ margin: 0 }}>
+              {categoryLabels[String(category)] || record.type}
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'author',
+        title: '作者',
+        dataIndex: 'author',
+        width: 100,
+        render: (value: unknown) => <Text>{String(value)}</Text>,
+      },
+      {
+        key: 'installedAt',
+        title: '安装时间',
+        dataIndex: 'installedAt',
+        width: 140,
+        sortable: true,
+        render: (value: unknown) => (
+          <Space>
+            <ClockCircleOutlined style={{ color: colors.neutral[500] }} />
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {value ? dayjs(String(value)).format('YYYY-MM-DD') : '-'}
             </Text>
           </Space>
-        );
+        ),
       },
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 280,
-      render: (_: unknown, record: ApiPlugin) => (
-        <Space size="small" wrap>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggleStatus(record)}
-            data-testid={`toggle-plugin-${record.id}`}
-          >
-            {record.state === 'ACTIVE' ? '禁用' : '启用'}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<SettingOutlined />}
-            onClick={() => onConfigure(record)}
-            data-testid={`configure-plugin-${record.id}`}
-          >
-            配置
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<CloudDownloadOutlined />}
-            onClick={() => onExecuteTask(record)}
-            data-testid={`execute-plugin-${record.id}`}
-          >
-            执行
-          </Button>
-          {record.latestVersion && (
+      {
+        key: 'health',
+        title: '健康状态',
+        dataIndex: 'healthStatus',
+        width: 100,
+        render: (value: unknown) => {
+          const status = (String(value) as PluginHealthStatus) || 'healthy';
+          const config = healthConfig[status] || healthConfig.healthy;
+          return (
+            <Space>
+              <span style={{ color: config.color }}>{config.icon}</span>
+              <Text style={{ color: config.color, fontSize: spacing[3] }}>
+                {healthStatusLabels[status]}
+              </Text>
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 280,
+        render: (_: unknown, record: ApiPlugin) => (
+          <Space size="small" wrap>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleToggleStatus(record)}
+              data-testid={`toggle-plugin-${record.id}`}
+            >
+              {record.state === 'ACTIVE' ? '禁用' : '启用'}
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<SettingOutlined />}
+              onClick={() => onConfigure(record)}
+              data-testid={`configure-plugin-${record.id}`}
+            >
+              配置
+            </Button>
             <Button
               type="link"
               size="small"
               icon={<CloudDownloadOutlined />}
-              onClick={() => handleUpdate(record)}
-              data-testid={`update-plugin-${record.id}`}
+              onClick={() => onExecuteTask(record)}
+              data-testid={`execute-plugin-${record.id}`}
             >
-              更新
+              执行
             </Button>
-          )}
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            data-testid={`delete-plugin-${record.id}`}
-          >
-            删除
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleToggleStatus, handleUpdate, onConfigure, onExecuteTask]);
+            {record.latestVersion && (
+              <Button
+                type="link"
+                size="small"
+                icon={<CloudDownloadOutlined />}
+                onClick={() => handleUpdate(record)}
+                data-testid={`update-plugin-${record.id}`}
+              >
+                更新
+              </Button>
+            )}
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
+              data-testid={`delete-plugin-${record.id}`}
+            >
+              删除
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleToggleStatus, handleUpdate, onConfigure, onExecuteTask]
+  );
 
   return (
     <div data-testid="plugin-management-page">

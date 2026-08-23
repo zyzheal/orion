@@ -77,17 +77,14 @@ export interface CreateCIAttributeInput {
 export const listCITypes = (params?: { category?: string; enabled?: boolean }) =>
   apiClient.get<CIType[]>('/ci-types', { params });
 
-export const getCIType = (id: string) =>
-  apiClient.get<CIType>(`/ci-types/${id}`);
+export const getCIType = (id: string) => apiClient.get<CIType>(`/ci-types/${id}`);
 
-export const createCIType = (data: CreateCITypeInput) =>
-  apiClient.post<CIType>('/ci-types', data);
+export const createCIType = (data: CreateCITypeInput) => apiClient.post<CIType>('/ci-types', data);
 
 export const updateCIType = (id: string, data: UpdateCITypeInput) =>
   apiClient.put<CIType>(`/ci-types/${id}`, data);
 
-export const deleteCIType = (id: string) =>
-  apiClient.delete(`/ci-types/${id}`);
+export const deleteCIType = (id: string) => apiClient.delete(`/ci-types/${id}`);
 
 // Attributes
 export const getCITypeAttributes = (typeId: string) =>
@@ -98,7 +95,10 @@ export const setCITypeAttributes = (typeId: string, attributes: CreateCIAttribut
 
 // Validation
 export const validateCIInstance = (typeId: string, data: Record<string, unknown>) =>
-  apiClient.post<{ valid: boolean; errors: { field: string; message: string }[] }>(`/ci-types/${typeId}/validate`, data);
+  apiClient.post<{ valid: boolean; errors: { field: string; message: string }[] }>(
+    `/ci-types/${typeId}/validate`,
+    data
+  );
 
 // Versions
 export const createCITypeVersion = (typeId: string) =>

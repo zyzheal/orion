@@ -222,7 +222,9 @@ const SmartRecommend: React.FC = () => {
   const [reconnecting, setReconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executionDrawerOpen, setExecutionDrawerOpen] = useState(false);
-  const [executionLog, setExecutionLog] = useState<Array<{ time: string; command: string; status: string }>>([]);
+  const [executionLog, setExecutionLog] = useState<
+    Array<{ time: string; command: string; status: string }>
+  >([]);
   const dismissedRef = useRef<Set<string>>(new Set());
 
   // ============================================================================
@@ -317,33 +319,28 @@ const SmartRecommend: React.FC = () => {
 
   const handleDismiss = useCallback((id: string) => {
     dismissedRef.current.add(id);
-    setRecommendations((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, dismissed: true } : r))
-    );
+    setRecommendations((prev) => prev.map((r) => (r.id === id ? { ...r, dismissed: true } : r)));
   }, []);
 
-  const handleExecute = useCallback(
-    async (command: string, params: Record<string, unknown>) => {
-      const input: CommandExecutionInput = {
-        command,
-        params,
-      };
-      try {
-        await executeCommand(input);
-        setExecutionLog((prev) => [
-          { time: new Date().toLocaleTimeString(), command, status: 'success' },
-          ...prev,
-        ]);
-      } catch {
-        setExecutionLog((prev) => [
-          { time: new Date().toLocaleTimeString(), command, status: 'failed' },
-          ...prev,
-        ]);
-        throw new Error('Command execution failed');
-      }
-    },
-    []
-  );
+  const handleExecute = useCallback(async (command: string, params: Record<string, unknown>) => {
+    const input: CommandExecutionInput = {
+      command,
+      params,
+    };
+    try {
+      await executeCommand(input);
+      setExecutionLog((prev) => [
+        { time: new Date().toLocaleTimeString(), command, status: 'success' },
+        ...prev,
+      ]);
+    } catch {
+      setExecutionLog((prev) => [
+        { time: new Date().toLocaleTimeString(), command, status: 'failed' },
+        ...prev,
+      ]);
+      throw new Error('Command execution failed');
+    }
+  }, []);
 
   // ============================================================================
   // Stats
@@ -375,9 +372,7 @@ const SmartRecommend: React.FC = () => {
             <BulbOutlined style={{ marginRight: spacing[2], color: colors.warning[500] }} />
             Smart Recommendations
           </Title>
-          <Text type="secondary">
-            AI-powered insights with real-time updates via SSE
-          </Text>
+          <Text type="secondary">AI-powered insights with real-time updates via SSE</Text>
         </div>
         <Space>
           <ConnectionStatus
@@ -388,10 +383,7 @@ const SmartRecommend: React.FC = () => {
           <Button icon={<SyncOutlined />} onClick={loadRecommendations} loading={loading}>
             Refresh
           </Button>
-          <Button
-            icon={<ClockCircleOutlined />}
-            onClick={() => setExecutionDrawerOpen(true)}
-          >
+          <Button icon={<ClockCircleOutlined />} onClick={() => setExecutionDrawerOpen(true)}>
             Execution Log ({executionLog.length})
           </Button>
         </Space>
@@ -433,10 +425,7 @@ const SmartRecommend: React.FC = () => {
       {/* Recommendations List */}
       <Spin spinning={loading && recommendations.length === 0}>
         {recommendations.length === 0 && !loading ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No recommendations available"
-          >
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No recommendations available">
             <Button type="primary" onClick={loadRecommendations}>
               Refresh
             </Button>
@@ -476,9 +465,7 @@ const SmartRecommend: React.FC = () => {
                   title={
                     <Space>
                       <Text code>{log.command}</Text>
-                      <Tag color={log.status === 'success' ? 'green' : 'red'}>
-                        {log.status}
-                      </Tag>
+                      <Tag color={log.status === 'success' ? 'green' : 'red'}>{log.status}</Tag>
                     </Space>
                   }
                   description={log.time}

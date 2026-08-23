@@ -18,12 +18,28 @@
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Typography, Button, Space, Card, Modal, Form, Input,
-  Select, Tag, Tooltip, message, Empty, Tabs, Switch,
+  Typography,
+  Button,
+  Space,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  message,
+  Empty,
+  Tabs,
+  Switch,
 } from 'antd';
 import {
-  PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
-  CodeOutlined, EyeOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CodeOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
 import TableWrapper, { type TableColumn } from '@/components/Table';
@@ -111,11 +127,15 @@ const FormDesigner: React.FC = () => {
     try {
       if (activeTab === 'forms') {
         const data = await listForms();
-        const forms = Array.isArray(data) ? data : (data && typeof data === 'object' && 'data' in data ? (data as { data: FormSchema[] }).data ?? [] : []);
+        const forms = Array.isArray(data)
+          ? data
+          : data && typeof data === 'object' && 'data' in data
+            ? ((data as { data: FormSchema[] }).data ?? [])
+            : [];
         setForms(forms as FormSchema[]);
       } else {
         const res = await listConditions();
-        setConditions(Array.isArray(res) ? res : (res as { data?: ConditionRule[] }).data ?? []);
+        setConditions(Array.isArray(res) ? res : ((res as { data?: ConditionRule[] }).data ?? []));
       }
     } catch (err: any) {
       message.error(err?.message || '加载失败');
@@ -124,7 +144,9 @@ const FormDesigner: React.FC = () => {
     }
   }, [activeTab]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -170,7 +192,12 @@ const FormDesigner: React.FC = () => {
       const values = await form.validateFields();
       let schemaObj = values.schema;
       if (typeof schemaObj === 'string') {
-        try { schemaObj = JSON.parse(schemaObj); } catch { message.error('Schema 格式无效，请输入合法的 JSON'); return; }
+        try {
+          schemaObj = JSON.parse(schemaObj);
+        } catch {
+          message.error('Schema 格式无效，请输入合法的 JSON');
+          return;
+        }
       }
 
       if (editingItem) {
@@ -195,18 +222,53 @@ const FormDesigner: React.FC = () => {
     }
   };
 
-  const formColumns: TableColumn<unknown>[] = useMemo<TableColumn<unknown>[]>(() => [
-    { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (_: unknown, record: unknown) => { const r = record as Record<string, unknown>; const v = r.status as string; return <Tag color={STATUS_MAP[v]?.color}>{STATUS_MAP[v]?.label || v}</Tag>; } },
-    { title: '更新日期', dataIndex: 'updatedAt', key: 'updatedAt', render: (_: unknown, record: unknown) => { const r = record as Record<string, unknown>; const v = r.updatedAt as string; return <>{v ? new Date(v).toLocaleDateString('zh-CN') : '-'}</>; } },
-  ], []);
+  const formColumns: TableColumn<unknown>[] = useMemo<TableColumn<unknown>[]>(
+    () => [
+      { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
+      { title: '版本', dataIndex: 'version', key: 'version', width: 80 },
+      {
+        title: '状态',
+        dataIndex: 'status',
+        key: 'status',
+        render: (_: unknown, record: unknown) => {
+          const r = record as Record<string, unknown>;
+          const v = r.status as string;
+          return <Tag color={STATUS_MAP[v]?.color}>{STATUS_MAP[v]?.label || v}</Tag>;
+        },
+      },
+      {
+        title: '更新日期',
+        dataIndex: 'updatedAt',
+        key: 'updatedAt',
+        render: (_: unknown, record: unknown) => {
+          const r = record as Record<string, unknown>;
+          const v = r.updatedAt as string;
+          return <>{v ? new Date(v).toLocaleDateString('zh-CN') : '-'}</>;
+        },
+      },
+    ],
+    []
+  );
 
-  const conditionColumns: TableColumn<unknown>[] = useMemo<TableColumn<unknown>[]>(() => [
-    { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: '条件', dataIndex: 'condition', key: 'condition', ellipsis: true },
-    { title: '启用', dataIndex: 'enabled', key: 'enabled', render: (_: unknown, record: unknown) => <Switch checked={(record as Record<string, unknown>).enabled as boolean} disabled size="small" /> },
-  ], []);
+  const conditionColumns: TableColumn<unknown>[] = useMemo<TableColumn<unknown>[]>(
+    () => [
+      { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
+      { title: '条件', dataIndex: 'condition', key: 'condition', ellipsis: true },
+      {
+        title: '启用',
+        dataIndex: 'enabled',
+        key: 'enabled',
+        render: (_: unknown, record: unknown) => (
+          <Switch
+            checked={(record as Record<string, unknown>).enabled as boolean}
+            disabled
+            size="small"
+          />
+        ),
+      },
+    ],
+    []
+  );
 
   const actionColumn = {
     title: '操作',
@@ -216,11 +278,24 @@ const FormDesigner: React.FC = () => {
       <Space>
         {activeTab === 'forms' && (
           <Tooltip title="预览 Schema">
-            <Button type="link" icon={<EyeOutlined />} onClick={() => handlePreview(record.schema)} />
+            <Button
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => handlePreview(record.schema)}
+            />
           </Tooltip>
         )}
-        <Tooltip title="编辑"><Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} /></Tooltip>
-        <Tooltip title="删除"><Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} /></Tooltip>
+        <Tooltip title="编辑">
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+        </Tooltip>
+        <Tooltip title="删除">
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          />
+        </Tooltip>
       </Space>
     ),
   };
@@ -229,7 +304,11 @@ const FormDesigner: React.FC = () => {
     if (activeTab === 'forms') {
       return (
         <>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入表单名称' }]}>
+          <Form.Item
+            name="name"
+            label="名称"
+            rules={[{ required: true, message: '请输入表单名称' }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="description" label="描述">
@@ -238,8 +317,15 @@ const FormDesigner: React.FC = () => {
           <Form.Item name="version" label="版本" rules={[{ required: true }]}>
             <Input placeholder="1.0.0" />
           </Form.Item>
-          <Form.Item name="schema" label="JSON Schema" rules={[{ required: true, message: '请输入 JSON Schema' }]}>
-            <TextArea rows={8} placeholder='{"type":"object","properties":{"field1":{"type":"string"}}}' />
+          <Form.Item
+            name="schema"
+            label="JSON Schema"
+            rules={[{ required: true, message: '请输入 JSON Schema' }]}
+          >
+            <TextArea
+              rows={8}
+              placeholder='{"type":"object","properties":{"field1":{"type":"string"}}}'
+            />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue="draft">
             <Select>
@@ -259,7 +345,11 @@ const FormDesigner: React.FC = () => {
         <Form.Item name="description" label="描述">
           <TextArea rows={2} />
         </Form.Item>
-        <Form.Item name="condition" label="条件表达式" rules={[{ required: true, message: '请输入条件表达式' }]}>
+        <Form.Item
+          name="condition"
+          label="条件表达式"
+          rules={[{ required: true, message: '请输入条件表达式' }]}
+        >
           <Input placeholder='field1 == "value1" && field2 > 10' />
         </Form.Item>
         <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
@@ -269,7 +359,10 @@ const FormDesigner: React.FC = () => {
     );
   };
 
-  const currentData = (activeTab === 'forms' ? forms : conditions) as unknown as Record<string, unknown>[];
+  const currentData = (activeTab === 'forms' ? forms : conditions) as unknown as Record<
+    string,
+    unknown
+  >[];
   const currentColumns = activeTab === 'forms' ? formColumns : conditionColumns;
 
   return (
@@ -289,7 +382,9 @@ const FormDesigner: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
             {activeTab === 'forms' ? '新建表单' : '新建条件'}
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+            刷新
+          </Button>
         </Space>
 
         <TableWrapper
@@ -297,7 +392,9 @@ const FormDesigner: React.FC = () => {
           columns={[...currentColumns, actionColumn]}
           rowKey="id"
           loading={loading}
-          locale={{ emptyText: <Empty description={`暂无${activeTab === 'forms' ? '表单' : '条件'}`} /> }}
+          locale={{
+            emptyText: <Empty description={`暂无${activeTab === 'forms' ? '表单' : '条件'}`} />,
+          }}
           pagination={{ pageSize: 20, showTotal: (t: number) => `共 ${t} 条` } as any}
         />
       </Card>
@@ -320,7 +417,15 @@ const FormDesigner: React.FC = () => {
         footer={null}
         width={640}
       >
-        <pre style={{ background: themeVars.bgSecondary, padding: 16, borderRadius: 8, maxHeight: 400, overflow: 'auto' }}>
+        <pre
+          style={{
+            background: themeVars.bgSecondary,
+            padding: 16,
+            borderRadius: 8,
+            maxHeight: 400,
+            overflow: 'auto',
+          }}
+        >
           {previewSchema}
         </pre>
       </Modal>

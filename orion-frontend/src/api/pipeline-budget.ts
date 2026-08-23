@@ -70,7 +70,9 @@ export const pipelineBudgetApi = {
   },
 
   getUsage: async (pipelineId: string, runId: string) => {
-    const response = await apiClient.get(`/api/v1/pipelines/${pipelineId}/runs/${runId}/budget-usage`);
+    const response = await apiClient.get(
+      `/api/v1/pipelines/${pipelineId}/runs/${runId}/budget-usage`
+    );
     return response.data as BudgetUsage;
   },
 };

@@ -24,10 +24,7 @@ declare global {
 
 import { getDefaultChannel } from './eventBus';
 import type { EventBusPayload } from '@orion-mf/core';
-import {
-  loadSubApp,
-  destroySubApp,
-} from '@orion-mf/core';
+import { loadSubApp, destroySubApp } from '@orion-mf/core';
 import { subAppConfigs, getSubAppConfig, getEnabledApps } from './apps';
 
 // Re-export for direct access
@@ -41,15 +38,18 @@ export { subAppConfigs, getSubAppConfig, getEnabledApps };
 export const initMicroFrontend = (): void => {
   // Phase 3.8.4: 监听服务端广播的登出事件，触发本地会话清理
   const channel = getDefaultChannel();
-  channel.on('auth:logout', () => {
-
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenant_id');
-    window.$orion = undefined;
-    injectAuthState();
-  }, 'main-app-init');
+  channel.on(
+    'auth:logout',
+    () => {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('tenant_id');
+      window.$orion = undefined;
+      injectAuthState();
+    },
+    'main-app-init'
+  );
 
   // 子应用改为按需动态加载，不需要预先注册
 };
@@ -82,7 +82,9 @@ export const unloadSubApp = async (appKey: string): Promise<void> => {
   const app = getSubAppConfig(appKey);
   if (!app) return;
 
-  await destroySubApp(appKey).catch((err: unknown) => console.error(`Failed to destroy subapp ${appKey}:`, err));
+  await destroySubApp(appKey).catch((err: unknown) =>
+    console.error(`Failed to destroy subapp ${appKey}:`, err)
+  );
 
   // 销毁完成后再清除容器内容
   const container = document.querySelector(app.container);
@@ -147,7 +149,7 @@ export const getAuthState = (): OrionAuthState | null => {
  */
 export const subscribeAuthState = (
   callback: (state: OrionAuthState) => void,
-  owner?: string,
+  owner?: string
 ): (() => void) => {
   const channel = getDefaultChannel();
   const handler = (payload: EventBusPayload) => {

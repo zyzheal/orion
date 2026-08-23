@@ -116,11 +116,7 @@ const PipelineParamModal: React.FC<PipelineParamModalProps> = ({
 
   return (
     <Modal
-      title={
-        <span style={{ fontWeight: 600 }}>
-          {param ? '编辑参数' : '添加参数'}
-        </span>
-      }
+      title={<span style={{ fontWeight: 600 }}>{param ? '编辑参数' : '添加参数'}</span>}
       open={visible}
       onOk={handleOk}
       onCancel={handleCancel}
@@ -132,19 +128,17 @@ const PipelineParamModal: React.FC<PipelineParamModalProps> = ({
         body: { padding: `${spacing.lg}px ${spacing.xl}px` },
       }}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        requiredMark="optional"
-        style={{ marginTop: spacing.md }}
-      >
+      <Form form={form} layout="vertical" requiredMark="optional" style={{ marginTop: spacing.md }}>
         {/* Parameter Name */}
         <Form.Item
           label="参数名称"
           name="name"
           rules={[
             { required: true, message: '请输入参数名称' },
-            { pattern: /^[a-zA-Z_][a-zA-Z0-9_.]*$/, message: '名称须以字母/下划线开头，可含字母、数字、下划线、点' },
+            {
+              pattern: /^[a-zA-Z_][a-zA-Z0-9_.]*$/,
+              message: '名称须以字母/下划线开头，可含字母、数字、下划线、点',
+            },
           ]}
           extra="如: build.env, image.tag, deploy.enabled"
         >
@@ -163,7 +157,7 @@ const PipelineParamModal: React.FC<PipelineParamModalProps> = ({
         >
           <Select
             placeholder="选择类型"
-            options={PARAM_TYPES.map(t => ({ label: t.label, value: t.value }))}
+            options={PARAM_TYPES.map((t) => ({ label: t.label, value: t.value }))}
             style={{ borderRadius: componentRadius.input }}
           />
         </Form.Item>
@@ -195,10 +189,7 @@ const PipelineParamModal: React.FC<PipelineParamModalProps> = ({
               style={{ borderRadius: componentRadius.input }}
             />
           ) : (
-            <Input
-              placeholder="输入默认值"
-              style={{ borderRadius: componentRadius.input }}
-            />
+            <Input placeholder="输入默认值" style={{ borderRadius: componentRadius.input }} />
           )}
         </Form.Item>
 
@@ -236,18 +227,12 @@ const PipelineParamModal: React.FC<PipelineParamModalProps> = ({
             style={{ flex: 1, marginBottom: 0 }}
             extra="可选：用于运行时验证参数值格式"
           >
-            <Input
-              placeholder="如: ^[a-z0-9-]+$"
-              style={{ borderRadius: componentRadius.input }}
-            />
+            <Input placeholder="如: ^[a-z0-9-]+$" style={{ borderRadius: componentRadius.input }} />
           </Form.Item>
         </Space>
 
         {/* Description */}
-        <Form.Item
-          label="描述"
-          name="description"
-        >
+        <Form.Item label="描述" name="description">
           <TextArea
             rows={2}
             placeholder="参数用途说明（可选）"

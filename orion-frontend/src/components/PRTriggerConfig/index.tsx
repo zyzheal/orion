@@ -4,17 +4,7 @@
  * branch filtering, label filtering, and draft PR policies.
  */
 import React, { useState, useEffect } from 'react';
-import {
-  Select,
-  Switch,
-  Input,
-  Space,
-  Tag,
-  Card,
-  Divider,
-  Alert,
-  Form,
-} from 'antd';
+import { Select, Switch, Input, Space, Tag, Card, Divider, Alert, Form } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   GitlabOutlined,
@@ -119,7 +109,13 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
     onChange?.(newConfig);
   };
 
-  const addToList = (key: keyof PRTriggerConfig['branchFilter'] | keyof PRTriggerConfig['pathFilter'] | keyof PRTriggerConfig['labelFilter'], item: string) => {
+  const addToList = (
+    key:
+      | keyof PRTriggerConfig['branchFilter']
+      | keyof PRTriggerConfig['pathFilter']
+      | keyof PRTriggerConfig['labelFilter'],
+    item: string
+  ) => {
     if (!item.trim()) return;
 
     if (key === 'targetBranches' || key === 'sourceBranches') {
@@ -141,7 +137,10 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
   };
 
   const removeFromList = (
-    key: keyof PRTriggerConfig['branchFilter'] | keyof PRTriggerConfig['pathFilter'] | keyof PRTriggerConfig['labelFilter'],
+    key:
+      | keyof PRTriggerConfig['branchFilter']
+      | keyof PRTriggerConfig['pathFilter']
+      | keyof PRTriggerConfig['labelFilter'],
     index: number
   ) => {
     if (key === 'targetBranches' || key === 'sourceBranches') {
@@ -162,7 +161,16 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
     }
   };
 
-  const providerIcon = config.provider === 'github' ? <GithubOutlined /> : config.provider === 'gitlab' ? <GitlabOutlined /> : <><GithubOutlined /> <GitlabOutlined /></>;
+  const providerIcon =
+    config.provider === 'github' ? (
+      <GithubOutlined />
+    ) : config.provider === 'gitlab' ? (
+      <GitlabOutlined />
+    ) : (
+      <>
+        <GithubOutlined /> <GitlabOutlined />
+      </>
+    );
 
   return (
     <Card size="small" title={<Space>{providerIcon} PR/MR 触发配置</Space>}>
@@ -181,7 +189,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
         <>
           {/* 代码托管平台 */}
           <Divider orientation="left" orientationMargin={0}>
-            <Space><GithubOutlined /> 代码托管平台</Space>
+            <Space>
+              <GithubOutlined /> 代码托管平台
+            </Space>
           </Divider>
 
           <Form.Item label="支持平台">
@@ -197,10 +207,7 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
           </Form.Item>
 
           {/* 安全模型 */}
-          <Form.Item
-            label="安全级别"
-            tooltip="决定 PR 触发时的权限级别和 secrets 注入策略"
-          >
+          <Form.Item label="安全级别" tooltip="决定 PR 触发时的权限级别和 secrets 注入策略">
             <Select
               value={config.securityLevel}
               onChange={(v) => updateConfig({ securityLevel: v })}
@@ -210,7 +217,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 return (
                   <Space direction="vertical" size={0}>
                     <span>{option.label}</span>
-                    <span style={{ fontSize: 12, color: colors.neutral[500] }}>{data.description}</span>
+                    <span style={{ fontSize: 12, color: colors.neutral[500] }}>
+                      {data.description}
+                    </span>
                   </Space>
                 );
               }}
@@ -219,7 +228,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
 
           {/* PR 动作过滤 */}
           <Divider orientation="left" orientationMargin={0}>
-            <Space><FileProtectOutlined /> 触发事件</Space>
+            <Space>
+              <FileProtectOutlined /> 触发事件
+            </Space>
           </Divider>
 
           <Form.Item label="PR 动作" tooltip="哪些 PR 动作会触发 Pipeline">
@@ -250,7 +261,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
 
           {/* 分支过滤 */}
           <Divider orientation="left" orientationMargin={0}>
-            <Space><BranchesOutlined /> 分支过滤</Space>
+            <Space>
+              <BranchesOutlined /> 分支过滤
+            </Space>
           </Divider>
 
           <Form.Item label="目标分支">
@@ -278,7 +291,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.branchFilter.targetBranches.length === 0 && (
-                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有分支</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>
+                  未配置，将匹配所有分支
+                </span>
               )}
             </div>
           </Form.Item>
@@ -307,15 +322,20 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                   {branch}
                 </Tag>
               ))}
-              {(!config.branchFilter.sourceBranches || config.branchFilter.sourceBranches.length === 0) && (
-                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有来源分支</span>
+              {(!config.branchFilter.sourceBranches ||
+                config.branchFilter.sourceBranches.length === 0) && (
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>
+                  未配置，将匹配所有来源分支
+                </span>
               )}
             </div>
           </Form.Item>
 
           {/* 路径过滤 */}
           <Divider orientation="left" orientationMargin={0}>
-            <Space><FilterOutlined /> 路径过滤</Space>
+            <Space>
+              <FilterOutlined /> 路径过滤
+            </Space>
           </Divider>
 
           <Alert
@@ -351,7 +371,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
                 </Tag>
               ))}
               {config.pathFilter.includePaths.length === 0 && (
-                <span style={{ color: colors.neutral[500], fontSize: 12 }}>未配置，将匹配所有文件变更</span>
+                <span style={{ color: colors.neutral[500], fontSize: 12 }}>
+                  未配置，将匹配所有文件变更
+                </span>
               )}
             </div>
           </Form.Item>
@@ -385,7 +407,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
 
           {/* 标签过滤 */}
           <Divider orientation="left" orientationMargin={0}>
-            <Space><TagOutlined /> 标签过滤</Space>
+            <Space>
+              <TagOutlined /> 标签过滤
+            </Space>
           </Divider>
 
           <Form.Item label="必须包含的标签">
@@ -447,7 +471,9 @@ const PRTriggerConfig: React.FC<PRTriggerConfigProps> = ({ value, onChange }) =>
 
           {/* 状态回写 */}
           <Divider orientation="left" orientationMargin={0}>
-            <Space><FileProtectOutlined /> 状态回写</Space>
+            <Space>
+              <FileProtectOutlined /> 状态回写
+            </Space>
           </Divider>
 
           <Form.Item label="状态检查名称" tooltip="在 PR 页面显示的检查名称">

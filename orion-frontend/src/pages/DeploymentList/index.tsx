@@ -50,7 +50,9 @@ const DeploymentList: React.FC = () => {
     try {
       const response = await getDeployments();
       const apiData = response.data;
-      setDeployments(Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || []);
+      setDeployments(
+        Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || []
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载部署列表失败：${error.message}`);
@@ -100,30 +102,33 @@ const DeploymentList: React.FC = () => {
   }, [searchQuery, filters]);
 
   // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '成功', value: 'success' },
-        { label: '运行中', value: 'running' },
-        { label: '失败', value: 'failed' },
-        { label: '警告', value: 'warning' },
-      ],
-    },
-    {
-      key: 'environment',
-      label: '环境',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Production', value: 'production' },
-        { label: 'Staging', value: 'staging' },
-        { label: 'Development', value: 'development' },
-        { label: 'Test', value: 'test' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '成功', value: 'success' },
+          { label: '运行中', value: 'running' },
+          { label: '失败', value: 'failed' },
+          { label: '警告', value: 'warning' },
+        ],
+      },
+      {
+        key: 'environment',
+        label: '环境',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Production', value: 'production' },
+          { label: 'Staging', value: 'staging' },
+          { label: 'Development', value: 'development' },
+          { label: 'Test', value: 'test' },
+        ],
+      },
+    ],
+    []
+  );
 
   // Environment tag colors
   const envColors: Record<string, string> = {
@@ -142,118 +147,131 @@ const DeploymentList: React.FC = () => {
   };
 
   // Table column definitions
-  const columns: TableColumn<DeploymentRecord>[] = useMemo<TableColumn<DeploymentRecord>[]>(() => [
-    {
-      key: 'appName',
-      title: '应用',
-      dataIndex: 'appName',
-      width: 180,
-      sortable: true,
-      filterable: true,
-      render: (_value: unknown, record: any) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => navigate(`/deployments/${record.id}`)}
-          >
-            {record.appName}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {record.version}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 140,
-      render: (value: unknown) => <Tag color="purple">{String(value)}</Tag>,
-    },
-    {
-      key: 'environment',
-      title: '环境',
-      dataIndex: 'environment',
-      width: 120,
-      render: (value: unknown) => (
-        <Tag color={envColors[String(value)] || 'default'}>
-          {String(value).charAt(0).toUpperCase() + String(value).slice(1)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'strategy',
-      title: '策略',
-      dataIndex: 'strategy',
-      width: 120,
-      render: (value: unknown) => (
-        <Text style={{ fontSize: spacing[3] }}>
-          {strategyLabels[String(value)] || String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (value: unknown) => <StatusBadge status={value as StatusType} size="small" />,
-    },
-    {
-      key: 'triggeredBy',
-      title: '触发人',
-      dataIndex: 'triggeredBy',
-      width: 100,
-      render: (value: unknown) => <Text code>{String(value)}</Text>,
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      dataIndex: 'duration',
-      width: 100,
-      sortable: true,
-      render: (value: unknown) => {
-        if (!value) return <Text type="secondary">-</Text>;
-        const seconds = Number(value);
-        const minutes = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return <Text>{minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`}</Text>;
+  const columns: TableColumn<DeploymentRecord>[] = useMemo<TableColumn<DeploymentRecord>[]>(
+    () => [
+      {
+        key: 'appName',
+        title: '应用',
+        dataIndex: 'appName',
+        width: 180,
+        sortable: true,
+        filterable: true,
+        render: (_value: unknown, record: any) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => navigate(`/deployments/${record.id}`)}
+            >
+              {record.appName}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {record.version}
+            </Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'startTime',
-      title: '部署时间',
-      dataIndex: 'startTime',
-      width: 160,
-      sortable: true,
-      render: (value: unknown) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: spacing[3] }}>{dayjs(String(value)).format('MM-DD HH:mm')}</Text>
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {dayjs(String(value)).fromNow()}
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 140,
+        render: (value: unknown) => <Tag color="purple">{String(value)}</Tag>,
+      },
+      {
+        key: 'environment',
+        title: '环境',
+        dataIndex: 'environment',
+        width: 120,
+        render: (value: unknown) => (
+          <Tag color={envColors[String(value)] || 'default'}>
+            {String(value).charAt(0).toUpperCase() + String(value).slice(1)}
+          </Tag>
+        ),
+      },
+      {
+        key: 'strategy',
+        title: '策略',
+        dataIndex: 'strategy',
+        width: 120,
+        render: (value: unknown) => (
+          <Text style={{ fontSize: spacing[3] }}>
+            {strategyLabels[String(value)] || String(value)}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: any) => (
-        <PermissionActions
-          resource="deployment"
-          actions={[
-            { key: 'read', label: '详情', onClick: () => navigate(`/deployments/${record.id}`) },
-            ...(record.status === 'success'
-              ? [{ key: 'execute', label: '回滚', danger: true, confirm: true, confirmText: '确定要回滚此部署吗？' }]
-              : []),
-          ]}
-        />
-      ),
-    },
-  ], [navigate]);
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 120,
+        render: (value: unknown) => <StatusBadge status={value as StatusType} size="small" />,
+      },
+      {
+        key: 'triggeredBy',
+        title: '触发人',
+        dataIndex: 'triggeredBy',
+        width: 100,
+        render: (value: unknown) => <Text code>{String(value)}</Text>,
+      },
+      {
+        key: 'duration',
+        title: '耗时',
+        dataIndex: 'duration',
+        width: 100,
+        sortable: true,
+        render: (value: unknown) => {
+          if (!value) return <Text type="secondary">-</Text>;
+          const seconds = Number(value);
+          const minutes = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          return <Text>{minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`}</Text>;
+        },
+      },
+      {
+        key: 'startTime',
+        title: '部署时间',
+        dataIndex: 'startTime',
+        width: 160,
+        sortable: true,
+        render: (value: unknown) => (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: spacing[3] }}>
+              {dayjs(String(value)).format('MM-DD HH:mm')}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {dayjs(String(value)).fromNow()}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: any) => (
+          <PermissionActions
+            resource="deployment"
+            actions={[
+              { key: 'read', label: '详情', onClick: () => navigate(`/deployments/${record.id}`) },
+              ...(record.status === 'success'
+                ? [
+                    {
+                      key: 'execute',
+                      label: '回滚',
+                      danger: true,
+                      confirm: true,
+                      confirmText: '确定要回滚此部署吗？',
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        ),
+      },
+    ],
+    [navigate]
+  );
 
   const handleRefresh = () => {
     loadDeployments();

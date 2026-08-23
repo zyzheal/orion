@@ -27,7 +27,16 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
-import { getHosts, getK8sResources, getCICDResources, startK8sSync, stopK8sSync, type HostInfo, type K8sResource, type CICDResource } from '@/api/cmdb';
+import {
+  getHosts,
+  getK8sResources,
+  getCICDResources,
+  startK8sSync,
+  stopK8sSync,
+  type HostInfo,
+  type K8sResource,
+  type CICDResource,
+} from '@/api/cmdb';
 
 const { Title, Text } = Typography;
 
@@ -68,7 +77,9 @@ const IntegrationPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -109,8 +120,18 @@ const IntegrationPage: React.FC = () => {
     { title: 'IP', dataIndex: 'ip', key: 'ip' },
     { title: 'OS', dataIndex: 'os', key: 'os' },
     { title: 'CPU', dataIndex: 'cpu', key: 'cpu', render: (v: number) => `${v} Core` },
-    { title: '内存', dataIndex: 'memory', key: 'memory', render: (v: number) => `${(v / 1024).toFixed(1)} GB` },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'running' ? 'green' : 'default'}>{s}</Tag> },
+    {
+      title: '内存',
+      dataIndex: 'memory',
+      key: 'memory',
+      render: (v: number) => `${(v / 1024).toFixed(1)} GB`,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: string) => <Tag color={s === 'running' ? 'green' : 'default'}>{s}</Tag>,
+    },
     {
       title: '操作',
       key: 'action',
@@ -134,15 +155,47 @@ const IntegrationPage: React.FC = () => {
     { title: '类型', dataIndex: 'kind', key: 'kind', render: (k: string) => <Tag>{k}</Tag> },
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: 'Namespace', dataIndex: 'namespace', key: 'namespace' },
-    { title: '副本', dataIndex: 'replicas', key: 'replicas', render: (r: any) => (r ? `${r.current}/${r.desired}` : '-') },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'Running' ? 'green' : 'default'}>{s}</Tag> },
+    {
+      title: '副本',
+      dataIndex: 'replicas',
+      key: 'replicas',
+      render: (r: any) => (r ? `${r.current}/${r.desired}` : '-'),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: string) => <Tag color={s === 'Running' ? 'green' : 'default'}>{s}</Tag>,
+    },
   ];
 
   const cicdColumns = [
-    { title: '类型', dataIndex: 'type', key: 'type', render: (t: string) => <Tag color="purple">{t}</Tag> },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (t: string) => <Tag color="purple">{t}</Tag>,
+    },
     { title: '名称', dataIndex: 'name', key: 'name' },
-    { title: 'URL', dataIndex: 'url', key: 'url', render: (u: string) => u ? <a href={u} target="_blank" rel="noopener noreferrer">{u}</a> : '-' },
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'active' ? 'green' : 'default'}>{s}</Tag> },
+    {
+      title: 'URL',
+      dataIndex: 'url',
+      key: 'url',
+      render: (u: string) =>
+        u ? (
+          <a href={u} target="_blank" rel="noopener noreferrer">
+            {u}
+          </a>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: string) => <Tag color={s === 'active' ? 'green' : 'default'}>{s}</Tag>,
+    },
   ];
 
   const isInitialLoading = loading && hosts.length === 0 && k8sResources.length === 0;
@@ -152,7 +205,9 @@ const IntegrationPage: React.FC = () => {
       {isInitialLoading && <PageSkeleton cards={3} rows={8} />}
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}
+          >
             <div>
               <Title level={4}>集成资源</Title>
               <Text type="secondary">主机、K8s、CI/CD 资源同步状态</Text>
@@ -169,13 +224,27 @@ const IntegrationPage: React.FC = () => {
 
           <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={8}>
-              <Card><Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} /></Card>
+              <Card>
+                <Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} />
+              </Card>
             </Col>
             <Col span={8}>
-              <Card><Statistic title="K8s 资源" value={k8sResources.length} prefix={<ClusterOutlined />} /></Card>
+              <Card>
+                <Statistic
+                  title="K8s 资源"
+                  value={k8sResources.length}
+                  prefix={<ClusterOutlined />}
+                />
+              </Card>
             </Col>
             <Col span={8}>
-              <Card><Statistic title="运行中主机" value={hosts.filter((h) => h.status === 'running').length} valueStyle={{ color: colors.success[500] }} /></Card>
+              <Card>
+                <Statistic
+                  title="运行中主机"
+                  value={hosts.filter((h) => h.status === 'running').length}
+                  valueStyle={{ color: colors.success[500] }}
+                />
+              </Card>
             </Col>
           </Row>
 
@@ -191,7 +260,12 @@ const IntegrationPage: React.FC = () => {
                 ),
                 children: (
                   <Card loading={loading}>
-                    <Table columns={hostColumns} dataSource={hosts} rowKey="ci_id" pagination={{ pageSize: 10 }} />
+                    <Table
+                      columns={hostColumns}
+                      dataSource={hosts}
+                      rowKey="ci_id"
+                      pagination={{ pageSize: 10 }}
+                    />
                   </Card>
                 ),
               },
@@ -204,7 +278,12 @@ const IntegrationPage: React.FC = () => {
                 ),
                 children: (
                   <Card loading={loading}>
-                    <Table columns={k8sColumns} dataSource={k8sResources} rowKey={(r) => `${r.kind}-${r.namespace}-${r.name}`} pagination={{ pageSize: 10 }} />
+                    <Table
+                      columns={k8sColumns}
+                      dataSource={k8sResources}
+                      rowKey={(r) => `${r.kind}-${r.namespace}-${r.name}`}
+                      pagination={{ pageSize: 10 }}
+                    />
                   </Card>
                 ),
               },
@@ -213,7 +292,13 @@ const IntegrationPage: React.FC = () => {
                 label: 'CI/CD 资源',
                 children: (
                   <Card loading={loading}>
-                    <Table columns={cicdColumns} dataSource={cicdResources} rowKey={(r: CICDResource) => `${r.type}-${r.name}`} pagination={{ pageSize: 10 }} locale={{ emptyText: '暂无 CI/CD 资源' }} />
+                    <Table
+                      columns={cicdColumns}
+                      dataSource={cicdResources}
+                      rowKey={(r: CICDResource) => `${r.type}-${r.name}`}
+                      pagination={{ pageSize: 10 }}
+                      locale={{ emptyText: '暂无 CI/CD 资源' }}
+                    />
                   </Card>
                 ),
               },
@@ -237,10 +322,16 @@ const IntegrationPage: React.FC = () => {
                 <Descriptions.Item label="IP">{selectedHost.ip}</Descriptions.Item>
                 <Descriptions.Item label="操作系统">{selectedHost.os}</Descriptions.Item>
                 <Descriptions.Item label="CPU">{selectedHost.cpu} Core</Descriptions.Item>
-                <Descriptions.Item label="内存">{(selectedHost.memory / 1024).toFixed(1)} GB</Descriptions.Item>
-                <Descriptions.Item label="磁盘">{(selectedHost.disk / 1024).toFixed(1)} GB</Descriptions.Item>
+                <Descriptions.Item label="内存">
+                  {(selectedHost.memory / 1024).toFixed(1)} GB
+                </Descriptions.Item>
+                <Descriptions.Item label="磁盘">
+                  {(selectedHost.disk / 1024).toFixed(1)} GB
+                </Descriptions.Item>
                 <Descriptions.Item label="状态">
-                  <Tag color={selectedHost.status === 'running' ? 'green' : 'default'}>{selectedHost.status}</Tag>
+                  <Tag color={selectedHost.status === 'running' ? 'green' : 'default'}>
+                    {selectedHost.status}
+                  </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="云厂商">{selectedHost.provider || '-'}</Descriptions.Item>
                 <Descriptions.Item label="区域">{selectedHost.region || '-'}</Descriptions.Item>

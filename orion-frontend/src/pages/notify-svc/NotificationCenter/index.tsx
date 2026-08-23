@@ -221,7 +221,6 @@ const NotificationCenter: React.FC = () => {
 
       setNotifications(data);
       setTotal(totalCount || data.length);
-
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`获取通知列表失败：${error.message}`);
@@ -537,7 +536,9 @@ const NotificationCenter: React.FC = () => {
           {/* Content */}
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Title row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}
+            >
               <Text
                 strong={!item.read}
                 style={{
@@ -578,7 +579,9 @@ const NotificationCenter: React.FC = () => {
             </Paragraph>
 
             {/* Meta row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}
+            >
               <Text type="secondary" style={{ fontSize: spacing[3] }}>
                 {item.sender}
               </Text>
@@ -729,7 +732,17 @@ const NotificationCenter: React.FC = () => {
 
       {/* Pagination - Top */}
       {total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md, padding: '8px 12px', background: colors.neutral[50], borderRadius: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+            padding: '8px 12px',
+            background: colors.neutral[50],
+            borderRadius: 8,
+          }}
+        >
           <span style={{ fontSize: 13, color: colors.neutral[600] }}>
             共 {total} 条通知，每页 {pageSize} 条
           </span>
@@ -757,7 +770,16 @@ const NotificationCenter: React.FC = () => {
 
       {/* Pagination - Bottom */}
       {total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: spacing.lg, marginBottom: spacing.md, padding: '16px 0', borderTop: '1px solid colors.neutral[200]' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: spacing.lg,
+            marginBottom: spacing.md,
+            padding: '16px 0',
+            borderTop: '1px solid colors.neutral[200]',
+          }}
+        >
           <Pagination
             current={currentPage}
             total={total}

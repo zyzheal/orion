@@ -138,7 +138,9 @@ export function getRules() {
 }
 
 export function getEngineStatus() {
-  return api.get<{ cacheEnabled: boolean; auditEnabled: boolean }>('/api/v1/ai-gateway/engine/status');
+  return api.get<{ cacheEnabled: boolean; auditEnabled: boolean }>(
+    '/api/v1/ai-gateway/engine/status'
+  );
 }
 
 // ==================== Configuration ====================

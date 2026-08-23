@@ -5,11 +5,7 @@
  */
 import React, { useState } from 'react';
 import { Card, Typography, Tabs } from 'antd';
-import {
-  BranchesOutlined,
-  HistoryOutlined,
-  DragOutlined,
-} from '@ant-design/icons';
+import { BranchesOutlined, HistoryOutlined, DragOutlined } from '@ant-design/icons';
 import WorkflowList from './WorkflowList';
 import WorkflowCanvas from './WorkflowCanvas';
 import ExecutionHistory from './ExecutionHistory';
@@ -63,7 +59,9 @@ const WorkflowDesigner: React.FC = () => {
           <DragOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           工作流设计器
         </Title>
-        <Paragraph type="secondary">可视化设计和管理工作流流程，支持审批、条件分支和自动化节点</Paragraph>
+        <Paragraph type="secondary">
+          可视化设计和管理工作流流程，支持审批、条件分支和自动化节点
+        </Paragraph>
       </div>
 
       <Tabs defaultActiveKey="designer" items={tabItems} />

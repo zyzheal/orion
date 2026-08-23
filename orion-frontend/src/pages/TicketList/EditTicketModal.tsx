@@ -103,7 +103,10 @@ const EditTicketModal: React.FC<EditTicketModalProps> = ({ open, onCancel, onSuc
         category: values.category as Ticket['category'],
         priority: values.priority,
         source: values.source as Ticket['source'],
-        tags: values.tags?.reduce((acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }), {}),
+        tags: values.tags?.reduce(
+          (acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }),
+          {}
+        ),
       });
       message.success('工单更新成功');
       form.resetFields();
@@ -154,11 +157,7 @@ const EditTicketModal: React.FC<EditTicketModalProps> = ({ open, onCancel, onSuc
             { max: 200, message: '标题最多 200 个字符' },
           ]}
         >
-          <Input
-            placeholder="请输入工单标题"
-            data-testid="edit-ticket-title"
-            allowClear
-          />
+          <Input placeholder="请输入工单标题" data-testid="edit-ticket-title" allowClear />
         </Form.Item>
 
         {/* Category and Priority row */}
@@ -180,7 +179,10 @@ const EditTicketModal: React.FC<EditTicketModalProps> = ({ open, onCancel, onSuc
             name="priority"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Radio.Group data-testid="edit-ticket-priority" style={{ display: 'flex', gap: spacing.sm }}>
+            <Radio.Group
+              data-testid="edit-ticket-priority"
+              style={{ display: 'flex', gap: spacing.sm }}
+            >
               {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
                 <Radio.Button
                   key={p}

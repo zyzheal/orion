@@ -40,7 +40,8 @@ import {
   ExperimentOutlined,
   WarningOutlined,
   EyeOutlined,
-  FlagOutlined,} from '@ant-design/icons';
+  FlagOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import MetricCard from '@/components/MetricCard';
@@ -186,7 +187,10 @@ const FeatureFlagsPage: React.FC = () => {
         enabled: values.enabled ?? true,
         tenantId: values.tenantId || undefined,
         userGroups: values.userGroups
-          ? values.userGroups.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.userGroups
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
         percentage: values.percentage || undefined,
       });
@@ -218,7 +222,10 @@ const FeatureFlagsPage: React.FC = () => {
         strategy: values.strategy,
         tenantId: values.tenantId || undefined,
         userGroups: values.userGroups
-          ? values.userGroups.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.userGroups
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
         percentage: values.percentage || undefined,
       });
@@ -265,7 +272,10 @@ const FeatureFlagsPage: React.FC = () => {
         tenantId: values.tenantId || undefined,
         userId: values.userId || undefined,
         userGroups: values.userGroups
-          ? values.userGroups.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.userGroups
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter(Boolean)
           : undefined,
       });
       setEvaluationResult(String(result.data?.result ?? '未知'));
@@ -308,7 +318,11 @@ const FeatureFlagsPage: React.FC = () => {
       dataIndex: 'key',
       key: 'key',
       width: 180,
-      render: (text: string) => <Text code style={{ fontSize: 12 }}>{text}</Text>,
+      render: (text: string) => (
+        <Text code style={{ fontSize: 12 }}>
+          {text}
+        </Text>
+      ),
     },
     {
       title: '类型',
@@ -344,7 +358,8 @@ const FeatureFlagsPage: React.FC = () => {
           return <Tag color="purple">{record.percentage}%</Tag>;
         }
         if (record.tenantId) return <Tag color="blue">租户</Tag>;
-        if (record.userGroups && record.userGroups.length > 0) return <Tag color="green">用户组</Tag>;
+        if (record.userGroups && record.userGroups.length > 0)
+          return <Tag color="green">用户组</Tag>;
         return <Tag color="default">全局</Tag>;
       },
     },
@@ -376,13 +391,36 @@ const FeatureFlagsPage: React.FC = () => {
       render: (_: unknown, record) => (
         <Space size="small">
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setSelectedFlag(record); setDetailModalVisible(true); }} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => {
+                setSelectedFlag(record);
+                setDetailModalVisible(true);
+              }}
+            />
           </Tooltip>
           <Tooltip title="评估">
-            <Button type="link" size="small" icon={<ExperimentOutlined />} onClick={() => { setEvaluatingFlag(record); setEvaluationResult(null); evaluateForm.resetFields(); setEvaluateModalVisible(true); }} />
+            <Button
+              type="link"
+              size="small"
+              icon={<ExperimentOutlined />}
+              onClick={() => {
+                setEvaluatingFlag(record);
+                setEvaluationResult(null);
+                evaluateForm.resetFields();
+                setEvaluateModalVisible(true);
+              }}
+            />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            />
           </Tooltip>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record)}>
             <Tooltip title="删除">
@@ -526,25 +564,44 @@ const FeatureFlagsPage: React.FC = () => {
           </Form.Item>
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item name="type" label="类型" rules={[{ required: true }]} initialValue="boolean">
+              <Form.Item
+                name="type"
+                label="类型"
+                rules={[{ required: true }]}
+                initialValue="boolean"
+              >
                 <Select>
                   {FLAG_TYPE_OPTIONS.map((o) => (
-                    <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                    <Select.Option key={o.value} value={o.value}>
+                      {o.label}
+                    </Select.Option>
                   ))}
                 </Select>
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="strategy" label="策略" rules={[{ required: true }]} initialValue="default">
+              <Form.Item
+                name="strategy"
+                label="策略"
+                rules={[{ required: true }]}
+                initialValue="default"
+              >
                 <Select>
                   {STRATEGY_OPTIONS.map((o) => (
-                    <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                    <Select.Option key={o.value} value={o.value}>
+                      {o.label}
+                    </Select.Option>
                   ))}
                 </Select>
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="defaultValue" label="默认值" rules={[{ required: true }]} initialValue="false">
+              <Form.Item
+                name="defaultValue"
+                label="默认值"
+                rules={[{ required: true }]}
+                initialValue="false"
+              >
                 <Input />
               </Form.Item>
             </Col>
@@ -601,7 +658,9 @@ const FeatureFlagsPage: React.FC = () => {
               <Form.Item name="type" label="类型" rules={[{ required: true }]}>
                 <Select>
                   {FLAG_TYPE_OPTIONS.map((o) => (
-                    <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                    <Select.Option key={o.value} value={o.value}>
+                      {o.label}
+                    </Select.Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -610,7 +669,9 @@ const FeatureFlagsPage: React.FC = () => {
               <Form.Item name="strategy" label="策略" rules={[{ required: true }]}>
                 <Select>
                   {STRATEGY_OPTIONS.map((o) => (
-                    <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
+                    <Select.Option key={o.value} value={o.value}>
+                      {o.label}
+                    </Select.Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -683,7 +744,13 @@ const FeatureFlagsPage: React.FC = () => {
           setSelectedFlag(null);
         }}
         footer={[
-          <Button key="close" onClick={() => { setDetailModalVisible(false); setSelectedFlag(null); }}>
+          <Button
+            key="close"
+            onClick={() => {
+              setDetailModalVisible(false);
+              setSelectedFlag(null);
+            }}
+          >
             关闭
           </Button>,
         ]}
@@ -696,16 +763,26 @@ const FeatureFlagsPage: React.FC = () => {
             <Descriptions.Item label="类型">
               <Tag color={typeColor[selectedFlag.type]}>{typeLabel[selectedFlag.type]}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="策略">{strategyLabel[selectedFlag.strategy]}</Descriptions.Item>
+            <Descriptions.Item label="策略">
+              {strategyLabel[selectedFlag.strategy]}
+            </Descriptions.Item>
             <Descriptions.Item label="默认值">{selectedFlag.defaultValue}</Descriptions.Item>
             <Descriptions.Item label="启用">{selectedFlag.enabled ? '是' : '否'}</Descriptions.Item>
-            {selectedFlag.tenantId && <Descriptions.Item label="租户 ID">{selectedFlag.tenantId}</Descriptions.Item>}
-            {selectedFlag.percentage !== undefined && <Descriptions.Item label="灰度百分比">{selectedFlag.percentage}%</Descriptions.Item>}
+            {selectedFlag.tenantId && (
+              <Descriptions.Item label="租户 ID">{selectedFlag.tenantId}</Descriptions.Item>
+            )}
+            {selectedFlag.percentage !== undefined && (
+              <Descriptions.Item label="灰度百分比">{selectedFlag.percentage}%</Descriptions.Item>
+            )}
             <Descriptions.Item label="评估次数">{selectedFlag.evaluationCount}</Descriptions.Item>
             <Descriptions.Item label="最后评估">
-              {selectedFlag.lastEvaluatedAt ? dayjs(selectedFlag.lastEvaluatedAt).format('YYYY-MM-DD HH:mm') : '-'}
+              {selectedFlag.lastEvaluatedAt
+                ? dayjs(selectedFlag.lastEvaluatedAt).format('YYYY-MM-DD HH:mm')
+                : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="描述" span={2}>{selectedFlag.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="描述" span={2}>
+              {selectedFlag.description || '-'}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

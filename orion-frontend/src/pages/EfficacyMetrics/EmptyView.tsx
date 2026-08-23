@@ -15,7 +15,14 @@ interface EmptyViewProps {
 const EmptyView: React.FC<EmptyViewProps> = ({ title, description, redirect }) => (
   <div style={{ padding: spacing.lg, textAlign: 'center' }}>
     <Card style={{ width: 480, margin: '80px auto' }}>
-      <BarChartOutlined style={{ fontSize: 56, color: colors.primary[500], marginBottom: spacing.md, display: 'block' }} />
+      <BarChartOutlined
+        style={{
+          fontSize: 56,
+          color: colors.primary[500],
+          marginBottom: spacing.md,
+          display: 'block',
+        }}
+      />
       <h3>{title}</h3>
       <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
         {description}

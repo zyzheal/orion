@@ -3,7 +3,19 @@
  * List diagnostic sessions, view details, add symptoms, complete sessions
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer, Empty } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Drawer,
+  Empty,
+} from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
@@ -74,29 +86,32 @@ const DiagnosticSessions: React.FC = () => {
     });
   }, [searchQuery, filters, sessions]);
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '运行中', value: 'running' },
-        { label: '已完成', value: 'completed' },
-        { label: '失败', value: 'failed' },
-        { label: '等待中', value: 'pending' },
-      ],
-    },
-    {
-      key: 'triggerType',
-      label: '触发类型',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Manual', value: 'manual' },
-        { label: 'Automated', value: 'automated' },
-        { label: 'Alert', value: 'alert' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '运行中', value: 'running' },
+          { label: '已完成', value: 'completed' },
+          { label: '失败', value: 'failed' },
+          { label: '等待中', value: 'pending' },
+        ],
+      },
+      {
+        key: 'triggerType',
+        label: '触发类型',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Manual', value: 'manual' },
+          { label: 'Automated', value: 'automated' },
+          { label: 'Alert', value: 'alert' },
+        ],
+      },
+    ],
+    []
+  );
 
   const showSessionDetail = async (session: DiagnosticSession) => {
     setSelectedSession(session);
@@ -159,113 +174,116 @@ const DiagnosticSessions: React.FC = () => {
     });
   };
 
-  const columns: TableColumn<DiagnosticSession>[] = useMemo<TableColumn<DiagnosticSession>[]>(() => [
-    {
-      key: 'id',
-      title: '会话ID',
-      dataIndex: 'id',
-      render: (v: unknown) => {
-        const value = v as string;
-        return (
-          <Text
-            code
-            style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
-            onClick={() => {
-              const s = sessions.find((item) => item.id === value);
-              if (s) showSessionDetail(s);
-            }}
-          >
-            {value}
+  const columns: TableColumn<DiagnosticSession>[] = useMemo<TableColumn<DiagnosticSession>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '会话ID',
+        dataIndex: 'id',
+        render: (v: unknown) => {
+          const value = v as string;
+          return (
+            <Text
+              code
+              style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
+              onClick={() => {
+                const s = sessions.find((item) => item.id === value);
+                if (s) showSessionDetail(s);
+              }}
+            >
+              {value}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'triggerType',
+        title: '触发类型',
+        dataIndex: 'triggerType',
+        width: 120,
+        render: (v: unknown) => <Tag color="purple">{v as string}</Tag>,
+      },
+      {
+        key: 'triggerId',
+        title: '触发器ID',
+        dataIndex: 'triggerId',
+        width: 140,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[2] }}>
+            {v as string}
           </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'triggerType',
-      title: '触发类型',
-      dataIndex: 'triggerType',
-      width: 120,
-      render: (v: unknown) => <Tag color="purple">{v as string}</Tag>,
-    },
-    {
-      key: 'triggerId',
-      title: '触发器ID',
-      dataIndex: 'triggerId',
-      width: 140,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[2] }}>
-          {v as string}
-        </Text>
-      ),
-    },
-    {
-      key: 'symptomCount',
-      title: '症状数',
-      dataIndex: 'symptomCount',
-      width: 90,
-      render: (v: unknown) => <Text strong>{v as number}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const value = v as string;
-        const cfg = statusConfig[value];
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      {
+        key: 'symptomCount',
+        title: '症状数',
+        dataIndex: 'symptomCount',
+        width: 90,
+        render: (v: unknown) => <Text strong>{v as number}</Text>,
       },
-    },
-    {
-      key: 'startTime',
-      title: '开始时间',
-      dataIndex: 'startTime',
-      sortable: true,
-      width: 160,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-    {
-      key: 'duration',
-      title: '持续时间',
-      dataIndex: 'duration',
-      width: 100,
-      render: (v: unknown) => {
-        const value = v as number | undefined;
-        if (!value) return <Text type="secondary">-</Text>;
-        return (
-          <Text>
-            {Math.floor(value / 60000)}m {Math.floor((value % 60000) / 1000)}s
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const value = v as string;
+          const cfg = statusConfig[value];
+          return <Tag color={cfg.color}>{cfg.label}</Tag>;
+        },
+      },
+      {
+        key: 'startTime',
+        title: '开始时间',
+        dataIndex: 'startTime',
+        sortable: true,
+        width: 160,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(v as string).format('YYYY-MM-DD HH:mm:ss')}
           </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => showSessionDetail(record)}>
-            详情
-          </Button>
-          {record.status === 'running' && (
-            <>
-              <Button type="link" size="small" onClick={() => openSymptomModal(record)}>
-                添加症状
-              </Button>
-              <Button type="link" size="small" onClick={() => handleCompleteSession(record)}>
-                完成
-              </Button>
-            </>
-          )}
-        </Space>
-      ),
-    },
-  ], [handleCompleteSession, openSymptomModal, showSessionDetail]);
+      {
+        key: 'duration',
+        title: '持续时间',
+        dataIndex: 'duration',
+        width: 100,
+        render: (v: unknown) => {
+          const value = v as number | undefined;
+          if (!value) return <Text type="secondary">-</Text>;
+          return (
+            <Text>
+              {Math.floor(value / 60000)}m {Math.floor((value % 60000) / 1000)}s
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => showSessionDetail(record)}>
+              详情
+            </Button>
+            {record.status === 'running' && (
+              <>
+                <Button type="link" size="small" onClick={() => openSymptomModal(record)}>
+                  添加症状
+                </Button>
+                <Button type="link" size="small" onClick={() => handleCompleteSession(record)}>
+                  完成
+                </Button>
+              </>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [handleCompleteSession, openSymptomModal, showSessionDetail]
+  );
 
   return (
     <div>
@@ -319,15 +337,22 @@ const DiagnosticSessions: React.FC = () => {
 
       {filteredSessions.length === 0 && !loading && (
         <Empty
-          description={(
-            <span>
-              暂无诊断会话
-              <br />
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/diagnostic/trigger')} style={{ marginTop: spacing.sm }}>
-                新诊断
-              </Button>
-            </span>
-          ) as any}
+          description={
+            (
+              <span>
+                暂无诊断会话
+                <br />
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => navigate('/diagnostic/trigger')}
+                  style={{ marginTop: spacing.sm }}
+                >
+                  新诊断
+                </Button>
+              </span>
+            ) as any
+          }
           style={{ marginTop: 48 }}
         />
       )}
@@ -423,7 +448,11 @@ const DiagnosticSessions: React.FC = () => {
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
                     <div
                       key={String(idx)}
-                      style={{ padding: spacing[3], background: colors.neutral[50], borderRadius: 6 }}
+                      style={{
+                        padding: spacing[3],
+                        background: colors.neutral[50],
+                        borderRadius: 6,
+                      }}
                     >
                       <Space>
                         <Tag color="purple">{symptom.type}</Tag>

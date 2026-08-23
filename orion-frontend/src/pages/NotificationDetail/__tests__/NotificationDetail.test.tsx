@@ -15,7 +15,11 @@ vi.mock('antd', async () => {
     ...actual,
     message: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
     // Mock Popconfirm to expose onConfirm directly (jsdom doesn't support React Portal well)
-    Popconfirm: ({ onConfirm, okText, children }: {
+    Popconfirm: ({
+      onConfirm,
+      okText,
+      children,
+    }: {
       onConfirm?: () => void;
       okText?: string;
       children: React.ReactNode;

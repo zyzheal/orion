@@ -136,11 +136,14 @@ const StageItem: React.FC<StageItemProps> = ({
                     <FileTextOutlined /> 产物：{stage.artifacts.upload.length} 个路径
                   </Text>
                 )}
-                {stage.type === 'buildx' && (stage.config as { imageName?: string; tag?: string })?.imageName && (
-                  <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                    {String((stage.config as { imageName?: string; tag?: string }).imageName)}::{String((stage.config as { imageName?: string; tag?: string }).tag) || 'latest'}
-                  </Text>
-                )}
+                {stage.type === 'buildx' &&
+                  (stage.config as { imageName?: string; tag?: string })?.imageName && (
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                      {String((stage.config as { imageName?: string; tag?: string }).imageName)}::
+                      {String((stage.config as { imageName?: string; tag?: string }).tag) ||
+                        'latest'}
+                    </Text>
+                  )}
                 {stage.type === 'container' && (stage.config as { image?: string })?.image && (
                   <Text type="secondary" style={{ fontSize: spacing[3] }}>
                     {String((stage.config as { image?: string }).image)}

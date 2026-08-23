@@ -433,8 +433,17 @@ const ServicePortal: React.FC = () => {
                   >
                     {service.description || '暂无描述'}
                   </Paragraph>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Tag color={SERVICE_STATUS_CONFIG[service.status]?.color || 'default'} style={{ margin: 0, borderRadius: componentRadius.tag }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Tag
+                      color={SERVICE_STATUS_CONFIG[service.status]?.color || 'default'}
+                      style={{ margin: 0, borderRadius: componentRadius.tag }}
+                    >
                       {SERVICE_STATUS_CONFIG[service.status]?.label || service.status}
                     </Tag>
                     {category && (
@@ -464,7 +473,13 @@ const ServicePortal: React.FC = () => {
         key: 'id',
         width: 100,
         render: (value: string) => (
-          <Text strong style={{ color: colors.primary[500], cursor: 'pointer' }} onClick={() => handleViewTicket({ ...filteredTickets.find((t) => t.id === value) } as any)}>
+          <Text
+            strong
+            style={{ color: colors.primary[500], cursor: 'pointer' }}
+            onClick={() =>
+              handleViewTicket({ ...filteredTickets.find((t) => t.id === value) } as any)
+            }
+          >
             {value}
           </Text>
         ),
@@ -476,7 +491,11 @@ const ServicePortal: React.FC = () => {
         width: 260,
         render: (value: string, record: SelfServiceTicket) => (
           <Space direction="vertical" size={0}>
-            <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }} onClick={() => handleViewTicket(record)}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => handleViewTicket(record)}
+            >
               {value}
             </Text>
             <Text type="secondary" style={{ fontSize: spacing[3] }}>
@@ -492,7 +511,11 @@ const ServicePortal: React.FC = () => {
         width: 80,
         render: (value: string) => {
           const cfg = PRIORITY_CONFIG[value] || { color: 'default', label: value };
-          return <Tag color={cfg.color} style={{ margin: 0, borderRadius: componentRadius.tag }}>{cfg.label}</Tag>;
+          return (
+            <Tag color={cfg.color} style={{ margin: 0, borderRadius: componentRadius.tag }}>
+              {cfg.label}
+            </Tag>
+          );
         },
       },
       {
@@ -522,7 +545,12 @@ const ServicePortal: React.FC = () => {
         width: 120,
         render: (_: any, record: SelfServiceTicket) => (
           <Space size="small">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewTicket(record)}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewTicket(record)}
+            >
               详情
             </Button>
             {record.status === 'pending' && (
@@ -532,7 +560,13 @@ const ServicePortal: React.FC = () => {
                 okText="确认"
                 cancelText="取消"
               >
-                <Button type="link" size="small" danger icon={<StopOutlined />} loading={actionLoading === `cancel-${record.id}`}>
+                <Button
+                  type="link"
+                  size="small"
+                  danger
+                  icon={<StopOutlined />}
+                  loading={actionLoading === `cancel-${record.id}`}
+                >
                   取消
                 </Button>
               </Popconfirm>
@@ -608,8 +642,14 @@ const ServicePortal: React.FC = () => {
       return <Empty description="未选择工单" />;
     }
 
-    const statusCfg = TICKET_STATUS_CONFIG[selectedTicket.status] || { color: 'default', label: selectedTicket.status };
-    const priorityCfg = PRIORITY_CONFIG[selectedTicket.priority] || { color: 'default', label: selectedTicket.priority };
+    const statusCfg = TICKET_STATUS_CONFIG[selectedTicket.status] || {
+      color: 'default',
+      label: selectedTicket.status,
+    };
+    const priorityCfg = PRIORITY_CONFIG[selectedTicket.priority] || {
+      color: 'default',
+      label: selectedTicket.priority,
+    };
     const canCancel = selectedTicket.status === 'pending' || selectedTicket.status === 'approved';
 
     return (
@@ -634,7 +674,11 @@ const ServicePortal: React.FC = () => {
                 okText="确认"
                 cancelText="取消"
               >
-                <Button danger icon={<StopOutlined />} loading={actionLoading === `cancel-${selectedTicket.id}`}>
+                <Button
+                  danger
+                  icon={<StopOutlined />}
+                  loading={actionLoading === `cancel-${selectedTicket.id}`}
+                >
                   取消工单
                 </Button>
               </Popconfirm>
@@ -673,7 +717,9 @@ const ServicePortal: React.FC = () => {
                 {priorityCfg.label}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="关联服务">{selectedTicket.service_name || selectedTicket.id}</Descriptions.Item>
+            <Descriptions.Item label="关联服务">
+              {selectedTicket.service_name || selectedTicket.id}
+            </Descriptions.Item>
             <Descriptions.Item label="描述" span={2}>
               {selectedTicket.description || '-'}
             </Descriptions.Item>
@@ -785,7 +831,9 @@ const ServicePortal: React.FC = () => {
                           <Space direction="vertical" size={0}>
                             <Text strong>已取消</Text>
                             <Text type="secondary" style={{ fontSize: 12 }}>
-                              {dayjs(selectedTicket.cancelled_at || selectedTicket.updated_at).format('YYYY-MM-DD HH:mm:ss')}
+                              {dayjs(
+                                selectedTicket.cancelled_at || selectedTicket.updated_at
+                              ).format('YYYY-MM-DD HH:mm:ss')}
                             </Text>
                           </Space>
                         ),
@@ -878,7 +926,12 @@ const ServicePortal: React.FC = () => {
             <FileTextOutlined />
             我的工单
             {pendingCount > 0 && (
-              <Badge count={pendingCount} size="small" style={{ marginLeft: 6 }} overflowCount={99} />
+              <Badge
+                count={pendingCount}
+                size="small"
+                style={{ marginLeft: 6 }}
+                overflowCount={99}
+              />
             )}
           </span>
         ),
@@ -935,7 +988,13 @@ const ServicePortal: React.FC = () => {
           <Text type="secondary">浏览服务目录、提交请求、查看工单状态</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadCategories(); loadTickets(); }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadCategories();
+              loadTickets();
+            }}
+          >
             刷新
           </Button>
         </Space>
@@ -965,8 +1024,7 @@ const ServicePortal: React.FC = () => {
             <Statistic
               title="待审批"
               value={pendingCount}
-              prefix={<ClockCircleOutlined style={{ color: colors.warning[500] }} />
-              }
+              prefix={<ClockCircleOutlined style={{ color: colors.warning[500] }} />}
             />
           </Card>
         </Col>
@@ -979,8 +1037,7 @@ const ServicePortal: React.FC = () => {
             <Statistic
               title="已完成"
               value={fulfilledCount}
-              prefix={<CheckCircleOutlined style={{ color: colors.success[500] }} />
-              }
+              prefix={<CheckCircleOutlined style={{ color: colors.success[500] }} />}
             />
           </Card>
         </Col>

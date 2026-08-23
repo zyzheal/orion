@@ -43,12 +43,18 @@ import {
   SyncOutlined,
   RiseOutlined,
   RollbackOutlined,
-  CloudUploadOutlined,} from '@ant-design/icons';
+  CloudUploadOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '@/api/client';
 import type { Deployment, HealthCheckResult } from '@/api/deployments';
 import { getDeployments, cancelDeployment, rollbackDeployment } from '@/api/deployments';
-import { getReleaseNotes, generateReleaseNotes, type ReleaseNotes, type ReleaseNotesChange } from '@/api/deploy';
+import {
+  getReleaseNotes,
+  generateReleaseNotes,
+  type ReleaseNotes,
+  type ReleaseNotesChange,
+} from '@/api/deploy';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -192,9 +198,38 @@ const DeployPage: React.FC = () => {
 
   // Deploy Window state
   const [deployWindows, setDeployWindows] = useState<DeployWindow[]>([
-    { id: '1', name: '生产窗口-工作日', environment: 'prod', startTime: '2026-05-06 10:00', endTime: '2026-05-06 16:00', recurring: true, recurringPattern: 'weekly', description: '生产环境工作日部署窗口', status: 'active' },
-    { id: '2', name: '预发窗口', environment: 'staging', startTime: '2026-05-06 09:00', endTime: '2026-05-06 18:00', recurring: true, recurringPattern: 'daily', description: '预发环境日常部署窗口', status: 'active' },
-    { id: '3', name: '开发窗口', environment: 'dev', startTime: '2026-05-01 00:00', endTime: '2026-05-31 23:59', recurring: false, description: '开发环境月度窗口', status: 'upcoming' },
+    {
+      id: '1',
+      name: '生产窗口-工作日',
+      environment: 'prod',
+      startTime: '2026-05-06 10:00',
+      endTime: '2026-05-06 16:00',
+      recurring: true,
+      recurringPattern: 'weekly',
+      description: '生产环境工作日部署窗口',
+      status: 'active',
+    },
+    {
+      id: '2',
+      name: '预发窗口',
+      environment: 'staging',
+      startTime: '2026-05-06 09:00',
+      endTime: '2026-05-06 18:00',
+      recurring: true,
+      recurringPattern: 'daily',
+      description: '预发环境日常部署窗口',
+      status: 'active',
+    },
+    {
+      id: '3',
+      name: '开发窗口',
+      environment: 'dev',
+      startTime: '2026-05-01 00:00',
+      endTime: '2026-05-31 23:59',
+      recurring: false,
+      description: '开发环境月度窗口',
+      status: 'upcoming',
+    },
   ]);
   const [deployWindowModalVisible, setDeployWindowModalVisible] = useState(false);
   const [deployWindowForm] = Form.useForm();
@@ -203,19 +238,41 @@ const DeployPage: React.FC = () => {
   // Progressive Deploy state
   const [progressiveDeploys, setProgressiveDeploys] = useState<ProgressiveDeployment[]>([
     {
-      id: 'pd-001', appName: 'orion-platform', version: '2.1.0', environment: 'prod',
-      currentStage: 2, status: 'running', createdAt: '2026-05-06 10:30',
+      id: 'pd-001',
+      appName: 'orion-platform',
+      version: '2.1.0',
+      environment: 'prod',
+      currentStage: 2,
+      status: 'running',
+      createdAt: '2026-05-06 10:30',
       stages: [
-        { name: 'Canary (5%)', status: 'completed', trafficPercent: 5, startedAt: '2026-05-06 10:30', completedAt: '2026-05-06 10:45' },
-        { name: '25% 流量', status: 'completed', trafficPercent: 25, startedAt: '2026-05-06 10:45', completedAt: '2026-05-06 11:00' },
+        {
+          name: 'Canary (5%)',
+          status: 'completed',
+          trafficPercent: 5,
+          startedAt: '2026-05-06 10:30',
+          completedAt: '2026-05-06 10:45',
+        },
+        {
+          name: '25% 流量',
+          status: 'completed',
+          trafficPercent: 25,
+          startedAt: '2026-05-06 10:45',
+          completedAt: '2026-05-06 11:00',
+        },
         { name: '50% 流量', status: 'running', trafficPercent: 50, startedAt: '2026-05-06 11:00' },
         { name: '75% 流量', status: 'pending', trafficPercent: 75 },
         { name: '100% 全量', status: 'pending', trafficPercent: 100 },
       ],
     },
     {
-      id: 'pd-002', appName: 'orion-api', version: '1.5.3', environment: 'staging',
-      currentStage: 4, status: 'running', createdAt: '2026-05-06 09:00',
+      id: 'pd-002',
+      appName: 'orion-api',
+      version: '1.5.3',
+      environment: 'staging',
+      currentStage: 4,
+      status: 'running',
+      createdAt: '2026-05-06 09:00',
       stages: [
         { name: 'Canary (5%)', status: 'completed', trafficPercent: 5 },
         { name: '25% 流量', status: 'completed', trafficPercent: 25 },
@@ -225,8 +282,13 @@ const DeployPage: React.FC = () => {
       ],
     },
     {
-      id: 'pd-003', appName: 'orion-frontend', version: '3.0.0-beta', environment: 'prod',
-      currentStage: 0, status: 'pending', createdAt: '2026-05-06 14:00',
+      id: 'pd-003',
+      appName: 'orion-frontend',
+      version: '3.0.0-beta',
+      environment: 'prod',
+      currentStage: 0,
+      status: 'pending',
+      createdAt: '2026-05-06 14:00',
       stages: [
         { name: 'Canary (5%)', status: 'pending', trafficPercent: 5 },
         { name: '25% 流量', status: 'pending', trafficPercent: 25 },
@@ -239,7 +301,8 @@ const DeployPage: React.FC = () => {
   const [progressiveDeployModalVisible, setProgressiveDeployModalVisible] = useState(false);
   const [progressiveDeployForm] = Form.useForm();
   const [progressiveDeploySubmitting, setProgressiveDeploySubmitting] = useState(false);
-  const [selectedProgressiveDeploy, setSelectedProgressiveDeploy] = useState<ProgressiveDeployment | null>(null);
+  const [selectedProgressiveDeploy, setSelectedProgressiveDeploy] =
+    useState<ProgressiveDeployment | null>(null);
   const [progressiveDetailVisible, setProgressiveDetailVisible] = useState(false);
 
   const loadData = async () => {
@@ -270,9 +333,15 @@ const DeployPage: React.FC = () => {
         )
           return false;
       }
-      if (filters.environment && filters.environment !== 'all' && d.environment !== filters.environment) return false;
+      if (
+        filters.environment &&
+        filters.environment !== 'all' &&
+        d.environment !== filters.environment
+      )
+        return false;
       if (filters.status && filters.status !== 'all' && d.status !== filters.status) return false;
-      if (filters.strategy && filters.strategy !== 'all' && d.strategy !== filters.strategy) return false;
+      if (filters.strategy && filters.strategy !== 'all' && d.strategy !== filters.strategy)
+        return false;
       return true;
     });
   }, [searchQuery, filters, deployments]);
@@ -466,17 +535,27 @@ const DeployPage: React.FC = () => {
           if (d.id !== deployId || d.currentStage >= d.stages.length - 1) return d;
           const newStages = d.stages.map((s, i) => {
             if (i === d.currentStage) {
-              return { ...s, status: 'completed' as const, completedAt: dayjs().format('YYYY-MM-DD HH:mm') };
+              return {
+                ...s,
+                status: 'completed' as const,
+                completedAt: dayjs().format('YYYY-MM-DD HH:mm'),
+              };
             }
             if (i === d.currentStage + 1) {
-              return { ...s, status: 'running' as const, startedAt: dayjs().format('YYYY-MM-DD HH:mm') };
+              return {
+                ...s,
+                status: 'running' as const,
+                startedAt: dayjs().format('YYYY-MM-DD HH:mm'),
+              };
             }
             return s;
           });
           const newCurrentStage = d.currentStage + 1;
-          const newStatus = newCurrentStage === d.stages.length - 1 && newStages[newCurrentStage].status === 'completed'
-            ? 'completed' as const
-            : d.status;
+          const newStatus =
+            newCurrentStage === d.stages.length - 1 &&
+            newStages[newCurrentStage].status === 'completed'
+              ? ('completed' as const)
+              : d.status;
           return { ...d, currentStage: newCurrentStage, stages: newStages, status: newStatus };
         })
       );
@@ -553,7 +632,9 @@ const DeployPage: React.FC = () => {
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
             {v}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>v{record.version}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            v{record.version}
+          </Text>
         </Space>
       ),
     },
@@ -562,9 +643,7 @@ const DeployPage: React.FC = () => {
       dataIndex: 'environment',
       key: 'environment',
       width: 80,
-      render: (v: string) => (
-        <Tag color={envColorMap[v] || 'default'}>{envLabelMap[v] || v}</Tag>
-      ),
+      render: (v: string) => <Tag color={envColorMap[v] || 'default'}>{envLabelMap[v] || v}</Tag>,
     },
     {
       title: '策略',
@@ -572,9 +651,7 @@ const DeployPage: React.FC = () => {
       key: 'strategy',
       width: 120,
       render: (v: string) => (
-        <Tag color={strategyColorMap[v] || 'default'}>
-          {strategyLabelMap[v] || v}
-        </Tag>
+        <Tag color={strategyColorMap[v] || 'default'}>{strategyLabelMap[v] || v}</Tag>
       ),
     },
     {
@@ -643,7 +720,12 @@ const DeployPage: React.FC = () => {
       render: (_, record) => (
         <Space size="small" wrap>
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
               详情
             </Button>
           </Tooltip>
@@ -709,7 +791,9 @@ const DeployPage: React.FC = () => {
           <Text strong style={{ cursor: 'pointer' }} onClick={() => openProgressiveDetail(record)}>
             {v}
           </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>v{record.version}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            v{record.version}
+          </Text>
         </Space>
       ),
     },
@@ -718,9 +802,7 @@ const DeployPage: React.FC = () => {
       dataIndex: 'environment',
       key: 'environment',
       width: 80,
-      render: (v: string) => (
-        <Tag color={envColorMap[v] || 'default'}>{envLabelMap[v] || v}</Tag>
-      ),
+      render: (v: string) => <Tag color={envColorMap[v] || 'default'}>{envLabelMap[v] || v}</Tag>,
     },
     {
       title: '当前阶段',
@@ -730,10 +812,20 @@ const DeployPage: React.FC = () => {
       render: (_: number, record) => {
         const stage = record.stages[record.currentStage];
         return stage ? (
-          <Tag color={stage.status === 'completed' ? 'green' : stage.status === 'running' ? 'blue' : 'default'}>
+          <Tag
+            color={
+              stage.status === 'completed'
+                ? 'green'
+                : stage.status === 'running'
+                  ? 'blue'
+                  : 'default'
+            }
+          >
             {stage.name}
           </Tag>
-        ) : '-';
+        ) : (
+          '-'
+        );
       },
     },
     {
@@ -747,7 +839,13 @@ const DeployPage: React.FC = () => {
           <Progress
             percent={percent}
             size="small"
-            status={record.status === 'rolled_back' ? 'exception' : record.status === 'completed' ? 'success' : 'active'}
+            status={
+              record.status === 'rolled_back'
+                ? 'exception'
+                : record.status === 'completed'
+                  ? 'success'
+                  : 'active'
+            }
           />
         );
       },
@@ -781,7 +879,9 @@ const DeployPage: React.FC = () => {
       key: 'createdAt',
       width: 140,
       render: (v: string) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {v}
+        </Text>
       ),
     },
     {
@@ -878,20 +978,38 @@ const DeployPage: React.FC = () => {
           <StatCard title="总部署数" value={stats.total} icon={<RocketOutlined />} />
         </Col>
         <Col span={5}>
-          <StatCard title="部署中" value={stats.deploying} icon={<SyncOutlined spin />} color={colors.primary[500]} />
+          <StatCard
+            title="部署中"
+            value={stats.deploying}
+            icon={<SyncOutlined spin />}
+            color={colors.primary[500]}
+          />
         </Col>
         <Col span={5}>
-          <StatCard title="成功" value={stats.success} icon={<CheckCircleOutlined />} color={colors.success[500]} />
+          <StatCard
+            title="成功"
+            value={stats.success}
+            icon={<CheckCircleOutlined />}
+            color={colors.success[500]}
+          />
         </Col>
         <Col span={5}>
-          <StatCard title="失败" value={stats.failed} icon={<CloseCircleOutlined />} color={colors.error[500]} />
+          <StatCard
+            title="失败"
+            value={stats.failed}
+            icon={<CloseCircleOutlined />}
+            color={colors.error[500]}
+          />
         </Col>
         <Col span={4}>
           <Statistic
             title={<Text type="secondary">成功率</Text>}
             value={stats.successRate}
             suffix="%"
-            valueStyle={{ color: parseFloat(stats.successRate) >= 90 ? colors.success[500] : colors.warning[500] }}
+            valueStyle={{
+              color:
+                parseFloat(stats.successRate) >= 90 ? colors.success[500] : colors.warning[500],
+            }}
           />
         </Col>
       </Row>
@@ -900,7 +1018,12 @@ const DeployPage: React.FC = () => {
       <Tabs defaultActiveKey="deployments" size="large">
         {/* Tab 1: Deployments */}
         <TabPane
-          tab={<><RocketOutlined style={{ marginRight: 6 }} />部署任务</>}
+          tab={
+            <>
+              <RocketOutlined style={{ marginRight: 6 }} />
+              部署任务
+            </>
+          }
           key="deployments"
         >
           <Card>
@@ -964,7 +1087,12 @@ const DeployPage: React.FC = () => {
 
         {/* Tab 2: Deploy Windows */}
         <TabPane
-          tab={<><ClockCircleOutlined style={{ marginRight: 6 }} />部署窗口</>}
+          tab={
+            <>
+              <ClockCircleOutlined style={{ marginRight: 6 }} />
+              部署窗口
+            </>
+          }
           key="windows"
         >
           <Card
@@ -1027,7 +1155,13 @@ const DeployPage: React.FC = () => {
                   width: 100,
                   render: (v: boolean, record) =>
                     v ? (
-                      <Tag color="green">{record.recurringPattern === 'daily' ? '每日' : record.recurringPattern === 'weekly' ? '每周' : '每月'}</Tag>
+                      <Tag color="green">
+                        {record.recurringPattern === 'daily'
+                          ? '每日'
+                          : record.recurringPattern === 'weekly'
+                            ? '每周'
+                            : '每月'}
+                      </Tag>
                     ) : (
                       <Tag>单次</Tag>
                     ),
@@ -1052,7 +1186,11 @@ const DeployPage: React.FC = () => {
                   dataIndex: 'description',
                   key: 'description',
                   width: 200,
-                  render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{v || '-'}</Text>,
+                  render: (v: string) => (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {v || '-'}
+                    </Text>
+                  ),
                 },
                 {
                   title: '操作',
@@ -1080,7 +1218,12 @@ const DeployPage: React.FC = () => {
 
         {/* Tab 3: Progressive Deploy */}
         <TabPane
-          tab={<><RiseOutlined style={{ marginRight: 6 }} />渐进式部署</>}
+          tab={
+            <>
+              <RiseOutlined style={{ marginRight: 6 }} />
+              渐进式部署
+            </>
+          }
           key="progressive"
         >
           <Card
@@ -1119,26 +1262,46 @@ const DeployPage: React.FC = () => {
         destroyOnClose
       >
         <Form form={createForm} layout="vertical">
-          <Form.Item name="appName" label="应用名称" rules={[{ required: true, message: '请输入应用名称' }]}>
+          <Form.Item
+            name="appName"
+            label="应用名称"
+            rules={[{ required: true, message: '请输入应用名称' }]}
+          >
             <Input placeholder="如: orion-platform" />
           </Form.Item>
-          <Form.Item name="version" label="版本" rules={[{ required: true, message: '请输入版本号' }]}>
+          <Form.Item
+            name="version"
+            label="版本"
+            rules={[{ required: true, message: '请输入版本号' }]}
+          >
             <Input placeholder="如: 1.2.3" />
           </Form.Item>
-          <Form.Item name="environment" label="目标环境" rules={[{ required: true, message: '请选择环境' }]}>
-            <Select options={[
-              { label: '开发', value: 'dev' },
-              { label: '预发', value: 'staging' },
-              { label: '生产', value: 'prod' },
-            ]} />
+          <Form.Item
+            name="environment"
+            label="目标环境"
+            rules={[{ required: true, message: '请选择环境' }]}
+          >
+            <Select
+              options={[
+                { label: '开发', value: 'dev' },
+                { label: '预发', value: 'staging' },
+                { label: '生产', value: 'prod' },
+              ]}
+            />
           </Form.Item>
-          <Form.Item name="strategy" label="部署策略" rules={[{ required: true, message: '请选择策略' }]}>
-            <Select options={[
-              { label: '蓝绿部署', value: 'blue-green' },
-              { label: '金丝雀', value: 'canary' },
-              { label: '滚动部署', value: 'rolling' },
-              { label: '重建部署', value: 'recreate' },
-            ]} />
+          <Form.Item
+            name="strategy"
+            label="部署策略"
+            rules={[{ required: true, message: '请选择策略' }]}
+          >
+            <Select
+              options={[
+                { label: '蓝绿部署', value: 'blue-green' },
+                { label: '金丝雀', value: 'canary' },
+                { label: '滚动部署', value: 'rolling' },
+                { label: '重建部署', value: 'recreate' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="pipelineRunId" label="Pipeline Run ID">
             <Input placeholder="可选，关联的流水线运行 ID" />
@@ -1151,7 +1314,12 @@ const DeployPage: React.FC = () => {
 
       {/* Emergency Deploy Modal */}
       <Modal
-        title={<><ThunderboltOutlined style={{ marginRight: spacing.sm, color: colors.error[400] }} />紧急部署</>}
+        title={
+          <>
+            <ThunderboltOutlined style={{ marginRight: spacing.sm, color: colors.error[400] }} />
+            紧急部署
+          </>
+        }
         open={emergencyModalVisible}
         onCancel={() => setEmergencyModalVisible(false)}
         footer={null}
@@ -1166,13 +1334,25 @@ const DeployPage: React.FC = () => {
           style={{ marginBottom: spacing.md }}
         />
         <Form form={emergencyForm} layout="vertical">
-          <Form.Item name="appName" label="应用名称" rules={[{ required: true, message: '请输入应用名称' }]}>
+          <Form.Item
+            name="appName"
+            label="应用名称"
+            rules={[{ required: true, message: '请输入应用名称' }]}
+          >
             <Input placeholder="如: orion-platform" />
           </Form.Item>
-          <Form.Item name="version" label="版本" rules={[{ required: true, message: '请输入版本号' }]}>
+          <Form.Item
+            name="version"
+            label="版本"
+            rules={[{ required: true, message: '请输入版本号' }]}
+          >
             <Input placeholder="如: 1.2.4-hotfix" />
           </Form.Item>
-          <Form.Item name="pipelineRunId" label="Pipeline Run ID" rules={[{ required: true, message: '请输入 Pipeline Run ID' }]}>
+          <Form.Item
+            name="pipelineRunId"
+            label="Pipeline Run ID"
+            rules={[{ required: true, message: '请输入 Pipeline Run ID' }]}
+          >
             <Input placeholder="关联的流水线运行 ID" />
           </Form.Item>
           <Form.Item name="commit" label="Commit SHA">
@@ -1201,7 +1381,12 @@ const DeployPage: React.FC = () => {
 
       {/* Deploy Window Create Modal */}
       <Modal
-        title={<><ClockCircleOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />创建部署窗口</>}
+        title={
+          <>
+            <ClockCircleOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
+            创建部署窗口
+          </>
+        }
         open={deployWindowModalVisible}
         onCancel={() => setDeployWindowModalVisible(false)}
         onOk={() => deployWindowForm.submit()}
@@ -1210,24 +1395,42 @@ const DeployPage: React.FC = () => {
         destroyOnClose
       >
         <Form form={deployWindowForm} layout="vertical" onFinish={handleCreateDeployWindow}>
-          <Form.Item name="name" label="窗口名称" rules={[{ required: true, message: '请输入窗口名称' }]}>
+          <Form.Item
+            name="name"
+            label="窗口名称"
+            rules={[{ required: true, message: '请输入窗口名称' }]}
+          >
             <Input placeholder="如: 生产窗口-工作日" />
           </Form.Item>
-          <Form.Item name="environment" label="目标环境" rules={[{ required: true, message: '请选择环境' }]}>
-            <Select options={[
-              { label: '开发', value: 'dev' },
-              { label: '预发', value: 'staging' },
-              { label: '生产', value: 'prod' },
-            ]} />
+          <Form.Item
+            name="environment"
+            label="目标环境"
+            rules={[{ required: true, message: '请选择环境' }]}
+          >
+            <Select
+              options={[
+                { label: '开发', value: 'dev' },
+                { label: '预发', value: 'staging' },
+                { label: '生产', value: 'prod' },
+              ]}
+            />
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="startTime" label="开始时间" rules={[{ required: true, message: '请选择开始时间' }]}>
+              <Form.Item
+                name="startTime"
+                label="开始时间"
+                rules={[{ required: true, message: '请选择开始时间' }]}
+              >
                 <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="endTime" label="结束时间" rules={[{ required: true, message: '请选择结束时间' }]}>
+              <Form.Item
+                name="endTime"
+                label="结束时间"
+                rules={[{ required: true, message: '请选择结束时间' }]}
+              >
                 <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
               </Form.Item>
             </Col>
@@ -1238,12 +1441,18 @@ const DeployPage: React.FC = () => {
           <Form.Item noStyle shouldUpdate={(prev, curr) => prev.recurring !== curr.recurring}>
             {({ getFieldValue }) =>
               getFieldValue('recurring') ? (
-                <Form.Item name="recurringPattern" label="循环模式" rules={[{ required: true, message: '请选择循环模式' }]}>
-                  <Select options={[
-                    { label: '每日', value: 'daily' },
-                    { label: '每周', value: 'weekly' },
-                    { label: '每月', value: 'monthly' },
-                  ]} />
+                <Form.Item
+                  name="recurringPattern"
+                  label="循环模式"
+                  rules={[{ required: true, message: '请选择循环模式' }]}
+                >
+                  <Select
+                    options={[
+                      { label: '每日', value: 'daily' },
+                      { label: '每周', value: 'weekly' },
+                      { label: '每月', value: 'monthly' },
+                    ]}
+                  />
                 </Form.Item>
               ) : null
             }
@@ -1256,7 +1465,12 @@ const DeployPage: React.FC = () => {
 
       {/* Progressive Deploy Create Modal */}
       <Modal
-        title={<><RiseOutlined style={{ marginRight: spacing.sm, color: colors.success[500] }} />创建渐进式部署</>}
+        title={
+          <>
+            <RiseOutlined style={{ marginRight: spacing.sm, color: colors.success[500] }} />
+            创建渐进式部署
+          </>
+        }
         open={progressiveDeployModalVisible}
         onCancel={() => setProgressiveDeployModalVisible(false)}
         onOk={() => progressiveDeployForm.submit()}
@@ -1271,26 +1485,48 @@ const DeployPage: React.FC = () => {
           showIcon
           style={{ marginBottom: spacing.md }}
         />
-        <Form form={progressiveDeployForm} layout="vertical" onFinish={handleCreateProgressiveDeploy}>
-          <Form.Item name="appName" label="应用名称" rules={[{ required: true, message: '请输入应用名称' }]}>
+        <Form
+          form={progressiveDeployForm}
+          layout="vertical"
+          onFinish={handleCreateProgressiveDeploy}
+        >
+          <Form.Item
+            name="appName"
+            label="应用名称"
+            rules={[{ required: true, message: '请输入应用名称' }]}
+          >
             <Input placeholder="如: orion-platform" />
           </Form.Item>
-          <Form.Item name="version" label="版本" rules={[{ required: true, message: '请输入版本号' }]}>
+          <Form.Item
+            name="version"
+            label="版本"
+            rules={[{ required: true, message: '请输入版本号' }]}
+          >
             <Input placeholder="如: 2.1.0" />
           </Form.Item>
-          <Form.Item name="environment" label="目标环境" rules={[{ required: true, message: '请选择环境' }]}>
-            <Select options={[
-              { label: '开发', value: 'dev' },
-              { label: '预发', value: 'staging' },
-              { label: '生产', value: 'prod' },
-            ]} />
+          <Form.Item
+            name="environment"
+            label="目标环境"
+            rules={[{ required: true, message: '请选择环境' }]}
+          >
+            <Select
+              options={[
+                { label: '开发', value: 'dev' },
+                { label: '预发', value: 'staging' },
+                { label: '生产', value: 'prod' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Progressive Deploy Detail Drawer */}
       <Drawer
-        title={selectedProgressiveDeploy ? `${selectedProgressiveDeploy.appName} v${selectedProgressiveDeploy.version} - 渐进式部署` : '渐进式部署详情'}
+        title={
+          selectedProgressiveDeploy
+            ? `${selectedProgressiveDeploy.appName} v${selectedProgressiveDeploy.version} - 渐进式部署`
+            : '渐进式部署详情'
+        }
         open={progressiveDetailVisible}
         onClose={() => setProgressiveDetailVisible(false)}
         width={800}
@@ -1299,11 +1535,16 @@ const DeployPage: React.FC = () => {
         {selectedProgressiveDeploy && (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="应用">{selectedProgressiveDeploy.appName}</Descriptions.Item>
-              <Descriptions.Item label="版本">v{selectedProgressiveDeploy.version}</Descriptions.Item>
+              <Descriptions.Item label="应用">
+                {selectedProgressiveDeploy.appName}
+              </Descriptions.Item>
+              <Descriptions.Item label="版本">
+                v{selectedProgressiveDeploy.version}
+              </Descriptions.Item>
               <Descriptions.Item label="环境">
                 <Tag color={envColorMap[selectedProgressiveDeploy.environment]}>
-                  {envLabelMap[selectedProgressiveDeploy.environment] || selectedProgressiveDeploy.environment}
+                  {envLabelMap[selectedProgressiveDeploy.environment] ||
+                    selectedProgressiveDeploy.environment}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="状态">
@@ -1315,11 +1556,16 @@ const DeployPage: React.FC = () => {
                     rolled_back: { color: 'gold', label: '已回滚' },
                     failed: { color: 'red', label: '失败' },
                   };
-                  const cfg = sMap[selectedProgressiveDeploy.status] || { color: 'default', label: selectedProgressiveDeploy.status };
+                  const cfg = sMap[selectedProgressiveDeploy.status] || {
+                    color: 'default',
+                    label: selectedProgressiveDeploy.status,
+                  };
                   return <Tag color={cfg.color}>{cfg.label}</Tag>;
                 })()}
               </Descriptions.Item>
-              <Descriptions.Item label="创建时间">{selectedProgressiveDeploy.createdAt}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {selectedProgressiveDeploy.createdAt}
+              </Descriptions.Item>
             </Descriptions>
 
             {/* Stage Progress */}
@@ -1331,14 +1577,24 @@ const DeployPage: React.FC = () => {
                   title: stage.name,
                   description: (
                     <div>
-                      <Tag color={
-                        stage.status === 'completed' ? 'green' :
-                        stage.status === 'running' ? 'blue' :
-                        stage.status === 'failed' ? 'red' : 'default'
-                      }>
-                        {stage.status === 'completed' ? '已完成' :
-                         stage.status === 'running' ? '进行中' :
-                         stage.status === 'failed' ? '失败' : '等待中'}
+                      <Tag
+                        color={
+                          stage.status === 'completed'
+                            ? 'green'
+                            : stage.status === 'running'
+                              ? 'blue'
+                              : stage.status === 'failed'
+                                ? 'red'
+                                : 'default'
+                        }
+                      >
+                        {stage.status === 'completed'
+                          ? '已完成'
+                          : stage.status === 'running'
+                            ? '进行中'
+                            : stage.status === 'failed'
+                              ? '失败'
+                              : '等待中'}
                       </Tag>
                       <Text type="secondary" style={{ marginLeft: spacing.sm }}>
                         流量 {stage.trafficPercent}%
@@ -1359,9 +1615,14 @@ const DeployPage: React.FC = () => {
                       )}
                     </div>
                   ),
-                  status: stage.status === 'completed' ? 'finish' :
-                          stage.status === 'running' ? 'process' :
-                          stage.status === 'failed' ? 'error' : 'wait',
+                  status:
+                    stage.status === 'completed'
+                      ? 'finish'
+                      : stage.status === 'running'
+                        ? 'process'
+                        : stage.status === 'failed'
+                          ? 'error'
+                          : 'wait',
                 }))}
               />
             </Card>
@@ -1369,12 +1630,22 @@ const DeployPage: React.FC = () => {
             {/* Overall Progress */}
             <Card size="small" title="总体进度">
               {(() => {
-                const completed = selectedProgressiveDeploy.stages.filter((s) => s.status === 'completed').length;
-                const percent = Math.round((completed / selectedProgressiveDeploy.stages.length) * 100);
+                const completed = selectedProgressiveDeploy.stages.filter(
+                  (s) => s.status === 'completed'
+                ).length;
+                const percent = Math.round(
+                  (completed / selectedProgressiveDeploy.stages.length) * 100
+                );
                 return (
                   <Progress
                     percent={percent}
-                    status={selectedProgressiveDeploy.status === 'rolled_back' ? 'exception' : selectedProgressiveDeploy.status === 'completed' ? 'success' : 'active'}
+                    status={
+                      selectedProgressiveDeploy.status === 'rolled_back'
+                        ? 'exception'
+                        : selectedProgressiveDeploy.status === 'completed'
+                          ? 'success'
+                          : 'active'
+                    }
                     strokeWidth={12}
                   />
                 );
@@ -1406,7 +1677,11 @@ const DeployPage: React.FC = () => {
 
       {/* Detail Drawer */}
       <Drawer
-        title={selectedDeployment ? `${selectedDeployment.appName} v${selectedDeployment.version}` : '部署详情'}
+        title={
+          selectedDeployment
+            ? `${selectedDeployment.appName} v${selectedDeployment.version}`
+            : '部署详情'
+        }
         open={detailDrawerVisible}
         onClose={() => setDetailDrawerVisible(false)}
         width={800}
@@ -1428,26 +1703,37 @@ const DeployPage: React.FC = () => {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusColorMap[selectedDeployment.status]} icon={statusIconMap[selectedDeployment.status]}>
+                <Tag
+                  color={statusColorMap[selectedDeployment.status]}
+                  icon={statusIconMap[selectedDeployment.status]}
+                >
                   {statusLabelMap[selectedDeployment.status] || selectedDeployment.status}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="触发人">{selectedDeployment.triggeredBy || '-'}</Descriptions.Item>
+              <Descriptions.Item label="触发人">
+                {selectedDeployment.triggeredBy || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="Commit">
                 {selectedDeployment.commit ? (
                   <Text copyable style={{ fontFamily: 'monospace' }}>
                     {selectedDeployment.commit}
                   </Text>
-                ) : '-'}
+                ) : (
+                  '-'
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="Pipeline Run">
                 {selectedDeployment.pipelineRunId || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="开始时间">
-                {selectedDeployment.startTime ? dayjs(selectedDeployment.startTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                {selectedDeployment.startTime
+                  ? dayjs(selectedDeployment.startTime).format('YYYY-MM-DD HH:mm:ss')
+                  : '-'}
               </Descriptions.Item>
               <Descriptions.Item label="结束时间">
-                {selectedDeployment.endTime ? dayjs(selectedDeployment.endTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                {selectedDeployment.endTime
+                  ? dayjs(selectedDeployment.endTime).format('YYYY-MM-DD HH:mm:ss')
+                  : '-'}
               </Descriptions.Item>
             </Descriptions>
 
@@ -1478,12 +1764,19 @@ const DeployPage: React.FC = () => {
                         )}
                         {stage.details && (
                           <div style={{ marginTop: 4 }}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>{stage.details}</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {stage.details}
+                            </Text>
                           </div>
                         )}
                       </div>
                     ),
-                    status: stage.status === 'success' ? 'finish' : stage.status === 'failed' ? 'error' : 'process',
+                    status:
+                      stage.status === 'success'
+                        ? 'finish'
+                        : stage.status === 'failed'
+                          ? 'error'
+                          : 'process',
                   }))}
                 />
               </div>
@@ -1497,10 +1790,19 @@ const DeployPage: React.FC = () => {
                   {selectedDeployment.healthChecks.map((check: HealthCheckResult, idx: number) => (
                     <Timeline.Item
                       key={String(idx)}
-                      color={check.status === 'healthy' ? 'green' : check.status === 'unhealthy' ? 'red' : 'orange'}
+                      color={
+                        check.status === 'healthy'
+                          ? 'green'
+                          : check.status === 'unhealthy'
+                            ? 'red'
+                            : 'orange'
+                      }
                     >
                       <Text strong>{check.name}</Text>
-                      <Tag color={check.status === 'healthy' ? 'green' : 'orange'} style={{ marginLeft: spacing.sm }}>
+                      <Tag
+                        color={check.status === 'healthy' ? 'green' : 'orange'}
+                        style={{ marginLeft: spacing.sm }}
+                      >
                         {check.status}
                       </Tag>
                       {check.message && (
@@ -1516,8 +1818,17 @@ const DeployPage: React.FC = () => {
 
             {/* Release Notes */}
             <div style={{ marginTop: spacing.lg }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-                <Title level={5} style={{ margin: 0 }}>版本说明</Title>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: spacing.md,
+                }}
+              >
+                <Title level={5} style={{ margin: 0 }}>
+                  版本说明
+                </Title>
                 {!releaseNotes && (
                   <Button
                     type="primary"
@@ -1531,17 +1842,17 @@ const DeployPage: React.FC = () => {
                 )}
               </div>
 
-              {releaseNotesLoading && <Card size="small"><Text type="secondary">加载中...</Text></Card>}
+              {releaseNotesLoading && (
+                <Card size="small">
+                  <Text type="secondary">加载中...</Text>
+                </Card>
+              )}
 
               {!releaseNotesLoading && releaseNotes && (
                 <Card size="small">
                   <Space direction="vertical" style={{ width: '100%' }} size="middle">
                     {/* Summary */}
-                    <Alert
-                      message={releaseNotes.summary}
-                      type="info"
-                      showIcon
-                    />
+                    <Alert message={releaseNotes.summary} type="info" showIcon />
 
                     {/* Metrics */}
                     <Row gutter={16}>
@@ -1594,14 +1905,20 @@ const DeployPage: React.FC = () => {
                               type={change.type === 'breaking' ? 'inner' : undefined}
                             >
                               <Space direction="vertical" style={{ width: '100%' }} size={0}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                                <div
+                                  style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}
+                                >
                                   <Tag
                                     color={
-                                      change.type === 'feature' ? 'green' :
-                                      change.type === 'fix' ? 'blue' :
-                                      change.type === 'breaking' ? 'red' :
-                                      change.type === 'improvement' ? 'cyan' :
-                                      'default'
+                                      change.type === 'feature'
+                                        ? 'green'
+                                        : change.type === 'fix'
+                                          ? 'blue'
+                                          : change.type === 'breaking'
+                                            ? 'red'
+                                            : change.type === 'improvement'
+                                              ? 'cyan'
+                                              : 'default'
                                     }
                                   >
                                     {change.type}

@@ -27,7 +27,8 @@ import {
   ReloadOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  RocketOutlined,} from '@ant-design/icons';
+  RocketOutlined,
+} from '@ant-design/icons';
 import {
   getCanaryRuns,
   getCanaryConfigs,
@@ -54,12 +55,14 @@ const CanaryTrafficPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [runRes, configRes] = await Promise.all([
-        getCanaryRuns(),
-        getCanaryConfigs(),
-      ]);
-      setRuns(((runRes.data as { data?: { data?: unknown[] } })?.data?.data ?? []) as CanaryAnalysisRun[]);
-      setConfigs(((configRes.data as { data?: { data?: unknown[] } })?.data?.data ?? []) as CanaryAnalysisConfig[]);
+      const [runRes, configRes] = await Promise.all([getCanaryRuns(), getCanaryConfigs()]);
+      setRuns(
+        ((runRes.data as { data?: { data?: unknown[] } })?.data?.data ?? []) as CanaryAnalysisRun[]
+      );
+      setConfigs(
+        ((configRes.data as { data?: { data?: unknown[] } })?.data?.data ??
+          []) as CanaryAnalysisConfig[]
+      );
     } catch {
       message.error('Failed to load canary data');
     } finally {
@@ -132,7 +135,8 @@ const CanaryTrafficPage: React.FC = () => {
       title: 'Confidence',
       dataIndex: 'confidence',
       key: 'confidence',
-      render: (v: number) => v != null ? <Progress percent={Math.round(v * 100)} size="small" /> : '-',
+      render: (v: number) =>
+        v != null ? <Progress percent={Math.round(v * 100)} size="small" /> : '-',
     },
     { title: 'Started', dataIndex: 'startedAt', key: 'startedAt' },
     {
@@ -142,10 +146,20 @@ const CanaryTrafficPage: React.FC = () => {
         <Space>
           {record.status === 'running' && (
             <>
-              <Button size="small" type="primary" icon={<ArrowUpOutlined />} onClick={() => handlePromote(record.id)}>
+              <Button
+                size="small"
+                type="primary"
+                icon={<ArrowUpOutlined />}
+                onClick={() => handlePromote(record.id)}
+              >
                 Promote
               </Button>
-              <Button size="small" danger icon={<ArrowDownOutlined />} onClick={() => handleRollback(record.id)}>
+              <Button
+                size="small"
+                danger
+                icon={<ArrowDownOutlined />}
+                onClick={() => handleRollback(record.id)}
+              >
                 Rollback
               </Button>
             </>
@@ -160,14 +174,18 @@ const CanaryTrafficPage: React.FC = () => {
     { title: 'Environment', dataIndex: 'environment', key: 'environment' },
     { title: 'Interval (s)', dataIndex: 'analysisIntervalSec', key: 'analysisIntervalSec' },
     { title: 'Max Rounds', dataIndex: 'maxRounds', key: 'maxRounds' },
-    { title: 'Promote Threshold', dataIndex: 'promoteThreshold', key: 'promoteThreshold', render: (v: number) => `${(v * 100).toFixed(0)}%` },
+    {
+      title: 'Promote Threshold',
+      dataIndex: 'promoteThreshold',
+      key: 'promoteThreshold',
+      render: (v: number) => `${(v * 100).toFixed(0)}%`,
+    },
     { title: 'Updated', dataIndex: 'updatedAt', key: 'updatedAt' },
   ];
 
   const runningCount = runs.filter((r) => r.status === 'running').length;
-  const avgConfidence = runs.length > 0
-    ? runs.reduce((s, r) => s + (r.confidence || 0), 0) / runs.length
-    : 0;
+  const avgConfidence =
+    runs.length > 0 ? runs.reduce((s, r) => s + (r.confidence || 0), 0) / runs.length : 0;
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -192,27 +210,47 @@ const CanaryTrafficPage: React.FC = () => {
       {/* Stats */}
       <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
-          <Card><Statistic title="Total Runs" value={runs.length} /></Card>
+          <Card>
+            <Statistic title="Total Runs" value={runs.length} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Running" value={runningCount} /></Card>
+          <Card>
+            <Statistic title="Running" value={runningCount} />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Avg Confidence" value={(avgConfidence * 100).toFixed(1)} suffix="%" /></Card>
+          <Card>
+            <Statistic title="Avg Confidence" value={(avgConfidence * 100).toFixed(1)} suffix="%" />
+          </Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="Configs" value={configs.length} /></Card>
+          <Card>
+            <Statistic title="Configs" value={configs.length} />
+          </Card>
         </Col>
       </Row>
 
       {/* Analysis Runs */}
       <Card title="Canary Analysis Runs" style={{ marginBottom: spacing.lg }}>
-        <Table columns={runColumns} dataSource={runs} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+        <Table
+          columns={runColumns}
+          dataSource={runs}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
       {/* Configs */}
       <Card title="Analysis Configurations">
-        <Table columns={configColumns} dataSource={configs} rowKey="id" loading={loading} pagination={false} />
+        <Table
+          columns={configColumns}
+          dataSource={configs}
+          rowKey="id"
+          loading={loading}
+          pagination={false}
+        />
       </Card>
 
       {/* Create Modal */}

@@ -43,7 +43,13 @@ export const pipelineTemplatesApi = {
     return response.data as PipelineTemplate;
   },
 
-  create: async (data: { name: string; description?: string; category?: string; yaml_definition: string; tags?: string[] }) => {
+  create: async (data: {
+    name: string;
+    description?: string;
+    category?: string;
+    yaml_definition: string;
+    tags?: string[];
+  }) => {
     const response = await apiClient.post('/api/v1/pipeline-templates', data);
     return response.data as PipelineTemplate;
   },
@@ -58,12 +64,26 @@ export const pipelineTemplatesApi = {
     return response.data;
   },
 
-  instantiate: async (templateId: string, data: { name: string; tenant_id?: string; project_id?: string; params?: Record<string, unknown> }) => {
-    const response = await apiClient.post(`/api/v1/pipeline-templates/${templateId}/instantiate`, data);
+  instantiate: async (
+    templateId: string,
+    data: {
+      name: string;
+      tenant_id?: string;
+      project_id?: string;
+      params?: Record<string, unknown>;
+    }
+  ) => {
+    const response = await apiClient.post(
+      `/api/v1/pipeline-templates/${templateId}/instantiate`,
+      data
+    );
     return response.data;
   },
 
-  saveFromPipeline: async (pipelineId: string, data: { name: string; description?: string; category?: string }) => {
+  saveFromPipeline: async (
+    pipelineId: string,
+    data: { name: string; description?: string; category?: string }
+  ) => {
     const response = await apiClient.post('/api/v1/pipeline-templates', { ...data, pipelineId });
     return response.data as PipelineTemplate;
   },
@@ -109,7 +129,11 @@ export const pipelineTemplates: FrontendPipelineTemplate[] = [
     category: 'cd',
     stages: [
       { name: '构建', type: 'build', config: { uses: 'orion/build@v1' } },
-      { name: '构建镜像', type: 'buildx', config: { imageName: '${APP_NAME}', tag: '${BUILD_VERSION}' } },
+      {
+        name: '构建镜像',
+        type: 'buildx',
+        config: { imageName: '${APP_NAME}', tag: '${BUILD_VERSION}' },
+      },
       { name: '部署', type: 'deploy', config: { uses: 'orion/k8s-deploy@v1', targetEnv: 'dev' } },
     ],
   },
@@ -123,9 +147,21 @@ export const pipelineTemplates: FrontendPipelineTemplate[] = [
       { name: '代码扫描', type: 'scan', config: { uses: 'orion/sonarqube@v1' } },
       { name: '构建', type: 'build', config: { uses: 'orion/build@v1', command: 'npm run build' } },
       { name: '单元测试', type: 'test', config: { uses: 'orion/test@v1', command: 'npm test' } },
-      { name: '构建镜像', type: 'buildx', config: { imageName: '${APP_NAME}', tag: '${BUILD_VERSION}' } },
-      { name: '部署开发', type: 'deploy', config: { uses: 'orion/k8s-deploy@v1', targetEnv: 'dev' } },
-      { name: '部署生产', type: 'deploy', config: { uses: 'orion/k8s-deploy@v1', targetEnv: 'prod' } },
+      {
+        name: '构建镜像',
+        type: 'buildx',
+        config: { imageName: '${APP_NAME}', tag: '${BUILD_VERSION}' },
+      },
+      {
+        name: '部署开发',
+        type: 'deploy',
+        config: { uses: 'orion/k8s-deploy@v1', targetEnv: 'dev' },
+      },
+      {
+        name: '部署生产',
+        type: 'deploy',
+        config: { uses: 'orion/k8s-deploy@v1', targetEnv: 'prod' },
+      },
     ],
   },
   {
@@ -141,7 +177,12 @@ export const pipelineTemplates: FrontendPipelineTemplate[] = [
   },
 ];
 
-export function templateToYaml(template: FrontendPipelineTemplate, name: string, version: string, description: string): string {
+export function templateToYaml(
+  template: FrontendPipelineTemplate,
+  name: string,
+  version: string,
+  description: string
+): string {
   const lines: string[] = [
     'apiVersion: v1',
     'kind: Pipeline',
@@ -156,10 +197,11 @@ export function templateToYaml(template: FrontendPipelineTemplate, name: string,
 
   for (const stage of template.stages) {
     const stepUses = stage.config?.uses || `orion/${stage.type}@v1`;
-    const stageConfig = stage.config ? Object.fromEntries(
-      Object.entries(stage.config).filter(([k]) => k !== 'uses')
-    ) : {};
-    const stepWith = Object.keys(stageConfig).length > 0 ? `\n        with: ${JSON.stringify(stageConfig)}` : '';
+    const stageConfig = stage.config
+      ? Object.fromEntries(Object.entries(stage.config).filter(([k]) => k !== 'uses'))
+      : {};
+    const stepWith =
+      Object.keys(stageConfig).length > 0 ? `\n        with: ${JSON.stringify(stageConfig)}` : '';
 
     lines.push(`    - name: ${stage.name}`);
     lines.push(`      type: ${stage.type}`);

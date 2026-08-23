@@ -14,10 +14,11 @@ describe('AuthInitializer', () => {
     // Mock fetch for /me
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        success: true,
-        data: { id: '1', username: 'test', email: 'test@test.com', role: 'admin' },
-      }),
+      json: () =>
+        Promise.resolve({
+          success: true,
+          data: { id: '1', username: 'test', email: 'test@test.com', role: 'admin' },
+        }),
     });
 
     render(

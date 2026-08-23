@@ -65,7 +65,10 @@ export function getPRTriggerRules(pipelineId: string) {
 /**
  * Create a PR trigger rule
  */
-export function createPRTrigger(pipelineId: string, rule: Omit<PRTriggerRule, 'id' | 'createdAt' | 'updatedAt'>) {
+export function createPRTrigger(
+  pipelineId: string,
+  rule: Omit<PRTriggerRule, 'id' | 'createdAt' | 'updatedAt'>
+) {
   return api.post<PRTriggerRule>(`/api/v1/pipelines/${pipelineId}/pr-triggers`, rule);
 }
 

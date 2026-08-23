@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><MultiCloudPage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <MultiCloudPage />
+    </BrowserRouter>
+  );
 }
 
 describe('MultiCloudPage', () => {

@@ -197,20 +197,34 @@ export interface EvaluationResult {
 export function getBudgetGuards(params?: { tenantId?: string }) {
   return api.get<{ success: boolean; data: BudgetGuard[] }>(
     '/api/v1/cost-operations/budget-guards',
-    { params },
+    { params }
   );
 }
 
 export function createBudgetGuard(data: BudgetGuardInput) {
-  return api.post<{ success: boolean; data: BudgetGuard }>('/api/v1/cost-operations/budget-guards', data);
+  return api.post<{ success: boolean; data: BudgetGuard }>(
+    '/api/v1/cost-operations/budget-guards',
+    data
+  );
 }
 
-export function evaluateBudgetGuard(pipelineId: string, estimatedCost: number, options?: {
-  tenantId?: string; projectId?: string; environment?: string;
-}) {
-  return api.post<{ success: boolean; data: EvaluationResult }>('/api/v1/cost-operations/evaluate', {
-    pipelineId, estimatedCost, ...options,
-  });
+export function evaluateBudgetGuard(
+  pipelineId: string,
+  estimatedCost: number,
+  options?: {
+    tenantId?: string;
+    projectId?: string;
+    environment?: string;
+  }
+) {
+  return api.post<{ success: boolean; data: EvaluationResult }>(
+    '/api/v1/cost-operations/evaluate',
+    {
+      pipelineId,
+      estimatedCost,
+      ...options,
+    }
+  );
 }
 
 // ---- Cost Forecast API ----
@@ -226,6 +240,6 @@ export interface CostForecastResult {
 export function getCostForecast(params?: { days?: number; tenantId?: string }) {
   return api.get<{ success: boolean; data: CostForecastResult }>(
     '/api/v1/cost-operations/forecast',
-    { params },
+    { params }
   );
 }

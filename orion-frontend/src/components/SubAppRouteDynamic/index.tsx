@@ -9,7 +9,14 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSubAppStore } from '@/stores/subappStore';
-import { loadSubApp, getSubApp, destroySubApp, emitReady, emitError, orionBus } from '@orion-mf/core';
+import {
+  loadSubApp,
+  getSubApp,
+  destroySubApp,
+  emitReady,
+  emitError,
+  orionBus,
+} from '@orion-mf/core';
 import { injectAuthState } from '@/microfront/config';
 import { Result, Button, Progress, Skeleton, Space, Tag } from 'antd';
 import { CheckCircleOutlined, CloudServerOutlined } from '@ant-design/icons';
@@ -64,7 +71,6 @@ const SubAppRouteDynamic: React.FC = () => {
     if (key) {
       try {
         await destroySubApp(key);
-
       } catch (err) {
         console.warn(`[SubAppRouteDynamic] Failed to destroy ${key}:`, err);
       }
@@ -111,8 +117,22 @@ const SubAppRouteDynamic: React.FC = () => {
     const mainToken = localStorage.getItem('access_token');
     const mainUserStr = localStorage.getItem('user');
     let mainUser = { id: '', username: '' };
-    if (mainUserStr) { try { mainUser = JSON.parse(mainUserStr); } catch { /* ignore */ } }
-    (window as unknown as { $orion?: { token: string; tenantId: string; user: { id: string; username: string; email?: string } } }).$orion = {
+    if (mainUserStr) {
+      try {
+        mainUser = JSON.parse(mainUserStr);
+      } catch {
+        /* ignore */
+      }
+    }
+    (
+      window as unknown as {
+        $orion?: {
+          token: string;
+          tenantId: string;
+          user: { id: string; username: string; email?: string };
+        };
+      }
+    ).$orion = {
       token: mainToken || '',
       tenantId: localStorage.getItem('tenant_id') || '',
       user: mainUser,
@@ -121,7 +141,8 @@ const SubAppRouteDynamic: React.FC = () => {
 
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = appConfig?.api_domain || subAppKey;
-    (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ = `/api/v1/${apiDomain}`;
+    (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ =
+      `/api/v1/${apiDomain}`;
 
     // 确保容器 ID 正确
     const containerId = `mf-${subAppKey}`;
@@ -139,7 +160,6 @@ const SubAppRouteDynamic: React.FC = () => {
         // 检查是否已加载（支持 keepAlive 场景）
         const existingInstance = getSubApp(subAppKey);
         if (existingInstance && containerRef.current) {
-
           instanceRef.current = existingInstance;
           setIsFromCache(true);
           setLoadProgress(100);
@@ -238,28 +258,34 @@ const SubAppRouteDynamic: React.FC = () => {
 
   // OrionBus 认证状态监听：当主应用登录态变化时同步到子应用
   useEffect(() => {
-    const unsubscribe = orionBus.on('orionAuth', (payload) => {
-      const auth = payload.data;
-      if (auth?.token && subAppKey) {
-
-        window.$orion = {
-          token: auth.token,
-          tenantId: auth.tenantId || localStorage.getItem('tenant_id') || '',
-          user: auth.user || { id: '', username: '' },
-        };
-        // 通过 window 事件通知子应用（子应用可通过 $orion 获取最新状态）
-        window.dispatchEvent(new CustomEvent('orion-auth-change', { detail: auth }));
-      }
-    }, `subapp-${subAppKey}`);
+    const unsubscribe = orionBus.on(
+      'orionAuth',
+      (payload) => {
+        const auth = payload.data;
+        if (auth?.token && subAppKey) {
+          window.$orion = {
+            token: auth.token,
+            tenantId: auth.tenantId || localStorage.getItem('tenant_id') || '',
+            user: auth.user || { id: '', username: '' },
+          };
+          // 通过 window 事件通知子应用（子应用可通过 $orion 获取最新状态）
+          window.dispatchEvent(new CustomEvent('orion-auth-change', { detail: auth }));
+        }
+      },
+      `subapp-${subAppKey}`
+    );
 
     // 监听主应用退出登录
-    const unsubscribeLogout = orionBus.on('orionLogout', () => {
-      if (subAppKey) {
-
-        (window as unknown as { $orion?: undefined }).$orion = undefined;
-        window.dispatchEvent(new CustomEvent('orion-logout'));
-      }
-    }, `subapp-${subAppKey}`);
+    const unsubscribeLogout = orionBus.on(
+      'orionLogout',
+      () => {
+        if (subAppKey) {
+          (window as unknown as { $orion?: undefined }).$orion = undefined;
+          window.dispatchEvent(new CustomEvent('orion-logout'));
+        }
+      },
+      `subapp-${subAppKey}`
+    );
 
     return () => {
       unsubscribe();
@@ -340,7 +366,13 @@ const SubAppRouteDynamic: React.FC = () => {
             subTitle={error}
             extra={
               <Space>
-                <Button onClick={() => { setError(null); loadingKeyRef.current = null; setLoading(true); }}>
+                <Button
+                  onClick={() => {
+                    setError(null);
+                    loadingKeyRef.current = null;
+                    setLoading(true);
+                  }}
+                >
                   重试
                 </Button>
                 <Button type="primary" onClick={() => navigate('/dashboard')}>
@@ -366,7 +398,14 @@ const SubAppRouteDynamic: React.FC = () => {
           }}
         >
           <div style={{ width: '100%', maxWidth: 400 }}>
-            <div style={{ marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+            <div
+              style={{
+                marginBottom: spacing.lg,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.md,
+              }}
+            >
               <Skeleton.Avatar active size={48} shape="square" />
               <div style={{ flex: 1 }}>
                 <Skeleton.Input active style={{ width: '60%', marginBottom: spacing.sm }} />
@@ -400,11 +439,16 @@ const SubAppRouteDynamic: React.FC = () => {
                     {loadStage}
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.neutral[500] }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                    color: colors.neutral[500],
+                  }}
+                >
                   <CloudServerOutlined />
-                  <span style={{ fontSize: 12 }}>
-                    {appConfig?.name || subAppKey}
-                  </span>
+                  <span style={{ fontSize: 12 }}>{appConfig?.name || subAppKey}</span>
                 </div>
               </Space>
             </div>

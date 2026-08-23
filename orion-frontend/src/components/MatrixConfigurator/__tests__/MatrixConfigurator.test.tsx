@@ -116,9 +116,9 @@ describe('MatrixConfigurator', () => {
 
     await waitFor(() => {
       // Find the danger button (delete button) within the dimension row
-      const deleteBtn = screen.getAllByRole('button').find(
-        (btn) => btn.className.includes('ant-btn-dangerous')
-      );
+      const deleteBtn = screen
+        .getAllByRole('button')
+        .find((btn) => btn.className.includes('ant-btn-dangerous'));
       expect(deleteBtn).toBeInTheDocument();
       if (deleteBtn) {
         fireEvent.click(deleteBtn);
@@ -138,7 +138,9 @@ describe('MatrixConfigurator', () => {
       expect(mockOnChange).toHaveBeenCalled();
     });
 
-    const lastCall = mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1][0] as MatrixBuildConfig;
+    const lastCall = mockOnChange.mock.calls[
+      mockOnChange.mock.calls.length - 1
+    ][0] as MatrixBuildConfig;
     expect(lastCall.enabled).toBe(true);
     expect(lastCall.dimensions).toHaveLength(1);
     expect(lastCall.dimensions[0].key).toBe('node');

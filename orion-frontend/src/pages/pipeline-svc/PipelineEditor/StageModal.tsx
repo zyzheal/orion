@@ -35,7 +35,9 @@ import type {
   QualityGateRule,
 } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
-import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
+import PRTriggerConfigComponent, {
+  type PRTriggerConfig as PRTriggerConfigType,
+} from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
 import { colors, spacing } from '@/tokens';
 
@@ -268,29 +270,34 @@ const StageModal: React.FC<StageModalProps> = ({
           containerCommand: values.containerCommand,
           containerArgs: values.containerArgs?.split('\n').filter(Boolean),
           containerEnv: values.containerEnv,
-          containerResources: values.containerResources ? {
-            cpu: values.containerCpu,
-            memory: values.containerMemory,
-            gpu: values.containerGpu ? {
-              devices: values.containerGpuDevices,
-              capabilities: values.containerGpuCapabilities?.split(',').filter(Boolean),
-            } : undefined,
-          } : undefined,
+          containerResources: values.containerResources
+            ? {
+                cpu: values.containerCpu,
+                memory: values.containerMemory,
+                gpu: values.containerGpu
+                  ? {
+                      devices: values.containerGpuDevices,
+                      capabilities: values.containerGpuCapabilities?.split(',').filter(Boolean),
+                    }
+                  : undefined,
+              }
+            : undefined,
           containerNetwork: values.containerNetwork,
         },
         // APK 上传配置
-        apkUpload: values.type === 'apk-upload'
-          ? {
-              uploadType: values.apkUploadType || 'single',
-              market: values.apkMarket,
-              apkPath: values.apkPath,
-              packageName: values.packageName,
-              versionName: values.versionName,
-              changelog: values.changelog,
-              credentials: values.apkCredentials,
-              channel: values.apkChannel,
-            }
-          : undefined,
+        apkUpload:
+          values.type === 'apk-upload'
+            ? {
+                uploadType: values.apkUploadType || 'single',
+                market: values.apkMarket,
+                apkPath: values.apkPath,
+                packageName: values.packageName,
+                versionName: values.versionName,
+                changelog: values.changelog,
+                credentials: values.apkCredentials,
+                channel: values.apkChannel,
+              }
+            : undefined,
         // 缓存配置
         cache: values.cacheEnabled
           ? {
@@ -329,7 +336,7 @@ const StageModal: React.FC<StageModalProps> = ({
           : undefined,
         // PR/MR 触发配置 - 显式构建完整对象，确保必填字段
         prTrigger: prTriggerConfig?.enabled
-          ? {
+          ? ({
               ...prTriggerConfig,
               enabled: true,
               provider: prTriggerConfig.provider || 'github',
@@ -347,7 +354,7 @@ const StageModal: React.FC<StageModalProps> = ({
               },
               draftPolicy: prTriggerConfig.draftPolicy || 'skip',
               securityLevel: prTriggerConfig.securityLevel || 'safe',
-            } as PRTriggerConfigType
+            } as PRTriggerConfigType)
           : undefined,
         // 超时配置
         timeoutConfig: timeoutConfig.enabled ? timeoutConfig : undefined,
@@ -409,7 +416,11 @@ const StageModal: React.FC<StageModalProps> = ({
       rules: prev.rules.filter((r) => r.id !== id),
     }));
   };
-  const handleUpdateQualityRule = (id: string, field: keyof QualityGateRule, value: string | number | boolean) => {
+  const handleUpdateQualityRule = (
+    id: string,
+    field: keyof QualityGateRule,
+    value: string | number | boolean
+  ) => {
     setQualityGateConfig((prev) => ({
       ...prev,
       rules: prev.rules.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
@@ -577,7 +588,15 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'sub-pipeline' && (
-              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+              <Card
+                size="small"
+                style={{ marginBottom: spacing.md }}
+                title={
+                  <Space>
+                    <BranchesOutlined /> 子流水线配置
+                  </Space>
+                }
+              >
                 <Form.Item
                   label="选择流水线"
                   name="subPipelineId"
@@ -656,7 +675,11 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'buildx' && (
-              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>🏷️ 多架构构建配置</Space>}>
+              <Card
+                size="small"
+                style={{ marginBottom: spacing.md }}
+                title={<Space>🏷️ 多架构构建配置</Space>}
+              >
                 <Form.Item
                   label="镜像名称"
                   name="buildxImageName"
@@ -689,7 +712,11 @@ const StageModal: React.FC<StageModalProps> = ({
                   />
                 </Form.Item>
 
-                <Form.Item label="Dockerfile 路径" name="buildxDockerfile" tooltip="Dockerfile 的相对路径">
+                <Form.Item
+                  label="Dockerfile 路径"
+                  name="buildxDockerfile"
+                  tooltip="Dockerfile 的相对路径"
+                >
                   <Input placeholder="Dockerfile" />
                 </Form.Item>
 
@@ -697,7 +724,12 @@ const StageModal: React.FC<StageModalProps> = ({
                   <Input placeholder="." />
                 </Form.Item>
 
-                <Form.Item label="推送镜像" name="buildxPush" valuePropName="checked" tooltip="构建完成后推送到镜像仓库">
+                <Form.Item
+                  label="推送镜像"
+                  name="buildxPush"
+                  valuePropName="checked"
+                  tooltip="构建完成后推送到镜像仓库"
+                >
                   <Switch />
                 </Form.Item>
               </Card>
@@ -708,10 +740,15 @@ const StageModal: React.FC<StageModalProps> = ({
         {/* Container 容器运行配置 */}
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
-            (formInstance.getFieldValue('type') === 'container' || formInstance.getFieldValue('type') === 'apk-upload') && (
+            (formInstance.getFieldValue('type') === 'container' ||
+              formInstance.getFieldValue('type') === 'apk-upload') && (
               <>
                 {formInstance.getFieldValue('type') === 'container' && (
-                  <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📦 容器运行配置</Space>}>
+                  <Card
+                    size="small"
+                    style={{ marginBottom: spacing.md }}
+                    title={<Space>📦 容器运行配置</Space>}
+                  >
                     <Form.Item
                       label="容器镜像"
                       name="containerImage"
@@ -721,69 +758,119 @@ const StageModal: React.FC<StageModalProps> = ({
                       <Input placeholder="node:18-alpine" />
                     </Form.Item>
 
-                <Form.Item label="启动命令" name="containerCommand" tooltip="容器启动时执行的命令">
-                  <Input placeholder="npm run test" />
-                </Form.Item>
+                    <Form.Item
+                      label="启动命令"
+                      name="containerCommand"
+                      tooltip="容器启动时执行的命令"
+                    >
+                      <Input placeholder="npm run test" />
+                    </Form.Item>
 
-                <Form.Item label="启动参数" name="containerArgs" tooltip="每行一个参数">
-                  <TextArea rows={2} placeholder="--env=production&#10;--port=3000" style={{ fontFamily: 'monospace' }} />
-                </Form.Item>
+                    <Form.Item label="启动参数" name="containerArgs" tooltip="每行一个参数">
+                      <TextArea
+                        rows={2}
+                        placeholder="--env=production&#10;--port=3000"
+                        style={{ fontFamily: 'monospace' }}
+                      />
+                    </Form.Item>
 
-                <Form.Item label="环境变量" name="containerEnv" tooltip="格式：KEY=VALUE，每行一个">
-                  <TextArea rows={2} placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com" style={{ fontFamily: 'monospace' }} />
-                </Form.Item>
+                    <Form.Item
+                      label="环境变量"
+                      name="containerEnv"
+                      tooltip="格式：KEY=VALUE，每行一个"
+                    >
+                      <TextArea
+                        rows={2}
+                        placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com"
+                        style={{ fontFamily: 'monospace' }}
+                      />
+                    </Form.Item>
 
-                <Form.Item label="资源限制" name="containerResources" valuePropName="checked">
-                  <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-                </Form.Item>
+                    <Form.Item label="资源限制" name="containerResources" valuePropName="checked">
+                      <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+                    </Form.Item>
 
-                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerResources !== curr.containerResources}>
-                  {(fi) =>
-                    fi.getFieldValue('containerResources') && (
-                      <>
-                        <Form.Item label="CPU 限制" name="containerCpu" tooltip="例如：2.0 表示 2 个 CPU">
-                          <InputNumber min={0.1} max={16} step={0.1} style={{ width: '100%' }} placeholder="2.0" />
-                        </Form.Item>
-                        <Form.Item label="内存限制" name="containerMemory" tooltip="例如：4g, 512m">
-                          <Input placeholder="4g" />
-                        </Form.Item>
-                        <Form.Item label="启用 GPU" name="containerGpu" valuePropName="checked">
-                          <Switch />
-                        </Form.Item>
-                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}>
-                          {(fi2) =>
-                            fi2.getFieldValue('containerGpu') && (
-                              <>
-                                <Form.Item label="GPU 设备" name="containerGpuDevices" tooltip="例如：all, 0, device=GPU-uuid">
-                                  <Input placeholder="all" />
-                                </Form.Item>
-                                <Form.Item label="GPU 能力" name="containerGpuCapabilities" tooltip="逗号分隔">
-                                  <Input placeholder="compute,utility" />
-                                </Form.Item>
-                              </>
-                            )
-                          }
-                        </Form.Item>
-                      </>
-                    )
-                  }
-                </Form.Item>
+                    <Form.Item
+                      noStyle
+                      shouldUpdate={(prev, curr) =>
+                        prev.containerResources !== curr.containerResources
+                      }
+                    >
+                      {(fi) =>
+                        fi.getFieldValue('containerResources') && (
+                          <>
+                            <Form.Item
+                              label="CPU 限制"
+                              name="containerCpu"
+                              tooltip="例如：2.0 表示 2 个 CPU"
+                            >
+                              <InputNumber
+                                min={0.1}
+                                max={16}
+                                step={0.1}
+                                style={{ width: '100%' }}
+                                placeholder="2.0"
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              label="内存限制"
+                              name="containerMemory"
+                              tooltip="例如：4g, 512m"
+                            >
+                              <Input placeholder="4g" />
+                            </Form.Item>
+                            <Form.Item label="启用 GPU" name="containerGpu" valuePropName="checked">
+                              <Switch />
+                            </Form.Item>
+                            <Form.Item
+                              noStyle
+                              shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}
+                            >
+                              {(fi2) =>
+                                fi2.getFieldValue('containerGpu') && (
+                                  <>
+                                    <Form.Item
+                                      label="GPU 设备"
+                                      name="containerGpuDevices"
+                                      tooltip="例如：all, 0, device=GPU-uuid"
+                                    >
+                                      <Input placeholder="all" />
+                                    </Form.Item>
+                                    <Form.Item
+                                      label="GPU 能力"
+                                      name="containerGpuCapabilities"
+                                      tooltip="逗号分隔"
+                                    >
+                                      <Input placeholder="compute,utility" />
+                                    </Form.Item>
+                                  </>
+                                )
+                              }
+                            </Form.Item>
+                          </>
+                        )
+                      }
+                    </Form.Item>
 
-                <Form.Item label="网络模式" name="containerNetwork" tooltip="容器网络模式">
-                  <Select
-                    placeholder="选择网络模式"
-                    options={[
-                      { label: 'host', value: 'host' },
-                      { label: 'bridge', value: 'bridge' },
-                      { label: 'none', value: 'none' },
-                    ]}
-                  />
-                </Form.Item>
-              </Card>
+                    <Form.Item label="网络模式" name="containerNetwork" tooltip="容器网络模式">
+                      <Select
+                        placeholder="选择网络模式"
+                        options={[
+                          { label: 'host', value: 'host' },
+                          { label: 'bridge', value: 'bridge' },
+                          { label: 'none', value: 'none' },
+                        ]}
+                      />
+                    </Form.Item>
+                  </Card>
                 )}
                 {/* APK Upload 配置 */}
                 {formInstance.getFieldValue('type') === 'apk-upload' && (
-                  <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📱 APK 上传配置</Space>}>
+                  <Card
+                    size="small"
+                    style={{ marginBottom: spacing.md }}
+                    title={<Space>📱 APK 上传配置</Space>}
+                  >
                     <Form.Item
                       label="上传类型"
                       name="apkUploadType"
@@ -906,23 +993,12 @@ const StageModal: React.FC<StageModalProps> = ({
                       <Input placeholder="例如：com.example.app" />
                     </Form.Item>
 
-                    <Form.Item
-                      label="版本名称"
-                      name="versionName"
-                      tooltip="应用的版本名称（可选）"
-                    >
+                    <Form.Item label="版本名称" name="versionName" tooltip="应用的版本名称（可选）">
                       <Input placeholder="例如：1.0.0" />
                     </Form.Item>
 
-                    <Form.Item
-                      label="更新日志"
-                      name="changelog"
-                      tooltip="版本更新说明"
-                    >
-                      <TextArea
-                        rows={3}
-                        placeholder="描述此次更新的内容..."
-                      />
+                    <Form.Item label="更新日志" name="changelog" tooltip="版本更新说明">
+                      <TextArea rows={3} placeholder="描述此次更新的内容..." />
                     </Form.Item>
 
                     <Form.Item
@@ -1083,10 +1159,7 @@ const StageModal: React.FC<StageModalProps> = ({
             }
           >
             {matrixConfig.enabled ? (
-              <MatrixConfigurator
-                value={matrixConfig}
-                onChange={setMatrixConfig}
-              />
+              <MatrixConfigurator value={matrixConfig} onChange={setMatrixConfig} />
             ) : (
               <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
                 启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
@@ -1122,9 +1195,7 @@ const StageModal: React.FC<StageModalProps> = ({
           <Form.Item label="启用超时策略" valuePropName="checked">
             <Switch
               checked={timeoutConfig.enabled}
-              onChange={(checked) =>
-                setTimeoutConfig((prev) => ({ ...prev, enabled: checked }))
-              }
+              onChange={(checked) => setTimeoutConfig((prev) => ({ ...prev, enabled: checked }))}
               checkedChildren="启用"
               unCheckedChildren="禁用"
             />
@@ -1211,9 +1282,7 @@ const StageModal: React.FC<StageModalProps> = ({
           <Form.Item label="启用审批" valuePropName="checked">
             <Switch
               checked={approvalConfig.enabled}
-              onChange={(checked) =>
-                setApprovalConfig((prev) => ({ ...prev, enabled: checked }))
-              }
+              onChange={(checked) => setApprovalConfig((prev) => ({ ...prev, enabled: checked }))}
               checkedChildren="启用"
               unCheckedChildren="禁用"
             />
@@ -1240,12 +1309,7 @@ const StageModal: React.FC<StageModalProps> = ({
                       />
                     </Space>
                   ))}
-                  <Button
-                    type="dashed"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddApprover}
-                    block
-                  >
+                  <Button type="dashed" icon={<PlusOutlined />} onClick={handleAddApprover} block>
                     添加审批人
                   </Button>
                 </Space>
@@ -1254,9 +1318,7 @@ const StageModal: React.FC<StageModalProps> = ({
               <Form.Item label="审批模式">
                 <Radio.Group
                   value={approvalConfig.mode}
-                  onChange={(e) =>
-                    setApprovalConfig((prev) => ({ ...prev, mode: e.target.value }))
-                  }
+                  onChange={(e) => setApprovalConfig((prev) => ({ ...prev, mode: e.target.value }))}
                 >
                   <Radio value="any">
                     <Space>

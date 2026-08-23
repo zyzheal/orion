@@ -47,12 +47,13 @@ const DeployVersionModal: React.FC<DeployVersionModalProps> = ({
             <Text>
               版本: <Text strong>{version.version}</Text>
             </Text>
-            <Text>
-              制品: {version.artifactName}
-            </Text>
+            <Text>制品: {version.artifactName}</Text>
             {version.commitSha && (
               <Text>
-                Commit: <Text code style={{ fontSize: 11 }}>{version.commitSha.slice(0, 7)}</Text>
+                Commit:{' '}
+                <Text code style={{ fontSize: 11 }}>
+                  {version.commitSha.slice(0, 7)}
+                </Text>
               </Text>
             )}
             {version.branch && (

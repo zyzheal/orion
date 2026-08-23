@@ -15,10 +15,17 @@ import {
   Card,
   message,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
+  BranchesOutlined,
+} from '@ant-design/icons';
 import type { StageConfig, MatrixBuildConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
-import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
+import PRTriggerConfigComponent, {
+  type PRTriggerConfig as PRTriggerConfigType,
+} from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
 import { colors, spacing } from '@/tokens';
 
@@ -178,14 +185,18 @@ const StageModal: React.FC<StageModalProps> = ({
           containerCommand: values.containerCommand,
           containerArgs: values.containerArgs?.split('\n').filter(Boolean),
           containerEnv: values.containerEnv,
-          containerResources: values.containerResources ? {
-            cpu: values.containerCpu,
-            memory: values.containerMemory,
-            gpu: values.containerGpu ? {
-              devices: values.containerGpuDevices,
-              capabilities: values.containerGpuCapabilities?.split(',').filter(Boolean),
-            } : undefined,
-          } : undefined,
+          containerResources: values.containerResources
+            ? {
+                cpu: values.containerCpu,
+                memory: values.containerMemory,
+                gpu: values.containerGpu
+                  ? {
+                      devices: values.containerGpuDevices,
+                      capabilities: values.containerGpuCapabilities?.split(',').filter(Boolean),
+                    }
+                  : undefined,
+              }
+            : undefined,
           containerNetwork: values.containerNetwork,
         },
         // 缓存配置
@@ -387,7 +398,15 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'sub-pipeline' && (
-              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+              <Card
+                size="small"
+                style={{ marginBottom: spacing.md }}
+                title={
+                  <Space>
+                    <BranchesOutlined /> 子流水线配置
+                  </Space>
+                }
+              >
                 <Form.Item
                   label="选择流水线"
                   name="subPipelineId"
@@ -466,7 +485,11 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'buildx' && (
-              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>🏷️ 多架构构建配置</Space>}>
+              <Card
+                size="small"
+                style={{ marginBottom: spacing.md }}
+                title={<Space>🏷️ 多架构构建配置</Space>}
+              >
                 <Form.Item
                   label="镜像名称"
                   name="buildxImageName"
@@ -499,7 +522,11 @@ const StageModal: React.FC<StageModalProps> = ({
                   />
                 </Form.Item>
 
-                <Form.Item label="Dockerfile 路径" name="buildxDockerfile" tooltip="Dockerfile 的相对路径">
+                <Form.Item
+                  label="Dockerfile 路径"
+                  name="buildxDockerfile"
+                  tooltip="Dockerfile 的相对路径"
+                >
                   <Input placeholder="Dockerfile" />
                 </Form.Item>
 
@@ -507,7 +534,12 @@ const StageModal: React.FC<StageModalProps> = ({
                   <Input placeholder="." />
                 </Form.Item>
 
-                <Form.Item label="推送镜像" name="buildxPush" valuePropName="checked" tooltip="构建完成后推送到镜像仓库">
+                <Form.Item
+                  label="推送镜像"
+                  name="buildxPush"
+                  valuePropName="checked"
+                  tooltip="构建完成后推送到镜像仓库"
+                >
                   <Switch />
                 </Form.Item>
               </Card>
@@ -519,7 +551,11 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'container' && (
-              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📦 容器运行配置</Space>}>
+              <Card
+                size="small"
+                style={{ marginBottom: spacing.md }}
+                title={<Space>📦 容器运行配置</Space>}
+              >
                 <Form.Item
                   label="容器镜像"
                   name="containerImage"
@@ -534,23 +570,44 @@ const StageModal: React.FC<StageModalProps> = ({
                 </Form.Item>
 
                 <Form.Item label="启动参数" name="containerArgs" tooltip="每行一个参数">
-                  <TextArea rows={2} placeholder="--env=production&#10;--port=3000" style={{ fontFamily: 'monospace' }} />
+                  <TextArea
+                    rows={2}
+                    placeholder="--env=production&#10;--port=3000"
+                    style={{ fontFamily: 'monospace' }}
+                  />
                 </Form.Item>
 
                 <Form.Item label="环境变量" name="containerEnv" tooltip="格式：KEY=VALUE，每行一个">
-                  <TextArea rows={2} placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com" style={{ fontFamily: 'monospace' }} />
+                  <TextArea
+                    rows={2}
+                    placeholder="NODE_ENV=production&#10;API_URL=https://api.example.com"
+                    style={{ fontFamily: 'monospace' }}
+                  />
                 </Form.Item>
 
                 <Form.Item label="资源限制" name="containerResources" valuePropName="checked">
                   <Switch checkedChildren="启用" unCheckedChildren="禁用" />
                 </Form.Item>
 
-                <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerResources !== curr.containerResources}>
+                <Form.Item
+                  noStyle
+                  shouldUpdate={(prev, curr) => prev.containerResources !== curr.containerResources}
+                >
                   {(fi) =>
                     fi.getFieldValue('containerResources') && (
                       <>
-                        <Form.Item label="CPU 限制" name="containerCpu" tooltip="例如：2.0 表示 2 个 CPU">
-                          <InputNumber min={0.1} max={16} step={0.1} style={{ width: '100%' }} placeholder="2.0" />
+                        <Form.Item
+                          label="CPU 限制"
+                          name="containerCpu"
+                          tooltip="例如：2.0 表示 2 个 CPU"
+                        >
+                          <InputNumber
+                            min={0.1}
+                            max={16}
+                            step={0.1}
+                            style={{ width: '100%' }}
+                            placeholder="2.0"
+                          />
                         </Form.Item>
                         <Form.Item label="内存限制" name="containerMemory" tooltip="例如：4g, 512m">
                           <Input placeholder="4g" />
@@ -558,14 +615,25 @@ const StageModal: React.FC<StageModalProps> = ({
                         <Form.Item label="启用 GPU" name="containerGpu" valuePropName="checked">
                           <Switch />
                         </Form.Item>
-                        <Form.Item noStyle shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}>
+                        <Form.Item
+                          noStyle
+                          shouldUpdate={(prev, curr) => prev.containerGpu !== curr.containerGpu}
+                        >
                           {(fi2) =>
                             fi2.getFieldValue('containerGpu') && (
                               <>
-                                <Form.Item label="GPU 设备" name="containerGpuDevices" tooltip="例如：all, 0, device=GPU-uuid">
+                                <Form.Item
+                                  label="GPU 设备"
+                                  name="containerGpuDevices"
+                                  tooltip="例如：all, 0, device=GPU-uuid"
+                                >
                                   <Input placeholder="all" />
                                 </Form.Item>
-                                <Form.Item label="GPU 能力" name="containerGpuCapabilities" tooltip="逗号分隔">
+                                <Form.Item
+                                  label="GPU 能力"
+                                  name="containerGpuCapabilities"
+                                  tooltip="逗号分隔"
+                                >
                                   <Input placeholder="compute,utility" />
                                 </Form.Item>
                               </>
@@ -720,10 +788,7 @@ const StageModal: React.FC<StageModalProps> = ({
             }
           >
             {matrixConfig.enabled ? (
-              <MatrixConfigurator
-                value={matrixConfig}
-                onChange={setMatrixConfig}
-              />
+              <MatrixConfigurator value={matrixConfig} onChange={setMatrixConfig} />
             ) : (
               <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
                 启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
@@ -741,10 +806,7 @@ const StageModal: React.FC<StageModalProps> = ({
         </Divider>
 
         <Form.Item noStyle shouldUpdate>
-          <PRTriggerConfigComponent
-            value={prTriggerConfig}
-            onChange={setPrTriggerConfig}
-          />
+          <PRTriggerConfigComponent value={prTriggerConfig} onChange={setPrTriggerConfig} />
         </Form.Item>
       </Form>
     </Modal>

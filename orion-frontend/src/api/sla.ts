@@ -70,7 +70,10 @@ export const getSLADefinitions = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: SLADefinition[]; total: number }> => {
-  const response = await api.get<{ data: SLADefinition[]; total: number }>('/api/v1/sla/definitions', { params });
+  const response = await api.get<{ data: SLADefinition[]; total: number }>(
+    '/api/v1/sla/definitions',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -94,7 +97,10 @@ export const createSLADefinition = async (data: {
   return response.data.data;
 };
 
-export const updateSLADefinition = async (id: string, data: Partial<SLADefinition>): Promise<SLADefinition> => {
+export const updateSLADefinition = async (
+  id: string,
+  data: Partial<SLADefinition>
+): Promise<SLADefinition> => {
   const response = await api.put<{ data: SLADefinition }>(`/api/v1/sla/definitions/${id}`, data);
   return response.data.data;
 };
@@ -112,7 +118,9 @@ export const getSLATrackings = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: SLATracking[]; total: number }> => {
-  const response = await api.get<{ data: SLATracking[]; total: number }>('/api/v1/sla/tracking', { params });
+  const response = await api.get<{ data: SLATracking[]; total: number }>('/api/v1/sla/tracking', {
+    params,
+  });
   return { data: response.data.data, total: response.data.total };
 };
 
@@ -132,8 +140,15 @@ export const createSLATracking = async (data: {
   return response.data.data;
 };
 
-export const updateSLATrackingStatus = async (id: string, status: string, notes?: string): Promise<SLATracking> => {
-  const response = await api.patch<{ data: SLATracking }>(`/api/v1/sla/tracking/${id}`, { status, notes });
+export const updateSLATrackingStatus = async (
+  id: string,
+  status: string,
+  notes?: string
+): Promise<SLATracking> => {
+  const response = await api.patch<{ data: SLATracking }>(`/api/v1/sla/tracking/${id}`, {
+    status,
+    notes,
+  });
   return response.data.data;
 };
 
@@ -149,7 +164,10 @@ export const getSLABreaches = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: SLABreachEvent[]; total: number }> => {
-  const response = await api.get<{ data: SLABreachEvent[]; total: number }>('/api/v1/sla/breaches', { params });
+  const response = await api.get<{ data: SLABreachEvent[]; total: number }>(
+    '/api/v1/sla/breaches',
+    { params }
+  );
   return { data: response.data.data, total: response.data.total };
 };
 

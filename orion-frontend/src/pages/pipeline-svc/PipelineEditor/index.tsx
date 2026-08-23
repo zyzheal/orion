@@ -90,7 +90,8 @@ const STAGE_TYPES = [
   { label: '通知 (Notify)', value: 'notify', icon: '📢' },
   { label: '自定义 (Custom)', value: 'custom', icon: '⚙️' },
   { label: '多架构构建 (Buildx)', value: 'buildx', icon: '🏷️' },
-  { label: '容器运行 (Container)', value: 'container', icon: '📦' },];
+  { label: '容器运行 (Container)', value: 'container', icon: '📦' },
+];
 
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();

@@ -42,7 +42,12 @@ export interface ResourcePool {
 }
 
 export const federationApi = {
-  registerCluster: async (data: { name: string; provider: string; region: string; endpoint: string }) => {
+  registerCluster: async (data: {
+    name: string;
+    provider: string;
+    region: string;
+    endpoint: string;
+  }) => {
     const response = await apiClient.post('/api/v1/federation/clusters', data);
     return response.data as FederationCluster;
   },
@@ -57,7 +62,11 @@ export const federationApi = {
     return response.data as ClusterHealth;
   },
 
-  submitCrossClusterJob: async (data: { name: string; targetClusters: string[]; spec: Record<string, unknown> }) => {
+  submitCrossClusterJob: async (data: {
+    name: string;
+    targetClusters: string[];
+    spec: Record<string, unknown>;
+  }) => {
     const response = await apiClient.post('/api/v1/federation/jobs', data);
     return response.data as CrossClusterJob;
   },
@@ -72,7 +81,11 @@ export const federationApi = {
     return response.data as CrossClusterJob[];
   },
 
-  submitJob: async (data: { name: string; targetClusters: string[]; spec: Record<string, unknown> }) => {
+  submitJob: async (data: {
+    name: string;
+    targetClusters: string[];
+    spec: Record<string, unknown>;
+  }) => {
     const response = await apiClient.post('/api/v1/federation/jobs', data);
     return response.data as CrossClusterJob;
   },
@@ -82,7 +95,12 @@ export const federationApi = {
     return response.data as ResourcePool[];
   },
 
-  createResourcePool: async (data: { name: string; clusterId: string; cpuCores: number; memoryMb: number }) => {
+  createResourcePool: async (data: {
+    name: string;
+    clusterId: string;
+    cpuCores: number;
+    memoryMb: number;
+  }) => {
     const response = await apiClient.post('/api/v1/federation/resource-pools', data);
     return response.data as ResourcePool;
   },

@@ -96,9 +96,10 @@ const TrafficGovernance: React.FC = () => {
 
       // Calculate stats
       const activeRules = rules.filter((r) => r.status === 'active').length;
-      const avgCanary = rules.length > 0
-        ? Math.round(rules.reduce((sum, r) => sum + r.canaryWeight, 0) / rules.length)
-        : 0;
+      const avgCanary =
+        rules.length > 0
+          ? Math.round(rules.reduce((sum, r) => sum + r.canaryWeight, 0) / rules.length)
+          : 0;
       setStats({
         totalRules: rules.length,
         activeRules,
@@ -299,11 +300,7 @@ const TrafficGovernance: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="编辑流量权重">
-            <Button
-              size="small"
-              icon={<ApartmentOutlined />}
-              onClick={() => handleEdit(record)}
-            >
+            <Button size="small" icon={<ApartmentOutlined />} onClick={() => handleEdit(record)}>
               权重
             </Button>
           </Tooltip>
@@ -341,20 +338,12 @@ const TrafficGovernance: React.FC = () => {
       </Col>
       <Col xs={24} sm={12} lg={6}>
         <Card>
-          <Statistic
-            title="平均 Canary 流量"
-            value={stats.avgCanaryWeight}
-            suffix="%"
-          />
+          <Statistic title="平均 Canary 流量" value={stats.avgCanaryWeight} suffix="%" />
         </Card>
       </Col>
       <Col xs={24} sm={12} lg={6}>
         <Card>
-          <Statistic
-            title="总流量切分"
-            value={stats.totalTraffic}
-            suffix="%"
-          />
+          <Statistic title="总流量切分" value={stats.totalTraffic} suffix="%" />
         </Card>
       </Col>
     </Row>
@@ -377,7 +366,12 @@ const TrafficGovernance: React.FC = () => {
       </Title>
       <Text
         type="secondary"
-        style={{ marginBottom: spacing.md, display: 'block', fontSize: 14, color: colors.neutral[500] }}
+        style={{
+          marginBottom: spacing.md,
+          display: 'block',
+          fontSize: 14,
+          color: colors.neutral[500],
+        }}
       >
         管理灰度发布和流量切分规则，支持全量发布和快速回滚
       </Text>

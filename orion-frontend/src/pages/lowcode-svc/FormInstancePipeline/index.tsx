@@ -89,8 +89,12 @@ const FormInstancePipeline: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadInstances(); }, [loadInstances]);
-  useEffect(() => { loadForms(); }, [loadForms]);
+  useEffect(() => {
+    loadInstances();
+  }, [loadInstances]);
+  useEffect(() => {
+    loadForms();
+  }, [loadForms]);
 
   const handleSubmit = async (values: { formId: string; data: Record<string, unknown> }) => {
     try {
@@ -133,7 +137,9 @@ const FormInstancePipeline: React.FC = () => {
 
   const totalInstances = instances.length;
   const approvedCount = instances.filter((i) => i.status === 'approved').length;
-  const pendingCount = instances.filter((i) => i.status === 'submitted' || i.status === 'pending').length;
+  const pendingCount = instances.filter(
+    (i) => i.status === 'submitted' || i.status === 'pending'
+  ).length;
   const rejectedCount = instances.filter((i) => i.status === 'rejected').length;
 
   const columns = [
@@ -166,14 +172,14 @@ const FormInstancePipeline: React.FC = () => {
       dataIndex: 'submittedAt',
       key: 'submittedAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '审批时间',
       dataIndex: 'approvedAt',
       key: 'approvedAt',
       width: 160,
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -181,16 +187,28 @@ const FormInstancePipeline: React.FC = () => {
       width: 200,
       render: (_: any, record: FormInstance) => (
         <Space>
-          <Button size="small" type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+          <Button
+            size="small"
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
             详情
           </Button>
           {(record.status === 'submitted' || record.status === 'pending') && (
             <>
-              <Popconfirm title="确认审批通过？" onConfirm={() => handleApprove(record.id, 'approve')}>
-                <Button size="small" type="link" icon={<CheckOutlined />}>通过</Button>
+              <Popconfirm
+                title="确认审批通过？"
+                onConfirm={() => handleApprove(record.id, 'approve')}
+              >
+                <Button size="small" type="link" icon={<CheckOutlined />}>
+                  通过
+                </Button>
               </Popconfirm>
               <Popconfirm title="确认拒绝？" onConfirm={() => handleApprove(record.id, 'reject')}>
-                <Button size="small" type="link" danger icon={<CloseOutlined />}>拒绝</Button>
+                <Button size="small" type="link" danger icon={<CloseOutlined />}>
+                  拒绝
+                </Button>
               </Popconfirm>
             </>
           )}
@@ -213,25 +231,33 @@ const FormInstancePipeline: React.FC = () => {
         <Col span={6}>
           <Card>
             <Text type="secondary">实例总数</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>{totalInstances}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>
+              {totalInstances}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Text type="secondary">待审批</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.warning[500] }}>{pendingCount}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.warning[500] }}>
+              {pendingCount}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Text type="secondary">已通过</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>{approvedCount}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>
+              {approvedCount}
+            </div>
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Text type="secondary">已拒绝</Text>
-            <div style={{ fontSize: 24, fontWeight: 600, color: colors.error[500] }}>{rejectedCount}</div>
+            <div style={{ fontSize: 24, fontWeight: 600, color: colors.error[500] }}>
+              {rejectedCount}
+            </div>
           </Card>
         </Col>
       </Row>
@@ -248,7 +274,9 @@ const FormInstancePipeline: React.FC = () => {
               placeholder="选择表单"
             >
               {forms.map((f) => (
-                <Option key={f.id} value={f.id}>{f.name}</Option>
+                <Option key={f.id} value={f.id}>
+                  {f.name}
+                </Option>
               ))}
             </Select>
             <Select
@@ -262,11 +290,24 @@ const FormInstancePipeline: React.FC = () => {
               <Option value="approved">已批准</Option>
               <Option value="rejected">已拒绝</Option>
             </Select>
-            <Button icon={<ReloadOutlined />} size="small" onClick={loadInstances} loading={loading}>刷新</Button>
-            <Button type="primary" icon={<SendOutlined />} onClick={() => {
-              submitForm.resetFields();
-              setSubmitModalOpen(true);
-            }}>提交实例</Button>
+            <Button
+              icon={<ReloadOutlined />}
+              size="small"
+              onClick={loadInstances}
+              loading={loading}
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={() => {
+                submitForm.resetFields();
+                setSubmitModalOpen(true);
+              }}
+            >
+              提交实例
+            </Button>
           </Space>
         }
       >
@@ -295,15 +336,14 @@ const FormInstancePipeline: React.FC = () => {
           <Form.Item name="formId" label="选择表单" rules={[{ required: true }]}>
             <Select>
               {forms.map((f) => (
-                <Option key={f.id} value={f.id}>{f.name}</Option>
+                <Option key={f.id} value={f.id}>
+                  {f.name}
+                </Option>
               ))}
             </Select>
           </Form.Item>
           <Form.Item name="data" label="表单数据 (JSON)" rules={[{ required: true }]}>
-            <TextArea
-              rows={6}
-              placeholder='{"name": "example", "value": 123}'
-            />
+            <TextArea rows={6} placeholder='{"name": "example", "value": 123}' />
           </Form.Item>
         </Form>
       </Modal>
@@ -325,16 +365,32 @@ const FormInstancePipeline: React.FC = () => {
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="提交者">{selectedInstance.submittedBy}</Descriptions.Item>
-            <Descriptions.Item label="审批人">{selectedInstance.approvedBy || '-'}</Descriptions.Item>
+            <Descriptions.Item label="审批人">
+              {selectedInstance.approvedBy || '-'}
+            </Descriptions.Item>
             <Descriptions.Item label="提交时间">
-              {selectedInstance.submittedAt ? new Date(selectedInstance.submittedAt).toLocaleString() : '-'}
+              {selectedInstance.submittedAt
+                ? new Date(selectedInstance.submittedAt).toLocaleString()
+                : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="审批时间">
-              {selectedInstance.approvedAt ? new Date(selectedInstance.approvedAt).toLocaleString() : '-'}
+              {selectedInstance.approvedAt
+                ? new Date(selectedInstance.approvedAt).toLocaleString()
+                : '-'}
             </Descriptions.Item>
             {selectedInstance.data && (
               <Descriptions.Item label="数据">
-                <pre style={{ margin: 0, fontSize: 12, maxHeight: 200, overflow: 'auto', background: themeVars.bgSecondary, padding: 8, borderRadius: 4 }}>
+                <pre
+                  style={{
+                    margin: 0,
+                    fontSize: 12,
+                    maxHeight: 200,
+                    overflow: 'auto',
+                    background: themeVars.bgSecondary,
+                    padding: 8,
+                    borderRadius: 4,
+                  }}
+                >
                   {JSON.stringify(selectedInstance.data, null, 2)}
                 </pre>
               </Descriptions.Item>

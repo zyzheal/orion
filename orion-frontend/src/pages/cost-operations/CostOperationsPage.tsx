@@ -149,7 +149,10 @@ const CostOverviewTab: React.FC = () => {
         type: 'pie' as const,
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
-        data: byService.map((s) => ({ name: s.serviceName, value: Math.round(s.cost * 100) / 100 })),
+        data: byService.map((s) => ({
+          name: s.serviceName,
+          value: Math.round(s.cost * 100) / 100,
+        })),
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
       },
@@ -157,7 +160,13 @@ const CostOverviewTab: React.FC = () => {
   };
 
   const columns = [
-    { title: '服务', dataIndex: 'serviceName', key: 'serviceName', width: 160, render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '服务',
+      dataIndex: 'serviceName',
+      key: 'serviceName',
+      width: 160,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     {
       title: '成本',
       dataIndex: 'cost',
@@ -170,7 +179,9 @@ const CostOverviewTab: React.FC = () => {
       dataIndex: 'percentOfTotal',
       key: 'percentOfTotal',
       width: 100,
-      render: (v: number) => <Progress percent={Math.round(v)} size="small" style={{ width: 80 }} />,
+      render: (v: number) => (
+        <Progress percent={Math.round(v)} size="small" style={{ width: 80 }} />
+      ),
     },
     {
       title: '趋势',
@@ -206,11 +217,13 @@ const CostOverviewTab: React.FC = () => {
               />
               {overview.monthOverMonthChange !== 0 && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  环比 {overview.monthOverMonthChange > 0 ? (
+                  环比{' '}
+                  {overview.monthOverMonthChange > 0 ? (
                     <RiseOutlined style={{ color: colors.error[400] }} />
                   ) : (
                     <FallOutlined style={{ color: colors.success[500] }} />
-                  )} {Math.abs(overview.monthOverMonthChange).toFixed(1)}%
+                  )}{' '}
+                  {Math.abs(overview.monthOverMonthChange).toFixed(1)}%
                 </Text>
               )}
             </Card>
@@ -232,7 +245,9 @@ const CostOverviewTab: React.FC = () => {
                 value={overview.budgetRemaining}
                 prefix="¥"
                 precision={2}
-                valueStyle={{ color: overview.budgetRemaining > 0 ? colors.success[500] : colors.error[400] }}
+                valueStyle={{
+                  color: overview.budgetRemaining > 0 ? colors.success[500] : colors.error[400],
+                }}
               />
             </Card>
           </Col>
@@ -325,13 +340,23 @@ const AnomalyDetectionTab: React.FC = () => {
   };
 
   const columns = [
-    { title: '服务', dataIndex: 'serviceName', key: 'serviceName', width: 160, render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '服务',
+      dataIndex: 'serviceName',
+      key: 'serviceName',
+      width: 160,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     {
       title: '异常类型',
       dataIndex: 'anomalyType',
       key: 'anomalyType',
       width: 120,
-      render: (v: string) => <Tag color={v === 'spike' ? 'error' : v === 'drop' ? 'success' : 'warning'}>{anomalyTypeMap[v]}</Tag>,
+      render: (v: string) => (
+        <Tag color={v === 'spike' ? 'error' : v === 'drop' ? 'success' : 'warning'}>
+          {anomalyTypeMap[v]}
+        </Tag>
+      ),
     },
     {
       title: '严重程度',
@@ -340,19 +365,36 @@ const AnomalyDetectionTab: React.FC = () => {
       width: 100,
       render: (v: string) => <Tag color={severityColorMap[v]}>{v}</Tag>,
     },
-    { title: '预期成本', key: 'expected', width: 100, render: (_: unknown, r: CostAnomaly) => `¥${r.expectedCost.toFixed(2)}` },
-    { title: '实际成本', key: 'actual', width: 100, render: (_: unknown, r: CostAnomaly) => `¥${r.actualCost.toFixed(2)}` },
+    {
+      title: '预期成本',
+      key: 'expected',
+      width: 100,
+      render: (_: unknown, r: CostAnomaly) => `¥${r.expectedCost.toFixed(2)}`,
+    },
+    {
+      title: '实际成本',
+      key: 'actual',
+      width: 100,
+      render: (_: unknown, r: CostAnomaly) => `¥${r.actualCost.toFixed(2)}`,
+    },
     {
       title: '偏差',
       key: 'deviation',
       width: 80,
       render: (_: unknown, r: CostAnomaly) => (
         <Text style={{ color: r.deviation > 0 ? colors.error[400] : colors.success[500] }}>
-          {r.deviation > 0 ? '+' : ''}{r.deviation.toFixed(1)}%
+          {r.deviation > 0 ? '+' : ''}
+          {r.deviation.toFixed(1)}%
         </Text>
       ),
     },
-    { title: '检测时间', dataIndex: 'detectedAt', key: 'detectedAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '检测时间',
+      dataIndex: 'detectedAt',
+      key: 'detectedAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
   ];
 
@@ -360,7 +402,9 @@ const AnomalyDetectionTab: React.FC = () => {
     <div>
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">自动检测成本异常波动</Text>
-        <Button icon={<ReloadOutlined />} onClick={loadAnomalies} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadAnomalies} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       {anomalies.length === 0 && !loading && (
@@ -383,7 +427,14 @@ const AnomalyDetectionTab: React.FC = () => {
             </Space>
           }
         >
-          <Table columns={columns} dataSource={anomalies} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+          <Table
+            columns={columns}
+            dataSource={anomalies}
+            rowKey="id"
+            loading={loading}
+            size="middle"
+            pagination={{ pageSize: 10 }}
+          />
         </Card>
       )}
     </div>
@@ -455,7 +506,11 @@ const OptimizationTab: React.FC = () => {
       dataIndex: 'potentialSavings',
       key: 'potentialSavings',
       width: 100,
-      render: (v: number) => <Text strong style={{ color: colors.success[500] }}>¥{v.toFixed(2)}</Text>,
+      render: (v: number) => (
+        <Text strong style={{ color: colors.success[500] }}>
+          ¥{v.toFixed(2)}
+        </Text>
+      ),
     },
     {
       title: '置信度',
@@ -485,7 +540,12 @@ const OptimizationTab: React.FC = () => {
       render: (_: unknown, record: OptimizationSuggestion) =>
         record.status === 'pending' ? (
           <Space size="small">
-            <Button type="link" size="small" style={{ color: colors.success[500] }} onClick={() => handleApply(record.id)}>
+            <Button
+              type="link"
+              size="small"
+              style={{ color: colors.success[500] }}
+              onClick={() => handleApply(record.id)}
+            >
               应用
             </Button>
             <Button type="link" size="small" danger onClick={() => handleReject(record.id)}>
@@ -517,12 +577,28 @@ const OptimizationTab: React.FC = () => {
             ]}
           />
         </Space>
-        <Button icon={<ReloadOutlined />} onClick={loadSuggestions} loading={loading}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={loadSuggestions} loading={loading}>
+          刷新
+        </Button>
       </div>
 
       {suggestions.length > 0 && (
-        <Card title={<span><BulbOutlined style={{ color: colors.warning[500] }} /> 优化建议 ({suggestions.length})</span>}>
-          <Table columns={columns} dataSource={suggestions} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+        <Card
+          title={
+            <span>
+              <BulbOutlined style={{ color: colors.warning[500] }} /> 优化建议 ({suggestions.length}
+              )
+            </span>
+          }
+        >
+          <Table
+            columns={columns}
+            dataSource={suggestions}
+            rowKey="id"
+            loading={loading}
+            size="middle"
+            pagination={{ pageSize: 10 }}
+          />
         </Card>
       )}
 
@@ -549,7 +625,12 @@ const BudgetTab: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [gateForm] = Form.useForm();
   const [gateLoading, setGateLoading] = useState(false);
-  const [gateResult, setGateResult] = useState<{ passed: boolean; reason: string; estimated: number; limit: number } | null>(null);
+  const [gateResult, setGateResult] = useState<{
+    passed: boolean;
+    reason: string;
+    estimated: number;
+    limit: number;
+  } | null>(null);
 
   const loadBudgets = async () => {
     setLoading(true);
@@ -578,7 +659,9 @@ const BudgetTab: React.FC = () => {
         services: values.services
           ? (values.services as string).split(',').map((s: string) => s.trim())
           : [],
-        alerts: [{ thresholdPercent: values.alertThreshold, action: values.alertAction, recipients: [] }],
+        alerts: [
+          { thresholdPercent: values.alertThreshold, action: values.alertAction, recipients: [] },
+        ],
       });
       message.success('预算已创建');
       setModalVisible(false);
@@ -637,9 +720,27 @@ const BudgetTab: React.FC = () => {
   };
 
   const budgetColumns = [
-    { title: '预算名称', dataIndex: 'name', key: 'name', width: 180, render: (v: string) => <Text strong>{v}</Text> },
-    { title: '周期', dataIndex: 'period', key: 'period', width: 80, render: (v: string) => periodMap[v] || v },
-    { title: '金额', dataIndex: 'amount', key: 'amount', width: 120, render: (v: number) => `¥${v.toFixed(2)}` },
+    {
+      title: '预算名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 180,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
+    {
+      title: '周期',
+      dataIndex: 'period',
+      key: 'period',
+      width: 80,
+      render: (v: string) => periodMap[v] || v,
+    },
+    {
+      title: '金额',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 120,
+      render: (v: number) => `¥${v.toFixed(2)}`,
+    },
     {
       title: '关联服务',
       key: 'services',
@@ -655,13 +756,21 @@ const BudgetTab: React.FC = () => {
           <Text type="secondary">全部</Text>
         ),
     },
-    { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '操作',
       key: 'actions',
       width: 80,
       render: (_: unknown, record: BudgetConfig) => (
-        <Button type="link" size="small" danger onClick={() => handleDelete(record.id)}>删除</Button>
+        <Button type="link" size="small" danger onClick={() => handleDelete(record.id)}>
+          删除
+        </Button>
       ),
     },
   ];
@@ -669,7 +778,13 @@ const BudgetTab: React.FC = () => {
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Budget Gate Check */}
-      <Card title={<span><SafetyOutlined /> 预算门禁检查</span>}>
+      <Card
+        title={
+          <span>
+            <SafetyOutlined /> 预算门禁检查
+          </span>
+        }
+      >
         <Form form={gateForm} layout="inline" onFinish={handleCheckGate}>
           <Form.Item name="pipelineId" label="Pipeline ID" rules={[{ required: true }]}>
             <Input placeholder="如: main-build" style={{ width: 180 }} />
@@ -678,7 +793,12 @@ const BudgetTab: React.FC = () => {
             <Input type="number" placeholder="100.00" style={{ width: 140 }} />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={gateLoading} icon={<SafetyOutlined />}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={gateLoading}
+              icon={<SafetyOutlined />}
+            >
               检查
             </Button>
           </Form.Item>
@@ -700,11 +820,22 @@ const BudgetTab: React.FC = () => {
         <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Text type="secondary">配置和管理预算</Text>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadBudgets} loading={loading}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>创建预算</Button>
+            <Button icon={<ReloadOutlined />} onClick={loadBudgets} loading={loading}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+              创建预算
+            </Button>
           </Space>
         </div>
-        <Table columns={budgetColumns} dataSource={budgets} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={budgetColumns}
+          dataSource={budgets}
+          rowKey="id"
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </div>
 
       {/* Create Budget Modal */}
@@ -728,12 +859,19 @@ const BudgetTab: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="period" label="周期" rules={[{ required: true }]} initialValue="monthly">
-                <Select options={[
-                  { label: '月度', value: 'monthly' },
-                  { label: '季度', value: 'quarterly' },
-                  { label: '年度', value: 'yearly' },
-                ]} />
+              <Form.Item
+                name="period"
+                label="周期"
+                rules={[{ required: true }]}
+                initialValue="monthly"
+              >
+                <Select
+                  options={[
+                    { label: '月度', value: 'monthly' },
+                    { label: '季度', value: 'quarterly' },
+                    { label: '年度', value: 'yearly' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -748,11 +886,13 @@ const BudgetTab: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="alertAction" label="告警动作" initialValue="notify">
-                <Select options={[
-                  { label: '通知', value: 'notify' },
-                  { label: '警告', value: 'warn' },
-                  { label: '阻断', value: 'block' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '通知', value: 'notify' },
+                    { label: '警告', value: 'warn' },
+                    { label: '阻断', value: 'block' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -782,7 +922,7 @@ const CostOperationsPage: React.FC = () => {
       {/* Page Header */}
       <div style={{ marginBottom: spacing.lg }}>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           <DollarOutlined style={{ marginRight: spacing.sm }} />
           成本运营
         </Title>
@@ -791,16 +931,44 @@ const CostOperationsPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab={<span><DollarOutlined /> 总览</span>} key="overview">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <DollarOutlined /> 总览
+            </span>
+          }
+          key="overview"
+        >
           <CostOverviewTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><WarningOutlined /> 异常检测</span>} key="anomalies">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <WarningOutlined /> 异常检测
+            </span>
+          }
+          key="anomalies"
+        >
           <AnomalyDetectionTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><BulbOutlined /> 优化建议</span>} key="optimization">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <BulbOutlined /> 优化建议
+            </span>
+          }
+          key="optimization"
+        >
           <OptimizationTab />
         </Tabs.TabPane>
-        <Tabs.TabPane tab={<span><SafetyOutlined /> 预算管理</span>} key="budget">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <SafetyOutlined /> 预算管理
+            </span>
+          }
+          key="budget"
+        >
           <BudgetTab />
         </Tabs.TabPane>
       </Tabs>

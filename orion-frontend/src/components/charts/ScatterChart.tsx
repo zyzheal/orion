@@ -36,9 +36,7 @@ export const ScatterChart: React.FC<ScatterChartProps> = ({
 
   const option = useMemo(() => {
     const hasSeries = data.some((d) => d.series);
-    const seriesNames = hasSeries
-      ? [...new Set(data.map((d) => d.series).filter(Boolean))]
-      : [''];
+    const seriesNames = hasSeries ? [...new Set(data.map((d) => d.series).filter(Boolean))] : [''];
 
     const seriesList = seriesNames.map((name, idx) => {
       const seriesData = data
@@ -52,9 +50,7 @@ export const ScatterChart: React.FC<ScatterChartProps> = ({
         name: name || 'Default',
         type: 'scatter' as const,
         data: seriesData,
-        symbolSize: showBubble
-          ? (val: number[]) => Math.max(val[2] ?? 5, 5)
-          : 8,
+        symbolSize: showBubble ? (val: number[]) => Math.max(val[2] ?? 5, 5) : 8,
         colorBy,
         itemStyle: {
           color: theme.palette[idx % theme.palette.length],
@@ -99,7 +95,10 @@ export const ScatterChart: React.FC<ScatterChartProps> = ({
 
   if (loading) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
+      <div
+        style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-busy="true"
+      >
         <Spin />
       </div>
     );

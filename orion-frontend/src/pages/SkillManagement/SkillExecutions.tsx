@@ -24,7 +24,12 @@ import {
   Select,
   Descriptions,
 } from 'antd';
-import { ReloadOutlined, ArrowLeftOutlined, PlayCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  ArrowLeftOutlined,
+  PlayCircleOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
@@ -121,10 +126,7 @@ const SkillExecutions: React.FC = () => {
       if (capabilityFilter !== 'all' && exec.capability !== capabilityFilter) return false;
       if (dateRange && dateRange[0] && dateRange[1]) {
         const execDate = dayjs(exec.createdAt);
-        if (
-          execDate.isBefore(dateRange[0]) ||
-          execDate.isAfter(dateRange[1].endOf('day'))
-        ) {
+        if (execDate.isBefore(dateRange[0]) || execDate.isAfter(dateRange[1].endOf('day'))) {
           return false;
         }
       }
@@ -142,117 +144,119 @@ const SkillExecutions: React.FC = () => {
     return `${minutes}m ${secs}s`;
   };
 
-  const columns: TableColumn<SkillExecution>[] = useMemo<TableColumn<SkillExecution>[]>(() => [
-    {
-      key: 'id',
-      title: '执行ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[2] }}>
-          {String(v).slice(0, 8)}...
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => (
-        <Tag color={executionStatusColors[String(v)] || 'default'}>
-          {String(v)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'capability',
-      title: '能力',
-      dataIndex: 'capability',
-      width: 140,
-      render: (v: unknown) =>
-        v ? <Tag color="blue">{String(v)}</Tag> : <Text type="secondary">-</Text>,
-    },
-    {
-      key: 'instanceId',
-      title: '实例',
-      dataIndex: 'instanceId',
-      width: 120,
-      render: (v: unknown) =>
-        v ? (
-          <Text code style={{ fontSize: spacing[2] }}>{String(v).slice(0, 8)}</Text>
-        ) : (
-          <Text type="secondary">直接执行</Text>
+  const columns: TableColumn<SkillExecution>[] = useMemo<TableColumn<SkillExecution>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '执行ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[2] }}>
+            {String(v).slice(0, 8)}...
+          </Text>
         ),
-    },
-    {
-      key: 'duration',
-      title: '耗时',
-      dataIndex: 'duration',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text>{formatDuration(v as number)}</Text>,
-    },
-    {
-      key: 'userId',
-      title: '执行人',
-      dataIndex: 'userId',
-      width: 120,
-      render: (v: unknown) =>
-        v ? <Text code>{String(v)}</Text> : <Text type="secondary">系统</Text>,
-    },
-    {
-      key: 'input',
-      title: '输入摘要',
-      dataIndex: 'input',
-      width: 200,
-      render: (v: unknown) => {
-        const input = v as Record<string, unknown>;
-        const keys = input ? Object.keys(input) : [];
-        return keys.length > 0 ? (
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {keys.slice(0, 3).join(', ')}{keys.length > 3 ? '...' : ''}
-          </Text>
-        ) : (
-          <Text type="secondary">-</Text>
-        );
       },
-    },
-    {
-      key: 'createdAt',
-      title: '执行时间',
-      dataIndex: 'createdAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Space direction="vertical" size={0}>
-          <Text style={{ fontSize: spacing[3] }}>
-            {dayjs(String(v)).format('MM-DD HH:mm')}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {dayjs(String(v)).fromNow()}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 80,
-      render: (_: unknown, record) => (
-        <Button
-          type="link"
-          size="small"
-          onClick={() => {
-            setSelectedExecution(record);
-            setDetailModalVisible(true);
-          }}
-        >
-          详情
-        </Button>
-      ),
-    },
-  ], []);
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => (
+          <Tag color={executionStatusColors[String(v)] || 'default'}>{String(v)}</Tag>
+        ),
+      },
+      {
+        key: 'capability',
+        title: '能力',
+        dataIndex: 'capability',
+        width: 140,
+        render: (v: unknown) =>
+          v ? <Tag color="blue">{String(v)}</Tag> : <Text type="secondary">-</Text>,
+      },
+      {
+        key: 'instanceId',
+        title: '实例',
+        dataIndex: 'instanceId',
+        width: 120,
+        render: (v: unknown) =>
+          v ? (
+            <Text code style={{ fontSize: spacing[2] }}>
+              {String(v).slice(0, 8)}
+            </Text>
+          ) : (
+            <Text type="secondary">直接执行</Text>
+          ),
+      },
+      {
+        key: 'duration',
+        title: '耗时',
+        dataIndex: 'duration',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text>{formatDuration(v as number)}</Text>,
+      },
+      {
+        key: 'userId',
+        title: '执行人',
+        dataIndex: 'userId',
+        width: 120,
+        render: (v: unknown) =>
+          v ? <Text code>{String(v)}</Text> : <Text type="secondary">系统</Text>,
+      },
+      {
+        key: 'input',
+        title: '输入摘要',
+        dataIndex: 'input',
+        width: 200,
+        render: (v: unknown) => {
+          const input = v as Record<string, unknown>;
+          const keys = input ? Object.keys(input) : [];
+          return keys.length > 0 ? (
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {keys.slice(0, 3).join(', ')}
+              {keys.length > 3 ? '...' : ''}
+            </Text>
+          ) : (
+            <Text type="secondary">-</Text>
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '执行时间',
+        dataIndex: 'createdAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Space direction="vertical" size={0}>
+            <Text style={{ fontSize: spacing[3] }}>{dayjs(String(v)).format('MM-DD HH:mm')}</Text>
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {dayjs(String(v)).fromNow()}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 80,
+        render: (_: unknown, record) => (
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              setSelectedExecution(record);
+              setDetailModalVisible(true);
+            }}
+          >
+            详情
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   // Extract unique capabilities for filter
   const capabilities = useMemo(() => {
@@ -276,11 +280,7 @@ const SkillExecutions: React.FC = () => {
       >
         <div>
           <Space style={{ marginBottom: spacing.sm }}>
-            <Button
-              type="text"
-              icon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/skills/my')}
-            >
+            <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/skills/my')}>
               返回
             </Button>
           </Space>
@@ -334,8 +334,7 @@ const SkillExecutions: React.FC = () => {
               value={
                 executions.length > 0
                   ? Math.round(
-                      executions.reduce((sum, e) => sum + (e.duration || 0), 0) /
-                        executions.length
+                      executions.reduce((sum, e) => sum + (e.duration || 0), 0) / executions.length
                     )
                   : 0
               }
@@ -405,9 +404,7 @@ const SkillExecutions: React.FC = () => {
         title="执行详情"
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
-        footer={
-          <Button onClick={() => setDetailModalVisible(false)}>关闭</Button>
-        }
+        footer={<Button onClick={() => setDetailModalVisible(false)}>关闭</Button>}
         width={700}
       >
         {selectedExecution && (
@@ -455,13 +452,27 @@ const SkillExecutions: React.FC = () => {
             )}
 
             <Card style={{ marginTop: spacing.md }} title="输入参数" size="small">
-              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: spacing.sm, borderRadius: 4 }}>
+              <pre
+                style={{
+                  fontSize: 12,
+                  background: colors.neutral[100],
+                  padding: spacing.sm,
+                  borderRadius: 4,
+                }}
+              >
                 {JSON.stringify(selectedExecution.input, null, 2)}
               </pre>
             </Card>
 
             <Card style={{ marginTop: spacing.md }} title="输出结果" size="small">
-              <pre style={{ fontSize: 12, background: colors.neutral[100], padding: spacing.sm, borderRadius: 4 }}>
+              <pre
+                style={{
+                  fontSize: 12,
+                  background: colors.neutral[100],
+                  padding: spacing.sm,
+                  borderRadius: 4,
+                }}
+              >
                 {JSON.stringify(selectedExecution.output, null, 2)}
               </pre>
             </Card>

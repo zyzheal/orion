@@ -179,7 +179,10 @@ export function getTenant(id: string) {
 }
 
 export function createTenant(input: CreateTenantRequest) {
-  return api.post<TenantEntity & { allocatedNamespaces?: NamespacePoolEntry[]; message?: string }>('/api/v1/tenant', input);
+  return api.post<TenantEntity & { allocatedNamespaces?: NamespacePoolEntry[]; message?: string }>(
+    '/api/v1/tenant',
+    input
+  );
 }
 
 export function updateTenant(id: string, input: Partial<CreateTenantRequest>) {
@@ -318,11 +321,17 @@ export interface TenantAlert {
   created_at: string;
 }
 
-export function getTenantAlerts(tenantId?: string, params?: { page?: number; limit?: number; resourceType?: string; status?: string }) {
-  return api.get<{ alerts: TenantAlert[]; total: number; page: number; limit: number }>('/api/v1/tenant/alerts', {
-    params,
-    headers: tenantId ? { 'x-tenant-id': tenantId } : {},
-  });
+export function getTenantAlerts(
+  tenantId?: string,
+  params?: { page?: number; limit?: number; resourceType?: string; status?: string }
+) {
+  return api.get<{ alerts: TenantAlert[]; total: number; page: number; limit: number }>(
+    '/api/v1/tenant/alerts',
+    {
+      params,
+      headers: tenantId ? { 'x-tenant-id': tenantId } : {},
+    }
+  );
 }
 
 export function getAlertStats(tenantId?: string) {

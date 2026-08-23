@@ -149,7 +149,14 @@ const VectorStorePage: React.FC = () => {
     );
   }, [searchQuery, collections]);
 
-  const handleCreate = async (values: { name: string; displayName: string; description?: string; dimensions: number; indexType?: string; distanceMetric?: string }) => {
+  const handleCreate = async (values: {
+    name: string;
+    displayName: string;
+    description?: string;
+    dimensions: number;
+    indexType?: string;
+    distanceMetric?: string;
+  }) => {
     try {
       const data: CreateCollectionInput = {
         name: values.name,
@@ -157,7 +164,8 @@ const VectorStorePage: React.FC = () => {
         description: values.description,
         dimensions: values.dimensions,
         indexType: (values.indexType as CreateCollectionInput['indexType']) || 'hnsw',
-        distanceMetric: (values.distanceMetric as CreateCollectionInput['distanceMetric']) || 'cosine',
+        distanceMetric:
+          (values.distanceMetric as CreateCollectionInput['distanceMetric']) || 'cosine',
       };
       await createCollection(data);
       message.success('集合创建成功');
@@ -286,7 +294,11 @@ const VectorStorePage: React.FC = () => {
       width: 180,
       render: (text: string, record: VectorCollection) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }} onClick={() => openDetail(record)}>
+          <Text
+            strong
+            style={{ cursor: 'pointer', color: colors.primary[500] }}
+            onClick={() => openDetail(record)}
+          >
             {text}
           </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -351,7 +363,8 @@ const VectorStorePage: React.FC = () => {
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 140,
-      sorter: (a: VectorCollection, b: VectorCollection) => dayjs(a.updatedAt).unix() - dayjs(b.updatedAt).unix(),
+      sorter: (a: VectorCollection, b: VectorCollection) =>
+        dayjs(a.updatedAt).unix() - dayjs(b.updatedAt).unix(),
       render: (val: string) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {dayjs(val).fromNow()}
@@ -365,12 +378,20 @@ const VectorStorePage: React.FC = () => {
       render: (_: unknown, record: VectorCollection) => (
         <Space size="small">
           <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => openDetail(record)}
+            >
               详情
             </Button>
           </Tooltip>
           <Tooltip title="删除">
-            <Popconfirm title="确认删除该集合？此操作不可撤销。" onConfirm={() => handleDeleteCollection(record.name)}>
+            <Popconfirm
+              title="确认删除该集合？此操作不可撤销。"
+              onConfirm={() => handleDeleteCollection(record.name)}
+            >
               <Button type="link" size="small" danger icon={<DeleteOutlined />} />
             </Popconfirm>
           </Tooltip>
@@ -393,17 +414,27 @@ const VectorStorePage: React.FC = () => {
             <Descriptions.Item label="描述" span={2}>
               {c.description || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="文档数量">{c.documentCount.toLocaleString()}</Descriptions.Item>
+            <Descriptions.Item label="文档数量">
+              {c.documentCount.toLocaleString()}
+            </Descriptions.Item>
             <Descriptions.Item label="向量维度">{c.dimensions}</Descriptions.Item>
-            <Descriptions.Item label="索引类型">{indexTypeLabelMap[c.indexType] || c.indexType}</Descriptions.Item>
-            <Descriptions.Item label="距离度量">{metricLabelMap[c.distanceMetric] || c.distanceMetric}</Descriptions.Item>
+            <Descriptions.Item label="索引类型">
+              {indexTypeLabelMap[c.indexType] || c.indexType}
+            </Descriptions.Item>
+            <Descriptions.Item label="距离度量">
+              {metricLabelMap[c.distanceMetric] || c.distanceMetric}
+            </Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={statusColorMap[c.status] || 'default'}>
                 {c.status === 'active' ? '活跃' : c.status === 'creating' ? '创建中' : '错误'}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间">{dayjs(c.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{dayjs(c.updatedAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">
+              {dayjs(c.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+            </Descriptions.Item>
+            <Descriptions.Item label="更新时间">
+              {dayjs(c.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+            </Descriptions.Item>
           </Descriptions>
         ),
       },
@@ -423,12 +454,16 @@ const VectorStorePage: React.FC = () => {
                     <Text ellipsis style={{ fontSize: 13 }}>
                       {val}
                     </Text>
-                    {(() => { const src = record.metadata?.source; const cat = record.metadata?.category; return src ? (
+                    {(() => {
+                      const src = record.metadata?.source;
+                      const cat = record.metadata?.category;
+                      return src ? (
                         <Text type="secondary" style={{ fontSize: 11 }}>
                           来源: <code>{String(src)}</code>
                           {cat ? ` | 分类: ${String(cat)}` : null}
                         </Text>
-                      ) : null; })()}
+                      ) : null;
+                    })()}
                   </div>
                 ),
               },
@@ -505,7 +540,14 @@ const VectorStorePage: React.FC = () => {
           <Text type="secondary">管理向量集合、文档上传和语义相似度检索</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => { loadData(); loadStats(); }} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => {
+              loadData();
+              loadStats();
+            }}
+            loading={loading}
+          >
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
@@ -519,13 +561,25 @@ const VectorStorePage: React.FC = () => {
         <Card size="small" style={{ marginBottom: spacing.md }}>
           <Row gutter={16}>
             <Col span={6}>
-              <Statistic title="文档总数" value={stats.documentCount} prefix={<FileTextOutlined />} />
+              <Statistic
+                title="文档总数"
+                value={stats.documentCount}
+                prefix={<FileTextOutlined />}
+              />
             </Col>
             <Col span={6}>
-              <Statistic title="集合数量" value={stats.collectionCount ?? 0} prefix={<DatabaseOutlined />} />
+              <Statistic
+                title="集合数量"
+                value={stats.collectionCount ?? 0}
+                prefix={<DatabaseOutlined />}
+              />
             </Col>
             <Col span={6}>
-              <Statistic title="向量嵌入数" value={stats.totalEmbeddings ?? 0} prefix={<RocketOutlined />} />
+              <Statistic
+                title="向量嵌入数"
+                value={stats.totalEmbeddings ?? 0}
+                prefix={<RocketOutlined />}
+              />
             </Col>
             <Col span={6}>
               <Statistic title="平均维度" value={stats.avgDimensions ?? 0} />
@@ -540,11 +594,12 @@ const VectorStorePage: React.FC = () => {
         <Col span={16}>
           <Card>
             {filteredCollections.length === 0 && !loading ? (
-              <Empty
-                description="暂无向量集合"
-                style={{ margin: `${spacing.xl} 0` }}
-              >
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+              <Empty description="暂无向量集合" style={{ margin: `${spacing.xl} 0` }}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setCreateModalOpen(true)}
+                >
                   创建集合
                 </Button>
               </Empty>
@@ -597,7 +652,13 @@ const VectorStorePage: React.FC = () => {
                 />
               </Form.Item>
               <Form.Item>
-                <Button type="primary" icon={<SearchOutlined />} htmlType="submit" loading={searchLoading} block>
+                <Button
+                  type="primary"
+                  icon={<SearchOutlined />}
+                  htmlType="submit"
+                  loading={searchLoading}
+                  block
+                >
                   语义搜索
                 </Button>
               </Form.Item>
@@ -623,7 +684,10 @@ const VectorStorePage: React.FC = () => {
                       </Tag>
                       <Text type="secondary" style={{ fontSize: 11 }}>
                         {hit.collection}
-                        {(() => { const s = hit.metadata?.source; return s ? ` | ${String(s)}` : null; })()}
+                        {(() => {
+                          const s = hit.metadata?.source;
+                          return s ? ` | ${String(s)}` : null;
+                        })()}
                       </Text>
                     </div>
                     <Text ellipsis style={{ fontSize: 12, display: 'block' }}>
@@ -666,7 +730,12 @@ const VectorStorePage: React.FC = () => {
               </Form.Item>
               <Form.Item>
                 <Space>
-                  <Button type="primary" icon={<UploadOutlined />} onClick={handleUpload} loading={uploadLoading}>
+                  <Button
+                    type="primary"
+                    icon={<UploadOutlined />}
+                    onClick={handleUpload}
+                    loading={uploadLoading}
+                  >
                     上传文档
                   </Button>
                   <Tooltip title="支持 .txt, .md, .json 等文本文件">
@@ -694,7 +763,10 @@ const VectorStorePage: React.FC = () => {
       <Modal
         title="创建向量集合"
         open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); form.resetFields(); }}
+        onCancel={() => {
+          setCreateModalOpen(false);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         confirmLoading={uploadLoading}
         width={560}

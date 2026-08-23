@@ -43,7 +43,8 @@ export interface PermissionActionResult {
  * <Button {...deleteProps}>删除</Button>
  */
 export function usePermissionActions(resource: string) {
-  const { hasPermission, canView, canEdit, canDelete, canExecute, canApprove, canManage } = usePermission();
+  const { hasPermission, canView, canEdit, canDelete, canExecute, canApprove, canManage } =
+    usePermission();
 
   const checkAction = useMemo(() => {
     return (action: string): boolean => {
@@ -54,7 +55,8 @@ export function usePermissionActions(resource: string) {
   const getActionProps = useMemo(() => {
     return (action: string, extraProps: Record<string, unknown> = {}) => {
       const allowed = hasPermission(resource, action);
-      const styleObj = extraProps.style && typeof extraProps.style === 'object' ? extraProps.style : {};
+      const styleObj =
+        extraProps.style && typeof extraProps.style === 'object' ? extraProps.style : {};
       return {
         ...extraProps,
         disabled: !allowed || extraProps.disabled,

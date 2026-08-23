@@ -40,7 +40,12 @@ const { Title, Text } = Typography;
 
 const ChaosExperimentPage: React.FC = () => {
   const [experiments, setExperiments] = useState<ChaosExperiment[]>([]);
-  const [score, setScore] = useState<{ score: number; mttr_ms: number; success_rate: number; trend: string } | null>(null);
+  const [score, setScore] = useState<{
+    score: number;
+    mttr_ms: number;
+    success_rate: number;
+    trend: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -181,21 +186,27 @@ const ChaosExperimentPage: React.FC = () => {
       title: 'Faults',
       dataIndex: 'faults',
       key: 'faults',
-      render: (faults: any[]) =>
-        faults?.map((f, i) => <Tag key={String(i)}>{f.type}</Tag>) || '-',
+      render: (faults: any[]) => faults?.map((f, i) => <Tag key={String(i)}>{f.type}</Tag>) || '-',
     },
     {
       title: 'Auto Rollback',
       dataIndex: 'auto_rollback',
       key: 'auto_rollback',
-      render: (v: boolean) => (v ? <Tag color={colors.success[500]}>Enabled</Tag> : <Tag color={colors.neutral[400]}>Disabled</Tag>),
+      render: (v: boolean) =>
+        v ? (
+          <Tag color={colors.success[500]}>Enabled</Tag>
+        ) : (
+          <Tag color={colors.neutral[400]}>Disabled</Tag>
+        ),
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: ChaosExperiment) => (
         <Space>
-          {(record.status === 'draft' || record.status === 'completed' || record.status === 'archived') && (
+          {(record.status === 'draft' ||
+            record.status === 'completed' ||
+            record.status === 'archived') && (
             <Button
               size="small"
               type="primary"
@@ -270,7 +281,15 @@ const ChaosExperimentPage: React.FC = () => {
       </div>
 
       {/* Resilience Score Card */}
-      <Card title={<><SafetyOutlined /> Resilience Score</>} style={{ marginBottom: spacing.lg }} styles={{ body: { padding: '16px 24px' } }}>
+      <Card
+        title={
+          <>
+            <SafetyOutlined /> Resilience Score
+          </>
+        }
+        style={{ marginBottom: spacing.lg }}
+        styles={{ body: { padding: '16px 24px' } }}
+      >
         <Row gutter={24}>
           <Col span={6}>
             <Statistic title="Score" value={score?.score ?? 0} suffix="/ 100" />
@@ -321,7 +340,11 @@ const ChaosExperimentPage: React.FC = () => {
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Please enter a name' }]}>
+          <Form.Item
+            label="Name"
+            name="name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
             <Input placeholder="Experiment name" />
           </Form.Item>
           <Form.Item label="Environment" name="environment" initialValue="staging">
@@ -364,7 +387,11 @@ const ChaosExperimentPage: React.FC = () => {
         width={600}
       >
         <Form form={editForm} layout="vertical" onFinish={handleEdit}>
-          <Form.Item label="Name" name="name" rules={[{ required: true, message: 'Please enter a name' }]}>
+          <Form.Item
+            label="Name"
+            name="name"
+            rules={[{ required: true, message: 'Please enter a name' }]}
+          >
             <Input placeholder="Experiment name" />
           </Form.Item>
           <Form.Item label="Environment" name="environment">

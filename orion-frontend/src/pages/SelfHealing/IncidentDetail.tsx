@@ -15,7 +15,7 @@ import {
   Timeline,
   message,
 } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined,} from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { getIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -70,7 +70,9 @@ const IncidentDetail: React.FC = () => {
           message="未找到事件记录"
           description="请检查事件 ID 是否正确"
           type="error"
-          action={<Button onClick={() => navigate('/console/self-healing/incidents')}>返回列表</Button>}
+          action={
+            <Button onClick={() => navigate('/console/self-healing/incidents')}>返回列表</Button>
+          }
         />
       </div>
     );
@@ -109,12 +111,17 @@ const IncidentDetail: React.FC = () => {
   return (
     <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/console/self-healing/incidents')}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/console/self-healing/incidents')}
+        >
           返回
         </Button>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           事件详情
         </Title>
         <Button icon={<ReloadOutlined />} onClick={loadDetail}>

@@ -73,8 +73,11 @@ export interface MLOpsMetrics {
 // ==================== Experiments ====================
 
 export function createExperiment(data: {
-  name: string; project?: string; modelType?: string;
-  description?: string; hyperparams?: Record<string, unknown>;
+  name: string;
+  project?: string;
+  modelType?: string;
+  description?: string;
+  hyperparams?: Record<string, unknown>;
 }) {
   return api.post('/mlops/experiments', data);
 }
@@ -87,10 +90,16 @@ export function getExperiment(id: string) {
   return api.get<{ data: MLExperiment }>(`/mlops/experiments/${id}`);
 }
 
-export function updateExperiment(id: string, data: {
-  name?: string; project?: string; modelType?: string;
-  description?: string; hyperparams?: Record<string, unknown>;
-}) {
+export function updateExperiment(
+  id: string,
+  data: {
+    name?: string;
+    project?: string;
+    modelType?: string;
+    description?: string;
+    hyperparams?: Record<string, unknown>;
+  }
+) {
   return api.put(`/mlops/experiments/${id}`, data);
 }
 
@@ -109,8 +118,11 @@ export function getExperimentRuns(experimentId: string) {
 // ==================== Models ====================
 
 export function registerModel(data: {
-  name: string; experimentId?: string; artifactPath?: string;
-  metrics?: Record<string, number>; description?: string;
+  name: string;
+  experimentId?: string;
+  artifactPath?: string;
+  metrics?: Record<string, number>;
+  description?: string;
 }) {
   return api.post('/mlops/models', data);
 }
@@ -134,7 +146,9 @@ export function updateModelStatus(id: string, status: MLModel['status']) {
 // ==================== Training Jobs ====================
 
 export function createTrainingJob(data: {
-  experimentId?: string; dataset?: string; config?: Record<string, unknown>;
+  experimentId?: string;
+  dataset?: string;
+  config?: Record<string, unknown>;
 }) {
   return api.post('/mlops/training-jobs', data);
 }

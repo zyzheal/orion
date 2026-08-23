@@ -172,12 +172,8 @@ export async function getDocSpaces(params?: {
 /**
  * 触发文档同步 (仅 admin)
  */
-export async function triggerDocSync(
-  syncType: 'full' | 'incremental'
-): Promise<SyncResult> {
-  const res = await api.post<SyncResult>(
-    `/api/v1/knowledge/sync?type=${syncType}`
-  );
+export async function triggerDocSync(syncType: 'full' | 'incremental'): Promise<SyncResult> {
+  const res = await api.post<SyncResult>(`/api/v1/knowledge/sync?type=${syncType}`);
   return res.data;
 }
 
@@ -218,14 +214,13 @@ export async function searchDocs(
     score: number;
   }>;
 }> {
-  const res = await api.post<{ results: Array<{ docId: string; title: string; snippet: string; score: number }> }>(
-    '/api/v1/knowledge/rag/retrieve',
-    {
-      query,
-      spaceId,
-      topK,
-    }
-  );
+  const res = await api.post<{
+    results: Array<{ docId: string; title: string; snippet: string; score: number }>;
+  }>('/api/v1/knowledge/rag/retrieve', {
+    query,
+    spaceId,
+    topK,
+  });
   return {
     results: res.data?.results ?? [],
   };

@@ -17,15 +17,10 @@ import {
   Table,
   Tag,
   InputNumber,
-  Collapse,
   message,
   Modal,
 } from 'antd';
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import {
   type ApprovalFlowConfig,
   type ApprovalLevel,
@@ -38,7 +33,7 @@ import {
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
-const {} = Collapse;
+// Collapse component not needed in this file
 
 // ---- 风险等级映射 ----
 const riskLevelMap: Record<RiskLevel, { label: string; color: string }> = {
@@ -282,8 +277,16 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
       key: 'environment',
       width: 80,
       render: (v: Environment) => {
-        const colorMap: Record<Environment, string> = { dev: 'blue', staging: 'orange', prod: 'red' };
-        const labelMap: Record<Environment, string> = { dev: '开发', staging: '预发', prod: '生产' };
+        const colorMap: Record<Environment, string> = {
+          dev: 'blue',
+          staging: 'orange',
+          prod: 'red',
+        };
+        const labelMap: Record<Environment, string> = {
+          dev: '开发',
+          staging: '预发',
+          prod: '生产',
+        };
         return <Tag color={colorMap[v]}>{labelMap[v]}</Tag>;
       },
     },
@@ -292,9 +295,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
       dataIndex: 'riskLevel',
       key: 'riskLevel',
       width: 100,
-      render: (v: RiskLevel) => (
-        <Tag color={riskLevelMap[v]?.color}>{riskLevelMap[v]?.label}</Tag>
-      ),
+      render: (v: RiskLevel) => <Tag color={riskLevelMap[v]?.color}>{riskLevelMap[v]?.label}</Tag>,
     },
     {
       title: '审批模式',
@@ -309,9 +310,7 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
       key: 'enabled',
       width: 80,
       render: (v: boolean) => (
-        <Tag color={v ? colors.success[500] : colors.neutral[400]}>
-          {v ? '启用' : '禁用'}
-        </Tag>
+        <Tag color={v ? colors.success[500] : colors.neutral[400]}>{v ? '启用' : '禁用'}</Tag>
       ),
     },
     {

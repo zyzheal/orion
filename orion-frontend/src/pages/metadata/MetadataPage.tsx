@@ -4,8 +4,18 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Table, Button, Tag, Space, Tabs, message,
-  Modal, Form, Input, Select, Popconfirm,
+  Typography,
+  Table,
+  Button,
+  Tag,
+  Space,
+  Tabs,
+  message,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
 } from 'antd';
 import {
   DatabaseOutlined,
@@ -15,9 +25,14 @@ import {
   LinkOutlined,
 } from '@ant-design/icons';
 import {
-  createCatalogItem, listCatalogItems, deleteCatalogItem,
-  createLineage, getLineage, deleteLineage,
-  type CatalogItem, type LineageRelation,
+  createCatalogItem,
+  listCatalogItems,
+  deleteCatalogItem,
+  createLineage,
+  getLineage,
+  deleteLineage,
+  type CatalogItem,
+  type LineageRelation,
 } from '@/api/metadata';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -41,17 +56,26 @@ const CatalogTab: React.FC = () => {
       setItems(((res.data as { data?: unknown[] })?.data ?? []) as CatalogItem[]);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载目录失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreate = async (values: any) => {
     try {
       await createCatalogItem({
-        name: values.name, description: values.description,
-        type: values.type, owner: values.owner,
-        tags: values.tags?.split(',').map((t: string) => t.trim()).filter(Boolean),
+        name: values.name,
+        description: values.description,
+        type: values.type,
+        owner: values.owner,
+        tags: values.tags
+          ?.split(',')
+          .map((t: string) => t.trim())
+          .filter(Boolean),
       });
       message.success('目录创建成功');
       setCreateModalOpen(false);
@@ -84,17 +108,32 @@ const CatalogTab: React.FC = () => {
   const columns = [
     { title: '名称', dataIndex: 'name', key: 'name' },
     {
-      title: '类型', dataIndex: 'type', key: 'type',
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
       render: (t: string) => <Tag color={typeColorMap[t]}>{t}</Tag>,
     },
     { title: '负责人', dataIndex: 'owner', key: 'owner', render: (v: string) => v || '-' },
-    { title: '标签', dataIndex: 'tags', key: 'tags', render: (tags: string[]) => tags?.map((t) => <Tag key={t}>{t}</Tag>) || '-' },
-    { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', key: 'actions',
+      title: '标签',
+      dataIndex: 'tags',
+      key: 'tags',
+      render: (tags: string[]) => tags?.map((t) => <Tag key={t}>{t}</Tag>) || '-',
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '操作',
+      key: 'actions',
       render: (_: any, record: CatalogItem) => (
         <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.id)}>
-          <Button size="small" type="link" danger>删除</Button>
+          <Button size="small" type="link" danger>
+            删除
+          </Button>
         </Popconfirm>
       ),
     },
@@ -111,15 +150,33 @@ const CatalogTab: React.FC = () => {
           <Text type="secondary">管理所有数据资产的元数据信息</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>注册资产</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            注册资产
+          </Button>
         </Space>
       </div>
-      <Table columns={columns} dataSource={items} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={items}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 10 }}
+      />
 
-      <Modal title="注册数据资产" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={() => form.submit()} width={600}>
+      <Modal
+        title="注册数据资产"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => form.submit()}
+        width={600}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="名称" name="name" rules={[{ required: true }]}><Input placeholder="资产名称" /></Form.Item>
+          <Form.Item label="名称" name="name" rules={[{ required: true }]}>
+            <Input placeholder="资产名称" />
+          </Form.Item>
           <Form.Item label="类型" name="type" rules={[{ required: true }]}>
             <Select>
               <Select.Option value="table">Table</Select.Option>
@@ -130,9 +187,15 @@ const CatalogTab: React.FC = () => {
               <Select.Option value="other">Other</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item label="描述" name="description"><Input.TextArea rows={2} /></Form.Item>
-          <Form.Item label="负责人" name="owner"><Input placeholder="负责人" /></Form.Item>
-          <Form.Item label="标签" name="tags"><Input placeholder="逗号分隔的标签" /></Form.Item>
+          <Form.Item label="描述" name="description">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="负责人" name="owner">
+            <Input placeholder="负责人" />
+          </Form.Item>
+          <Form.Item label="标签" name="tags">
+            <Input placeholder="逗号分隔的标签" />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
@@ -158,14 +221,22 @@ const LineageTab: React.FC = () => {
       setItems(((itemRes.data as { data?: unknown[] })?.data ?? []) as CatalogItem[]);
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '加载血缘关系失败');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleCreate = async (values: any) => {
     try {
-      await createLineage({ sourceId: values.sourceId, targetId: values.targetId, relation: values.relation });
+      await createLineage({
+        sourceId: values.sourceId,
+        targetId: values.targetId,
+        relation: values.relation,
+      });
       message.success('血缘关系创建成功');
       setCreateModalOpen(false);
       form.resetFields();
@@ -195,19 +266,44 @@ const LineageTab: React.FC = () => {
   const getItemName = (id: string) => items.find((i) => i.id === id)?.name || id;
 
   const columns = [
-    { title: '来源', dataIndex: 'sourceId', key: 'sourceId', render: (id: string) => getItemName(id) },
-    { title: '目标', dataIndex: 'targetId', key: 'targetId', render: (id: string) => getItemName(id) },
     {
-      title: '关系', dataIndex: 'relation', key: 'relation',
+      title: '来源',
+      dataIndex: 'sourceId',
+      key: 'sourceId',
+      render: (id: string) => getItemName(id),
+    },
+    {
+      title: '目标',
+      dataIndex: 'targetId',
+      key: 'targetId',
+      render: (id: string) => getItemName(id),
+    },
+    {
+      title: '关系',
+      dataIndex: 'relation',
+      key: 'relation',
       render: (r: string) => <Tag color={relationColorMap[r]}>{r}</Tag>,
     },
-    { title: '描述', dataIndex: 'description', key: 'description', render: (v: string) => v || '-' },
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => new Date(v).toLocaleString() },
     {
-      title: '操作', key: 'actions',
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
+    {
+      title: '操作',
+      key: 'actions',
       render: (_: any, record: LineageRelation) => (
         <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.id)}>
-          <Button size="small" type="link" danger>删除</Button>
+          <Button size="small" type="link" danger>
+            删除
+          </Button>
         </Popconfirm>
       ),
     },
@@ -224,22 +320,54 @@ const LineageTab: React.FC = () => {
           <Text type="secondary">追踪数据资产间的流转和依赖关系</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<LinkOutlined />} onClick={() => setCreateModalOpen(true)}>添加血缘</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<LinkOutlined />} onClick={() => setCreateModalOpen(true)}>
+            添加血缘
+          </Button>
         </Space>
       </div>
-      <Table columns={columns} dataSource={relations} rowKey="id" loading={loading} pagination={{ pageSize: 10 }} />
+      <Table
+        columns={columns}
+        dataSource={relations}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 10 }}
+      />
 
-      <Modal title="添加血缘关系" open={createModalOpen} onCancel={() => setCreateModalOpen(false)} onOk={() => form.submit()} width={600}>
+      <Modal
+        title="添加血缘关系"
+        open={createModalOpen}
+        onCancel={() => setCreateModalOpen(false)}
+        onOk={() => form.submit()}
+        width={600}
+      >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="来源" name="sourceId" rules={[{ required: true, message: '请选择来源资产' }]}>
+          <Form.Item
+            label="来源"
+            name="sourceId"
+            rules={[{ required: true, message: '请选择来源资产' }]}
+          >
             <Select placeholder="选择来源资产">
-              {items.map((item) => <Select.Option key={item.id} value={item.id}>{item.name} ({item.type})</Select.Option>)}
+              {items.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.name} ({item.type})
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
-          <Form.Item label="目标" name="targetId" rules={[{ required: true, message: '请选择目标资产' }]}>
+          <Form.Item
+            label="目标"
+            name="targetId"
+            rules={[{ required: true, message: '请选择目标资产' }]}
+          >
             <Select placeholder="选择目标资产">
-              {items.map((item) => <Select.Option key={item.id} value={item.id}>{item.name} ({item.type})</Select.Option>)}
+              {items.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.name} ({item.type})
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item label="关系" name="relation" rules={[{ required: true }]}>

@@ -21,11 +21,7 @@ import {
   Drawer,
   Descriptions,
 } from 'antd';
-import {
-  CloudServerOutlined,
-  FullscreenOutlined,
-  InfoCircleOutlined,
-} from '@ant-design/icons';
+import { CloudServerOutlined, FullscreenOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { getHosts, type HostInfo } from '@/api/cmdb';
 import { colors, spacing } from '@/tokens';
 
@@ -104,7 +100,8 @@ const WebTerminalPage: React.FC = () => {
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 14,
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
+      fontFamily:
+        "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
       theme: {
         background: colors.neutral[950],
         foreground: colors.neutral[300],
@@ -332,7 +329,12 @@ const WebTerminalPage: React.FC = () => {
               <Button icon={<FullscreenOutlined />} onClick={toggleFullscreen}>
                 {fullscreen ? '退出全屏' : '全屏'}
               </Button>
-              <Button icon={<InfoCircleOutlined />} onClick={() => handleHostInfo(activeTabs.find(t => t.id === activeTabId)?.host.ci_id || '')}>
+              <Button
+                icon={<InfoCircleOutlined />}
+                onClick={() =>
+                  handleHostInfo(activeTabs.find((t) => t.id === activeTabId)?.host.ci_id || '')
+                }
+              >
                 主机信息
               </Button>
             </>
@@ -360,7 +362,9 @@ const WebTerminalPage: React.FC = () => {
               onClick={() => switchTab(tab.id)}
             >
               <CloudServerOutlined style={{ fontSize: 12 }} />
-              <Text style={{ color: tab.id === activeTabId ? colors.neutral[0] : colors.neutral[700] }}>
+              <Text
+                style={{ color: tab.id === activeTabId ? colors.neutral[0] : colors.neutral[700] }}
+              >
                 {tab.title}
               </Text>
               <span
@@ -387,14 +391,25 @@ const WebTerminalPage: React.FC = () => {
         }}
       >
         {activeTabs.length === 0 ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Empty
-              description="请选择主机并点击连接"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100%',
+            }}
+          >
+            <Empty description="请选择主机并点击连接" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         ) : connecting ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100%',
+            }}
+          >
             <Spin size="large" tip="正在连接..." />
           </div>
         ) : (
@@ -428,10 +443,14 @@ const WebTerminalPage: React.FC = () => {
             <Descriptions.Item label="IP">{hostDetail.ip}</Descriptions.Item>
             <Descriptions.Item label="操作系统">{hostDetail.os}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={hostDetail.status === 'running' ? 'green' : 'default'}>{hostDetail.status}</Tag>
+              <Tag color={hostDetail.status === 'running' ? 'green' : 'default'}>
+                {hostDetail.status}
+              </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="CPU">{hostDetail.cpu} Core</Descriptions.Item>
-            <Descriptions.Item label="内存">{(hostDetail.memory / 1024).toFixed(1)} GB</Descriptions.Item>
+            <Descriptions.Item label="内存">
+              {(hostDetail.memory / 1024).toFixed(1)} GB
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Drawer>

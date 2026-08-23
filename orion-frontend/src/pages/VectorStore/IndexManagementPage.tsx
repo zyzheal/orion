@@ -47,7 +47,8 @@ const mapCollectionToIndex = (c: VectorCollection): VectorIndex => ({
   collection_id: c.name,
   collection_name: c.displayName || c.name,
   index_type: (c.indexType as VectorIndex['index_type']) || 'hnsw',
-  metric: c.distanceMetric === 'euclidean' ? 'l2' : c.distanceMetric === 'dot_product' ? 'ip' : 'cosine',
+  metric:
+    c.distanceMetric === 'euclidean' ? 'l2' : c.distanceMetric === 'dot_product' ? 'ip' : 'cosine',
   dimension: c.dimensions,
   parameters: {},
   status: c.status === 'active' ? 'ready' : c.status === 'creating' ? 'building' : 'error',
@@ -89,7 +90,9 @@ export default function IndexManagementPage() {
     }
   };
 
-  useEffect(() => { fetchIndexes(); }, []);
+  useEffect(() => {
+    fetchIndexes();
+  }, []);
 
   const handleCreate = async (_values: any) => {
     try {
@@ -154,7 +157,9 @@ export default function IndexManagementPage() {
       key: 'parameters',
       render: (_: any, record: VectorIndex) => (
         <Tooltip title={<pre>{JSON.stringify(record.parameters, null, 2)}</pre>}>
-          <Button size="small" icon={<InfoCircleOutlined />}>查看</Button>
+          <Button size="small" icon={<InfoCircleOutlined />}>
+            查看
+          </Button>
         </Tooltip>
       ),
     },
@@ -164,7 +169,9 @@ export default function IndexManagementPage() {
       render: () => (
         <Space>
           <Button size="small">重建</Button>
-          <Button size="small" danger>删除</Button>
+          <Button size="small" danger>
+            删除
+          </Button>
         </Space>
       ),
     },
@@ -180,7 +187,9 @@ export default function IndexManagementPage() {
       <Card
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={fetchIndexes}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchIndexes}>
+              刷新
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
               创建索引
             </Button>
@@ -199,7 +208,10 @@ export default function IndexManagementPage() {
       <Modal
         title="创建向量索引"
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); form.resetFields(); }}
+        onCancel={() => {
+          setModalVisible(false);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         width={600}
       >
@@ -227,7 +239,11 @@ export default function IndexManagementPage() {
               <Form.Item name={['parameters', 'm']} label="M (连接数)" initialValue={16}>
                 <InputNumber min={4} max={64} style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name={['parameters', 'ef_construction']} label="ef_construction" initialValue={200}>
+              <Form.Item
+                name={['parameters', 'ef_construction']}
+                label="ef_construction"
+                initialValue={200}
+              >
                 <InputNumber min={16} max={1000} style={{ width: '100%' }} />
               </Form.Item>
               <Form.Item name={['parameters', 'ef_search']} label="ef_search" initialValue={64}>
@@ -238,10 +254,18 @@ export default function IndexManagementPage() {
 
           {indexType === 'ivf_flat' && (
             <>
-              <Form.Item name={['parameters', 'nlist']} label="nlist (聚类中心数)" initialValue={1024}>
+              <Form.Item
+                name={['parameters', 'nlist']}
+                label="nlist (聚类中心数)"
+                initialValue={1024}
+              >
                 <InputNumber min={1} max={65536} style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item name={['parameters', 'nprobe']} label="nprobe (搜索聚类数)" initialValue={32}>
+              <Form.Item
+                name={['parameters', 'nprobe']}
+                label="nprobe (搜索聚类数)"
+                initialValue={32}
+              >
                 <InputNumber min={1} max={4096} style={{ width: '100%' }} />
               </Form.Item>
             </>

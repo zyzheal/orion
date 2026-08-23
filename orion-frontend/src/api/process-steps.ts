@@ -98,8 +98,15 @@ export interface AdvanceStepInput {
 }
 
 // Definitions
-export const listDefinitions = (params?: { entityType?: string; enabled?: boolean; limit?: number; offset?: number }) =>
-  apiClient.get<{ data: ProcessDefinition[]; total: number }>('/process-steps/definitions', { params });
+export const listDefinitions = (params?: {
+  entityType?: string;
+  enabled?: boolean;
+  limit?: number;
+  offset?: number;
+}) =>
+  apiClient.get<{ data: ProcessDefinition[]; total: number }>('/process-steps/definitions', {
+    params,
+  });
 
 export const getDefinition = (id: string) =>
   apiClient.get<{ data: ProcessDefinition }>(`/process-steps/definitions/${id}`);
@@ -114,7 +121,14 @@ export const deleteDefinition = (id: string) =>
   apiClient.delete(`/process-steps/definitions/${id}`);
 
 // Instances
-export const listInstances = (params?: { definitionId?: string; entityType?: string; entityId?: string; status?: string; limit?: number; offset?: number }) =>
+export const listInstances = (params?: {
+  definitionId?: string;
+  entityType?: string;
+  entityId?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}) =>
   apiClient.get<{ data: ProcessInstance[]; total: number }>('/process-steps/instances', { params });
 
 export const getInstance = (id: string) =>
@@ -127,4 +141,7 @@ export const getStepHistory = (instanceId: string) =>
   apiClient.get<{ data: ProcessStepInstance[] }>(`/process-steps/instances/${instanceId}/history`);
 
 export const advanceStep = (instanceId: string, stepId: string, data: AdvanceStepInput) =>
-  apiClient.post<{ data: ProcessStepInstance }>(`/process-steps/instances/${instanceId}/steps/${stepId}/advance`, data);
+  apiClient.post<{ data: ProcessStepInstance }>(
+    `/process-steps/instances/${instanceId}/steps/${stepId}/advance`,
+    data
+  );

@@ -22,16 +22,19 @@ import {
   Divider,
   Alert,
 } from 'antd';
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  KeyOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import Table from '@/components/Table';
 import { useAuthStore } from '@/stores/authStore';
-import { getSecrets, createSecret, updateSecret, deleteSecret, type Secret, type SecretScope, type CreateSecretInput } from '@/api/secrets';
+import {
+  getSecrets,
+  createSecret,
+  updateSecret,
+  deleteSecret,
+  type Secret,
+  type SecretScope,
+  type CreateSecretInput,
+} from '@/api/secrets';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -55,56 +58,149 @@ const MARKET_OPTIONS = [
 ];
 
 // Market credentials fields configuration
-const MARKET_CREDENTIAL_FIELDS: Record<string, Array<{ name: string; label: string; placeholder: string; required: boolean; type?: 'password' }>> = {
+const MARKET_CREDENTIAL_FIELDS: Record<
+  string,
+  Array<{ name: string; label: string; placeholder: string; required: boolean; type?: 'password' }>
+> = {
   huawei: [
     { name: 'clientId', label: 'Client ID', placeholder: 'Enter Huawei client ID', required: true },
-    { name: 'clientSecret', label: 'Client Secret', placeholder: 'Enter Huawei client secret', required: true, type: 'password' },
+    {
+      name: 'clientSecret',
+      label: 'Client Secret',
+      placeholder: 'Enter Huawei client secret',
+      required: true,
+      type: 'password',
+    },
     { name: 'appId', label: 'App ID', placeholder: 'Enter app ID (optional)', required: false },
   ],
   xiaomi: [
-    { name: 'email', label: 'Developer Email', placeholder: 'Enter Xiaomi developer email', required: true },
-    { name: 'privateKey', label: 'RSA Private Key', placeholder: 'Enter RSA private key', required: true, type: 'password' },
-    { name: 'cert', label: 'Certificate', placeholder: 'Enter certificate path (optional)', required: false },
+    {
+      name: 'email',
+      label: 'Developer Email',
+      placeholder: 'Enter Xiaomi developer email',
+      required: true,
+    },
+    {
+      name: 'privateKey',
+      label: 'RSA Private Key',
+      placeholder: 'Enter RSA private key',
+      required: true,
+      type: 'password',
+    },
+    {
+      name: 'cert',
+      label: 'Certificate',
+      placeholder: 'Enter certificate path (optional)',
+      required: false,
+    },
   ],
   oppo: [
     { name: 'clientId', label: 'Client ID', placeholder: 'Enter OPPO client ID', required: true },
-    { name: 'clientSecret', label: 'Client Secret', placeholder: 'Enter OPPO client secret', required: true, type: 'password' },
+    {
+      name: 'clientSecret',
+      label: 'Client Secret',
+      placeholder: 'Enter OPPO client secret',
+      required: true,
+      type: 'password',
+    },
   ],
   vivo: [
-    { name: 'accessKey', label: 'Access Key', placeholder: 'Enter VIVO access key', required: true },
-    { name: 'accessSecret', label: 'Access Secret', placeholder: 'Enter VIVO access secret', required: true, type: 'password' },
+    {
+      name: 'accessKey',
+      label: 'Access Key',
+      placeholder: 'Enter VIVO access key',
+      required: true,
+    },
+    {
+      name: 'accessSecret',
+      label: 'Access Secret',
+      placeholder: 'Enter VIVO access secret',
+      required: true,
+      type: 'password',
+    },
   ],
   honor: [
     { name: 'clientId', label: 'Client ID', placeholder: 'Enter Honor client ID', required: true },
-    { name: 'clientSecret', label: 'Client Secret', placeholder: 'Enter Honor client secret', required: true, type: 'password' },
+    {
+      name: 'clientSecret',
+      label: 'Client Secret',
+      placeholder: 'Enter Honor client secret',
+      required: true,
+      type: 'password',
+    },
     { name: 'appId', label: 'App ID', placeholder: 'Enter app ID (optional)', required: false },
   ],
   tencent: [
     { name: 'userId', label: 'User ID', placeholder: 'Enter Tencent user ID', required: true },
-    { name: 'accessSecret', label: 'Access Secret', placeholder: 'Enter access secret', required: true, type: 'password' },
+    {
+      name: 'accessSecret',
+      label: 'Access Secret',
+      placeholder: 'Enter access secret',
+      required: true,
+      type: 'password',
+    },
     { name: 'appId', label: 'App ID', placeholder: 'Enter app ID', required: true },
   ],
   googleplay: [
-    { name: 'jsonKeyFile', label: 'Service Account JSON', placeholder: 'Paste service account JSON content', required: true, type: 'password' },
-    { name: 'packageName', label: 'Package Name', placeholder: 'Enter package name', required: true },
-    { name: 'track', label: 'Track', placeholder: 'e.g., internal, beta, production', required: false },
+    {
+      name: 'jsonKeyFile',
+      label: 'Service Account JSON',
+      placeholder: 'Paste service account JSON content',
+      required: true,
+      type: 'password',
+    },
+    {
+      name: 'packageName',
+      label: 'Package Name',
+      placeholder: 'Enter package name',
+      required: true,
+    },
+    {
+      name: 'track',
+      label: 'Track',
+      placeholder: 'e.g., internal, beta, production',
+      required: false,
+    },
   ],
   samsung: [
-    { name: 'serviceAccountId', label: 'Service Account ID', placeholder: 'Enter service account ID', required: true },
-    { name: 'privateKey', label: 'Private Key', placeholder: 'Enter RSA private key', required: true, type: 'password' },
+    {
+      name: 'serviceAccountId',
+      label: 'Service Account ID',
+      placeholder: 'Enter service account ID',
+      required: true,
+    },
+    {
+      name: 'privateKey',
+      label: 'Private Key',
+      placeholder: 'Enter RSA private key',
+      required: true,
+      type: 'password',
+    },
     { name: 'contentId', label: 'Content ID', placeholder: 'Enter content ID', required: true },
   ],
   pgyer: [
-    { name: 'apiKey', label: 'API Key', placeholder: 'Enter Pgyer API key', required: true, type: 'password' },
+    {
+      name: 'apiKey',
+      label: 'API Key',
+      placeholder: 'Enter Pgyer API key',
+      required: true,
+      type: 'password',
+    },
   ],
   fir: [
-    { name: 'apiToken', label: 'API Token', placeholder: 'Enter fir.im API token', required: true, type: 'password' },
+    {
+      name: 'apiToken',
+      label: 'API Token',
+      placeholder: 'Enter fir.im API token',
+      required: true,
+      type: 'password',
+    },
   ],
 };
 
 // Get market display name
 const getMarketName = (value: string) => {
-  const market = MARKET_OPTIONS.find(m => m.value === value);
+  const market = MARKET_OPTIONS.find((m) => m.value === value);
   return market ? `${market.icon} ${market.label}` : value;
 };
 
@@ -113,17 +209,21 @@ const getSecretName = (market: string) => `apk-${market}-credentials`;
 
 const ApkCredentialsManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [credentials, setCredentials] = useState<Array<{
-    id: string;
-    market: string;
-    name: string;
-    description?: string;
-    createdAt: string;
-    updatedAt: string;
-  }>>([]);
+  const [credentials, setCredentials] = useState<
+    Array<{
+      id: string;
+      market: string;
+      name: string;
+      description?: string;
+      createdAt: string;
+      updatedAt: string;
+    }>
+  >([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editingCredential, setEditingCredential] = useState<{ id: string; market: string } | null>(null);
+  const [editingCredential, setEditingCredential] = useState<{ id: string; market: string } | null>(
+    null
+  );
   const [selectedMarket, setSelectedMarket] = useState<string>('huawei');
   const [submitting, setSubmitting] = useState(false);
 
@@ -145,8 +245,8 @@ const ApkCredentialsManagement: React.FC = () => {
 
       // Filter secrets that start with 'apk-' and end with '-credentials'
       const apkSecrets = allSecrets
-        .filter(s => s.name.startsWith('apk-') && s.name.endsWith('-credentials'))
-        .map(s => {
+        .filter((s) => s.name.startsWith('apk-') && s.name.endsWith('-credentials'))
+        .map((s) => {
           const market = s.name.replace('apk-', '').replace('-credentials', '');
           return {
             id: s.id,
@@ -173,7 +273,7 @@ const ApkCredentialsManagement: React.FC = () => {
       setSubmitting(true);
 
       const secretName = getSecretName(selectedMarket);
-      const existing = credentials.find(c => c.market === selectedMarket);
+      const existing = credentials.find((c) => c.market === selectedMarket);
 
       if (existing) {
         message.warning('该市场的凭证已存在，请使用编辑功能更新');
@@ -262,8 +362,8 @@ const ApkCredentialsManagement: React.FC = () => {
   };
 
   // Get unconfigured markets
-  const configuredMarkets = credentials.map(c => c.market);
-  const unconfiguredMarkets = MARKET_OPTIONS.filter(m => !configuredMarkets.includes(m.value));
+  const configuredMarkets = credentials.map((c) => c.market);
+  const unconfiguredMarkets = MARKET_OPTIONS.filter((m) => !configuredMarkets.includes(m.value));
 
   // Table columns
   const columns: any = [
@@ -295,11 +395,7 @@ const ApkCredentialsManagement: React.FC = () => {
       key: 'action',
       render: (_: unknown, record: { id: string; market: string }) => (
         <Space>
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => openEditModal(record)}
-          >
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
             编辑
           </Button>
           <Button
@@ -317,14 +413,25 @@ const ApkCredentialsManagement: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <div style={{ marginBottom: spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          marginBottom: spacing.lg,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <KeyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             APK 上传凭证管理
           </Title>
           <Text type="secondary">
-            配置各大应用市场的上传凭证，支持华为、小米、OPPO、VIVO、荣耀、腾讯应用宝、Google Play、三星、蒲公英、fir.im
+            配置各大应用市场的上传凭证，支持华为、小米、OPPO、VIVO、荣耀、腾讯应用宝、Google
+            Play、三星、蒲公英、fir.im
           </Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateModal()}>
@@ -354,7 +461,7 @@ const ApkCredentialsManagement: React.FC = () => {
         <>
           <Divider>快速添加</Divider>
           <Space wrap>
-            {unconfiguredMarkets.map(market => (
+            {unconfiguredMarkets.map((market) => (
               <Button
                 key={market.value}
                 icon={<PlusOutlined />}
@@ -386,11 +493,7 @@ const ApkCredentialsManagement: React.FC = () => {
           style={{ marginBottom: spacing.md }}
         />
 
-        <Form
-          form={form}
-          layout="vertical"
-          requiredMark
-        >
+        <Form form={form} layout="vertical" requiredMark>
           <Form.Item
             label="应用市场"
             name="market"
@@ -400,13 +503,13 @@ const ApkCredentialsManagement: React.FC = () => {
             <Select
               options={MARKET_OPTIONS}
               onChange={setSelectedMarket}
-              disabled={!!credentials.find(c => c.market === selectedMarket)}
+              disabled={!!credentials.find((c) => c.market === selectedMarket)}
             />
           </Form.Item>
 
           <Divider orientation="left">凭证信息</Divider>
 
-          {MARKET_CREDENTIAL_FIELDS[selectedMarket]?.map(field => (
+          {MARKET_CREDENTIAL_FIELDS[selectedMarket]?.map((field) => (
             <Form.Item
               key={field.name}
               label={field.label}
@@ -455,22 +558,14 @@ const ApkCredentialsManagement: React.FC = () => {
           style={{ marginBottom: spacing.md }}
         />
 
-        <Form
-          form={form}
-          layout="vertical"
-          requiredMark
-        >
-          <Form.Item
-            label="应用市场"
-            name="market"
-            initialValue={selectedMarket}
-          >
+        <Form form={form} layout="vertical" requiredMark>
+          <Form.Item label="应用市场" name="market" initialValue={selectedMarket}>
             <Select options={MARKET_OPTIONS} disabled />
           </Form.Item>
 
           <Divider orientation="left">凭证信息</Divider>
 
-          {MARKET_CREDENTIAL_FIELDS[selectedMarket]?.map(field => (
+          {MARKET_CREDENTIAL_FIELDS[selectedMarket]?.map((field) => (
             <Form.Item
               key={field.name}
               label={field.label}

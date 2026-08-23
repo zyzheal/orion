@@ -241,123 +241,131 @@ const WorkflowTasksPage: React.FC = () => {
 
   // ---- Table columns ----
 
-  const columns: TableColumn<WorkflowTask>[] = useMemo<TableColumn<WorkflowTask>[]>(() => [
-    {
-      key: 'title',
-      title: '任务标题',
-      dataIndex: 'title',
-      width: 280,
-      render: (v: unknown, record: WorkflowTask) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
-            {String(v)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            实例: {record.instance_id.substring(0, 8)}... | 节点: {record.node_id}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      width: 100,
-      render: (_: unknown, record: WorkflowTask) => (
-        <Tag color={statusColorMap[record.status] || 'default'}>
-          {statusLabelMap[record.status] || record.status}
-        </Tag>
-      ),
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      width: 90,
-      render: (_: unknown, record: WorkflowTask) => (
-        <Tag color={priorityColorMap[record.priority] || 'default'}>
-          {priorityLabelMap[record.priority] || record.priority}
-        </Tag>
-      ),
-    },
-    {
-      key: 'assignee',
-      title: '处理人',
-      width: 120,
-      render: (_: unknown, record: WorkflowTask) => (
-        <Space>
-          <UserOutlined style={{ color: colors.neutral[400] }} />
-          <Text type="secondary">
-            {record.assignee_id || (record.candidate_users?.join(', ') || '-')}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'dueDate',
-      title: '截止时间',
-      width: 140,
-      render: (v: unknown) => {
-        if (!v) return <Text type="secondary">-</Text>;
-        const dueDate = dayjs(String(v));
-        const isOverdue = dueDate.isBefore(dayjs());
-        return (
-          <Text type="secondary" style={{ color: isOverdue ? colors.error[500] : undefined }}>
-            {dueDate.format('MM-DD HH:mm')}
-            {isOverdue && ' (已逾期)'}
-          </Text>
-        );
+  const columns: TableColumn<WorkflowTask>[] = useMemo<TableColumn<WorkflowTask>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '任务标题',
+        dataIndex: 'title',
+        width: 280,
+        render: (v: unknown, record: WorkflowTask) => (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ cursor: 'pointer' }} onClick={() => openDetail(record)}>
+              {String(v)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              实例: {record.instance_id.substring(0, 8)}... | 节点: {record.node_id}
+            </Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      width: 140,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_: unknown, record: WorkflowTask) => (
-        <Space size="small" wrap>
-          <Tooltip title="详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => openDetail(record)}>
-              详情
-            </Button>
-          </Tooltip>
-          {record.status === 'pending' && (
-            <Tooltip title="认领任务">
+      {
+        key: 'status',
+        title: '状态',
+        width: 100,
+        render: (_: unknown, record: WorkflowTask) => (
+          <Tag color={statusColorMap[record.status] || 'default'}>
+            {statusLabelMap[record.status] || record.status}
+          </Tag>
+        ),
+      },
+      {
+        key: 'priority',
+        title: '优先级',
+        width: 90,
+        render: (_: unknown, record: WorkflowTask) => (
+          <Tag color={priorityColorMap[record.priority] || 'default'}>
+            {priorityLabelMap[record.priority] || record.priority}
+          </Tag>
+        ),
+      },
+      {
+        key: 'assignee',
+        title: '处理人',
+        width: 120,
+        render: (_: unknown, record: WorkflowTask) => (
+          <Space>
+            <UserOutlined style={{ color: colors.neutral[400] }} />
+            <Text type="secondary">
+              {record.assignee_id || record.candidate_users?.join(', ') || '-'}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'dueDate',
+        title: '截止时间',
+        width: 140,
+        render: (v: unknown) => {
+          if (!v) return <Text type="secondary">-</Text>;
+          const dueDate = dayjs(String(v));
+          const isOverdue = dueDate.isBefore(dayjs());
+          return (
+            <Text type="secondary" style={{ color: isOverdue ? colors.error[500] : undefined }}>
+              {dueDate.format('MM-DD HH:mm')}
+              {isOverdue && ' (已逾期)'}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        width: 140,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_: unknown, record: WorkflowTask) => (
+          <Space size="small" wrap>
+            <Tooltip title="详情">
               <Button
                 type="link"
                 size="small"
-                style={{ color: colors.primary[500] }}
-                icon={<CheckOutlined />}
-                onClick={() => openClaimModal(record.id)}
+                icon={<EyeOutlined />}
+                onClick={() => openDetail(record)}
               >
-                认领
+                详情
               </Button>
             </Tooltip>
-          )}
-          {record.status === 'assigned' && record.assignee_id === currentUserId && (
-            <Tooltip title="完成任务">
-              <Button
-                type="link"
-                size="small"
-                style={{ color: colors.success[500] }}
-                icon={<SendOutlined />}
-                onClick={() => openCompleteModal(record.id)}
-              >
-                完成
-              </Button>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-  ], [openClaimModal, openCompleteModal, openDetail]);
+            {record.status === 'pending' && (
+              <Tooltip title="认领任务">
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ color: colors.primary[500] }}
+                  icon={<CheckOutlined />}
+                  onClick={() => openClaimModal(record.id)}
+                >
+                  认领
+                </Button>
+              </Tooltip>
+            )}
+            {record.status === 'assigned' && record.assignee_id === currentUserId && (
+              <Tooltip title="完成任务">
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ color: colors.success[500] }}
+                  icon={<SendOutlined />}
+                  onClick={() => openCompleteModal(record.id)}
+                >
+                  完成
+                </Button>
+              </Tooltip>
+            )}
+          </Space>
+        ),
+      },
+    ],
+    [openClaimModal, openCompleteModal, openDetail]
+  );
 
   // ---- Detail Drawer Content ----
 
@@ -376,8 +384,12 @@ const WorkflowTasksPage: React.FC = () => {
           <Descriptions.Item label="优先级">
             <Tag color={priorityColorMap[t.priority]}>{priorityLabelMap[t.priority]}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="任务类型">{t.task_type === 'manual' ? '人工任务' : '系统任务'}</Descriptions.Item>
-          <Descriptions.Item label="分配类型">{t.assignee_type === 'user' ? '用户' : '角色'}</Descriptions.Item>
+          <Descriptions.Item label="任务类型">
+            {t.task_type === 'manual' ? '人工任务' : '系统任务'}
+          </Descriptions.Item>
+          <Descriptions.Item label="分配类型">
+            {t.assignee_type === 'user' ? '用户' : '角色'}
+          </Descriptions.Item>
           <Descriptions.Item label="处理人">{t.assignee_id || '-'}</Descriptions.Item>
           <Descriptions.Item label="候选用户">
             {t.candidate_users?.join(', ') || '-'}
@@ -430,11 +442,7 @@ const WorkflowTasksPage: React.FC = () => {
         {/* Action buttons */}
         {t.status === 'pending' && (
           <Space style={{ marginTop: spacing.md }}>
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => openClaimModal(t.id)}
-            >
+            <Button type="primary" icon={<CheckOutlined />} onClick={() => openClaimModal(t.id)}>
               认领任务
             </Button>
           </Space>
@@ -575,9 +583,7 @@ const WorkflowTasksPage: React.FC = () => {
             destroyOnClose
           >
             <div style={{ marginBottom: spacing.md }}>
-              <Text type="secondary">
-                确认要认领此任务吗？认领后您将成为该任务的处理人。
-              </Text>
+              <Text type="secondary">确认要认领此任务吗？认领后您将成为该任务的处理人。</Text>
             </div>
             <Form form={claimForm} layout="vertical">
               <Form.Item name="comment" label="备注 (可选)">
@@ -594,14 +600,14 @@ const WorkflowTasksPage: React.FC = () => {
             onOk={handleComplete}
             confirmLoading={completeSubmitting}
             okText="确认完成"
-            okButtonProps={{ style: { backgroundColor: colors.success[500], borderColor: colors.success[500] } }}
+            okButtonProps={{
+              style: { backgroundColor: colors.success[500], borderColor: colors.success[500] },
+            }}
             width={520}
             destroyOnClose
           >
             <div style={{ marginBottom: spacing.md }}>
-              <Text type="secondary">
-                完成任务后将唤醒挂起的工作流实例，请填写必要的表单数据。
-              </Text>
+              <Text type="secondary">完成任务后将唤醒挂起的工作流实例，请填写必要的表单数据。</Text>
             </div>
             <Form form={completeForm} layout="vertical">
               <Form.Item name="formData" label="表单数据 (JSON, 可选)">

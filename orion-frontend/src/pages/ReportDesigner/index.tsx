@@ -159,7 +159,9 @@ export default function ReportDesignerPage() {
   // Preview drawer
   const [previewDrawerVisible, setPreviewDrawerVisible] = useState(false);
   const [previewData, setPreviewData] = useState<Record<string, unknown> | null>(null);
-  const [selectedReportForPreview, setSelectedReportForPreview] = useState<ReportDefinition | null>(null);
+  const [selectedReportForPreview, setSelectedReportForPreview] = useState<ReportDefinition | null>(
+    null
+  );
 
   // ============ Data Fetching ============
 
@@ -459,11 +461,7 @@ export default function ReportDesignerPage() {
       width: 280,
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handlePreviewReport(record)}
-          >
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handlePreviewReport(record)}>
             预览
           </Button>
           <Button
@@ -498,7 +496,9 @@ export default function ReportDesignerPage() {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
-        <Tag color={datasourceTypeColor[type] ?? 'default'}>{datasourceTypeLabel[type] ?? type}</Tag>
+        <Tag color={datasourceTypeColor[type] ?? 'default'}>
+          {datasourceTypeLabel[type] ?? type}
+        </Tag>
       ),
     },
     {
@@ -524,7 +524,10 @@ export default function ReportDesignerPage() {
           <Button type="link" icon={<EditOutlined />} onClick={() => handleEditDatasource(record)}>
             编辑
           </Button>
-          <Popconfirm title="确认删除此数据源？" onConfirm={() => handleDeleteDatasource(record.id)}>
+          <Popconfirm
+            title="确认删除此数据源？"
+            onConfirm={() => handleDeleteDatasource(record.id)}
+          >
             <Button type="link" danger icon={<DeleteOutlined />}>
               删除
             </Button>
@@ -859,11 +862,7 @@ export default function ReportDesignerPage() {
           >
             <Input placeholder="输入数据源名称" style={{ height: 36 }} />
           </Form.Item>
-          <Form.Item
-            name="type"
-            label="类型"
-            rules={[{ required: true, message: '请选择类型' }]}
-          >
+          <Form.Item name="type" label="类型" rules={[{ required: true, message: '请选择类型' }]}>
             <Select
               placeholder="选择数据源类型"
               style={{ height: 36 }}
@@ -950,10 +949,7 @@ export default function ReportDesignerPage() {
             rules={[{ required: true, message: '请输入接收人邮箱' }]}
             extra="多个邮箱用逗号分隔"
           >
-            <Input
-              placeholder="user1@example.com, user2@example.com"
-              style={{ height: 36 }}
-            />
+            <Input placeholder="user1@example.com, user2@example.com" style={{ height: 36 }} />
           </Form.Item>
           <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
             <Switch />
@@ -974,16 +970,15 @@ export default function ReportDesignerPage() {
       >
         {selectedReportForPreview && (
           <>
-            <Descriptions
-              column={1}
-              bordered
-              size="small"
-              style={{ marginBottom: spacing.md }}
-            >
-              <Descriptions.Item label="报表名称">{selectedReportForPreview.name}</Descriptions.Item>
+            <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
+              <Descriptions.Item label="报表名称">
+                {selectedReportForPreview.name}
+              </Descriptions.Item>
               <Descriptions.Item label="分类">
                 <Tag color={categoryColor[selectedReportForPreview.category ?? ''] ?? 'default'}>
-                  {categoryLabel[selectedReportForPreview.category ?? ''] ?? selectedReportForPreview.category ?? '-'}
+                  {categoryLabel[selectedReportForPreview.category ?? ''] ??
+                    selectedReportForPreview.category ??
+                    '-'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="描述">

@@ -179,126 +179,132 @@ const BudgetManagement: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<Budget>[] = useMemo<TableColumn<Budget>[]>(() => [
-    {
-      key: 'name',
-      title: '预算名称',
-      dataIndex: 'name',
-      width: 180,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'type',
-      title: '类型',
-      dataIndex: 'type',
-      width: 80,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'scope',
-      title: '范围',
-      dataIndex: 'scope',
-      width: 140,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'period',
-      title: '周期',
-      dataIndex: 'period',
-      width: 80,
-      render: (v: unknown) => <Tag>{String(v)}</Tag>,
-    },
-    {
-      key: 'amount',
-      title: '金额',
-      dataIndex: 'amount',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text strong>${Number(v).toFixed(2)}</Text>,
-    },
-    {
-      key: 'thresholds',
-      title: '告警阈值',
-      dataIndex: 'thresholds',
-      width: 140,
-      render: (v: unknown) => {
-        const t = v as { warning: number; critical: number };
-        return t ? (
-          <Space>
-            <Tag color="orange">警告 {t.warning}%</Tag>
-            <Tag color="red">严重 {t.critical}%</Tag>
-          </Space>
-        ) : null;
+  const columns: TableColumn<Budget>[] = useMemo<TableColumn<Budget>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '预算名称',
+        dataIndex: 'name',
+        width: 180,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingBudget(record);
-              editForm.setFieldsValue({
-                name: record.name,
-                amount: record.amount,
-                warningThreshold: record.thresholds.warning,
-                criticalThreshold: record.thresholds.critical,
-              });
-              setEditModalVisible(true);
-            }}
-          >
-            编辑
-          </Button>
-          {record.status === 'exceeded' && (
+      {
+        key: 'type',
+        title: '类型',
+        dataIndex: 'type',
+        width: 80,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'scope',
+        title: '范围',
+        dataIndex: 'scope',
+        width: 140,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'period',
+        title: '周期',
+        dataIndex: 'period',
+        width: 80,
+        render: (v: unknown) => <Tag>{String(v)}</Tag>,
+      },
+      {
+        key: 'amount',
+        title: '金额',
+        dataIndex: 'amount',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text strong>${Number(v).toFixed(2)}</Text>,
+      },
+      {
+        key: 'thresholds',
+        title: '告警阈值',
+        dataIndex: 'thresholds',
+        width: 140,
+        render: (v: unknown) => {
+          const t = v as { warning: number; critical: number };
+          return t ? (
+            <Space>
+              <Tag color="orange">警告 {t.warning}%</Tag>
+              <Tag color="red">严重 {t.critical}%</Tag>
+            </Space>
+          ) : null;
+        },
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
             <Button
               type="link"
               size="small"
-              icon={<ThunderboltOutlined />}
-              onClick={() => handleRestore(record.id)}
+              icon={<EditOutlined />}
+              onClick={() => {
+                setEditingBudget(record);
+                editForm.setFieldsValue({
+                  name: record.name,
+                  amount: record.amount,
+                  warningThreshold: record.thresholds.warning,
+                  criticalThreshold: record.thresholds.critical,
+                });
+                setEditModalVisible(true);
+              }}
             >
-              重置
+              编辑
             </Button>
-          )}
-          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleRestore]);
+            {record.status === 'exceeded' && (
+              <Button
+                type="link"
+                size="small"
+                icon={<ThunderboltOutlined />}
+                onClick={() => handleRestore(record.id)}
+              >
+                重置
+              </Button>
+            )}
+            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleRestore]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    { key: 'type', label: '类型', options: [{ label: '全部', value: 'all' }, ...typeOptions] },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Active', value: 'active' },
-        { label: 'Paused', value: 'paused' },
-        { label: 'Exceeded', value: 'exceeded' },
-        { label: 'Restored', value: 'restored' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      { key: 'type', label: '类型', options: [{ label: '全部', value: 'all' }, ...typeOptions] },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Active', value: 'active' },
+          { label: 'Paused', value: 'paused' },
+          { label: 'Exceeded', value: 'exceeded' },
+          { label: 'Restored', value: 'restored' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>

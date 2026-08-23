@@ -28,7 +28,8 @@ import {
   ReloadOutlined,
   ScanOutlined,
   FileTextOutlined,
-  TruckOutlined,} from '@ant-design/icons';
+  TruckOutlined,
+} from '@ant-design/icons';
 import {
   getSbomDocuments,
   getSbomVulnerabilityResults,
@@ -61,9 +62,13 @@ const SupplyChainPage: React.FC = () => {
         getSbomVulnerabilityResults(),
         getSbomComplianceReport(),
       ]);
-      setDocuments((((docRes.data as { data?: unknown })?.data) ?? []) as SbomDocument[]);
-      setVulnResults((((vulnRes.data as { data?: unknown })?.data) ?? []) as SbomVulnerabilityResult[]);
-      setComplianceRate(((complianceRes.data as { data?: { complianceRate?: number } })?.data?.complianceRate) ?? 0);
+      setDocuments(((docRes.data as { data?: unknown })?.data ?? []) as SbomDocument[]);
+      setVulnResults(
+        ((vulnRes.data as { data?: unknown })?.data ?? []) as SbomVulnerabilityResult[]
+      );
+      setComplianceRate(
+        (complianceRes.data as { data?: { complianceRate?: number } })?.data?.complianceRate ?? 0
+      );
     } catch {
       message.error('Failed to load supply chain data');
     } finally {
@@ -127,7 +132,9 @@ const SupplyChainPage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: SbomDocument) => (
         <Space>
-          <Button size="small" onClick={() => handleSign(record.id)}>Sign</Button>
+          <Button size="small" onClick={() => handleSign(record.id)}>
+            Sign
+          </Button>
         </Space>
       ),
     },
@@ -209,7 +216,14 @@ const SupplyChainPage: React.FC = () => {
       </Row>
 
       {/* SBOM Documents */}
-      <Card title={<><FileTextOutlined /> SBOM Documents</>} style={{ marginBottom: spacing.lg }}>
+      <Card
+        title={
+          <>
+            <FileTextOutlined /> SBOM Documents
+          </>
+        }
+        style={{ marginBottom: spacing.lg }}
+      >
         <Table
           columns={docColumns}
           dataSource={documents}
@@ -220,7 +234,13 @@ const SupplyChainPage: React.FC = () => {
       </Card>
 
       {/* Vulnerability Results */}
-      <Card title={<><ScanOutlined /> Vulnerability Scan Results</>}>
+      <Card
+        title={
+          <>
+            <ScanOutlined /> Vulnerability Scan Results
+          </>
+        }
+      >
         <Table
           columns={vulnColumns}
           dataSource={vulnResults}

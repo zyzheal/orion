@@ -4,18 +4,42 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Typography, Card, Table, Tag, Space, Button, Modal, Form, Input,
-  Select, message, Row, Col, Switch, Drawer,
+  Typography,
+  Card,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Row,
+  Col,
+  Switch,
+  Drawer,
 } from 'antd';
 import { spacing } from '@/tokens';
 import {
-  BellOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
-  ReloadOutlined, FileTextOutlined,
+  BellOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  ReloadOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import {
-  getAlertRules, createAlertRule, updateAlertRule, deleteAlertRule,
-  toggleAlertRule, getAlertRuleTemplates, createAlertRuleFromTemplate,
-  type AlertRule, type AlertRuleInput, type AlertRuleTemplate,
+  getAlertRules,
+  createAlertRule,
+  updateAlertRule,
+  deleteAlertRule,
+  toggleAlertRule,
+  getAlertRuleTemplates,
+  createAlertRuleFromTemplate,
+  type AlertRule,
+  type AlertRuleInput,
+  type AlertRuleTemplate,
 } from '@/api/observability';
 
 const { Title, Text } = Typography;
@@ -82,31 +106,37 @@ const TemplatesDrawer: React.FC<{
       width: 80,
       render: (v: string) => <Tag color="purple">{ruleTypeLabels[v] || v}</Tag>,
     },
-    { title: '严重度', dataIndex: 'severity', key: 'severity', width: 90, render: (v: string) => <Tag color={severityColorMap[v]}>{v}</Tag> },
+    {
+      title: '严重度',
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 90,
+      render: (v: string) => <Tag color={severityColorMap[v]}>{v}</Tag>,
+    },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     {
       title: '操作',
       key: 'actions',
       width: 100,
       render: (_: unknown, record: AlertRuleTemplate) => (
-        <Button type="link" size="small" onClick={() => onSelect(record.id)}>使用此模板</Button>
+        <Button type="link" size="small" onClick={() => onSelect(record.id)}>
+          使用此模板
+        </Button>
       ),
     },
   ];
 
   return (
-    <Drawer
-      title="告警规则模板库"
-      open={visible}
-      onClose={onClose}
-      width={800}
-    >
+    <Drawer title="告警规则模板库" open={visible} onClose={onClose} width={800}>
       <Space style={{ marginBottom: spacing.md }}>
         <Text>按类别筛选：</Text>
         <Select
           style={{ width: 120 }}
           value={category}
-          onChange={(v) => { setCategory(v || undefined); loadTemplates(v || undefined); }}
+          onChange={(v) => {
+            setCategory(v || undefined);
+            loadTemplates(v || undefined);
+          }}
           allowClear
           options={[
             { label: '资源', value: 'resource' },
@@ -115,7 +145,14 @@ const TemplatesDrawer: React.FC<{
           ]}
         />
       </Space>
-      <Table columns={columns} dataSource={templates} rowKey="id" loading={loading} size="small" pagination={{ pageSize: 8 }} />
+      <Table
+        columns={columns}
+        dataSource={templates}
+        rowKey="id"
+        loading={loading}
+        size="small"
+        pagination={{ pageSize: 8 }}
+      />
     </Drawer>
   );
 };
@@ -241,17 +278,32 @@ const AlertRulesPage: React.FC = () => {
     }
   };
 
-  const conditionLabels: Record<string, string> = { gt: '>', lt: '<', eq: '==', gte: '>=', lte: '<=', neq: '!=' };
+  const conditionLabels: Record<string, string> = {
+    gt: '>',
+    lt: '<',
+    eq: '==',
+    gte: '>=',
+    lte: '<=',
+    neq: '!=',
+  };
 
   const columns = [
-    { title: '规则名称', dataIndex: 'name', key: 'name', width: 180, render: (v: string) => <Text strong>{v}</Text> },
+    {
+      title: '规则名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 180,
+      render: (v: string) => <Text strong>{v}</Text>,
+    },
     { title: '指标', dataIndex: 'metric', key: 'metric', width: 140 },
     {
       title: '条件',
       key: 'condition',
       width: 100,
       render: (_: unknown, record: AlertRule) => (
-        <Tag>{conditionLabels[record.condition] || record.condition} {record.threshold}</Tag>
+        <Tag>
+          {conditionLabels[record.condition] || record.condition} {record.threshold}
+        </Tag>
       ),
     },
     { title: '持续时间', dataIndex: 'duration', key: 'duration', width: 80 },
@@ -270,15 +322,34 @@ const AlertRulesPage: React.FC = () => {
         <Switch checked={record.enabled} size="small" onChange={() => handleToggle(record.id)} />
       ),
     },
-    { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt', width: 160, render: (v: string) => new Date(v).toLocaleString() },
+    {
+      title: '更新时间',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
+      width: 160,
+      render: (v: string) => new Date(v).toLocaleString(),
+    },
     {
       title: '操作',
       key: 'actions',
       width: 140,
       render: (_: unknown, record: AlertRule) => (
         <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>编辑</Button>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record.id)} />
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          />
         </Space>
       ),
     },
@@ -300,13 +371,26 @@ const AlertRulesPage: React.FC = () => {
             <Text type="secondary">共 {rules.length} 条规则</Text>
           </Space>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>刷新</Button>
-            <Button icon={<FileTextOutlined />} onClick={() => setTemplatesVisible(true)}>从模板创建</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>创建规则</Button>
+            <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>
+              刷新
+            </Button>
+            <Button icon={<FileTextOutlined />} onClick={() => setTemplatesVisible(true)}>
+              从模板创建
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              创建规则
+            </Button>
           </Space>
         </div>
 
-        <Table columns={columns} dataSource={rules} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
+        <Table
+          columns={columns}
+          dataSource={rules}
+          rowKey="id"
+          loading={loading}
+          size="middle"
+          pagination={{ pageSize: 10 }}
+        />
       </Card>
 
       {/* Create/Edit Modal */}
@@ -331,14 +415,16 @@ const AlertRulesPage: React.FC = () => {
             </Col>
             <Col span={6}>
               <Form.Item name="condition" label="条件" rules={[{ required: true }]}>
-                <Select options={[
-                  { label: '> 大于', value: 'gt' },
-                  { label: '< 小于', value: 'lt' },
-                  { label: '>= 大于等于', value: 'gte' },
-                  { label: '<= 小于等于', value: 'lte' },
-                  { label: '== 等于', value: 'eq' },
-                  { label: '!= 不等于', value: 'neq' },
-                ]} />
+                <Select
+                  options={[
+                    { label: '> 大于', value: 'gt' },
+                    { label: '< 小于', value: 'lt' },
+                    { label: '>= 大于等于', value: 'gte' },
+                    { label: '<= 小于等于', value: 'lte' },
+                    { label: '== 等于', value: 'eq' },
+                    { label: '!= 不等于', value: 'neq' },
+                  ]}
+                />
               </Form.Item>
             </Col>
             <Col span={6}>
@@ -355,11 +441,13 @@ const AlertRulesPage: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="severity" label="严重度" rules={[{ required: true }]}>
-                <Select options={[
-                  { label: 'Critical', value: 'critical' },
-                  { label: 'Warning', value: 'warning' },
-                  { label: 'Info', value: 'info' },
-                ]} />
+                <Select
+                  options={[
+                    { label: 'Critical', value: 'critical' },
+                    { label: 'Warning', value: 'warning' },
+                    { label: 'Info', value: 'info' },
+                  ]}
+                />
               </Form.Item>
             </Col>
           </Row>

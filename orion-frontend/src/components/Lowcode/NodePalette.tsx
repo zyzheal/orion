@@ -75,9 +75,7 @@ const NodeCard: React.FC<{
         padding: `${spacing.sm}px ${spacing.md}px`,
         borderRadius: componentRadius.button.md,
         border: `1px solid ${colors.light.border.heavy}`,
-        background: isDragging
-          ? `${config.color}15`
-          : colors.light.bg.primary,
+        background: isDragging ? `${config.color}15` : colors.light.bg.primary,
         cursor: 'grab',
         transition: `all ${animation.duration.fast}ms ${animation.easing.easeOut}`,
         boxShadow: isDragging ? shadows.sm : shadows.none,
@@ -185,12 +183,7 @@ const NodePalette: React.FC<NodePaletteProps> = ({ onAddNode, onDragStart }) => 
     >
       <Space direction="vertical" size={4} style={{ width: '100%' }}>
         {nodeTypes.map((type) => (
-          <NodeCard
-            key={type}
-            type={type}
-            onAddNode={onAddNode}
-            onDragStart={onDragStart}
-          />
+          <NodeCard key={type} type={type} onAddNode={onAddNode} onDragStart={onDragStart} />
         ))}
       </Space>
     </Card>

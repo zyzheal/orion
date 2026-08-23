@@ -139,7 +139,13 @@ export const approverTypeLabels: Record<ApproverType, string> = {
 /**
  * 工作流节点类型
  */
-export type WorkflowNodeType = 'start' | 'approval' | 'condition' | 'notification' | 'webhook' | 'end';
+export type WorkflowNodeType =
+  | 'start'
+  | 'approval'
+  | 'condition'
+  | 'notification'
+  | 'webhook'
+  | 'end';
 
 /**
  * 工作流节点（画布节点）

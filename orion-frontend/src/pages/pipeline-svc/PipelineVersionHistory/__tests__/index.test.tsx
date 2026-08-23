@@ -75,16 +75,10 @@ vi.mock('../YamlDiffViewer', () => ({
 
 // Mock Table
 vi.mock('@/components/Table', () => ({
-  default: ({
-    dataSource,
-    loading,
-    rowSelection,
-  }: any) => (
+  default: ({ dataSource, loading, rowSelection }: any) => (
     <div data-testid="table" data-loading={loading}>
       <div data-testid="row-count">{dataSource?.length || 0}</div>
-      {rowSelection && (
-        <div data-testid="row-selection" data-type={rowSelection.type} />
-      )}
+      {rowSelection && <div data-testid="row-selection" data-type={rowSelection.type} />}
     </div>
   ),
 }));

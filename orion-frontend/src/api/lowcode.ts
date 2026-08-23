@@ -179,12 +179,17 @@ export const getForm = async (id: string): Promise<FormDefinition> => {
   return res.data as FormDefinition;
 };
 
-export const createForm = async (data: Partial<FormDefinition> & { name: string; fields?: FormField[] }): Promise<FormDefinition> => {
+export const createForm = async (
+  data: Partial<FormDefinition> & { name: string; fields?: FormField[] }
+): Promise<FormDefinition> => {
   const res = await api.post('/api/v1/lowcode-designer/forms', data);
   return res.data as FormDefinition;
 };
 
-export const updateForm = async (id: string, data: Partial<FormDefinition>): Promise<FormDefinition> => {
+export const updateForm = async (
+  id: string,
+  data: Partial<FormDefinition>
+): Promise<FormDefinition> => {
   const res = await api.put(`/api/v1/lowcode-designer/forms/${id}`, data);
   return res.data as FormDefinition;
 };
@@ -196,7 +201,10 @@ export const deleteForm = async (id: string) => {
 
 // --- Fields (lowcode-designer) ---
 
-export const createField = async (formId: string, data: Partial<FormField> & { key: string; label: string; type: string }): Promise<FormField> => {
+export const createField = async (
+  formId: string,
+  data: Partial<FormField> & { key: string; label: string; type: string }
+): Promise<FormField> => {
   const res = await api.post(`/api/v1/lowcode-designer/forms/${formId}/fields`, data);
   return res.data as FormField;
 };
@@ -231,7 +239,13 @@ export const getTemplate = async (id: string): Promise<LowcodeTemplate> => {
   return res.data as LowcodeTemplate;
 };
 
-export const createTemplate = async (data: { name: string; description?: string; category?: string; schema?: Record<string, unknown>; tags?: string[] }) => {
+export const createTemplate = async (data: {
+  name: string;
+  description?: string;
+  category?: string;
+  schema?: Record<string, unknown>;
+  tags?: string[];
+}) => {
   const res = await api.post('/api/v1/lowcode/templates', data);
   return res.data;
 };
@@ -250,14 +264,23 @@ export const getFormTemplate = async (id: string): Promise<FormTemplate> => {
   return res.data as FormTemplate;
 };
 
-export const createFormTemplate = async (data: { name: string; description?: string; category?: string; schema?: Record<string, unknown>; tags?: string[] }) => {
+export const createFormTemplate = async (data: {
+  name: string;
+  description?: string;
+  category?: string;
+  schema?: Record<string, unknown>;
+  tags?: string[];
+}) => {
   const res = await api.post('/api/v1/lowcode-designer/templates', data);
   return res.data;
 };
 
 // --- Instances (lowcode-designer) ---
 
-export const submitInstance = async (formId: string, data: { data: Record<string, unknown>; submitBy: string }) => {
+export const submitInstance = async (
+  formId: string,
+  data: { data: Record<string, unknown>; submitBy: string }
+) => {
   const res = await api.post(`/api/v1/lowcode-designer/forms/${formId}/instances`, data);
   return res.data as FormInstance;
 };
@@ -275,8 +298,15 @@ export const getInstance = async (id: string): Promise<FormInstance> => {
   return res.data as FormInstance;
 };
 
-export const approveInstance = async (id: string, action: 'approve' | 'reject', approver: string) => {
-  const res = await api.post(`/api/v1/lowcode-designer/instances/${id}/approve`, { approver, action });
+export const approveInstance = async (
+  id: string,
+  action: 'approve' | 'reject',
+  approver: string
+) => {
+  const res = await api.post(`/api/v1/lowcode-designer/instances/${id}/approve`, {
+    approver,
+    action,
+  });
   return res.data;
 };
 
@@ -345,13 +375,16 @@ export const createFlow = async (data: {
   return res.data;
 };
 
-export const updateFlow = async (id: string, data: {
-  name?: string;
-  description?: string;
-  nodes?: string;
-  edges?: string;
-  enabled?: boolean;
-}) => {
+export const updateFlow = async (
+  id: string,
+  data: {
+    name?: string;
+    description?: string;
+    nodes?: string;
+    edges?: string;
+    enabled?: boolean;
+  }
+) => {
   const res = await api.put(`/api/v1/lowcode/flows/${id}`, data);
   return res.data;
 };
@@ -402,10 +435,13 @@ export const importWorkflow = async (data: {
   return res.data;
 };
 
-export const applyTemplate = async (templateId: string, data: {
-  workflowName: string;
-  description?: string;
-}) => {
+export const applyTemplate = async (
+  templateId: string,
+  data: {
+    workflowName: string;
+    description?: string;
+  }
+) => {
   const res = await api.post(`/api/v1/lowcode/templates/${templateId}/apply`, data);
   return res.data;
 };
@@ -414,12 +450,20 @@ export const applyTemplate = async (templateId: string, data: {
 
 export const parseFlowNodes = (nodesStr: string | undefined): unknown[] => {
   if (!nodesStr) return [];
-  try { return JSON.parse(nodesStr); } catch { return []; }
+  try {
+    return JSON.parse(nodesStr);
+  } catch {
+    return [];
+  }
 };
 
 export const parseFlowEdges = (edgesStr: string | undefined): unknown[] => {
   if (!edgesStr) return [];
-  try { return JSON.parse(edgesStr); } catch { return []; }
+  try {
+    return JSON.parse(edgesStr);
+  } catch {
+    return [];
+  }
 };
 
 export const countFlowNodes = (flow: LowcodeFlow): number => {
@@ -475,7 +519,7 @@ export const lowcodeApi = {
     return res.data;
   },
   generateFlow: async (data: Record<string, unknown>) => {
-    const res = await api.post("/api/v1/lowcode/generate", data);
+    const res = await api.post('/api/v1/lowcode/generate', data);
     return res.data;
   },
 };

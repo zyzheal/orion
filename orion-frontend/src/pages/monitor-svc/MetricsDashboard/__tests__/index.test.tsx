@@ -56,7 +56,9 @@ vi.mock('@/components/charts', async () => {
     StatCard: ({ title, value, suffix }: any) => (
       <div data-testid="metric-card">
         <span data-testid="metric-title">{title}</span>
-        <span data-testid="metric-value">{value === '-' ? '-' : `${value}${suffix ? ` ${suffix}` : ''}`}</span>
+        <span data-testid="metric-value">
+          {value === '-' ? '-' : `${value}${suffix ? ` ${suffix}` : ''}`}
+        </span>
       </div>
     ),
     TrendLineChart: ({ title, data }: any) => (
@@ -66,7 +68,9 @@ vi.mock('@/components/charts', async () => {
     ),
     GaugeChart: ({ title, value }: any) => (
       <div data-testid="gauge-chart">
-        <span>{title}: {value}</span>
+        <span>
+          {title}: {value}
+        </span>
       </div>
     ),
   };
@@ -129,7 +133,11 @@ describe('MetricsDashboard', () => {
     mockApi.getDashboardData.mockResolvedValue(mockDashboardData);
 
     await act(async () => {
-      render(<ChartProvider><MetricsDashboard /></ChartProvider>);
+      render(
+        <ChartProvider>
+          <MetricsDashboard />
+        </ChartProvider>
+      );
     });
 
     await waitFor(() => {
@@ -165,7 +173,11 @@ describe('MetricsDashboard', () => {
     mockApi.getDashboardData.mockRejectedValue(new Error('Network error'));
 
     await act(async () => {
-      render(<ChartProvider><MetricsDashboard /></ChartProvider>);
+      render(
+        <ChartProvider>
+          <MetricsDashboard />
+        </ChartProvider>
+      );
     });
 
     await waitFor(() => {
@@ -198,7 +210,11 @@ describe('MetricsDashboard', () => {
     });
 
     await act(async () => {
-      render(<ChartProvider><MetricsDashboard /></ChartProvider>);
+      render(
+        <ChartProvider>
+          <MetricsDashboard />
+        </ChartProvider>
+      );
     });
 
     await waitFor(() => {

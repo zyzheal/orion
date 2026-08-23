@@ -103,84 +103,86 @@ const PipelineVersionHistory: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<PipelineVersion>[] = useMemo<TableColumn<PipelineVersion>[]>(() => [
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 100,
-      render: (v: any) => (
-        <Tag color="blue" style={{ fontFamily: 'monospace' }}>
-          v{String(v)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'change_summary',
-      title: '变更摘要',
-      dataIndex: 'change_summary',
-      ellipsis: true,
-      render: (summary: any) =>
-        (summary as string) || <Text type="secondary">无</Text>,
-    },
-    {
-      key: 'tags',
-      title: '标签',
-      dataIndex: 'tags',
-      width: 180,
-      render: (tags: any) => (
-        <Space wrap>
-          {(tags as string[]).map((t) => (
-            <Tag key={t} color="default">
-              {t}
-            </Tag>
-          ))}
-        </Space>
-      ),
-    },
-    {
-      key: 'is_baseline',
-      title: '基线',
-      dataIndex: 'is_baseline',
-      width: 80,
-      render: (isBaseline: any) =>
-        isBaseline ? <StatusBadge status="success" size="small" /> : '-',
-    },
-    {
-      key: 'created_at',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 180,
-      sortable: true,
-      render: (date: any) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(date as string).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'created_by',
-      title: '创建人',
-      dataIndex: 'created_by',
-      width: 120,
-      render: (by: any) => <Text code>{(by as string) || '-'}</Text>,
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: unknown, record: PipelineVersion) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => handleRollback(record)}>
-            回滚
-          </Button>
-          <Button type="link" size="small" onClick={() => handleSetBaseline(record)}>
-            {record.is_baseline ? '取消基线' : '设为基线'}
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleRollback, handleSetBaseline]);
+  const columns: TableColumn<PipelineVersion>[] = useMemo<TableColumn<PipelineVersion>[]>(
+    () => [
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 100,
+        render: (v: any) => (
+          <Tag color="blue" style={{ fontFamily: 'monospace' }}>
+            v{String(v)}
+          </Tag>
+        ),
+      },
+      {
+        key: 'change_summary',
+        title: '变更摘要',
+        dataIndex: 'change_summary',
+        ellipsis: true,
+        render: (summary: any) => (summary as string) || <Text type="secondary">无</Text>,
+      },
+      {
+        key: 'tags',
+        title: '标签',
+        dataIndex: 'tags',
+        width: 180,
+        render: (tags: any) => (
+          <Space wrap>
+            {(tags as string[]).map((t) => (
+              <Tag key={t} color="default">
+                {t}
+              </Tag>
+            ))}
+          </Space>
+        ),
+      },
+      {
+        key: 'is_baseline',
+        title: '基线',
+        dataIndex: 'is_baseline',
+        width: 80,
+        render: (isBaseline: any) =>
+          isBaseline ? <StatusBadge status="success" size="small" /> : '-',
+      },
+      {
+        key: 'created_at',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 180,
+        sortable: true,
+        render: (date: any) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(date as string).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'created_by',
+        title: '创建人',
+        dataIndex: 'created_by',
+        width: 120,
+        render: (by: any) => <Text code>{(by as string) || '-'}</Text>,
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: unknown, record: PipelineVersion) => (
+          <Space size="small">
+            <Button type="link" size="small" onClick={() => handleRollback(record)}>
+              回滚
+            </Button>
+            <Button type="link" size="small" onClick={() => handleSetBaseline(record)}>
+              {record.is_baseline ? '取消基线' : '设为基线'}
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleRollback, handleSetBaseline]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -193,7 +195,10 @@ const PipelineVersionHistory: React.FC = () => {
         }}
       >
         <div>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <HistoryOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             版本历史
           </Title>

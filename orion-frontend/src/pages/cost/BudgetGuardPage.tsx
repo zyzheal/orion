@@ -43,7 +43,8 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   WarningOutlined,
-  DollarOutlined,} from '@ant-design/icons';
+  DollarOutlined,
+} from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';
 import {
   getBudgetGuards,
@@ -70,7 +71,12 @@ interface SummaryCardsProps {
   blockedCount: number;
 }
 
-const SummaryCards: React.FC<SummaryCardsProps> = ({ guards, forecast: _forecast, evaluationCount, blockedCount }) => {
+const SummaryCards: React.FC<SummaryCardsProps> = ({
+  guards,
+  forecast: _forecast,
+  evaluationCount,
+  blockedCount,
+}) => {
   const activeCount = guards.filter((g) => g.status === 'active').length;
   const totalBudget = guards.reduce((sum, g) => sum + g.budgetAmount, 0);
 
@@ -99,11 +105,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({ guards, forecast: _forecast
       </Col>
       <Col span={6}>
         <Card>
-          <Statistic
-            title="Evaluations"
-            value={evaluationCount}
-            prefix={<ThunderboltOutlined />}
-          />
+          <Statistic title="Evaluations" value={evaluationCount} prefix={<ThunderboltOutlined />} />
         </Card>
       </Col>
       <Col span={6}>
@@ -165,12 +167,7 @@ const ForecastCard: React.FC<ForecastCardProps> = ({ forecast, loading }) => {
     >
       <Row gutter={spacing[4]}>
         <Col span={8}>
-          <Statistic
-            title="Current Spend"
-            value={forecast.currentSpend}
-            precision={2}
-            prefix="¥"
-          />
+          <Statistic title="Current Spend" value={forecast.currentSpend} precision={2} prefix="¥" />
         </Col>
         <Col span={8}>
           <Statistic
@@ -287,10 +284,7 @@ const BudgetGuardPage: React.FC = () => {
     return guards.filter((g) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (
-          !g.name.toLowerCase().includes(q) &&
-          !(g.description || '').toLowerCase().includes(q)
-        ) {
+        if (!g.name.toLowerCase().includes(q) && !(g.description || '').toLowerCase().includes(q)) {
           return false;
         }
       }
@@ -407,135 +401,142 @@ const BudgetGuardPage: React.FC = () => {
   // Table Columns
   // ============================================================================
 
-  const columns: TableColumn<BudgetGuard>[] = useMemo<TableColumn<BudgetGuard>[]>(() => [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      width: 180,
-      render: (_: unknown, record: BudgetGuard) => (
-        <Space>
-          <SafetyOutlined />
-          <Text strong>{record.name}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (value: unknown) => (value as string | null) || '--',
-    },
-    {
-      title: 'Budget',
-      dataIndex: 'budgetAmount',
-      key: 'budgetAmount',
-      width: 120,
-      render: (_: unknown, record: BudgetGuard) => (
-        <Text>
-          {record.currency || 'CNY'} {record.budgetAmount.toLocaleString()}
-        </Text>
-      ),
-    },
-    {
-      title: 'Action',
-      dataIndex: 'action',
-      key: 'action',
-      width: 100,
-      render: (value: unknown) => {
-        const action = value as 'allow' | 'block' | 'warn';
-        const config = {
-          allow: { color: 'success', icon: <CheckCircleOutlined />, label: 'Allow' },
-          block: { color: 'error', icon: <CloseCircleOutlined />, label: 'Block' },
-          warn: { color: 'warning', icon: <WarningOutlined />, label: 'Warn' },
-        }[action];
-        return <Tag icon={config.icon} color={config.color}>{config.label}</Tag>;
+  const columns: TableColumn<BudgetGuard>[] = useMemo<TableColumn<BudgetGuard>[]>(
+    () => [
+      {
+        title: 'Name',
+        dataIndex: 'name',
+        key: 'name',
+        width: 180,
+        render: (_: unknown, record: BudgetGuard) => (
+          <Space>
+            <SafetyOutlined />
+            <Text strong>{record.name}</Text>
+          </Space>
+        ),
       },
-    },
-    {
-      title: 'Scope',
-      dataIndex: 'scope',
-      key: 'scope',
-      width: 180,
-      render: (value: unknown) => {
-        const scope = value as BudgetGuard['scope'];
-        if (!scope) return <Text type="secondary">Global</Text>;
-        const parts: string[] = [];
-        if (scope.projectIds?.length) parts.push(`${scope.projectIds.length} projects`);
-        if (scope.environment) parts.push(scope.environment);
-        return <Text>{parts.join(', ') || 'Global'}</Text>;
+      {
+        title: 'Description',
+        dataIndex: 'description',
+        key: 'description',
+        ellipsis: true,
+        render: (value: unknown) => (value as string | null) || '--',
       },
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (value: unknown) => {
-        const status = value as 'active' | 'inactive';
-        return (
-          <Tag color={status === 'active' ? 'green' : 'default'}>
-            {status === 'active' ? 'Active' : 'Inactive'}
-          </Tag>
-        );
+      {
+        title: 'Budget',
+        dataIndex: 'budgetAmount',
+        key: 'budgetAmount',
+        width: 120,
+        render: (_: unknown, record: BudgetGuard) => (
+          <Text>
+            {record.currency || 'CNY'} {record.budgetAmount.toLocaleString()}
+          </Text>
+        ),
       },
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 160,
-      render: (value: unknown) => new Date(value as string).toLocaleDateString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 180,
-      fixed: 'right' as const,
-      render: (_: unknown, record: BudgetGuard) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingGuard(record);
-              editForm.setFieldsValue({
-                name: record.name,
-                description: record.description || undefined,
-                budgetAmount: record.budgetAmount,
-                currency: record.currency || 'CNY',
-                action: record.action,
-              });
-              setEditModalOpen(true);
-            }}
-          >
-            Edit
-          </Button>
-          <Switch
-            size="small"
-            checked={record.status === 'active'}
-            onChange={() => handleToggle(record)}
-            checkedChildren="On"
-            unCheckedChildren="Off"
-          />
-          <Popconfirm
-            title="Delete Budget Guard"
-            description={`Are you sure you want to delete "${record.name}"?`}
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              Delete
+      {
+        title: 'Action',
+        dataIndex: 'action',
+        key: 'action',
+        width: 100,
+        render: (value: unknown) => {
+          const action = value as 'allow' | 'block' | 'warn';
+          const config = {
+            allow: { color: 'success', icon: <CheckCircleOutlined />, label: 'Allow' },
+            block: { color: 'error', icon: <CloseCircleOutlined />, label: 'Block' },
+            warn: { color: 'warning', icon: <WarningOutlined />, label: 'Warn' },
+          }[action];
+          return (
+            <Tag icon={config.icon} color={config.color}>
+              {config.label}
+            </Tag>
+          );
+        },
+      },
+      {
+        title: 'Scope',
+        dataIndex: 'scope',
+        key: 'scope',
+        width: 180,
+        render: (value: unknown) => {
+          const scope = value as BudgetGuard['scope'];
+          if (!scope) return <Text type="secondary">Global</Text>;
+          const parts: string[] = [];
+          if (scope.projectIds?.length) parts.push(`${scope.projectIds.length} projects`);
+          if (scope.environment) parts.push(scope.environment);
+          return <Text>{parts.join(', ') || 'Global'}</Text>;
+        },
+      },
+      {
+        title: 'Status',
+        dataIndex: 'status',
+        key: 'status',
+        width: 100,
+        render: (value: unknown) => {
+          const status = value as 'active' | 'inactive';
+          return (
+            <Tag color={status === 'active' ? 'green' : 'default'}>
+              {status === 'active' ? 'Active' : 'Inactive'}
+            </Tag>
+          );
+        },
+      },
+      {
+        title: 'Created',
+        dataIndex: 'createdAt',
+        key: 'createdAt',
+        width: 160,
+        render: (value: unknown) => new Date(value as string).toLocaleDateString(),
+      },
+      {
+        title: 'Actions',
+        key: 'actions',
+        width: 180,
+        fixed: 'right' as const,
+        render: (_: unknown, record: BudgetGuard) => (
+          <Space>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                setEditingGuard(record);
+                editForm.setFieldsValue({
+                  name: record.name,
+                  description: record.description || undefined,
+                  budgetAmount: record.budgetAmount,
+                  currency: record.currency || 'CNY',
+                  action: record.action,
+                });
+                setEditModalOpen(true);
+              }}
+            >
+              Edit
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete]);
+            <Switch
+              size="small"
+              checked={record.status === 'active'}
+              onChange={() => handleToggle(record)}
+              checkedChildren="On"
+              unCheckedChildren="Off"
+            />
+            <Popconfirm
+              title="Delete Budget Guard"
+              description={`Are you sure you want to delete "${record.name}"?`}
+              onConfirm={() => handleDelete(record.id)}
+              okText="Delete"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete]
+  );
 
   // ============================================================================
   // Render
@@ -544,7 +545,14 @@ const BudgetGuardPage: React.FC = () => {
   return (
     <div style={{ padding: spacing[6], background: themeVars.bgPrimary, minHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing[4] }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing[4],
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
             <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
@@ -670,12 +678,7 @@ const BudgetGuardPage: React.FC = () => {
                 name="budgetAmount"
                 rules={[{ required: true, message: 'Please enter budget amount' }]}
               >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  min={0}
-                  precision={2}
-                  placeholder="10000"
-                />
+                <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="10000" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -729,11 +732,7 @@ const BudgetGuardPage: React.FC = () => {
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item
-                label="Budget Amount"
-                name="budgetAmount"
-                rules={[{ required: true }]}
-              >
+              <Form.Item label="Budget Amount" name="budgetAmount" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} precision={2} />
               </Form.Item>
             </Col>
@@ -749,11 +748,7 @@ const BudgetGuardPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item
-            label="Action"
-            name="action"
-            rules={[{ required: true }]}
-          >
+          <Form.Item label="Action" name="action" rules={[{ required: true }]}>
             <Select
               options={[
                 { label: 'Allow', value: 'allow' },
@@ -820,7 +815,15 @@ const BudgetGuardPage: React.FC = () => {
                 {evalResult.usagePercent?.toFixed(1)}%
               </Descriptions.Item>
               <Descriptions.Item label="Action">
-                <Tag color={evalResult.action === 'block' ? 'error' : evalResult.action === 'warn' ? 'warning' : 'success'}>
+                <Tag
+                  color={
+                    evalResult.action === 'block'
+                      ? 'error'
+                      : evalResult.action === 'warn'
+                        ? 'warning'
+                        : 'success'
+                  }
+                >
                   {evalResult.action}
                 </Tag>
               </Descriptions.Item>

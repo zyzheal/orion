@@ -74,7 +74,9 @@ export default function ChaosExperimentDetailPage() {
     }
   };
 
-  useEffect(() => { fetchExperiment(); }, [id]);
+  useEffect(() => {
+    fetchExperiment();
+  }, [id]);
 
   const handleRun = async (dryRun = false) => {
     if (!id) return;
@@ -125,26 +127,30 @@ export default function ChaosExperimentDetailPage() {
       key: 'status',
       render: (v: string) => {
         const cfg = runStatusConfig[v] || runStatusConfig.running;
-        return <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>;
+        return (
+          <Tag color={cfg.color} icon={cfg.icon}>
+            {cfg.label}
+          </Tag>
+        );
       },
     },
     {
       title: 'MTTR',
       dataIndex: ['metrics', 'mttr_ms'],
       key: 'mttr',
-      render: (v: number) => v ? `${(v / 1000).toFixed(1)}s` : '-',
+      render: (v: number) => (v ? `${(v / 1000).toFixed(1)}s` : '-'),
     },
     {
       title: '受影响服务',
       dataIndex: ['metrics', 'affected_services'],
       key: 'affected',
-      render: (v: string[]) => v?.length ? v.map(s => <Tag key={s}>{s}</Tag>) : '-',
+      render: (v: string[]) => (v?.length ? v.map((s) => <Tag key={s}>{s}</Tag>) : '-'),
     },
     {
       title: '开始时间',
       dataIndex: 'started_at',
       key: 'started_at',
-      render: (v: string) => v ? new Date(v).toLocaleString() : '-',
+      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -154,7 +160,10 @@ export default function ChaosExperimentDetailPage() {
           <Button
             size="small"
             icon={<ThunderboltOutlined />}
-            onClick={() => { setSelectedRun(record); setTimelineVisible(true); }}
+            onClick={() => {
+              setSelectedRun(record);
+              setTimelineVisible(true);
+            }}
           >
             时间线
           </Button>
@@ -189,7 +198,9 @@ export default function ChaosExperimentDetailPage() {
       <Title level={2} style={{ marginBottom: spacing.md }}>
         <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         {experiment.name}
-        <Tag color={cfg.color} icon={cfg.icon} style={{ marginLeft: spacing[3] }}>{cfg.label}</Tag>
+        <Tag color={cfg.color} icon={cfg.icon} style={{ marginLeft: spacing[3] }}>
+          {cfg.label}
+        </Tag>
       </Title>
 
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
@@ -262,23 +273,38 @@ export default function ChaosExperimentDetailPage() {
             rowKey={(_f, i) => i?.toString() ?? '0'}
             pagination={false}
             columns={[
-              { title: '类型', dataIndex: 'type', key: 'type', render: (v: string) => <Tag>{v}</Tag> },
+              {
+                title: '类型',
+                dataIndex: 'type',
+                key: 'type',
+                render: (v: string) => <Tag>{v}</Tag>,
+              },
               { title: '目标', dataIndex: 'target', key: 'target' },
-              { title: '持续时间', dataIndex: 'duration_ms', key: 'duration', render: (v: number) => `${v / 1000}s` },
-              { title: '延迟', dataIndex: 'delay_ms', key: 'delay', render: (v: number) => `${v / 1000}s` },
-              { title: '配置', dataIndex: 'config', key: 'config', render: (v: Record<string, unknown>) => <Text code>{JSON.stringify(v)}</Text> },
+              {
+                title: '持续时间',
+                dataIndex: 'duration_ms',
+                key: 'duration',
+                render: (v: number) => `${v / 1000}s`,
+              },
+              {
+                title: '延迟',
+                dataIndex: 'delay_ms',
+                key: 'delay',
+                render: (v: number) => `${v / 1000}s`,
+              },
+              {
+                title: '配置',
+                dataIndex: 'config',
+                key: 'config',
+                render: (v: Record<string, unknown>) => <Text code>{JSON.stringify(v)}</Text>,
+              },
             ]}
           />
         )}
       </Card>
 
       <Card title="运行记录">
-        <Table
-          dataSource={runs}
-          columns={runColumns}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
-        />
+        <Table dataSource={runs} columns={runColumns} rowKey="id" pagination={{ pageSize: 10 }} />
       </Card>
 
       <Modal
@@ -290,7 +316,7 @@ export default function ChaosExperimentDetailPage() {
       >
         {selectedRun && (
           <Timeline
-            items={(selectedRun.timeline || []).map(evt => ({
+            items={(selectedRun.timeline || []).map((evt) => ({
               color: evt.type === 'inject' ? 'red' : evt.type === 'recover' ? 'green' : 'blue',
               children: (
                 <div>

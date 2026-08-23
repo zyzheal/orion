@@ -32,8 +32,7 @@ export const API_PATHS = {
     AUDIT_EXECUTE: (auditId: string) => `/api/v1/compliance/audit/${auditId}/execute`,
     AUDIT_REPORT: (auditId: string) => `/api/v1/compliance/audit/${auditId}/report`,
     AUDIT_FINDINGS: (auditId: string) => `/api/v1/compliance/audit/${auditId}/findings`,
-    FINDING_CLOSE: (findingId: string) =>
-      `/api/v1/compliance/audit/findings/${findingId}/close`,
+    FINDING_CLOSE: (findingId: string) => `/api/v1/compliance/audit/findings/${findingId}/close`,
   },
   REPORTS: {
     BASE: '/api/v1/reports',

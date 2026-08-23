@@ -1,6 +1,15 @@
 import React, { useMemo } from 'react';
 import { Card, Typography } from 'antd';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { colors, spacing } from '@/tokens';
 
 const { Text } = Typography;
@@ -28,7 +37,13 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, series, loading = false, 
   }, []);
 
   if (loading) {
-    return <Card style={{ height }}><div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Text type="secondary">加载中...</Text></div></Card>;
+    return (
+      <Card style={{ height }}>
+        <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Text type="secondary">加载中...</Text>
+        </div>
+      </Card>
+    );
   }
 
   return (
@@ -36,16 +51,15 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, series, loading = false, 
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
           <Text strong>跨域趋势（最近 8 周）</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>各域评分折线图</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            各域评分折线图
+          </Text>
         </div>
       }
       style={{ width: '100%' }}
     >
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart
-          data={data}
-          margin={{ top: 10, right: 30, left: 20, bottom: 30 }}
-        >
+        <LineChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 30 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
           <XAxis dataKey="week" stroke={colors.neutral[500]} fontSize={12} />
           <YAxis domain={[0, 100]} stroke={colors.neutral[500]} fontSize={12} />

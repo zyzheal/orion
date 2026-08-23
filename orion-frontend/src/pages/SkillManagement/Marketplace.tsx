@@ -97,133 +97,152 @@ const SkillMarketplace: React.FC = () => {
     setDetailModalVisible(true);
   };
 
-  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(() => [
-    {
-      key: 'name',
-      title: '技能名称',
-      dataIndex: 'name',
-      width: 200,
-      sortable: true,
-      render: (v: unknown, record: any) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => handleViewDetail(record)}
-          >
-            {String(v)}
-          </Text>
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {record.description.slice(0, 40)}...
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 120,
-      render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
-    },
-    {
-      key: 'tags',
-      title: '标签',
-      dataIndex: 'tags',
-      width: 200,
-      render: (v: unknown) => (
-        <Space size={4} wrap>
-          {Array.isArray(v) ? v.slice(0, 3).map((tag) => <Tag key={tag}>{tag}</Tag>) : null}
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v);
-        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
-          status === 'active' ? 'success' : status === 'inactive' ? 'cancelled' : status === 'error' ? 'failed' : 'pending';
-        return <StatusBadge status={badgeStatus} size="small" />;
+  const columns: TableColumn<SkillPackage>[] = useMemo<TableColumn<SkillPackage>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '技能名称',
+        dataIndex: 'name',
+        width: 200,
+        sortable: true,
+        render: (v: unknown, record: any) => (
+          <Space direction="vertical" size={0}>
+            <Text
+              strong
+              style={{ cursor: 'pointer', color: colors.primary[500] }}
+              onClick={() => handleViewDetail(record)}
+            >
+              {String(v)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {record.description.slice(0, 40)}...
+            </Text>
+          </Space>
+        ),
       },
-    },
-    {
-      key: 'rating',
-      title: '评分',
-      dataIndex: 'rating',
-      width: 120,
-      sortable: true,
-      render: (v: unknown) => <Rate disabled defaultValue={Number(v)} />,
-    },
-    {
-      key: 'installCount',
-      title: '安装量',
-      dataIndex: 'installCount',
-      width: 100,
-      sortable: true,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'author',
-      title: '作者',
-      dataIndex: 'author',
-      width: 120,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'createdAt',
-      title: '发布时间',
-      dataIndex: 'createdAt',
-      width: 140,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: SkillPackage) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<DownloadOutlined />}
-            onClick={() => handleInstall(record)}
-            loading={installing}
-          >
-            安装
-          </Button>
-          <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
-            详情
-          </Button>
-        </Space>
-      ),
-    },
-  ], [handleInstall, handleViewDetail]);
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 120,
+        render: (v: unknown) => <Tag color="blue">{String(v)}</Tag>,
+      },
+      {
+        key: 'tags',
+        title: '标签',
+        dataIndex: 'tags',
+        width: 200,
+        render: (v: unknown) => (
+          <Space size={4} wrap>
+            {Array.isArray(v) ? v.slice(0, 3).map((tag) => <Tag key={tag}>{tag}</Tag>) : null}
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v);
+          const badgeStatus:
+            | 'running'
+            | 'pending'
+            | 'success'
+            | 'failed'
+            | 'warning'
+            | 'cancelled'
+            | 'unknown' =
+            status === 'active'
+              ? 'success'
+              : status === 'inactive'
+                ? 'cancelled'
+                : status === 'error'
+                  ? 'failed'
+                  : 'pending';
+          return <StatusBadge status={badgeStatus} size="small" />;
+        },
+      },
+      {
+        key: 'rating',
+        title: '评分',
+        dataIndex: 'rating',
+        width: 120,
+        sortable: true,
+        render: (v: unknown) => <Rate disabled defaultValue={Number(v)} />,
+      },
+      {
+        key: 'installCount',
+        title: '安装量',
+        dataIndex: 'installCount',
+        width: 100,
+        sortable: true,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'author',
+        title: '作者',
+        dataIndex: 'author',
+        width: 120,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: '发布时间',
+        dataIndex: 'createdAt',
+        width: 140,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_: unknown, record: SkillPackage) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => handleInstall(record)}
+              loading={installing}
+            >
+              安装
+            </Button>
+            <Button type="link" size="small" onClick={() => handleViewDetail(record)}>
+              详情
+            </Button>
+          </Space>
+        ),
+      },
+    ],
+    [handleInstall, handleViewDetail]
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'category',
-      label: '分类',
-      options: categoryOptions,
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '已发布', value: 'published' },
-        { label: '草稿', value: 'draft' },
-        { label: '已归档', value: 'archived' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'category',
+        label: '分类',
+        options: categoryOptions,
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '已发布', value: 'published' },
+          { label: '草稿', value: 'draft' },
+          { label: '已归档', value: 'archived' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -293,7 +312,18 @@ const SkillMarketplace: React.FC = () => {
           <div>
             <Space style={{ marginBottom: spacing.md }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
-              <StatusBadge status={(selectedSkill.status as string) === 'active' ? 'success' : (selectedSkill.status as string) === 'inactive' ? 'cancelled' : (selectedSkill.status as string) === 'error' ? 'failed' : 'pending'} size="small" />
+              <StatusBadge
+                status={
+                  (selectedSkill.status as string) === 'active'
+                    ? 'success'
+                    : (selectedSkill.status as string) === 'inactive'
+                      ? 'cancelled'
+                      : (selectedSkill.status as string) === 'error'
+                        ? 'failed'
+                        : 'pending'
+                }
+                size="small"
+              />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>

@@ -15,8 +15,18 @@ const wrap = (ui: React.ReactElement) => <ChartProvider>{ui}</ChartProvider>;
 
 describe('TimelineChart', () => {
   const sampleEvents = [
-    { name: '部署 v1.0', start: '2024-03-20T10:00:00Z', end: '2024-03-20T10:30:00Z', status: 'success' as const },
-    { name: '部署 v1.1', start: '2024-03-20T14:00:00Z', end: '2024-03-20T14:45:00Z', status: 'error' as const },
+    {
+      name: '部署 v1.0',
+      start: '2024-03-20T10:00:00Z',
+      end: '2024-03-20T10:30:00Z',
+      status: 'success' as const,
+    },
+    {
+      name: '部署 v1.1',
+      start: '2024-03-20T14:00:00Z',
+      end: '2024-03-20T14:45:00Z',
+      status: 'error' as const,
+    },
   ];
 
   it('renders with title', () => {
@@ -32,8 +42,20 @@ describe('TimelineChart', () => {
 
   it('renders with group lanes', () => {
     const groupedEvents = [
-      { name: '部署 A', start: '2024-03-20T10:00:00Z', end: '2024-03-20T10:30:00Z', group: '服务A', status: 'success' as const },
-      { name: '部署 B', start: '2024-03-20T11:00:00Z', end: '2024-03-20T11:20:00Z', group: '服务B', status: 'warning' as const },
+      {
+        name: '部署 A',
+        start: '2024-03-20T10:00:00Z',
+        end: '2024-03-20T10:30:00Z',
+        group: '服务A',
+        status: 'success' as const,
+      },
+      {
+        name: '部署 B',
+        start: '2024-03-20T11:00:00Z',
+        end: '2024-03-20T11:20:00Z',
+        group: '服务B',
+        status: 'warning' as const,
+      },
     ];
     render(wrap(<TimelineChart events={groupedEvents} showGroup={true} />));
     const chart = screen.getByTestId('timeline-chart');

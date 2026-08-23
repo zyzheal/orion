@@ -60,7 +60,9 @@ export function stopMonitoring() {
 }
 
 export function getMonitoringHealth() {
-  return api.get<{ status: string; uptime: number; metricsCount: number }>('/api/v1/monitoring/health');
+  return api.get<{ status: string; uptime: number; metricsCount: number }>(
+    '/api/v1/monitoring/health'
+  );
 }
 
 // ==================== Metrics ====================

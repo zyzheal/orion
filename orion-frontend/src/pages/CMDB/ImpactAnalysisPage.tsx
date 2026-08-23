@@ -26,12 +26,7 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
-import {
-  getCIs,
-  getImpactAnalysis,
-  type CIItem,
-  type ImpactData,
-} from '@/api/cmdb';
+import { getCIs, getImpactAnalysis, type CIItem, type ImpactData } from '@/api/cmdb';
 
 const { Title, Text } = Typography;
 
@@ -115,7 +110,9 @@ const ImpactAnalysisPage: React.FC = () => {
       key: 'environment',
       render: (env: unknown) =>
         env ? (
-          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[700]}>{String(env)}</Tag>
+          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[700]}>
+            {String(env)}
+          </Tag>
         ) : (
           '-'
         ),
@@ -143,7 +140,9 @@ const ImpactAnalysisPage: React.FC = () => {
       {isInitialLoading && <PageSkeleton cards={3} rows={6} />}
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}
+          >
             <div>
               <Title level={4}>影响分析</Title>
               <Text type="secondary">分析配置项变更对上下游系统的影响</Text>

@@ -94,7 +94,10 @@ export async function getIncident(id: string) {
 
 export async function getHealingHistory(params?: IncidentListParams) {
   const res = await api.get('/api/v1/self-healing/history', { params });
-  const body = res.data as { success: boolean; data: { items: SelfHealingIncident[]; total: number } };
+  const body = res.data as {
+    success: boolean;
+    data: { items: SelfHealingIncident[]; total: number };
+  };
   return { data: { data: body.data } };
 }
 
@@ -133,7 +136,10 @@ export async function toggleStrategy(id: string) {
 
 export async function getApprovals(params?: ApprovalListParams) {
   const res = await api.get('/api/v1/self-healing/approvals', { params });
-  const body = res.data as { success: boolean; data: { items: SelfHealingApproval[]; total: number } };
+  const body = res.data as {
+    success: boolean;
+    data: { items: SelfHealingApproval[]; total: number };
+  };
   return { data: { data: body.data } };
 }
 

@@ -1164,9 +1164,8 @@ const ConfigManagementPage: React.FC = () => {
   );
 };
 
-
 export default () => (
-  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="配置管理">
+  <PermissionGuard requiredRoles={['admin', 'platform_admin']} pageLevel resourceName="配置管理">
     <ConfigManagementPage />
   </PermissionGuard>
 );

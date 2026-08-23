@@ -5,7 +5,12 @@
  * - Used for dashboard KPI displays
  */
 import React, { useMemo } from 'react';
-import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import {
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  MinusOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { colors, spacing } from '@/tokens';
 
@@ -219,7 +224,13 @@ function MetricCard({
           {title}
           {tooltip && (
             <Tooltip title={tooltip} placement="top">
-              <InfoCircleOutlined style={{ fontSize: 12, color: 'var(--text-tertiary, colors.neutral[500])', cursor: 'help' }} />
+              <InfoCircleOutlined
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-tertiary, colors.neutral[500])',
+                  cursor: 'help',
+                }}
+              />
             </Tooltip>
           )}
         </span>

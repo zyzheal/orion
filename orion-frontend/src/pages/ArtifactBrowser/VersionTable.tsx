@@ -3,12 +3,7 @@
  */
 import React, { useMemo } from 'react';
 import { Tag, Space, Button, Tooltip, Typography, DatePicker, Select } from 'antd';
-import {
-  EyeOutlined,
-  RocketOutlined,
-  SwapOutlined,
-  GithubOutlined,
-} from '@ant-design/icons';
+import { EyeOutlined, RocketOutlined, SwapOutlined, GithubOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import type { ArtifactVersion } from '@/api/artifactVersions';
 import dayjs from 'dayjs';
@@ -70,7 +65,10 @@ const VersionTable: React.FC<VersionTableProps> = ({
     const newFilters: VersionFilters = {
       pipelineId: updates.pipelineId !== undefined ? updates.pipelineId : pipelineFilter,
       branch: updates.branch !== undefined ? updates.branch : branchFilter,
-      dateRange: updates.dateRange !== undefined ? updates.dateRange : dateRange?.map(d => d.format('YYYY-MM-DD')) as [string, string] | undefined,
+      dateRange:
+        updates.dateRange !== undefined
+          ? updates.dateRange
+          : (dateRange?.map((d) => d.format('YYYY-MM-DD')) as [string, string] | undefined),
     };
     onFilter(newFilters);
   };
@@ -97,116 +95,113 @@ const VersionTable: React.FC<VersionTableProps> = ({
   // Comparison button - enabled when exactly 2 versions selected
   const canCompare = selectedRowKeys.length === 2;
 
-  const columns: TableColumn<ArtifactVersion>[] = useMemo<TableColumn<ArtifactVersion>[]>(() => [
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 140,
-      sortable: true,
-      render: (v: unknown, record: ArtifactVersion) => (
-        <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer' }} onClick={() => onViewTraceability(record)}>
+  const columns: TableColumn<ArtifactVersion>[] = useMemo<TableColumn<ArtifactVersion>[]>(
+    () => [
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 140,
+        sortable: true,
+        render: (v: unknown, record: ArtifactVersion) => (
+          <Space direction="vertical" size={0}>
+            <Text strong style={{ cursor: 'pointer' }} onClick={() => onViewTraceability(record)}>
+              {String(v)}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.artifactName}
+            </Text>
+          </Space>
+        ),
+      },
+      {
+        key: 'pipelineId',
+        title: 'Pipeline',
+        dataIndex: 'pipelineId',
+        width: 160,
+        ellipsis: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 11 }}>
             {String(v)}
           </Text>
+        ),
+      },
+      {
+        key: 'stageName',
+        title: '阶段',
+        width: 90,
+        render: (_: unknown, record: ArtifactVersion) => (
+          <Tag color={stageColorMap[record.stageName] || 'default'}>{record.stageName}</Tag>
+        ),
+      },
+      {
+        key: 'commitSha',
+        title: 'Commit SHA',
+        dataIndex: 'commitSha',
+        width: 140,
+        render: (v: unknown) =>
+          v ? (
+            <Tooltip title="查看提交">
+              <Text code style={{ fontSize: 11, cursor: 'pointer' }}>
+                <GithubOutlined /> {String(v).slice(0, 7)}
+              </Text>
+            </Tooltip>
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
+      },
+      {
+        key: 'branch',
+        title: '分支',
+        dataIndex: 'branch',
+        width: 120,
+        render: (v: unknown) =>
+          v ? <Tag color="geekblue">{String(v)}</Tag> : <Text type="secondary">-</Text>,
+      },
+      {
+        key: 'createdAt',
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        width: 150,
+        sortable: true,
+        render: (v: unknown) => (
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.artifactName}
+            {dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss')}
           </Text>
-        </Space>
-      ),
-    },
-    {
-      key: 'pipelineId',
-      title: 'Pipeline',
-      dataIndex: 'pipelineId',
-      width: 160,
-      ellipsis: true,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: 11 }}>
-          {String(v)}
-        </Text>
-      ),
-    },
-    {
-      key: 'stageName',
-      title: '阶段',
-      width: 90,
-      render: (_: unknown, record: ArtifactVersion) => (
-        <Tag color={stageColorMap[record.stageName] || 'default'}>
-          {record.stageName}
-        </Tag>
-      ),
-    },
-    {
-      key: 'commitSha',
-      title: 'Commit SHA',
-      dataIndex: 'commitSha',
-      width: 140,
-      render: (v: unknown) =>
-        v ? (
-          <Tooltip title="查看提交">
-            <Text code style={{ fontSize: 11, cursor: 'pointer' }}>
-              <GithubOutlined /> {String(v).slice(0, 7)}
-            </Text>
-          </Tooltip>
-        ) : (
-          <Text type="secondary">-</Text>
         ),
-    },
-    {
-      key: 'branch',
-      title: '分支',
-      dataIndex: 'branch',
-      width: 120,
-      render: (v: unknown) =>
-        v ? (
-          <Tag color="geekblue">{String(v)}</Tag>
-        ) : (
-          <Text type="secondary">-</Text>
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 200,
+        render: (_: unknown, record: ArtifactVersion) => (
+          <Space size="small" wrap>
+            <Tooltip title="查看追溯链">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => onViewTraceability(record)}
+              >
+                追溯
+              </Button>
+            </Tooltip>
+            <Tooltip title="部署该版本">
+              <Button
+                type="link"
+                size="small"
+                icon={<RocketOutlined />}
+                onClick={() => onDeploy(record)}
+              >
+                部署
+              </Button>
+            </Tooltip>
+          </Space>
         ),
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 150,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 200,
-      render: (_: unknown, record: ArtifactVersion) => (
-        <Space size="small" wrap>
-          <Tooltip title="查看追溯链">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => onViewTraceability(record)}
-            >
-              追溯
-            </Button>
-          </Tooltip>
-          <Tooltip title="部署该版本">
-            <Button
-              type="link"
-              size="small"
-              icon={<RocketOutlined />}
-              onClick={() => onDeploy(record)}
-            >
-              部署
-            </Button>
-          </Tooltip>
-        </Space>
-      ),
-    },
-  ], [onDeploy, onViewTraceability]);
+      },
+    ],
+    [onDeploy, onViewTraceability]
+  );
 
   const rowSelection = {
     selectedRowKeys,
@@ -255,18 +250,12 @@ const VersionTable: React.FC<VersionTableProps> = ({
           style={{ width: 260 }}
         />
         {canCompare && (
-          <Button
-            type="primary"
-            icon={<SwapOutlined />}
-            onClick={() => onCompare(selectedRows)}
-          >
+          <Button type="primary" icon={<SwapOutlined />} onClick={() => onCompare(selectedRows)}>
             对比选中版本
           </Button>
         )}
         {selectedRowKeys.length > 0 && (
-          <Text type="secondary">
-            已选择 {selectedRowKeys.length} 个版本
-          </Text>
+          <Text type="secondary">已选择 {selectedRowKeys.length} 个版本</Text>
         )}
       </Space>
 

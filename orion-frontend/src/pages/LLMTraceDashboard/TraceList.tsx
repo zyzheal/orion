@@ -15,7 +15,12 @@ import {
   Spin,
   Tooltip,
 } from 'antd';
-import { ReloadOutlined, SearchOutlined, InfoCircleOutlined, LineChartOutlined,} from '@ant-design/icons';
+import {
+  ReloadOutlined,
+  SearchOutlined,
+  InfoCircleOutlined,
+  LineChartOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTraces, type LLMTrace } from '@/api/llm-trace';
 import { colors, spacing, themeVars } from '@/tokens';
@@ -112,9 +117,7 @@ const TraceList: React.FC = () => {
       title: '延迟',
       dataIndex: 'responseLatencyMs',
       width: 80,
-      render: (v: number | null) => (
-        <Text>{v !== null ? `${v}ms` : '-'}</Text>
-      ),
+      render: (v: number | null) => <Text>{v !== null ? `${v}ms` : '-'}</Text>,
     },
     {
       key: 'status',
@@ -129,9 +132,7 @@ const TraceList: React.FC = () => {
       dataIndex: 'requestStartedAt',
       width: 150,
       render: (v: Date | string) => (
-        <Text style={{ fontSize: 12 }}>
-          {new Date(v).toLocaleString('zh-CN')}
-        </Text>
+        <Text style={{ fontSize: 12 }}>{new Date(v).toLocaleString('zh-CN')}</Text>
       ),
     },
   ];

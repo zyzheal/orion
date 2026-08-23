@@ -52,12 +52,15 @@ const EngineeringView: React.FC = () => {
     }
   };
 
-  const summary: { totalDeployments: number; successfulDeployments: number; failedDeployments: number } =
-    dashboard?.summary ?? { totalDeployments: 0, successfulDeployments: 0, failedDeployments: 0 };
+  const summary: {
+    totalDeployments: number;
+    successfulDeployments: number;
+    failedDeployments: number;
+  } = dashboard?.summary ?? { totalDeployments: 0, successfulDeployments: 0, failedDeployments: 0 };
 
   const successRate =
     summary.totalDeployments > 0
-      ? Math.round(summary.successfulDeployments / summary.totalDeployments * 100)
+      ? Math.round((summary.successfulDeployments / summary.totalDeployments) * 100)
       : 0;
 
   const doraLevel = doraLevelToString(dora);
@@ -106,22 +109,48 @@ const EngineeringView: React.FC = () => {
     : [];
 
   const bottleneckColumns = [
-    { title: '瓶颈', dataIndex: 'description', key: 'description', render: (v: string) => <Text>{v}</Text> },
-    { title: '类别', dataIndex: 'category', key: 'category', render: (v: string) => <Tag>{v}</Tag> },
     {
-      title: '影响', dataIndex: 'impact', key: 'impact',
+      title: '瓶颈',
+      dataIndex: 'description',
+      key: 'description',
+      render: (v: string) => <Text>{v}</Text>,
+    },
+    {
+      title: '类别',
+      dataIndex: 'category',
+      key: 'category',
+      render: (v: string) => <Tag>{v}</Tag>,
+    },
+    {
+      title: '影响',
+      dataIndex: 'impact',
+      key: 'impact',
       render: (v: 'high' | 'medium' | 'low') => {
         const colorMap = { high: 'red', medium: 'orange', low: 'blue' };
         return <Tag color={colorMap[v] || 'blue'}>{v.toUpperCase()}</Tag>;
       },
     },
-    { title: '当前值', dataIndex: 'currentValue', key: 'currentValue', render: (v: string) => <Text code>{v}</Text> },
-    { title: '目标值', dataIndex: 'targetValue', key: 'targetValue', render: (v: string) => <Text code>{v}</Text> },
+    {
+      title: '当前值',
+      dataIndex: 'currentValue',
+      key: 'currentValue',
+      render: (v: string) => <Text code>{v}</Text>,
+    },
+    {
+      title: '目标值',
+      dataIndex: 'targetValue',
+      key: 'targetValue',
+      render: (v: string) => <Text code>{v}</Text>,
+    },
     { title: '建议', dataIndex: 'suggestion', key: 'suggestion' },
   ];
 
   if (loading && refreshKey === 0) {
-    return <div style={{ padding: spacing.lg, textAlign: 'center' }}><Spin size="large" /></div>;
+    return (
+      <div style={{ padding: spacing.lg, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
@@ -134,7 +163,11 @@ const EngineeringView: React.FC = () => {
           </Title>
           <Text type="secondary">DORA 四指标 · 等级评估 · 瓶颈分析</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => setRefreshKey((k) => k + 1)} loading={loading}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => setRefreshKey((k) => k + 1)}
+          loading={loading}
+        >
           刷新
         </Button>
       </div>
@@ -173,9 +206,11 @@ const EngineeringView: React.FC = () => {
             unit="%"
             icon={<CheckCircleOutlined />}
             color={
-              successRate > 90 ? colors.success[500]
-                : successRate > 70 ? colors.warning[500]
-                : colors.error[500]
+              successRate > 90
+                ? colors.success[500]
+                : successRate > 70
+                  ? colors.warning[500]
+                  : colors.error[500]
             }
             trend="up"
             trendPercent={2}

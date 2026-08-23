@@ -55,12 +55,9 @@ vi.mock('antd', async () => {
     }),
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     Space: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    DatePicker: Object.assign(
-      ({ ...props }: any) => <input {...props} />,
-      {
-        RangePicker: ({ ...props }: any) => <input {...props} />,
-      }
-    ),
+    DatePicker: Object.assign(({ ...props }: any) => <input {...props} />, {
+      RangePicker: ({ ...props }: any) => <input {...props} />,
+    }),
     Tooltip: ({ children }: any) => <div data-testid="tooltip">{children}</div>,
     Alert: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     Descriptions: Object.assign(
@@ -70,10 +67,9 @@ vi.mock('antd', async () => {
       }
     ),
     Divider: ({ ...props }: any) => <div {...props} />,
-    Empty: Object.assign(
-      ({ description }: any) => <div data-testid="empty">{description}</div>,
-      { PRESENTED_IMAGE_SIMPLE: null }
-    ),
+    Empty: Object.assign(({ description }: any) => <div data-testid="empty">{description}</div>, {
+      PRESENTED_IMAGE_SIMPLE: null,
+    }),
   };
 });
 
@@ -83,10 +79,7 @@ vi.mock('@/components/Table', () => ({
       <div data-testid="row-count">{dataSource?.length || 0}</div>
       <div data-testid="total">{pagination?.total}</div>
       {rowSelection && <div data-testid="row-selection-enabled" />}
-      <button
-        data-testid="pagination-btn"
-        onClick={() => onPaginationChange?.(2, 10)}
-      >
+      <button data-testid="pagination-btn" onClick={() => onPaginationChange?.(2, 10)}>
         Next Page
       </button>
     </div>
@@ -108,7 +101,9 @@ describe('ArtifactBrowser Page', { timeout: 15000 }, () => {
   });
 
   it('renders the page header and version table', async () => {
-    vi.mocked(artifactVersionApi.getArtifactVersions).mockRejectedValue(new Error('API not available'));
+    vi.mocked(artifactVersionApi.getArtifactVersions).mockRejectedValue(
+      new Error('API not available')
+    );
 
     const ArtifactBrowser = (await import('../index')).default;
 

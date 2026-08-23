@@ -16,10 +16,7 @@ import {
   Col,
   Empty,
 } from 'antd';
-import {
-  ReloadOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons';
+import { ReloadOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -103,7 +100,11 @@ const ApkUploadHistoryPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getApkUploadStats(tenantId);
-      const resData = response.data as { data?: { data?: { total?: number; published?: number; failed?: number; uploading?: number } } };
+      const resData = response.data as {
+        data?: {
+          data?: { total?: number; published?: number; failed?: number; uploading?: number };
+        };
+      };
       if (resData?.data?.data) {
         setStats({
           total: (resData.data as any).total,
@@ -137,9 +138,7 @@ const ApkUploadHistoryPage: React.FC = () => {
       title: '应用市场',
       dataIndex: 'market',
       key: 'market',
-      render: (market: string) => (
-        <Tag color="blue">{MARKET_NAMES[market] || market}</Tag>
-      ),
+      render: (market: string) => <Tag color="blue">{MARKET_NAMES[market] || market}</Tag>,
     },
     {
       title: '包名',
@@ -165,15 +164,20 @@ const ApkUploadHistoryPage: React.FC = () => {
       title: '上传地址',
       dataIndex: 'uploadUrl',
       key: 'uploadUrl',
-      render: (url: string) => url ? (
-        <a href={url} target="_blank" rel="noopener noreferrer">查看</a>
-      ) : '-',
+      render: (url: string) =>
+        url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            查看
+          </a>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '耗时',
       dataIndex: 'durationMs',
       key: 'durationMs',
-      render: (ms: number) => ms ? `${(ms / 1000).toFixed(1)}s` : '-',
+      render: (ms: number) => (ms ? `${(ms / 1000).toFixed(1)}s` : '-'),
     },
     {
       title: '上传时间',
@@ -186,7 +190,10 @@ const ApkUploadHistoryPage: React.FC = () => {
   return (
     <div style={{ padding: spacing.lg }}>
       <div style={{ marginBottom: spacing.lg }}>
-        <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+        <Title
+          level={2}
+          style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+        >
           <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           APK 上传历史
         </Title>
@@ -311,9 +318,7 @@ const ApkUploadHistoryPage: React.FC = () => {
           }}
           onChange={handleTableChange}
           locale={{
-            emptyText: records.length === 0 ? (
-              <Empty description="暂无上传记录" />
-            ) : undefined,
+            emptyText: records.length === 0 ? <Empty description="暂无上传记录" /> : undefined,
           }}
         />
       </Card>

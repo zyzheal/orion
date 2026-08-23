@@ -138,13 +138,7 @@ export const PermissionButton: React.FC<PermissionButtonProps> = ({
 }) => {
   return (
     <PermissionGuard resource={resource} action={action} pageLevel={false}>
-      <Button
-        onClick={onClick}
-        disabled={disabled}
-        loading={loading}
-        danger={danger}
-        style={style}
-      >
+      <Button onClick={onClick} disabled={disabled} loading={loading} danger={danger} style={style}>
         {children}
       </Button>
     </PermissionGuard>

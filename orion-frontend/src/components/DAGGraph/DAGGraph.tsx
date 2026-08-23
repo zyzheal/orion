@@ -120,7 +120,16 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
       color={colors.neutral[0]}
       title={
         <div style={{ minWidth: 160 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: spacing.sm, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid colors.neutral[200]` }}>
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: 13,
+              marginBottom: spacing.sm,
+              color: colors.neutral[900],
+              paddingBottom: 8,
+              borderBottom: `1px solid colors.neutral[200]`,
+            }}
+          >
             <Space size={6}>
               <Badge
                 count={data.index + 1}
@@ -147,9 +156,7 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
             {data.duration != null && (
               <InfoRow label="耗时" value={formatDuration(data.duration)} />
             )}
-            {data.stepsCount != null && (
-              <InfoRow label="步骤数" value={`${data.stepsCount} 个`} />
-            )}
+            {data.stepsCount != null && <InfoRow label="步骤数" value={`${data.stepsCount} 个`} />}
             {data.startedAt && (
               <InfoRow label="开始时间" value={dayjs(data.startedAt).format('HH:mm:ss')} />
             )}
@@ -198,7 +205,14 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
 
         {/* Node Content — 居中 */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, justifyContent: 'center' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm,
+              justifyContent: 'center',
+            }}
+          >
             <Badge
               count={data.index + 1}
               style={{
@@ -247,7 +261,9 @@ interface InfoRowProps {
 }
 
 const InfoRow: React.FC<InfoRowProps> = ({ label, value, color }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}>
+  <div
+    style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}
+  >
     <span style={{ color: 'rgba(0,0,0,0.65)' }}>{label}</span>
     <span style={{ color: color || colors.neutral[800], fontWeight: 500 }}>{value}</span>
   </div>
@@ -297,9 +313,7 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
       const stage = stages.find((s) => s.name === stageName);
       if (!stage?.dependsOn?.length) return 0;
 
-      const maxParentLevel = Math.max(
-        ...stage.dependsOn.map((dep) => getLevel(dep, visited))
-      );
+      const maxParentLevel = Math.max(...stage.dependsOn.map((dep) => getLevel(dep, visited)));
       return maxParentLevel + 1;
     };
 
@@ -316,9 +330,9 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
     }
 
     // 横向布局参数
-    const nodeW = 184;   // 节点宽度
-    const nodeH = 72;    // 节点高度（固定）
-    const gapX = 80;     // 水平间距 - 确保连接线水平
+    const nodeW = 184; // 节点宽度
+    const nodeH = 72; // 节点高度（固定）
+    const gapX = 80; // 水平间距 - 确保连接线水平
 
     // 计算容器中心 Y 坐标（用于垂直居中）
     const centerY = height / 2 - nodeH / 2;
@@ -549,9 +563,7 @@ export function calculateExecutionOrder(stages: DAGGraphProps['stages']): string
 
   while (remaining.length > 0) {
     const ready = remaining.filter(
-      (stage) =>
-        !stage.dependsOn?.length ||
-        stage.dependsOn.every((dep) => completed.has(dep))
+      (stage) => !stage.dependsOn?.length || stage.dependsOn.every((dep) => completed.has(dep))
     );
 
     if (ready.length === 0) {

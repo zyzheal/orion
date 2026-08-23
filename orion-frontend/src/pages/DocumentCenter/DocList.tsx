@@ -141,13 +141,7 @@ export default function DocList({
         width: 80,
         render: (_: unknown, record: KnowledgeDoc) => {
           const config = STATUS_CONFIG[record.status] || STATUS_CONFIG.draft;
-          return (
-            <Badge
-              status="processing"
-              text={config.label}
-              style={{ color: config.color }}
-            />
-          );
+          return <Badge status="processing" text={config.label} style={{ color: config.color }} />;
         },
       },
       {
@@ -155,9 +149,7 @@ export default function DocList({
         title: '版本',
         dataIndex: 'version',
         width: 60,
-        render: (value: unknown) => (
-          <Text type="secondary">v{String(value)}</Text>
-        ),
+        render: (value: unknown) => <Text type="secondary">v{String(value)}</Text>,
       },
       {
         key: 'updatedAt',

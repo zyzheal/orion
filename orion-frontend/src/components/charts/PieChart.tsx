@@ -67,7 +67,9 @@ export const PieChart: React.FC<PieChartProps> = ({
           data: data.map((d, idx) => ({
             name: d.name,
             value: d.value,
-            itemStyle: d.color ? { color: d.color } : { color: theme.palette[idx % theme.palette.length] },
+            itemStyle: d.color
+              ? { color: d.color }
+              : { color: theme.palette[idx % theme.palette.length] },
           })),
         },
       ],
@@ -93,7 +95,10 @@ export const PieChart: React.FC<PieChartProps> = ({
 
   if (loading) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
+      <div
+        style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        aria-busy="true"
+      >
         <Spin tip="Loading..." />
       </div>
     );

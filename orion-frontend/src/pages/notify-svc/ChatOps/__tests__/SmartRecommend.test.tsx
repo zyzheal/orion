@@ -34,9 +34,7 @@ const mockRecommendations = [
     severity: 'warning' as const,
     title: 'Unusual cost spike',
     description: 'Daily cost increased by 45% compared to 7-day average',
-    actions: [
-      { label: 'View Details', command: 'cost.details', params: { period: '7d' } },
-    ],
+    actions: [{ label: 'View Details', command: 'cost.details', params: { period: '7d' } }],
     createdAt: '2026-05-07T09:30:00Z',
     source: 'cost',
   },
@@ -142,9 +140,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
   });
 
   it('shows error alert when API fails', async () => {
-    vi.mocked(chatopsApi.fetchRecommendations).mockRejectedValue(
-      new Error('Network error')
-    );
+    vi.mocked(chatopsApi.fetchRecommendations).mockRejectedValue(new Error('Network error'));
 
     render(<SmartRecommend />);
 
@@ -167,7 +163,8 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
     // Find the refresh button by its icon
     const buttons = screen.getAllByRole('button');
     const refreshBtn = buttons.find(
-      (btn) => btn.getAttribute('aria-label')?.includes('Reload') ||
+      (btn) =>
+        btn.getAttribute('aria-label')?.includes('Reload') ||
         btn.innerHTML.includes('anticon-reload')
     );
     if (refreshBtn) {

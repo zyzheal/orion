@@ -354,7 +354,11 @@ const PipelineBudget: React.FC = () => {
             >
               {/* Alerts */}
               {usage?.alerts && usage.alerts.length > 0 && (
-                <Space direction="vertical" style={{ width: '100%', marginBottom: spacing.md }} size={8}>
+                <Space
+                  direction="vertical"
+                  style={{ width: '100%', marginBottom: spacing.md }}
+                  size={8}
+                >
                   {usage.alerts.map((alert: any, i: number) => {
                     const cfg = alertLevelConfig[alert.level] || alertLevelConfig.info;
                     return (

@@ -94,9 +94,7 @@ const CapabilityMappingTab: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await chatopsAdminApi.getCapabilityMappings(
-        environment || undefined
-      );
+      const res = await chatopsAdminApi.getCapabilityMappings(environment || undefined);
       const data = res.data ?? [];
       setMappings(Array.isArray(data) ? data : []);
     } catch {
@@ -114,10 +112,7 @@ const CapabilityMappingTab: React.FC = () => {
   const filteredMappings = mappings.filter((m) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    return (
-      m.command_id.toLowerCase().includes(q) ||
-      m.capability_id.toLowerCase().includes(q)
-    );
+    return m.command_id.toLowerCase().includes(q) || m.capability_id.toLowerCase().includes(q);
   });
 
   const handleCreate = () => {
@@ -159,9 +154,7 @@ const CapabilityMappingTab: React.FC = () => {
         );
         message.success('更新成功');
       } else {
-        await chatopsAdminApi.createCapabilityMapping(
-          values as CreateCapabilityMappingInput
-        );
+        await chatopsAdminApi.createCapabilityMapping(values as CreateCapabilityMappingInput);
         message.success('创建成功');
       }
       setModalVisible(false);
@@ -195,12 +188,7 @@ const CapabilityMappingTab: React.FC = () => {
       dataIndex: 'environment',
       key: 'environment',
       width: 120,
-      render: (v: string) =>
-        v ? (
-          <Tag color={colors.info[500]}>{v}</Tag>
-        ) : (
-          <Tag>全部</Tag>
-        ),
+      render: (v: string) => (v ? <Tag color={colors.info[500]}>{v}</Tag> : <Tag>全部</Tag>),
     },
     {
       title: '风险等级',
@@ -218,9 +206,7 @@ const CapabilityMappingTab: React.FC = () => {
       key: 'requires_approval',
       width: 80,
       render: (v: boolean) => (
-        <Tag color={v ? colors.warning[500] : colors.neutral[300]}>
-          {v ? '是' : '否'}
-        </Tag>
+        <Tag color={v ? colors.warning[500] : colors.neutral[300]}>{v ? '是' : '否'}</Tag>
       ),
     },
     {
@@ -267,7 +253,16 @@ const CapabilityMappingTab: React.FC = () => {
   return (
     <div>
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
-        <div style={{ marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <div
+          style={{
+            marginBottom: spacing.md,
+            paddingBottom: 12,
+            borderBottom: `1px solid ${themeVars.borderLight}`,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+          }}
+        >
           <Space>
             <Input
               prefix={<SearchOutlined />}
@@ -301,9 +296,7 @@ const CapabilityMappingTab: React.FC = () => {
         </div>
         {filteredMappings.length === 0 && !loading ? (
           <Empty
-            description={
-              searchQuery ? '未找到匹配的映射' : '暂无映射配置'
-            }
+            description={searchQuery ? '未找到匹配的映射' : '暂无映射配置'}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             {!searchQuery && (
@@ -448,10 +441,7 @@ const ApprovalConfigTab: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (!editingConfig) return;
-      await chatopsAdminApi.updateApprovalConfig(
-        editingConfig.capability,
-        values
-      );
+      await chatopsAdminApi.updateApprovalConfig(editingConfig.capability, values);
       message.success('更新成功');
       setModalVisible(false);
       loadData();
@@ -478,9 +468,7 @@ const ApprovalConfigTab: React.FC = () => {
       key: 'enabled',
       width: 100,
       render: (v: boolean) => (
-        <Tag color={v ? colors.success[500] : colors.neutral[300]}>
-          {v ? '已启用' : '已禁用'}
-        </Tag>
+        <Tag color={v ? colors.success[500] : colors.neutral[300]}>{v ? '已启用' : '已禁用'}</Tag>
       ),
     },
     {
@@ -556,9 +544,7 @@ const ApprovalConfigTab: React.FC = () => {
       key: 'is_on_duty',
       width: 80,
       render: (v: boolean) => (
-        <Tag color={v ? colors.success[500] : colors.neutral[300]}>
-          {v ? '是' : '否'}
-        </Tag>
+        <Tag color={v ? colors.success[500] : colors.neutral[300]}>{v ? '是' : '否'}</Tag>
       ),
     },
   ];
@@ -566,11 +552,15 @@ const ApprovalConfigTab: React.FC = () => {
   return (
     <div>
       {/* 审批配置 */}
-      <Card
-        bodyStyle={{ padding: '0 24px 24px' }}
-        style={{ marginBottom: spacing.md }}
-      >
-        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}` }}>
+      <Card bodyStyle={{ padding: '0 24px 24px' }} style={{ marginBottom: spacing.md }}>
+        <div
+          style={{
+            paddingTop: 20,
+            marginBottom: spacing.md,
+            paddingBottom: 12,
+            borderBottom: `1px solid ${themeVars.borderLight}`,
+          }}
+        >
           <Space>
             <SafetyOutlined style={{ color: colors.purple[500], fontSize: 18 }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: themeVars.textPrimary }}>
@@ -579,10 +569,7 @@ const ApprovalConfigTab: React.FC = () => {
           </Space>
         </div>
         {configs.length === 0 && !loading ? (
-          <Empty
-            description="暂无审批配置"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          <Empty description="暂无审批配置" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Table
             columns={columns}
@@ -596,10 +583,15 @@ const ApprovalConfigTab: React.FC = () => {
       </Card>
 
       {/* 审批人列表 */}
-      <Card
-        bodyStyle={{ padding: '0 24px 24px' }}
-      >
-        <div style={{ paddingTop: 20, marginBottom: spacing.md, paddingBottom: 12, borderBottom: `1px solid ${themeVars.borderLight}` }}>
+      <Card bodyStyle={{ padding: '0 24px 24px' }}>
+        <div
+          style={{
+            paddingTop: 20,
+            marginBottom: spacing.md,
+            paddingBottom: 12,
+            borderBottom: `1px solid ${themeVars.borderLight}`,
+          }}
+        >
           <Space>
             <TeamOutlined style={{ color: colors.primary[500], fontSize: 18 }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: themeVars.textPrimary }}>
@@ -608,10 +600,7 @@ const ApprovalConfigTab: React.FC = () => {
           </Space>
         </div>
         {approvers.length === 0 && !loading ? (
-          <Empty
-            description="暂无审批人"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          <Empty description="暂无审批人" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Table
             columns={approverColumns}
@@ -648,12 +637,7 @@ const ApprovalConfigTab: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="threshold" label="审批阈值">
-            <InputNumber
-              min={1}
-              max={10}
-              style={{ width: '100%' }}
-              addonAfter="人同意即可"
-            />
+            <InputNumber min={1} max={10} style={{ width: '100%' }} addonAfter="人同意即可" />
           </Form.Item>
         </Form>
       </Modal>
@@ -697,10 +681,7 @@ const AuditLogTab: React.FC = () => {
       key: 'actor',
       width: 140,
       render: (_: unknown, record: AuditLog) => {
-        const actor =
-          typeof record.actor === 'string'
-            ? record.actor
-            : record.actor?.userId || '-';
+        const actor = typeof record.actor === 'string' ? record.actor : record.actor?.userId || '-';
         return <Text code>{actor}</Text>;
       },
     },
@@ -710,9 +691,7 @@ const AuditLogTab: React.FC = () => {
       width: 140,
       render: (_: unknown, record: AuditLog) => {
         const action =
-          typeof record.action === 'string'
-            ? record.action
-            : record.action?.command || '-';
+          typeof record.action === 'string' ? record.action : record.action?.command || '-';
         return <Text code>/{action}</Text>;
       },
     },
@@ -722,9 +701,7 @@ const AuditLogTab: React.FC = () => {
       key: 'result',
       width: 90,
       render: (v: string) => (
-        <Tag color={v === 'success' ? colors.success[500] : colors.error[400]}>
-          {v || '-'}
-        </Tag>
+        <Tag color={v === 'success' ? colors.success[500] : colors.error[400]}>{v || '-'}</Tag>
       ),
     },
     {
@@ -775,18 +752,14 @@ const AuditLogTab: React.FC = () => {
             prefix={<SearchOutlined />}
             placeholder="搜索命令"
             value={filters.command}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, command: e.target.value }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, command: e.target.value }))}
             style={{ width: 200 }}
             allowClear
           />
           <Input
             placeholder="用户 ID"
             value={filters.userId}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, userId: e.target.value }))
-            }
+            onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))}
             style={{ width: 160 }}
             allowClear
           />
@@ -798,10 +771,7 @@ const AuditLogTab: React.FC = () => {
 
       <Card bodyStyle={{ padding: '0 24px 24px' }}>
         {logs.length === 0 && !loading ? (
-          <Empty
-            description="暂无审计日志"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          <Empty description="暂无审计日志" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Table
             columns={columns}

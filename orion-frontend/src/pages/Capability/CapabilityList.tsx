@@ -137,7 +137,9 @@ const CapabilityList: React.FC = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // 统计
   const totalCount = data.length;

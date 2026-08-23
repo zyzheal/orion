@@ -81,8 +81,15 @@ const priorityLabels: Record<string, string> = {
  * In production, this would query the backend for similar tickets.
  */
 const KNOWN_TICKET_PATTERNS = [
-  'CPU', '数据库', 'API 网关', '磁盘空间', '部署',
-  '安全漏洞', '成本', '响应延迟', 'Redis',
+  'CPU',
+  '数据库',
+  'API 网关',
+  '磁盘空间',
+  '部署',
+  '安全漏洞',
+  '成本',
+  '响应延迟',
+  'Redis',
 ];
 
 function findPotentialDuplicates(title: string): string[] {
@@ -126,7 +133,10 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
         priority: values.priority,
         reporter: currentUser?.username || 'system',
         source: values.source,
-        tags: values.tags?.reduce((acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }), {}),
+        tags: values.tags?.reduce(
+          (acc: Record<string, string>, tag: string) => ({ ...acc, [tag]: tag }),
+          {}
+        ),
       });
       message.success('工单创建成功');
       form.resetFields();
@@ -240,7 +250,10 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
             name="priority"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Radio.Group data-testid="create-ticket-priority" style={{ display: 'flex', gap: spacing.sm }}>
+            <Radio.Group
+              data-testid="create-ticket-priority"
+              style={{ display: 'flex', gap: spacing.sm }}
+            >
               {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
                 <Radio.Button
                   key={p}

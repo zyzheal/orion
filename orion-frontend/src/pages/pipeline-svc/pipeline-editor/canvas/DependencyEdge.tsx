@@ -47,9 +47,7 @@ const DependencyEdge: React.FC<EdgeProps<DependencyEdgeData>> = ({
   });
 
   // 确定边的颜色
-  const edgeColor = data?.status
-    ? STATUS_COLORS[data.status]
-    : colors.neutral[400];
+  const edgeColor = data?.status ? STATUS_COLORS[data.status] : colors.neutral[400];
 
   // 是否动画显示（running 状态）
   const isAnimated = data?.status === 'running';
@@ -70,29 +68,13 @@ const DependencyEdge: React.FC<EdgeProps<DependencyEdgeData>> = ({
   return (
     <>
       {/* 主边 */}
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        markerEnd={markerEnd}
-        style={mergedStyle}
-      />
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={mergedStyle} />
 
       {/* 并行标记 (如果有) */}
       {data?.isParallel && (
         <g transform={`translate(${labelX}, ${labelY})`}>
-          <circle
-            r={10}
-            fill={colors.neutral[0]}
-            stroke={colors.neutral[300]}
-            strokeWidth={1}
-          />
-          <text
-            x={0}
-            y={4}
-            textAnchor="middle"
-            fontSize={10}
-            fill={colors.neutral[600]}
-          >
+          <circle r={10} fill={colors.neutral[0]} stroke={colors.neutral[300]} strokeWidth={1} />
+          <text x={0} y={4} textAnchor="middle" fontSize={10} fill={colors.neutral[600]}>
             ∥
           </text>
         </g>
@@ -101,11 +83,7 @@ const DependencyEdge: React.FC<EdgeProps<DependencyEdgeData>> = ({
       {/* 运行中动画效果 */}
       {isAnimated && (
         <circle r={4} fill={colors.primary[500]}>
-          <animateMotion
-            dur="2s"
-            repeatCount="indefinite"
-            path={edgePath}
-          />
+          <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
         </circle>
       )}
     </>

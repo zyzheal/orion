@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Typography, Button, Space, Tag, Drawer, Input, message } from 'antd';
-import { ReloadOutlined, EyeOutlined, ApiOutlined,} from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined, ApiOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
@@ -70,121 +70,127 @@ const WebhookLog: React.FC = () => {
     });
   }, [events, searchQuery, filters]);
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '已处理', value: 'processed' },
-        { label: '失败', value: 'failed' },
-      ],
-    },
-    {
-      key: 'eventType',
-      label: '事件类型',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'push', value: 'push' },
-        { label: 'pull_request', value: 'pull_request' },
-        { label: 'pull_request_review', value: 'pull_request_review' },
-        { label: 'create', value: 'create' },
-        { label: 'delete', value: 'delete' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '已处理', value: 'processed' },
+          { label: '失败', value: 'failed' },
+        ],
+      },
+      {
+        key: 'eventType',
+        label: '事件类型',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'push', value: 'push' },
+          { label: 'pull_request', value: 'pull_request' },
+          { label: 'pull_request_review', value: 'pull_request_review' },
+          { label: 'create', value: 'create' },
+          { label: 'delete', value: 'delete' },
+        ],
+      },
+    ],
+    []
+  );
 
-  const columns: TableColumn<WebhookEvent>[] = useMemo<TableColumn<WebhookEvent>[]>(() => [
-    {
-      key: 'id',
-      title: '事件 ID',
-      dataIndex: 'id',
-      width: 120,
-      render: (value: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(value).substring(0, 8)}
-        </Text>
-      ),
-    },
-    {
-      key: 'eventType',
-      title: '事件类型',
-      dataIndex: 'eventType',
-      width: 180,
-      sortable: true,
-      filterable: true,
-      render: (value: unknown) => {
-        const typeColorMap: Record<string, string> = {
-          push: 'blue',
-          pull_request: 'green',
-          pull_request_review: 'purple',
-          create: 'orange',
-          delete: 'red',
-        };
-        return <Tag color={typeColorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+  const columns: TableColumn<WebhookEvent>[] = useMemo<TableColumn<WebhookEvent>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '事件 ID',
+        dataIndex: 'id',
+        width: 120,
+        render: (value: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(value).substring(0, 8)}
+          </Text>
+        ),
       },
-    },
-    {
-      key: 'repoType',
-      title: '仓库类型',
-      dataIndex: 'repoType',
-      width: 120,
-      render: (value: unknown) => <Tag>{String(value)}</Tag>,
-    },
-    {
-      key: 'repoName',
-      title: '仓库名称',
-      dataIndex: 'repoName',
-      width: 200,
-      sortable: true,
-      filterable: true,
-      render: (value: unknown) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      key: 'status',
-      title: '处理状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (value: unknown) => {
-        const statusVal = String(value);
-        return (
-          <Tag color={statusVal === 'processed' ? 'green' : 'red'}>
-            {statusVal === 'processed' ? '已处理' : '失败'}
-          </Tag>
-        );
+      {
+        key: 'eventType',
+        title: '事件类型',
+        dataIndex: 'eventType',
+        width: 180,
+        sortable: true,
+        filterable: true,
+        render: (value: unknown) => {
+          const typeColorMap: Record<string, string> = {
+            push: 'blue',
+            pull_request: 'green',
+            pull_request_review: 'purple',
+            create: 'orange',
+            delete: 'red',
+          };
+          return <Tag color={typeColorMap[String(value)] || 'default'}>{String(value)}</Tag>;
+        },
       },
-    },
-    {
-      key: 'receivedAt',
-      title: '接收时间',
-      dataIndex: 'receivedAt',
-      width: 180,
-      sortable: true,
-      render: (value: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).format('YYYY-MM-DD HH:mm:ss')}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 80,
-      render: (_: unknown, record: any) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => {
-            setSelectedEvent(record);
-            setDetailDrawer(true);
-          }}
-        >
-          详情
-        </Button>
-      ),
-    },
-  ], []);
+      {
+        key: 'repoType',
+        title: '仓库类型',
+        dataIndex: 'repoType',
+        width: 120,
+        render: (value: unknown) => <Tag>{String(value)}</Tag>,
+      },
+      {
+        key: 'repoName',
+        title: '仓库名称',
+        dataIndex: 'repoName',
+        width: 200,
+        sortable: true,
+        filterable: true,
+        render: (value: unknown) => <Text strong>{String(value)}</Text>,
+      },
+      {
+        key: 'status',
+        title: '处理状态',
+        dataIndex: 'status',
+        width: 120,
+        render: (value: unknown) => {
+          const statusVal = String(value);
+          return (
+            <Tag color={statusVal === 'processed' ? 'green' : 'red'}>
+              {statusVal === 'processed' ? '已处理' : '失败'}
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'receivedAt',
+        title: '接收时间',
+        dataIndex: 'receivedAt',
+        width: 180,
+        sortable: true,
+        render: (value: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).format('YYYY-MM-DD HH:mm:ss')}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 80,
+        render: (_: unknown, record: any) => (
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              setSelectedEvent(record);
+              setDetailDrawer(true);
+            }}
+          >
+            详情
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   const handleRefresh = () => {
     loadWebhookLogs();

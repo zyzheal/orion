@@ -125,7 +125,10 @@ export function getDeploymentHistory(pipelineId: string, limit?: number) {
 }
 
 /** Trigger deployment of a specific version */
-export function deployVersion(versionId: string, data: { environment: string; deployedBy: string }) {
+export function deployVersion(
+  versionId: string,
+  data: { environment: string; deployedBy: string }
+) {
   return api.post(`/api/v1/artifact-versions/${versionId}/deploy`, data);
 }
 

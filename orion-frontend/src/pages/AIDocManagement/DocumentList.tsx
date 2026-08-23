@@ -173,119 +173,137 @@ const DocumentListPage: React.FC = () => {
 
   const getSpaceName = (spaceId: string) => spaces.find((s) => s.id === spaceId)?.name || spaceId;
 
-  const columns: TableColumn<Document>[] = useMemo<TableColumn<Document>[]>(() => [
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      width: 220,
-      sortable: true,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'space',
-      title: '知识库',
-      dataIndex: 'spaceId',
-      width: 140,
-      render: (v: unknown) => <Tag color="blue">{getSpaceName(String(v))}</Tag>,
-    },
-    {
-      key: 'version',
-      title: '版本',
-      dataIndex: 'version',
-      width: 60,
-      render: (v: unknown) => <Tag>v{String(v)}</Tag>,
-    },
-    {
-      key: 'tags',
-      title: '标签',
-      dataIndex: 'tags',
-      width: 160,
-      render: (v: unknown) => (
-        <Space size={4} wrap>
-          {Array.isArray(v) ? v.map((t) => <Tag key={t}>{t}</Tag>) : null}
-        </Space>
-      ),
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v);
-        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
-          status === 'archived' ? 'cancelled' : status === 'published' ? 'success' : 'pending';
-        return <StatusBadge status={badgeStatus} size="small" />;
+  const columns: TableColumn<Document>[] = useMemo<TableColumn<Document>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        width: 220,
+        sortable: true,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'authorId',
-      title: '作者',
-      dataIndex: 'authorId',
-      width: 100,
-      render: (v: unknown) => <Text>{String(v)}</Text>,
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(v)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 180,
-      render: (_: unknown, record: any) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => {
-              setViewingDoc(record);
-              setViewModalVisible(true);
-            }}
-          >
-            查看
-          </Button>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+      {
+        key: 'space',
+        title: '知识库',
+        dataIndex: 'spaceId',
+        width: 140,
+        render: (v: unknown) => <Tag color="blue">{getSpaceName(String(v))}</Tag>,
+      },
+      {
+        key: 'version',
+        title: '版本',
+        dataIndex: 'version',
+        width: 60,
+        render: (v: unknown) => <Tag>v{String(v)}</Tag>,
+      },
+      {
+        key: 'tags',
+        title: '标签',
+        dataIndex: 'tags',
+        width: 160,
+        render: (v: unknown) => (
+          <Space size={4} wrap>
+            {Array.isArray(v) ? v.map((t) => <Tag key={t}>{t}</Tag>) : null}
+          </Space>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v);
+          const badgeStatus:
+            | 'running'
+            | 'pending'
+            | 'success'
+            | 'failed'
+            | 'warning'
+            | 'cancelled'
+            | 'unknown' =
+            status === 'archived' ? 'cancelled' : status === 'published' ? 'success' : 'pending';
+          return <StatusBadge status={badgeStatus} size="small" />;
+        },
+      },
+      {
+        key: 'authorId',
+        title: '作者',
+        dataIndex: 'authorId',
+        width: 100,
+        render: (v: unknown) => <Text>{String(v)}</Text>,
+      },
+      {
+        key: 'updatedAt',
+        title: '更新时间',
+        dataIndex: 'updatedAt',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(v)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 180,
+        render: (_: unknown, record: any) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => {
+                setViewingDoc(record);
+                setViewModalVisible(true);
+              }}
+            >
+              查看
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, openEdit]);
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            >
+              编辑
+            </Button>
+            <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, openEdit]
+  );
 
   const spaceOptions = [
     { label: '全部', value: 'all' },
     ...spaces.map((s) => ({ label: s.name, value: s.id })),
   ];
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    { key: 'spaceId', label: '知识库', options: spaceOptions },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: 'Draft', value: 'draft' },
-        { label: 'Published', value: 'published' },
-        { label: 'Archived', value: 'archived' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      { key: 'spaceId', label: '知识库', options: spaceOptions },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: 'Draft', value: 'draft' },
+          { label: 'Published', value: 'published' },
+          { label: 'Archived', value: 'archived' },
+        ],
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -416,7 +434,15 @@ const DocumentListPage: React.FC = () => {
           <div>
             <Space style={{ marginBottom: spacing.md }}>
               <Tag color="blue">{getSpaceName(viewingDoc.spaceId)}</Tag>
-              <StatusBadge status={viewingDoc.status === 'archived' ? 'cancelled' : viewingDoc.status === 'published' ? 'success' : 'pending'} />
+              <StatusBadge
+                status={
+                  viewingDoc.status === 'archived'
+                    ? 'cancelled'
+                    : viewingDoc.status === 'published'
+                      ? 'success'
+                      : 'pending'
+                }
+              />
               <Tag>v{viewingDoc.version}</Tag>
             </Space>
             <Space size={4} style={{ marginBottom: spacing.md }}>

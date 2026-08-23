@@ -19,7 +19,14 @@ import {
   Spin,
 } from 'antd';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
-import { SendOutlined, BookOutlined, RobotOutlined, LikeOutlined, DislikeOutlined, ClearOutlined } from '@ant-design/icons';
+import {
+  SendOutlined,
+  BookOutlined,
+  RobotOutlined,
+  LikeOutlined,
+  DislikeOutlined,
+  ClearOutlined,
+} from '@ant-design/icons';
 import { ragQuery, ragFeedback, getSpaces, type RAGResult } from '@/api/ai-docs';
 import dayjs from 'dayjs';
 
@@ -123,7 +130,9 @@ const RAGQueryPage: React.FC = () => {
         is_positive: positive,
       });
       setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, feedback: positive ? 'positive' : 'negative' } : m))
+        prev.map((m) =>
+          m.id === msgId ? { ...m, feedback: positive ? 'positive' : 'negative' } : m
+        )
       );
       message.success(positive ? '感谢反馈！' : '已记录反馈，我们会持续改进。');
     } catch {
@@ -197,7 +206,9 @@ const RAGQueryPage: React.FC = () => {
                       </Text>
                       {msg.confidence !== undefined && (
                         <Tag
-                          color={msg.confidence >= 80 ? 'green' : msg.confidence >= 60 ? 'orange' : 'red'}
+                          color={
+                            msg.confidence >= 80 ? 'green' : msg.confidence >= 60 ? 'orange' : 'red'
+                          }
                         >
                           置信度 {msg.confidence.toFixed(0)}%
                         </Tag>
@@ -209,26 +220,34 @@ const RAGQueryPage: React.FC = () => {
                       )}
                     </Space>
                     <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
-                    {msg.role === 'assistant' && !msg.feedback && !msg.content.startsWith('查询失败') && (
-                      <Space style={{ marginTop: spacing.sm }}>
-                        <Button
-                          size="small"
-                          icon={<LikeOutlined />}
-                          onClick={() => handleFeedback(msg.id, true)}
-                          style={{ color: colors.success[500], borderRadius: componentRadius.button.md }}
-                        >
-                          有帮助
-                        </Button>
-                        <Button
-                          size="small"
-                          icon={<DislikeOutlined />}
-                          onClick={() => handleFeedback(msg.id, false)}
-                          style={{ color: colors.error[500], borderRadius: componentRadius.button.md }}
-                        >
-                          无帮助
-                        </Button>
-                      </Space>
-                    )}
+                    {msg.role === 'assistant' &&
+                      !msg.feedback &&
+                      !msg.content.startsWith('查询失败') && (
+                        <Space style={{ marginTop: spacing.sm }}>
+                          <Button
+                            size="small"
+                            icon={<LikeOutlined />}
+                            onClick={() => handleFeedback(msg.id, true)}
+                            style={{
+                              color: colors.success[500],
+                              borderRadius: componentRadius.button.md,
+                            }}
+                          >
+                            有帮助
+                          </Button>
+                          <Button
+                            size="small"
+                            icon={<DislikeOutlined />}
+                            onClick={() => handleFeedback(msg.id, false)}
+                            style={{
+                              color: colors.error[500],
+                              borderRadius: componentRadius.button.md,
+                            }}
+                          >
+                            无帮助
+                          </Button>
+                        </Space>
+                      )}
                   </div>
                 ))
               )}

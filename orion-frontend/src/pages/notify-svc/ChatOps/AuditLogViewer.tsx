@@ -2,18 +2,7 @@
  * Audit Log Viewer - Filterable log table, export, statistics
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  Typography,
-  Button,
-  Space,
-  Tag,
-  Card,
-  Row,
-  Col,
-  Statistic,
-  DatePicker,
-  Empty,
-} from 'antd';
+import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, DatePicker, Empty } from 'antd';
 import { spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -93,124 +82,141 @@ const AuditLogViewer: React.FC = () => {
     }
   };
 
-  const columns: TableColumn<AuditLog>[] = useMemo<TableColumn<AuditLog>[]>(() => [
-    {
-      key: 'id',
-      title: '日志 ID',
-      dataIndex: 'id',
-      width: 180,
-      render: (v: unknown) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {String(v).slice(0, 12)}...
-        </Text>
-      ),
-    },
-    {
-      key: 'command',
-      title: '命令',
-      dataIndex: 'action',
-      width: 140,
-      render: (v: unknown) => {
-        const cmd =
-          typeof v === 'object' && v !== null
-            ? (v as { command?: string }).command || '-'
-            : String(v || '-');
-        return <Text code>/{cmd}</Text>;
-      },
-    },
-    {
-      key: 'userId',
-      title: '用户',
-      dataIndex: 'actor',
-      width: 120,
-      render: (v: unknown) => {
-        const uid =
-          typeof v === 'object' && v !== null
-            ? (v as { userId?: string }).userId || '-'
-            : String(v || '-');
-        return <Text>{uid}</Text>;
-      },
-    },
-    {
-      key: 'platform',
-      title: '平台',
-      dataIndex: 'actor',
-      width: 100,
-      render: (v: unknown) => {
-        const p =
-          typeof v === 'object' && v !== null
-            ? (v as { platform?: string }).platform || '-'
-            : String(v || '-');
-        return <Tag>{p}</Tag>;
-      },
-    },
-    {
-      key: 'result',
-      title: '状态',
-      dataIndex: 'result',
-      width: 100,
-      render: (v: unknown) => {
-        const status = String(v || '');
-        if (status === 'success') return <Tag color="green">成功</Tag>;
-        if (status === 'failed') return <Tag color="red">失败</Tag>;
-        return <Tag>{status || '-'}</Tag>;
-      },
-    },
-    {
-      key: 'details',
-      title: '详情',
-      dataIndex: 'details',
-      width: 200,
-      render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v || '-')}</Text>,
-    },
-    {
-      key: 'timestamp',
-      title: '时间',
-      dataIndex: 'timestamp',
-      width: 160,
-      sortable: true,
-      render: (v: unknown) => {
-        const ts = String(v || '');
-        const formatted = dayjs(ts).isValid() ? dayjs(ts).fromNow() : ts;
-        return (
-          <Text type="secondary" style={{ fontSize: spacing[3] }}>
-            {formatted}
+  const columns: TableColumn<AuditLog>[] = useMemo<TableColumn<AuditLog>[]>(
+    () => [
+      {
+        key: 'id',
+        title: '日志 ID',
+        dataIndex: 'id',
+        width: 180,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: spacing[3] }}>
+            {String(v).slice(0, 12)}...
           </Text>
-        );
+        ),
       },
-    },
-  ], []);
+      {
+        key: 'command',
+        title: '命令',
+        dataIndex: 'action',
+        width: 140,
+        render: (v: unknown) => {
+          const cmd =
+            typeof v === 'object' && v !== null
+              ? (v as { command?: string }).command || '-'
+              : String(v || '-');
+          return <Text code>/{cmd}</Text>;
+        },
+      },
+      {
+        key: 'userId',
+        title: '用户',
+        dataIndex: 'actor',
+        width: 120,
+        render: (v: unknown) => {
+          const uid =
+            typeof v === 'object' && v !== null
+              ? (v as { userId?: string }).userId || '-'
+              : String(v || '-');
+          return <Text>{uid}</Text>;
+        },
+      },
+      {
+        key: 'platform',
+        title: '平台',
+        dataIndex: 'actor',
+        width: 100,
+        render: (v: unknown) => {
+          const p =
+            typeof v === 'object' && v !== null
+              ? (v as { platform?: string }).platform || '-'
+              : String(v || '-');
+          return <Tag>{p}</Tag>;
+        },
+      },
+      {
+        key: 'result',
+        title: '状态',
+        dataIndex: 'result',
+        width: 100,
+        render: (v: unknown) => {
+          const status = String(v || '');
+          if (status === 'success') return <Tag color="green">成功</Tag>;
+          if (status === 'failed') return <Tag color="red">失败</Tag>;
+          return <Tag>{status || '-'}</Tag>;
+        },
+      },
+      {
+        key: 'details',
+        title: '详情',
+        dataIndex: 'details',
+        width: 200,
+        render: (v: unknown) => <Text style={{ fontSize: spacing[3] }}>{String(v || '-')}</Text>,
+      },
+      {
+        key: 'timestamp',
+        title: '时间',
+        dataIndex: 'timestamp',
+        width: 160,
+        sortable: true,
+        render: (v: unknown) => {
+          const ts = String(v || '');
+          const formatted = dayjs(ts).isValid() ? dayjs(ts).fromNow() : ts;
+          return (
+            <Text type="secondary" style={{ fontSize: spacing[3] }}>
+              {formatted}
+            </Text>
+          );
+        },
+      },
+    ],
+    []
+  );
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'platform',
-      label: '平台',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '钉钉', value: 'dingtalk' },
-        { label: '企业微信', value: 'wecom' },
-        { label: '飞书', value: 'feishu' },
-        { label: 'CLI', value: 'cli' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '全部', value: 'all' },
-        { label: '成功', value: 'success' },
-        { label: '失败', value: 'failed' },
-      ],
-    },
-  ], []);
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'platform',
+        label: '平台',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '钉钉', value: 'dingtalk' },
+          { label: '企业微信', value: 'wecom' },
+          { label: '飞书', value: 'feishu' },
+          { label: 'CLI', value: 'cli' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '全部', value: 'all' },
+          { label: '成功', value: 'success' },
+          { label: '失败', value: 'failed' },
+        ],
+      },
+    ],
+    []
+  );
 
   if (apiError && logs.length === 0) {
     return (
       <div style={{ padding: spacing.md }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.lg }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: spacing.lg,
+          }}
+        >
           <Space>
-            <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>导出</Button>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
+            <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
+              导出
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              刷新
+            </Button>
           </Space>
         </div>
         <Card>
@@ -320,7 +326,11 @@ const AuditLogViewer: React.FC = () => {
                 {stats.platformBreakdown?.map((item, index) => (
                   <div
                     key={String(index)}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: spacing.sm,
+                    }}
                   >
                     <Tag>{item.platform}</Tag>
                     <Text>{item.count} 次</Text>
@@ -338,7 +348,11 @@ const AuditLogViewer: React.FC = () => {
                 {stats.topCommands?.map((item, index) => (
                   <div
                     key={String(index)}
-                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: spacing.sm,
+                    }}
                   >
                     <Text code>/{item.command}</Text>
                     <Text>{item.count} 次</Text>

@@ -25,7 +25,14 @@ vi.mock('reactflow', () => ({
 describe('DAGGraph', () => {
   const mockStages = [
     { id: 'stage-1', name: 'Build', type: 'build', status: 'success', duration: 120 },
-    { id: 'stage-2', name: 'Test', type: 'test', status: 'running', dependsOn: ['Build'], duration: 60 },
+    {
+      id: 'stage-2',
+      name: 'Test',
+      type: 'test',
+      status: 'running',
+      dependsOn: ['Build'],
+      duration: 60,
+    },
     { id: 'stage-3', name: 'Deploy', type: 'deploy', status: 'pending', dependsOn: ['Test'] },
   ];
 
@@ -97,15 +104,11 @@ describe('validateDAG', () => {
     ];
     const result = validateDAG(stages as any);
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain(
-      'Stage "B" depends on non-existent stage "NonExistent"'
-    );
+    expect(result.errors).toContain('Stage "B" depends on non-existent stage "NonExistent"');
   });
 
   it('allows self-loop check', () => {
-    const stages: TestStage[] = [
-      { name: 'A', type: 'build', dependsOn: ['A'] },
-    ];
+    const stages: TestStage[] = [{ name: 'A', type: 'build', dependsOn: ['A'] }];
     const result = validateDAG(stages as any);
     expect(result.valid).toBe(false);
   });

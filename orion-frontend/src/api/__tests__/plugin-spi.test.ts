@@ -28,7 +28,13 @@ describe('Plugin SPI API', () => {
 
   it('should get SPI stats', async () => {
     const mockResponse: any = {
-      data: { totalPlugins: 12, enabledPlugins: 8, disabledPlugins: 3, errorPlugins: 1, activeExecutions: 5 },
+      data: {
+        totalPlugins: 12,
+        enabledPlugins: 8,
+        disabledPlugins: 3,
+        errorPlugins: 1,
+        activeExecutions: 5,
+      },
       status: 200,
       statusText: 'OK',
       headers: {},

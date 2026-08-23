@@ -72,7 +72,9 @@ export interface TestHistoryEntry {
 // GET /api/v1/test-selector/flaky - 获取抖动测试
 export async function getFlakyTests(threshold?: number) {
   const params = threshold ? `?threshold=${threshold}` : '';
-  return api.get<{ flakyTests: FlakyTest[]; threshold: number }>(`/api/v1/test-selector/flaky${params}`);
+  return api.get<{ flakyTests: FlakyTest[]; threshold: number }>(
+    `/api/v1/test-selector/flaky${params}`
+  );
 }
 
 // GET /api/v1/test-selector/history - 获取测试历史
@@ -90,9 +92,9 @@ export async function getTestStats() {
   const cases = casesRes.data ?? [];
   const suites = suitesRes.data ?? [];
 
-  const passed = cases.filter(c => c.status === 'pass').length;
-  const failed = cases.filter(c => c.status === 'fail').length;
-  const skipped = cases.filter(c => c.status === 'skipped').length;
+  const passed = cases.filter((c) => c.status === 'pass').length;
+  const failed = cases.filter((c) => c.status === 'fail').length;
+  const skipped = cases.filter((c) => c.status === 'skipped').length;
 
   return {
     data: {

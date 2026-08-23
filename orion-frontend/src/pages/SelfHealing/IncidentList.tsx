@@ -16,7 +16,12 @@ import {
   Form,
   message,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EyeOutlined, UnorderedListOutlined,} from '@ant-design/icons';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EyeOutlined,
+  UnorderedListOutlined,
+} from '@ant-design/icons';
 import { getHealingHistory, createIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
 import { useNavigate } from 'react-router-dom';
@@ -167,7 +172,9 @@ const IncidentList: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <UnorderedListOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <UnorderedListOutlined
+              style={{ marginRight: spacing[3], color: colors.primary[500] }}
+            />
             事件列表
           </Title>
           <Text type="secondary">管理自愈合事件</Text>

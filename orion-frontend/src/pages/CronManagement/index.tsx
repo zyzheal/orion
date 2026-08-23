@@ -10,22 +10,43 @@ import { PermissionGuard } from '@/components/PermissionGuard';
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  Typography, Button, Space, Tag, Card, Modal, Form, Input,
-  Switch, message, Popconfirm, Tooltip,
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Card,
+  Modal,
+  Form,
+  Input,
+  Switch,
+  message,
+  Popconfirm,
+  Tooltip,
 } from 'antd';
 import {
-  ReloadOutlined, PlusOutlined, PlayCircleOutlined,
-  EditOutlined, DeleteOutlined, ClockCircleOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, StopOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  PlayCircleOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
 import DataState from '@/components/DataState';
 import { colors, spacing } from '@/tokens';
 import {
-  getCronJobs, createCronJob, updateCronJob,
-  deleteCronJob, executeCronJob, getCronStatus,
-  type CronJob, type CronJobInput,
+  getCronJobs,
+  createCronJob,
+  updateCronJob,
+  deleteCronJob,
+  executeCronJob,
+  getCronStatus,
+  type CronJob,
+  type CronJobInput,
 } from '@/api/cron';
 import dayjs from 'dayjs';
 
@@ -34,17 +55,19 @@ const { TextArea } = Input;
 
 // Status helpers
 const STATUS_CONFIG: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-  running:  { color: 'processing', label: '运行中', icon: <PlayCircleOutlined /> },
-  idle:     { color: 'success',    label: '空闲',   icon: <CheckCircleOutlined /> },
-  error:    { color: 'error',      label: '错误',   icon: <CloseCircleOutlined /> },
-  disabled: { color: 'default',    label: '已禁用', icon: <StopOutlined /> },
+  running: { color: 'processing', label: '运行中', icon: <PlayCircleOutlined /> },
+  idle: { color: 'success', label: '空闲', icon: <CheckCircleOutlined /> },
+  error: { color: 'error', label: '错误', icon: <CloseCircleOutlined /> },
+  disabled: { color: 'default', label: '已禁用', icon: <StopOutlined /> },
 };
 
 const CronManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [jobs, setJobs] = useState<CronJob[]>([]);
-  const [stats, setStats] = useState<{ running: number; total: number; enabled: number } | null>(null);
+  const [stats, setStats] = useState<{ running: number; total: number; enabled: number } | null>(
+    null
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [editingJob, setEditingJob] = useState<CronJob | null>(null);
   const [form] = Form.useForm();
@@ -63,7 +86,9 @@ const CronManagement: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadJobs(); }, [loadJobs]);
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   const handleCreate = async (values: CronJobInput) => {
     try {
@@ -129,91 +154,116 @@ const CronManagement: React.FC = () => {
   };
 
   // Table columns
-  const columns: TableColumn<CronJob>[] = useMemo<TableColumn<CronJob>[]>(() => [
-    {
-      key: 'name',
-      title: '名称',
-      dataIndex: 'name',
-      width: 150,
-      render: (v: unknown) => <Text strong>{String(v)}</Text>,
-    },
-    {
-      key: 'schedule',
-      title: '调度表达式',
-      dataIndex: 'schedule',
-      width: 150,
-      render: (v: unknown) => <Text code style={{ fontSize: 12 }}>{String(v)}</Text>,
-    },
-    {
-      key: 'command',
-      title: '命令',
-      dataIndex: 'command',
-      ellipsis: true,
-      render: (v: unknown) => <Text code style={{ fontSize: 11 }}>{String(v)}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (v: unknown) => {
-        const cfg = STATUS_CONFIG[String(v)] ?? { color: 'default', label: String(v), icon: null };
-        return <Tag color={cfg.color} icon={cfg.icon}>{cfg.label}</Tag>;
+  const columns: TableColumn<CronJob>[] = useMemo<TableColumn<CronJob>[]>(
+    () => [
+      {
+        key: 'name',
+        title: '名称',
+        dataIndex: 'name',
+        width: 150,
+        render: (v: unknown) => <Text strong>{String(v)}</Text>,
       },
-    },
-    {
-      key: 'enabled',
-      title: '启用',
-      dataIndex: 'enabled',
-      width: 70,
-      render: (v: unknown) => (v ? <Tag color="success">是</Tag> : <Tag>否</Tag>),
-    },
-    {
-      key: 'runCount',
-      title: '执行次数',
-      dataIndex: 'runCount',
-      width: 90,
-    },
-    {
-      key: 'lastRunAt',
-      title: '上次执行',
-      dataIndex: 'lastRunAt',
-      width: 150,
-      render: (v: unknown) => v ? dayjs(String(v)).format('MM-DD HH:mm') : '—',
-    },
-    {
-      key: 'nextRunAt',
-      title: '下次执行',
-      dataIndex: 'nextRunAt',
-      width: 150,
-      render: (v: unknown) => v ? dayjs(String(v)).format('MM-DD HH:mm') : '—',
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_: unknown, record: CronJob) => (
-        <Space size="small">
-          <Tooltip title="立即执行">
-            <Button type="link" size="small" icon={<PlayCircleOutlined />}
-              onClick={() => handleExecute(record.id)}
-              disabled={record.status === 'running'}
-            />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button type="link" size="small" icon={<EditOutlined />}
-              onClick={() => openEdit(record)}
-            />
-          </Tooltip>
-          <Popconfirm title="确认删除该定时任务?" onConfirm={() => handleDelete(record.id)}>
-            <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+      {
+        key: 'schedule',
+        title: '调度表达式',
+        dataIndex: 'schedule',
+        width: 150,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 12 }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'command',
+        title: '命令',
+        dataIndex: 'command',
+        ellipsis: true,
+        render: (v: unknown) => (
+          <Text code style={{ fontSize: 11 }}>
+            {String(v)}
+          </Text>
+        ),
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: (v: unknown) => {
+          const cfg = STATUS_CONFIG[String(v)] ?? {
+            color: 'default',
+            label: String(v),
+            icon: null,
+          };
+          return (
+            <Tag color={cfg.color} icon={cfg.icon}>
+              {cfg.label}
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'enabled',
+        title: '启用',
+        dataIndex: 'enabled',
+        width: 70,
+        render: (v: unknown) => (v ? <Tag color="success">是</Tag> : <Tag>否</Tag>),
+      },
+      {
+        key: 'runCount',
+        title: '执行次数',
+        dataIndex: 'runCount',
+        width: 90,
+      },
+      {
+        key: 'lastRunAt',
+        title: '上次执行',
+        dataIndex: 'lastRunAt',
+        width: 150,
+        render: (v: unknown) => (v ? dayjs(String(v)).format('MM-DD HH:mm') : '—'),
+      },
+      {
+        key: 'nextRunAt',
+        title: '下次执行',
+        dataIndex: 'nextRunAt',
+        width: 150,
+        render: (v: unknown) => (v ? dayjs(String(v)).format('MM-DD HH:mm') : '—'),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_: unknown, record: CronJob) => (
+          <Space size="small">
+            <Tooltip title="立即执行">
+              <Button
+                type="link"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                onClick={() => handleExecute(record.id)}
+                disabled={record.status === 'running'}
+              />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleExecute, openEdit]);
+            <Tooltip title="编辑">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEdit(record)}
+              />
+            </Tooltip>
+            <Popconfirm title="确认删除该定时任务?" onConfirm={() => handleDelete(record.id)}>
+              <Tooltip title="删除">
+                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleExecute, openEdit]
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -227,8 +277,12 @@ const CronManagement: React.FC = () => {
           <Text type="secondary">Cron Job Management</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadJobs} loading={loading}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建任务</Button>
+          <Button icon={<ReloadOutlined />} onClick={loadJobs} loading={loading}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新建任务
+          </Button>
         </Space>
       </div>
 
@@ -242,16 +296,48 @@ const CronManagement: React.FC = () => {
       >
         {/* Stats */}
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md, marginBottom: spacing.lg }}>
-            <MetricCard title="总任务数" value={stats.total} icon={<ClockCircleOutlined />} color={colors.primary[500]} size="medium" />
-            <MetricCard title="已启用" value={stats.enabled} icon={<CheckCircleOutlined />} color={colors.success[500]} size="medium" />
-            <MetricCard title="运行中" value={stats.running} icon={<PlayCircleOutlined />} color={colors.purple[500]} size="medium" />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: spacing.md,
+              marginBottom: spacing.lg,
+            }}
+          >
+            <MetricCard
+              title="总任务数"
+              value={stats.total}
+              icon={<ClockCircleOutlined />}
+              color={colors.primary[500]}
+              size="medium"
+            />
+            <MetricCard
+              title="已启用"
+              value={stats.enabled}
+              icon={<CheckCircleOutlined />}
+              color={colors.success[500]}
+              size="medium"
+            />
+            <MetricCard
+              title="运行中"
+              value={stats.running}
+              icon={<PlayCircleOutlined />}
+              color={colors.purple[500]}
+              size="medium"
+            />
           </div>
         )}
 
         {/* Job Table */}
         <Card>
-          <Table columns={columns} dataSource={jobs} loading={loading} rowKey="id" size="middle" striped />
+          <Table
+            columns={columns}
+            dataSource={jobs}
+            loading={loading}
+            rowKey="id"
+            size="middle"
+            striped
+          />
         </Card>
       </DataState>
 
@@ -259,7 +345,10 @@ const CronManagement: React.FC = () => {
       <Modal
         title={editingJob ? '编辑定时任务' : '新建定时任务'}
         open={modalVisible}
-        onCancel={() => { setModalVisible(false); setEditingJob(null); }}
+        onCancel={() => {
+          setModalVisible(false);
+          setEditingJob(null);
+        }}
         onOk={() => form.submit()}
         width={560}
       >
@@ -282,9 +371,12 @@ const CronManagement: React.FC = () => {
   );
 };
 
-
 export default () => (
-  <PermissionGuard requiredRoles={["admin", "platform_admin"]} pageLevel resourceName="定时任务管理">
+  <PermissionGuard
+    requiredRoles={['admin', 'platform_admin']}
+    pageLevel
+    resourceName="定时任务管理"
+  >
     <CronManagement />
   </PermissionGuard>
 );

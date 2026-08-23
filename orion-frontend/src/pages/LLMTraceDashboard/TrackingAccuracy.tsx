@@ -2,19 +2,13 @@
  * LLM Trace Accuracy - Tracking accuracy metrics
  */
 import React, { useState, useEffect } from 'react';
+import { Typography, Button, Card, Row, Col, Progress, Statistic, Tag, message, Spin } from 'antd';
 import {
-  Typography,
-  Button,
-  Card,
-  Row,
-  Col,
-  Progress,
-  Statistic,
-  Tag,
-  message,
-  Spin,
-} from 'antd';
-import { ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, AimOutlined,} from '@ant-design/icons';
+  ReloadOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  AimOutlined,
+} from '@ant-design/icons';
 import { getTrackingAccuracy, type TrackingAccuracy } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
 
@@ -67,9 +61,7 @@ const TrackingAccuracyView: React.FC = () => {
             <AimOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             追踪精度监控
           </Title>
-          <Text type="secondary">
-            LLM 调用追踪准确度与成功率统计
-          </Text>
+          <Text type="secondary">LLM 调用追踪准确度与成功率统计</Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
@@ -88,9 +80,7 @@ const TrackingAccuracyView: React.FC = () => {
               percent={accuracyPercent}
               strokeColor={meetsTarget ? colors.success[500] : colors.error[500]}
               format={(percent) => (
-                <span style={{ fontSize: 24, fontWeight: 'bold' }}>
-                  {percent}%
-                </span>
+                <span style={{ fontSize: 24, fontWeight: 'bold' }}>{percent}%</span>
               )}
             />
           </Col>
@@ -149,11 +139,7 @@ const TrackingAccuracyView: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="总追踪数"
-              value={accuracy?.total || 0}
-              suffix="次"
-            />
+            <Statistic title="总追踪数" value={accuracy?.total || 0} suffix="次" />
           </Card>
         </Col>
         <Col span={6}>
@@ -171,9 +157,9 @@ const TrackingAccuracyView: React.FC = () => {
       <Card style={{ marginTop: spacing[6] }}>
         <Title level={5}>追踪精度说明</Title>
         <Text type="secondary">
-          追踪精度衡量 LLM 调用链路追踪的完整性和准确性。
-          精度指标包括：Prompt 记录完整性、Token 计数准确度、成本计算准确性。
-          目标精度 98% 表示只有不超过 2% 的调用存在追踪数据缺失或计算偏差。
+          追踪精度衡量 LLM 调用链路追踪的完整性和准确性。 精度指标包括：Prompt 记录完整性、Token
+          计数准确度、成本计算准确性。 目标精度 98% 表示只有不超过 2%
+          的调用存在追踪数据缺失或计算偏差。
         </Text>
       </Card>
     </div>

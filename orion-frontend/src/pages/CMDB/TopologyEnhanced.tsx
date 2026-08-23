@@ -136,9 +136,7 @@ const EnhancedNode: React.FC<{ data: EnhancedNodeData }> = ({ data }) => {
     : data.isRelated
       ? colors.info[300]
       : colors.neutral[300];
-  const bgColor = data.isHighlighted
-    ? colors.primary[50]
-    : themeVars.bgPrimary;
+  const bgColor = data.isHighlighted ? colors.primary[50] : themeVars.bgPrimary;
   const boxShadow = data.isHighlighted
     ? '0 0 0 3px rgba(51,112,230,0.2), 0 4px 12px rgba(0,0,0,0.12)'
     : '0 2px 4px rgba(0,0,0,0.04)';
@@ -179,7 +177,10 @@ const EnhancedNode: React.FC<{ data: EnhancedNodeData }> = ({ data }) => {
           {data.label}
         </Text>
         <Space>
-          <Tag color={typeColorMap[data.type] || colors.neutral[400]} style={{ fontSize: 10, padding: '0 4px' }}>
+          <Tag
+            color={typeColorMap[data.type] || colors.neutral[400]}
+            style={{ fontSize: 10, padding: '0 4px' }}
+          >
             {data.type}
           </Tag>
         </Space>
@@ -330,9 +331,7 @@ const TopologyEnhanced: React.FC = () => {
         // Build a mini topology from the CI and its relations
         if (relations.length > 0) {
           const relationCIs = allCIs.filter((ci) =>
-            relations.some(
-              (r) => r.source_id === ci.id || r.target_id === ci.id
-            ),
+            relations.some((r) => r.source_id === ci.id || r.target_id === ci.id)
           );
 
           const topologyNodes = relationCIs.map((ci) => ({
@@ -401,7 +400,8 @@ const TopologyEnhanced: React.FC = () => {
 
   const filteredCIs = allCIs.filter((ci) => {
     const matchesType = !selectedType || ci.type === selectedType;
-    const matchesSearch = !searchKeyword || ci.name.toLowerCase().includes(searchKeyword.toLowerCase());
+    const matchesSearch =
+      !searchKeyword || ci.name.toLowerCase().includes(searchKeyword.toLowerCase());
     return matchesType && matchesSearch;
   });
 
@@ -413,7 +413,14 @@ const TopologyEnhanced: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.md }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: spacing.md,
+        }}
+      >
         <div>
           <Title level={2} style={{ marginBottom: 8 }}>
             <LinkOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
@@ -421,7 +428,14 @@ const TopologyEnhanced: React.FC = () => {
           </Title>
           <Text type="secondary">增强拓扑可视化与影响分析</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => { loadCIs(); loadTopology(); }} loading={loading}>
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => {
+            loadCIs();
+            loadTopology();
+          }}
+          loading={loading}
+        >
           刷新
         </Button>
       </div>
@@ -451,7 +465,9 @@ const TopologyEnhanced: React.FC = () => {
                 size="small"
               >
                 {CI_TYPE_OPTIONS.map((opt) => (
-                  <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+                  <Option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </Option>
                 ))}
               </Select>
             </Space>
@@ -468,7 +484,10 @@ const TopologyEnhanced: React.FC = () => {
                     cursor: 'pointer',
                     background: ci.id === selectedCIId ? colors.primary[50] : 'transparent',
                     borderRadius: 6,
-                    border: ci.id === selectedCIId ? `1px solid ${colors.primary[300]}` : '1px solid transparent',
+                    border:
+                      ci.id === selectedCIId
+                        ? `1px solid ${colors.primary[300]}`
+                        : '1px solid transparent',
                   }}
                 >
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -477,15 +496,23 @@ const TopologyEnhanced: React.FC = () => {
                         {typeIconMap[ci.type] || <CloudServerOutlined />}
                       </span>
                       <div>
-                        <Text strong style={{ fontSize: 12 }}>{ci.name}</Text>
+                        <Text strong style={{ fontSize: 12 }}>
+                          {ci.name}
+                        </Text>
                         <div>
-                          <Tag color={typeColorMap[ci.type] || colors.neutral[400]} style={{ fontSize: 10 }}>
+                          <Tag
+                            color={typeColorMap[ci.type] || colors.neutral[400]}
+                            style={{ fontSize: 10 }}
+                          >
                             {ci.type}
                           </Tag>
                         </div>
                       </div>
                     </Space>
-                    <Tag color={ci.status === 'active' ? colors.success[500] : colors.neutral[400]} style={{ fontSize: 10 }}>
+                    <Tag
+                      color={ci.status === 'active' ? colors.success[500] : colors.neutral[400]}
+                      style={{ fontSize: 10 }}
+                    >
                       {ci.status}
                     </Tag>
                   </Space>
@@ -516,11 +543,7 @@ const TopologyEnhanced: React.FC = () => {
                   <Space>
                     <Tag color={colors.primary[500]}>节点: {topology.nodes.length}</Tag>
                     <Tag>连接: {topology.edges?.length || 0}</Tag>
-                    {selectedCI && (
-                      <Tag color={colors.info[500]}>
-                        高亮: {selectedCI.name}
-                      </Tag>
-                    )}
+                    {selectedCI && <Tag color={colors.info[500]}>高亮: {selectedCI.name}</Tag>}
                   </Space>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     虚线表示影响关系 | 蓝色高亮选中节点
@@ -562,7 +585,14 @@ const TopologyEnhanced: React.FC = () => {
                 </ReactFlow>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 480 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: 480,
+                }}
+              >
                 <Empty description="选择左侧配置项查看拓扑依赖关系" />
               </div>
             )}
@@ -571,7 +601,11 @@ const TopologyEnhanced: React.FC = () => {
 
         {/* Right Info Panel - Selected CI Details */}
         <Col span={5}>
-          <Card title="选中详情" styles={{ body: { maxHeight: 500, overflowY: 'auto' } }} style={{ height: 480 }}>
+          <Card
+            title="选中详情"
+            styles={{ body: { maxHeight: 500, overflowY: 'auto' } }}
+            style={{ height: 480 }}
+          >
             {selectedCI ? (
               <Space direction="vertical" size={spacing.md} style={{ width: '100%' }}>
                 <Space>
@@ -579,22 +613,36 @@ const TopologyEnhanced: React.FC = () => {
                     {typeIconMap[selectedCI.type] || <CloudServerOutlined />}
                   </span>
                   <div>
-                    <Title level={5} style={{ margin: 0 }}>{selectedCI.name}</Title>
-                    <Tag color={typeColorMap[selectedCI.type] || colors.neutral[400]}>{selectedCI.type}</Tag>
+                    <Title level={5} style={{ margin: 0 }}>
+                      {selectedCI.name}
+                    </Title>
+                    <Tag color={typeColorMap[selectedCI.type] || colors.neutral[400]}>
+                      {selectedCI.type}
+                    </Tag>
                   </div>
                 </Space>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   <div>
                     <Text type="secondary">状态：</Text>
-                    <Tag color={selectedCI.status === 'active' ? colors.success[500] : colors.neutral[400]}>
+                    <Tag
+                      color={
+                        selectedCI.status === 'active' ? colors.success[500] : colors.neutral[400]
+                      }
+                    >
                       {selectedCI.status}
                     </Tag>
                   </div>
                   {selectedCI.environment && (
                     <div>
                       <Text type="secondary">环境：</Text>
-                      <Tag color={selectedCI.environment === 'production' ? colors.error[500] : colors.info[700]}>
+                      <Tag
+                        color={
+                          selectedCI.environment === 'production'
+                            ? colors.error[500]
+                            : colors.info[700]
+                        }
+                      >
                         {selectedCI.environment}
                       </Tag>
                     </div>
@@ -627,10 +675,7 @@ const TopologyEnhanced: React.FC = () => {
 
       {/* Bottom - Impact Analysis */}
       {impact && (
-        <Card
-          title="影响分析"
-          styles={{ body: { padding: 12 } }}
-        >
+        <Card title="影响分析" styles={{ body: { padding: 12 } }}>
           <Row gutter={spacing.md}>
             <Col span={6}>
               <div
@@ -641,7 +686,14 @@ const TopologyEnhanced: React.FC = () => {
                   background: levelConfig.color + '08',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                    marginBottom: 4,
+                  }}
+                >
                   <ExclamationCircleOutlined style={{ color: levelConfig.color, fontSize: 18 }} />
                   <Text strong>影响级别</Text>
                 </div>
@@ -653,10 +705,13 @@ const TopologyEnhanced: React.FC = () => {
                       borderRadius: '50%',
                       background: levelConfig.color,
                       display: 'inline-block',
-                      boxShadow: impactLevel === 'critical' ? `0 0 8px ${levelConfig.color}` : 'none',
+                      boxShadow:
+                        impactLevel === 'critical' ? `0 0 8px ${levelConfig.color}` : 'none',
                     }}
                   />
-                  <Text strong style={{ color: levelConfig.color, fontSize: 16 }}>{levelConfig.label}</Text>
+                  <Text strong style={{ color: levelConfig.color, fontSize: 16 }}>
+                    {levelConfig.label}
+                  </Text>
                 </div>
               </div>
             </Col>
@@ -681,7 +736,9 @@ const TopologyEnhanced: React.FC = () => {
             <Col span={6}>
               <Statistic
                 title="总影响范围"
-                value={impact.total_affected || impact.upstream?.length + impact.downstream?.length || 0}
+                value={
+                  impact.total_affected || impact.upstream?.length + impact.downstream?.length || 0
+                }
                 prefix={<LinkOutlined />}
                 valueStyle={{ color: colors.purple[500] }}
                 suffix="个"
@@ -690,7 +747,9 @@ const TopologyEnhanced: React.FC = () => {
           </Row>
 
           {(impact.upstream?.length || 0) > 0 || (impact.downstream?.length || 0) > 0 ? (
-            <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+            <div
+              style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}
+            >
               {impact.upstream?.slice(0, 5).map((ci) => (
                 <Tag
                   key={`up-${ci.id}`}
@@ -713,7 +772,10 @@ const TopologyEnhanced: React.FC = () => {
               ))}
             </div>
           ) : (
-            <Text type="secondary" style={{ fontSize: 12, marginTop: spacing.sm, display: 'block' }}>
+            <Text
+              type="secondary"
+              style={{ fontSize: 12, marginTop: spacing.sm, display: 'block' }}
+            >
               当前配置项无上下游依赖
             </Text>
           )}

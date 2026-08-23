@@ -11,7 +11,8 @@ import {
   DownloadOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
-  ContainerOutlined,} from '@ant-design/icons';
+  ContainerOutlined,
+} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -36,7 +37,9 @@ const ArtifactList: React.FC = () => {
     try {
       const response = await getArtifacts();
       const apiData = response.data;
-      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
+      setArtifacts(
+        Array.isArray(apiData) ? apiData : ((apiData as { items?: unknown[] })?.items ?? [])
+      );
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建产物失败：${error.message}`);
@@ -122,142 +125,148 @@ const ArtifactList: React.FC = () => {
     }
   };
 
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'type',
-      label: 'Type',
-      options: [
-        { label: 'All', value: 'all' },
-        ...Array.from(new Set(artifacts.map((a) => a.type))).map((t) => ({
-          label: t,
-          value: t,
-        })),
-      ],
-    },
-    {
-      key: 'pipelineRunId',
-      label: 'Run ID',
-      options: [
-        { label: 'All', value: 'all' },
-        ...Array.from(new Set(artifacts.map((a) => a.pipelineRunId)))
-          .slice(0, 10)
-          .map((id) => ({
-            label: id,
-            value: id,
+  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'type',
+        label: 'Type',
+        options: [
+          { label: 'All', value: 'all' },
+          ...Array.from(new Set(artifacts.map((a) => a.type))).map((t) => ({
+            label: t,
+            value: t,
           })),
-      ],
-    },
-  ], []);
+        ],
+      },
+      {
+        key: 'pipelineRunId',
+        label: 'Run ID',
+        options: [
+          { label: 'All', value: 'all' },
+          ...Array.from(new Set(artifacts.map((a) => a.pipelineRunId)))
+            .slice(0, 10)
+            .map((id) => ({
+              label: id,
+              value: id,
+            })),
+        ],
+      },
+    ],
+    []
+  );
 
-  const columns: TableColumn<Artifact>[] = useMemo<TableColumn<Artifact>[]>(() => [
-    {
-      key: 'name',
-      title: 'Name',
-      dataIndex: 'name',
-      width: 250,
-      sortable: true,
-      render: (value) => <Text strong>{String(value)}</Text>,
-    },
-    {
-      key: 'type',
-      title: 'Type',
-      dataIndex: 'type',
-      width: 140,
-      render: (value) => <Tag color="blue">{String(value)}</Tag>,
-    },
-    {
-      key: 'size',
-      title: 'Size',
-      dataIndex: 'size',
-      width: 120,
-      sortable: true,
-      render: (value) => {
-        const bytes = Number(value);
-        if (bytes >= 1024 * 1024 * 1024)
-          return <Text>{(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB</Text>;
-        if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(1)} MB</Text>;
-        if (bytes >= 1024) return <Text>{(bytes / 1024).toFixed(1)} KB</Text>;
-        return <Text>{bytes} B</Text>;
+  const columns: TableColumn<Artifact>[] = useMemo<TableColumn<Artifact>[]>(
+    () => [
+      {
+        key: 'name',
+        title: 'Name',
+        dataIndex: 'name',
+        width: 250,
+        sortable: true,
+        render: (value) => <Text strong>{String(value)}</Text>,
       },
-    },
-    {
-      key: 'pipelineRunId',
-      title: 'Run ID',
-      dataIndex: 'pipelineRunId',
-      width: 180,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'stageId',
-      title: 'Stage ID',
-      dataIndex: 'stageId',
-      width: 160,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {String(value)}
-        </Text>
-      ),
-    },
-    {
-      key: 'expiresAt',
-      title: 'Expires',
-      dataIndex: 'expiresAt',
-      width: 160,
-      sortable: true,
-      render: (value) => {
-        const expiry = dayjs(String(value));
-        const isExpired = expiry.isBefore(dayjs());
-        return (
-          <Text type={isExpired ? 'danger' : 'secondary'} style={{ fontSize: spacing[3] }}>
-            {expiry.fromNow()}
+      {
+        key: 'type',
+        title: 'Type',
+        dataIndex: 'type',
+        width: 140,
+        render: (value) => <Tag color="blue">{String(value)}</Tag>,
+      },
+      {
+        key: 'size',
+        title: 'Size',
+        dataIndex: 'size',
+        width: 120,
+        sortable: true,
+        render: (value) => {
+          const bytes = Number(value);
+          if (bytes >= 1024 * 1024 * 1024)
+            return <Text>{(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB</Text>;
+          if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(1)} MB</Text>;
+          if (bytes >= 1024) return <Text>{(bytes / 1024).toFixed(1)} KB</Text>;
+          return <Text>{bytes} B</Text>;
+        },
+      },
+      {
+        key: 'pipelineRunId',
+        title: 'Run ID',
+        dataIndex: 'pipelineRunId',
+        width: 180,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
           </Text>
-        );
+        ),
       },
-    },
-    {
-      key: 'createdAt',
-      title: 'Created',
-      dataIndex: 'createdAt',
-      width: 140,
-      sortable: true,
-      render: (value) => (
-        <Text type="secondary" style={{ fontSize: spacing[3] }}>
-          {dayjs(String(value)).fromNow()}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      width: 160,
-      render: (_: unknown, record: Artifact) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<DownloadOutlined />}
-            onClick={() => handleDownload(record)}
-          >
-            Download
-          </Button>
-          <Popconfirm
-            title="Delete this artifact?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Delete"
-            cancelText="Cancel"
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              Delete
+      {
+        key: 'stageId',
+        title: 'Stage ID',
+        dataIndex: 'stageId',
+        width: 160,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {String(value)}
+          </Text>
+        ),
+      },
+      {
+        key: 'expiresAt',
+        title: 'Expires',
+        dataIndex: 'expiresAt',
+        width: 160,
+        sortable: true,
+        render: (value) => {
+          const expiry = dayjs(String(value));
+          const isExpired = expiry.isBefore(dayjs());
+          return (
+            <Text type={isExpired ? 'danger' : 'secondary'} style={{ fontSize: spacing[3] }}>
+              {expiry.fromNow()}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'createdAt',
+        title: 'Created',
+        dataIndex: 'createdAt',
+        width: 140,
+        sortable: true,
+        render: (value) => (
+          <Text type="secondary" style={{ fontSize: spacing[3] }}>
+            {dayjs(String(value)).fromNow()}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: 'Actions',
+        width: 160,
+        render: (_: unknown, record: Artifact) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => handleDownload(record)}
+            >
+              Download
             </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleDownload]);
+            <Popconfirm
+              title="Delete this artifact?"
+              onConfirm={() => handleDelete(record.id)}
+              okText="Delete"
+              cancelText="Cancel"
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleDownload]
+  );
 
   return (
     <div style={{ padding: 0 }}>

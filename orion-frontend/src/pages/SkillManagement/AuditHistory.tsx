@@ -126,103 +126,109 @@ const AuditHistory: React.FC = () => {
     return Array.from(actions);
   }, [auditLogs]);
 
-  const columns: TableColumn<any>[] = useMemo<TableColumn<any>[]>(() => [
-    {
-      key: 'action',
-      title: '操作类型',
-      dataIndex: 'action',
-      width: 140,
-      render: (v: unknown) => (
-        <Tag color={actionColors[String(v)] || 'default'}>
-          {actionLabels[String(v)] || String(v)}
-        </Tag>
-      ),
-    },
-    {
-      key: 'skillName',
-      title: '技能名称',
-      dataIndex: 'skillName',
-      width: 180,
-      render: (v: unknown, record) => (
-        <Text strong>{v || record.skillId || '-'}</Text>
-      ),
-    },
-    {
-      key: 'actor',
-      title: '操作人',
-      dataIndex: 'actor',
-      width: 140,
-      render: (v: unknown) => (
-        <Text code>{String(v) || '系统'}</Text>
-      ),
-    },
-    {
-      key: 'reason',
-      title: '原因/备注',
-      dataIndex: 'reason',
-      width: 240,
-      render: (v: unknown) =>
-        v ? (
-          <Text type="secondary" style={{ fontSize: spacing[2] }}>
-            {String(v).slice(0, 80)}{String(v).length > 80 ? '...' : ''}
-          </Text>
-        ) : (
-          <Text type="secondary">-</Text>
+  const columns: TableColumn<any>[] = useMemo<TableColumn<any>[]>(
+    () => [
+      {
+        key: 'action',
+        title: '操作类型',
+        dataIndex: 'action',
+        width: 140,
+        render: (v: unknown) => (
+          <Tag color={actionColors[String(v)] || 'default'}>
+            {actionLabels[String(v)] || String(v)}
+          </Tag>
         ),
-    },
-    {
-      key: 'action_detail',
-      title: '操作详情',
-      dataIndex: 'action',
-      width: 160,
-      render: (v: unknown) => {
-        const action = String(v);
-        const isPositive = ['approve', 'create', 'install', 'instance_create'].includes(action);
-        const isNegative = ['reject', 'delete', 'archive', 'uninstall', 'instance_delete'].includes(action);
-        const color = isPositive ? 'success' : isNegative ? 'error' : 'default';
-        const label = actionLabels[action] || action;
-        return <Tag color={color}>{label}</Tag>;
       },
-    },
-    {
-      key: 'createdAt',
-      title: '操作时间',
-      dataIndex: 'createdAt',
-      width: 180,
-      sortable: true,
-      render: (v: unknown, record) => {
-        const time = v || record.timestamp;
-        return (
-          <Space direction="vertical" size={0}>
-            <Text style={{ fontSize: spacing[3] }}>
-              {dayjs(String(time)).format('YYYY-MM-DD HH:mm')}
-            </Text>
+      {
+        key: 'skillName',
+        title: '技能名称',
+        dataIndex: 'skillName',
+        width: 180,
+        render: (v: unknown, record) => <Text strong>{v || record.skillId || '-'}</Text>,
+      },
+      {
+        key: 'actor',
+        title: '操作人',
+        dataIndex: 'actor',
+        width: 140,
+        render: (v: unknown) => <Text code>{String(v) || '系统'}</Text>,
+      },
+      {
+        key: 'reason',
+        title: '原因/备注',
+        dataIndex: 'reason',
+        width: 240,
+        render: (v: unknown) =>
+          v ? (
             <Text type="secondary" style={{ fontSize: spacing[2] }}>
-              {dayjs(String(time)).fromNow()}
+              {String(v).slice(0, 80)}
+              {String(v).length > 80 ? '...' : ''}
             </Text>
-          </Space>
-        );
+          ) : (
+            <Text type="secondary">-</Text>
+          ),
       },
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 80,
-      render: (_: unknown, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<FileTextOutlined />}
-          onClick={() => {
-            setSelectedLog(record);
-            setDetailModalVisible(true);
-          }}
-        >
-          详情
-        </Button>
-      ),
-    },
-  ], []);
+      {
+        key: 'action_detail',
+        title: '操作详情',
+        dataIndex: 'action',
+        width: 160,
+        render: (v: unknown) => {
+          const action = String(v);
+          const isPositive = ['approve', 'create', 'install', 'instance_create'].includes(action);
+          const isNegative = [
+            'reject',
+            'delete',
+            'archive',
+            'uninstall',
+            'instance_delete',
+          ].includes(action);
+          const color = isPositive ? 'success' : isNegative ? 'error' : 'default';
+          const label = actionLabels[action] || action;
+          return <Tag color={color}>{label}</Tag>;
+        },
+      },
+      {
+        key: 'createdAt',
+        title: '操作时间',
+        dataIndex: 'createdAt',
+        width: 180,
+        sortable: true,
+        render: (v: unknown, record) => {
+          const time = v || record.timestamp;
+          return (
+            <Space direction="vertical" size={0}>
+              <Text style={{ fontSize: spacing[3] }}>
+                {dayjs(String(time)).format('YYYY-MM-DD HH:mm')}
+              </Text>
+              <Text type="secondary" style={{ fontSize: spacing[2] }}>
+                {dayjs(String(time)).fromNow()}
+              </Text>
+            </Space>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 80,
+        render: (_: unknown, record) => (
+          <Button
+            type="link"
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => {
+              setSelectedLog(record);
+              setDetailModalVisible(true);
+            }}
+          >
+            详情
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div style={{ padding: 0 }}>
@@ -368,13 +374,18 @@ const AuditHistory: React.FC = () => {
               </div>
               <div>
                 <Text strong>时间：</Text>
-                <Text>
-                  {dayjs(selectedLog.createdAt).format('YYYY-MM-DD HH:mm:ss')}
-                </Text>
+                <Text>{dayjs(selectedLog.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
               </div>
               {selectedLog.details && (
                 <Card title="详细信息" size="small">
-                  <pre style={{ fontSize: 12, background: colors.neutral[100], padding: spacing.sm, borderRadius: 4 }}>
+                  <pre
+                    style={{
+                      fontSize: 12,
+                      background: colors.neutral[100],
+                      padding: spacing.sm,
+                      borderRadius: 4,
+                    }}
+                  >
                     {JSON.stringify(selectedLog.details, null, 2)}
                   </pre>
                 </Card>

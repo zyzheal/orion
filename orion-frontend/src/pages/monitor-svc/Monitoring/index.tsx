@@ -27,11 +27,31 @@ const menuItems = [
 ];
 
 const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
-  '/observability/monitoring/dashboard': { icon: <DashboardOutlined />, title: 'Dashboard', subtitle: '监控总览仪表板' },
-  '/observability/monitoring/metrics': { icon: <LineChartOutlined />, title: 'Metrics', subtitle: '指标查询与分析' },
-  '/observability/monitoring/alerts': { icon: <BellOutlined />, title: 'Alerts', subtitle: '告警管理与响应' },
-  '/observability/monitoring/rules': { icon: <SafetyOutlined />, title: 'Rules', subtitle: '告警规则配置' },
-  '/observability/monitoring/channels': { icon: <MailOutlined />, title: 'Channels', subtitle: '通知渠道管理' },
+  '/observability/monitoring/dashboard': {
+    icon: <DashboardOutlined />,
+    title: 'Dashboard',
+    subtitle: '监控总览仪表板',
+  },
+  '/observability/monitoring/metrics': {
+    icon: <LineChartOutlined />,
+    title: 'Metrics',
+    subtitle: '指标查询与分析',
+  },
+  '/observability/monitoring/alerts': {
+    icon: <BellOutlined />,
+    title: 'Alerts',
+    subtitle: '告警管理与响应',
+  },
+  '/observability/monitoring/rules': {
+    icon: <SafetyOutlined />,
+    title: 'Rules',
+    subtitle: '告警规则配置',
+  },
+  '/observability/monitoring/channels': {
+    icon: <MailOutlined />,
+    title: 'Channels',
+    subtitle: '通知渠道管理',
+  },
 };
 
 // 统一的 Layout 配置
@@ -71,7 +91,10 @@ const MonitoringLayout: React.FC = () => {
       >
         {!collapsed && (
           <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
-            <Title level={LAYOUT_CONFIG.titleLevel} style={{ margin: 0, color: colors.primary[500] }}>
+            <Title
+              level={LAYOUT_CONFIG.titleLevel}
+              style={{ margin: 0, color: colors.primary[500] }}
+            >
               Monitoring
             </Title>
           </div>
@@ -95,12 +118,14 @@ const MonitoringLayout: React.FC = () => {
           {pageInfo.title && (
             <div style={{ marginBottom: spacing.md }}>
               <Title level={2} style={{ marginBottom: spacing.sm }}>
-                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.icon && (
+                  <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>
+                    {pageInfo.icon}
+                  </span>
+                )}
                 {pageInfo.title}
               </Title>
-              {pageInfo.subtitle && (
-                <Text type="secondary">{pageInfo.subtitle}</Text>
-              )}
+              {pageInfo.subtitle && <Text type="secondary">{pageInfo.subtitle}</Text>}
             </div>
           )}
           <Outlet />

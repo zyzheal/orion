@@ -30,14 +30,54 @@ export interface PluginPickerProps {
 }
 
 const SAMPLE_BUILTIN_PLUGINS: PluginItem[] = [
-  { id: 'git/clone', name: 'git/clone', version: '1.0.0', description: 'Clone a git repository', category: 'SCM', tier: 'TIER_1', tags: ['git', 'scm'] },
-  { id: 'npm/install', name: 'npm/install', version: '1.0.0', description: 'Install npm dependencies', category: 'Build', tier: 'TIER_1', tags: ['npm', 'build'] },
-  { id: 'docker/build', name: 'docker/build', version: '1.0.0', description: 'Build Docker image', category: 'Build', tier: 'TIER_2', tags: ['docker', 'build'] },
+  {
+    id: 'git/clone',
+    name: 'git/clone',
+    version: '1.0.0',
+    description: 'Clone a git repository',
+    category: 'SCM',
+    tier: 'TIER_1',
+    tags: ['git', 'scm'],
+  },
+  {
+    id: 'npm/install',
+    name: 'npm/install',
+    version: '1.0.0',
+    description: 'Install npm dependencies',
+    category: 'Build',
+    tier: 'TIER_1',
+    tags: ['npm', 'build'],
+  },
+  {
+    id: 'docker/build',
+    name: 'docker/build',
+    version: '1.0.0',
+    description: 'Build Docker image',
+    category: 'Build',
+    tier: 'TIER_2',
+    tags: ['docker', 'build'],
+  },
 ];
 
 const SAMPLE_MARKETPLACE_PLUGINS: PluginItem[] = [
-  { id: 'sonar-scanner', name: 'sonar-scanner', version: '2.1.0', description: 'Code quality analysis', category: 'Security', tier: 'TIER_2', tags: ['security', 'quality'] },
-  { id: 'terraform', name: 'terraform', version: '1.5.0', description: 'Infrastructure as Code', category: 'Deploy', tier: 'TIER_3', tags: ['iac', 'terraform'] },
+  {
+    id: 'sonar-scanner',
+    name: 'sonar-scanner',
+    version: '2.1.0',
+    description: 'Code quality analysis',
+    category: 'Security',
+    tier: 'TIER_2',
+    tags: ['security', 'quality'],
+  },
+  {
+    id: 'terraform',
+    name: 'terraform',
+    version: '1.5.0',
+    description: 'Infrastructure as Code',
+    category: 'Deploy',
+    tier: 'TIER_3',
+    tags: ['iac', 'terraform'],
+  },
 ];
 
 const TIER_COLORS: Record<string, string> = {
@@ -46,11 +86,7 @@ const TIER_COLORS: Record<string, string> = {
   TIER_3: 'orange',
 };
 
-export const PluginPicker: React.FC<PluginPickerProps> = ({
-  open,
-  onClose,
-  onSelect,
-}) => {
+export const PluginPicker: React.FC<PluginPickerProps> = ({ open, onClose, onSelect }) => {
   const [loading, setLoading] = useState(false);
   const [builtinPlugins, setBuiltinPlugins] = useState<PluginItem[]>([]);
   const [marketplacePlugins, setMarketplacePlugins] = useState<PluginItem[]>([]);
@@ -143,7 +179,11 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
   const renderPluginGrid = (plugins: PluginItem[]) => {
     const filtered = filterPlugins(plugins);
     if (filtered.length === 0) {
-      return <div style={{ color: colors.neutral[500], textAlign: 'center', padding: spacing.lg }}>No plugins found</div>;
+      return (
+        <div style={{ color: colors.neutral[500], textAlign: 'center', padding: spacing.lg }}>
+          No plugins found
+        </div>
+      );
     }
     const grouped = groupByCategory(filtered);
     return Object.entries(grouped).map(([category, items]) => (
@@ -170,12 +210,20 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
     {
       key: 'remote',
       label: 'Remote',
-      children: <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Remote plugin installation by URL (coming soon)</div>,
+      children: (
+        <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>
+          Remote plugin installation by URL (coming soon)
+        </div>
+      ),
     },
     {
       key: 'custom',
       label: 'Custom Script',
-      children: <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Use Inline Script Editor to write custom scripts</div>,
+      children: (
+        <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>
+          Use Inline Script Editor to write custom scripts
+        </div>
+      ),
     },
   ];
 
@@ -209,7 +257,14 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
         <Tabs items={tabsItems} defaultActiveKey="builtin" />
       </Spin>
       {selectedPlugin && (
-        <div style={{ marginTop: spacing.md, padding: spacing[3], background: colors.neutral[100], borderRadius: 4 }}>
+        <div
+          style={{
+            marginTop: spacing.md,
+            padding: spacing[3],
+            background: colors.neutral[100],
+            borderRadius: 4,
+          }}
+        >
           <strong>Selected: {selectedPlugin.name}</strong>
           <div>Version: {selectedPlugin.version}</div>
         </div>

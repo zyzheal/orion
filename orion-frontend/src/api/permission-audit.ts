@@ -37,7 +37,9 @@ export async function queryDeniedLogs(limit = 100) {
  * 查询用户的审计日志
  */
 export async function queryUserAuditLogs(userId: string, limit = 100) {
-  const res = await api.get<AuditLogEntry[]>(`/permission-audit/user/${userId}`, { params: { limit } });
+  const res = await api.get<AuditLogEntry[]>(`/permission-audit/user/${userId}`, {
+    params: { limit },
+  });
   // 拦截器已自动解包，res.data 直接是响应数据
   const data = (res.data as { data?: AuditLogEntry[] }).data ?? [];
   return { data, total: data.length };
@@ -46,7 +48,11 @@ export async function queryUserAuditLogs(userId: string, limit = 100) {
 /**
  * 按资源类型查询审计日志
  */
-export async function queryResourceAuditLogs(resourceType: string, resourceId?: string, limit = 100) {
+export async function queryResourceAuditLogs(
+  resourceType: string,
+  resourceId?: string,
+  limit = 100
+) {
   const res = await api.get<AuditLogEntry[]>(`/permission-audit/resource/${resourceType}`, {
     params: { resourceId, limit },
   });
@@ -59,7 +65,9 @@ export async function queryResourceAuditLogs(resourceType: string, resourceId?: 
  * 统计用户被拒次数
  */
 export async function queryDeniedStats(hours = 24) {
-  const res = await api.get<AuditStats[]>('/permission-audit/stats/denied-by-user', { params: { hours } });
+  const res = await api.get<AuditStats[]>('/permission-audit/stats/denied-by-user', {
+    params: { hours },
+  });
   // 拦截器已自动解包，res.data 直接是响应数据
   return { data: (res.data as { data?: AuditStats[] }).data ?? [], hours };
 }
@@ -82,7 +90,11 @@ export interface UEBAStats {
  */
 export interface AnomalyAlert {
   userId: string;
-  alertType: 'frequent_denial' | 'unusual_resource_access' | 'off_hours_access' | 'cross_tenant_attempt';
+  alertType:
+    | 'frequent_denial'
+    | 'unusual_resource_access'
+    | 'off_hours_access'
+    | 'cross_tenant_attempt';
   severity: 'low' | 'medium' | 'high' | 'critical';
   message: string;
   timestamp: string;

@@ -108,29 +108,66 @@ export async function getExtensionPoints() {
   // 适配前端: 将插件列表转为扩展点格式 (按 capability 分组)
   const capabilityMap = new Map<string, number>();
 
-  res.data.forEach(p => {
-    (p.manifest.capabilities || []).forEach(cap => {
+  res.data.forEach((p) => {
+    (p.manifest.capabilities || []).forEach((cap) => {
       capabilityMap.set(cap, (capabilityMap.get(cap) || 0) + 1);
     });
   });
 
-  const extensionPoints: SPIExtensionPoint[] = Array.from(capabilityMap.entries()).map(([cap, count]) => ({
-    id: cap,
-    name: cap.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase()),
-    description: `提供 ${cap} 能力的插件`,
-    interface: cap,
-    enabled: true,
-    registrationCount: count,
-    createdAt: new Date().toISOString(),
-  }));
+  const extensionPoints: SPIExtensionPoint[] = Array.from(capabilityMap.entries()).map(
+    ([cap, count]) => ({
+      id: cap,
+      name: cap
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/^\w/, (c) => c.toUpperCase()),
+      description: `提供 ${cap} 能力的插件`,
+      interface: cap,
+      enabled: true,
+      registrationCount: count,
+      createdAt: new Date().toISOString(),
+    })
+  );
 
   // 如果没有插件，返回默认扩展点
   if (extensionPoints.length === 0) {
     extensionPoints.push(
-      { id: 'CUSTOM_TASK', name: '自定义任务', description: '扩展 Pipeline 自定义任务类型', interface: 'CUSTOM_TASK', enabled: true, registrationCount: 0, createdAt: '' },
-      { id: 'WEBHOOK_HANDLER', name: 'Webhook 处理器', description: '处理外部 Webhook 事件', interface: 'WEBHOOK_HANDLER', enabled: true, registrationCount: 0, createdAt: '' },
-      { id: 'AI_SKILL', name: 'AI 技能', description: 'AI 能力扩展', interface: 'AI_SKILL', enabled: true, registrationCount: 0, createdAt: '' },
-      { id: 'NOTIFICATION_CHANNEL', name: '通知渠道', description: '扩展通知发送渠道', interface: 'NOTIFICATION_CHANNEL', enabled: true, registrationCount: 0, createdAt: '' },
+      {
+        id: 'CUSTOM_TASK',
+        name: '自定义任务',
+        description: '扩展 Pipeline 自定义任务类型',
+        interface: 'CUSTOM_TASK',
+        enabled: true,
+        registrationCount: 0,
+        createdAt: '',
+      },
+      {
+        id: 'WEBHOOK_HANDLER',
+        name: 'Webhook 处理器',
+        description: '处理外部 Webhook 事件',
+        interface: 'WEBHOOK_HANDLER',
+        enabled: true,
+        registrationCount: 0,
+        createdAt: '',
+      },
+      {
+        id: 'AI_SKILL',
+        name: 'AI 技能',
+        description: 'AI 能力扩展',
+        interface: 'AI_SKILL',
+        enabled: true,
+        registrationCount: 0,
+        createdAt: '',
+      },
+      {
+        id: 'NOTIFICATION_CHANNEL',
+        name: '通知渠道',
+        description: '扩展通知发送渠道',
+        interface: 'NOTIFICATION_CHANNEL',
+        enabled: true,
+        registrationCount: 0,
+        createdAt: '',
+      }
     );
   }
 
@@ -207,7 +244,10 @@ export async function createRegistration(input: Omit<PluginRegistration, 'id' | 
     capabilities: [input.extensionPointName],
     dependencies: [],
   };
-  const res = await api.post<PluginInfo>('/api/v1/plugins-spi/plugins', { manifest, config: input.config });
+  const res = await api.post<PluginInfo>('/api/v1/plugins-spi/plugins', {
+    manifest,
+    config: input.config,
+  });
   return res.data;
 }
 
@@ -230,7 +270,9 @@ export async function getPluginDetails(pluginName: string) {
  * 更新插件配置
  */
 export async function updatePluginConfig(pluginName: string, config: Record<string, unknown>) {
-  const res = await api.put<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}/config`, { config });
+  const res = await api.put<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}/config`, {
+    config,
+  });
   return res.data;
 }
 
@@ -262,15 +304,24 @@ export async function uninstallPlugin(pluginName: string) {
  * 获取插件健康状态
  */
 export async function getPluginHealth(pluginName: string) {
-  const res = await api.get<{ status: 'healthy' | 'unhealthy'; message?: string }>(`/api/v1/plugins-spi/plugins/${pluginName}/health`);
+  const res = await api.get<{ status: 'healthy' | 'unhealthy'; message?: string }>(
+    `/api/v1/plugins-spi/plugins/${pluginName}/health`
+  );
   return res.data;
 }
 
 /**
  * 执行插件
  */
-export async function executePlugin(pluginName: string, input?: Record<string, unknown>, timeout?: number) {
-  const res = await api.post<PluginExecutionResult>(`/api/v1/plugins-spi/plugins/${pluginName}/execute`, { input, timeout });
+export async function executePlugin(
+  pluginName: string,
+  input?: Record<string, unknown>,
+  timeout?: number
+) {
+  const res = await api.post<PluginExecutionResult>(
+    `/api/v1/plugins-spi/plugins/${pluginName}/execute`,
+    { input, timeout }
+  );
   return res.data;
 }
 
@@ -278,6 +329,8 @@ export async function executePlugin(pluginName: string, input?: Record<string, u
  * 发现插件 (扫描插件目录)
  */
 export async function discoverPlugins() {
-  const res = await api.post<{ found: number; plugins: PluginInfo[] }>('/api/v1/plugins-spi/discover');
+  const res = await api.post<{ found: number; plugins: PluginInfo[] }>(
+    '/api/v1/plugins-spi/discover'
+  );
   return res.data;
 }

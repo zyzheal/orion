@@ -100,7 +100,10 @@ const knownErrorStatusConfig: Record<string, { color: string; label: string }> =
 };
 
 /** Status transition map: current -> next available statuses */
-const statusTransitions: Record<string, { status: string; label: string; icon: React.ReactNode }[]> = {
+const statusTransitions: Record<
+  string,
+  { status: string; label: string; icon: React.ReactNode }[]
+> = {
   known: [{ status: 'investigating', label: '开始调查', icon: <SyncOutlined /> }],
   investigating: [{ status: 'resolved', label: '标记解决', icon: <CheckCircleOutlined /> }],
   resolved: [{ status: 'closed', label: '关闭问题', icon: <CloseCircleOutlined /> }],
@@ -407,7 +410,12 @@ const ProblemPage: React.FC = () => {
         symptoms: values.symptoms,
         root_cause: values.root_cause,
         workaround: values.workaround,
-        keywords: values.keywords ? values.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
+        keywords: values.keywords
+          ? values.keywords
+              .split(',')
+              .map((k: string) => k.trim())
+              .filter(Boolean)
+          : [],
         problem_id: values.problem_id,
       });
       message.success('已知错误创建成功');
@@ -431,7 +439,12 @@ const ProblemPage: React.FC = () => {
         symptoms: values.symptoms,
         root_cause: values.root_cause,
         workaround: values.workaround,
-        keywords: values.keywords ? values.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
+        keywords: values.keywords
+          ? values.keywords
+              .split(',')
+              .map((k: string) => k.trim())
+              .filter(Boolean)
+          : [],
         status: values.status,
       });
       message.success('已知错误更新成功');
@@ -544,112 +557,134 @@ const ProblemPage: React.FC = () => {
   // ============================================================================
 
   /** Problem list table columns */
-  const problemColumns: TableColumn<Problem>[] = useMemo<TableColumn<Problem>[]>(() => [
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      render: (_value, record) => (
-        <Text
-          strong
-          style={{ color: colors.primary[600], cursor: 'pointer' }}
-          onClick={() => handleViewDetail(record)}
-        >
-          {record.title}
-        </Text>
-      ),
-    },
-    {
-      key: 'severity',
-      title: '严重级别',
-      dataIndex: 'severity',
-      width: 90,
-      render: (_value, record) => {
-        const sev = severityConfig[record.severity] || severityConfig.medium;
-        return <Tag color={sev.color} icon={sev.icon}>{sev.label}</Tag>;
-      },
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (_value, record) => {
-        const st = statusConfig[record.status] || statusConfig.known;
-        return <Tag color={st.color}>{st.label}</Tag>;
-      },
-    },
-    {
-      key: 'category',
-      title: '分类',
-      dataIndex: 'category',
-      width: 120,
-      render: (_value, record) => <Text type="secondary">{record.category || '-'}</Text>,
-    },
-    {
-      key: 'assigned_to',
-      title: '负责人',
-      dataIndex: 'assigned_to',
-      width: 120,
-      render: (_value, record) => <Text>{record.assigned_to || '-'}</Text>,
-    },
-    {
-      key: 'created_at',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 170,
-      render: (_value, record) => (
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 160,
-      render: (_value, record) => (
-        <Space size={4}>
-          <Button type="text" size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} title="查看详情" />
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenEditModal(record)} title="编辑" />
-          <Popconfirm
-            title="确定删除此问题?"
-            description="删除后不可恢复"
-            onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
+  const problemColumns: TableColumn<Problem>[] = useMemo<TableColumn<Problem>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        render: (_value, record) => (
+          <Text
+            strong
+            style={{ color: colors.primary[600], cursor: 'pointer' }}
+            onClick={() => handleViewDetail(record)}
           >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDelete, handleOpenEditModal, handleViewDetail]);
+            {record.title}
+          </Text>
+        ),
+      },
+      {
+        key: 'severity',
+        title: '严重级别',
+        dataIndex: 'severity',
+        width: 90,
+        render: (_value, record) => {
+          const sev = severityConfig[record.severity] || severityConfig.medium;
+          return (
+            <Tag color={sev.color} icon={sev.icon}>
+              {sev.label}
+            </Tag>
+          );
+        },
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 100,
+        render: (_value, record) => {
+          const st = statusConfig[record.status] || statusConfig.known;
+          return <Tag color={st.color}>{st.label}</Tag>;
+        },
+      },
+      {
+        key: 'category',
+        title: '分类',
+        dataIndex: 'category',
+        width: 120,
+        render: (_value, record) => <Text type="secondary">{record.category || '-'}</Text>,
+      },
+      {
+        key: 'assigned_to',
+        title: '负责人',
+        dataIndex: 'assigned_to',
+        width: 120,
+        render: (_value, record) => <Text>{record.assigned_to || '-'}</Text>,
+      },
+      {
+        key: 'created_at',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 170,
+        render: (_value, record) => (
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 160,
+        render: (_value, record) => (
+          <Space size={4}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetail(record)}
+              title="查看详情"
+            />
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEditModal(record)}
+              title="编辑"
+            />
+            <Popconfirm
+              title="确定删除此问题?"
+              description="删除后不可恢复"
+              onConfirm={() => handleDelete(record.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDelete, handleOpenEditModal, handleViewDetail]
+  );
 
   /** Filter definitions for problem list SearchFilterBar */
-  const problemFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'severity',
-      label: '严重级别',
-      options: [
-        { label: '严重', value: 'critical' },
-        { label: '高', value: 'high' },
-        { label: '中', value: 'medium' },
-        { label: '低', value: 'low' },
-      ],
-    },
-    {
-      key: 'status',
-      label: '状态',
-      options: [
-        { label: '已知', value: 'known' },
-        { label: '调查中', value: 'investigating' },
-        { label: '已解决', value: 'resolved' },
-        { label: '已关闭', value: 'closed' },
-      ],
-    },
-  ], []);
+  const problemFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'severity',
+        label: '严重级别',
+        options: [
+          { label: '严重', value: 'critical' },
+          { label: '高', value: 'high' },
+          { label: '中', value: 'medium' },
+          { label: '低', value: 'low' },
+        ],
+      },
+      {
+        key: 'status',
+        label: '状态',
+        options: [
+          { label: '已知', value: 'known' },
+          { label: '调查中', value: 'investigating' },
+          { label: '已解决', value: 'resolved' },
+          { label: '已关闭', value: 'closed' },
+        ],
+      },
+    ],
+    []
+  );
 
   const problemListContent = (
     <div>
@@ -660,10 +695,20 @@ const ProblemPage: React.FC = () => {
         searchPlaceholder="搜索问题标题、描述、分类..."
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => { loadProblems(); loadStats(); }}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                loadProblems();
+                loadStats();
+              }}
+            >
               刷新
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateModalVisible(true)}
+            >
               新建问题
             </Button>
           </Space>
@@ -678,7 +723,10 @@ const ProblemPage: React.FC = () => {
           pagination={{ current: currentPage, pageSize, total: totalProblems }}
           showTotal
           pageSizeOptions={[10, 20, 50, 100]}
-          onPaginationChange={(p: number, ps: number) => { setCurrentPage(p); setPageSize(ps); }}
+          onPaginationChange={(p: number, ps: number) => {
+            setCurrentPage(p);
+            setPageSize(ps);
+          }}
         />
       </div>
     </div>
@@ -692,13 +740,24 @@ const ProblemPage: React.FC = () => {
     <Spin spinning={detailLoading}>
       <Space direction="vertical" size={spacing.md} style={{ width: '100%' }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: spacing.sm }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: spacing.sm,
+          }}
+        >
           <div>
             <Space align="center" style={{ marginBottom: spacing.sm }}>
               <Title level={3} style={{ margin: 0 }}>
                 {selectedProblem.title}
               </Title>
-              <Tag color={severityConfig[selectedProblem.severity]?.color} icon={severityConfig[selectedProblem.severity]?.icon}>
+              <Tag
+                color={severityConfig[selectedProblem.severity]?.color}
+                icon={severityConfig[selectedProblem.severity]?.icon}
+              >
                 {severityConfig[selectedProblem.severity]?.label}
               </Tag>
               <Tag color={statusConfig[selectedProblem.status]?.color}>
@@ -719,10 +778,7 @@ const ProblemPage: React.FC = () => {
                 {t.label}
               </Button>
             ))}
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => handleOpenEditModal(selectedProblem)}
-            >
+            <Button icon={<EditOutlined />} onClick={() => handleOpenEditModal(selectedProblem)}>
               编辑
             </Button>
             <Button onClick={() => setActiveTab('list')}>返回列表</Button>
@@ -730,17 +786,12 @@ const ProblemPage: React.FC = () => {
         </div>
 
         {/* Detail Descriptions */}
-        <Card
-          title="问题详情"
-          style={{ borderRadius: radius.lg, boxShadow: shadows.card }}
-        >
+        <Card title="问题详情" style={{ borderRadius: radius.lg, boxShadow: shadows.card }}>
           <Descriptions column={{ xs: 1, sm: 2 }} bordered size="small">
             <Descriptions.Item label="描述" span={2}>
               {selectedProblem.description || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="分类">
-              {selectedProblem.category || '-'}
-            </Descriptions.Item>
+            <Descriptions.Item label="分类">{selectedProblem.category || '-'}</Descriptions.Item>
             <Descriptions.Item label="负责人">
               {selectedProblem.assigned_to || '-'}
             </Descriptions.Item>
@@ -757,13 +808,19 @@ const ProblemPage: React.FC = () => {
               {selectedProblem.created_by || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="创建时间">
-              {selectedProblem.created_at ? dayjs(selectedProblem.created_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+              {selectedProblem.created_at
+                ? dayjs(selectedProblem.created_at).format('YYYY-MM-DD HH:mm:ss')
+                : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="解决时间">
-              {selectedProblem.resolved_at ? dayjs(selectedProblem.resolved_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+              {selectedProblem.resolved_at
+                ? dayjs(selectedProblem.resolved_at).format('YYYY-MM-DD HH:mm:ss')
+                : '-'}
             </Descriptions.Item>
             <Descriptions.Item label="关闭时间">
-              {selectedProblem.closed_at ? dayjs(selectedProblem.closed_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+              {selectedProblem.closed_at
+                ? dayjs(selectedProblem.closed_at).format('YYYY-MM-DD HH:mm:ss')
+                : '-'}
             </Descriptions.Item>
           </Descriptions>
         </Card>
@@ -843,104 +900,118 @@ const ProblemPage: React.FC = () => {
   // ============================================================================
 
   /** KEDB table columns */
-  const kedbColumns: TableColumn<KnownError>[] = useMemo<TableColumn<KnownError>[]>(() => [
-    {
-      key: 'title',
-      title: '标题',
-      dataIndex: 'title',
-      render: (_value, record) => <Text strong>{record.title}</Text>,
-    },
-    {
-      key: 'symptoms',
-      title: '症状',
-      dataIndex: 'symptoms',
-      width: 180,
-      ellipsis: true,
-      render: (_value, record) => <Text type="secondary">{record.symptoms || '-'}</Text>,
-    },
-    {
-      key: 'root_cause',
-      title: '根因',
-      dataIndex: 'root_cause',
-      width: 180,
-      ellipsis: true,
-      render: (_value, record) => <Text type="secondary">{record.root_cause || '-'}</Text>,
-    },
-    {
-      key: 'workaround',
-      title: '临时方案',
-      dataIndex: 'workaround',
-      width: 180,
-      ellipsis: true,
-      render: (_value, record) => <Text type="secondary">{record.workaround || '-'}</Text>,
-    },
-    {
-      key: 'status',
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (_value, record) => {
-        const keStatus = knownErrorStatusConfig[record.status] || knownErrorStatusConfig.active;
-        return <Tag color={keStatus.color}>{keStatus.label}</Tag>;
+  const kedbColumns: TableColumn<KnownError>[] = useMemo<TableColumn<KnownError>[]>(
+    () => [
+      {
+        key: 'title',
+        title: '标题',
+        dataIndex: 'title',
+        render: (_value, record) => <Text strong>{record.title}</Text>,
       },
-    },
-    {
-      key: 'keywords',
-      title: '关键词',
-      width: 160,
-      render: (_value, record) => (
-        <Space wrap size={4}>
-          {(record.keywords || []).slice(0, 3).map((kw) => (
-            <Tag key={kw} style={{ borderRadius: componentRadius.tag }}>{kw}</Tag>
-          ))}
-          {(record.keywords || []).length > 3 && <Tag>+{record.keywords.length - 3}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      key: 'created_at',
-      title: '创建时间',
-      dataIndex: 'created_at',
-      width: 170,
-      render: (_value, record) => (
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 120,
-      render: (_value, record) => (
-        <Space size={4}>
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleOpenKedbEditModal(record)} title="编辑" />
-          <Popconfirm
-            title="确定删除此已知错误?"
-            onConfirm={() => handleDeleteKnownError(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ], [handleDeleteKnownError, handleOpenKedbEditModal]);
+      {
+        key: 'symptoms',
+        title: '症状',
+        dataIndex: 'symptoms',
+        width: 180,
+        ellipsis: true,
+        render: (_value, record) => <Text type="secondary">{record.symptoms || '-'}</Text>,
+      },
+      {
+        key: 'root_cause',
+        title: '根因',
+        dataIndex: 'root_cause',
+        width: 180,
+        ellipsis: true,
+        render: (_value, record) => <Text type="secondary">{record.root_cause || '-'}</Text>,
+      },
+      {
+        key: 'workaround',
+        title: '临时方案',
+        dataIndex: 'workaround',
+        width: 180,
+        ellipsis: true,
+        render: (_value, record) => <Text type="secondary">{record.workaround || '-'}</Text>,
+      },
+      {
+        key: 'status',
+        title: '状态',
+        dataIndex: 'status',
+        width: 90,
+        render: (_value, record) => {
+          const keStatus = knownErrorStatusConfig[record.status] || knownErrorStatusConfig.active;
+          return <Tag color={keStatus.color}>{keStatus.label}</Tag>;
+        },
+      },
+      {
+        key: 'keywords',
+        title: '关键词',
+        width: 160,
+        render: (_value, record) => (
+          <Space wrap size={4}>
+            {(record.keywords || []).slice(0, 3).map((kw) => (
+              <Tag key={kw} style={{ borderRadius: componentRadius.tag }}>
+                {kw}
+              </Tag>
+            ))}
+            {(record.keywords || []).length > 3 && <Tag>+{record.keywords.length - 3}</Tag>}
+          </Space>
+        ),
+      },
+      {
+        key: 'created_at',
+        title: '创建时间',
+        dataIndex: 'created_at',
+        width: 170,
+        render: (_value, record) => (
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 120,
+        render: (_value, record) => (
+          <Space size={4}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenKedbEditModal(record)}
+              title="编辑"
+            />
+            <Popconfirm
+              title="确定删除此已知错误?"
+              onConfirm={() => handleDeleteKnownError(record.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+            </Popconfirm>
+          </Space>
+        ),
+      },
+    ],
+    [handleDeleteKnownError, handleOpenKedbEditModal]
+  );
 
   /** Filter definitions for KEDB SearchFilterBar */
-  const kedbFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(() => [
-    {
-      key: 'kedbStatus',
-      label: '状态',
-      options: [
-        { label: '活跃', value: 'active' },
-        { label: '已解决', value: 'resolved' },
-        { label: '已归档', value: 'archived' },
-      ],
-    },
-  ], []);
+  const kedbFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
+    () => [
+      {
+        key: 'kedbStatus',
+        label: '状态',
+        options: [
+          { label: '活跃', value: 'active' },
+          { label: '已解决', value: 'resolved' },
+          { label: '已归档', value: 'archived' },
+        ],
+      },
+    ],
+    []
+  );
 
   const kedbContent = (
     <div>
@@ -954,7 +1025,11 @@ const ProblemPage: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={loadKnownErrors}>
               刷新
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setKedbModalVisible(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setKedbModalVisible(true)}
+            >
               新建已知错误
             </Button>
           </Space>
@@ -969,7 +1044,10 @@ const ProblemPage: React.FC = () => {
           pagination={{ current: kedbPage, pageSize: kedbPageSize, total: kedbTotal }}
           showTotal
           pageSizeOptions={[10, 20, 50]}
-          onPaginationChange={(p: number, ps: number) => { setKedbPage(p); setKedbPageSize(ps); }}
+          onPaginationChange={(p: number, ps: number) => {
+            setKedbPage(p);
+            setKedbPageSize(ps);
+          }}
         />
       </div>
     </div>
@@ -1015,299 +1093,294 @@ const ProblemPage: React.FC = () => {
 
   return (
     <Layout>
-    <div style={{ padding: 0 }}>
-      {/* Page header */}
-      <div style={{ marginBottom: spacing.lg }}>
-        <Title level={2} style={{ marginBottom: spacing.sm }}>
-          <BugOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-          问题管理
-        </Title>
-        <Text type="secondary">管理问题生命周期，关联事件和变更，维护已知错误数据库</Text>
+      <div style={{ padding: 0 }}>
+        {/* Page header */}
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BugOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            问题管理
+          </Title>
+          <Text type="secondary">管理问题生命周期，关联事件和变更，维护已知错误数据库</Text>
+        </div>
+
+        {/* Stats bar */}
+        {statCards}
+
+        {/* Main content with tabs */}
+        <Spin spinning={loading}>
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
+        </Spin>
+
+        {/* ==================== Modals ==================== */}
+
+        {/* Create Problem Modal */}
+        <Modal
+          title="新建问题"
+          open={createModalVisible}
+          onOk={handleCreate}
+          onCancel={() => {
+            setCreateModalVisible(false);
+            createForm.resetFields();
+          }}
+          okText="创建"
+          cancelText="取消"
+          width={640}
+          destroyOnClose
+        >
+          <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
+            <Form.Item
+              name="title"
+              label="问题标题"
+              rules={[{ required: true, message: '请输入问题标题' }]}
+            >
+              <Input placeholder="简要描述问题" />
+            </Form.Item>
+            <Form.Item name="description" label="问题描述">
+              <TextArea rows={3} placeholder="详细描述问题现象" />
+            </Form.Item>
+            <Row gutter={spacing.md}>
+              <Col span={8}>
+                <Form.Item
+                  name="severity"
+                  label="严重级别"
+                  rules={[{ required: true, message: '请选择严重级别' }]}
+                >
+                  <Select
+                    placeholder="选择级别"
+                    options={[
+                      { label: '严重', value: 'critical' },
+                      { label: '高', value: 'high' },
+                      { label: '中', value: 'medium' },
+                      { label: '低', value: 'low' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="category" label="分类">
+                  <Input placeholder="问题分类" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="assigned_to" label="负责人">
+                  <Input placeholder="分配给" />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+        </Modal>
+
+        {/* Edit Problem Modal */}
+        <Modal
+          title="编辑问题"
+          open={editModalVisible}
+          onOk={handleEdit}
+          onCancel={() => {
+            setEditModalVisible(false);
+            editForm.resetFields();
+          }}
+          okText="保存"
+          cancelText="取消"
+          width={720}
+          destroyOnClose
+        >
+          <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
+            <Form.Item
+              name="title"
+              label="问题标题"
+              rules={[{ required: true, message: '请输入问题标题' }]}
+            >
+              <Input placeholder="简要描述问题" />
+            </Form.Item>
+            <Form.Item name="description" label="问题描述">
+              <TextArea rows={3} placeholder="详细描述问题现象" />
+            </Form.Item>
+            <Row gutter={spacing.md}>
+              <Col span={8}>
+                <Form.Item
+                  name="severity"
+                  label="严重级别"
+                  rules={[{ required: true, message: '请选择严重级别' }]}
+                >
+                  <Select
+                    placeholder="选择级别"
+                    options={[
+                      { label: '严重', value: 'critical' },
+                      { label: '高', value: 'high' },
+                      { label: '中', value: 'medium' },
+                      { label: '低', value: 'low' },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="category" label="分类">
+                  <Input placeholder="问题分类" />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item name="assigned_to" label="负责人">
+                  <Input placeholder="分配给" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Form.Item name="root_cause" label="根因分析">
+              <TextArea rows={2} placeholder="问题的根本原因" />
+            </Form.Item>
+            <Form.Item name="workaround" label="临时解决方案">
+              <TextArea rows={2} placeholder="临时规避方案" />
+            </Form.Item>
+            <Form.Item name="resolution" label="永久解决方案">
+              <TextArea rows={2} placeholder="永久修复方案" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Link Incident Modal */}
+        <Modal
+          title="关联事件"
+          open={linkIncidentModalVisible}
+          onOk={handleLinkIncident}
+          onCancel={() => {
+            setLinkIncidentModalVisible(false);
+            linkForm.resetFields();
+          }}
+          okText="关联"
+          cancelText="取消"
+          confirmLoading={linkingLoading}
+          width={480}
+          destroyOnClose
+        >
+          <Form form={linkForm} layout="vertical" style={{ marginTop: spacing.md }}>
+            <Form.Item
+              name="id"
+              label="事件 ID"
+              rules={[{ required: true, message: '请输入事件 ID' }]}
+            >
+              <Input placeholder="输入要关联的事件 ID" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Link Change Modal */}
+        <Modal
+          title="关联变更"
+          open={linkChangeModalVisible}
+          onOk={handleLinkChange}
+          onCancel={() => {
+            setLinkChangeModalVisible(false);
+            linkForm.resetFields();
+          }}
+          okText="关联"
+          cancelText="取消"
+          confirmLoading={linkingLoading}
+          width={480}
+          destroyOnClose
+        >
+          <Form form={linkForm} layout="vertical" style={{ marginTop: spacing.md }}>
+            <Form.Item
+              name="id"
+              label="变更 ID"
+              rules={[{ required: true, message: '请输入变更 ID' }]}
+            >
+              <Input placeholder="输入要关联的变更 ID" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Create Known Error Modal */}
+        <Modal
+          title="新建已知错误"
+          open={kedbModalVisible}
+          onOk={handleCreateKnownError}
+          onCancel={() => {
+            setKedbModalVisible(false);
+            kedbForm.resetFields();
+          }}
+          okText="创建"
+          cancelText="取消"
+          width={640}
+          destroyOnClose
+        >
+          <Form form={kedbForm} layout="vertical" style={{ marginTop: spacing.md }}>
+            <Form.Item
+              name="title"
+              label="标题"
+              rules={[{ required: true, message: '请输入标题' }]}
+            >
+              <Input placeholder="已知错误标题" />
+            </Form.Item>
+            <Form.Item name="description" label="描述">
+              <TextArea rows={2} placeholder="详细描述" />
+            </Form.Item>
+            <Form.Item name="symptoms" label="症状">
+              <TextArea rows={2} placeholder="可观测到的症状" />
+            </Form.Item>
+            <Form.Item name="root_cause" label="根因">
+              <TextArea rows={2} placeholder="根本原因" />
+            </Form.Item>
+            <Form.Item name="workaround" label="临时方案">
+              <TextArea rows={2} placeholder="临时解决方案" />
+            </Form.Item>
+            <Form.Item name="keywords" label="关键词" help="多个关键词用逗号分隔">
+              <Input placeholder="关键词1, 关键词2, ..." />
+            </Form.Item>
+            <Form.Item name="problem_id" label="关联问题 ID">
+              <Input placeholder="可选：关联的问题 ID" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Edit Known Error Modal */}
+        <Modal
+          title="编辑已知错误"
+          open={kedbEditModalVisible}
+          onOk={handleEditKnownError}
+          onCancel={() => {
+            setKedbEditModalVisible(false);
+            kedbEditForm.resetFields();
+            setEditingKnownError(null);
+          }}
+          okText="保存"
+          cancelText="取消"
+          width={640}
+          destroyOnClose
+        >
+          <Form form={kedbEditForm} layout="vertical" style={{ marginTop: spacing.md }}>
+            <Form.Item
+              name="title"
+              label="标题"
+              rules={[{ required: true, message: '请输入标题' }]}
+            >
+              <Input placeholder="已知错误标题" />
+            </Form.Item>
+            <Form.Item name="description" label="描述">
+              <TextArea rows={2} placeholder="详细描述" />
+            </Form.Item>
+            <Form.Item name="symptoms" label="症状">
+              <TextArea rows={2} placeholder="可观测到的症状" />
+            </Form.Item>
+            <Form.Item name="root_cause" label="根因">
+              <TextArea rows={2} placeholder="根本原因" />
+            </Form.Item>
+            <Form.Item name="workaround" label="临时方案">
+              <TextArea rows={2} placeholder="临时解决方案" />
+            </Form.Item>
+            <Form.Item name="keywords" label="关键词" help="多个关键词用逗号分隔">
+              <Input placeholder="关键词1, 关键词2, ..." />
+            </Form.Item>
+            <Form.Item name="status" label="状态">
+              <Select
+                options={[
+                  { label: '活跃', value: 'active' },
+                  { label: '已解决', value: 'resolved' },
+                  { label: '已归档', value: 'archived' },
+                ]}
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
-
-      {/* Stats bar */}
-      {statCards}
-
-      {/* Main content with tabs */}
-      <Spin spinning={loading}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={tabItems}
-          size="large"
-        />
-      </Spin>
-
-      {/* ==================== Modals ==================== */}
-
-      {/* Create Problem Modal */}
-      <Modal
-        title="新建问题"
-        open={createModalVisible}
-        onOk={handleCreate}
-        onCancel={() => {
-          setCreateModalVisible(false);
-          createForm.resetFields();
-        }}
-        okText="创建"
-        cancelText="取消"
-        width={640}
-        destroyOnClose
-      >
-        <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="title"
-            label="问题标题"
-            rules={[{ required: true, message: '请输入问题标题' }]}
-          >
-            <Input placeholder="简要描述问题" />
-          </Form.Item>
-          <Form.Item name="description" label="问题描述">
-            <TextArea rows={3} placeholder="详细描述问题现象" />
-          </Form.Item>
-          <Row gutter={spacing.md}>
-            <Col span={8}>
-              <Form.Item
-                name="severity"
-                label="严重级别"
-                rules={[{ required: true, message: '请选择严重级别' }]}
-              >
-                <Select
-                  placeholder="选择级别"
-                  options={[
-                    { label: '严重', value: 'critical' },
-                    { label: '高', value: 'high' },
-                    { label: '中', value: 'medium' },
-                    { label: '低', value: 'low' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="category" label="分类">
-                <Input placeholder="问题分类" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="assigned_to" label="负责人">
-                <Input placeholder="分配给" />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      {/* Edit Problem Modal */}
-      <Modal
-        title="编辑问题"
-        open={editModalVisible}
-        onOk={handleEdit}
-        onCancel={() => {
-          setEditModalVisible(false);
-          editForm.resetFields();
-        }}
-        okText="保存"
-        cancelText="取消"
-        width={720}
-        destroyOnClose
-      >
-        <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="title"
-            label="问题标题"
-            rules={[{ required: true, message: '请输入问题标题' }]}
-          >
-            <Input placeholder="简要描述问题" />
-          </Form.Item>
-          <Form.Item name="description" label="问题描述">
-            <TextArea rows={3} placeholder="详细描述问题现象" />
-          </Form.Item>
-          <Row gutter={spacing.md}>
-            <Col span={8}>
-              <Form.Item
-                name="severity"
-                label="严重级别"
-                rules={[{ required: true, message: '请选择严重级别' }]}
-              >
-                <Select
-                  placeholder="选择级别"
-                  options={[
-                    { label: '严重', value: 'critical' },
-                    { label: '高', value: 'high' },
-                    { label: '中', value: 'medium' },
-                    { label: '低', value: 'low' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="category" label="分类">
-                <Input placeholder="问题分类" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="assigned_to" label="负责人">
-                <Input placeholder="分配给" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="root_cause" label="根因分析">
-            <TextArea rows={2} placeholder="问题的根本原因" />
-          </Form.Item>
-          <Form.Item name="workaround" label="临时解决方案">
-            <TextArea rows={2} placeholder="临时规避方案" />
-          </Form.Item>
-          <Form.Item name="resolution" label="永久解决方案">
-            <TextArea rows={2} placeholder="永久修复方案" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Link Incident Modal */}
-      <Modal
-        title="关联事件"
-        open={linkIncidentModalVisible}
-        onOk={handleLinkIncident}
-        onCancel={() => {
-          setLinkIncidentModalVisible(false);
-          linkForm.resetFields();
-        }}
-        okText="关联"
-        cancelText="取消"
-        confirmLoading={linkingLoading}
-        width={480}
-        destroyOnClose
-      >
-        <Form form={linkForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="id"
-            label="事件 ID"
-            rules={[{ required: true, message: '请输入事件 ID' }]}
-          >
-            <Input placeholder="输入要关联的事件 ID" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Link Change Modal */}
-      <Modal
-        title="关联变更"
-        open={linkChangeModalVisible}
-        onOk={handleLinkChange}
-        onCancel={() => {
-          setLinkChangeModalVisible(false);
-          linkForm.resetFields();
-        }}
-        okText="关联"
-        cancelText="取消"
-        confirmLoading={linkingLoading}
-        width={480}
-        destroyOnClose
-      >
-        <Form form={linkForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="id"
-            label="变更 ID"
-            rules={[{ required: true, message: '请输入变更 ID' }]}
-          >
-            <Input placeholder="输入要关联的变更 ID" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Create Known Error Modal */}
-      <Modal
-        title="新建已知错误"
-        open={kedbModalVisible}
-        onOk={handleCreateKnownError}
-        onCancel={() => {
-          setKedbModalVisible(false);
-          kedbForm.resetFields();
-        }}
-        okText="创建"
-        cancelText="取消"
-        width={640}
-        destroyOnClose
-      >
-        <Form form={kedbForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
-            <Input placeholder="已知错误标题" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="详细描述" />
-          </Form.Item>
-          <Form.Item name="symptoms" label="症状">
-            <TextArea rows={2} placeholder="可观测到的症状" />
-          </Form.Item>
-          <Form.Item name="root_cause" label="根因">
-            <TextArea rows={2} placeholder="根本原因" />
-          </Form.Item>
-          <Form.Item name="workaround" label="临时方案">
-            <TextArea rows={2} placeholder="临时解决方案" />
-          </Form.Item>
-          <Form.Item name="keywords" label="关键词" help="多个关键词用逗号分隔">
-            <Input placeholder="关键词1, 关键词2, ..." />
-          </Form.Item>
-          <Form.Item name="problem_id" label="关联问题 ID">
-            <Input placeholder="可选：关联的问题 ID" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Known Error Modal */}
-      <Modal
-        title="编辑已知错误"
-        open={kedbEditModalVisible}
-        onOk={handleEditKnownError}
-        onCancel={() => {
-          setKedbEditModalVisible(false);
-          kedbEditForm.resetFields();
-          setEditingKnownError(null);
-        }}
-        okText="保存"
-        cancelText="取消"
-        width={640}
-        destroyOnClose
-      >
-        <Form form={kedbEditForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
-            <Input placeholder="已知错误标题" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="详细描述" />
-          </Form.Item>
-          <Form.Item name="symptoms" label="症状">
-            <TextArea rows={2} placeholder="可观测到的症状" />
-          </Form.Item>
-          <Form.Item name="root_cause" label="根因">
-            <TextArea rows={2} placeholder="根本原因" />
-          </Form.Item>
-          <Form.Item name="workaround" label="临时方案">
-            <TextArea rows={2} placeholder="临时解决方案" />
-          </Form.Item>
-          <Form.Item name="keywords" label="关键词" help="多个关键词用逗号分隔">
-            <Input placeholder="关键词1, 关键词2, ..." />
-          </Form.Item>
-          <Form.Item name="status" label="状态">
-            <Select
-              options={[
-                { label: '活跃', value: 'active' },
-                { label: '已解决', value: 'resolved' },
-                { label: '已归档', value: 'archived' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
     </Layout>
   );
 };

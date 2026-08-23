@@ -3,9 +3,32 @@
  * View test reports from pipeline runs with case-level details
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { Typography, Button, Space, Tag, message, Tabs, Select, Input, Table, Statistic, Row, Col, Card, Descriptions } from 'antd';
+import {
+  Typography,
+  Button,
+  Space,
+  Tag,
+  message,
+  Tabs,
+  Select,
+  Input,
+  Table,
+  Statistic,
+  Row,
+  Col,
+  Card,
+  Descriptions,
+} from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, ExperimentOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  ReloadOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  MinusCircleOutlined,
+  ExperimentOutlined,
+} from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
   getTestReports,
@@ -85,7 +108,8 @@ const TestReportPage: React.FC = () => {
       if (caseStatusFilter !== 'all' && c.status !== caseStatusFilter) return false;
       if (caseSearch) {
         const q = caseSearch.toLowerCase();
-        if (!c.name.toLowerCase().includes(q) && !c.fullName?.toLowerCase().includes(q)) return false;
+        if (!c.name.toLowerCase().includes(q) && !c.fullName?.toLowerCase().includes(q))
+          return false;
       }
       return true;
     });
@@ -122,7 +146,11 @@ const TestReportPage: React.FC = () => {
       render: (v: string, r: TestCase) => (
         <Space direction="vertical" size={0}>
           <Text strong>{v}</Text>
-          {r.className && <Text type="secondary" style={{ fontSize: spacing[2] }}>{r.className}</Text>}
+          {r.className && (
+            <Text type="secondary" style={{ fontSize: spacing[2] }}>
+              {r.className}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -135,7 +163,7 @@ const TestReportPage: React.FC = () => {
     {
       title: '失败信息',
       dataIndex: 'failureMessage',
-      render: (v: string) => v ? <Text type="danger">{v}</Text> : '-',
+      render: (v: string) => (v ? <Text type="danger">{v}</Text> : '-'),
     },
   ];
 
@@ -176,14 +204,14 @@ const TestReportPage: React.FC = () => {
       dataIndex: 'failedTests',
       width: 80,
       align: 'center' as const,
-      render: (v: number) => v > 0 ? <Tag color="red">{v}</Tag> : <Tag color="green">0</Tag>,
+      render: (v: number) => (v > 0 ? <Tag color="red">{v}</Tag> : <Tag color="green">0</Tag>),
     },
     {
       title: '跳过',
       dataIndex: 'skippedTests',
       width: 80,
       align: 'center' as const,
-      render: (v: number) => v > 0 ? <Tag color="orange">{v}</Tag> : <Tag>0</Tag>,
+      render: (v: number) => (v > 0 ? <Tag color="orange">{v}</Tag> : <Tag>0</Tag>),
     },
     {
       title: '耗时',
@@ -196,12 +224,17 @@ const TestReportPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+      <div
+        style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}
+      >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+          <Title
+            level={2}
+            style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+          >
             <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             测试报告
           </Title>
@@ -243,12 +276,7 @@ const TestReportPage: React.FC = () => {
               />
             </Col>
             <Col span={4}>
-              <Statistic
-                title="通过率"
-                value={summary.passRate}
-                precision={1}
-                suffix="%"
-              />
+              <Statistic title="通过率" value={summary.passRate} precision={1} suffix="%" />
             </Col>
             <Col span={4}>
               <Statistic
@@ -294,24 +322,48 @@ const TestReportPage: React.FC = () => {
                       bordered
                     >
                       <Descriptions.Item label="报告">{selectedReport.suiteName}</Descriptions.Item>
-                      <Descriptions.Item label="格式">{selectedReport.format.toUpperCase()}</Descriptions.Item>
-                      <Descriptions.Item label="耗时">{(selectedReport.duration / 1000).toFixed(1)}s</Descriptions.Item>
+                      <Descriptions.Item label="格式">
+                        {selectedReport.format.toUpperCase()}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="耗时">
+                        {(selectedReport.duration / 1000).toFixed(1)}s
+                      </Descriptions.Item>
                     </Descriptions>
 
                     {selectedReport.coverage && (
                       <Card title="覆盖率" size="small" style={{ marginBottom: spacing.md }}>
                         <Row gutter={16}>
                           <Col span={6}>
-                            <Statistic title="行覆盖率" value={selectedReport.coverage.lines} precision={1} suffix="%" />
+                            <Statistic
+                              title="行覆盖率"
+                              value={selectedReport.coverage.lines}
+                              precision={1}
+                              suffix="%"
+                            />
                           </Col>
                           <Col span={6}>
-                            <Statistic title="分支覆盖率" value={selectedReport.coverage.branches} precision={1} suffix="%" />
+                            <Statistic
+                              title="分支覆盖率"
+                              value={selectedReport.coverage.branches}
+                              precision={1}
+                              suffix="%"
+                            />
                           </Col>
                           <Col span={6}>
-                            <Statistic title="函数覆盖率" value={selectedReport.coverage.functions} precision={1} suffix="%" />
+                            <Statistic
+                              title="函数覆盖率"
+                              value={selectedReport.coverage.functions}
+                              precision={1}
+                              suffix="%"
+                            />
                           </Col>
                           <Col span={6}>
-                            <Statistic title="语句覆盖率" value={selectedReport.coverage.statements} precision={1} suffix="%" />
+                            <Statistic
+                              title="语句覆盖率"
+                              value={selectedReport.coverage.statements}
+                              precision={1}
+                              suffix="%"
+                            />
                           </Col>
                         </Row>
                       </Card>

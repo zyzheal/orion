@@ -9,7 +9,11 @@ vi.mock('antd', async () => {
 });
 
 function renderPage() {
-  return render(<BrowserRouter><CanaryTrafficPage /></BrowserRouter>);
+  return render(
+    <BrowserRouter>
+      <CanaryTrafficPage />
+    </BrowserRouter>
+  );
 }
 
 describe('CanaryTrafficPage', () => {

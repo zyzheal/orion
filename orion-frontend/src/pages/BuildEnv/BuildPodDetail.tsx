@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Descriptions, Spin, message, Space } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined, CloudServerOutlined,} from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, CloudServerOutlined } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
@@ -109,10 +109,27 @@ const BuildPodDetail: React.FC = () => {
               Back
             </Button>
             <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              <CloudServerOutlined
+                style={{ marginRight: spacing[3], color: colors.primary[500] }}
+              />
               {pod?.name || 'Build Pod'}
             </Title>
-            {pod && <StatusBadge status={(pod.status as string) === 'running' ? 'running' : (pod.status as string) === 'success' ? 'success' : (pod.status as string) === 'failed' ? 'failed' : (pod.status as string) === 'pending' ? 'pending' : 'cancelled'} size="small" />}
+            {pod && (
+              <StatusBadge
+                status={
+                  (pod.status as string) === 'running'
+                    ? 'running'
+                    : (pod.status as string) === 'success'
+                      ? 'success'
+                      : (pod.status as string) === 'failed'
+                        ? 'failed'
+                        : (pod.status as string) === 'pending'
+                          ? 'pending'
+                          : 'cancelled'
+                }
+                size="small"
+              />
+            )}
           </div>
           <Space>
             <Button
@@ -140,7 +157,20 @@ const BuildPodDetail: React.FC = () => {
             <Descriptions.Item label="Run ID">{pod.runId}</Descriptions.Item>
             <Descriptions.Item label="Stage ID">{pod.stageId}</Descriptions.Item>
             <Descriptions.Item label="Status">
-              <StatusBadge status={(pod.status as string) === 'running' ? 'running' : (pod.status as string) === 'success' ? 'success' : (pod.status as string) === 'failed' ? 'failed' : (pod.status as string) === 'pending' ? 'pending' : 'cancelled'} size="small" />
+              <StatusBadge
+                status={
+                  (pod.status as string) === 'running'
+                    ? 'running'
+                    : (pod.status as string) === 'success'
+                      ? 'success'
+                      : (pod.status as string) === 'failed'
+                        ? 'failed'
+                        : (pod.status as string) === 'pending'
+                          ? 'pending'
+                          : 'cancelled'
+                }
+                size="small"
+              />
             </Descriptions.Item>
             <Descriptions.Item label="Created">
               {dayjs(pod.createdAt).format('YYYY-MM-DD HH:mm:ss')}

@@ -150,7 +150,9 @@ export default function ScriptLibraryPage() {
   const [activeTab, setActiveTab] = useState('scripts');
 
   // Category options (derived from scripts)
-  const categoryOptions = Array.from(new Set(scripts.map((s) => s.category).filter(Boolean))) as string[];
+  const categoryOptions = Array.from(
+    new Set(scripts.map((s) => s.category).filter(Boolean))
+  ) as string[];
 
   // ==================== Script CRUD ====================
 
@@ -334,7 +336,13 @@ export default function ScriptLibraryPage() {
         updatedParams = parameters.map((p) =>
           p.paramKey === editingParam.paramKey
             ? newParam
-            : { paramKey: p.paramKey, paramType: p.paramType, required: p.required, defaultValue: p.defaultValue ?? undefined, description: p.description ?? undefined },
+            : {
+                paramKey: p.paramKey,
+                paramType: p.paramType,
+                required: p.required,
+                defaultValue: p.defaultValue ?? undefined,
+                description: p.description ?? undefined,
+              }
         );
       } else {
         updatedParams = [
@@ -393,7 +401,12 @@ export default function ScriptLibraryPage() {
       const defaults: Record<string, unknown> = {};
       params.forEach((p) => {
         if (p.defaultValue) {
-          defaults[p.paramKey] = p.paramType === 'number' ? Number(p.defaultValue) : p.paramType === 'boolean' ? p.defaultValue === 'true' : p.defaultValue;
+          defaults[p.paramKey] =
+            p.paramType === 'number'
+              ? Number(p.defaultValue)
+              : p.paramType === 'boolean'
+                ? p.defaultValue === 'true'
+                : p.defaultValue;
         }
       });
       executeForm.setFieldsValue({ params: defaults });
@@ -446,9 +459,7 @@ export default function ScriptLibraryPage() {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string, record) => (
-        <a onClick={() => handleViewDetail(record)}>{text}</a>
-      ),
+      render: (text: string, record) => <a onClick={() => handleViewDetail(record)}>{text}</a>,
     },
     {
       title: '类型',
@@ -870,7 +881,11 @@ export default function ScriptLibraryPage() {
         width={600}
       >
         <Form form={scriptForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入脚本名称' }]}>
+          <Form.Item
+            name="name"
+            label="名称"
+            rules={[{ required: true, message: '请输入脚本名称' }]}
+          >
             <Input placeholder="输入脚本名称" />
           </Form.Item>
           <Form.Item name="description" label="描述">
@@ -919,12 +934,7 @@ export default function ScriptLibraryPage() {
       >
         {selectedScript && (
           <>
-            <Descriptions
-              column={2}
-              bordered
-              size="small"
-              style={{ marginBottom: spacing.lg }}
-            >
+            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
               <Descriptions.Item label="类型">
                 <Tag color={scriptTypeColor[selectedScript.scriptType]}>
                   {scriptTypeLabel[selectedScript.scriptType]}
@@ -1187,7 +1197,9 @@ export default function ScriptLibraryPage() {
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="版本">v{selectedExecution.version}</Descriptions.Item>
-              <Descriptions.Item label="执行者">{selectedExecution.executedBy ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="执行者">
+                {selectedExecution.executedBy ?? '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="耗时">
                 {selectedExecution.durationMs != null ? `${selectedExecution.durationMs}ms` : '-'}
               </Descriptions.Item>
@@ -1217,10 +1229,7 @@ export default function ScriptLibraryPage() {
             {selectedExecution.output && (
               <div style={{ marginBottom: spacing.md }}>
                 <Title level={5}>输出</Title>
-                <Card
-                  size="small"
-                  style={{ background: colors.neutral[50] }}
-                >
+                <Card size="small" style={{ background: colors.neutral[50] }}>
                   <pre
                     style={{
                       margin: 0,
@@ -1242,10 +1251,7 @@ export default function ScriptLibraryPage() {
                 <Title level={5} style={{ color: colors.error[500] }}>
                   错误信息
                 </Title>
-                <Card
-                  size="small"
-                  style={{ background: colors.error[50] }}
-                >
+                <Card size="small" style={{ background: colors.error[50] }}>
                   <pre
                     style={{
                       margin: 0,

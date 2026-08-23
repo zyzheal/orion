@@ -6,8 +6,28 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { inceptionApi, SqlAuditResult, SqlParseResult, SqlExecuteResult, AuditRecord } from '@/api/inception';
-import { Card, Input, Button, Space, Table, Tag, message, Spin, Row, Col, Badge, Descriptions, Select } from 'antd';
+import {
+  inceptionApi,
+  SqlAuditResult,
+  SqlParseResult,
+  SqlExecuteResult,
+  AuditRecord,
+} from '@/api/inception';
+import {
+  Card,
+  Input,
+  Button,
+  Space,
+  Table,
+  Tag,
+  message,
+  Spin,
+  Row,
+  Col,
+  Badge,
+  Descriptions,
+  Select,
+} from 'antd';
 import {
   SearchOutlined,
   CodeOutlined,
@@ -33,7 +53,9 @@ const RiskBadge: React.FC<{ level: 'low' | 'medium' | 'high' }> = ({ level }) =>
 
 const InceptionPage: React.FC = () => {
   // Connection state
-  const [status, setStatus] = useState<{ connected: boolean; host: string; port: number } | null>(null);
+  const [status, setStatus] = useState<{ connected: boolean; host: string; port: number } | null>(
+    null
+  );
 
   // SQL input
   const [sql, setSql] = useState('');
@@ -148,11 +170,7 @@ const InceptionPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      const res = await inceptionApi.execute(
-        sql,
-        database || undefined,
-        dryRun
-      );
+      const res = await inceptionApi.execute(sql, database || undefined, dryRun);
       setExecuteResult(res.data as SqlExecuteResult);
       setResultTab('execute');
       message.success(dryRun ? 'Dry Run 执行完成' : 'SQL 执行完成');
@@ -186,7 +204,10 @@ const InceptionPage: React.FC = () => {
       key: 'sql',
       ellipsis: true,
       render: (sqlText: string) => (
-        <code style={{ fontSize: 12, color: colors.neutral[600] }}>{sqlText.slice(0, 80)}{sqlText.length > 80 ? '...' : ''}</code>
+        <code style={{ fontSize: 12, color: colors.neutral[600] }}>
+          {sqlText.slice(0, 80)}
+          {sqlText.length > 80 ? '...' : ''}
+        </code>
       ),
     },
     {
@@ -201,7 +222,9 @@ const InceptionPage: React.FC = () => {
           warning: { color: 'warning', text: '警告' },
         };
         const s = statusMap[status] || { color: 'default', text: status };
-        return <Badge status={s.color as 'success' | 'error' | 'warning' | 'default'} text={s.text} />;
+        return (
+          <Badge status={s.color as 'success' | 'error' | 'warning' | 'default'} text={s.text} />
+        );
       },
     },
     {
@@ -238,7 +261,9 @@ const InceptionPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={16}>
           <h2 style={{ margin: 0 }}>
-            <SafetyCertificateOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
+            <SafetyCertificateOutlined
+              style={{ marginRight: spacing.sm, color: colors.primary[500] }}
+            />
             SQL 审计引擎 (Inception)
           </h2>
         </Col>
@@ -258,20 +283,23 @@ const InceptionPage: React.FC = () => {
       <Row gutter={16}>
         {/* Left: SQL Input */}
         <Col span={12}>
-          <Card title="SQL 输入" extra={
-            <Space>
-              {databases.length > 0 && (
-                <Select
-                  allowClear
-                  placeholder="选择数据库"
-                  style={{ width: 160 }}
-                  value={database}
-                  onChange={(v: any) => setDatabase(v || '')}
-                  options={databases.map((d) => ({ value: d, label: d }))}
-                />
-              )}
-            </Space>
-          }>
+          <Card
+            title="SQL 输入"
+            extra={
+              <Space>
+                {databases.length > 0 && (
+                  <Select
+                    allowClear
+                    placeholder="选择数据库"
+                    style={{ width: 160 }}
+                    value={database}
+                    onChange={(v: any) => setDatabase(v || '')}
+                    options={databases.map((d) => ({ value: d, label: d }))}
+                  />
+                )}
+              </Space>
+            }
+          >
             <TextArea
               value={sql}
               onChange={(e) => setSql(e.target.value)}
@@ -292,11 +320,7 @@ const InceptionPage: React.FC = () => {
               >
                 审计 SQL
               </Button>
-              <Button
-                icon={<CodeOutlined />}
-                onClick={handleParse}
-                loading={loading}
-              >
+              <Button icon={<CodeOutlined />} onClick={handleParse} loading={loading}>
                 解析 SQL
               </Button>
               <Button
@@ -314,7 +338,16 @@ const InceptionPage: React.FC = () => {
               >
                 执行 SQL
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={() => { setSql(''); setAuditResult(null); setParseResult(null); setExecuteResult(null); setResultTab('none'); }}>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => {
+                  setSql('');
+                  setAuditResult(null);
+                  setParseResult(null);
+                  setExecuteResult(null);
+                  setResultTab('none');
+                }}
+              >
                 清空
               </Button>
             </Space>
@@ -344,7 +377,9 @@ const InceptionPage: React.FC = () => {
                   {/* Errors Table */}
                   {auditResult.errors.length > 0 && (
                     <div style={{ marginBottom: spacing.md }}>
-                      <h4 style={{ color: colors.error[500], marginBottom: spacing.sm }}>错误 ({auditResult.errors.length})</h4>
+                      <h4 style={{ color: colors.error[500], marginBottom: spacing.sm }}>
+                        错误 ({auditResult.errors.length})
+                      </h4>
                       <Table
                         bordered
                         size="small"
@@ -352,7 +387,13 @@ const InceptionPage: React.FC = () => {
                         rowKey={(_, i) => `error-${i}`}
                         pagination={false}
                         columns={[
-                          { title: '级别', dataIndex: 'level', key: 'level', width: 80, render: (l: string) => <Tag color="red">{l}</Tag> },
+                          {
+                            title: '级别',
+                            dataIndex: 'level',
+                            key: 'level',
+                            width: 80,
+                            render: (l: string) => <Tag color="red">{l}</Tag>,
+                          },
                           { title: '行号', dataIndex: 'line', key: 'line', width: 70 },
                           { title: '信息', dataIndex: 'message', key: 'message' },
                         ]}
@@ -363,7 +404,9 @@ const InceptionPage: React.FC = () => {
                   {/* Warnings Table */}
                   {auditResult.warnings.length > 0 && (
                     <div>
-                      <h4 style={{ color: colors.warning[500], marginBottom: spacing.sm }}>警告 ({auditResult.warnings.length})</h4>
+                      <h4 style={{ color: colors.warning[500], marginBottom: spacing.sm }}>
+                        警告 ({auditResult.warnings.length})
+                      </h4>
                       <Table
                         bordered
                         size="small"
@@ -371,7 +414,13 @@ const InceptionPage: React.FC = () => {
                         rowKey={(_, i) => `warn-${i}`}
                         pagination={false}
                         columns={[
-                          { title: '级别', dataIndex: 'level', key: 'level', width: 80, render: (l: string) => <Tag color="orange">{l}</Tag> },
+                          {
+                            title: '级别',
+                            dataIndex: 'level',
+                            key: 'level',
+                            width: 80,
+                            render: (l: string) => <Tag color="orange">{l}</Tag>,
+                          },
                           { title: '行号', dataIndex: 'line', key: 'line', width: 70 },
                           { title: '信息', dataIndex: 'message', key: 'message' },
                         ]}
@@ -388,7 +437,12 @@ const InceptionPage: React.FC = () => {
               {/* Parse Results */}
               {resultTab === 'parse' && parseResult && (
                 <div>
-                  <Descriptions bordered size="small" column={1} style={{ marginBottom: spacing.md }}>
+                  <Descriptions
+                    bordered
+                    size="small"
+                    column={1}
+                    style={{ marginBottom: spacing.md }}
+                  >
                     <Descriptions.Item label="SQL 类型">{parseResult.type}</Descriptions.Item>
                     <Descriptions.Item label="解析状态">
                       {parseResult.success ? (
@@ -422,7 +476,12 @@ const InceptionPage: React.FC = () => {
               {/* Execute Results */}
               {resultTab === 'execute' && executeResult && (
                 <div>
-                  <Descriptions bordered size="small" column={1} style={{ marginBottom: spacing.md }}>
+                  <Descriptions
+                    bordered
+                    size="small"
+                    column={1}
+                    style={{ marginBottom: spacing.md }}
+                  >
                     <Descriptions.Item label="执行状态">
                       {executeResult.success ? (
                         <Tag color="green">成功</Tag>
@@ -431,7 +490,9 @@ const InceptionPage: React.FC = () => {
                       )}
                     </Descriptions.Item>
                     {executeResult.affectedRows !== undefined && (
-                      <Descriptions.Item label="影响行数">{executeResult.affectedRows}</Descriptions.Item>
+                      <Descriptions.Item label="影响行数">
+                        {executeResult.affectedRows}
+                      </Descriptions.Item>
                     )}
                   </Descriptions>
 
@@ -443,7 +504,9 @@ const InceptionPage: React.FC = () => {
 
                   {executeResult.result && executeResult.result.length > 0 && (
                     <div>
-                      <h4 style={{ marginBottom: spacing.sm }}>查询结果 ({executeResult.result.length} 条)</h4>
+                      <h4 style={{ marginBottom: spacing.sm }}>
+                        查询结果 ({executeResult.result.length} 条)
+                      </h4>
                       <Table
                         bordered
                         size="small"
@@ -467,9 +530,17 @@ const InceptionPage: React.FC = () => {
 
       {/* History Section */}
       <Card
-        title={<><HistoryOutlined style={{ marginRight: spacing.sm }} />审计历史</>}
+        title={
+          <>
+            <HistoryOutlined style={{ marginRight: spacing.sm }} />
+            审计历史
+          </>
+        }
         extra={
-          <Button icon={<ReloadOutlined />} onClick={() => loadHistory(pagination.current, pagination.pageSize)}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => loadHistory(pagination.current, pagination.pageSize)}
+          >
             刷新
           </Button>
         }

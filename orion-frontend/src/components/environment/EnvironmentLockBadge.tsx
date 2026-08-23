@@ -115,11 +115,7 @@ const EnvironmentLockBadge: React.FC<EnvironmentLockBadgeProps> = ({
           description="锁定后将无法向此环境部署应用"
           onConfirm={handleLock}
         >
-          <Tag
-            color="default"
-            style={{ cursor: 'pointer' }}
-            icon={<UnlockOutlined />}
-          >
+          <Tag color="default" style={{ cursor: 'pointer' }} icon={<UnlockOutlined />}>
             未锁定
           </Tag>
         </Popconfirm>
@@ -130,10 +126,24 @@ const EnvironmentLockBadge: React.FC<EnvironmentLockBadgeProps> = ({
   // Locked — show lock badge with info
   const tooltipContent = (
     <div>
-      <div><strong>锁定状态:</strong> 已锁定</div>
-      {lockInfo.lockedBy && <div><strong>操作人:</strong> {lockInfo.lockedBy}</div>}
-      {lockInfo.lockedAt && <div><strong>锁定时间:</strong> {dayjs(lockInfo.lockedAt).format('YYYY-MM-DD HH:mm:ss')}</div>}
-      {lockInfo.reason && <div><strong>锁定原因:</strong> {lockInfo.reason}</div>}
+      <div>
+        <strong>锁定状态:</strong> 已锁定
+      </div>
+      {lockInfo.lockedBy && (
+        <div>
+          <strong>操作人:</strong> {lockInfo.lockedBy}
+        </div>
+      )}
+      {lockInfo.lockedAt && (
+        <div>
+          <strong>锁定时间:</strong> {dayjs(lockInfo.lockedAt).format('YYYY-MM-DD HH:mm:ss')}
+        </div>
+      )}
+      {lockInfo.reason && (
+        <div>
+          <strong>锁定原因:</strong> {lockInfo.reason}
+        </div>
+      )}
       {showActions && (
         <div style={{ marginTop: spacing.sm }}>
           <Popconfirm
@@ -152,11 +162,7 @@ const EnvironmentLockBadge: React.FC<EnvironmentLockBadgeProps> = ({
 
   return (
     <Tooltip title={tooltipContent} placement="topLeft">
-      <Tag
-        color="red"
-        icon={<LockOutlined />}
-        style={{ cursor: 'pointer' }}
-      >
+      <Tag color="red" icon={<LockOutlined />} style={{ cursor: 'pointer' }}>
         已锁定
       </Tag>
     </Tooltip>
