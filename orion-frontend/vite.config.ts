@@ -170,9 +170,35 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          antd: ['antd'],
+        manualChunks(id) {
+          // 大型/共享依赖单独拆分，避免 chunk 过大
+          if (id.includes('node_modules/@ant-design/icons/')) {
+            return 'ant-design-icons';
+          }
+          if (id.includes('node_modules/dayjs/')) {
+            return 'dayjs';
+          }
+          if (id.includes('node_modules/react-router-dom/')) {
+            return 'react-router';
+          }
+          if (id.includes('node_modules/reactflow/')) {
+            return 'reactflow';
+          }
+          if (id.includes('node_modules/lodash/')) {
+            return 'lodash';
+          }
+          if (id.includes('node_modules/axios/')) {
+            return 'axios';
+          }
+          if (id.includes('node_modules/monaco-editor/')) {
+            return 'monaco-editor';
+          }
+          if (id.includes('node_modules/antd/')) {
+            return 'antd';
+          }
+          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) {
+            return 'vendor';
+          }
         },
       },
     },
