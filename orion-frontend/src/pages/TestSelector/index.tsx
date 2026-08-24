@@ -12,8 +12,7 @@
  * Uses real backend API via @/api/test-selector.
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Card, Tag, Space, Button, message } from 'antd';
-import { Table as AntTable } from 'antd';
+import { Typography, Card, Tag, Space, Button, message, Table as AntTable } from 'antd';
 import {
   ExperimentOutlined,
   CheckCircleOutlined,

@@ -4,7 +4,20 @@
  * 对接真实后端API获取数据
  */
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Tag, Table, Typography, Badge, Button, Space, Spin, Alert } from 'antd';
+import {
+  Card,
+  Row,
+  Col,
+  Tag,
+  Table,
+  Typography,
+  Badge,
+  Button,
+  Space,
+  Spin,
+  Alert,
+  message,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import { StatCard } from '@/components/charts';
@@ -23,7 +36,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { getPipelines, getPipelineRuns, type PipelineRun } from '@/api/pipelines';
 import { getMonitoringHealth } from '@/api/monitoring';
-import { message } from 'antd';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';

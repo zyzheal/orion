@@ -167,7 +167,8 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: 'hidden',
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -196,8 +197,14 @@ export default defineConfig({
           if (id.includes('node_modules/antd/')) {
             return 'antd';
           }
+          if (id.includes('node_modules/rc-')) {
+            return 'antd-rc';
+          }
           if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) {
             return 'vendor';
+          }
+          if (id.includes('src/components/')) {
+            return 'shared-ui';
           }
         },
       },

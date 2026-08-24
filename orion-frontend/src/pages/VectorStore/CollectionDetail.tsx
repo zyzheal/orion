@@ -15,10 +15,11 @@ import {
   Button,
   Space,
   message,
+  Typography,
+  Popconfirm,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import Table from 'antd/es/table';
-import { Typography, Popconfirm } from 'antd';
 import { DeleteOutlined, EditOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import type { VectorCollection, VectorDocument } from '@/api/vector-store';
 import dayjs from 'dayjs';

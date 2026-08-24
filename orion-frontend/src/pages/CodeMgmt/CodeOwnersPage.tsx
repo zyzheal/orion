@@ -3,7 +3,7 @@
  * Editor for CODEOWNERS file with validate and save functionality
  */
 import React, { useState, useCallback, useMemo } from 'react';
-import { Typography, Button, Space, Select, Input, message, Card, Alert } from 'antd';
+import { Typography, Button, Space, Select, Input, message, Card, Alert, Modal, Tag } from 'antd';
 import {
   SaveOutlined,
   CheckCircleOutlined,
@@ -15,7 +15,6 @@ import {
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
-import { Modal, Tag } from 'antd';
 import {
   getCodeOwners,
   registerCodeOwners,
