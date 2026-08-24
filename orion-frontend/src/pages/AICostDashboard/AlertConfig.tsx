@@ -18,7 +18,7 @@ import {
   message,
   Popconfirm,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, BellOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import { getAlerts, type CostAlert } from '@/api/ai-cost';
@@ -83,7 +83,10 @@ const AlertConfig: React.FC = () => {
     },
   ]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
   const [createForm] = Form.useForm();
+  const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
   const loadAlerts = async () => {
@@ -130,6 +133,29 @@ const AlertConfig: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditRule = async () => {
+    if (!editingRule) return;
+    try {
+      const values = await editForm.validateFields();
+      setRules((prev) => prev.map((r) => (r.id === editingRule.id ? { ...r, ...values } : r)));
+      message.success('告警规则更新成功');
+      setEditModalVisible(false);
+      setEditingRule(null);
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '更新失败';
+        message.error(msg);
+      }
+    }
+  };
+
+  const handleOpenEdit = (record: AlertRule) => {
+    setEditingRule(record);
+    editForm.setFieldsValue(record);
+    setEditModalVisible(true);
   };
 
   const alertColumns: TableColumn<CostAlert>[] = useMemo<TableColumn<CostAlert>[]>(
@@ -228,16 +254,26 @@ const AlertConfig: React.FC = () => {
       {
         key: 'actions',
         title: '操作',
-        width: 100,
-        render: (_: unknown, record: any) => (
-          <Popconfirm
-            title="确认删除?"
-            onConfirm={() => setRules((prev) => prev.filter((r) => r.id !== record.id))}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+        width: 140,
+        render: (_: unknown, record: AlertRule) => (
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(record)}
+            >
+              编辑
             </Button>
-          </Popconfirm>
+            <Popconfirm
+              title="确认删除?"
+              onConfirm={() => setRules((prev) => prev.filter((r) => r.id !== record.id))}
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
         ),
       },
     ],
@@ -349,6 +385,59 @@ const AlertConfig: React.FC = () => {
             rules={[{ required: true }]}
             initialValue={['dingtalk']}
           >
+            <Select
+              mode="multiple"
+              options={[
+                { label: '钉钉', value: 'dingtalk' },
+                { label: '企业微信', value: 'wecom' },
+                { label: '飞书', value: 'feishu' },
+                { label: '邮件', value: 'email' },
+                { label: '站内', value: 'inapp' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Rule Modal */}
+      <Modal
+        title="编辑告警规则"
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false);
+          setEditingRule(null);
+        }}
+        onOk={handleEditRule}
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="name" label="规则名称" rules={[{ required: true }]}>
+            <Input placeholder="日费用超预算告警" />
+          </Form.Item>
+          <Form.Item name="metric" label="监控指标" rules={[{ required: true }]}>
+            <Select options={metricOptions} />
+          </Form.Item>
+          <Form.Item name="operator" label="操作符" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { label: '大于', value: '>' },
+                { label: '小于', value: '<' },
+                { label: '等于', value: '==' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="threshold" label="阈值" rules={[{ required: true }]}>
+            <InputNumber style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="severity" label="告警级别" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { label: 'Info', value: 'info' },
+                { label: 'Warning', value: 'warning' },
+                { label: 'Critical', value: 'critical' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="channels" label="通知渠道" rules={[{ required: true }]}>
             <Select
               mode="multiple"
               options={[
