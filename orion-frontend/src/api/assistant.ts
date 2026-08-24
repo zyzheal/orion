@@ -19,6 +19,7 @@ export interface AssistantResponse {
   answer: string;
   sources?: AssistantSourceResult[];
   generated?: boolean;
+  session_id?: string;
   createdAt: string;
 }
 
@@ -27,6 +28,7 @@ export interface AssistantAskParams {
   intent?: string;
   space_id?: string;
   top_k?: number;
+  session_id?: string;
 }
 
 /** Ask the global AI assistant a question (cross-module retrieval). */
@@ -37,6 +39,40 @@ export function assistantAsk(data: AssistantAskParams) {
 /** Health check for the assistant module. */
 export function assistantHealth() {
   return api.get<{ status: string; module: string }>('/assistant/health');
+}
+
+// --- Session Management (TR-02 多轮对话) ---
+
+export interface AssistantMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+}
+
+export interface AssistantSession {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  messages: AssistantMessage[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** List recent sessions for the current user. */
+export function listAssistantSessions(limit?: number) {
+  return api.get<AssistantSession[]>('/api/v1/assistant/sessions', {
+    params: limit ? { limit } : undefined,
+  });
+}
+
+/** Get a session with its full message history. */
+export function getAssistantSession(sessionId: string) {
+  return api.get<AssistantSession>(`/api/v1/assistant/sessions/${sessionId}`);
+}
+
+/** Delete a session. */
+export function deleteAssistantSession(sessionId: string) {
+  return api.delete<AssistantSession>(`/api/v1/assistant/sessions/${sessionId}`);
 }
 
 // --- Data Source Ingestion (TR-04) ---

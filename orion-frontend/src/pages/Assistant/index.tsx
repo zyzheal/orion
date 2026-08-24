@@ -4,7 +4,7 @@
  * Cross-module intelligent Q&A: 意图识别 → 多源检索（知识库/流水线/告警/工单/变更）→ 综合回答。
  * 后端由 `internal/assistant` 提供 POST /api/v1/assistant/ask。
  */
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Button,
   Card,
@@ -19,6 +19,8 @@ import {
   Select,
   Collapse,
   Form,
+  List,
+  Layout,
 } from 'antd';
 import {
   SendOutlined,
@@ -31,13 +33,22 @@ import {
   PlayCircleOutlined,
   CloudServerOutlined,
   FunnelPlotOutlined,
+  FolderOpenOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import {
   assistantAsk,
   assistantAction,
+  listAssistantSessions,
+  getAssistantSession,
+  deleteAssistantSession,
   ingestSource,
   type AssistantResponse,
   type AssistantActionResult,
+  type AssistantSession,
   type SourceIngestItem,
 } from '@/api/assistant';
 import { colors, spacing, themeVars } from '@/tokens';
@@ -71,6 +82,59 @@ const AssistantPage: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // --- Session management (TR-02 多轮对话) ---
+  const [sessions, setSessions] = useState<AssistantSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const res = await listAssistantSessions(20);
+      setSessions(res.data || []);
+    } catch {
+      setSessions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
+
+  const selectSession = async (id: string) => {
+    setCurrentSessionId(id);
+    try {
+      const res = await getAssistantSession(id);
+      const session = res.data;
+      const chatItems: ChatItem[] = (session.messages || []).map((m, idx) => ({
+        id: idx,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+      setMessages(chatItems);
+    } catch {
+      setMessages([]);
+    }
+  };
+
+  const newSession = () => {
+    setCurrentSessionId(null);
+    setMessages([]);
+  };
+
+  const deleteSession = async (id: string) => {
+    try {
+      await deleteAssistantSession(id);
+      if (currentSessionId === id) {
+        setCurrentSessionId(null);
+        setMessages([]);
+      }
+      loadSessions();
+      message.success('会话已删除');
+    } catch (e: unknown) {
+      message.error((e as Error)?.message || '删除失败');
+    }
+  };
 
   // --- Action execution state (TR-09 / TR-10 / TR-11) ---
   const [actionLoading, setActionLoading] = useState(false);
@@ -115,8 +179,12 @@ const AssistantPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await assistantAsk({ question: query });
+      const res = await assistantAsk({ question: query, session_id: currentSessionId ?? '' });
       const data: AssistantResponse = res.data;
+      if (data.session_id && !currentSessionId) {
+        setCurrentSessionId(data.session_id);
+        loadSessions();
+      }
       const assistantMsg: ChatItem = {
         id: Date.now() + 1,
         role: 'assistant',
@@ -226,9 +294,9 @@ const AssistantPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 8px' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 8px' }}>
       {/* Header */}
-      <div style={{ marginBottom: spacing.lg }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Title level={2} style={{ marginBottom: 8 }}>
           <RobotOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
           智能助手
@@ -238,307 +306,398 @@ const AssistantPage: React.FC = () => {
         </Text>
       </div>
 
-      {/* Chat area */}
-      <div
-        style={{
-          minHeight: 420,
-          border: `1px solid ${colors.neutral[200]}`,
-          borderRadius: 12,
-          padding: spacing.lg,
-          background: themeVars.bgPrimary,
-        }}
-      >
-        {messages.length === 0 ? (
-          <Empty
-            style={{ marginTop: 80 }}
-            description={
-              <Space direction="vertical" size={8} style={{ alignItems: 'center' }}>
-                <Text>从下面的示例问题开始，或直接描述你的诉求</Text>
-                <Space wrap>
-                  {SUGGESTIONS.map((s) => (
-                    <Button key={s} size="small" onClick={() => ask(s)}>
-                      {s}
-                    </Button>
-                  ))}
-                </Space>
+      <Layout style={{ display: 'flex', gap: spacing.md }}>
+        {/* Session sidebar */}
+        {sidebarOpen && (
+          <div
+            style={{
+              width: 240,
+              border: `1px solid ${colors.neutral[200]}`,
+              borderRadius: 12,
+              padding: spacing.sm,
+              background: themeVars.bgSecondary,
+              maxHeight: 600,
+              overflow: 'auto',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}
+            >
+              <Text strong>会话历史</Text>
+              <Space>
+                <Button size="small" icon={<PlusOutlined />} onClick={newSession}>
+                  新建
+                </Button>
+                <Button
+                  size="small"
+                  icon={<MenuFoldOutlined />}
+                  onClick={() => setSidebarOpen(false)}
+                />
               </Space>
-            }
-          />
-        ) : (
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  display: 'flex',
-                  flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
-                  gap: 8,
-                }}
-              >
-                <div
+            </div>
+            <List
+              dataSource={sessions}
+              renderItem={(session) => (
+                <List.Item
                   style={{
-                    maxWidth: '75%',
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    background: m.role === 'user' ? colors.primary[500] : themeVars.bgSecondary,
-                    color: m.role === 'user' ? colors.neutral[900] : 'inherit',
+                    padding: spacing.xs,
+                    cursor: 'pointer',
+                    background:
+                      currentSessionId === session.id ? colors.primary[50] : 'transparent',
+                    borderRadius: 4,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                   }}
+                  onClick={() => selectSession(session.id)}
                 >
-                  {m.role === 'assistant' && m.response && (
-                    <div style={{ marginBottom: 6 }}>
-                      {m.response.intent && INTENT_LABEL[m.response.intent] && (
-                        <Tag
-                          color={INTENT_LABEL[m.response.intent].color}
-                          style={{ marginRight: 6 }}
-                        >
-                          {INTENT_LABEL[m.response.intent].label}
-                        </Tag>
-                      )}
-                      {m.response.generated && <Tag color="purple">AI 生成</Tag>}
-                    </div>
-                  )}
-                  <Text
+                  <Space style={{ flex: 1, overflow: 'hidden' }}>
+                    <FolderOpenOutlined />
+                    <Text
+                      ellipsis={{ tooltip: `${session.messages?.length || 0} 条消息` }}
+                      style={{ fontSize: 12 }}
+                    >
+                      {(session.messages?.[0]?.content || '新会话').slice(0, 20)}
+                    </Text>
+                  </Space>
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(session.id);
+                    }}
+                  />
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Toggle sidebar button */}
+          {!sidebarOpen && (
+            <Button
+              size="small"
+              icon={<MenuUnfoldOutlined />}
+              onClick={() => setSidebarOpen(true)}
+              style={{ marginBottom: spacing.sm }}
+            >
+              会话历史
+            </Button>
+          )}
+
+          {/* Chat area */}
+          <div
+            style={{
+              minHeight: 420,
+              border: `1px solid ${colors.neutral[200]}`,
+              borderRadius: 12,
+              padding: spacing.lg,
+              background: themeVars.bgPrimary,
+            }}
+          >
+            {messages.length === 0 ? (
+              <Empty
+                style={{ marginTop: 80 }}
+                description={
+                  <Space direction="vertical" size={8} style={{ alignItems: 'center' }}>
+                    <Text>从下面的示例问题开始，或直接描述你的诉求</Text>
+                    <Space wrap>
+                      {SUGGESTIONS.map((s) => (
+                        <Button key={s} size="small" onClick={() => ask(s)}>
+                          {s}
+                        </Button>
+                      ))}
+                    </Space>
+                  </Space>
+                }
+              />
+            ) : (
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
                     style={{
-                      color: m.role === 'user' ? colors.neutral[900] : undefined,
-                      whiteSpace: 'pre-wrap',
+                      display: 'flex',
+                      flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
+                      gap: 8,
                     }}
                   >
-                    {m.content}
-                  </Text>
+                    <div
+                      style={{
+                        maxWidth: '75%',
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        background: m.role === 'user' ? colors.primary[500] : themeVars.bgSecondary,
+                        color: m.role === 'user' ? colors.neutral[900] : 'inherit',
+                      }}
+                    >
+                      {m.role === 'assistant' && m.response && (
+                        <div style={{ marginBottom: 6 }}>
+                          {m.response.intent && INTENT_LABEL[m.response.intent] && (
+                            <Tag
+                              color={INTENT_LABEL[m.response.intent].color}
+                              style={{ marginRight: 6 }}
+                            >
+                              {INTENT_LABEL[m.response.intent].label}
+                            </Tag>
+                          )}
+                          {m.response.generated && <Tag color="purple">AI 生成</Tag>}
+                        </div>
+                      )}
+                      <Text
+                        style={{
+                          color: m.role === 'user' ? colors.neutral[900] : undefined,
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {m.content}
+                      </Text>
 
-                  {m.role === 'assistant' &&
-                    m.response?.sources &&
-                    m.response.sources.length > 0 && (
-                      <>
-                        <Divider style={{ margin: '10px 0' }} />
-                        <Text
+                      {m.role === 'assistant' &&
+                        m.response?.sources &&
+                        m.response.sources.length > 0 && (
+                          <>
+                            <Divider style={{ margin: '10px 0' }} />
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: colors.neutral[500],
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <DatabaseOutlined /> 引用来源（{m.response.sources.length}）
+                            </Text>
+                            <div style={{ marginTop: 6 }}>
+                              {m.response.sources.slice(0, 5).map((s, idx) => (
+                                <Tag key={String(idx)} style={{ marginBottom: 4 }}>
+                                  {s.title}
+                                </Tag>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div style={{ textAlign: 'center', padding: 12 }}>
+                    <Spin size="small" />
+                    <Text type="secondary" style={{ marginLeft: 8 }}>
+                      正在检索多个数据源…
+                    </Text>
+                  </div>
+                )}
+              </Space>
+            )}
+          </div>
+
+          {/* Input bar */}
+          <div style={{ display: 'flex', gap: 8, marginTop: spacing.md }}>
+            <Input.TextArea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="输入问题，例如：为什么订单一小时前失败？"
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              disabled={loading}
+              onPressEnter={(e) => {
+                if (!e.shiftKey) {
+                  e.preventDefault();
+                  ask();
+                }
+              }}
+            />
+            <Space direction="vertical" size={4}>
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                loading={loading}
+                onClick={() => ask()}
+                style={{ height: 40 }}
+              >
+                提问
+              </Button>
+              <Button
+                size="small"
+                icon={<ClearOutlined />}
+                onClick={clearChat}
+                disabled={messages.length === 0}
+              >
+                清空
+              </Button>
+            </Space>
+          </div>
+
+          <Paragraph type="secondary" style={{ marginTop: spacing.sm, fontSize: 12 }}>
+            <BulbOutlined /> 助手回答依赖已接入的数据源；运行结果由后端 assistant
+            模块意图路由与检索合成。
+          </Paragraph>
+
+          {/* Data source ingestion panel (TR-04) */}
+          <div style={{ marginTop: spacing.md }}>
+            <Collapse
+              ghost
+              items={[
+                {
+                  key: 'ingest',
+                  label: (
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                      <ImportOutlined /> 数据源接通演示 —
+                      把告警/工单/变更/事件推入知识库，供助手检索
+                    </Text>
+                  ),
+                  children: (
+                    <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                      <Space>
+                        <Select
+                          value={importSource.source}
+                          onChange={(v) =>
+                            setImportSource(
+                              SOURCE_SAMPLES.find((s) => s.source === v) ?? SOURCE_SAMPLES[0]
+                            )
+                          }
+                          style={{ width: 120 }}
+                          options={SOURCE_SAMPLES.map((s) => ({ label: s.label, value: s.source }))}
+                        />
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<ImportOutlined />}
+                          loading={ingesting}
+                          onClick={handleIngest}
+                        >
+                          {`导入${importSource.label}样例`}
+                        </Button>
+                      </Space>
+                      <Space wrap>
+                        {importSource.items.map((item, idx) => (
+                          <Tag key={String(idx)} color="blue">
+                            {item.title}
+                          </Tag>
+                        ))}
+                      </Space>
+                    </Space>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  label: (
+                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
+                      <ThunderboltOutlined /> 智能操作 — 触发研发流程 Agent / AI 生成流程 / Ops
+                      问答助手
+                    </Text>
+                  ),
+                  children: (
+                    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                      <Form layout="vertical" size="small">
+                        <Form.Item label="操作描述（自然语言）">
+                          <Input.TextArea
+                            value={actionPrompt}
+                            onChange={(e) => setActionPrompt(e.target.value)}
+                            placeholder="例如：帮我触发一次支付服务的发布流水线；创建审批流程；建议我执行什么命令来排查 CPU 高的问题"
+                            rows={3}
+                            disabled={actionLoading}
+                          />
+                        </Form.Item>
+                        <Form.Item label="标题（可选）">
+                          <Input
+                            value={actionTitle}
+                            onChange={(e) => setActionTitle(e.target.value)}
+                            placeholder="操作标题"
+                            disabled={actionLoading}
+                          />
+                        </Form.Item>
+                      </Form>
+                      <Space>
+                        <Button
+                          type="primary"
+                          icon={<PlayCircleOutlined />}
+                          loading={actionLoading}
+                          onClick={() => handleAction('trigger_pipeline')}
                           style={{
-                            fontSize: 12,
-                            color: colors.neutral[500],
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
+                            backgroundColor: colors.purple[500],
+                            borderColor: colors.purple[500],
                           }}
                         >
-                          <DatabaseOutlined /> 引用来源（{m.response.sources.length}）
-                        </Text>
-                        <div style={{ marginTop: 6 }}>
-                          {m.response.sources.slice(0, 5).map((s, idx) => (
-                            <Tag key={String(idx)} style={{ marginBottom: 4 }}>
-                              {s.title}
-                            </Tag>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div style={{ textAlign: 'center', padding: 12 }}>
-                <Spin size="small" />
-                <Text type="secondary" style={{ marginLeft: 8 }}>
-                  正在检索多个数据源…
-                </Text>
-              </div>
-            )}
-          </Space>
-        )}
-      </div>
-
-      {/* Input bar */}
-      <div style={{ display: 'flex', gap: 8, marginTop: spacing.md }}>
-        <Input.TextArea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="输入问题，例如：为什么订单一小时前失败？"
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          disabled={loading}
-          onPressEnter={(e) => {
-            if (!e.shiftKey) {
-              e.preventDefault();
-              ask();
-            }
-          }}
-        />
-        <Space direction="vertical" size={4}>
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            loading={loading}
-            onClick={() => ask()}
-            style={{ height: 40 }}
-          >
-            提问
-          </Button>
-          <Button
-            size="small"
-            icon={<ClearOutlined />}
-            onClick={clearChat}
-            disabled={messages.length === 0}
-          >
-            清空
-          </Button>
-        </Space>
-      </div>
-
-      <Paragraph type="secondary" style={{ marginTop: spacing.sm, fontSize: 12 }}>
-        <BulbOutlined /> 助手回答依赖已接入的数据源；运行结果由后端 assistant
-        模块意图路由与检索合成。
-      </Paragraph>
-
-      {/* Data source ingestion panel (TR-04) */}
-      <div style={{ marginTop: spacing.md }}>
-        <Collapse
-          ghost
-          items={[
-            {
-              key: 'ingest',
-              label: (
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  <ImportOutlined /> 数据源接通演示 — 把告警/工单/变更/事件推入知识库，供助手检索
-                </Text>
-              ),
-              children: (
-                <Space direction="vertical" style={{ width: '100%' }} size={10}>
-                  <Space>
-                    <Select
-                      value={importSource.source}
-                      onChange={(v) =>
-                        setImportSource(
-                          SOURCE_SAMPLES.find((s) => s.source === v) ?? SOURCE_SAMPLES[0]
-                        )
-                      }
-                      style={{ width: 120 }}
-                      options={SOURCE_SAMPLES.map((s) => ({ label: s.label, value: s.source }))}
-                    />
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<ImportOutlined />}
-                      loading={ingesting}
-                      onClick={handleIngest}
-                    >
-                      {`导入${importSource.label}样例`}
-                    </Button>
-                  </Space>
-                  <Space wrap>
-                    {importSource.items.map((item, idx) => (
-                      <Tag key={String(idx)} color="blue">
-                        {item.title}
-                      </Tag>
-                    ))}
-                  </Space>
-                </Space>
-              ),
-            },
-            {
-              key: 'actions',
-              label: (
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  <ThunderboltOutlined /> 智能操作 — 触发研发流程 Agent / AI 生成流程 / Ops 问答助手
-                </Text>
-              ),
-              children: (
-                <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                  <Form layout="vertical" size="small">
-                    <Form.Item label="操作描述（自然语言）">
-                      <Input.TextArea
-                        value={actionPrompt}
-                        onChange={(e) => setActionPrompt(e.target.value)}
-                        placeholder="例如：帮我触发一次支付服务的发布流水线；创建审批流程；建议我执行什么命令来排查 CPU 高的问题"
-                        rows={3}
-                        disabled={actionLoading}
-                      />
-                    </Form.Item>
-                    <Form.Item label="标题（可选）">
-                      <Input
-                        value={actionTitle}
-                        onChange={(e) => setActionTitle(e.target.value)}
-                        placeholder="操作标题"
-                        disabled={actionLoading}
-                      />
-                    </Form.Item>
-                  </Form>
-                  <Space>
-                    <Button
-                      type="primary"
-                      icon={<PlayCircleOutlined />}
-                      loading={actionLoading}
-                      onClick={() => handleAction('trigger_pipeline')}
-                      style={{
-                        backgroundColor: colors.purple[500],
-                        borderColor: colors.purple[500],
-                      }}
-                    >
-                      触发研发流程 Agent (TR-09)
-                    </Button>
-                    <Button
-                      type="primary"
-                      icon={<CloudServerOutlined />}
-                      loading={actionLoading}
-                      onClick={() => handleAction('suggest_command')}
-                      style={{ backgroundColor: colors.info[500], borderColor: colors.info[500] }}
-                    >
-                      Ops 问答助手 (TR-11)
-                    </Button>
-                    <Button
-                      type="primary"
-                      icon={<FunnelPlotOutlined />}
-                      loading={actionLoading}
-                      onClick={() => handleAction('generate_flow')}
-                      style={{
-                        backgroundColor: colors.purple[500],
-                        borderColor: colors.purple[500],
-                      }}
-                    >
-                      AI 生成流程 (TR-10)
-                    </Button>
-                  </Space>
-                  {actionResult && (
-                    <Card
-                      size="small"
-                      style={{
-                        marginTop: 4,
-                        padding: 10,
-                        background: themeVars.bgSecondary,
-                      }}
-                    >
-                      <Space direction="vertical" size={6} style={{ width: '100%' }}>
-                        <div>
-                          <Tag color={actionResult.status === 'executed' ? 'green' : 'blue'}>
-                            {actionResult.status}
-                          </Tag>
-                          <Tag>{actionResult.kind}</Tag>
-                          {actionResult.entity_id && <Tag>{actionResult.entity_id}</Tag>}
-                        </div>
-                        <Text style={{ fontSize: 13 }}>{actionResult.summary}</Text>
-                        {actionResult.steps && actionResult.steps.length > 0 && (
-                          <Space direction="vertical" size={2}>
-                            {actionResult.steps.map((step, i) => (
-                              <Text
-                                key={String(i)}
-                                style={{ fontSize: 12, color: colors.neutral[500] }}
-                              >
-                                {i + 1}. {step}
-                              </Text>
-                            ))}
-                          </Space>
-                        )}
-                        {actionResult.error && (
-                          <Text type="danger" style={{ fontSize: 12 }}>
-                            {actionResult.error}
-                          </Text>
-                        )}
+                          触发研发流程 Agent (TR-09)
+                        </Button>
+                        <Button
+                          type="primary"
+                          icon={<CloudServerOutlined />}
+                          loading={actionLoading}
+                          onClick={() => handleAction('suggest_command')}
+                          style={{
+                            backgroundColor: colors.info[500],
+                            borderColor: colors.info[500],
+                          }}
+                        >
+                          Ops 问答助手 (TR-11)
+                        </Button>
+                        <Button
+                          type="primary"
+                          icon={<FunnelPlotOutlined />}
+                          loading={actionLoading}
+                          onClick={() => handleAction('generate_flow')}
+                          style={{
+                            backgroundColor: colors.purple[500],
+                            borderColor: colors.purple[500],
+                          }}
+                        >
+                          AI 生成流程 (TR-10)
+                        </Button>
                       </Space>
-                    </Card>
-                  )}
-                </Space>
-              ),
-            },
-          ]}
-        />
-      </div>
+                      {actionResult && (
+                        <Card
+                          size="small"
+                          style={{
+                            marginTop: 4,
+                            padding: 10,
+                            background: themeVars.bgSecondary,
+                          }}
+                        >
+                          <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                            <div>
+                              <Tag color={actionResult.status === 'executed' ? 'green' : 'blue'}>
+                                {actionResult.status}
+                              </Tag>
+                              <Tag>{actionResult.kind}</Tag>
+                              {actionResult.entity_id && <Tag>{actionResult.entity_id}</Tag>}
+                            </div>
+                            <Text style={{ fontSize: 13 }}>{actionResult.summary}</Text>
+                            {actionResult.steps && actionResult.steps.length > 0 && (
+                              <Space direction="vertical" size={2}>
+                                {actionResult.steps.map((step, i) => (
+                                  <Text
+                                    key={String(i)}
+                                    style={{ fontSize: 12, color: colors.neutral[500] }}
+                                  >
+                                    {i + 1}. {step}
+                                  </Text>
+                                ))}
+                              </Space>
+                            )}
+                            {actionResult.error && (
+                              <Text type="danger" style={{ fontSize: 12 }}>
+                                {actionResult.error}
+                              </Text>
+                            )}
+                          </Space>
+                        </Card>
+                      )}
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        </div>
+      </Layout>
     </div>
   );
 };
