@@ -16,6 +16,7 @@ import {
   Switch,
   Button,
   Space,
+  message,
 } from 'antd';
 import type { FormInstance, Rule } from 'antd/es/form';
 
@@ -105,7 +106,7 @@ function buildRules(field: FormField): Rule[] {
   if (field.required) {
     rules.unshift({
       required: true,
-      message: `${field.label} is required`,
+      message: `${field.label}为必填项`,
     });
   }
 
@@ -130,7 +131,7 @@ function buildRules(field: FormField): Rule[] {
 
 function renderField(field: FormField, form: FormInstance): React.ReactNode {
   const commonProps = {
-    placeholder: field.placeholder || `Please enter ${field.label.toLowerCase()}`,
+    placeholder: field.placeholder || `请输入${field.label}`,
     disabled: field.disabled,
     size: undefined as 'small' | 'middle' | 'large' | undefined,
     ...field.inputProps,
@@ -173,7 +174,7 @@ function OrionForm({
   fields,
   initialValues = {},
   onSubmit,
-  submitText = 'Submit',
+  submitText = '提交',
   cancelText,
   onCancel,
   form: externalForm,
@@ -189,7 +190,19 @@ function OrionForm({
 
   const handleSubmit = useCallback(
     async (values: Record<string, unknown>) => {
-      await onSubmit(values);
+      try {
+        await onSubmit(values);
+      } catch (error: unknown) {
+        // 跳过表单校验错误（Ant Design Form）
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'errorFields' in error &&
+          Array.isArray((error as { errorFields?: unknown[] }).errorFields)
+        )
+          return;
+        message.error('提交失败，请重试');
+      }
     },
     [onSubmit]
   );

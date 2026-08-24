@@ -22,7 +22,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { listUsers, type User } from '@/api/users';
-import { getComments, getAttachments } from '@/api/ticketing';
+import { getComments, getAttachments, createComment } from '@/api/ticketing';
+import { useSubmit } from '@/hooks/useSubmit';
 import { colors, spacing, themeVars } from '@/tokens';
 
 const { Text } = Typography;
@@ -191,7 +192,23 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
     setMentionSearch('');
   };
 
-  // Submit comment
+  // Submit comment — P0 修复：调用真实 API 持久化评论 + 重新拉取列表
+  const submitComment = useSubmit(
+    async () => {
+      await createComment(ticketId, {
+        content: commentText.trim(),
+        type: activeTab,
+      });
+      // 提交成功后重新拉取评论列表，确保 UI 与后端同步
+      const res = await getComments(ticketId);
+      const commentsData = res.data?.items;
+      setComments(Array.isArray(commentsData) ? (commentsData as TicketComment[]) : []);
+    },
+    {
+      successMessage: false,
+    },
+  );
+
   const handleSubmit = () => {
     if (!commentText.trim()) {
       message.warning('请输入评论内容');
@@ -202,6 +219,7 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
       return;
     }
     message.success(activeTab === 'internal-note' ? '内部备注已提交' : '评论已提交');
+    submitComment.execute();
     setCommentText('');
     setShowMentionDropdown(false);
     setMentionSearch('');
@@ -482,7 +500,8 @@ const TicketComments: React.FC<TicketCommentsProps> = ({ ticketId }) => {
               type="primary"
               icon={<SendOutlined />}
               onClick={handleSubmit}
-              disabled={!commentText.trim()}
+              disabled={!commentText.trim() || submitComment.submitting}
+              loading={submitComment.submitting}
               data-testid="submit-comment-btn"
             >
               提交{activeTab === 'internal-note' ? '备注' : '评论'}

@@ -58,6 +58,7 @@ import {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  clearReadNotifications,
   getNotificationStats,
   getNotificationSettings,
   updateNotificationSettings,
@@ -306,11 +307,16 @@ const NotificationCenter: React.FC = () => {
     }
   };
 
-  // Clear read notifications
-  const handleClearRead = () => {
-    setNotifications((prev) => prev.filter((n) => !n.read));
-    message.success('已清除已读通知');
-    fetchStats();
+  // Clear read notifications — P0 修复：调用后端 API 清除已读
+  const handleClearRead = async () => {
+    try {
+      await clearReadNotifications();
+      setNotifications((prev) => prev.filter((n) => !n.read));
+      message.success('已清除已读通知');
+      await fetchStats();
+    } catch (error) {
+      message.error('清除已读通知失败');
+    }
   };
 
   // ---- Broadcast Handlers ----

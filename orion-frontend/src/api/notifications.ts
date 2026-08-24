@@ -226,6 +226,14 @@ export const deleteNotification = async (id: string): Promise<void> => {
 };
 
 /**
+ * 清除已读通知
+ * 调用后端 API 批量删除已读状态的通知
+ */
+export const clearReadNotifications = async (): Promise<void> => {
+  await api.delete(`/api/v1/notifications/read`);
+};
+
+/**
  * 获取通知统计
  */
 export const getNotificationStats = async (): Promise<NotificationStats> => {

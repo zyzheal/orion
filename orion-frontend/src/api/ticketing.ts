@@ -263,6 +263,9 @@ export const correlateRootCause = (ticketIds: string[]) =>
 export const getComments = (ticketId: string) =>
   api.get<{ items: unknown[] }>(`/api/v1/tickets/${ticketId}/comments`);
 
+export const createComment = (ticketId: string, data: { content: string; type?: 'comment' | 'internal-note' }) =>
+  api.post<unknown>(`/api/v1/tickets/${ticketId}/comments`, data);
+
 export const getAttachments = (ticketId: string) =>
   api.get<{ items: unknown[] }>(`/api/v1/tickets/${ticketId}/attachments`);
 

@@ -183,7 +183,7 @@ function SearchFilterBar({
             style={{ color: colors.neutral[500] }}
             data-testid="clear-all-filters"
           >
-            Clear All
+            清除全部
           </Button>
         )}
       </div>

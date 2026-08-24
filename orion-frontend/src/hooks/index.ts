@@ -12,6 +12,10 @@ export { usePagination } from './usePagination';
 export { usePermission } from './usePermission';
 export { usePermissionActions, useMultiPermission } from './usePermissionActions';
 export { useTheme } from './useTheme';
+export { useSubmit } from './useSubmit';
+export { useErrorBanner } from './useErrorBanner';
+export { AlertBanner } from './ErrorBanner';
+export type { ErrorBannerState, ErrorSeverity } from './useErrorBanner';
 export type {
   UseWebSocketOptions,
   UseWebSocketReturn,

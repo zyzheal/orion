@@ -142,7 +142,7 @@ function OrionTable<T extends object>({
           antCol.filterDropdown = () => (
             <div style={{ padding: spacing.sm }}>
               <Input
-                placeholder={`Search ${col.title}`}
+                placeholder={`搜索 ${col.title}`}
                 value={filterValues[col.key] || ''}
                 onChange={(e) => {
                   const newFilters = { ...filterValues, [col.key]: e.target.value };
@@ -163,7 +163,7 @@ function OrionTable<T extends object>({
                   onClick={() => setFilterVisible({ ...filterVisible, [col.key]: false })}
                   style={{ width: 70 }}
                 >
-                  Search
+                  搜索
                 </Button>
                 <Button
                   size="small"
@@ -176,7 +176,7 @@ function OrionTable<T extends object>({
                   }}
                   style={{ width: 70 }}
                 >
-                  Reset
+                  重置
                 </Button>
               </Space>
             </div>
@@ -294,7 +294,7 @@ function OrionTable<T extends object>({
         >
           {hasActiveFilters && (
             <Button size="small" icon={<ClearOutlined />} onClick={clearAllFilters} type="link">
-              Clear All Filters
+              清除所有筛选
             </Button>
           )}
         </div>
