@@ -30,6 +30,7 @@ import {
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
 import PageSkeleton from '@/components/PageSkeleton';
+import { AlertBanner } from '@/hooks/ErrorBanner';
 import {
   getDoraMetrics,
   getDoraBenchmarks,
@@ -41,25 +42,9 @@ import {
 
 const { Title, Text } = Typography;
 
-// ---- Simulated fallback data ----
-
-const fallbackMetrics: DoraMetricsResult = {
-  metrics: {
-    deploymentFrequency: '4.2',
-    leadTimeForChanges: 168,
-    changeFailureRate: 8.3,
-    meanTimeToRecovery: 42,
-  },
-  timeWindow: {
-    window: 'week',
-    size: 4,
-    start: '2026-07-10',
-    end: '2026-08-07',
-  },
-  calculatedAt: new Date().toISOString(),
-};
-
-const fallbackBenchmarks: DoraBenchmarks = {
+// fallbackBenchmarks 保留为展示文本映射（不含数值，非假数据），
+// 表示 DORA 行业等级阈值定义，是常量参考数据而非模拟指标
+const benchmarkLabels: DoraBenchmarks = {
   deploymentFrequency: {
     elite: '>=5次/周',
     high: '2-5次/周',
@@ -85,13 +70,6 @@ const fallbackBenchmarks: DoraBenchmarks = {
     low: '>1周',
   },
 };
-
-const fallbackTrends: TrendHistoryPoint[] = [
-  { week: 'W28', deploymentFrequency: 3.5, leadTime: 210, mttr: 55, changeFailureRate: 12 },
-  { week: 'W29', deploymentFrequency: 4.0, leadTime: 195, mttr: 48, changeFailureRate: 10 },
-  { week: 'W30', deploymentFrequency: 4.8, leadTime: 180, mttr: 45, changeFailureRate: 9 },
-  { week: 'W31', deploymentFrequency: 4.2, leadTime: 168, mttr: 42, changeFailureRate: 8.3 },
-];
 
 // ---- Level determination ----
 
@@ -225,6 +203,7 @@ const DoraMetricsPage: React.FC = () => {
   const [doraResult, setDoraResult] = useState<DoraMetricsResult | null>(null);
   const [benchmarks, setBenchmarks] = useState<DoraBenchmarks | null>(null);
   const [trends, setTrends] = useState<TrendHistoryPoint[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const timeWindowQueryMap: Record<string, number> = {
     '7d': 1,
@@ -234,14 +213,24 @@ const DoraMetricsPage: React.FC = () => {
 
   const loadData = async (windowLabel: string = timeWindow) => {
     const weeks = timeWindowQueryMap[windowLabel] || 4;
+    setError(null);
 
-    const metricsRes = await getDoraMetrics({ interval: 'weekly' }).catch(() => null);
-    const benchmarksRes = await getDoraBenchmarks().catch(() => null);
-    const trendsRes = await getDORTrends({ weeks }).catch(() => null);
-
-    setDoraResult(metricsRes?.data || fallbackMetrics);
-    setBenchmarks(benchmarksRes?.data || fallbackBenchmarks);
-    setTrends(trendsRes?.data?.trends || fallbackTrends);
+    try {
+      const [metricsRes, benchmarksRes, trendsRes] = await Promise.all([
+        getDoraMetrics({ interval: 'weekly' }),
+        getDoraBenchmarks(),
+        getDORTrends({ weeks }),
+      ]);
+      setDoraResult(metricsRes.data || null);
+      setBenchmarks(benchmarksRes.data || null);
+      setTrends(trendsRes.data?.trends || []);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '加载 DORA 指标失败';
+      setError(msg);
+      setDoraResult(null);
+      setBenchmarks(null);
+      setTrends([]);
+    }
   };
 
   useEffect(() => {
@@ -265,9 +254,9 @@ const DoraMetricsPage: React.FC = () => {
     setTimeWindow(value as '7d' | '30d' | '90d');
   };
 
-  const metrics = doraResult?.metrics || fallbackMetrics.metrics;
-  const benchmarksData = benchmarks || fallbackBenchmarks;
-  const trendData = trends.length > 0 ? trends : fallbackTrends;
+  const metrics = doraResult?.metrics;
+  const benchmarksData = benchmarks || benchmarkLabels;
+  const trendData = trends;
 
   const depFreq =
     typeof metrics.deploymentFrequency === 'string'
@@ -372,6 +361,27 @@ const DoraMetricsPage: React.FC = () => {
       ),
     },
   ];
+
+  if (doraResult === null && error) {
+    return (
+      <div>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+          DORA 效率指标
+        </Title>
+        <AlertBanner
+          state={{
+            message: error,
+            severity: 'warning',
+            actionLabel: '重试',
+            onRetry: () => loadData(),
+          }}
+          onClose={() => setError(null)}
+        />
+        <Empty description="数据加载失败" />
+      </div>
+    );
+  }
 
   if (doraResult === null) {
     return <PageSkeleton cards={4} rows={6} />;
