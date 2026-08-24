@@ -14,15 +14,18 @@ import {
   message,
   Spin,
   Tooltip,
+  DatePicker,
 } from 'antd';
 import {
   ReloadOutlined,
   SearchOutlined,
   InfoCircleOutlined,
   LineChartOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTraces, type LLMTrace } from '@/api/llm-trace';
+import dayjs from 'dayjs';
 import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -41,11 +44,13 @@ const TraceList: React.FC = () => {
   const [tenantId, setTenantId] = useState<number | undefined>(1);
   const [scenarioId, setScenarioId] = useState<string | undefined>();
   const [limit, setLimit] = useState(50);
+  const [startDate, setStartDate] = useState<string | undefined>();
+  const [endDate, setEndDate] = useState<string | undefined>();
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const response = await getTraces({ tenantId, scenarioId, limit });
+      const response = await getTraces({ tenantId, scenarioId, limit, startDate, endDate });
       const data = response.data as unknown as { data: LLMTrace[]; total: number };
       setTraces(data.data || []);
       setTotal(data.total || 0);
@@ -56,6 +61,42 @@ const TraceList: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExport = () => {
+    const headers = [
+      'Trace ID',
+      '场景',
+      '模型',
+      '供应商',
+      '输入Token',
+      '输出Token',
+      '成本',
+      '延迟(ms)',
+      '状态',
+      '时间',
+    ];
+    const rows = traces.map((t) => [
+      t.traceId,
+      t.scenarioId,
+      t.modelId,
+      t.providerId,
+      t.inputTokens,
+      t.outputTokens,
+      t.estimatedCost.toFixed(4),
+      t.responseLatencyMs ?? '',
+      t.status,
+      new Date(t.requestStartedAt).toISOString(),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `llm-traces-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('导出完成');
   };
 
   useEffect(() => {
@@ -202,8 +243,23 @@ const TraceList: React.FC = () => {
               { value: 200, label: '200' },
             ]}
           />
+          <Text>日期:</Text>
+          <DatePicker
+            value={startDate ? dayjs(startDate) : null}
+            onChange={(d) => setStartDate(d?.toISOString() || undefined)}
+            style={{ width: 140 }}
+          />
+          <Text>至</Text>
+          <DatePicker
+            value={endDate ? dayjs(endDate) : null}
+            onChange={(d) => setEndDate(d?.toISOString() || undefined)}
+            style={{ width: 140 }}
+          />
           <Button icon={<SearchOutlined />} onClick={loadData}>
             查询
+          </Button>
+          <Button icon={<DownloadOutlined />} onClick={handleExport} disabled={traces.length === 0}>
+            导出
           </Button>
         </Space>
       </Card>

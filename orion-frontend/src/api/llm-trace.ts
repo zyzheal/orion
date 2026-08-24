@@ -91,6 +91,8 @@ export interface TraceQuery {
   tenantId?: number;
   scenarioId?: string;
   limit?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface DailyStatsQuery {

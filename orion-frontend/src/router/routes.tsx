@@ -641,6 +641,20 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: '*', action: 'manage' },
   },
+  // MCP Server Management (A7 + B6)
+  {
+    path: '/console/mcp-servers',
+    element: React.lazy(() => import('@/pages/MCPManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // AI Model Evolution (A7)
+  {
+    path: '/console/model-evolution',
+    element: React.lazy(() => import('@/pages/ModelEvolution')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
   // LLM Trace Dashboard (P1)
   {
     path: '/console/llm-trace',
