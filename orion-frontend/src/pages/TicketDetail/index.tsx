@@ -50,6 +50,7 @@ import {
   closeTicket,
   getTicketRelations,
   getTransferHistory,
+  getWorkflowHistory,
 } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
@@ -237,18 +238,21 @@ const TicketDetail: React.FC = () => {
   // Load relations and transfer history
   const [relations, setRelations] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
-  const [history, _setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const loadRelatedData = async () => {
       if (!id) return;
       try {
-        const [relationsRes, transfersRes] = await Promise.all([
+        const [relationsRes, transfersRes, historyRes] = await Promise.all([
           getTicketRelations(id),
           getTransferHistory(id),
+          getWorkflowHistory(id),
         ]);
         setRelations(relationsRes.data?.items || []);
         setTransfers(transfersRes.data?.items || []);
+        const historyData = historyRes.data?.items;
+        setHistory(Array.isArray(historyData) ? historyData : []);
       } catch {
         // Relations/transfer history are non-critical; silently fail
       }
