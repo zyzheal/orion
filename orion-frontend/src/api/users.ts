@@ -123,6 +123,14 @@ export function changePassword(id: string, data: ChangePasswordInput) {
   return api.post(`/api/v1/users/${id}/change-password`, data);
 }
 
+/**
+ * 管理员重置用户密码 — 无需原密码
+ * POST /api/v1/users/:id/admin-reset-password
+ */
+export function adminResetPassword(id: string, data: { newPassword: string }) {
+  return api.post(`/api/v1/users/${id}/admin-reset-password`, data);
+}
+
 // ---- Tenant Management ----
 
 /**

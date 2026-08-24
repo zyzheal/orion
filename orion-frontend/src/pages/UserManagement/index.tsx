@@ -45,6 +45,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  adminResetPassword,
   type User,
   type CreateUserInput,
   type UpdateUserInput,
@@ -247,25 +248,18 @@ const UserManagement: React.FC = () => {
   const handleChangePassword = async () => {
     if (!selectedUser) return;
     try {
-      await changePwForm.validateFields().catch(() => {
-        throw new Error('Validation failed');
-      });
+      await changePwForm.validateFields();
       setSubmitting(true);
-      // Backend API for change-password requires user's current password
-      // For admin reset, we use update with a direct password update path
-      // Since the API requires oldPassword, we handle this as a special case
-      message.info('密码修改功能需要用户当前密码，请联系用户自行修改');
+      const values = changePwForm.getFieldsValue();
+      await adminResetPassword(selectedUser.id, { newPassword: values.newPassword });
       setChangePwModalVisible(false);
       changePwForm.resetFields();
+      message.success('密码重置成功');
+      await loadData();
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
-      if (!err.errorFields) {
-        if (error instanceof Error) {
-          message.error(`密码修改失败：${error.message}`);
-        } else {
-          message.error('密码修改失败');
-        }
-      }
+      if (err.errorFields) return;
+      message.error(error instanceof Error ? error.message : '密码重置失败');
     } finally {
       setSubmitting(false);
     }
@@ -734,13 +728,6 @@ const UserManagement: React.FC = () => {
               </div>
             )}
             <Form form={changePwForm} layout="vertical">
-              <Form.Item
-                name="oldPassword"
-                label="当前密码"
-                rules={[{ required: true, message: '请输入当前密码' }]}
-              >
-                <Input.Password placeholder="输入当前密码" />
-              </Form.Item>
               <Form.Item
                 name="newPassword"
                 label="新密码"

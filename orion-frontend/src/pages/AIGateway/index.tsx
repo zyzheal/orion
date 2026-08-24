@@ -15,6 +15,7 @@ import {
   message,
   Spin,
   Empty,
+  Tooltip,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -204,7 +205,9 @@ const AIGatewayPage: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
               刷新
             </Button>
-            <Button icon={<SettingOutlined />}>配置</Button>
+            <Tooltip title="AI 网关配置功能开发中">
+              <Button icon={<SettingOutlined />} disabled>配置</Button>
+            </Tooltip>
           </Space>
         </div>
 

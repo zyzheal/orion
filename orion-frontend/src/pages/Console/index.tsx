@@ -215,13 +215,12 @@ const Console: React.FC = () => {
           <Card>
             <Statistic
               title="系统健康度"
-              value={98}
-              suffix="%"
+              value="-"
               prefix={<SafetyCertificateOutlined />}
-              valueStyle={{ color: colors.success[500] }}
+              valueStyle={{ color: colors.neutral[500] }}
             />
             <div style={{ marginTop: spacing.md }}>
-              <Tag color="success">运行正常</Tag>
+              <Tag>健康检查开发中</Tag>
             </div>
           </Card>
         </Col>
