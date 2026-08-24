@@ -627,6 +627,20 @@ export const routes: AppRoute[] = [
       },
     ],
   },
+  // Eval Set Management (TR-05)
+  {
+    path: '/console/eval-sets',
+    element: React.lazy(() => import('@/pages/EvalSetManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Prompt Canary Management (TR-06)
+  {
+    path: '/console/prompt-canary',
+    element: React.lazy(() => import('@/pages/PromptCanary')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
   // LLM Trace Dashboard (P1)
   {
     path: '/console/llm-trace',

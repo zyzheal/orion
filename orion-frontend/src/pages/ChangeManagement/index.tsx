@@ -47,6 +47,7 @@ import {
   TeamOutlined,
   ExclamationCircleOutlined,
   SafetyCertificateOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
 import Table, { type TableColumn } from '@/components/Table';
@@ -71,6 +72,7 @@ import {
   updateCABMeeting,
   addCABDecision,
   getChangeStats,
+  getChangeRiskAnalysis,
 } from '@/api/change';
 import type {
   ChangeRequest,
@@ -78,6 +80,7 @@ import type {
   ChangeTimelineEvent,
   RFC,
   ChangeStats,
+  ChangeRiskAnalysis,
 } from '@/api/change';
 import dayjs from 'dayjs';
 
@@ -190,6 +193,10 @@ const ChangeManagement: React.FC = () => {
   // Detail state
   const [selectedChange, setSelectedChange] = useState<ChangeRequest | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // AI Risk Analysis (TR-03)
+  const [riskAnalysis, setRiskAnalysis] = useState<ChangeRiskAnalysis | null>(null);
+  const [riskLoading, setRiskLoading] = useState(false);
 
   // Timeline state
   const [timeline, setTimeline] = useState<ChangeTimelineEvent[]>([]);
@@ -1268,6 +1275,28 @@ const ChangeManagement: React.FC = () => {
                 </Space>
               </div>
               <Space>
+                <Button
+                  type="primary"
+                  icon={<ThunderboltOutlined />}
+                  loading={riskLoading}
+                  onClick={async () => {
+                    if (!selectedChange) return;
+                    setRiskLoading(true);
+                    try {
+                      const analysis = await getChangeRiskAnalysis(selectedChange.id);
+                      setRiskAnalysis(analysis);
+                      message.success('AI 风险分析完成');
+                    } catch (error: unknown) {
+                      message.error(
+                        error instanceof Error ? error.message : 'AI 风险分析失败，请稍后重试'
+                      );
+                    } finally {
+                      setRiskLoading(false);
+                    }
+                  }}
+                >
+                  AI 风险分析
+                </Button>
                 <Button icon={<EditOutlined />} onClick={handleOpenEditModal}>
                   编辑
                 </Button>
@@ -1310,6 +1339,92 @@ const ChangeManagement: React.FC = () => {
                     </Button>
                   )}
               </Space>
+            </Card>
+          )}
+
+          {/* AI Risk Analysis Result */}
+          {riskAnalysis && (
+            <Card
+              title={
+                <span>
+                  <ThunderboltOutlined
+                    style={{ marginRight: spacing.xs, color: colors.purple[500] }}
+                  />
+                  AI 风险分析报告
+                </span>
+              }
+              extra={
+                <Text type="secondary">
+                  生成于 {dayjs(riskAnalysis.generated_at).format('YYYY-MM-DD HH:mm')}
+                </Text>
+              }
+              style={{
+                marginBottom: spacing.md,
+                borderRadius: radius.lg,
+                boxShadow: shadows.card,
+                borderColor: colors.purple[200],
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  gap: spacing.lg,
+                  alignItems: 'center',
+                  marginBottom: spacing.md,
+                  padding: spacing.md,
+                  background: colors.purple[50],
+                  borderRadius: radius.md,
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <Text style={{ fontSize: 36, fontWeight: 600, color: colors.purple[600] }}>
+                    {riskAnalysis.risk_score}
+                  </Text>
+                  <Text type="secondary">/ 100</Text>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Text strong>
+                    风险等级：
+                    <Tag
+                      color={
+                        riskAnalysis.risk_level === 'high'
+                          ? 'red'
+                          : riskAnalysis.risk_level === 'medium'
+                            ? 'orange'
+                            : 'green'
+                      }
+                    >
+                      {riskAnalysis.risk_level.toUpperCase()}
+                    </Tag>
+                  </Text>
+                </div>
+              </div>
+
+              <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
+                风险因素
+              </Text>
+              <ul style={{ paddingLeft: 20, marginBottom: spacing.md }}>
+                {riskAnalysis.factors?.map((factor, idx) => (
+                  <li key={factor.name}>
+                    <strong>{factor.name}</strong>（权重 {factor.weight}）：{factor.reason}
+                  </li>
+                ))}
+              </ul>
+
+              {riskAnalysis.suggestions?.length > 0 && (
+                <>
+                  <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
+                    AI 建议
+                  </Text>
+                  <ul style={{ paddingLeft: 20 }}>
+                    {riskAnalysis.suggestions.map((s, idx) => (
+                      <li key={idx} style={{ color: colors.info[600] }}>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </Card>
           )}
 
