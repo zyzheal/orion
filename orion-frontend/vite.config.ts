@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import path from 'path';
 
 // Force UTC timezone for consistent test results
 process.env.TZ = 'UTC';
@@ -208,6 +209,12 @@ export default defineConfig({
           }
           if (id.includes('src/components/charts/')) {
             return 'charts';
+          }
+          if (id.includes('node_modules/@xterm/')) {
+            return 'terminal';
+          }
+          if (id.includes('node_modules/@orion-mf/')) {
+            return 'orion-mf';
           }
           if (id.includes('src/components/DAGGraph/')) {
             return 'dag';
