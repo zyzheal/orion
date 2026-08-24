@@ -82,11 +82,7 @@ const ModelEvolution: React.FC = () => {
       const daily = (dailyRes.data as any) || {};
       const cost = (costRes.data as any) || {};
 
-      const stats = {
-        totalCost: daily.totalCost || cost.totalCost || 0,
-        totalRequests: daily.totalTraces || cost.requests || 0,
-      };
-
+      
       const modelStats = daily.topModels || cost.byModel || [];
 
       const entries: ModelEntry[] = pricing.map((p: any, idx: number) => {
