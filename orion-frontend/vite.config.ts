@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import path from 'path';
 
 // Force UTC timezone for consistent test results
 process.env.TZ = 'UTC';
@@ -174,9 +173,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           // 大型/共享依赖单独拆分，避免 chunk 过大
-          if (id.includes('node_modules/@ant-design/icons/')) {
-            return 'ant-design-icons';
-          }
+          // @ant-design/icons 不再独立打包，跟随各页面 chunk 加载
+          // 避免图标库成为独立首屏依赖
           if (id.includes('node_modules/dayjs/')) {
             return 'dayjs';
           }
@@ -205,11 +203,10 @@ export default defineConfig({
             return 'vendor';
           }
           if (id.includes('node_modules/echarts/') || id.includes('node_modules/echarts-for-react/')) {
-            return 'charts';
+            return 'echarts-vendor';
           }
-          if (id.includes('src/components/charts/')) {
-            return 'charts';
-          }
+          // src/components/charts/ 不再归入 charts chunk，
+          // 让 Vite 按页面自然拆分，每个页面只加载自己需要的图表组件
           if (id.includes('node_modules/@xterm/')) {
             return 'terminal';
           }
@@ -225,9 +222,8 @@ export default defineConfig({
           if (id.includes('src/components/ChatOps/')) {
             return 'chatops';
           }
-          if (id.includes('src/components/')) {
-            return 'shared-ui';
-          }
+          // src/components/ 不再强制打包为 shared-ui，让 Vite 按页面依赖自然拆分
+          // 只有大型组件（DAG/Lowcode/ChatOps）保持独立，小型共享组件随页面加载
         },
       },
     },

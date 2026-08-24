@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { colors } from '@/tokens/colors';
-import './echarts-init';
+// echarts 由各个图表组件按需动态导入，不在全局初始化
 
 export interface ChartThemeConfig {
   palette: string[];
