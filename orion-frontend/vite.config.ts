@@ -203,6 +203,21 @@ export default defineConfig({
           if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) {
             return 'vendor';
           }
+          if (id.includes('node_modules/echarts/') || id.includes('node_modules/echarts-for-react/')) {
+            return 'charts';
+          }
+          if (id.includes('src/components/charts/')) {
+            return 'charts';
+          }
+          if (id.includes('src/components/DAGGraph/')) {
+            return 'dag';
+          }
+          if (id.includes('src/components/Lowcode/')) {
+            return 'lowcode';
+          }
+          if (id.includes('src/components/ChatOps/')) {
+            return 'chatops';
+          }
           if (id.includes('src/components/')) {
             return 'shared-ui';
           }
