@@ -304,7 +304,14 @@ const PipelineList: React.FC = () => {
                   value="delete"
                   onClick={(e: React.MouseEvent<HTMLElement>) => {
                     e.stopPropagation();
-                    handleDelete(record.id);
+                    Modal.confirm({
+                      title: '确认删除 Pipeline',
+                      content: `确定要删除「${record.name}」吗？此操作不可恢复。`,
+                      okText: '删除',
+                      okType: 'danger',
+                      cancelText: '取消',
+                      onOk: () => handleDelete(record.id),
+                    });
                   }}
                 >
                   删除

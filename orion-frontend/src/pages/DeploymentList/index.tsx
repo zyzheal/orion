@@ -15,7 +15,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { PermissionActions } from '@/components/PermissionActions';
-import { getDeployments } from '@/api/deployments';
+import { getDeployments, rollbackDeployment } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -262,6 +262,15 @@ const DeploymentList: React.FC = () => {
                       danger: true,
                       confirm: true,
                       confirmText: '确定要回滚此部署吗？',
+                      onClick: async () => {
+                        try {
+                          await rollbackDeployment(record.id);
+                          message.success('部署回滚已提交');
+                          loadDeployments();
+                        } catch (err) {
+                          message.error(err instanceof Error ? err.message : '回滚失败');
+                        }
+                      },
                     },
                   ]
                 : []),
