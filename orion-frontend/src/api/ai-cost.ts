@@ -138,8 +138,8 @@ export function getCostSummary(params?: CostSummaryParams) {
 
 // ---- Dashboard ----
 
-export function getDashboardData() {
-  return api.get('/api/v1/ai-cost/dashboard');
+export function getDashboardData(params?: { days?: number; startDate?: string; endDate?: string }) {
+  return api.get('/api/v1/ai-cost/dashboard', { params });
 }
 
 // ---- Alerts ----

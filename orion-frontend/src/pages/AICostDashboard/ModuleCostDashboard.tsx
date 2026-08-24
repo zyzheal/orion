@@ -3,7 +3,7 @@
  * GET /api/v1/llm/cost/module-dashboard
  * P4d: Cost attribution to TR-09/10/11 business scenarios.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -16,8 +16,9 @@ import {
   Row,
   Col,
   message,
+  Select,
 } from 'antd';
-import { ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
+import { ReloadOutlined, BarChartOutlined, DownloadOutlined } from '@ant-design/icons';
 import { getModuleCostDashboard, type ModuleCostSummary } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
 
@@ -40,6 +41,32 @@ const SCENARIO_LABEL: Record<string, { label: string; color: string }> = {
 const ModuleCostDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ModuleCostSummary[]>([]);
+  const [filterScenario, setFilterScenario] = useState<string>('all');
+
+  const filteredData = useMemo(() => {
+    if (filterScenario === 'all') return data;
+    return data.filter((d) => d.scenario === filterScenario);
+  }, [data, filterScenario]);
+
+  const handleExport = () => {
+    const headers = ['模块', '请求数', 'Token用量', '费用', '成功率'];
+    const rows = filteredData.map((d) => [
+      d.scenario,
+      d.requests,
+      d.tokens,
+      d.cost.toFixed(4),
+      `${Math.round(d.successRate * 100)}%`,
+    ]);
+    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `module-cost-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('导出完成');
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -58,9 +85,9 @@ const ModuleCostDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const totalCost = data.reduce((sum, d) => sum + (d.cost || 0), 0);
-  const totalRequests = data.reduce((sum, d) => sum + (d.requests || 0), 0);
-  const totalTokens = data.reduce((sum, d) => sum + (d.tokens || 0), 0);
+  const totalCost = filteredData.reduce((sum, d) => sum + (d.cost || 0), 0);
+  const totalRequests = filteredData.reduce((sum, d) => sum + (d.requests || 0), 0);
+  const totalTokens = filteredData.reduce((sum, d) => sum + (d.tokens || 0), 0);
 
   const columns = [
     {
@@ -134,9 +161,29 @@ const ModuleCostDashboard: React.FC = () => {
           </Title>
           <Text type="secondary">按业务场景统计 AI 成本，快速定位 TR-09/10/11 消耗</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-          刷新
-        </Button>
+        <Space>
+          <Select
+            options={[
+              { label: '全部场景', value: 'all' },
+              ...(data || []).map((d) => ({ label: d.scenario, value: d.scenario })),
+            ]}
+            value={filterScenario}
+            onChange={setFilterScenario}
+            allowClear
+            style={{ width: 140 }}
+            size="small"
+          />
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            disabled={filteredData.length === 0}
+          >
+            导出
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
@@ -173,7 +220,7 @@ const ModuleCostDashboard: React.FC = () => {
         ) : (
           <Table
             columns={columns}
-            dataSource={data}
+            dataSource={filteredData}
             rowKey="scenario"
             size="small"
             pagination={false}

@@ -33,6 +33,13 @@ import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
+const RANGE_OPTIONS: Array<{ label: string; value: number }> = [
+  { label: '7 天', value: 7 },
+  { label: '14 天', value: 14 },
+  { label: '30 天', value: 30 },
+  { label: '90 天', value: 90 },
+];
+
 const CostOverview: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -40,11 +47,16 @@ const CostOverview: React.FC = () => {
   // TR-08: Model / Tenant filters
   const [filterModel, setFilterModel] = useState<string>('all');
   const [filterTenant, setFilterTenant] = useState<string>('all');
+  // Date range (default 7 days)
+  const [days, setDays] = useState<number>(7);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dashRes, pricingRes] = await Promise.all([getDashboardData(), getModelPricing()]);
+      const [dashRes, pricingRes] = await Promise.all([
+        getDashboardData({ days }),
+        getModelPricing(),
+      ]);
       setDashboard(dashRes.data as DashboardData | null);
       setPricing(Array.isArray(pricingRes.data) ? pricingRes.data : []);
     } catch (error: unknown) {
@@ -58,7 +70,7 @@ const CostOverview: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [days]);
 
   // Calculate day-over-day change
   const dayOverDayChange = useMemo(() => {
@@ -236,6 +248,13 @@ const CostOverview: React.FC = () => {
             alignItems: 'flex-start',
           }}
         >
+          <Select
+            options={RANGE_OPTIONS}
+            value={days}
+            onChange={setDays}
+            style={{ width: 90 }}
+            size="small"
+          />
           <Select
             allowClear
             placeholder="全部模型"
