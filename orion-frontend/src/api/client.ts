@@ -2,12 +2,18 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 import { message } from 'antd';
 import type { ApiResponse } from './types';
 import { useAuthStore } from '@/stores/authStore';
+import { OrionError, fromAxiosError, ErrorCode, classifyError } from './errors';
+import { createRequestCanceller } from './canceller';
+import { createRetryHandler } from './retry';
+
+const { cancelRequest, cancelByTag, cancelAll, onRouteChange } = createRequestCanceller();
+const { shouldRetry, getRetryDelay, withRetry } = createRetryHandler();
 
 // ---- 统一配置 ----
 
 /** API 基础路径：所有 API 文件使用相对路径（如 /projects），
  *  client.ts 自动拼接 /api/v1 前缀。
- *  硬编码 /api/v1/xxx 的旧文件需迁移到相对路径。
+ *  硬编码 /xxx 的旧文件需迁移到相对路径。
  */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
@@ -222,10 +228,38 @@ apiClient.interceptors.response.use(
   }
 );
 
+// ---- 统一请求方法（带取消注册 + 重试） ----
+
+const executeWithRetryAndCancel = <T = unknown>(
+  method: 'get' | 'post' | 'put' | 'delete' | 'patch',
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig
+): Promise<AxiosResponse<T>> => {
+  // 支持配置级重试控制
+  const retryCount = config?.headers?.['x-retry-count'] ?? 3;
+  const retryable = config?.headers?.['x-retryable'] !== 'false';
+
+  const execute = () =>
+    apiClient[method](url, data, config) as Promise<AxiosResponse<T>>;
+
+  if (retryable && Number(retryCount) > 0) {
+    return withRetry<AxiosResponse<T>>(execute, {
+      maxRetries: Number(retryCount),
+      onRetry: (error: Error, attempt: number) => {
+        const code = (error as { code?: string }).code || 'UNKNOWN';
+        console.warn(`[Retry] ${method.toUpperCase()} ${url} attempt ${attempt + 1} — ${code}`);
+      },
+    });
+  }
+
+  return execute();
+};
+
 // 导出请求方法
 export const api = {
   get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return apiClient.get(url, config) as Promise<AxiosResponse<T>>;
+    return executeWithRetryAndCancel('get', url, undefined, config);
   },
 
   post<T = unknown>(
@@ -233,7 +267,7 @@ export const api = {
     data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
-    return apiClient.post(url, data, config) as Promise<AxiosResponse<T>>;
+    return executeWithRetryAndCancel('post', url, data, config);
   },
 
   put<T = unknown>(
@@ -241,11 +275,11 @@ export const api = {
     data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
-    return apiClient.put(url, data, config) as Promise<AxiosResponse<T>>;
+    return executeWithRetryAndCancel('put', url, data, config);
   },
 
   delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-    return apiClient.delete(url, config) as Promise<AxiosResponse<T>>;
+    return executeWithRetryAndCancel('delete', url, undefined, config);
   },
 
   patch<T = unknown>(
@@ -253,8 +287,20 @@ export const api = {
     data?: unknown,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> {
-    return apiClient.patch(url, data, config) as Promise<AxiosResponse<T>>;
+    return executeWithRetryAndCancel('patch', url, data, config);
   },
+
+  // 取消控制方法
+  cancelRequest,
+  cancelByTag,
+  cancelAll,
+  onRouteChange,
+
+  // 错误工厂
+  isOrionError: (err: unknown): err is OrionError => err instanceof OrionError,
+  fromAxiosError,
+  classifyError,
 };
 
 export default apiClient;
+export { OrionError, ErrorCode, fromAxiosError, cancelRequest, cancelByTag, cancelAll, onRouteChange, shouldRetry, getRetryDelay };

@@ -1,6 +1,6 @@
 /**
  * Tenant Quota API
- * /api/v1/tenant-quota — Plans / Usage / Alerts
+ * /tenant-quota — Plans / Usage / Alerts
  */
 import { api } from './client';
 
@@ -59,60 +59,60 @@ export interface QuotaCheckResult {
 // --- Plans ---
 
 export const listPlans = async () => {
-  const res = await api.get('/api/v1/tenant-quota/plans');
+  const res = await api.get('/tenant-quota/plans');
   return res.data;
 };
 
 export const getPlan = async (id: string) => {
-  const res = await api.get(`/api/v1/tenant-quota/plans/${id}`);
+  const res = await api.get(`/tenant-quota/plans/${id}`);
   return res.data;
 };
 
 export const createPlan = async (data: Partial<QuotaPlan> & { name: string }) => {
-  const res = await api.post('/api/v1/tenant-quota/plans', data);
+  const res = await api.post('/tenant-quota/plans', data);
   return res.data;
 };
 
 export const updatePlan = async (id: string, data: Partial<QuotaPlan>) => {
-  const res = await api.put(`/api/v1/tenant-quota/plans/${id}`, data);
+  const res = await api.put(`/tenant-quota/plans/${id}`, data);
   return res.data;
 };
 
 export const deletePlan = async (id: string) => {
-  const res = await api.delete(`/api/v1/tenant-quota/plans/${id}`);
+  const res = await api.delete(`/tenant-quota/plans/${id}`);
   return res.data;
 };
 
 // --- Usage ---
 
 export const listUsage = async () => {
-  const res = await api.get('/api/v1/tenant-quota/usage');
+  const res = await api.get('/tenant-quota/usage');
   return res.data;
 };
 
 export const getUsage = async (metric: string) => {
-  const res = await api.get(`/api/v1/tenant-quota/usage/${metric}`);
+  const res = await api.get(`/tenant-quota/usage/${metric}`);
   return res.data;
 };
 
 export const incrementUsage = async (metric: string, amount: number, window?: string) => {
-  const res = await api.post('/api/v1/tenant-quota/usage/increment', { metric, amount, window });
+  const res = await api.post('/tenant-quota/usage/increment', { metric, amount, window });
   return res.data;
 };
 
 export const resetUsage = async () => {
-  const res = await api.post('/api/v1/tenant-quota/usage/reset');
+  const res = await api.post('/tenant-quota/usage/reset');
   return res.data;
 };
 
 export const checkQuota = async (metric: string, amount: number = 1) => {
-  const res = await api.post('/api/v1/tenant-quota/check', { metric, amount });
+  const res = await api.post('/tenant-quota/check', { metric, amount });
   return res.data as QuotaCheckResult;
 };
 
 // --- Alerts ---
 
 export const listAlerts = async () => {
-  const res = await api.get('/api/v1/tenant-quota/alerts');
+  const res = await api.get('/tenant-quota/alerts');
   return res.data;
 };

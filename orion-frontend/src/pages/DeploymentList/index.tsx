@@ -8,7 +8,7 @@
  * - Detail link
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message } from 'antd';
+import { Typography, Button, Space, Tag, message, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -327,6 +327,26 @@ const DeploymentList: React.FC = () => {
         rowKey="id"
         size="middle"
         striped
+        locale={
+          filteredDeployments.length === 0
+            ? {
+                emptyText: (
+                  <Empty
+                    description="暂无部署记录"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  >
+                    <Button
+                      type="primary"
+                      icon={<RocketOutlined />}
+                      onClick={() => navigate('/deployments/new')}
+                    >
+                      创建部署
+                    </Button>
+                  </Empty>
+                ),
+              }
+            : undefined
+        }
       />
     </div>
   );

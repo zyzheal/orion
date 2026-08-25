@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/approval/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) AgentAnalyze(ctx context.Context, tenantID, approvalID string) (*models.ApprovalRequest, error) {
@@ -147,115 +143,6 @@ func (f *fakeHandlerService) WithdrawApproval(ctx context.Context, tenantID, app
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeapprovalService struct{}
-
-func (f *fakeapprovalService) AgentAnalyze(ctx context.Context, tenantID, approvalID string) ((*models.ApprovalRequest, error)) {
-	return &models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) ApproveGate(ctx context.Context, tenantID, runID, stageID string, userID, userName, comment string) ((*models.ApprovalGate, error)) {
-	return &models.ApprovalGate{}, nil
-}
-
-func (f *fakeapprovalService) ApproveRequest(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) CancelApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) CreateApprovalRequest(ctx context.Context, tenantID, userID, userName string, req models.CreateApprovalRequest) ((*models.ApprovalRequest, error)) {
-	return &models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) CreateTemplate(ctx context.Context, tenantID string, req models.CreateTemplateRequest) ((*models.ApprovalTemplate, error)) {
-	return &models.ApprovalTemplate{}, nil
-}
-
-func (f *fakeapprovalService) DelegateApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.DelegateApprovalRequest) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) DeleteApprovalRequest(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) GetApprovalRequest(ctx context.Context, tenantID, id string) ((*models.ApprovalRequest, error)) {
-	return &models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) GetHistory(ctx context.Context, tenantID, approvalID string) (([]models.ApprovalHistory, error)) {
-	return []models.ApprovalHistory{}, nil
-}
-
-func (f *fakeapprovalService) GetMyPendingApprovals(ctx context.Context, tenantID, userID string) (([]models.ApprovalRequest, error)) {
-	return []models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) GetPendingApprovals(ctx context.Context, tenantID string) (([]models.ApprovalRequest, error)) {
-	return []models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) GetStatistics(ctx context.Context, tenantID string) ((models.ApprovalStatistics, error)) {
-	return models.ApprovalStatistics{}, nil
-}
-
-func (f *fakeapprovalService) GetStatus(ctx context.Context, tenantID, runID, stageID string) ((*models.ApprovalGate, error)) {
-	return &models.ApprovalGate{}, nil
-}
-
-func (f *fakeapprovalService) GetTemplate(ctx context.Context, tenantID, id string) ((*models.ApprovalTemplate, error)) {
-	return &models.ApprovalTemplate{}, nil
-}
-
-func (f *fakeapprovalService) GetTemplates(ctx context.Context, tenantID string, limit, offset int) (([]models.ApprovalTemplate, error)) {
-	return []models.ApprovalTemplate{}, nil
-}
-
-func (f *fakeapprovalService) GetTrend(ctx context.Context, tenantID string) (([]models.ApprovalTrendEntry, error)) {
-	return []models.ApprovalTrendEntry{}, nil
-}
-
-func (f *fakeapprovalService) ListApprovalRequests(ctx context.Context, tenantID, approvalType, status string, limit, offset int) (([]models.ApprovalRequest, error)) {
-	return []models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) ListByRun(ctx context.Context, tenantID, runID string) (([]models.ApprovalGate, error)) {
-	return []models.ApprovalGate{}, nil
-}
-
-func (f *fakeapprovalService) ReassignApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.ReassignApprovalRequest) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) RejectGate(ctx context.Context, tenantID, runID, stageID string, userID, userName, comment string) ((*models.ApprovalGate, error)) {
-	return &models.ApprovalGate{}, nil
-}
-
-func (f *fakeapprovalService) RejectRequest(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) RequestEmergencyApproval(ctx context.Context, tenantID, userID, userName string, req models.EmergencyApprovalRequest) ((*models.ApprovalRequest, error)) {
-	return &models.ApprovalRequest{}, nil
-}
-
-func (f *fakeapprovalService) ReviewApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.ReviewApprovalRequest) (error) {
-	return nil
-}
-
-func (f *fakeapprovalService) UpdateTemplate(ctx context.Context, tenantID, id string, req models.UpdateTemplateRequest) ((*models.ApprovalTemplate, error)) {
-	return &models.ApprovalTemplate{}, nil
-}
-
-func (f *fakeapprovalService) WithdrawApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakeapprovalService)(nil)
->>>>>>> Stashed changes
 
 
 func TestAPPROVAL_Handler_RegisterRoutes(t *testing.T) {

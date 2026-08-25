@@ -71,6 +71,7 @@ const SbomDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [waiverModalVisible, setWaiverModalVisible] = useState(false);
+  const [waiverSubmitting, setWaiverSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   const loadData = async () => {
@@ -139,6 +140,7 @@ const SbomDashboard: React.FC = () => {
   }, [documents]);
 
   const handleCreateWaiver = async (_values: SbomWaiverInput) => {
+    setWaiverSubmitting(true);
     try {
       message.success('Waiver created successfully');
       setWaiverModalVisible(false);
@@ -150,6 +152,8 @@ const SbomDashboard: React.FC = () => {
         const msg = error instanceof Error ? error.message : 'Failed to create waiver';
         message.error(msg);
       }
+    } finally {
+      setWaiverSubmitting(false);
     }
   };
 
@@ -409,6 +413,9 @@ const SbomDashboard: React.FC = () => {
         open={waiverModalVisible}
         onCancel={() => setWaiverModalVisible(false)}
         onOk={() => form.submit()}
+        confirmLoading={waiverSubmitting}
+        okText="创建豁免"
+        cancelText="取消"
         destroyOnClose
       >
         <Form form={form} layout="vertical" onFinish={handleCreateWaiver}>

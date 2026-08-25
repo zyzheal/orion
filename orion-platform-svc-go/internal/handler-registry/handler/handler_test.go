@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/handler-registry/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req models.CreateHandlerRegistryRequest) (*models.HandlerRegistry, error) {
@@ -88,67 +84,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakehandler_registryService struct{}
-
-func (f *fakehandler_registryService) Create(ctx context.Context, tenantID string, req models.CreateHandlerRegistryRequest) ((*models.HandlerRegistry, error)) {
-	return &models.HandlerRegistry{}, nil
-}
-
-func (f *fakehandler_registryService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakehandler_registryService) Disable(ctx context.Context, tenantID, domain, name string) (error) {
-	return nil
-}
-
-func (f *fakehandler_registryService) Enable(ctx context.Context, tenantID, domain, name string) (error) {
-	return nil
-}
-
-func (f *fakehandler_registryService) Get(ctx context.Context, tenantID, id string) ((*models.HandlerRegistry, error)) {
-	return &models.HandlerRegistry{}, nil
-}
-
-func (f *fakehandler_registryService) GetDomains(ctx context.Context, tenantID string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakehandler_registryService) GetEntry(ctx context.Context, tenantID, domain, name string) ((*models.HandlerRegistryEntry, error)) {
-	return &models.HandlerRegistryEntry{}, nil
-}
-
-func (f *fakehandler_registryService) HealthCheck(ctx context.Context) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakehandler_registryService) Invoke(ctx context.Context, tenantID, domain, name string, payload map[string]any) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakehandler_registryService) List(ctx context.Context, tenantID string, limit, offset int) (([]models.HandlerRegistry, error)) {
-	return []models.HandlerRegistry{}, nil
-}
-
-func (f *fakehandler_registryService) ListEntries(ctx context.Context, tenantID string, opts models.ListHandlerRegistryOptions) (([]models.HandlerRegistryEntry, error)) {
-	return []models.HandlerRegistryEntry{}, nil
-}
-
-func (f *fakehandler_registryService) RegisterHandler(ctx context.Context, tenantID string, req models.RegisterHandlerRequest) ((*models.HandlerRegistryEntry, error)) {
-	return &models.HandlerRegistryEntry{}, nil
-}
-
-func (f *fakehandler_registryService) Unregister(ctx context.Context, tenantID, domain, name string) (error) {
-	return nil
-}
-
-func (f *fakehandler_registryService) Update(ctx context.Context, tenantID, id string, req models.UpdateHandlerRegistryRequest) ((*models.HandlerRegistry, error)) {
-	return &models.HandlerRegistry{}, nil
-}
-
-var _ service.ServiceInterface = (*fakehandler_registryService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_HANDLER_REGIST_RegisterRoutes(t *testing.T) {

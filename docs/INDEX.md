@@ -1,8 +1,12 @@
-# Orion 文档索引 v1.1
+# Orion 文档索引 v2.0
 
-> **版本**: v1.1 | **生成日期**: 2026-07-24 | **总文档数**: 445+
+> **版本**: v2.0 | **生成日期**: 2026-08-26 | **总文档数**: 470+
 >
 > **SDD-2026-001**: Blueprint TS→Go 迁移计划已启动。详见 `reports/` 三份文档 + `blueprints/MIGRATION/`
+>
+> **⚡ v2.0 更新**: 本地代码全量扫描 + deliverables 合并 — 45 个方案 (15 新增 P0-P2) + 18 项缺口分析 (详见 §6)
+>
+> **⚡ v1.2 更新**: 新增 v3.5 全栈评审报告 + 7 篇配套专项分析文档（详见 §6 + §8）
 
 ---
 
@@ -24,6 +28,7 @@ docs/
 ├── reports/                        — 综合评审报告 (4 篇)
 ├── requirements/                   — 需求文档
 ├── review/                         — 评审与执行计划
+├── deliverables/                   — 🆕 可交付生产代码 (45 篇方案, v2.0 合并版)
 ├── services/                       — 服务级设计 (140 篇)
 ├── specs/                          — 服务规格定义 (68 篇)
 ├── superpowers/                    — 专项计划 (10 篇)
@@ -234,7 +239,101 @@ docs/
 
 ## 6. 评审与执行计划
 
-- [review/INDEX.md](review/INDEX.md) — 评审文档索引 (v2.5, 权威)
+### 当前权威评审（v3.5, 2026-08-25）
+
+| 优先级 | 文档 | 定位 | 说明 |
+|:------:|------|------|------|
+| 🔴 **最高** | [system-review-v3.5-2026-08-25.md](system-review-v3.5-2026-08-25.md) | **全栈权威评审** | 36 维度 × 7 探测层 × 8 输出，30 个设计方案，6349 行 |
+| 🟡 方法 | [review-prompt-optimization-2026-08-25.md](review-prompt-optimization-2026-08-25.md) | **评审框架** | v3.5 评审提示词规范（36 维度定义） |
+
+### v3.5 配套专项分析（2026-08-25）
+
+| 文档 | 主题 | 说明 |
+|------|------|------|
+| [backend-stub-classification-2026-08-25.md](backend-stub-classification-2026-08-25.md) | 后端 Stub 分类 | 303 Go 服务深度分级（空壳/Stub/部分/真实） |
+| [implementation-depth-scan-2026-08-25.md](implementation-depth-scan-2026-08-25.md) | 实现深度扫描 | 全系统 L1-L7 探测层扫描结果 |
+| [knowledge-base-review-2026-08-25.md](knowledge-base-review-2026-08-25.md) | 知识库评审 | KnowledgeBase 模块专项深度评审 |
+| [module-coupling-analysis-2026-08-25.md](module-coupling-analysis-2026-08-25.md) | 模块耦合分析 | 巨型模块识别 + 拆分方案 |
+| [skill-marketplace-design-2026-08-25.md](skill-marketplace-design-2026-08-25.md) | 技能市场设计 | Skill 市场架构设计方案 |
+| [skill-marketplace-expert-review-2026-08-25.md](skill-marketplace-expert-review-2026-08-25.md) | 技能市场评审 | 技能市场专家级评审 |
+
+### v2.0 本地代码全量扫描（2026-08-26）
+
+| 文档 | 主题 | 说明 |
+|------|------|------|
+| [local-system-gap-analysis-2026-08-26.md](local-system-gap-analysis-2026-08-26.md) | **本地全量缺口分析** | Go 后端 3,816 文件 + 前端 679 页面全量扫描，18 项缺口 (P0×4 + P1×11 + P2×3) |
+| [deliverables/README.md](deliverables/README.md) | **合并交付索引** | 45 方案合并总索引 (873 行)：方案 01-30 增强合并 + 方案 31-45 新增缺口补充 |
+
+### 🆕 v2.0 可交付级生产代码 — 全量扫描合并版（2026-08-26）
+
+> 以下代码文件为方案 1-45 的**生产级可交付实现**，包含完整 import/类型/错误处理/数据库层/单元测试，可直接编译运行。
+> **v2.0 合并说明**: 方案 01-30 已与本地代码扫描结果合并（每篇新增"本地代码扫描结果"小节）；
+> 方案 31-45 为本地代码全量扫描发现缺口后新增的补充设计文档。
+> 合并总索引: [deliverables/README.md](deliverables/README.md) (873 行)
+> 本地代码全量缺口分析: [local-system-gap-analysis-2026-08-26.md](local-system-gap-analysis-2026-08-26.md) (1,265 行)
+
+#### 方案 01-30（已有 → 增强合并）
+
+| 方案 | 代码目录 | 语言 | 行数 | 内容 | 本地合并 |
+|:----:|---------|:----:|:----:|------|:------:|
+| 1 | [deliverables/plan-01-api-client/](deliverables/plan-01-api-client/) | TS | ~423 | ApiClient + 重试 + 拦截器 + Jest 测试 | 本地已有 → 增强 |
+| 2 | [deliverables/plan-02-design-tokens/](deliverables/plan-02-design-tokens/) | TS | ~380 | TokenStore + ThemeEngine + ThemeProvider + useOrionToken | 本地已有 → 参考 |
+| 3 | [deliverables/plan-03-build-optimization/](deliverables/plan-03-build-optimization/) | TS | ~310 | Webpack + Vite 配置 + 性能预算 | 本地已有 → 增强 |
+| 4 | [deliverables/plan-04-e2e-testing/](deliverables/plan-04-e2e-testing/) | TS | ~480 | Playwright 配置 + 测试用例 + CI workflow | 本地 1 测试 → 补充 |
+| 5 | [deliverables/plan-05-skeleton-loading/](deliverables/plan-05-skeleton-loading/) | TS | ~260 | Skeleton 组件 + 页面级预设 + useSkeleton hook | 本地已有 → 参考 |
+| 6 | [deliverables/plan-06-state-management/](deliverables/plan-06-state-management/) | TS | ~350 | OrionStore + useOrionStore + User/Pipeline 模块 | 本地 8 stores → 不替换 |
+| 7 | [deliverables/plan-07-i18n/](deliverables/plan-07-i18n/) | TS | ~300 | i18n 引擎 + IntlProvider + zh-CN/en-US 双语包 | 本地 0% → 全新建 |
+| 8 | [deliverables/plan-08-error-boundary/](deliverables/plan-08-error-boundary/) | TS | ~280 | ErrorBoundary + Route/Module 级边界 + useErrorReport | 本地已有 → 不重建 |
+| 9 | [deliverables/plan-09-database-devops/](deliverables/plan-09-database-devops/) | Go | ~524 | models + repository + service + handler + schema.sql | 新增 |
+| 10 | [deliverables/plan-10-adr/](deliverables/plan-10-adr/) | Docs | ~120 | arc42 模板 + ADRGenerator + 覆盖率审计 + CI 集成 | 新增 |
+| 11 | [deliverables/plan-11-ai-split/](deliverables/plan-11-ai-split/) | Go | — | 重定向 → plan-42 (159 Go 文件拆 6 子模块) | 与 plan-42 合并 |
+| 12 | [deliverables/plan-12-datasource/](deliverables/plan-12-datasource/) | Go | — | 重定向 → plan-39 (多数据源管理) | 与 plan-39 合并 |
+| 13 | [deliverables/plan-13-web-vitals/](deliverables/plan-13-web-vitals/) | TS | — | 重定向 → plan-32 (Web Vitals 采集) | 与 plan-32 合并 |
+| 14 | [deliverables/plan-14-swagger/](deliverables/plan-14-swagger/) | Go | — | 重定向 → plan-38 (Swagger 自动生成) | 与 plan-38 合并 |
+| 15 | [deliverables/plan-15-sandbox/](deliverables/plan-15-sandbox/) | Go | ~309 | 命令黑名单 + seccomp + namespace + 审计日志 | 新增 |
+| 16 | [deliverables/plan-16-skill-marketplace/](deliverables/plan-16-skill-marketplace/) | Go | ~237 | 8 状态机 + 评审流水线 + 安装追踪 + 评分聚合 | 新增 |
+| 17 | [deliverables/plan-17-llm-gateway/](deliverables/plan-17-llm-gateway/) | Go | ~257 | 5 路由策略 + 实时指标 + Fallback 链 + 健康检查 | 新增 |
+| 18 | [deliverables/plan-18-agent-eval/](deliverables/plan-18-agent-eval/) | Go | ~210 | 6 维度评估 + LLM Judge + 并行测试套件 + 汇总 | 新增 |
+| 19 | [deliverables/plan-19-backup-enhanced/](deliverables/plan-19-backup-enhanced/) | Go | ~325 | 全量/增量/WAL 备份 + SHA256 校验 + WAL 归档 | 新增 |
+| 20 | [deliverables/plan-20-lighthouse/](deliverables/plan-20-lighthouse/) | JS/JSON | — | 重定向 → plan-33 (Lighthouse CI) | 与 plan-33 合并 |
+| 21 | [deliverables/plan-21-red-team/](deliverables/plan-21-red-team/) | Go | ~215 | 红队评估引擎 + 场景库 + 评分报告 | 新增模块 |
+| 22 | [deliverables/plan-22-sre-handbook/](deliverables/plan-22-sre-handbook/) | Docs | ~175 | 告警规则 + 事后复盘 + SLO/Error Budget + 噪声抑制 | 新增 |
+| 23 | [deliverables/plan-23-dx-whitepaper/](deliverables/plan-23-dx-whitepaper/) | Docs | ~184 | 快速开始 + 代码规范 + PR 模板 + API Explorer + DORA | 新增 |
+| 24 | [deliverables/plan-24-event-driven/](deliverables/plan-24-event-driven/) | Go | ~156 | Schema Registry + Consumer + Publisher | 本地更完整 → 不替换 |
+| 25 | [deliverables/plan-25-migration/](deliverables/plan-25-migration/) | Go | ~335 | 数据盘点 + 迁移步骤 + 增量同步 + 切换验证 + Cutover | 新增 |
+| 26 | [deliverables/plan-26-supply-chain/](deliverables/plan-26-supply-chain/) | Go | ~162 | SBOM 扫描器 + 漏洞检测 | 本地 CRUD → 增强扫描 |
+| 27 | [deliverables/plan-27-dlp/](deliverables/plan-27-dlp/) | Go | ~205 | DLP 引擎 + 正则扫描 + 脱敏/拦截 | 与 plan-40 合并 |
+| 28 | [deliverables/plan-28-chaos/](deliverables/plan-28-chaos/) | Go | ~205 | 故障注入编排器 + 场景库 | 与 plan-37 合并 |
+| 29 | [deliverables/plan-29-multitenancy/](deliverables/plan-29-multitenancy/) | Go | ~260 | 租户管理 + 边界检查 + 配额执行 + ABAC | 与 plan-44 合并 |
+| 30 | [deliverables/plan-30-dr/](deliverables/plan-30-dr/) | Go | ~317 | RTO/RPO + SLO/Error Budget + 灾备故障转移 + 演练报告 | 与 plan-41 合并 |
+
+#### 方案 31-45（本地代码扫描新增 — 缺口补充设计）
+
+| 方案 | 代码目录 | 语言 | 行数 | 内容 | 优先级 |
+|:----:|---------|:----:|:----:|------|:------:|
+| 31 | [deliverables/plan-31-circuit-breaker/](deliverables/plan-31-circuit-breaker/) | Go | ~395 | CircuitBreaker 中间件 — 熔断状态机 + 原子操作 + 管理 API | P0 |
+| 32 | [deliverables/plan-32-web-vitals/](deliverables/plan-32-web-vitals/) | TS+Go | ~393 | Web Vitals 采集 (TS) + 后端 Prometheus 接收 (Go) | P0 |
+| 33 | [deliverables/plan-33-lighthouse-ci/](deliverables/plan-33-lighthouse-ci/) | JSON | ~200 | Lighthouse CI 配置 + 5 核心页面 + 3 轮运行 + 性能预算 | P1 |
+| 34 | [deliverables/plan-34-nats-jetstream/](deliverables/plan-34-nats-jetstream/) | Go | ~332 | NATS JetStream 替换内存 busConn — 持久订阅 + 自动重连 | P1 |
+| 35 | [deliverables/plan-35-otel-service-span/](deliverables/plan-35-otel-service-span/) | Go | ~239 | OTel Span 工具 — DB/Redis/HTTP/Msg 统一追踪 + 泛型包装 | P1 |
+| 36 | [deliverables/plan-36-self-healing/](deliverables/plan-36-self-healing/) | Go | ~536 | 自愈执行器 — K8s 重启/扩缩容/回滚 + 冷却 + 重试 | P1 |
+| 37 | [deliverables/plan-37-chaos-injector/](deliverables/plan-37-chaos-injector/) | Go | ~439 | 真实故障注入 — Docker/K8s CPU/内存/网络/磁盘/进程 | P1 |
+| 38 | [deliverables/plan-38-swagger-gen/](deliverables/plan-38-swagger-gen/) | Go | ~180 | Swagger 自动生成 — swag init + redocly lint + CI 检查 | P1 |
+| 39 | [deliverables/plan-39-datasource-mgr/](deliverables/plan-39-datasource-mgr/) | Go | ~539 | 多数据源管理 — PG/MySQL/CH/ES/Mongo + 健康检查 + 密钥加密 | P1 |
+| 40 | [deliverables/plan-40-dlp-middleware/](deliverables/plan-40-dlp-middleware/) | Go | ~517 | DLP 中间件 — 出站响应扫描 + 8 条默认规则 + 脱敏/拦截 | P1 |
+| 41 | [deliverables/plan-41-dr-orchestrator/](deliverables/plan-41-dr-orchestrator/) | Go | ~325 | 灾备编排器 — 7 阶段故障转移 + 自动回滚 + 健康检查 | P1 |
+| 42 | [deliverables/plan-42-ai-module-split/](deliverables/plan-42-ai-module-split/) | Go | ~152 | AI 模块拆分设计 — 159 文件拆 6 子模块 + 冲突分析 | P1 |
+| 43 | [deliverables/plan-43-schema-registry/](deliverables/plan-43-schema-registry/) | Go | ~483 | 事件 Schema Registry — 向前/向后/完全兼容 + JSON 校验 | P1 |
+| 44 | [deliverables/plan-44-rls-audit/](deliverables/plan-44-rls-audit/) | SQL+Go | ~293 | RLS 覆盖审计 — 全表扫描 + 批量修复 + Go 审计服务 | P1 |
+| 45 | [deliverables/plan-45-api-test-coverage/](deliverables/plan-45-api-test-coverage/) | Docs | ~155 | API 测试覆盖 7.3% → 50% — 3 阶段 + 20 核心模块 | P0 |
+| **总计** | **deliverables/** | **TS+Go+Docs** | **~12,820** | **45 个方案完整可交付设计 (30 已有 + 15 新增)** | — |
+
+> 合并索引: [deliverables/README.md](deliverables/README.md) (873 行 — 含 18 项缺口分析 + 18 项可复用能力索引)
+> 本地缺口分析: [local-system-gap-analysis-2026-08-26.md](local-system-gap-analysis-2026-08-26.md) (1,265 行)
+
+### 历史评审（2026-07, 归档参考）
+
+- [review/INDEX.md](review/INDEX.md) — 评审文档索引 (v3.0)
 - [review/execution-plan-2026-07-19.md](review/execution-plan-2026-07-19.md) — 执行计划 (Phase 0-5)
 - [review/expert-review-summary-2026-07-19.md](review/expert-review-summary-2026-07-19.md) — 专家评审汇总
 - [review/final-30-dimension-audit-2026-07-19.md](review/final-30-dimension-audit-2026-07-19.md) — 30 维度审计
@@ -263,13 +362,16 @@ agent, ai-domain, api-governance, api-key, api-market, approval, artifact, audit
 ## 8. 综合报告与规划
 
 ### 系统分析
-- [orion-system-full-analysis-report-2026-07-02.md](orion-system-full-analysis-report-2026-07-02.md) — 系统全面分析报告
-- [orion-system-comprehensive-report-2026-07-02.md](orion-system-comprehensive-report-2026-07-02.md) — 系统综合报告
-- [orion-system-complementary-analysis-2026-07-02.md](orion-system-complementary-analysis-2026-07-02.md) — 系统补充分析
-- [orion-system-deep-analysis-2026-07-01.md](orion-system-deep-analysis-2026-07-01.md) — 系统深度分析 (2026-07-01)
-- [system-truth-report-2026-07-01.md](system-truth-report-2026-07-01.md) — 系统真相报告
-- [module-completion-status-report.md](module-completion-status-report.md) — 模块完成度报告
-- [feature-completion-analysis-2026-07-08.md](feature-completion-analysis-2026-07-08.md) — 功能完成度分析
+
+| 日期 | 文档 | 维度 | 说明 |
+|------|------|:----:|------|
+| 2026-08-25 | [system-review-v3.5-2026-08-25.md](system-review-v3.5-2026-08-25.md) | 36 维 | ⭐ **当前最权威**：全栈深度评审 + 20 个设计方案 |
+| 2026-07-02 | [orion-system-full-analysis-report-2026-07-02.md](orion-system-full-analysis-report-2026-07-02.md) | 全量 | 系统全面分析报告 |
+| 2026-07-02 | [orion-system-comprehensive-report-2026-07-02.md](orion-system-comprehensive-report-2026-07-02.md) | 全量 | 系统综合报告 |
+| 2026-07-02 | [orion-system-complementary-analysis-2026-07-02.md](orion-system-complementary-analysis-2026-07-02.md) | 全量 | 系统补充分析 |
+| 2026-07-01 | [system-truth-report-2026-07-01.md](system-truth-report-2026-07-01.md) | 全量 | 系统真相报告 |
+| — | [module-completion-status-report.md](module-completion-status-report.md) | 模块 | 模块完成度报告 |
+| 2026-07-08 | [feature-completion-analysis-2026-07-08.md](feature-completion-analysis-2026-07-08.md) | 功能 | 功能完成度分析 |
 
 ### 迁移与规划
 - [ai-migration-plan-2026-07-02.md](ai-migration-plan-2026-07-02.md) — AI 迁移计划

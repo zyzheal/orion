@@ -362,7 +362,10 @@ const PipelineList: React.FC = () => {
     let failed = 0;
     for (const id of selectedRowKeys) {
       try {
-        await triggerPipeline(id);
+        await Promise.race([
+          triggerPipeline(id),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+        ]);
         succeeded += 1;
       } catch {
         failed += 1;

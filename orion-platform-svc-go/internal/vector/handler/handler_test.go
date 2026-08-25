@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/vector/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeVectorService struct{}
 
 func (f *fakeVectorService) CreateStore(ctx context.Context, tenantID string, req models.CreateStoreRequest) (*models.VectorStore, error) {
@@ -60,39 +56,6 @@ func (f *fakeVectorService) UpsertVectors(ctx context.Context, tenantID, storeID
 }
 
 var _ service.ServiceInterface = (*fakeVectorService)(nil)
-=======
-type fakevectorService struct{}
-
-func (f *fakevectorService) CreateStore(ctx context.Context, tenantID string, req models.CreateStoreRequest) ((*models.VectorStore, error)) {
-	return &models.VectorStore{}, nil
-}
-
-func (f *fakevectorService) DeleteStore(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakevectorService) DeleteVectors(ctx context.Context, tenantID, storeID string, ids []string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakevectorService) GetStore(ctx context.Context, tenantID, id string) ((*models.VectorStore, error)) {
-	return &models.VectorStore{}, nil
-}
-
-func (f *fakevectorService) ListStores(ctx context.Context, tenantID string, limit, offset int) (([]models.VectorStore, error)) {
-	return []models.VectorStore{}, nil
-}
-
-func (f *fakevectorService) SearchVectors(ctx context.Context, tenantID, storeID string, q models.SearchQuery) (([]models.SearchResult, error)) {
-	return []models.SearchResult{}, nil
-}
-
-func (f *fakevectorService) UpsertVectors(ctx context.Context, tenantID, storeID string, req models.UpsertVectorsRequest) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakevectorService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_VECTOR_RegisterRoutes(t *testing.T) {

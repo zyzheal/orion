@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/deploy-enhanced/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDeploy_enhancedService struct{}
 
 func (f *fakeDeploy_enhancedService) AdvanceStage(ctx context.Context, id string, stageID string, validationResult *string, tenantID string) (*models.ProgressiveDeploy, error) {
@@ -96,75 +92,6 @@ func (f *fakeDeploy_enhancedService) UpdateWindow(ctx context.Context, id string
 }
 
 var _ service.ServiceInterface = (*fakeDeploy_enhancedService)(nil)
-=======
-type fakedeploy_enhancedService struct{}
-
-func (f *fakedeploy_enhancedService) AdvanceStage(ctx context.Context, id string, stageID string, validationResult *string, tenantID string) ((*models.ProgressiveDeploy, error)) {
-	return &models.ProgressiveDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) ApproveEmergencyDeploy(ctx context.Context, id string, approvedBy string, tenantID string) ((*models.EmergencyDeploy, error)) {
-	return &models.EmergencyDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) CheckWindow(ctx context.Context, id string, tenantID string) ((*models.WindowCheckResult, error)) {
-	return &models.WindowCheckResult{}, nil
-}
-
-func (f *fakedeploy_enhancedService) CompleteEmergencyDeploy(ctx context.Context, id string, postMortem *string, tenantID string) ((*models.EmergencyDeploy, error)) {
-	return &models.EmergencyDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) CreateProgressiveDeploy(ctx context.Context, deploymentID string, req *models.CreateProgressiveDeployRequest, tenantID string) ((*models.ProgressiveDeploy, error)) {
-	return &models.ProgressiveDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) CreateWindow(ctx context.Context, req *models.CreateDeployWindowRequest, tenantID string) ((*models.DeployWindow, error)) {
-	return &models.DeployWindow{}, nil
-}
-
-func (f *fakedeploy_enhancedService) DeleteWindow(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakedeploy_enhancedService) GetEmergencyDeploy(ctx context.Context, id string, tenantID string) ((*models.EmergencyDeploy, error)) {
-	return &models.EmergencyDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) GetProgress(ctx context.Context, id string, tenantID string) ((*models.ProgressiveDeploy, error)) {
-	return &models.ProgressiveDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) GetWindow(ctx context.Context, id string, tenantID string) ((*models.DeployWindow, error)) {
-	return &models.DeployWindow{}, nil
-}
-
-func (f *fakedeploy_enhancedService) ListEmergencies(ctx context.Context, tenantID string, status *string) (([]models.EmergencyDeploy, int, error)) {
-	return []models.EmergencyDeploy{}, 0, nil
-}
-
-func (f *fakedeploy_enhancedService) ListWindows(ctx context.Context, tenantID string, environmentID *string, status *string) (([]models.DeployWindow, int, error)) {
-	return []models.DeployWindow{}, 0, nil
-}
-
-func (f *fakedeploy_enhancedService) RejectEmergencyDeploy(ctx context.Context, id string, tenantID string) ((*models.EmergencyDeploy, error)) {
-	return &models.EmergencyDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) RequestEmergencyDeploy(ctx context.Context, req *models.CreateEmergencyDeployRequest, tenantID string) ((*models.EmergencyDeploy, error)) {
-	return &models.EmergencyDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) RollbackStage(ctx context.Context, id string, stageID string, reason string, tenantID string) ((*models.ProgressiveDeploy, error)) {
-	return &models.ProgressiveDeploy{}, nil
-}
-
-func (f *fakedeploy_enhancedService) UpdateWindow(ctx context.Context, id string, req *models.UpdateDeployWindowRequest, tenantID string) ((*models.DeployWindow, error)) {
-	return &models.DeployWindow{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedeploy_enhancedService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DEPLOY_ENHANCE_RegisterRoutes(t *testing.T) {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/user-profile/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeUser_profileService struct{}
 
 func (f *fakeUser_profileService) EnsureProfile(ctx context.Context, tenantID, userID string) (*models.UserProfile, error) {
@@ -44,23 +40,6 @@ func (f *fakeUser_profileService) UpdateProfile(ctx context.Context, tenantID, u
 }
 
 var _ service.ServiceInterface = (*fakeUser_profileService)(nil)
-=======
-type fakeuser_profileService struct{}
-
-func (f *fakeuser_profileService) EnsureProfile(ctx context.Context, tenantID, userID string) ((*models.UserProfile, error)) {
-	return &models.UserProfile{}, nil
-}
-
-func (f *fakeuser_profileService) GetProfile(ctx context.Context, tenantID, userID string) ((*models.UserProfile, error)) {
-	return &models.UserProfile{}, nil
-}
-
-func (f *fakeuser_profileService) UpdateProfile(ctx context.Context, tenantID, userID string, req models.UpdateProfileRequest) ((*models.UserProfile, error)) {
-	return &models.UserProfile{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeuser_profileService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_USER_PROFILE_RegisterRoutes(t *testing.T) {

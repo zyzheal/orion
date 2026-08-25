@@ -104,21 +104,21 @@ export interface RuleAction {
 // ==================== AI Gateway Execution ====================
 
 export function executeAIRequest(request: AIRequest) {
-  return api.post<AIResponse>('/api/v1/ai-gateway/execute', request);
+  return api.post<AIResponse>('/ai-gateway/execute', request);
 }
 
 // ==================== Health Monitoring ====================
 
 export function getScenarioHealth(scenario: AIScenario) {
-  return api.get<AIGatewayHealth>(`/api/v1/ai-gateway/health/${scenario}`);
+  return api.get<AIGatewayHealth>(`/ai-gateway/health/${scenario}`);
 }
 
 export function getAllHealth() {
-  return api.get<{ health: AIGatewayHealth[] }>('/api/v1/ai-gateway/health/all');
+  return api.get<{ health: AIGatewayHealth[] }>('/ai-gateway/health/all');
 }
 
 export function getGatewayStatus() {
-  return api.get<{ status: string }>('/api/v1/ai-gateway/status');
+  return api.get<{ status: string }>('/ai-gateway/status');
 }
 
 // ==================== Rule Engine ====================
@@ -134,21 +134,21 @@ export interface AIGatewayConfig {
 }
 
 export function getRules() {
-  return api.get<{ rules: RuleSet[] }>('/api/v1/ai-gateway/rules');
+  return api.get<{ rules: RuleSet[] }>('/ai-gateway/rules');
 }
 
 export function getEngineStatus() {
   return api.get<{ cacheEnabled: boolean; auditEnabled: boolean }>(
-    '/api/v1/ai-gateway/engine/status'
+    '/ai-gateway/engine/status'
   );
 }
 
 // ==================== Configuration ====================
 
 export function getConfig() {
-  return api.get<{ config: AIGatewayConfig }>('/api/v1/ai-gateway/config');
+  return api.get<{ config: AIGatewayConfig }>('/ai-gateway/config');
 }
 
 export function updateConfig(config: Partial<AIGatewayConfig>) {
-  return api.put('/api/v1/ai-gateway/config', config);
+  return api.put('/ai-gateway/config', config);
 }

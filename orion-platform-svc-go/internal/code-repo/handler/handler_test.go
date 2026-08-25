@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/code-repo/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) AddComment(ctx context.Context, adapterID, repoID, prID string, userID, username string, req models.CreateCommentRequest) (*models.Comment, error) {
@@ -139,107 +135,6 @@ func (f *fakeHandlerService) UpdatePullRequest(ctx context.Context, adapterID, r
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakecode_repoService struct{}
-
-func (f *fakecode_repoService) AddComment(ctx context.Context, adapterID, repoID, prID string, userID, username string, req models.CreateCommentRequest) ((*models.Comment, error)) {
-	return &models.Comment{}, nil
-}
-
-func (f *fakecode_repoService) AddReview(ctx context.Context, adapterID, repoID, prID string, userID, username string, req models.CreateReviewRequest) ((*models.Review, error)) {
-	return &models.Review{}, nil
-}
-
-func (f *fakecode_repoService) ClosePullRequest(ctx context.Context, adapterID, repoID, prID string) (error) {
-	return nil
-}
-
-func (f *fakecode_repoService) CreateBranch(ctx context.Context, adapterID, repoID string, req models.CreateBranchRequest) (error) {
-	return nil
-}
-
-func (f *fakecode_repoService) CreatePullRequest(ctx context.Context, adapterID, repoID string, req models.CreatePullRequestRequest) ((*models.PullRequest, error)) {
-	return &models.PullRequest{}, nil
-}
-
-func (f *fakecode_repoService) DeleteBranch(ctx context.Context, adapterID, repoID, branchName string) (error) {
-	return nil
-}
-
-func (f *fakecode_repoService) GetCommit(ctx context.Context, adapterID, repoID, sha string) ((*models.Commit, error)) {
-	return &models.Commit{}, nil
-}
-
-func (f *fakecode_repoService) GetFileDiff(ctx context.Context, adapterID, repoID string, base, head, path string) (([]models.FileDiff, error)) {
-	return []models.FileDiff{}, nil
-}
-
-func (f *fakecode_repoService) GetPullRequest(ctx context.Context, adapterID, repoID, prID string) ((*models.PullRequest, error)) {
-	return &models.PullRequest{}, nil
-}
-
-func (f *fakecode_repoService) GetRepository(ctx context.Context, adapterID, repoID string) ((*models.CodeRepo, error)) {
-	return &models.CodeRepo{}, nil
-}
-
-func (f *fakecode_repoService) GetWebhookSecret(ctx context.Context, repoID string) ((*models.WebhookSecretResponse, error)) {
-	return &models.WebhookSecretResponse{}, nil
-}
-
-func (f *fakecode_repoService) ListAdapters(ctx context.Context) (([]models.CodeRepoAdapter, error)) {
-	return []models.CodeRepoAdapter{}, nil
-}
-
-func (f *fakecode_repoService) ListBranches(ctx context.Context, adapterID, repoID string) (([]models.Branch, error)) {
-	return []models.Branch{}, nil
-}
-
-func (f *fakecode_repoService) ListCodeOwners(ctx context.Context, repoID string) (([]models.CodeOwner, error)) {
-	return []models.CodeOwner{}, nil
-}
-
-func (f *fakecode_repoService) ListComments(ctx context.Context, adapterID, repoID, prID string) (([]models.Comment, error)) {
-	return []models.Comment{}, nil
-}
-
-func (f *fakecode_repoService) ListCommits(ctx context.Context, adapterID, repoID string, limit, offset int) (([]models.Commit, error)) {
-	return []models.Commit{}, nil
-}
-
-func (f *fakecode_repoService) ListPullRequests(ctx context.Context, adapterID, repoID, state string) (([]models.PullRequest, error)) {
-	return []models.PullRequest{}, nil
-}
-
-func (f *fakecode_repoService) ListRepositories(ctx context.Context, adapterID string) (([]models.CodeRepo, error)) {
-	return []models.CodeRepo{}, nil
-}
-
-func (f *fakecode_repoService) ListReviews(ctx context.Context, adapterID, repoID, prID string) (([]models.Review, error)) {
-	return []models.Review{}, nil
-}
-
-func (f *fakecode_repoService) ListWebhookLogs(ctx context.Context, limit, offset int) (([]map[string]any, error)) {
-	return []map[string]any{}, nil
-}
-
-func (f *fakecode_repoService) MergePullRequest(ctx context.Context, adapterID, repoID, prID string) (error) {
-	return nil
-}
-
-func (f *fakecode_repoService) RotateWebhookSecret(ctx context.Context, repoID, providedSecret string) ((*models.WebhookSecretResponse, error)) {
-	return &models.WebhookSecretResponse{}, nil
-}
-
-func (f *fakecode_repoService) SetWebhookSecret(ctx context.Context, repoID, secret string) ((*models.WebhookSecretResponse, error)) {
-	return &models.WebhookSecretResponse{}, nil
-}
-
-func (f *fakecode_repoService) UpdatePullRequest(ctx context.Context, adapterID, repoID, prID string, req models.UpdatePullRequestRequest) ((*models.PullRequest, error)) {
-	return &models.PullRequest{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecode_repoService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCODE_REPO_Handler_RegisterRoutes(t *testing.T) {

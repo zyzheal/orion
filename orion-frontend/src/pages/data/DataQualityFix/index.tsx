@@ -16,8 +16,7 @@ import {
   Progress,
   Space,
   Select,
-  Popconfirm,
-  message,
+  Tooltip,
 } from 'antd';
 import {
   DatabaseOutlined,
@@ -260,36 +259,21 @@ const DataQualityFixPage: React.FC = () => {
       width: 200,
       render: (_: unknown, record: QualityIssue) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => message.info(`查看 ${record.id} 修复建议`)}
-          >
-            查看建议
-          </Button>
-          <Popconfirm
-            title="确认执行修复？"
-            description={`将自动修复 ${record.tableField} 的 ${PROBLEM_TYPE_CONFIG[record.problemType].label} 问题，影响 ${record.affectedRows} 行。`}
-            onConfirm={() => {
-              message.success(`${record.id} 修复已执行`);
-            }}
-            okText="确认"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<PlayCircleOutlined />}>
+          <Tooltip title="修复建议功能开发中">
+            <Button type="link" size="small" icon={<EyeOutlined />} disabled>
+              查看建议
+            </Button>
+          </Tooltip>
+          <Tooltip title="自动修复功能开发中">
+            <Button type="link" size="small" danger icon={<PlayCircleOutlined />} disabled>
               执行修复
             </Button>
-          </Popconfirm>
-          <Button
-            type="link"
-            size="small"
-            icon={<CloseCircleOutlined />}
-            onClick={() => message.info(`${record.id} 已忽略`)}
-          >
-            忽略
-          </Button>
+          </Tooltip>
+          <Tooltip title="忽略功能开发中">
+            <Button type="link" size="small" icon={<CloseCircleOutlined />} disabled>
+              忽略
+            </Button>
+          </Tooltip>
         </Space>
       ),
     },

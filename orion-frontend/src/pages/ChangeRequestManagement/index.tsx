@@ -746,6 +746,11 @@ export default function ChangeRequestManagementPage() {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 20, showTotal: (total) => `共 ${total} 条` }}
+          locale={{
+            emptyText: (
+              <Empty description="暂无变更请求，点击「创建变更」开始添加" />
+            ),
+          }}
         />
       </Card>
 

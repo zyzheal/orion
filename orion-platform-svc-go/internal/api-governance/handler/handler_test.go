@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/api-governance/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) CheckCompatibility(ctx context.Context, sourceVersion, targetVersion string) (*models.CompatibilityResult, error) {
@@ -103,71 +99,6 @@ func (f *fakeHandlerService) VerifyContract(ctx context.Context, id string, req 
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeapi_governanceService struct{}
-
-func (f *fakeapi_governanceService) CheckCompatibility(ctx context.Context, sourceVersion, targetVersion string) ((*models.CompatibilityResult, error)) {
-	return &models.CompatibilityResult{}, nil
-}
-
-func (f *fakeapi_governanceService) CreateContract(ctx context.Context, req *models.CreateContractRequest, tenantID string) ((*models.Contract, error)) {
-	return &models.Contract{}, nil
-}
-
-func (f *fakeapi_governanceService) CreateRule(ctx context.Context, req *models.CreateRuleRequest, tenantID string) ((*models.Rule, error)) {
-	return &models.Rule{}, nil
-}
-
-func (f *fakeapi_governanceService) CreateVersion(ctx context.Context, req *models.CreateVersionRequest, tenantID string) ((*models.Version, error)) {
-	return &models.Version{}, nil
-}
-
-func (f *fakeapi_governanceService) DeprecateVersion(ctx context.Context, id string, req *models.DeprecateVersionRequest, tenantID string) ((*models.Version, error)) {
-	return &models.Version{}, nil
-}
-
-func (f *fakeapi_governanceService) EvaluateContract(ctx context.Context, id string, tenantID string) ((*models.Contract, error)) {
-	return &models.Contract{}, nil
-}
-
-func (f *fakeapi_governanceService) GetContract(ctx context.Context, id string, tenantID string) ((*models.Contract, error)) {
-	return &models.Contract{}, nil
-}
-
-func (f *fakeapi_governanceService) GetGovernanceStats(ctx context.Context, tenantID string) ((models.GovernanceStats, error)) {
-	return models.GovernanceStats{}, nil
-}
-
-func (f *fakeapi_governanceService) GetVerificationHistory(ctx context.Context, id string, tenantID string) (([]models.VerificationHistory, error)) {
-	return []models.VerificationHistory{}, nil
-}
-
-func (f *fakeapi_governanceService) ListContracts(ctx context.Context, tenantID string, apiName *string, status *string) (([]models.Contract, error)) {
-	return []models.Contract{}, nil
-}
-
-func (f *fakeapi_governanceService) ListDeprecatedVersions(ctx context.Context, tenantID string) (([]models.Version, error)) {
-	return []models.Version{}, nil
-}
-
-func (f *fakeapi_governanceService) ListVersions(ctx context.Context, tenantID string, apiName *string, status *string) (([]models.Version, error)) {
-	return []models.Version{}, nil
-}
-
-func (f *fakeapi_governanceService) ListViolations(ctx context.Context, tenantID string, contractID *string, severity *string) (([]models.Violation, error)) {
-	return []models.Violation{}, nil
-}
-
-func (f *fakeapi_governanceService) RetireVersion(ctx context.Context, id string, tenantID string) ((*models.Version, error)) {
-	return &models.Version{}, nil
-}
-
-func (f *fakeapi_governanceService) VerifyContract(ctx context.Context, id string, req *models.VerifyRequest, tenantID string) ((*models.VerifyResult, error)) {
-	return &models.VerifyResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeapi_governanceService)(nil)
->>>>>>> Stashed changes
 
 
 func TestAPI_GOVERNANCE_Handler_RegisterRoutes(t *testing.T) {

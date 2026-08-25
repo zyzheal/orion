@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/self-service/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSelf_serviceService struct{}
 
 func (f *fakeSelf_serviceService) Create(ctx context.Context, tenantID string, req models.CreateSelfServiceRequest) (*models.SelfService, error) {
@@ -52,31 +48,6 @@ func (f *fakeSelf_serviceService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeSelf_serviceService)(nil)
-=======
-type fakeself_serviceService struct{}
-
-func (f *fakeself_serviceService) Create(ctx context.Context, tenantID string, req models.CreateSelfServiceRequest) ((*models.SelfService, error)) {
-	return &models.SelfService{}, nil
-}
-
-func (f *fakeself_serviceService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeself_serviceService) Get(ctx context.Context, tenantID, id string) ((*models.SelfService, error)) {
-	return &models.SelfService{}, nil
-}
-
-func (f *fakeself_serviceService) List(ctx context.Context, tenantID string) (([]models.SelfService, error)) {
-	return []models.SelfService{}, nil
-}
-
-func (f *fakeself_serviceService) Update(ctx context.Context, tenantID, id string, req models.UpdateSelfServiceRequest) ((*models.SelfService, error)) {
-	return &models.SelfService{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeself_serviceService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SELF_SERVICE_RegisterRoutes(t *testing.T) {

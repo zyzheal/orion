@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/artifact-ops/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Cleanup(ctx context.Context, tenantID string) (map[string]any, error) {
@@ -95,63 +91,6 @@ func (f *fakeHandlerService) TrackOperation(ctx context.Context, tenantID, actor
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeartifact_opsService struct{}
-
-func (f *fakeartifact_opsService) Cleanup(ctx context.Context, tenantID string) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakeartifact_opsService) DefineRetentionPolicy(ctx context.Context, tenantID string, req models.DefineRetentionPolicyRequest) ((*models.RetentionPolicy, error)) {
-	return &models.RetentionPolicy{}, nil
-}
-
-func (f *fakeartifact_opsService) DeletePolicy(ctx context.Context, tenantID, policyID string) (error) {
-	return nil
-}
-
-func (f *fakeartifact_opsService) DetectMalicious(ctx context.Context, tenantID string, req models.DetectMaliciousRequest) ((*models.DetectMaliciousResult, error)) {
-	return &models.DetectMaliciousResult{}, nil
-}
-
-func (f *fakeartifact_opsService) EvaluateRetention(ctx context.Context, tenantID string, req models.EvaluateRetentionRequest) ((*models.EvaluateRetentionResult, error)) {
-	return &models.EvaluateRetentionResult{}, nil
-}
-
-func (f *fakeartifact_opsService) GetArtifactScanReports(ctx context.Context, tenantID, artifactID string) (([]models.ScanReport, error)) {
-	return []models.ScanReport{}, nil
-}
-
-func (f *fakeartifact_opsService) GetArtifactStats(ctx context.Context, tenantID, artifactID string) ((*models.ArtifactStats, error)) {
-	return &models.ArtifactStats{}, nil
-}
-
-func (f *fakeartifact_opsService) GetOperationHistory(ctx context.Context, tenantID, artifactID string, limit, offset int) (([]models.ArtifactOperation, error)) {
-	return []models.ArtifactOperation{}, nil
-}
-
-func (f *fakeartifact_opsService) GetRetentionReport(ctx context.Context, tenantID string, req models.RetentionReportRequest) ((*models.RetentionReport, error)) {
-	return &models.RetentionReport{}, nil
-}
-
-func (f *fakeartifact_opsService) GetScanReport(ctx context.Context, tenantID, scanID string) ((*models.ScanReport, error)) {
-	return &models.ScanReport{}, nil
-}
-
-func (f *fakeartifact_opsService) ListPolicies(ctx context.Context, tenantID string) (([]models.RetentionPolicy, error)) {
-	return []models.RetentionPolicy{}, nil
-}
-
-func (f *fakeartifact_opsService) ScanArtifact(ctx context.Context, tenantID, artifactID string, req models.ScanArtifactRequest) ((*models.ArtifactScan, error)) {
-	return &models.ArtifactScan{}, nil
-}
-
-func (f *fakeartifact_opsService) TrackOperation(ctx context.Context, tenantID, actorID string, req models.TrackOperationRequest) ((*models.ArtifactOperation, error)) {
-	return &models.ArtifactOperation{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeartifact_opsService)(nil)
->>>>>>> Stashed changes
 
 
 func TestARTIFACT_OPS_Handler_RegisterRoutes(t *testing.T) {

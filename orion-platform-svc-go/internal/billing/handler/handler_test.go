@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/billing/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) CreateAccount(ctx context.Context, tenantID string, req *models.CreateAccountRequest) (*models.Account, error) {
@@ -192,83 +188,6 @@ func (f *fakeBillingService) UpdateSubscription(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeBillingService)(nil)
-=======
-type fakebillingService struct{}
-
-func (f *fakebillingService) CreateAccount(ctx context.Context, tenantID string, req *models.CreateAccountRequest) ((*models.Account, error)) {
-	return &models.Account{}, nil
-}
-
-func (f *fakebillingService) CreateInvoice(ctx context.Context, tenantID string, req *models.CreateInvoiceRequest) ((*models.Invoice, error)) {
-	return &models.Invoice{}, nil
-}
-
-func (f *fakebillingService) CreateLineItem(ctx context.Context, tenantID string, req *models.CreateLineItemRequest) ((*models.LineItem, error)) {
-	return &models.LineItem{}, nil
-}
-
-func (f *fakebillingService) CreateSubscription(ctx context.Context, tenantID string, req *models.CreateSubscriptionRequest) ((*models.Subscription, error)) {
-	return &models.Subscription{}, nil
-}
-
-func (f *fakebillingService) DeleteAccount(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakebillingService) DeleteInvoice(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakebillingService) DeleteSubscription(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakebillingService) GetAccount(ctx context.Context, tenantID, id string) ((*models.Account, error)) {
-	return &models.Account{}, nil
-}
-
-func (f *fakebillingService) GetBillingStats(ctx context.Context, tenantID string) ((*models.BillingStats, error)) {
-	return &models.BillingStats{}, nil
-}
-
-func (f *fakebillingService) GetInvoice(ctx context.Context, tenantID, id string) ((*models.Invoice, error)) {
-	return &models.Invoice{}, nil
-}
-
-func (f *fakebillingService) GetSubscription(ctx context.Context, tenantID, id string) ((*models.Subscription, error)) {
-	return &models.Subscription{}, nil
-}
-
-func (f *fakebillingService) ListAccounts(ctx context.Context, tenantID string, status *string) (([]models.Account, error)) {
-	return []models.Account{}, nil
-}
-
-func (f *fakebillingService) ListInvoices(ctx context.Context, tenantID string, filter *models.InvoiceFilter) (([]models.Invoice, int, error)) {
-	return []models.Invoice{}, 0, nil
-}
-
-func (f *fakebillingService) ListLineItems(ctx context.Context, tenantID, invoiceID string) (([]models.LineItem, error)) {
-	return []models.LineItem{}, nil
-}
-
-func (f *fakebillingService) ListSubscriptions(ctx context.Context, tenantID string, status *string) (([]models.Subscription, error)) {
-	return []models.Subscription{}, nil
-}
-
-func (f *fakebillingService) UpdateAccount(ctx context.Context, tenantID, id string, req *models.UpdateAccountRequest) ((*models.Account, error)) {
-	return &models.Account{}, nil
-}
-
-func (f *fakebillingService) UpdateInvoice(ctx context.Context, tenantID, id string, updates map[string]any) ((*models.Invoice, error)) {
-	return &models.Invoice{}, nil
-}
-
-func (f *fakebillingService) UpdateSubscription(ctx context.Context, tenantID, id string, req *models.UpdateSubscriptionRequest) ((*models.Subscription, error)) {
-	return &models.Subscription{}, nil
-}
-
-var _ service.ServiceInterface = (*fakebillingService)(nil)
->>>>>>> Stashed changes
 
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {

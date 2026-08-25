@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/version-archive/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeVersion_archiveService struct{}
 
 func (f *fakeVersion_archiveService) Create(ctx context.Context, tenantID string, req models.CreateVersionArchiveRequest) (*models.VersionArchive, error) {
@@ -52,31 +48,6 @@ func (f *fakeVersion_archiveService) Update(ctx context.Context, tenantID, id st
 }
 
 var _ service.ServiceInterface = (*fakeVersion_archiveService)(nil)
-=======
-type fakeversion_archiveService struct{}
-
-func (f *fakeversion_archiveService) Create(ctx context.Context, tenantID string, req models.CreateVersionArchiveRequest) ((*models.VersionArchive, error)) {
-	return &models.VersionArchive{}, nil
-}
-
-func (f *fakeversion_archiveService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeversion_archiveService) Get(ctx context.Context, tenantID, id string) ((*models.VersionArchive, error)) {
-	return &models.VersionArchive{}, nil
-}
-
-func (f *fakeversion_archiveService) List(ctx context.Context, tenantID string) (([]models.VersionArchive, error)) {
-	return []models.VersionArchive{}, nil
-}
-
-func (f *fakeversion_archiveService) Update(ctx context.Context, tenantID, id string, req models.UpdateVersionArchiveRequest) ((*models.VersionArchive, error)) {
-	return &models.VersionArchive{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeversion_archiveService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_VERSION_ARCHIV_RegisterRoutes(t *testing.T) {

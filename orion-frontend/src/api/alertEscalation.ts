@@ -1,6 +1,6 @@
 /**
  * Alert Escalation API
- * /api/v1/alert-escalation — Policies / Triggers / Closures / Metrics
+ * /alert-escalation — Policies / Triggers / Closures / Metrics
  */
 import { api } from './client';
 
@@ -67,12 +67,12 @@ export interface AlertMetrics {
 // --- Policies ---
 
 export const listPolicies = async () => {
-  const res = await api.get('/api/v1/alert-escalation/policies');
+  const res = await api.get('/alert-escalation/policies');
   return res.data;
 };
 
 export const getPolicy = async (id: string) => {
-  const res = await api.get(`/api/v1/alert-escalation/policies/${id}`);
+  const res = await api.get(`/alert-escalation/policies/${id}`);
   return res.data;
 };
 
@@ -82,7 +82,7 @@ export const createPolicy = async (data: {
   severity: string;
   rules: EscalationRule[];
 }) => {
-  const res = await api.post('/api/v1/alert-escalation/policies', data);
+  const res = await api.post('/alert-escalation/policies', data);
   return res.data;
 };
 
@@ -96,19 +96,19 @@ export const updatePolicy = async (
     rules?: EscalationRule[];
   }
 ) => {
-  const res = await api.put(`/api/v1/alert-escalation/policies/${id}`, data);
+  const res = await api.put(`/alert-escalation/policies/${id}`, data);
   return res.data;
 };
 
 export const deletePolicy = async (id: string) => {
-  const res = await api.delete(`/api/v1/alert-escalation/policies/${id}`);
+  const res = await api.delete(`/alert-escalation/policies/${id}`);
   return res.data;
 };
 
 // --- Evaluate ---
 
 export const evaluatePolicy = async (alertId: string, severity: string) => {
-  const res = await api.post('/api/v1/alert-escalation/evaluate', { alertId, severity });
+  const res = await api.post('/alert-escalation/evaluate', { alertId, severity });
   return res.data;
 };
 
@@ -117,12 +117,12 @@ export const evaluatePolicy = async (alertId: string, severity: string) => {
 export const listTriggers = async (policyId?: string) => {
   const params: Record<string, string> = {};
   if (policyId) params.policyId = policyId;
-  const res = await api.get('/api/v1/alert-escalation/triggers', { params });
+  const res = await api.get('/alert-escalation/triggers', { params });
   return res.data;
 };
 
 export const resolveTrigger = async (id: string) => {
-  const res = await api.put(`/api/v1/alert-escalation/triggers/${id}/resolve`);
+  const res = await api.put(`/alert-escalation/triggers/${id}/resolve`);
   return res.data;
 };
 
@@ -131,22 +131,22 @@ export const resolveTrigger = async (id: string) => {
 export const listClosures = async (status?: string) => {
   const params: Record<string, string> = {};
   if (status) params.status = status;
-  const res = await api.get('/api/v1/alert-escalation/closures', { params });
+  const res = await api.get('/alert-escalation/closures', { params });
   return res.data;
 };
 
 export const getClosure = async (alertId: string) => {
-  const res = await api.get(`/api/v1/alert-escalation/closures/${alertId}`);
+  const res = await api.get(`/alert-escalation/closures/${alertId}`);
   return res.data;
 };
 
 export const acknowledgeAlert = async (alertId: string, operator: string) => {
-  const res = await api.post('/api/v1/alert-escalation/acknowledge', { alertId, operator });
+  const res = await api.post('/alert-escalation/acknowledge', { alertId, operator });
   return res.data;
 };
 
 export const resolveAlert = async (alertId: string, operator: string, resolutionNote?: string) => {
-  const res = await api.post('/api/v1/alert-escalation/resolve', {
+  const res = await api.post('/alert-escalation/resolve', {
     alertId,
     operator,
     resolutionNote,
@@ -157,6 +157,6 @@ export const resolveAlert = async (alertId: string, operator: string, resolution
 // --- Metrics ---
 
 export const getMetrics = async () => {
-  const res = await api.get('/api/v1/alert-escalation/metrics');
+  const res = await api.get('/alert-escalation/metrics');
   return res.data as AlertMetrics;
 };

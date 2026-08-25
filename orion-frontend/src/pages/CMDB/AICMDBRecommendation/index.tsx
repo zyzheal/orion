@@ -16,6 +16,7 @@ import {
   Row,
   Col,
   message,
+  Tooltip,
   Popconfirm,
   List,
   Descriptions,
@@ -519,14 +520,11 @@ const AICMDBRecommendation: React.FC = () => {
               renderItem={(item) => (
                 <List.Item
                   actions={[
-                    <Button
-                      type="link"
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={() => message.info(`查看异常详情: ${item.ciName}`)}
-                    >
-                      详情
-                    </Button>,
+                    <Tooltip title="异常详情功能开发中">
+                      <Button type="link" size="small" icon={<EyeOutlined />} disabled>
+                        详情
+                      </Button>
+                    </Tooltip>,
                   ]}
                   style={{ borderBottom: `1px solid ${colors.neutral[100]}` }}
                 >

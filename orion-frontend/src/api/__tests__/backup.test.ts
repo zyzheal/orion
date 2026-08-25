@@ -30,7 +30,7 @@ describe('Backup API', () => {
       config: {},
     } as any);
     const result = await getBackupStats();
-    expect(api.get).toHaveBeenCalledWith('/api/v1/backup/stats');
+    expect(api.get).toHaveBeenCalledWith('/backup/stats');
     expect(result.data.total).toBe(42);
   });
 
@@ -43,7 +43,7 @@ describe('Backup API', () => {
       config: {},
     } as any);
     const result = await getBackups();
-    expect(api.get).toHaveBeenCalledWith('/api/v1/backup');
+    expect(api.get).toHaveBeenCalledWith('/backup');
     expect(Array.isArray(result.data)).toBe(true);
   });
 
@@ -56,7 +56,7 @@ describe('Backup API', () => {
       config: {},
     } as any);
     await createBackup({ name: 'db-backup', type: 'database' });
-    expect(api.post).toHaveBeenCalledWith('/api/v1/backup', {
+    expect(api.post).toHaveBeenCalledWith('/backup', {
       name: 'db-backup',
       type: 'database',
     });
@@ -71,7 +71,7 @@ describe('Backup API', () => {
       config: {},
     } as any);
     await restoreBackup('1');
-    expect(api.post).toHaveBeenCalledWith('/api/v1/backup/1/restore');
+    expect(api.post).toHaveBeenCalledWith('/backup/1/restore');
   });
 
   it('should delete a backup', async () => {
@@ -83,6 +83,6 @@ describe('Backup API', () => {
       config: {},
     } as any);
     await deleteBackup('1');
-    expect(api.delete).toHaveBeenCalledWith('/api/v1/backup/1');
+    expect(api.delete).toHaveBeenCalledWith('/backup/1');
   });
 });

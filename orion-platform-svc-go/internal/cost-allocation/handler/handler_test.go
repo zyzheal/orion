@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/cost-allocation/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCost_allocationService struct{}
 
 func (f *fakeCost_allocationService) CompleteReport(ctx context.Context, tenantID, id string, totalCost, allocatedCost float64, resultData string) (*models.Report, error) {
@@ -99,67 +95,6 @@ func (f *fakeCost_allocationService) UpdateAllocation(ctx context.Context, tenan
 }
 
 var _ service.ServiceInterface = (*fakeCost_allocationService)(nil)
-=======
-type fakecost_allocationService struct{}
-
-func (f *fakecost_allocationService) CompleteReport(ctx context.Context, tenantID, id string, totalCost, allocatedCost float64, resultData string) ((*models.Report, error)) {
-	return &models.Report{}, nil
-}
-
-func (f *fakecost_allocationService) CreateAllocation(ctx context.Context, tenantID string, req models.CreateAllocationRequest) ((*models.Allocation, error)) {
-	return &models.Allocation{}, nil
-}
-
-func (f *fakecost_allocationService) CreateReport(ctx context.Context, tenantID string, req models.CreateReportRequest) ((*models.Report, error)) {
-	return &models.Report{}, nil
-}
-
-func (f *fakecost_allocationService) CreateRule(ctx context.Context, tenantID string, req models.CreateRuleRequest) ((*models.Rule, error)) {
-	return &models.Rule{}, nil
-}
-
-func (f *fakecost_allocationService) DeleteAllocation(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecost_allocationService) DeleteReport(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecost_allocationService) DeleteRule(ctx context.Context, tenantID, ruleID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecost_allocationService) FailReport(ctx context.Context, tenantID, id string, errMsg string) ((*models.Report, error)) {
-	return &models.Report{}, nil
-}
-
-func (f *fakecost_allocationService) GetAllocation(ctx context.Context, tenantID, id string) ((*models.Allocation, error)) {
-	return &models.Allocation{}, nil
-}
-
-func (f *fakecost_allocationService) GetReport(ctx context.Context, tenantID, id string) ((*models.Report, error)) {
-	return &models.Report{}, nil
-}
-
-func (f *fakecost_allocationService) ListAllocations(ctx context.Context, tenantID string, filter *models.AllocationFilter) (([]models.Allocation, error)) {
-	return []models.Allocation{}, nil
-}
-
-func (f *fakecost_allocationService) ListReports(ctx context.Context, tenantID string, filter *models.ReportFilter) (([]models.Report, error)) {
-	return []models.Report{}, nil
-}
-
-func (f *fakecost_allocationService) ListRules(ctx context.Context, tenantID, allocationID string) (([]models.Rule, error)) {
-	return []models.Rule{}, nil
-}
-
-func (f *fakecost_allocationService) UpdateAllocation(ctx context.Context, tenantID, id string, req models.UpdateAllocationRequest) ((*models.Allocation, error)) {
-	return &models.Allocation{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecost_allocationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCOST_ALLOCATION_Handler_RegisterRoutes(t *testing.T) {

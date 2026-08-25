@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/build-env/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeBuild_envService struct{}
 
 func (f *fakeBuild_envService) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) (*models.CachePerformanceImpact, error) {
@@ -131,99 +127,6 @@ func (f *fakeBuild_envService) UpdateCacheConfig(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakeBuild_envService)(nil)
-=======
-type fakebuild_envService struct{}
-
-func (f *fakebuild_envService) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) ((*models.CachePerformanceImpact, error)) {
-	return &models.CachePerformanceImpact{}, nil
-}
-
-func (f *fakebuild_envService) AssessCacheHealth(ctx context.Context, tenantID string, cacheID string) ((*models.CacheHealth, error)) {
-	return &models.CacheHealth{}, nil
-}
-
-func (f *fakebuild_envService) CreateBuild(ctx context.Context, tenantID string, req models.CreateBuildRequest) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuild_envService) CreateBuildImage(ctx context.Context, tenantID string, req models.CreateBuildImageRequest) ((*models.BuildImage, error)) {
-	return &models.BuildImage{}, nil
-}
-
-func (f *fakebuild_envService) CreateCacheConfig(ctx context.Context, tenantID string, req models.CreateBuildCacheConfigRequest) ((*models.BuildCacheConfig, error)) {
-	return &models.BuildCacheConfig{}, nil
-}
-
-func (f *fakebuild_envService) DeleteBuild(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakebuild_envService) DeleteBuildImage(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakebuild_envService) DeleteCacheConfig(ctx context.Context, tenantID string, id string) (error) {
-	return nil
-}
-
-func (f *fakebuild_envService) GetBuild(ctx context.Context, tenantID, id string) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuild_envService) GetBuildImage(ctx context.Context, tenantID, id string) ((*models.BuildImage, error)) {
-	return &models.BuildImage{}, nil
-}
-
-func (f *fakebuild_envService) GetBuildLog(ctx context.Context, tenantID string, id string) ((*models.BuildLog, error)) {
-	return &models.BuildLog{}, nil
-}
-
-func (f *fakebuild_envService) GetCacheConfig(ctx context.Context, tenantID string, id string) ((*models.BuildCacheConfig, error)) {
-	return &models.BuildCacheConfig{}, nil
-}
-
-func (f *fakebuild_envService) GetCacheMetrics(ctx context.Context, tenantID string, cacheID string) ((*models.CacheMetrics, error)) {
-	return &models.CacheMetrics{}, nil
-}
-
-func (f *fakebuild_envService) GetDashboard(ctx context.Context, tenantID string) ((*models.CacheDashboard, error)) {
-	return &models.CacheDashboard{}, nil
-}
-
-func (f *fakebuild_envService) ListBuildImages(ctx context.Context, tenantID string, limit, offset int) (([]models.BuildImage, error)) {
-	return []models.BuildImage{}, nil
-}
-
-func (f *fakebuild_envService) ListBuildLogs(ctx context.Context, tenantID string, limit, offset int) (([]models.BuildLog, error)) {
-	return []models.BuildLog{}, nil
-}
-
-func (f *fakebuild_envService) ListBuilds(ctx context.Context, tenantID string, limit, offset int) (([]models.Build, error)) {
-	return []models.Build{}, nil
-}
-
-func (f *fakebuild_envService) ListCacheConfigs(ctx context.Context, tenantID string, level, status string, limit, offset int) (([]models.BuildCacheConfig, error)) {
-	return []models.BuildCacheConfig{}, nil
-}
-
-func (f *fakebuild_envService) RecordCacheEvent(ctx context.Context, tenantID string, req models.RecordCacheEventRequest) (error) {
-	return nil
-}
-
-func (f *fakebuild_envService) UpdateBuild(ctx context.Context, tenantID, id string, req models.UpdateBuildRequest) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuild_envService) UpdateBuildImage(ctx context.Context, tenantID, id string, req models.UpdateBuildImageRequest) ((*models.BuildImage, error)) {
-	return &models.BuildImage{}, nil
-}
-
-func (f *fakebuild_envService) UpdateCacheConfig(ctx context.Context, tenantID string, id string, req models.UpdateBuildCacheConfigRequest) ((*models.BuildCacheConfig, error)) {
-	return &models.BuildCacheConfig{}, nil
-}
-
-var _ service.ServiceInterface = (*fakebuild_envService)(nil)
->>>>>>> Stashed changes
 
 
 func TestBUILD_ENV_Handler_RegisterRoutes(t *testing.T) {

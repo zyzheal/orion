@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/circuit-breaker/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCircuit_breakerService struct{}
 
 func (f *fakeCircuit_breakerService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.CircuitBreaker, error) {
@@ -83,51 +79,6 @@ func (f *fakeCircuit_breakerService) Update(ctx context.Context, id, tenantID st
 }
 
 var _ service.ServiceInterface = (*fakeCircuit_breakerService)(nil)
-=======
-type fakecircuit_breakerService struct{}
-
-func (f *fakecircuit_breakerService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) ((*models.CircuitBreaker, error)) {
-	return &models.CircuitBreaker{}, nil
-}
-
-func (f *fakecircuit_breakerService) Delete(ctx context.Context, id, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecircuit_breakerService) Evaluate(ctx context.Context, id, tenantID string) ((*models.StateResponse, error)) {
-	return &models.StateResponse{}, nil
-}
-
-func (f *fakecircuit_breakerService) Get(ctx context.Context, id, tenantID string) ((*models.CircuitBreaker, error)) {
-	return &models.CircuitBreaker{}, nil
-}
-
-func (f *fakecircuit_breakerService) GetRecentEvents(ctx context.Context, id, tenantID string, limit int) (([]models.CircuitEvent, error)) {
-	return []models.CircuitEvent{}, nil
-}
-
-func (f *fakecircuit_breakerService) List(ctx context.Context, tenantID string) (([]models.CircuitBreaker, error)) {
-	return []models.CircuitBreaker{}, nil
-}
-
-func (f *fakecircuit_breakerService) ListOpen(ctx context.Context, tenantID string) (([]models.CircuitBreaker, error)) {
-	return []models.CircuitBreaker{}, nil
-}
-
-func (f *fakecircuit_breakerService) RecordFailure(ctx context.Context, id, tenantID string, errMsg string) ((*models.CircuitBreaker, error)) {
-	return &models.CircuitBreaker{}, nil
-}
-
-func (f *fakecircuit_breakerService) RecordSuccess(ctx context.Context, id, tenantID string, responseTimeMs int) ((*models.CircuitBreaker, error)) {
-	return &models.CircuitBreaker{}, nil
-}
-
-func (f *fakecircuit_breakerService) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) ((*models.CircuitBreaker, error)) {
-	return &models.CircuitBreaker{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecircuit_breakerService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCIRCUIT_BREAKER_Handler_RegisterRoutes(t *testing.T) {

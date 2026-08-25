@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/inspection/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string, items []models.CreateRequest) (map[string]any, error) {
@@ -80,59 +76,6 @@ func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeinspectionService struct{}
-
-func (f *fakeinspectionService) BatchCreate(ctx context.Context, tenantID string, items []models.CreateRequest) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakeinspectionService) Create(ctx context.Context, tenantID string, req models.CreateRequest) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *fakeinspectionService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeinspectionService) Get(ctx context.Context, tenantID, id string) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *fakeinspectionService) GetHistory(ctx context.Context, tenantID string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakeinspectionService) GetResults(ctx context.Context, tenantID, id string) (([]models.Record, error)) {
-	return []models.Record{}, nil
-}
-
-func (f *fakeinspectionService) GetStats(ctx context.Context, tenantID string) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakeinspectionService) List(ctx context.Context, tenantID string) (([]models.Record, error)) {
-	return []models.Record{}, nil
-}
-
-func (f *fakeinspectionService) ListTemplates(ctx context.Context, tenantID string) (([]models.Record, error)) {
-	return []models.Record{}, nil
-}
-
-func (f *fakeinspectionService) RunInspection(ctx context.Context, tenantID, id string) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakeinspectionService) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *fakeinspectionService) UpdateStatus(ctx context.Context, tenantID, id string, status string) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeinspectionService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_INSPECTION_RegisterRoutes(t *testing.T) {

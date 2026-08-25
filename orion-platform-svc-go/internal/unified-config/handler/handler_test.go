@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/unified-config/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeUnified_configService struct{}
 
 func (f *fakeUnified_configService) Create(ctx context.Context, tenantID string, req models.CreateUnifiedConfigRequest) (*models.UnifiedConfig, error) {
@@ -52,31 +48,6 @@ func (f *fakeUnified_configService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeUnified_configService)(nil)
-=======
-type fakeunified_configService struct{}
-
-func (f *fakeunified_configService) Create(ctx context.Context, tenantID string, req models.CreateUnifiedConfigRequest) ((*models.UnifiedConfig, error)) {
-	return &models.UnifiedConfig{}, nil
-}
-
-func (f *fakeunified_configService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeunified_configService) Get(ctx context.Context, tenantID, id string) ((*models.UnifiedConfig, error)) {
-	return &models.UnifiedConfig{}, nil
-}
-
-func (f *fakeunified_configService) List(ctx context.Context, tenantID string) (([]models.UnifiedConfig, error)) {
-	return []models.UnifiedConfig{}, nil
-}
-
-func (f *fakeunified_configService) Update(ctx context.Context, tenantID, id string, req models.UpdateUnifiedConfigRequest) ((*models.UnifiedConfig, error)) {
-	return &models.UnifiedConfig{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeunified_configService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_UNIFIED_CONFIG_RegisterRoutes(t *testing.T) {

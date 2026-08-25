@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/dba/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDbaService struct{}
 
 func (f *fakeDbaService) ApproveOrder(ctx context.Context, id, approvedBy string) (*models.SqlOrder, error) {
@@ -100,79 +96,6 @@ func (f *fakeDbaService) UpdateDataSource(ctx context.Context, id string, req mo
 }
 
 var _ service.ServiceInterface = (*fakeDbaService)(nil)
-=======
-type fakedbaService struct{}
-
-func (f *fakedbaService) ApproveOrder(ctx context.Context, id, approvedBy string) ((*models.SqlOrder, error)) {
-	return &models.SqlOrder{}, nil
-}
-
-func (f *fakedbaService) CreateAuditRule(ctx context.Context, tenantID string, req models.CreateAuditRuleRequest) ((*models.AuditRule, error)) {
-	return &models.AuditRule{}, nil
-}
-
-func (f *fakedbaService) CreateDataSource(ctx context.Context, tenantID string, req models.CreateDataSourceRequest) ((*models.DataSource, error)) {
-	return &models.DataSource{}, nil
-}
-
-func (f *fakedbaService) CreateOrder(ctx context.Context, tenantID, userID string, req models.CreateOrderRequest) ((*models.SqlOrder, error)) {
-	return &models.SqlOrder{}, nil
-}
-
-func (f *fakedbaService) DeleteDataSource(ctx context.Context, id string) (error) {
-	return nil
-}
-
-func (f *fakedbaService) ExecuteDirectQuery(ctx context.Context, tenantID, userID string, req models.DirectQueryRequest) ((*models.DirectQueryResponse, error)) {
-	return &models.DirectQueryResponse{}, nil
-}
-
-func (f *fakedbaService) ExecuteOrder(ctx context.Context, id string) ((*models.SqlOrder, error)) {
-	return &models.SqlOrder{}, nil
-}
-
-func (f *fakedbaService) GetDataSource(ctx context.Context, id string) ((*models.DataSource, error)) {
-	return &models.DataSource{}, nil
-}
-
-func (f *fakedbaService) GetOrder(ctx context.Context, id string) ((*models.SqlOrder, error)) {
-	return &models.SqlOrder{}, nil
-}
-
-func (f *fakedbaService) ListAuditRules(ctx context.Context, tenantID string) (([]models.AuditRule, error)) {
-	return []models.AuditRule{}, nil
-}
-
-func (f *fakedbaService) ListDataSources(ctx context.Context, tenantID string) (([]models.DataSource, error)) {
-	return []models.DataSource{}, nil
-}
-
-func (f *fakedbaService) ListOrders(ctx context.Context, tenantID, status string, page, limit int) ((*models.OrderListResult, error)) {
-	return &models.OrderListResult{}, nil
-}
-
-func (f *fakedbaService) ListQueryLogs(ctx context.Context, tenantID string, q models.QueryLogQuery) ((*models.QueryLogResult, error)) {
-	return &models.QueryLogResult{}, nil
-}
-
-func (f *fakedbaService) RejectOrder(ctx context.Context, id string) ((*models.SqlOrder, error)) {
-	return &models.SqlOrder{}, nil
-}
-
-func (f *fakedbaService) TestConnection(ctx context.Context, id string) ((*models.TestConnectionResult, error)) {
-	return &models.TestConnectionResult{}, nil
-}
-
-func (f *fakedbaService) UpdateAuditRule(ctx context.Context, id string, req models.UpdateAuditRuleRequest) ((*models.AuditRule, error)) {
-	return &models.AuditRule{}, nil
-}
-
-func (f *fakedbaService) UpdateDataSource(ctx context.Context, id string, req models.UpdateDataSourceRequest) ((*models.DataSource, error)) {
-	return &models.DataSource{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedbaService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DBA_RegisterRoutes(t *testing.T) {

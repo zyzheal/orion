@@ -24,6 +24,7 @@ import {
   message,
   Typography,
   Tabs,
+  Empty,
 } from 'antd';
 import { ThunderboltOutlined, PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import {
@@ -74,6 +75,8 @@ const TriggerPage: React.FC = () => {
   const [createWebhookModal, setCreateWebhookModal] = useState(false);
   const [createTriggerModal, setCreateTriggerModal] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
+  const [webhookSubmitting, setWebhookSubmitting] = useState(false);
+  const [triggerSubmitting, setTriggerSubmitting] = useState(false);
   const [webhookForm] = Form.useForm();
   const [triggerForm] = Form.useForm();
 
@@ -108,6 +111,7 @@ const TriggerPage: React.FC = () => {
 
   // Webhook handlers
   const handleCreateWebhook = async (values: WebhookInput) => {
+    setWebhookSubmitting(true);
     try {
       if (editingWebhook) {
         await updateWebhook(editingWebhook.id, values);
@@ -124,6 +128,8 @@ const TriggerPage: React.FC = () => {
       message.error(
         `${editingWebhook ? '更新' : '创建'} Webhook 失败: ${(error as Error).message}`
       );
+    } finally {
+      setWebhookSubmitting(false);
     }
   };
 
@@ -168,6 +174,7 @@ const TriggerPage: React.FC = () => {
 
   // Trigger handlers
   const handleCreateTrigger = async (values: any) => {
+    setTriggerSubmitting(true);
     try {
       await triggersApi.registerTrigger({
         name: values.name,
@@ -187,6 +194,8 @@ const TriggerPage: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       message.error(`创建触发器失败: ${(error as Error).message}`);
+    } finally {
+      setTriggerSubmitting(false);
     }
   };
 
@@ -320,6 +329,7 @@ const TriggerPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          locale={{ emptyText: <Empty description="暂无 Webhook 配置" /> }}
         />
       ),
     },
@@ -333,6 +343,7 @@ const TriggerPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          locale={{ emptyText: <Empty description="暂无触发器配置" /> }}
         />
       ),
     },
@@ -418,6 +429,9 @@ const TriggerPage: React.FC = () => {
           webhookForm.resetFields();
         }}
         onOk={() => webhookForm.submit()}
+        confirmLoading={webhookSubmitting}
+        okText={editingWebhook ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form form={webhookForm} layout="vertical" onFinish={handleCreateWebhook}>
@@ -455,6 +469,9 @@ const TriggerPage: React.FC = () => {
         open={createTriggerModal}
         onCancel={() => setCreateTriggerModal(false)}
         onOk={() => triggerForm.submit()}
+        confirmLoading={triggerSubmitting}
+        okText="创建"
+        cancelText="取消"
         width={600}
       >
         <Form form={triggerForm} layout="vertical" onFinish={handleCreateTrigger}>

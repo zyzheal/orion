@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/notification-policy/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeNotification_policyService struct{}
 
 func (f *fakeNotification_policyService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -80,59 +76,6 @@ func (f *fakeNotification_policyService) UpdateWorkflow(ctx context.Context, ten
 }
 
 var _ service.ServiceInterface = (*fakeNotification_policyService)(nil)
-=======
-type fakenotification_policyService struct{}
-
-func (f *fakenotification_policyService) Count(ctx context.Context, tenantID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakenotification_policyService) Create(ctx context.Context, tenantID string, userID string, req *models.CreatePolicyRequest) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakenotification_policyService) CreateWorkflow(ctx context.Context, tenantID string, userID string, req *models.CreateWorkflowRequest) ((*models.PolicyWorkflow, error)) {
-	return &models.PolicyWorkflow{}, nil
-}
-
-func (f *fakenotification_policyService) Delete(ctx context.Context, tenantID string, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakenotification_policyService) DeleteWorkflow(ctx context.Context, tenantID string, policyID string, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakenotification_policyService) Evaluate(ctx context.Context, tenantID string, userID string, req *models.EvaluateRequest) (([]models.EvaluateResult, error)) {
-	return []models.EvaluateResult{}, nil
-}
-
-func (f *fakenotification_policyService) Get(ctx context.Context, tenantID string, id string) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakenotification_policyService) GetWorkflow(ctx context.Context, tenantID string, policyID string, id string) ((*models.PolicyWorkflow, error)) {
-	return &models.PolicyWorkflow{}, nil
-}
-
-func (f *fakenotification_policyService) List(ctx context.Context, tenantID string, filter *models.ListFilter, page, pageSize int) (([]models.Policy, int, error)) {
-	return []models.Policy{}, 0, nil
-}
-
-func (f *fakenotification_policyService) ListWorkflows(ctx context.Context, tenantID string, policyID string, page, pageSize int) (([]models.PolicyWorkflow, int, error)) {
-	return []models.PolicyWorkflow{}, 0, nil
-}
-
-func (f *fakenotification_policyService) Update(ctx context.Context, tenantID string, id string, req *models.UpdatePolicyRequest) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakenotification_policyService) UpdateWorkflow(ctx context.Context, tenantID string, policyID string, id string, req *models.UpdateWorkflowRequest) ((*models.PolicyWorkflow, error)) {
-	return &models.PolicyWorkflow{}, nil
-}
-
-var _ service.ServiceInterface = (*fakenotification_policyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_NOTIFICATION_P_RegisterRoutes(t *testing.T) {

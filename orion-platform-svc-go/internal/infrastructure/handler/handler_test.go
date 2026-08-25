@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/infrastructure/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeInfrastructureService struct{}
 
 func (f *fakeInfrastructureService) AllowTraffic(ctx context.Context, tenantID string, req models.AllowTrafficRequest) (*models.SandboxNetworkPolicy, error) {
@@ -108,87 +104,6 @@ func (f *fakeInfrastructureService) UnregisterConnector(ctx context.Context, ten
 }
 
 var _ service.ServiceInterface = (*fakeInfrastructureService)(nil)
-=======
-type fakeinfrastructureService struct{}
-
-func (f *fakeinfrastructureService) AllowTraffic(ctx context.Context, tenantID string, req models.AllowTrafficRequest) ((*models.SandboxNetworkPolicy, error)) {
-	return &models.SandboxNetworkPolicy{}, nil
-}
-
-func (f *fakeinfrastructureService) ConfigureDnsIsolation(ctx context.Context, tenantID string, req models.DnsIsolationRequest, sandboxID string) ((*models.SandboxNetworkPolicy, error)) {
-	return &models.SandboxNetworkPolicy{}, nil
-}
-
-func (f *fakeinfrastructureService) ConfigureEgressTraffic(ctx context.Context, tenantID string, req models.EgressTrafficRequest, sandboxID string) ((*models.SandboxNetworkPolicy, error)) {
-	return &models.SandboxNetworkPolicy{}, nil
-}
-
-func (f *fakeinfrastructureService) Connect(ctx context.Context, tenantID, id string) ((*models.Connector, error)) {
-	return &models.Connector{}, nil
-}
-
-func (f *fakeinfrastructureService) CreateSandbox(ctx context.Context, tenantID string, req models.CreateSandboxRequest) ((*models.SandboxInfo, error)) {
-	return &models.SandboxInfo{}, nil
-}
-
-func (f *fakeinfrastructureService) DenyTraffic(ctx context.Context, tenantID string, fromEnv, toEnv string) ((*models.SandboxNetworkPolicy, error)) {
-	return &models.SandboxNetworkPolicy{}, nil
-}
-
-func (f *fakeinfrastructureService) Disconnect(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeinfrastructureService) GetConnector(ctx context.Context, tenantID, id string) ((*models.Connector, error)) {
-	return &models.Connector{}, nil
-}
-
-func (f *fakeinfrastructureService) GetHealthMetrics(ctx context.Context, tenantID, connectorID string) ((*models.HealthMetrics, error)) {
-	return &models.HealthMetrics{}, nil
-}
-
-func (f *fakeinfrastructureService) GetSandbox(ctx context.Context, tenantID, id string) ((*models.SandboxInfo, error)) {
-	return &models.SandboxInfo{}, nil
-}
-
-func (f *fakeinfrastructureService) IsolateSandbox(ctx context.Context, tenantID, id string) ((*models.SandboxInfo, error)) {
-	return &models.SandboxInfo{}, nil
-}
-
-func (f *fakeinfrastructureService) ListAllHealthMetrics(ctx context.Context, tenantID string) (([]models.HealthMetrics, error)) {
-	return []models.HealthMetrics{}, nil
-}
-
-func (f *fakeinfrastructureService) ListConnectors(ctx context.Context, tenantID string) (([]models.Connector, error)) {
-	return []models.Connector{}, nil
-}
-
-func (f *fakeinfrastructureService) ListNetworkPolicies(ctx context.Context, tenantID string) (([]models.SandboxNetworkPolicy, error)) {
-	return []models.SandboxNetworkPolicy{}, nil
-}
-
-func (f *fakeinfrastructureService) ListSandboxes(ctx context.Context, tenantID string) (([]models.SandboxInfo, error)) {
-	return []models.SandboxInfo{}, nil
-}
-
-func (f *fakeinfrastructureService) Reconnect(ctx context.Context, tenantID, id string) ((*models.Connector, error)) {
-	return &models.Connector{}, nil
-}
-
-func (f *fakeinfrastructureService) RegisterConnector(ctx context.Context, tenantID string, req models.RegisterConnectorRequest) ((*models.Connector, error)) {
-	return &models.Connector{}, nil
-}
-
-func (f *fakeinfrastructureService) ReleaseSandbox(ctx context.Context, tenantID, id string) ((*models.SandboxInfo, error)) {
-	return &models.SandboxInfo{}, nil
-}
-
-func (f *fakeinfrastructureService) UnregisterConnector(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakeinfrastructureService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_INFRASTRUCTURE_RegisterRoutes(t *testing.T) {

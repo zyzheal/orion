@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/gateway-dynamic/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req models.CreateGatewayRouteRequest) (*models.GatewayRoute, error) {
@@ -64,43 +60,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakegateway_dynamicService struct{}
-
-func (f *fakegateway_dynamicService) Create(ctx context.Context, tenantID string, req models.CreateGatewayRouteRequest) ((*models.GatewayRoute, error)) {
-	return &models.GatewayRoute{}, nil
-}
-
-func (f *fakegateway_dynamicService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakegateway_dynamicService) Get(ctx context.Context, tenantID, id string) ((*models.GatewayRoute, error)) {
-	return &models.GatewayRoute{}, nil
-}
-
-func (f *fakegateway_dynamicService) List(ctx context.Context, tenantID string, limit, offset int) (([]models.GatewayRoute, error)) {
-	return []models.GatewayRoute{}, nil
-}
-
-func (f *fakegateway_dynamicService) ListWithFilter(ctx context.Context, tenantID string, enabled *bool, q string, limit, offset int) (([]models.GatewayRoute, int, error)) {
-	return []models.GatewayRoute{}, 0, nil
-}
-
-func (f *fakegateway_dynamicService) Stats(ctx context.Context, tenantID string) ((*models.RouteStats, error)) {
-	return &models.RouteStats{}, nil
-}
-
-func (f *fakegateway_dynamicService) Toggle(ctx context.Context, tenantID, id string, enabled bool) ((*models.GatewayRoute, error)) {
-	return &models.GatewayRoute{}, nil
-}
-
-func (f *fakegateway_dynamicService) Update(ctx context.Context, tenantID, id string, req models.UpdateGatewayRouteRequest) ((*models.GatewayRoute, error)) {
-	return &models.GatewayRoute{}, nil
-}
-
-var _ service.ServiceInterface = (*fakegateway_dynamicService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_GATEWAY_DYNAMI_RegisterRoutes(t *testing.T) {

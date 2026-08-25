@@ -19,6 +19,7 @@ import {
   message,
   Popconfirm,
   Switch,
+  Empty,
 } from 'antd';
 import {
   SearchOutlined,
@@ -261,6 +262,11 @@ const AIReviewRules: React.FC = () => {
           loading={loading}
           pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条` }}
           size="small"
+          locale={{
+            emptyText: (
+              <Empty description="暂无评审规则，点击「新增规则」开始添加" />
+            ),
+          }}
         />
       </Card>
 

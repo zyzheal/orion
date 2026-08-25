@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/webhook/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeWebhookService struct{}
 
 func (f *fakeWebhookService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -72,51 +68,6 @@ func (f *fakeWebhookService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeWebhookService)(nil)
-=======
-type fakewebhookService struct{}
-
-func (f *fakewebhookService) Count(ctx context.Context, tenantID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakewebhookService) Create(ctx context.Context, tenantID, userID string, req *models.CreateWebhookRequest) ((*models.Webhook, error)) {
-	return &models.Webhook{}, nil
-}
-
-func (f *fakewebhookService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakewebhookService) Get(ctx context.Context, tenantID, id string) ((*models.Webhook, error)) {
-	return &models.Webhook{}, nil
-}
-
-func (f *fakewebhookService) List(ctx context.Context, tenantID string, filter *models.ListFilter, page, pageSize int) (([]models.Webhook, int, error)) {
-	return []models.Webhook{}, 0, nil
-}
-
-func (f *fakewebhookService) ListDeliveries(ctx context.Context, tenantID, webhookID string, limit, offset int) (([]models.WebhookDelivery, int, error)) {
-	return []models.WebhookDelivery{}, 0, nil
-}
-
-func (f *fakewebhookService) RotateSecret(ctx context.Context, tenantID, id string) ((string, error)) {
-	return "", nil
-}
-
-func (f *fakewebhookService) Trigger(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakewebhookService) TriggerByEvent(ctx context.Context, tenantID, eventType string) (error) {
-	return nil
-}
-
-func (f *fakewebhookService) Update(ctx context.Context, tenantID, id string, req *models.UpdateWebhookRequest) ((*models.Webhook, error)) {
-	return &models.Webhook{}, nil
-}
-
-var _ service.ServiceInterface = (*fakewebhookService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_WEBHOOK_RegisterRoutes(t *testing.T) {

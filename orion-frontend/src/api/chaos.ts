@@ -62,12 +62,12 @@ export interface ResilienceScore {
 
 export const chaosApi = {
   listExperiments: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/chaos/experiments', { params });
+    const response = await apiClient.get('/chaos/experiments', { params });
     return response.data;
   },
 
   getExperiment: async (experimentId: string) => {
-    const response = await apiClient.get(`/api/v1/chaos/experiments/${experimentId}`);
+    const response = await apiClient.get(`/chaos/experiments/${experimentId}`);
     return response.data as ChaosExperiment;
   },
 
@@ -76,46 +76,46 @@ export const chaosApi = {
     scope: Record<string, unknown>;
     faults: ChaosFault[];
   }) => {
-    const response = await apiClient.post('/api/v1/chaos/experiments', data);
+    const response = await apiClient.post('/chaos/experiments', data);
     return response.data as ChaosExperiment;
   },
 
   runExperiment: async (experimentId: string, dryRun?: boolean) => {
-    const response = await apiClient.post(`/api/v1/chaos/experiments/${experimentId}/run`, {
+    const response = await apiClient.post(`/chaos/experiments/${experimentId}/run`, {
       dry_run: dryRun,
     });
     return response.data as ChaosRun;
   },
 
   stopExperiment: async (experimentId: string) => {
-    const response = await apiClient.post(`/api/v1/chaos/experiments/${experimentId}/stop`);
+    const response = await apiClient.post(`/chaos/experiments/${experimentId}/stop`);
     return response.data;
   },
 
   deleteExperiment: async (experimentId: string) => {
-    const response = await apiClient.delete(`/api/v1/chaos/experiments/${experimentId}`);
+    const response = await apiClient.delete(`/chaos/experiments/${experimentId}`);
     return response.data;
   },
 
   getRun: async (runId: string) => {
-    const response = await apiClient.get(`/api/v1/chaos/runs/${runId}`);
+    const response = await apiClient.get(`/chaos/runs/${runId}`);
     return response.data as ChaosRun;
   },
 
   rollbackRun: async (runId: string, reason?: string) => {
-    const response = await apiClient.post(`/api/v1/chaos/runs/${runId}/rollback`, { reason });
+    const response = await apiClient.post(`/chaos/runs/${runId}/rollback`, { reason });
     return response.data;
   },
 };
 
 export const resilienceApi = {
   getScore: async (params?: { serviceId?: string }) => {
-    const response = await apiClient.get('/api/v1/resilience-score', { params });
+    const response = await apiClient.get('/resilience-score', { params });
     return response.data as ResilienceScore;
   },
 
   getHistory: async (params?: { serviceId?: string; days?: number }) => {
-    const response = await apiClient.get('/api/v1/resilience-score/history', { params });
+    const response = await apiClient.get('/resilience-score/history', { params });
     return response.data;
   },
 };

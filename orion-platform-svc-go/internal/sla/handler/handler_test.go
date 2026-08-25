@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/sla/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSlaService struct{}
 
 func (f *fakeSlaService) CreateDefinition(ctx context.Context, tenantID string, req models.CreateDefinitionRequest) (*models.SLADefinition, error) {
@@ -100,79 +96,6 @@ func (f *fakeSlaService) UpdateTracking(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeSlaService)(nil)
-=======
-type fakeslaService struct{}
-
-func (f *fakeslaService) CreateDefinition(ctx context.Context, tenantID string, req models.CreateDefinitionRequest) ((*models.SLADefinition, error)) {
-	return &models.SLADefinition{}, nil
-}
-
-func (f *fakeslaService) DeleteDefinition(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeslaService) DetectBreaches(ctx context.Context, tenantID string) ((*models.DetectionResult, error)) {
-	return &models.DetectionResult{}, nil
-}
-
-func (f *fakeslaService) GetBreachEvents(ctx context.Context, trackingID string) (([]models.SLABreachEvent, error)) {
-	return []models.SLABreachEvent{}, nil
-}
-
-func (f *fakeslaService) GetDefinition(ctx context.Context, tenantID, id string) ((*models.SLADefinition, error)) {
-	return &models.SLADefinition{}, nil
-}
-
-func (f *fakeslaService) GetStats(ctx context.Context, tenantID string) ((*models.StatsResult, error)) {
-	return &models.StatsResult{}, nil
-}
-
-func (f *fakeslaService) GetTracking(ctx context.Context, tenantID, id string) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-func (f *fakeslaService) ListBreachEvents(ctx context.Context, tenantID string, limit, offset int) ((*models.BreachListResult, error)) {
-	return &models.BreachListResult{}, nil
-}
-
-func (f *fakeslaService) ListDefinitions(ctx context.Context, tenantID string, q models.DefinitionListQuery) ((*models.DefinitionListResult, error)) {
-	return &models.DefinitionListResult{}, nil
-}
-
-func (f *fakeslaService) ListTracking(ctx context.Context, tenantID string, q models.TrackingListQuery) ((*models.TrackingListResult, error)) {
-	return &models.TrackingListResult{}, nil
-}
-
-func (f *fakeslaService) MarkBreached(ctx context.Context, tenantID, trackingID, details string) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-func (f *fakeslaService) MarkMet(ctx context.Context, tenantID, trackingID string) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-func (f *fakeslaService) PauseTracking(ctx context.Context, tenantID, trackingID, reason string) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-func (f *fakeslaService) ResumeTracking(ctx context.Context, tenantID, trackingID string) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-func (f *fakeslaService) StartTracking(ctx context.Context, tenantID string, req models.StartTrackingRequest) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-func (f *fakeslaService) UpdateDefinition(ctx context.Context, tenantID, id string, req models.UpdateDefinitionRequest) ((*models.SLADefinition, error)) {
-	return &models.SLADefinition{}, nil
-}
-
-func (f *fakeslaService) UpdateTracking(ctx context.Context, tenantID, id string, req models.UpdateTrackingRequest) ((*models.SLATracking, error)) {
-	return &models.SLATracking{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeslaService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SLA_RegisterRoutes(t *testing.T) {

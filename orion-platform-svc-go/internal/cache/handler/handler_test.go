@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/cache/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCacheService struct{}
 
 func (f *fakeCacheService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.CacheEntry, error) {
@@ -63,31 +59,6 @@ func (f *fakeCacheService) Update(ctx context.Context, id, tenantID string, req 
 }
 
 var _ service.ServiceInterface = (*fakeCacheService)(nil)
-=======
-type fakecacheService struct{}
-
-func (f *fakecacheService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) ((*models.CacheEntry, error)) {
-	return &models.CacheEntry{}, nil
-}
-
-func (f *fakecacheService) Delete(ctx context.Context, id, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecacheService) Get(ctx context.Context, id, tenantID string) ((*models.CacheEntry, error)) {
-	return &models.CacheEntry{}, nil
-}
-
-func (f *fakecacheService) List(ctx context.Context, tenantID string) (([]models.CacheEntry, error)) {
-	return []models.CacheEntry{}, nil
-}
-
-func (f *fakecacheService) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) ((*models.CacheEntry, error)) {
-	return &models.CacheEntry{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecacheService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCACHE_Handler_RegisterRoutes(t *testing.T) {

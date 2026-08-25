@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/observability/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeObservabilityService struct{}
 
 func (f *fakeObservabilityService) CreateAlertRule(ctx context.Context, tenantID string, rule *models.AlertRule) (*models.AlertRule, error) {
@@ -52,31 +48,6 @@ func (f *fakeObservabilityService) RecordMetric(ctx context.Context, tenantID st
 }
 
 var _ service.ServiceInterface = (*fakeObservabilityService)(nil)
-=======
-type fakeobservabilityService struct{}
-
-func (f *fakeobservabilityService) CreateAlertRule(ctx context.Context, tenantID string, rule *models.AlertRule) ((*models.AlertRule, error)) {
-	return &models.AlertRule{}, nil
-}
-
-func (f *fakeobservabilityService) GetMetric(ctx context.Context, tenantID, name string) ((*models.Metric, error)) {
-	return &models.Metric{}, nil
-}
-
-func (f *fakeobservabilityService) ListAlertRules(ctx context.Context, tenantID string) (([]models.AlertRule, error)) {
-	return []models.AlertRule{}, nil
-}
-
-func (f *fakeobservabilityService) ListMetrics(ctx context.Context, tenantID string, q models.MetricQuery) (([]models.Metric, error)) {
-	return []models.Metric{}, nil
-}
-
-func (f *fakeobservabilityService) RecordMetric(ctx context.Context, tenantID string, m *models.Metric) ((*models.Metric, error)) {
-	return &models.Metric{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeobservabilityService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_OBSERVABILITY_RegisterRoutes(t *testing.T) {

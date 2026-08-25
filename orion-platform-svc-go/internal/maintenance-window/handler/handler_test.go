@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/maintenance-window/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeMaintenance_windowService struct{}
 
 func (f *fakeMaintenance_windowService) Create(ctx context.Context, tenantID string, req *models.CreateMaintenanceWindowRequest) (*models.MaintenanceWindow, error) {
@@ -52,31 +48,6 @@ func (f *fakeMaintenance_windowService) Update(ctx context.Context, tenantID, id
 }
 
 var _ service.ServiceInterface = (*fakeMaintenance_windowService)(nil)
-=======
-type fakemaintenance_windowService struct{}
-
-func (f *fakemaintenance_windowService) Create(ctx context.Context, tenantID string, req *models.CreateMaintenanceWindowRequest) ((*models.MaintenanceWindow, error)) {
-	return &models.MaintenanceWindow{}, nil
-}
-
-func (f *fakemaintenance_windowService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakemaintenance_windowService) Get(ctx context.Context, tenantID, id string) ((*models.MaintenanceWindow, error)) {
-	return &models.MaintenanceWindow{}, nil
-}
-
-func (f *fakemaintenance_windowService) List(ctx context.Context, tenantID string) (([]models.MaintenanceWindow, error)) {
-	return []models.MaintenanceWindow{}, nil
-}
-
-func (f *fakemaintenance_windowService) Update(ctx context.Context, tenantID, id string, req *models.UpdateMaintenanceWindowRequest) ((*models.MaintenanceWindow, error)) {
-	return &models.MaintenanceWindow{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemaintenance_windowService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_MAINTENANCE_WI_RegisterRoutes(t *testing.T) {

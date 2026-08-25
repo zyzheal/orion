@@ -116,6 +116,7 @@ const FormDesigner: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSchema, setPreviewSchema] = useState<string>('');
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   // Data
@@ -188,6 +189,7 @@ const FormDesigner: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
       let schemaObj = values.schema;
@@ -217,8 +219,11 @@ const FormDesigner: React.FC = () => {
       }
       setModalOpen(false);
       fetchData();
-    } catch (err: any) {
-      if (err?.message) message.error(err.message);
+    } catch (err: unknown) {
+      const e = err as Error;
+      if (e?.message) message.error(e.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -403,6 +408,9 @@ const FormDesigner: React.FC = () => {
         title={editingItem ? '编辑' : '新建'}
         open={modalOpen}
         onOk={handleSubmit}
+        confirmLoading={submitting}
+        okText={editingItem ? '保存' : '创建'}
+        cancelText="取消"
         onCancel={() => setModalOpen(false)}
         width={640}
         destroyOnClose

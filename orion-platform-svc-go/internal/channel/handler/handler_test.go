@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/channel/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeChannelService struct{}
 
 func (f *fakeChannelService) Create(ctx context.Context, tenantID string, req *models.CreateChannelRequest) (*models.NotificationChannel, error) {
@@ -67,35 +63,6 @@ func (f *fakeChannelService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeChannelService)(nil)
-=======
-type fakechannelService struct{}
-
-func (f *fakechannelService) Create(ctx context.Context, tenantID string, req *models.CreateChannelRequest) ((*models.NotificationChannel, error)) {
-	return &models.NotificationChannel{}, nil
-}
-
-func (f *fakechannelService) Delete(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakechannelService) GetByID(ctx context.Context, tenantID, id string) ((*models.NotificationChannel, error)) {
-	return &models.NotificationChannel{}, nil
-}
-
-func (f *fakechannelService) GetEnabledByType(ctx context.Context, tenantID, channelType string) (([]models.NotificationChannel, error)) {
-	return []models.NotificationChannel{}, nil
-}
-
-func (f *fakechannelService) List(ctx context.Context, tenantID string, filter *models.ChannelFilter) (([]models.NotificationChannel, int, error)) {
-	return []models.NotificationChannel{}, 0, nil
-}
-
-func (f *fakechannelService) Update(ctx context.Context, tenantID, id string, req *models.UpdateChannelRequest) ((*models.NotificationChannel, error)) {
-	return &models.NotificationChannel{}, nil
-}
-
-var _ service.ServiceInterface = (*fakechannelService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCHANNEL_Handler_RegisterRoutes(t *testing.T) {

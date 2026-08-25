@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/secret/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID, userID string, req *models.CreateSecretRequest) (*service.SecretListItem, error) {
@@ -64,43 +60,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakesecretService struct{}
-
-func (f *fakesecretService) Create(ctx context.Context, tenantID, userID string, req *models.CreateSecretRequest) ((*SecretListItem, error)) {
-	return &SecretListItem{}, nil
-}
-
-func (f *fakesecretService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakesecretService) Get(ctx context.Context, id string, tenantID string) ((*SecretListItem, error)) {
-	return &SecretListItem{}, nil
-}
-
-func (f *fakesecretService) GetByName(ctx context.Context, tenantID, name, scope string) ((*SecretListItem, error)) {
-	return &SecretListItem{}, nil
-}
-
-func (f *fakesecretService) GetReferences(ctx context.Context, id string, tenantID string) ((*models.Secret, error)) {
-	return &models.Secret{}, nil
-}
-
-func (f *fakesecretService) List(ctx context.Context, tenantID string, filter *models.ListFilter) (([]SecretListItem, error)) {
-	return []SecretListItem{}, nil
-}
-
-func (f *fakesecretService) Resolve(ctx context.Context, tenantID string, req *models.ResolveSecretsRequest) ((*models.ResolveSecretsResult, error)) {
-	return &models.ResolveSecretsResult{}, nil
-}
-
-func (f *fakesecretService) Update(ctx context.Context, tenantID, id string, req *models.UpdateSecretRequest) ((*SecretListItem, error)) {
-	return &SecretListItem{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesecretService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SECRET_RegisterRoutes(t *testing.T) {

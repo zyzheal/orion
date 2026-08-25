@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/health-check/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHealth_checkService struct{}
 
 func (f *fakeHealth_checkService) Create(ctx context.Context, tenantID string, req models.CreateHealthCheckRequest) (string, error) {
@@ -64,43 +60,6 @@ func (f *fakeHealth_checkService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeHealth_checkService)(nil)
-=======
-type fakehealth_checkService struct{}
-
-func (f *fakehealth_checkService) Create(ctx context.Context, tenantID string, req models.CreateHealthCheckRequest) ((string, error)) {
-	return "", nil
-}
-
-func (f *fakehealth_checkService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakehealth_checkService) ExecuteAll(ctx context.Context, tenantID string) ((*models.HealthCheckResult, error)) {
-	return &models.HealthCheckResult{}, nil
-}
-
-func (f *fakehealth_checkService) ExecuteCheck(ctx context.Context, tenantID, id string, req models.ExecuteHealthCheckRequest) ((*models.HealthCheckResult, error)) {
-	return &models.HealthCheckResult{}, nil
-}
-
-func (f *fakehealth_checkService) Get(ctx context.Context, tenantID, id string) ((*models.HealthCheck, error)) {
-	return &models.HealthCheck{}, nil
-}
-
-func (f *fakehealth_checkService) List(ctx context.Context, tenantID string) (([]models.HealthCheck, error)) {
-	return []models.HealthCheck{}, nil
-}
-
-func (f *fakehealth_checkService) QuickCheck(ctx context.Context, req models.QuickHealthCheckRequest) ((*models.HealthCheckResult, error)) {
-	return &models.HealthCheckResult{}, nil
-}
-
-func (f *fakehealth_checkService) Update(ctx context.Context, tenantID, id string, req models.CreateHealthCheckRequest) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakehealth_checkService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_HEALTH_CHECK_RegisterRoutes(t *testing.T) {

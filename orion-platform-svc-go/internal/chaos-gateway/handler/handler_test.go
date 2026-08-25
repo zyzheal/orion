@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/chaos-gateway/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeChaos_gatewayService struct{}
 
 func (f *fakeChaos_gatewayService) CreateExperiment(ctx context.Context, tenantID, createdBy string, req models.CreateExperimentRequest) (*models.ChaosExperiment, error) {
@@ -95,63 +91,6 @@ func (f *fakeChaos_gatewayService) UpdateExperiment(ctx context.Context, tenantI
 }
 
 var _ service.ServiceInterface = (*fakeChaos_gatewayService)(nil)
-=======
-type fakechaos_gatewayService struct{}
-
-func (f *fakechaos_gatewayService) CreateExperiment(ctx context.Context, tenantID, createdBy string, req models.CreateExperimentRequest) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) DeleteExperiment(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakechaos_gatewayService) GetExperiment(ctx context.Context, tenantID, id string) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) GetLogs(ctx context.Context, tenantID, id string, q models.ListQuery) (([]models.ExperimentLog, int, error)) {
-	return []models.ExperimentLog{}, 0, nil
-}
-
-func (f *fakechaos_gatewayService) GetResults(ctx context.Context, tenantID, id string, q models.ListQuery) (([]models.ExperimentResult, int, error)) {
-	return []models.ExperimentResult{}, 0, nil
-}
-
-func (f *fakechaos_gatewayService) GetScenarios(ctx context.Context) (([]models.ChaosScenario, error)) {
-	return []models.ChaosScenario{}, nil
-}
-
-func (f *fakechaos_gatewayService) ListExperiments(ctx context.Context, tenantID string, q models.ListQuery) (([]models.ChaosExperiment, int, error)) {
-	return []models.ChaosExperiment{}, 0, nil
-}
-
-func (f *fakechaos_gatewayService) PauseExperiment(ctx context.Context, tenantID, id string) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) ResumeExperiment(ctx context.Context, tenantID, id string) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) ScheduleExperiment(ctx context.Context, tenantID, createdBy string, req models.ScheduleExperimentRequest) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) StartExperiment(ctx context.Context, tenantID, id string) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) StopExperiment(ctx context.Context, tenantID, id string) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-func (f *fakechaos_gatewayService) UpdateExperiment(ctx context.Context, tenantID, id string, req models.UpdateExperimentRequest) ((*models.ChaosExperiment, error)) {
-	return &models.ChaosExperiment{}, nil
-}
-
-var _ service.ServiceInterface = (*fakechaos_gatewayService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCHAOS_GATEWAY_Handler_RegisterRoutes(t *testing.T) {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/pipeline-audit-log/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePipeline_audit_logService struct{}
 
 func (f *fakePipeline_audit_logService) CleanupExpired(ctx context.Context, tenantID string, req *models.CleanupRequest) (int64, error) {
@@ -60,39 +56,6 @@ func (f *fakePipeline_audit_logService) RecordBatch(ctx context.Context, reqs []
 }
 
 var _ service.ServiceInterface = (*fakePipeline_audit_logService)(nil)
-=======
-type fakepipeline_audit_logService struct{}
-
-func (f *fakepipeline_audit_logService) CleanupExpired(ctx context.Context, tenantID string, req *models.CleanupRequest) ((int64, error)) {
-	return 0, nil
-}
-
-func (f *fakepipeline_audit_logService) GetAuditLogByAction(ctx context.Context, tenantID, action string, limit, offset int) (([]models.AuditLog, int, error)) {
-	return []models.AuditLog{}, 0, nil
-}
-
-func (f *fakepipeline_audit_logService) GetAuditLogByPipeline(ctx context.Context, tenantID, pipelineID string, limit, offset int) (([]models.AuditLog, int, error)) {
-	return []models.AuditLog{}, 0, nil
-}
-
-func (f *fakepipeline_audit_logService) GetRunAuditTrail(ctx context.Context, tenantID, runID string, limit int) ((*models.AuditTrailResponse, error)) {
-	return &models.AuditTrailResponse{}, nil
-}
-
-func (f *fakepipeline_audit_logService) Query(ctx context.Context, q *models.AuditLogQuery, tenantID string) (([]models.AuditLog, int, error)) {
-	return []models.AuditLog{}, 0, nil
-}
-
-func (f *fakepipeline_audit_logService) Record(ctx context.Context, req *models.AuditLogRequest, tenantID string) ((*models.AuditLog, error)) {
-	return &models.AuditLog{}, nil
-}
-
-func (f *fakepipeline_audit_logService) RecordBatch(ctx context.Context, reqs []models.AuditLogRequest, tenantID string) (([]*models.AuditLog, error)) {
-	return []*models.AuditLog{}, nil
-}
-
-var _ service.ServiceInterface = (*fakepipeline_audit_logService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PIPELINE_AUDIT_RegisterRoutes(t *testing.T) {

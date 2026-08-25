@@ -38,21 +38,21 @@ export function getCMDBDrifts(filter?: DriftFilter) {
   if (filter?.type) params.type = filter.type;
   if (filter?.changedBy) params.changedBy = filter.changedBy;
   if (filter?.since) params.since = filter.since;
-  return api.get<{ data: DriftItem[] }>('/api/v1/cmdb-drift', { params });
+  return api.get<{ data: DriftItem[] }>('/cmdb-drift', { params });
 }
 
 export function getCMDBDriftStats() {
-  return api.get<{ data: DriftStats }>('/api/v1/cmdb-drift/stats');
+  return api.get<{ data: DriftStats }>('/cmdb-drift/stats');
 }
 
 export function getCMDBDrift(id: string) {
-  return api.get<{ data: DriftItem }>(`/api/v1/cmdb-drift/${id}`);
+  return api.get<{ data: DriftItem }>(`/cmdb-drift/${id}`);
 }
 
 export function syncCMDBDrift(id: string) {
-  return api.post<{ data: { synced: boolean } }>(`/api/v1/cmdb-drift/${id}/sync`);
+  return api.post<{ data: { synced: boolean } }>(`/cmdb-drift/${id}/sync`);
 }
 
 export function dismissCMDBDrift(id: string, reason: string) {
-  return api.post<{ data: void }>(`/api/v1/cmdb-drift/${id}/dismiss`, { reason });
+  return api.post<{ data: void }>(`/cmdb-drift/${id}/dismiss`, { reason });
 }

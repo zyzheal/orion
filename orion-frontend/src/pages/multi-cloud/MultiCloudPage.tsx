@@ -42,6 +42,8 @@ import {
   ApiOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   multiCloudApi,
@@ -101,6 +103,9 @@ const MultiCloudPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<CloudAccount | null>(null);
+  const [editForm] = Form.useForm();
   const [costModalOpen, setCostModalOpen] = useState(false);
   const [costComparison, setCostComparison] = useState<CostComparison[]>([]);
   const [costLoading, setCostLoading] = useState(false);
@@ -174,6 +179,52 @@ const MultiCloudPage: React.FC = () => {
       message.error(`同步失败: ${(error as Error).message}`);
       setSyncing(null);
     }
+  };
+
+  const handleEdit = (record: CloudAccount) => {
+    setEditingAccount(record);
+    editForm.setFieldsValue({
+      name: record.account_name,
+      provider: record.provider_id || record.credential_type,
+      region: record.region,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (values: { name: string; provider: string; region: string }) => {
+    if (!editingAccount) return;
+    try {
+      await multiCloudApi.updateCloudAccount(editingAccount.id, {
+        name: values.name,
+        region: values.region,
+      });
+      message.success('云账号更新成功');
+      setEditModalOpen(false);
+      setEditingAccount(null);
+      editForm.resetFields();
+      loadData();
+    } catch (error: unknown) {
+      message.error(`更新失败: ${(error as Error).message}`);
+    }
+  };
+
+  const handleDelete = (record: CloudAccount) => {
+    Modal.confirm({
+      title: '确认删除云账号？',
+      content: `将删除云账号「${record.account_name}」(${record.provider_id || record.credential_type})，该操作不可恢复。`,
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await multiCloudApi.deleteCloudAccount(record.id);
+          message.success('云账号已删除');
+          loadData();
+        } catch (error: unknown) {
+          message.error(`删除失败: ${(error as Error).message}`);
+        }
+      },
+    });
   };
 
   const handleCostCompare = async (values: {
@@ -250,20 +301,32 @@ const MultiCloudPage: React.FC = () => {
     }));
   }, [statistics]);
 
-  // Simulated cost trend data
-  const costTrend = useMemo(
-    () => [
-      { month: '1月', cost: 18200 },
-      { month: '2月', cost: 19500 },
-      { month: '3月', cost: 21000 },
-      { month: '4月', cost: 20300 },
-      { month: '5月', cost: 22800 },
-      { month: '6月', cost: statistics?.totalMonthlyCost ?? 24500 },
-    ],
-    [statistics]
-  );
+  // Cost trend data - from API with fallback
+  const [costTrendData, setCostTrendData] = useState<
+    Array<{ month: string; cost: number }>
+  >([]);
+  const [costTrendLoading, setCostTrendLoading] = useState(false);
 
-  const maxCost = Math.max(...costTrend.map((t) => t.cost));
+  useEffect(() => {
+    const fetchCostTrend = async () => {
+      setCostTrendLoading(true);
+      try {
+        const res = await multiCloudApi.getCostStats();
+        const data = (res.data as { months?: Array<{ month: string; cost: number }> }) || {};
+        if (data.months && data.months.length > 0) {
+          setCostTrendData(data.months);
+        }
+      } catch {
+        // Fallback: empty state shown to user
+        setCostTrendData([]);
+      } finally {
+        setCostTrendLoading(false);
+      }
+    };
+    fetchCostTrend();
+  }, []);
+
+  const maxCost = Math.max(...costTrendData.map((t) => t.cost), 1);
 
   // Account columns
   const accountColumns = [
@@ -319,7 +382,7 @@ const MultiCloudPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 160,
       render: (_: unknown, record: CloudAccount) => (
         <Space>
           <Tooltip title="同步资源">
@@ -329,6 +392,23 @@ const MultiCloudPage: React.FC = () => {
               icon={<SyncOutlined spin={syncing === record.account_id} />}
               onClick={() => handleSync(record.account_id)}
               disabled={syncing !== null}
+            />
+          </Tooltip>
+          <Tooltip title="编辑">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            />
+          </Tooltip>
+          <Tooltip title="删除">
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDelete(record)}
             />
           </Tooltip>
         </Space>
@@ -586,9 +666,34 @@ const MultiCloudPage: React.FC = () => {
                 padding: '0 8px',
               }}
             >
-              {costTrend.map((item, index) => {
-                const height = maxCost > 0 ? (item.cost / maxCost) * 140 : 0;
-                const isCurrent = index === costTrend.length - 1;
+              {costTrendLoading ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: 160,
+                    width: '100%',
+                  }}
+                >
+                  <Text type="secondary">加载中...</Text>
+                </div>
+              ) : costTrendData.length === 0 ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: 160,
+                    width: '100%',
+                  }}
+                >
+                  <Text type="secondary">暂无成本数据</Text>
+                </div>
+              ) : (
+                costTrendData.map((item, index) => {
+                  const height = maxCost > 0 ? (item.cost / maxCost) * 140 : 0;
+                  const isCurrent = index === costTrendData.length - 1;
                 return (
                   <Tooltip key={item.month} title={`$${item.cost.toLocaleString()}`}>
                     <div
@@ -617,7 +722,8 @@ const MultiCloudPage: React.FC = () => {
                     </div>
                   </Tooltip>
                 );
-              })}
+                })
+              )}
             </div>
           </Card>
         </Col>
@@ -793,6 +899,47 @@ const MultiCloudPage: React.FC = () => {
           </Form.Item>
           <Form.Item label="凭证引用" name="credentials_ref">
             <Input placeholder="如: IAM Role ARN 或 Service Account Path" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        title="编辑云账号"
+        open={editModalOpen}
+        onCancel={() => {
+          setEditModalOpen(false);
+          setEditingAccount(null);
+          editForm.resetFields();
+        }}
+        onOk={() => editForm.submit()}
+        width={600}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleEditSubmit}>
+          <Form.Item
+            label="账号名称"
+            name="name"
+            rules={[{ required: true, message: '请输入账号名称' }]}
+          >
+            <Input placeholder="如: AWS Production" />
+          </Form.Item>
+          <Form.Item
+            label="云厂商"
+            name="provider"
+            rules={[{ required: true, message: '请选择云厂商' }]}
+          >
+            <Select
+              options={[
+                { value: 'aws', label: 'AWS' },
+                { value: 'azure', label: 'Azure' },
+                { value: 'gcp', label: 'Google Cloud' },
+                { value: 'alicloud', label: '阿里云' },
+                { value: 'tencent', label: '腾讯云' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="区域" name="region" rules={[{ required: true, message: '请输入区域' }]}>
+            <Input placeholder="如: us-east-1" />
           </Form.Item>
         </Form>
       </Modal>

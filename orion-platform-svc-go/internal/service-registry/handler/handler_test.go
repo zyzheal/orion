@@ -9,11 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/service-registry/models"
 	"orion/platform-svc-go/internal/service-registry/repository"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -29,7 +26,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Deregister(ctx context.Context, tenantID, serviceID string) (error) {
@@ -57,35 +53,6 @@ func (f *fakeHandlerService) Register(ctx context.Context, tenantID string, req 
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeservice_registryService struct{}
-
-func (f *fakeservice_registryService) Deregister(ctx context.Context, tenantID, serviceID string) (error) {
-	return nil
-}
-
-func (f *fakeservice_registryService) GetByInternalID(ctx context.Context, tenantID, id string) ((*models.ServiceRegistry, error)) {
-	return &models.ServiceRegistry{}, nil
-}
-
-func (f *fakeservice_registryService) GetByServiceID(ctx context.Context, tenantID, serviceID string) ((*models.ServiceRegistry, error)) {
-	return &models.ServiceRegistry{}, nil
-}
-
-func (f *fakeservice_registryService) List(ctx context.Context, tenantID string, f *repository.ListFilters) (([]models.ServiceRegistry, error)) {
-	return []models.ServiceRegistry{}, nil
-}
-
-func (f *fakeservice_registryService) RecordHeartbeat(ctx context.Context, tenantID, serviceID string) (error) {
-	return nil
-}
-
-func (f *fakeservice_registryService) Register(ctx context.Context, tenantID string, req models.RegisterRequest) ((*models.ServiceRegistry, error)) {
-	return &models.ServiceRegistry{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeservice_registryService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SERVICE_REGIST_RegisterRoutes(t *testing.T) {

@@ -15,6 +15,7 @@ import {
   Input,
   Select,
   Descriptions,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -47,6 +48,8 @@ const EnvProfilesPage: React.FC = () => {
   const [resolveVisible, setResolveVisible] = useState(false);
   const [resolveResult, setResolveResult] = useState<Record<string, string>>({});
   const [selectedProfile, setSelectedProfile] = useState<EnvProfile | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [environments, setEnvironments] = useState<string[]>([]);
   const [envLoading, setEnvLoading] = useState(false);
   const [envError, setEnvError] = useState<string | null>(null);
@@ -119,6 +122,7 @@ const EnvProfilesPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
       let variables: Record<string, string> = {};
@@ -149,13 +153,19 @@ const EnvProfilesPage: React.FC = () => {
       }
       setModalVisible(false);
       loadData();
-    } catch {
-      // validation failed
+    } catch (error: unknown) {
+      if (!(error instanceof Error) && (error as { errorFields?: unknown[] })?.errorFields) {
+        return;
+      }
+      message.error('保存环境配置失败，请稍后重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleResolve = async () => {
     if (!selectedProfile) return;
+    setResolving(true);
     try {
       const values = await resolveForm.validateFields();
       let overrides: Record<string, string> | undefined;
@@ -179,8 +189,13 @@ const EnvProfilesPage: React.FC = () => {
       });
       setResolveResult(res.data || {});
       message.success('解析完成');
-    } catch {
-      // validation failed
+    } catch (error: unknown) {
+      if (!(error instanceof Error) && (error as { errorFields?: unknown[] })?.errorFields) {
+        return;
+      }
+      message.error('解析变量失败，请稍后重试');
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -295,6 +310,7 @@ const EnvProfilesPage: React.FC = () => {
         rowKey="id"
         size="middle"
         pagination={{ pageSize: 20 }}
+        locale={{ emptyText: <Empty description="暂无环境配置，点击「创建配置」添加" /> }}
       />
 
       {/* Create/Edit Modal */}
@@ -303,7 +319,9 @@ const EnvProfilesPage: React.FC = () => {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
+        confirmLoading={submitting}
         okText={editingItem ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
@@ -342,7 +360,9 @@ const EnvProfilesPage: React.FC = () => {
         open={resolveVisible}
         onCancel={() => setResolveVisible(false)}
         onOk={handleResolve}
+        confirmLoading={resolving}
         okText="解析"
+        cancelText="取消"
         width={700}
       >
         <Form form={resolveForm} layout="vertical" style={{ marginTop: spacing.md }}>

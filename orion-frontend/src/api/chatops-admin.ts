@@ -1,7 +1,7 @@
 /**
  * ChatOps Admin API Client
  *
- * 后端 API 前缀: /api/v1/chatops/admin
+ * 后端 API 前缀: /chatops/admin
  * 对应后端路由: orion-platform-service/src/api/chatops-routes.ts
  *
  * 功能:
@@ -118,80 +118,80 @@ export const chatopsAdminApi = {
 
   /** 获取命令-Capability 映射列表 */
   getCapabilityMappings: (environment?: string) =>
-    api.get<CapabilityMapping[]>('/api/v1/chatops/admin/capability-mappings', {
+    api.get<CapabilityMapping[]>('/chatops/admin/capability-mappings', {
       params: { environment },
     }),
 
   /** 创建命令-Capability 映射 */
   createCapabilityMapping: (data: CreateCapabilityMappingInput) =>
-    api.post<CapabilityMapping>('/api/v1/chatops/admin/capability-mappings', data),
+    api.post<CapabilityMapping>('/chatops/admin/capability-mappings', data),
 
   /** 更新命令-Capability 映射 */
   updateCapabilityMapping: (id: string, data: UpdateCapabilityMappingInput) =>
-    api.put<CapabilityMapping>(`/api/v1/chatops/admin/capability-mappings/${id}`, data),
+    api.put<CapabilityMapping>(`/chatops/admin/capability-mappings/${id}`, data),
 
   /** 删除命令-Capability 映射 */
   deleteCapabilityMapping: (id: string) =>
-    api.delete(`/api/v1/chatops/admin/capability-mappings/${id}`),
+    api.delete(`/chatops/admin/capability-mappings/${id}`),
 
   // ---- Approval Configs ----
 
   /** 获取审批配置列表 */
-  getApprovalConfigs: () => api.get<ApprovalConfig[]>('/api/v1/chatops/admin/approval-configs'),
+  getApprovalConfigs: () => api.get<ApprovalConfig[]>('/chatops/admin/approval-configs'),
 
   /** 批量更新审批配置 */
   batchUpdateApprovalConfigs: (data: BatchApprovalConfigInput[]) =>
-    api.put<ApprovalConfig[]>('/api/v1/chatops/admin/approval-configs', data),
+    api.put<ApprovalConfig[]>('/chatops/admin/approval-configs', data),
 
   /** 获取单个能力域审批配置 */
   getApprovalConfig: (capability: string) =>
-    api.get<ApprovalConfig>(`/api/v1/chatops/admin/approval-configs/${capability}`),
+    api.get<ApprovalConfig>(`/chatops/admin/approval-configs/${capability}`),
 
   /** 更新单个能力域审批配置 */
   updateApprovalConfig: (capability: string, data: UpdateApprovalConfigInput) =>
-    api.put<ApprovalConfig>(`/api/v1/chatops/admin/approval-configs/${capability}`, data),
+    api.put<ApprovalConfig>(`/chatops/admin/approval-configs/${capability}`, data),
 
   // ---- Approver Management ----
 
   /** 获取审批人列表 */
-  getApprovers: () => api.get<Approver[]>('/api/v1/chatops/admin/approvers'),
+  getApprovers: () => api.get<Approver[]>('/chatops/admin/approvers'),
 
   /** 获取审批人值班表 */
   getApproverSchedule: () =>
-    api.get<ApproverScheduleEntry[]>('/api/v1/chatops/admin/approvers/schedule'),
+    api.get<ApproverScheduleEntry[]>('/chatops/admin/approvers/schedule'),
 
   /** 更新审批人值班表 */
   updateApproverSchedule: (data: ApproverScheduleEntry[]) =>
-    api.put('/api/v1/chatops/admin/approvers/schedule', data),
+    api.put('/chatops/admin/approvers/schedule', data),
 
   // ---- Global Approval Config ----
 
   /** 获取全局审批配置 */
   getGlobalApprovalConfig: () =>
-    api.get<GlobalApprovalConfig>('/api/v1/chatops/admin/approval-global-config'),
+    api.get<GlobalApprovalConfig>('/chatops/admin/approval-global-config'),
 
   /** 更新全局审批配置 */
   updateGlobalApprovalConfig: (data: { enabled: boolean; mode: string }) =>
-    api.put('/api/v1/chatops/admin/approval-global-config', data),
+    api.put('/chatops/admin/approval-global-config', data),
 
   // ---- Permission Management ----
 
   /** 获取角色列表 */
-  getRoles: () => api.get('/api/v1/chatops/admin/roles'),
+  getRoles: () => api.get('/chatops/admin/roles'),
 
   /** 创建角色 */
   createRole: (data: { name: string; description?: string; permissions?: string[] }) =>
-    api.post('/api/v1/chatops/admin/roles', data),
+    api.post('/chatops/admin/roles', data),
 
   /** 更新角色 */
   updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[] }) =>
-    api.put(`/api/v1/chatops/admin/roles/${id}`, data),
+    api.put(`/chatops/admin/roles/${id}`, data),
 
   /** 删除角色 */
-  deleteRole: (id: string) => api.delete(`/api/v1/chatops/admin/roles/${id}`),
+  deleteRole: (id: string) => api.delete(`/chatops/admin/roles/${id}`),
 
   /** 获取命令权限列表 */
-  getCommandPermissions: () => api.get('/api/v1/chatops/admin/command-permissions'),
+  getCommandPermissions: () => api.get('/chatops/admin/command-permissions'),
 
   /** 创建命令权限 */
   createCommandPermission: (data: {
@@ -201,7 +201,7 @@ export const chatopsAdminApi = {
     risk_level?: number;
     requires_approval?: boolean;
     role_ids?: string[];
-  }) => api.post('/api/v1/chatops/admin/command-permissions', data),
+  }) => api.post('/chatops/admin/command-permissions', data),
 
   /** 更新命令权限 */
   updateCommandPermission: (
@@ -213,14 +213,14 @@ export const chatopsAdminApi = {
       requires_approval?: boolean;
       role_ids?: string[];
     }
-  ) => api.put(`/api/v1/chatops/admin/command-permissions/${id}`, data),
+  ) => api.put(`/chatops/admin/command-permissions/${id}`, data),
 
   /** 删除命令权限 */
   deleteCommandPermission: (id: string) =>
-    api.delete(`/api/v1/chatops/admin/command-permissions/${id}`),
+    api.delete(`/chatops/admin/command-permissions/${id}`),
 
   /** 获取环境权限列表 */
-  getEnvironmentPermissions: () => api.get('/api/v1/chatops/admin/environment-permissions'),
+  getEnvironmentPermissions: () => api.get('/chatops/admin/environment-permissions'),
 
   /** 创建环境权限 */
   createEnvironmentPermission: (data: {
@@ -231,7 +231,7 @@ export const chatopsAdminApi = {
     allowed_commands?: string[];
     denied_commands?: string[];
     role_ids?: string[];
-  }) => api.post('/api/v1/chatops/admin/environment-permissions', data),
+  }) => api.post('/chatops/admin/environment-permissions', data),
 
   /** 更新环境权限 */
   updateEnvironmentPermission: (
@@ -244,21 +244,21 @@ export const chatopsAdminApi = {
       denied_commands?: string[];
       role_ids?: string[];
     }
-  ) => api.put(`/api/v1/chatops/admin/environment-permissions/${id}`, data),
+  ) => api.put(`/chatops/admin/environment-permissions/${id}`, data),
 
   /** 删除环境权限 */
   deleteEnvironmentPermission: (id: string) =>
-    api.delete(`/api/v1/chatops/admin/environment-permissions/${id}`),
+    api.delete(`/chatops/admin/environment-permissions/${id}`),
 
   // ---- Command Version Management ----
 
   /** 获取所有命令版本 */
   getCommandVersions: (params?: { page?: number; perPage?: number }) =>
-    api.get('/api/v1/chatops/admin/command-versions', { params }),
+    api.get('/chatops/admin/command-versions', { params }),
 
   /** 获取指定命令的版本历史 */
   getCommandVersionsByCommand: (commandId: string) =>
-    api.get(`/api/v1/chatops/admin/command-versions/${commandId}`),
+    api.get(`/chatops/admin/command-versions/${commandId}`),
 
   /** 创建新版本 */
   createCommandVersion: (data: {
@@ -267,27 +267,27 @@ export const chatopsAdminApi = {
     parameters?: Record<string, unknown>;
     description?: string;
     changelog?: string;
-  }) => api.post('/api/v1/chatops/admin/command-versions', data),
+  }) => api.post('/chatops/admin/command-versions', data),
 
   /** 回滚到指定版本 */
   rollbackCommandVersion: (commandId: string, version: number) =>
-    api.post(`/api/v1/chatops/admin/command-versions/${commandId}/rollback/${version}`),
+    api.post(`/chatops/admin/command-versions/${commandId}/rollback/${version}`),
 
   /** 添加标签 */
   addCommandVersionTag: (versionId: string, tagName: string) =>
-    api.post(`/api/v1/chatops/admin/command-versions/${versionId}/tags`, { tag_name: tagName }),
+    api.post(`/chatops/admin/command-versions/${versionId}/tags`, { tag_name: tagName }),
 
   /** 删除标签 */
   removeCommandVersionTag: (versionId: string, tagName: string) =>
-    api.delete(`/api/v1/chatops/admin/command-versions/${versionId}/tags/${tagName}`),
+    api.delete(`/chatops/admin/command-versions/${versionId}/tags/${tagName}`),
 
   /** 删除版本 */
-  deleteCommandVersion: (id: string) => api.delete(`/api/v1/chatops/admin/command-versions/${id}`),
+  deleteCommandVersion: (id: string) => api.delete(`/chatops/admin/command-versions/${id}`),
 
   // ---- Rate Limit Management ----
 
   /** 获取限流配置列表 */
-  getRateLimits: () => api.get('/api/v1/chatops/admin/rate-limits'),
+  getRateLimits: () => api.get('/chatops/admin/rate-limits'),
 
   /** 创建限流配置 */
   createRateLimit: (data: {
@@ -298,19 +298,19 @@ export const chatopsAdminApi = {
     limit_count: number;
     window_seconds: number;
     description?: string;
-  }) => api.post('/api/v1/chatops/admin/rate-limits', data),
+  }) => api.post('/chatops/admin/rate-limits', data),
 
   /** 更新限流配置 */
   updateRateLimit: (id: string, data: Record<string, unknown>) =>
-    api.put(`/api/v1/chatops/admin/rate-limits/${id}`, data),
+    api.put(`/chatops/admin/rate-limits/${id}`, data),
 
   /** 删除限流配置 */
-  deleteRateLimit: (id: string) => api.delete(`/api/v1/chatops/admin/rate-limits/${id}`),
+  deleteRateLimit: (id: string) => api.delete(`/chatops/admin/rate-limits/${id}`),
 
   // ---- Webhook Management ----
 
   /** 获取 Webhook 列表 */
-  getWebhooks: () => api.get('/api/v1/chatops/admin/webhooks'),
+  getWebhooks: () => api.get('/chatops/admin/webhooks'),
 
   /** 创建 Webhook */
   createWebhook: (data: {
@@ -323,19 +323,19 @@ export const chatopsAdminApi = {
     timeout_seconds?: number;
     headers?: Record<string, string>;
     description?: string;
-  }) => api.post('/api/v1/chatops/admin/webhooks', data),
+  }) => api.post('/chatops/admin/webhooks', data),
 
   /** 更新 Webhook */
   updateWebhook: (id: string, data: Record<string, unknown>) =>
-    api.put(`/api/v1/chatops/admin/webhooks/${id}`, data),
+    api.put(`/chatops/admin/webhooks/${id}`, data),
 
   /** 删除 Webhook */
-  deleteWebhook: (id: string) => api.delete(`/api/v1/chatops/admin/webhooks/${id}`),
+  deleteWebhook: (id: string) => api.delete(`/chatops/admin/webhooks/${id}`),
 
   /** 测试 Webhook */
-  testWebhook: (id: string) => api.post(`/api/v1/chatops/admin/webhooks/${id}/test`),
+  testWebhook: (id: string) => api.post(`/chatops/admin/webhooks/${id}/test`),
 
   /** 获取 Webhook 执行日志 */
   getWebhookLogs: (id: string, limit?: number) =>
-    api.get(`/api/v1/chatops/admin/webhooks/${id}/logs`, { params: { limit } }),
+    api.get(`/chatops/admin/webhooks/${id}/logs`, { params: { limit } }),
 };

@@ -42,7 +42,7 @@ describe('Plugin SPI API', () => {
     };
     vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getSPIStats();
-    expect(api.get).toHaveBeenCalledWith('/api/v1/plugins-spi/stats');
+    expect(api.get).toHaveBeenCalledWith('/plugins-spi/stats');
     expect(result.totalPlugins).toBe(12);
   });
 
@@ -56,7 +56,7 @@ describe('Plugin SPI API', () => {
     };
     vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getExtensionPoints();
-    expect(api.get).toHaveBeenCalledWith('/api/v1/plugins-spi/plugins');
+    expect(api.get).toHaveBeenCalledWith('/plugins-spi/plugins');
     expect(Array.isArray(result)).toBe(true);
   });
 
@@ -70,7 +70,7 @@ describe('Plugin SPI API', () => {
     };
     vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getPluginRegistrations();
-    expect(api.get).toHaveBeenCalledWith('/api/v1/plugins-spi/plugins');
+    expect(api.get).toHaveBeenCalledWith('/plugins-spi/plugins');
     expect(Array.isArray(result)).toBe(true);
   });
 

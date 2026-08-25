@@ -370,6 +370,7 @@ const BudgetGuardPage: React.FC = () => {
     try {
       const newStatus = guard.status === 'active' ? 'inactive' : 'active';
       await updateBudgetGuard(guard.id, {
+        name: guard.name,
         budgetAmount: guard.budgetAmount,
         currency: guard.currency,
         action: guard.action,

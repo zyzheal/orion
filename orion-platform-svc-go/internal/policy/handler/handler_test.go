@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/policy/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePolicyService struct{}
 
 func (f *fakePolicyService) CreateOverride(ctx context.Context, tenantID string, req models.CreateOverrideRequest, overrideBy string) (*models.PolicyOverride, error) {
@@ -132,111 +128,6 @@ func (f *fakePolicyService) WaiveViolation(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakePolicyService)(nil)
-=======
-type fakepolicyService struct{}
-
-func (f *fakepolicyService) CreateOverride(ctx context.Context, tenantID string, req models.CreateOverrideRequest, overrideBy string) ((*models.PolicyOverride, error)) {
-	return &models.PolicyOverride{}, nil
-}
-
-func (f *fakepolicyService) CreatePolicy(ctx context.Context, tenantID string, req models.CreatePolicyRequest) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakepolicyService) DeletePolicy(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakepolicyService) EvaluateGate(ctx context.Context, tenantID, gateID string, input map[string]any) ((*models.EvaluatePolicyResponse, error)) {
-	return &models.EvaluatePolicyResponse{}, nil
-}
-
-func (f *fakepolicyService) EvaluatePolicy(ctx context.Context, tenantID string, req models.EvaluatePolicyRequest) ((*models.EvaluatePolicyResponse, error)) {
-	return &models.EvaluatePolicyResponse{}, nil
-}
-
-func (f *fakepolicyService) GetBundle(ctx context.Context, tenantID, id string) ((*models.PolicyBundle, error)) {
-	return &models.PolicyBundle{}, nil
-}
-
-func (f *fakepolicyService) GetEvaluationHistory(ctx context.Context, tenantID, policyID string, limit, offset int) (([]models.PolicyEvaluation, error)) {
-	return []models.PolicyEvaluation{}, nil
-}
-
-func (f *fakepolicyService) GetExemption(ctx context.Context, tenantID, id string) ((*models.Exemption, error)) {
-	return &models.Exemption{}, nil
-}
-
-func (f *fakepolicyService) GetPolicy(ctx context.Context, tenantID, id string) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakepolicyService) GetViolation(ctx context.Context, tenantID, id string) ((*models.Violation, error)) {
-	return &models.Violation{}, nil
-}
-
-func (f *fakepolicyService) ListBundles(ctx context.Context, tenantID string) (([]models.PolicyBundle, error)) {
-	return []models.PolicyBundle{}, nil
-}
-
-func (f *fakepolicyService) ListEvaluations(ctx context.Context, tenantID string, limit, offset int) (([]models.PolicyEvaluation, error)) {
-	return []models.PolicyEvaluation{}, nil
-}
-
-func (f *fakepolicyService) ListExemptions(ctx context.Context, tenantID string, req models.ListExemptionsRequest) ((*models.ListExemptionsResponse, error)) {
-	return &models.ListExemptionsResponse{}, nil
-}
-
-func (f *fakepolicyService) ListOverrides(ctx context.Context, tenantID string, limit, offset int) (([]models.PolicyOverride, error)) {
-	return []models.PolicyOverride{}, nil
-}
-
-func (f *fakepolicyService) ListPolicies(ctx context.Context, tenantID string, limit, offset int) (([]models.Policy, error)) {
-	return []models.Policy{}, nil
-}
-
-func (f *fakepolicyService) ListViolations(ctx context.Context, tenantID string, limit, offset int) (([]models.Violation, error)) {
-	return []models.Violation{}, nil
-}
-
-func (f *fakepolicyService) ResolveViolation(ctx context.Context, tenantID, id string, req models.ResolveViolationRequest) (error) {
-	return nil
-}
-
-func (f *fakepolicyService) ReviewExemption(ctx context.Context, tenantID, id string, req models.ReviewExemptionRequest) ((*models.Exemption, error)) {
-	return &models.Exemption{}, nil
-}
-
-func (f *fakepolicyService) RevokeExemption(ctx context.Context, tenantID, id string) ((*models.Exemption, error)) {
-	return &models.Exemption{}, nil
-}
-
-func (f *fakepolicyService) SubmitExemption(ctx context.Context, tenantID string, req models.CreateExemptionRequest) ((*models.Exemption, error)) {
-	return &models.Exemption{}, nil
-}
-
-func (f *fakepolicyService) SyncBundles(ctx context.Context, tenantID string, sourceURL string) ((*models.SyncBundlesResponse, error)) {
-	return &models.SyncBundlesResponse{}, nil
-}
-
-func (f *fakepolicyService) TestPolicy(ctx context.Context, rego string, testCases []map[string]any) (([]models.TestCaseResult, error)) {
-	return []models.TestCaseResult{}, nil
-}
-
-func (f *fakepolicyService) TogglePolicy(ctx context.Context, tenantID, id string, enabled bool) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakepolicyService) UpdatePolicy(ctx context.Context, tenantID, id string, req models.UpdatePolicyRequest) ((*models.Policy, error)) {
-	return &models.Policy{}, nil
-}
-
-func (f *fakepolicyService) WaiveViolation(ctx context.Context, tenantID, id string, req models.WaiveViolationRequest) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakepolicyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_POLICY_RegisterRoutes(t *testing.T) {

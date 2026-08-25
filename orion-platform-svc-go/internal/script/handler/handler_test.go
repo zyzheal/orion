@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/script/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeScriptService struct{}
 
 func (f *fakeScriptService) Create(ctx context.Context, tenantID string, req models.CreateScriptRequest) (*models.Script, error) {
@@ -52,31 +48,6 @@ func (f *fakeScriptService) Update(ctx context.Context, tenantID, id string, req
 }
 
 var _ service.ServiceInterface = (*fakeScriptService)(nil)
-=======
-type fakescriptService struct{}
-
-func (f *fakescriptService) Create(ctx context.Context, tenantID string, req models.CreateScriptRequest) ((*models.Script, error)) {
-	return &models.Script{}, nil
-}
-
-func (f *fakescriptService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakescriptService) Get(ctx context.Context, tenantID, id string) ((*models.Script, error)) {
-	return &models.Script{}, nil
-}
-
-func (f *fakescriptService) List(ctx context.Context, tenantID string) (([]models.Script, error)) {
-	return []models.Script{}, nil
-}
-
-func (f *fakescriptService) Update(ctx context.Context, tenantID, id string, req models.UpdateScriptRequest) ((*models.Script, error)) {
-	return &models.Script{}, nil
-}
-
-var _ service.ServiceInterface = (*fakescriptService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SCRIPT_RegisterRoutes(t *testing.T) {

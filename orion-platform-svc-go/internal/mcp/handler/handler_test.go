@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/mcp/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeMcpService struct{}
 
 func (f *fakeMcpService) CreateServer(ctx context.Context, tenantID string, req models.CreateMCPServerRequest) (*models.MCPServer, error) {
@@ -56,35 +52,6 @@ func (f *fakeMcpService) UpdateServer(ctx context.Context, tenantID, id string, 
 }
 
 var _ service.ServiceInterface = (*fakeMcpService)(nil)
-=======
-type fakemcpService struct{}
-
-func (f *fakemcpService) CreateServer(ctx context.Context, tenantID string, req models.CreateMCPServerRequest) ((*models.MCPServer, error)) {
-	return &models.MCPServer{}, nil
-}
-
-func (f *fakemcpService) DeleteServer(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakemcpService) GetServer(ctx context.Context, tenantID, id string) ((*models.MCPServer, error)) {
-	return &models.MCPServer{}, nil
-}
-
-func (f *fakemcpService) ListServers(ctx context.Context, tenantID string, q models.ListMCPServersQuery) ((*models.MCPServerListResponse, error)) {
-	return &models.MCPServerListResponse{}, nil
-}
-
-func (f *fakemcpService) ListTools(ctx context.Context, q models.ListMCPToolsQuery) ((*models.MCPToolListResponse, error)) {
-	return &models.MCPToolListResponse{}, nil
-}
-
-func (f *fakemcpService) UpdateServer(ctx context.Context, tenantID, id string, req models.UpdateMCPServerRequest) ((*models.MCPServer, error)) {
-	return &models.MCPServer{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemcpService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_MCP_RegisterRoutes(t *testing.T) {

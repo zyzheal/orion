@@ -61,6 +61,7 @@ const QueueTasksPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<JobStatus | undefined>();
   const [form] = Form.useForm<EnqueueInput>();
 
@@ -91,6 +92,7 @@ const QueueTasksPage: React.FC = () => {
   }, [filterStatus]);
 
   const handleEnqueue = async (values: EnqueueInput) => {
+    setSubmitting(true);
     try {
       const queueName = 'default';
       await enqueueJob(queueName, values);
@@ -101,6 +103,8 @@ const QueueTasksPage: React.FC = () => {
       fetchStats();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '入队失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -282,6 +286,9 @@ const QueueTasksPage: React.FC = () => {
           form.resetFields();
         }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText="入队"
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleEnqueue}>

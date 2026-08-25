@@ -3,7 +3,7 @@
  * Review history list with filtering and search
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Button, Input, Select, message } from 'antd';
+import { Typography, Card, Table, Tag, Space, Button, Input, Select, message, Empty } from 'antd';
 import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { getReviewHistory } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
@@ -198,6 +198,9 @@ const AIReviewHistory: React.FC = () => {
             },
           }}
           size="small"
+          locale={{
+            emptyText: <Empty description="暂无评审历史" />,
+          }}
         />
       </Card>
     </div>

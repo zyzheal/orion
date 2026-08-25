@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/plugin-hotreload/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePlugin_hotreloadService struct{}
 
 func (f *fakePlugin_hotreloadService) Create(ctx context.Context, tenantID string, req models.CreatePluginHotreloadRequest) (*models.PluginHotreload, error) {
@@ -52,31 +48,6 @@ func (f *fakePlugin_hotreloadService) Update(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakePlugin_hotreloadService)(nil)
-=======
-type fakeplugin_hotreloadService struct{}
-
-func (f *fakeplugin_hotreloadService) Create(ctx context.Context, tenantID string, req models.CreatePluginHotreloadRequest) ((*models.PluginHotreload, error)) {
-	return &models.PluginHotreload{}, nil
-}
-
-func (f *fakeplugin_hotreloadService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeplugin_hotreloadService) Get(ctx context.Context, tenantID, id string) ((*models.PluginHotreload, error)) {
-	return &models.PluginHotreload{}, nil
-}
-
-func (f *fakeplugin_hotreloadService) List(ctx context.Context, tenantID string) (([]models.PluginHotreload, error)) {
-	return []models.PluginHotreload{}, nil
-}
-
-func (f *fakeplugin_hotreloadService) Update(ctx context.Context, tenantID, id string, req models.UpdatePluginHotreloadRequest) ((*models.PluginHotreload, error)) {
-	return &models.PluginHotreload{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeplugin_hotreloadService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PLUGIN_HOTRELO_RegisterRoutes(t *testing.T) {

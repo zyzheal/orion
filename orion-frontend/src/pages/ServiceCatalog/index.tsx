@@ -58,6 +58,7 @@ const ServiceCatalogPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'sla'>('catalog');
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ServiceCatalog | null>(null);
   const [form] = Form.useForm();
@@ -72,6 +73,7 @@ const ServiceCatalogPage: React.FC = () => {
       const data = await listCatalogItems();
       setItems(Array.isArray(data) ? data : []);
     } catch {
+      message.error('加载服务目录失败');
       setItems([]);
     } finally {
       setLoading(false);
@@ -84,6 +86,7 @@ const ServiceCatalogPage: React.FC = () => {
       setBreaches(data?.breaches || []);
       setTotalBreaches(data?.total || 0);
     } catch {
+      message.error('加载 SLA 违约记录失败');
       setBreaches([]);
       setTotalBreaches(0);
     }
@@ -112,6 +115,7 @@ const ServiceCatalogPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
       if (selectedItem) {
@@ -124,8 +128,13 @@ const ServiceCatalogPage: React.FC = () => {
       setModalOpen(false);
       form.resetFields();
       loadItems();
-    } catch {
-      /* validated */
+    } catch (error: unknown) {
+      if (!(error instanceof Error) && (error as { errorFields?: unknown[] })?.errorFields) {
+        return;
+      }
+      message.error('保存服务目录失败，请稍后重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -318,6 +327,8 @@ const ServiceCatalogPage: React.FC = () => {
         title={selectedItem ? '编辑服务' : '新建服务'}
         open={modalOpen}
         onOk={handleSubmit}
+        confirmLoading={submitting}
+        okText={selectedItem ? '保存' : '创建'}
         onCancel={() => setModalOpen(false)}
         width={560}
       >

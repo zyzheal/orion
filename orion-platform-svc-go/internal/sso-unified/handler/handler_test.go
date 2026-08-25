@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/sso-unified/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSso_unifiedService struct{}
 
 func (f *fakeSso_unifiedService) Create(ctx context.Context, tenantID string, req *models.CreateSSOConfigRequest) (*models.SSOConfig, error) {
@@ -52,31 +48,6 @@ func (f *fakeSso_unifiedService) Update(ctx context.Context, tenantID, provider 
 }
 
 var _ service.ServiceInterface = (*fakeSso_unifiedService)(nil)
-=======
-type fakesso_unifiedService struct{}
-
-func (f *fakesso_unifiedService) Create(ctx context.Context, tenantID string, req *models.CreateSSOConfigRequest) ((*models.SSOConfig, error)) {
-	return &models.SSOConfig{}, nil
-}
-
-func (f *fakesso_unifiedService) Delete(ctx context.Context, tenantID, provider string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakesso_unifiedService) Get(ctx context.Context, tenantID, provider string) ((*models.SSOConfig, error)) {
-	return &models.SSOConfig{}, nil
-}
-
-func (f *fakesso_unifiedService) GetAll(ctx context.Context, tenantID string) (([]models.SSOConfig, error)) {
-	return []models.SSOConfig{}, nil
-}
-
-func (f *fakesso_unifiedService) Update(ctx context.Context, tenantID, provider string, req *models.UpdateSSOConfigRequest) ((*models.SSOConfig, error)) {
-	return &models.SSOConfig{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesso_unifiedService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SSO_UNIFIED_RegisterRoutes(t *testing.T) {

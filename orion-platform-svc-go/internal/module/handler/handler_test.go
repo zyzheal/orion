@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/module/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeModuleService struct{}
 
 func (f *fakeModuleService) GetModuleByID(ctx context.Context, tenantID, id string) (*models.Module, error) {
@@ -52,31 +48,6 @@ func (f *fakeModuleService) ValidateDependencies(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakeModuleService)(nil)
-=======
-type fakemoduleService struct{}
-
-func (f *fakemoduleService) GetModuleByID(ctx context.Context, tenantID, id string) ((*models.Module, error)) {
-	return &models.Module{}, nil
-}
-
-func (f *fakemoduleService) GetModuleStatus(ctx context.Context, tenantID string) ((*models.ModuleStatusSnapshot, error)) {
-	return &models.ModuleStatusSnapshot{}, nil
-}
-
-func (f *fakemoduleService) GetStartupOrder(ctx context.Context, tenantID string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakemoduleService) ToggleModule(ctx context.Context, tenantID, id string, enabled bool) ((*models.Module, error)) {
-	return &models.Module{}, nil
-}
-
-func (f *fakemoduleService) ValidateDependencies(ctx context.Context, tenantID string) (([]models.ValidationResult, error)) {
-	return []models.ValidationResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemoduleService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_MODULE_RegisterRoutes(t *testing.T) {

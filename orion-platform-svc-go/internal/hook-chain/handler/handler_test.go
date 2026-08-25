@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/hook-chain/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHook_chainService struct{}
 
 func (f *fakeHook_chainService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -56,35 +52,6 @@ func (f *fakeHook_chainService) Update(ctx context.Context, tenantID, id string,
 }
 
 var _ service.ServiceInterface = (*fakeHook_chainService)(nil)
-=======
-type fakehook_chainService struct{}
-
-func (f *fakehook_chainService) Count(ctx context.Context, tenantID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakehook_chainService) Create(ctx context.Context, tenantID, userID string, req *models.CreateHookRequest) ((*models.Hook, error)) {
-	return &models.Hook{}, nil
-}
-
-func (f *fakehook_chainService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakehook_chainService) GetByID(ctx context.Context, tenantID, id string) ((*models.Hook, error)) {
-	return &models.Hook{}, nil
-}
-
-func (f *fakehook_chainService) List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) (([]models.Hook, error)) {
-	return []models.Hook{}, nil
-}
-
-func (f *fakehook_chainService) Update(ctx context.Context, tenantID, id string, req *models.UpdateHookRequest) ((*models.Hook, error)) {
-	return &models.Hook{}, nil
-}
-
-var _ service.ServiceInterface = (*fakehook_chainService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_HOOK_CHAIN_RegisterRoutes(t *testing.T) {

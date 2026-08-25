@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/terminal-audit/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeTerminal_auditService struct{}
 
 func (f *fakeTerminal_auditService) DeleteBatch(ctx context.Context, tenantID string, ids []string) (int, error) {
@@ -52,31 +48,6 @@ func (f *fakeTerminal_auditService) SearchAudits(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakeTerminal_auditService)(nil)
-=======
-type faketerminal_auditService struct{}
-
-func (f *faketerminal_auditService) DeleteBatch(ctx context.Context, tenantID string, ids []string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *faketerminal_auditService) GetAudit(ctx context.Context, tenantID, id string) ((*models.TerminalAuditLog, error)) {
-	return &models.TerminalAuditLog{}, nil
-}
-
-func (f *faketerminal_auditService) GetStats(ctx context.Context, tenantID string) ((*models.AuditStats, error)) {
-	return &models.AuditStats{}, nil
-}
-
-func (f *faketerminal_auditService) ListAudits(ctx context.Context, tenantID string, q models.AuditQuery) (([]models.TerminalAuditLog, error)) {
-	return []models.TerminalAuditLog{}, nil
-}
-
-func (f *faketerminal_auditService) SearchAudits(ctx context.Context, tenantID string, q models.AuditQuery) (([]models.TerminalAuditLog, error)) {
-	return []models.TerminalAuditLog{}, nil
-}
-
-var _ service.ServiceInterface = (*faketerminal_auditService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TERMINAL_AUDIT_RegisterRoutes(t *testing.T) {

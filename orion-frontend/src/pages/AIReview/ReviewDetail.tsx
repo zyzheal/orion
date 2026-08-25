@@ -17,6 +17,7 @@ import {
   Statistic,
   Table,
   message,
+  Empty,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -244,6 +245,9 @@ const AIReviewDetail: React.FC = () => {
           rowKey="id"
           pagination={{ pageSize: 10 }}
           size="small"
+          locale={{
+            emptyText: <Empty description="暂无问题详情" />,
+          }}
         />
       </Card>
     </div>

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/process-step/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeProcess_stepService struct{}
 
 func (f *fakeProcess_stepService) Create(ctx context.Context, tenantID string, req models.CreateProcessStepRequest) (*models.ProcessStep, error) {
@@ -52,31 +48,6 @@ func (f *fakeProcess_stepService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeProcess_stepService)(nil)
-=======
-type fakeprocess_stepService struct{}
-
-func (f *fakeprocess_stepService) Create(ctx context.Context, tenantID string, req models.CreateProcessStepRequest) ((*models.ProcessStep, error)) {
-	return &models.ProcessStep{}, nil
-}
-
-func (f *fakeprocess_stepService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeprocess_stepService) Get(ctx context.Context, tenantID, id string) ((*models.ProcessStep, error)) {
-	return &models.ProcessStep{}, nil
-}
-
-func (f *fakeprocess_stepService) List(ctx context.Context, tenantID string) (([]models.ProcessStep, error)) {
-	return []models.ProcessStep{}, nil
-}
-
-func (f *fakeprocess_stepService) Update(ctx context.Context, tenantID, id string, req models.UpdateProcessStepRequest) ((*models.ProcessStep, error)) {
-	return &models.ProcessStep{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeprocess_stepService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PROCESS_STEP_RegisterRoutes(t *testing.T) {

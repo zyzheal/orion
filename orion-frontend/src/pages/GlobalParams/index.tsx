@@ -33,6 +33,8 @@ const GlobalParamsPage: React.FC = () => {
   const [editingItem, setEditingItem] = useState<GlobalParam | null>(null);
   const [resolveVisible, setResolveVisible] = useState(false);
   const [resolveResult, setResolveResult] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [form] = Form.useForm();
   const [resolveForm] = Form.useForm();
 
@@ -91,6 +93,7 @@ const GlobalParamsPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
       if (editingItem) {
@@ -102,12 +105,19 @@ const GlobalParamsPage: React.FC = () => {
       }
       setModalVisible(false);
       loadData();
-    } catch {
-      // validation failed
+    } catch (error: unknown) {
+      if (!(error instanceof Error) && (error as { errorFields?: unknown[] })?.errorFields) {
+        // form validation error, do nothing
+        return;
+      }
+      message.error('保存参数失败，请稍后重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleResolve = async () => {
+    setResolving(true);
     try {
       const values = await resolveForm.validateFields();
       let keys: Record<string, string> = {};
@@ -123,6 +133,10 @@ const GlobalParamsPage: React.FC = () => {
             message.error('Keys 最多支持 100 个');
             return;
           }
+          if (keyCount === 0) {
+            message.error('Keys 不能为空');
+            return;
+          }
         } catch {
           message.error('Keys 必须是合法 JSON');
           return;
@@ -131,8 +145,13 @@ const GlobalParamsPage: React.FC = () => {
       const res = await resolveGlobalParams({ keys });
       setResolveResult(res.data || {});
       message.success('解析完成');
-    } catch {
-      // validation failed
+    } catch (error: unknown) {
+      if (!(error instanceof Error) && (error as { errorFields?: unknown[] })?.errorFields) {
+        return;
+      }
+      message.error('解析参数失败，请稍后重试');
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -247,6 +266,7 @@ const GlobalParamsPage: React.FC = () => {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
+        confirmLoading={submitting}
         okText={editingItem ? '保存' : '创建'}
         width={500}
       >
@@ -293,6 +313,7 @@ const GlobalParamsPage: React.FC = () => {
         open={resolveVisible}
         onCancel={() => setResolveVisible(false)}
         onOk={handleResolve}
+        confirmLoading={resolving}
         okText="解析"
         width={600}
       >

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/project-member/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeProject_memberService struct{}
 
 func (f *fakeProject_memberService) CheckRole(ctx context.Context, tenantID, projectID, userID, role string) (bool, error) {
@@ -72,51 +68,6 @@ func (f *fakeProject_memberService) UpdateMember(ctx context.Context, tenantID, 
 }
 
 var _ service.ServiceInterface = (*fakeProject_memberService)(nil)
-=======
-type fakeproject_memberService struct{}
-
-func (f *fakeproject_memberService) CheckRole(ctx context.Context, tenantID, projectID, userID, role string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakeproject_memberService) CountByProject(ctx context.Context, tenantID, projectID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakeproject_memberService) CreateMember(ctx context.Context, tenantID string, req models.CreateProjectMemberRequest) ((*models.ProjectMember, error)) {
-	return &models.ProjectMember{}, nil
-}
-
-func (f *fakeproject_memberService) DeleteByProject(ctx context.Context, tenantID, projectID string) (error) {
-	return nil
-}
-
-func (f *fakeproject_memberService) DeleteMember(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeproject_memberService) GetMember(ctx context.Context, tenantID, id string) ((*models.ProjectMember, error)) {
-	return &models.ProjectMember{}, nil
-}
-
-func (f *fakeproject_memberService) GetMemberByProjectUser(ctx context.Context, tenantID, projectID, userID string) ((*models.ProjectMember, error)) {
-	return &models.ProjectMember{}, nil
-}
-
-func (f *fakeproject_memberService) ListByProject(ctx context.Context, tenantID, projectID string) (([]models.ProjectMember, error)) {
-	return []models.ProjectMember{}, nil
-}
-
-func (f *fakeproject_memberService) ListMembers(ctx context.Context, tenantID string, q models.ListMembersQuery) (([]models.ProjectMember, int, error)) {
-	return []models.ProjectMember{}, 0, nil
-}
-
-func (f *fakeproject_memberService) UpdateMember(ctx context.Context, tenantID, id string, req models.UpdateProjectMemberRequest) ((*models.ProjectMember, error)) {
-	return &models.ProjectMember{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeproject_memberService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PROJECT_MEMBER_RegisterRoutes(t *testing.T) {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/notification-template/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeNotification_templateService struct{}
 
 func (f *fakeNotification_templateService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -68,47 +64,6 @@ func (f *fakeNotification_templateService) Update(ctx context.Context, tenantID,
 }
 
 var _ service.ServiceInterface = (*fakeNotification_templateService)(nil)
-=======
-type fakenotification_templateService struct{}
-
-func (f *fakenotification_templateService) Count(ctx context.Context, tenantID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakenotification_templateService) Create(ctx context.Context, tenantID, userID string, req *models.CreateTemplateRequest) ((*models.NotificationTemplate, error)) {
-	return &models.NotificationTemplate{}, nil
-}
-
-func (f *fakenotification_templateService) Delete(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakenotification_templateService) Duplicate(ctx context.Context, tenantID, userID, id string) ((*models.NotificationTemplate, error)) {
-	return &models.NotificationTemplate{}, nil
-}
-
-func (f *fakenotification_templateService) Get(ctx context.Context, tenantID, id string) ((*models.NotificationTemplate, error)) {
-	return &models.NotificationTemplate{}, nil
-}
-
-func (f *fakenotification_templateService) List(ctx context.Context, tenantID string, filter models.ListFilter, page, pageSize int) (([]models.NotificationTemplate, int, int, error)) {
-	return []models.NotificationTemplate{}, 0, 0, nil
-}
-
-func (f *fakenotification_templateService) Preview(ctx context.Context, tenantID, id string) ((*models.RenderResult, error)) {
-	return &models.RenderResult{}, nil
-}
-
-func (f *fakenotification_templateService) Render(ctx context.Context, tenantID string, req *models.RenderRequest) ((*models.RenderResult, error)) {
-	return &models.RenderResult{}, nil
-}
-
-func (f *fakenotification_templateService) Update(ctx context.Context, tenantID, id string, req *models.UpdateTemplateRequest) ((*models.NotificationTemplate, error)) {
-	return &models.NotificationTemplate{}, nil
-}
-
-var _ service.ServiceInterface = (*fakenotification_templateService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_NOTIFICATION_T_RegisterRoutes(t *testing.T) {

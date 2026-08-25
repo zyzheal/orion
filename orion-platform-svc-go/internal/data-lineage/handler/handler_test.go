@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/data-lineage/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeData_lineageService struct{}
 
 func (f *fakeData_lineageService) CreateLineage(ctx context.Context, tenantID string, req *models.CreateLineageRequest) (*models.Lineage, error) {
@@ -72,51 +68,6 @@ func (f *fakeData_lineageService) UpdateLineage(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeData_lineageService)(nil)
-=======
-type fakedata_lineageService struct{}
-
-func (f *fakedata_lineageService) CreateLineage(ctx context.Context, tenantID string, req *models.CreateLineageRequest) ((*models.Lineage, error)) {
-	return &models.Lineage{}, nil
-}
-
-func (f *fakedata_lineageService) CreateNode(ctx context.Context, tenantID string, lineageID string, req *models.CreateNodeRequest) ((*models.Node, error)) {
-	return &models.Node{}, nil
-}
-
-func (f *fakedata_lineageService) CreateRelationship(ctx context.Context, tenantID string, lineageID string, req *models.CreateRelationshipRequest) ((*models.Relationship, error)) {
-	return &models.Relationship{}, nil
-}
-
-func (f *fakedata_lineageService) DeleteLineage(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedata_lineageService) GetLineage(ctx context.Context, tenantID, id string) ((*models.Lineage, error)) {
-	return &models.Lineage{}, nil
-}
-
-func (f *fakedata_lineageService) GetStats(ctx context.Context, tenantID string) ((*models.LineageStats, error)) {
-	return &models.LineageStats{}, nil
-}
-
-func (f *fakedata_lineageService) ListLineages(ctx context.Context, tenantID string, status *string) (([]models.Lineage, error)) {
-	return []models.Lineage{}, nil
-}
-
-func (f *fakedata_lineageService) ListNodes(ctx context.Context, tenantID, lineageID string) (([]models.Node, error)) {
-	return []models.Node{}, nil
-}
-
-func (f *fakedata_lineageService) ListRelationships(ctx context.Context, tenantID, lineageID string) (([]models.Relationship, error)) {
-	return []models.Relationship{}, nil
-}
-
-func (f *fakedata_lineageService) UpdateLineage(ctx context.Context, tenantID, id string, req *models.UpdateLineageRequest) ((*models.Lineage, error)) {
-	return &models.Lineage{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedata_lineageService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DATA_LINEAGE_RegisterRoutes(t *testing.T) {

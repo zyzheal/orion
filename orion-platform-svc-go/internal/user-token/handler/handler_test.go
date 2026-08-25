@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/user-token/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) CreateToken(ctx context.Context, tenantID string, req models.CreateTokenRequest) (models.CreateTokenResponse, error) {
@@ -44,23 +40,6 @@ func (f *fakeHandlerService) GetTokens(ctx context.Context, tenantID, userID str
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeuser_tokenService struct{}
-
-func (f *fakeuser_tokenService) CreateToken(ctx context.Context, tenantID string, req models.CreateTokenRequest) ((models.CreateTokenResponse, error)) {
-	return models.CreateTokenResponse{}, nil
-}
-
-func (f *fakeuser_tokenService) DeleteToken(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeuser_tokenService) GetTokens(ctx context.Context, tenantID, userID string) (([]models.Token, error)) {
-	return []models.Token{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeuser_tokenService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_USER_TOKEN_RegisterRoutes(t *testing.T) {

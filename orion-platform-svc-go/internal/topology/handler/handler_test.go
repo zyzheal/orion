@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/topology/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeTopologyService struct{}
 
 func (f *fakeTopologyService) Create(ctx context.Context, tenantID string, req models.CreateTopologyRequest) (*models.Topology, error) {
@@ -52,31 +48,6 @@ func (f *fakeTopologyService) Update(ctx context.Context, tenantID, id string, r
 }
 
 var _ service.ServiceInterface = (*fakeTopologyService)(nil)
-=======
-type faketopologyService struct{}
-
-func (f *faketopologyService) Create(ctx context.Context, tenantID string, req models.CreateTopologyRequest) ((*models.Topology, error)) {
-	return &models.Topology{}, nil
-}
-
-func (f *faketopologyService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *faketopologyService) Get(ctx context.Context, tenantID, id string) ((*models.Topology, error)) {
-	return &models.Topology{}, nil
-}
-
-func (f *faketopologyService) List(ctx context.Context, tenantID string) (([]models.Topology, error)) {
-	return []models.Topology{}, nil
-}
-
-func (f *faketopologyService) Update(ctx context.Context, tenantID, id string, req models.UpdateTopologyRequest) ((*models.Topology, error)) {
-	return &models.Topology{}, nil
-}
-
-var _ service.ServiceInterface = (*faketopologyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TOPOLOGY_RegisterRoutes(t *testing.T) {

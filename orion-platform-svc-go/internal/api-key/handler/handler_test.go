@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/api-key/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID, userID string, req *models.CreateKeyRequest) (*service.CreateAPIKeyResponse, error) {
@@ -55,23 +51,6 @@ func (f *fakeHandlerService) List(ctx context.Context, tenantID, userID string) 
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeapi_keyService struct{}
-
-func (f *fakeapi_keyService) Create(ctx context.Context, tenantID, userID string, req *models.CreateKeyRequest) ((*CreateAPIKeyResponse, error)) {
-	return &CreateAPIKeyResponse{}, nil
-}
-
-func (f *fakeapi_keyService) Delete(ctx context.Context, tenantID, userID, id string) (error) {
-	return nil
-}
-
-func (f *fakeapi_keyService) List(ctx context.Context, tenantID, userID string) (([]models.APIKey, error)) {
-	return []models.APIKey{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeapi_keyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestAPI_KEY_Handler_RegisterRoutes(t *testing.T) {

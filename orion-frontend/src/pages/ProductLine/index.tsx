@@ -1006,7 +1006,13 @@ const ProductLineManagement: React.FC = () => {
               <Form.Item
                 name="gitUrl"
                 label="Git 仓库地址"
-                rules={[{ required: true, message: '请输入仓库地址' }]}
+                rules={[
+                  { required: true, message: '请输入仓库地址' },
+                  {
+                    pattern: /^https?:\/\/.+/,
+                    message: '请输入合法的 HTTP/HTTPS 仓库地址',
+                  },
+                ]}
               >
                 <Input placeholder="https://github.com/org/repo" />
               </Form.Item>

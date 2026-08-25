@@ -3,12 +3,9 @@
  * - Tab switch between "评论" (Comments) and "内部备注" (Internal Notes)
  * - Timeline-style comment list with: author avatar, name, timestamp, content
  * - @mention highlighting (shown as blue tags)
- * - Text area input for new comment with:
- *   - Character count
- *   - Mention autocomplete dropdown (lists mockEngineers)
- *   - Submit button
+ * - Text area input for new comment with character count and submit button
  * - Attachments section below comments (file list with icons for image/log types)
- * - Uses mockTicketComments and mockTicketAttachments
+ * - API: ticketing.getComments/getAttachments/createComment
  */
 import React, { useState, useMemo } from 'react';
 import { Typography, Tabs, Tag, Avatar, Input, Button, Space, Card, Divider, message } from 'antd';

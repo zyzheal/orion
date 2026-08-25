@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/do-not-disturb/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDo_not_disturbService struct{}
 
 func (f *fakeDo_not_disturbService) Create(ctx context.Context, tenantID, userID string, req *models.CreateDoNotDisturbRequest) (*models.DoNotDisturb, error) {
@@ -48,27 +44,6 @@ func (f *fakeDo_not_disturbService) Update(ctx context.Context, tenantID, userID
 }
 
 var _ service.ServiceInterface = (*fakeDo_not_disturbService)(nil)
-=======
-type fakedo_not_disturbService struct{}
-
-func (f *fakedo_not_disturbService) Create(ctx context.Context, tenantID, userID string, req *models.CreateDoNotDisturbRequest) ((*models.DoNotDisturb, error)) {
-	return &models.DoNotDisturb{}, nil
-}
-
-func (f *fakedo_not_disturbService) Get(ctx context.Context, tenantID, userID string) ((*models.DoNotDisturb, error)) {
-	return &models.DoNotDisturb{}, nil
-}
-
-func (f *fakedo_not_disturbService) IsActive(ctx context.Context, tenantID, userID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakedo_not_disturbService) Update(ctx context.Context, tenantID, userID string, req *models.UpdateDoNotDisturbRequest) ((*models.DoNotDisturb, error)) {
-	return &models.DoNotDisturb{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedo_not_disturbService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DO_NOT_DISTURB_RegisterRoutes(t *testing.T) {

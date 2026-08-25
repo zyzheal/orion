@@ -9,11 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/internal-library/models"
 	"time"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -29,7 +26,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeInternal_libraryService struct{}
 
 func (f *fakeInternal_libraryService) Activate(ctx context.Context, tenantID, id string) (*models.InternalLibrary, error) {
@@ -109,87 +105,6 @@ func (f *fakeInternal_libraryService) UpdateStats(ctx context.Context, libraryID
 }
 
 var _ service.ServiceInterface = (*fakeInternal_libraryService)(nil)
-=======
-type fakeinternal_libraryService struct{}
-
-func (f *fakeinternal_libraryService) Activate(ctx context.Context, tenantID, id string) ((*models.InternalLibrary, error)) {
-	return &models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) AddDependent(ctx context.Context, libraryID string, req models.AddDependentRequest) ((*models.LibraryDependent, error)) {
-	return &models.LibraryDependent{}, nil
-}
-
-func (f *fakeinternal_libraryService) CheckDependencies(ctx context.Context, repoName string) (([]models.DependencyCheckResult, error)) {
-	return []models.DependencyCheckResult{}, nil
-}
-
-func (f *fakeinternal_libraryService) Create(ctx context.Context, tenantID string, req models.CreateInternalLibraryRequest) ((*models.InternalLibrary, error)) {
-	return &models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeinternal_libraryService) Deprecate(ctx context.Context, tenantID, id, reason, migrationGuide string, eolDate *time.Time) ((*models.InternalLibrary, error)) {
-	return &models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) DeprecateVersion(ctx context.Context, libraryID, version, reason, migrationGuide string, eolDate *time.Time) ((*models.LibraryVersion, error)) {
-	return &models.LibraryVersion{}, nil
-}
-
-func (f *fakeinternal_libraryService) Get(ctx context.Context, tenantID, id string) ((*models.InternalLibrary, error)) {
-	return &models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) GetByName(ctx context.Context, tenantID, name string) ((*models.InternalLibrary, error)) {
-	return &models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) GetVersion(ctx context.Context, libraryID, version string) ((*models.LibraryVersion, error)) {
-	return &models.LibraryVersion{}, nil
-}
-
-func (f *fakeinternal_libraryService) List(ctx context.Context, tenantID string, limit, offset int) (([]models.InternalLibrary, error)) {
-	return []models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) ListByLanguage(ctx context.Context, tenantID, language string, limit, offset int) (([]models.InternalLibrary, error)) {
-	return []models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) ListByOwner(ctx context.Context, tenantID, owner string, limit, offset int) (([]models.InternalLibrary, error)) {
-	return []models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) ListDependents(ctx context.Context, libraryID string) (([]models.LibraryDependent, error)) {
-	return []models.LibraryDependent{}, nil
-}
-
-func (f *fakeinternal_libraryService) ListVersions(ctx context.Context, libraryID string) (([]models.LibraryVersion, error)) {
-	return []models.LibraryVersion{}, nil
-}
-
-func (f *fakeinternal_libraryService) PublishVersion(ctx context.Context, libraryID string, req models.PublishVersionRequest) ((*models.LibraryVersion, error)) {
-	return &models.LibraryVersion{}, nil
-}
-
-func (f *fakeinternal_libraryService) Update(ctx context.Context, tenantID, id string, req models.UpdateInternalLibraryRequest) ((*models.InternalLibrary, error)) {
-	return &models.InternalLibrary{}, nil
-}
-
-func (f *fakeinternal_libraryService) UpdateDependentVersion(ctx context.Context, libraryID, repoName, newVersion string) (error) {
-	return nil
-}
-
-func (f *fakeinternal_libraryService) UpdateStats(ctx context.Context, libraryID string) ((*models.UpdateStatsResult, error)) {
-	return &models.UpdateStatsResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeinternal_libraryService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_INTERNAL_LIBRA_RegisterRoutes(t *testing.T) {

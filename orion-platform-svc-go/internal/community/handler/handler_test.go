@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/community/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCommunityService struct{}
 
 func (f *fakeCommunityService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.Community, error) {
@@ -63,31 +59,6 @@ func (f *fakeCommunityService) Update(ctx context.Context, id, tenantID string, 
 }
 
 var _ service.ServiceInterface = (*fakeCommunityService)(nil)
-=======
-type fakecommunityService struct{}
-
-func (f *fakecommunityService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) ((*models.Community, error)) {
-	return &models.Community{}, nil
-}
-
-func (f *fakecommunityService) Delete(ctx context.Context, id, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecommunityService) Get(ctx context.Context, id, tenantID string) ((*models.Community, error)) {
-	return &models.Community{}, nil
-}
-
-func (f *fakecommunityService) List(ctx context.Context, tenantID string) (([]models.Community, error)) {
-	return []models.Community{}, nil
-}
-
-func (f *fakecommunityService) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) ((*models.Community, error)) {
-	return &models.Community{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecommunityService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCOMMUNITY_Handler_RegisterRoutes(t *testing.T) {

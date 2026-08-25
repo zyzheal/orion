@@ -208,6 +208,7 @@ const TicketDetail: React.FC = () => {
         const res = await listUsers({ limit: 200 });
         setEngineers(res.data?.data || []);
       } catch {
+        message.error('加载工程师列表失败');
         setEngineers([]);
       }
     };

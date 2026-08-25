@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/bi-dashboard/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeBi_dashboardService struct{}
 
 func (f *fakeBi_dashboardService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.BiDashboard, error) {
@@ -63,31 +59,6 @@ func (f *fakeBi_dashboardService) Update(ctx context.Context, id, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeBi_dashboardService)(nil)
-=======
-type fakebi_dashboardService struct{}
-
-func (f *fakebi_dashboardService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) ((*models.BiDashboard, error)) {
-	return &models.BiDashboard{}, nil
-}
-
-func (f *fakebi_dashboardService) Delete(ctx context.Context, id, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakebi_dashboardService) Get(ctx context.Context, id, tenantID string) ((*models.BiDashboard, error)) {
-	return &models.BiDashboard{}, nil
-}
-
-func (f *fakebi_dashboardService) List(ctx context.Context, tenantID string) (([]models.BiDashboard, error)) {
-	return []models.BiDashboard{}, nil
-}
-
-func (f *fakebi_dashboardService) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) ((*models.BiDashboard, error)) {
-	return &models.BiDashboard{}, nil
-}
-
-var _ service.ServiceInterface = (*fakebi_dashboardService)(nil)
->>>>>>> Stashed changes
 
 
 func TestBI_DASHBOARD_Handler_RegisterRoutes(t *testing.T) {

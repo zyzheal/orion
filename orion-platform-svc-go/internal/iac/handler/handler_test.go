@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/iac/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) ApplyPlan(ctx context.Context, tenantID, workspaceID string, req models.ApplyPlanRequest) (*models.PlanSummary, error) {
@@ -100,79 +96,6 @@ func (f *fakeHandlerService) UpdateWorkspace(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeiacService struct{}
-
-func (f *fakeiacService) ApplyPlan(ctx context.Context, tenantID, workspaceID string, req models.ApplyPlanRequest) ((*models.PlanSummary, error)) {
-	return &models.PlanSummary{}, nil
-}
-
-func (f *fakeiacService) CreateModule(ctx context.Context, tenantID string, req models.CreateModuleRequest) ((*models.WorkspaceModule, error)) {
-	return &models.WorkspaceModule{}, nil
-}
-
-func (f *fakeiacService) CreateWorkspace(ctx context.Context, tenantID string, req models.CreateWorkspaceRequest) ((*models.Workspace, error)) {
-	return &models.Workspace{}, nil
-}
-
-func (f *fakeiacService) DeleteModule(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeiacService) GeneratePlan(ctx context.Context, tenantID, workspaceID string, req models.GeneratePlanRequest) ((*models.PlanSummary, error)) {
-	return &models.PlanSummary{}, nil
-}
-
-func (f *fakeiacService) GetCurrentState(ctx context.Context, tenantID, workspaceID string) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakeiacService) GetModule(ctx context.Context, tenantID, id string) ((*models.WorkspaceModule, error)) {
-	return &models.WorkspaceModule{}, nil
-}
-
-func (f *fakeiacService) GetPlan(ctx context.Context, tenantID, planID string) ((*models.Plan, error)) {
-	return &models.Plan{}, nil
-}
-
-func (f *fakeiacService) GetStateDiff(ctx context.Context, tenantID, workspaceID, versionA, versionB string) ((*models.StateDiffResult, error)) {
-	return &models.StateDiffResult{}, nil
-}
-
-func (f *fakeiacService) GetWorkspace(ctx context.Context, tenantID, id string) ((*models.Workspace, error)) {
-	return &models.Workspace{}, nil
-}
-
-func (f *fakeiacService) ImportResource(ctx context.Context, tenantID, workspaceID string, req models.ImportResourceRequest) ((*models.Resource, error)) {
-	return &models.Resource{}, nil
-}
-
-func (f *fakeiacService) ListModules(ctx context.Context, tenantID string) (([]models.WorkspaceModule, error)) {
-	return []models.WorkspaceModule{}, nil
-}
-
-func (f *fakeiacService) ListPlans(ctx context.Context, tenantID, workspaceID string) (([]models.Plan, error)) {
-	return []models.Plan{}, nil
-}
-
-func (f *fakeiacService) ListResources(ctx context.Context, tenantID, workspaceID string) (([]models.Resource, error)) {
-	return []models.Resource{}, nil
-}
-
-func (f *fakeiacService) ListStateVersions(ctx context.Context, tenantID, workspaceID string) (([]models.StateVersion, error)) {
-	return []models.StateVersion{}, nil
-}
-
-func (f *fakeiacService) ListWorkspaces(ctx context.Context, tenantID string, limit, offset int) (([]models.Workspace, error)) {
-	return []models.Workspace{}, nil
-}
-
-func (f *fakeiacService) UpdateWorkspace(ctx context.Context, tenantID, id string, req models.UpdateWorkspaceRequest) ((*models.Workspace, error)) {
-	return &models.Workspace{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeiacService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_IAC_RegisterRoutes(t *testing.T) {

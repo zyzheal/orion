@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/event-trigger/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeEvent_triggerService struct{}
 
 func (f *fakeEvent_triggerService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -56,35 +52,6 @@ func (f *fakeEvent_triggerService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeEvent_triggerService)(nil)
-=======
-type fakeevent_triggerService struct{}
-
-func (f *fakeevent_triggerService) Count(ctx context.Context, tenantID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakeevent_triggerService) Create(ctx context.Context, tenantID, userID string, req *models.CreateTriggerRequest) ((*models.EventTrigger, error)) {
-	return &models.EventTrigger{}, nil
-}
-
-func (f *fakeevent_triggerService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeevent_triggerService) GetByID(ctx context.Context, tenantID, id string) ((*models.EventTrigger, error)) {
-	return &models.EventTrigger{}, nil
-}
-
-func (f *fakeevent_triggerService) List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) (([]models.EventTrigger, error)) {
-	return []models.EventTrigger{}, nil
-}
-
-func (f *fakeevent_triggerService) Update(ctx context.Context, tenantID, id string, req *models.UpdateTriggerRequest) ((*models.EventTrigger, error)) {
-	return &models.EventTrigger{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeevent_triggerService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_EVENT_TRIGGER_RegisterRoutes(t *testing.T) {

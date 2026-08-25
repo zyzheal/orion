@@ -1,7 +1,7 @@
 /**
  * Service Catalog API Service
  *
- * Aligned with backend /api/v1/service-catalog routes (handler.go)
+ * Aligned with backend /service-catalog routes (handler.go)
  * - Catalog: CRUD for {id, tenant_id, name, value, enabled, created_at, updated_at}
  * - Requests: lifecycle management with status/timeline/sla
  */
@@ -78,7 +78,7 @@ export const listCatalogItems = async (params?: {
     Object.keys(p).length > 0
       ? '?' + new URLSearchParams(Object.entries(p).map(([k, v]) => [k, String(v)]))
       : '';
-  const res = await api.get<unknown>(`/api/v1/service-catalog${qs}`);
+  const res = await api.get<unknown>(`/service-catalog${qs}`);
   const data = res.data as unknown;
   if (Array.isArray(data)) return data as ServiceCatalog[];
   if (typeof data === 'object' && data !== null && 'data' in data) {
@@ -88,14 +88,14 @@ export const listCatalogItems = async (params?: {
 };
 
 export const getCatalogItem = async (id: string): Promise<ServiceCatalog> => {
-  const res = await api.get(`/api/v1/service-catalog/${id}`);
+  const res = await api.get(`/service-catalog/${id}`);
   return res.data as ServiceCatalog;
 };
 
 export const createCatalogItem = async (
   data: CreateServiceCatalogRequest
 ): Promise<ServiceCatalog> => {
-  const res = await api.post('/api/v1/service-catalog', data);
+  const res = await api.post('/service-catalog', data);
   return res.data as ServiceCatalog;
 };
 
@@ -103,12 +103,12 @@ export const updateCatalogItem = async (
   id: string,
   data: UpdateServiceCatalogRequest
 ): Promise<ServiceCatalog> => {
-  const res = await api.put(`/api/v1/service-catalog/${id}`, data);
+  const res = await api.put(`/service-catalog/${id}`, data);
   return res.data as ServiceCatalog;
 };
 
 export const deleteCatalogItem = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/service-catalog/${id}`);
+  await api.delete(`/service-catalog/${id}`);
 };
 
 // ==================== Request Lifecycle ====================
@@ -121,12 +121,12 @@ export const updateRequestStatus = async (
     assignedTo?: string;
   }
 ): Promise<ServiceRequest> => {
-  const res = await api.post(`/api/v1/service-catalog/requests/${id}/status`, data);
+  const res = await api.post(`/service-catalog/requests/${id}/status`, data);
   return res.data as ServiceRequest;
 };
 
 export const getRequestTimeline = async (id: string): Promise<TimelineEntry[]> => {
-  const res = await api.get<unknown>(`/api/v1/service-catalog/requests/${id}/timeline`);
+  const res = await api.get<unknown>(`/service-catalog/requests/${id}/timeline`);
   const data = res.data as unknown;
   if (Array.isArray(data)) return data as TimelineEntry[];
   if (typeof data === 'object' && data !== null && 'data' in data) {
@@ -145,7 +145,7 @@ export const getSLABreaches = async (params?: {
   if (params?.from) p.from = String(params.from);
   if (params?.limit) p.limit = String(params.limit);
   const qs = Object.keys(p).length > 0 ? '?' + new URLSearchParams(p) : '';
-  const res = await api.get(`/api/v1/service-catalog/sla-breaches${qs}`);
+  const res = await api.get(`/service-catalog/sla-breaches${qs}`);
   const data = res.data;
   return data as SLABreachesResponse;
 };

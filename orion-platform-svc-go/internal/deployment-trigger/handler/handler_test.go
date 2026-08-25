@@ -9,11 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/deployment-trigger/models"
 	"time"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -29,7 +26,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDeployment_triggerService struct{}
 
 func (f *fakeDeployment_triggerService) Create(ctx context.Context, tenantID string, req *models.CreateTriggerRequest) (*models.DeploymentTrigger, error) {
@@ -65,43 +61,6 @@ func (f *fakeDeployment_triggerService) Update(ctx context.Context, tenantID, id
 }
 
 var _ service.ServiceInterface = (*fakeDeployment_triggerService)(nil)
-=======
-type fakedeployment_triggerService struct{}
-
-func (f *fakedeployment_triggerService) Create(ctx context.Context, tenantID string, req *models.CreateTriggerRequest) ((*models.DeploymentTrigger, error)) {
-	return &models.DeploymentTrigger{}, nil
-}
-
-func (f *fakedeployment_triggerService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedeployment_triggerService) EvaluateCron(expression string) ((*time.Time, error)) {
-	return &time.Time{}, nil
-}
-
-func (f *fakedeployment_triggerService) Execute(ctx context.Context, tenantID, id string) ((*models.TriggerExecution, error)) {
-	return &models.TriggerExecution{}, nil
-}
-
-func (f *fakedeployment_triggerService) Get(ctx context.Context, tenantID, id string) ((*models.DeploymentTrigger, error)) {
-	return &models.DeploymentTrigger{}, nil
-}
-
-func (f *fakedeployment_triggerService) GetExecutions(ctx context.Context, tenantID, id string, limit int) (([]models.TriggerExecution, error)) {
-	return []models.TriggerExecution{}, nil
-}
-
-func (f *fakedeployment_triggerService) List(ctx context.Context, tenantID string) (([]models.DeploymentTrigger, error)) {
-	return []models.DeploymentTrigger{}, nil
-}
-
-func (f *fakedeployment_triggerService) Update(ctx context.Context, tenantID, id string, req *models.UpdateTriggerRequest) ((*models.DeploymentTrigger, error)) {
-	return &models.DeploymentTrigger{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedeployment_triggerService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DEPLOYMENT_TRI_RegisterRoutes(t *testing.T) {

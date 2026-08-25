@@ -1,7 +1,7 @@
 /**
  * Problem Management API Service
  *
- * Aligned with backend /api/v1/problems/* routes (problem-routes.ts)
+ * Aligned with backend /problems/* routes (problem-routes.ts)
  * Covers: problem CRUD, lifecycle, incident/change linking, KEDB, statistics
  */
 import { api } from './client';
@@ -60,14 +60,14 @@ export const getProblems = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: Problem[]; total: number }> => {
-  const response = await api.get<{ data: Problem[]; total: number }>('/api/v1/problems', {
+  const response = await api.get<{ data: Problem[]; total: number }>('/problems', {
     params,
   });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getProblem = async (id: string): Promise<Problem> => {
-  const response = await api.get<{ data: Problem }>(`/api/v1/problems/${id}`);
+  const response = await api.get<{ data: Problem }>(`/problems/${id}`);
   return response.data.data;
 };
 
@@ -79,37 +79,37 @@ export const createProblem = async (data: {
   assignedTo?: string;
   metadata?: Record<string, unknown>;
 }): Promise<Problem> => {
-  const response = await api.post<{ data: Problem }>('/api/v1/problems', data);
+  const response = await api.post<{ data: Problem }>('/problems', data);
   return response.data.data;
 };
 
 export const updateProblem = async (id: string, data: Partial<Problem>): Promise<Problem> => {
-  const response = await api.put<{ data: Problem }>(`/api/v1/problems/${id}`, data);
+  const response = await api.put<{ data: Problem }>(`/problems/${id}`, data);
   return response.data.data;
 };
 
 export const deleteProblem = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/problems/${id}`);
+  await api.delete(`/problems/${id}`);
 };
 
 // ==================== Status Lifecycle ====================
 
 export const updateProblemStatus = async (id: string, status: string): Promise<Problem> => {
-  const response = await api.patch<{ data: Problem }>(`/api/v1/problems/${id}/status`, { status });
+  const response = await api.patch<{ data: Problem }>(`/problems/${id}/status`, { status });
   return response.data.data;
 };
 
 // ==================== Incident/Change Linking ====================
 
 export const linkIncident = async (problemId: string, incidentId: string): Promise<Problem> => {
-  const response = await api.post<{ data: Problem }>(`/api/v1/problems/${problemId}/incidents`, {
+  const response = await api.post<{ data: Problem }>(`/problems/${problemId}/incidents`, {
     incidentId,
   });
   return response.data.data;
 };
 
 export const linkChange = async (problemId: string, changeId: string): Promise<Problem> => {
-  const response = await api.post<{ data: Problem }>(`/api/v1/problems/${problemId}/changes`, {
+  const response = await api.post<{ data: Problem }>(`/problems/${problemId}/changes`, {
     changeId,
   });
   return response.data.data;
@@ -123,7 +123,7 @@ export const getKnownErrors = async (params?: {
   offset?: number;
 }): Promise<{ data: KnownError[]; total: number }> => {
   const response = await api.get<{ data: KnownError[]; total: number }>(
-    '/api/v1/problems/known-errors',
+    '/problems/known-errors',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
@@ -138,7 +138,7 @@ export const createKnownError = async (data: {
   keywords?: string[];
   problem_id?: string;
 }): Promise<KnownError> => {
-  const response = await api.post<{ data: KnownError }>('/api/v1/problems/known-errors', data);
+  const response = await api.post<{ data: KnownError }>('/problems/known-errors', data);
   return response.data.data;
 };
 
@@ -146,16 +146,16 @@ export const updateKnownError = async (
   id: string,
   data: Partial<KnownError>
 ): Promise<KnownError> => {
-  const response = await api.put<{ data: KnownError }>(`/api/v1/problems/known-errors/${id}`, data);
+  const response = await api.put<{ data: KnownError }>(`/problems/known-errors/${id}`, data);
   return response.data.data;
 };
 
 export const deleteKnownError = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/problems/known-errors/${id}`);
+  await api.delete(`/problems/known-errors/${id}`);
 };
 
 export const searchKnownErrors = async (q: string): Promise<KnownError[]> => {
-  const response = await api.get<{ data: KnownError[] }>('/api/v1/problems/known-errors/search', {
+  const response = await api.get<{ data: KnownError[] }>('/problems/known-errors/search', {
     params: { q },
   });
   return response.data.data;
@@ -164,6 +164,6 @@ export const searchKnownErrors = async (q: string): Promise<KnownError[]> => {
 // ==================== Statistics ====================
 
 export const getProblemStats = async (): Promise<ProblemStats> => {
-  const response = await api.get<{ data: ProblemStats }>('/api/v1/problems/stats');
+  const response = await api.get<{ data: ProblemStats }>('/problems/stats');
   return response.data.data;
 };

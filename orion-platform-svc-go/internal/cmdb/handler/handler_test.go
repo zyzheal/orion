@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/cmdb/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) BatchCreate(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) (*models.BatchResult, error) {
@@ -304,139 +300,6 @@ func (f *fakeCmdbService) GenerateRecommendations(ctx context.Context, tenantID 
 }
 
 var _ service.ServiceInterface = (*fakeCmdbService)(nil)
-=======
-type fakecmdbService struct{}
-
-func (f *fakecmdbService) BatchCreate(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) ((*models.BatchResult, error)) {
-	return &models.BatchResult{}, nil
-}
-
-func (f *fakecmdbService) BatchDelete(ctx context.Context, ids []string, tenantID string) ((*models.BatchResult, error)) {
-	return &models.BatchResult{}, nil
-}
-
-func (f *fakecmdbService) BatchQuery(ctx context.Context, q *models.BatchQueryRequest, tenantID string) (([]models.CI, int, error)) {
-	return []models.CI{}, 0, nil
-}
-
-func (f *fakecmdbService) BatchUpdate(ctx context.Context, items []models.BatchUpdateItem, tenantID string) ((*models.BatchResult, error)) {
-	return &models.BatchResult{}, nil
-}
-
-func (f *fakecmdbService) Create(ctx context.Context, req *models.CreateCIRequest) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) CreateRelation(ctx context.Context, req *models.CreateRelationRequest) ((*models.CIRelation, error)) {
-	return &models.CIRelation{}, nil
-}
-
-func (f *fakecmdbService) Delete(ctx context.Context, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecmdbService) DeleteRelation(ctx context.Context, relationID string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecmdbService) ExecuteScript(ctx context.Context, req *models.ScriptExecRequest) ((*models.ScriptExecResult, error)) {
-	return &models.ScriptExecResult{}, nil
-}
-
-func (f *fakecmdbService) ExportCI(ctx context.Context, id string, tenantID string) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID string, includeArchived bool) ((*models.ExportResult, error)) {
-	return &models.ExportResult{}, nil
-}
-
-func (f *fakecmdbService) Get(ctx context.Context, id string) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) GetByCiId(ctx context.Context, ciID string, tenantID *string) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) GetCurrentVersion(ctx context.Context, ciID string) ((*models.CIVersion, error)) {
-	return &models.CIVersion{}, nil
-}
-
-func (f *fakecmdbService) GetHost(ctx context.Context, ciID string) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) (([]models.CIRelation, error)) {
-	return []models.CIRelation{}, nil
-}
-
-func (f *fakecmdbService) GetRelations(ctx context.Context, ciID string) (([]models.CIRelation, error)) {
-	return []models.CIRelation{}, nil
-}
-
-func (f *fakecmdbService) GetServiceDependencies(ctx context.Context, tenantID string, ciID string) (([]models.CIRelation, error)) {
-	return []models.CIRelation{}, nil
-}
-
-func (f *fakecmdbService) GetTopology(ctx context.Context, ciType *string, depth *int, tenantID string) ((*models.TopologyResult, error)) {
-	return &models.TopologyResult{}, nil
-}
-
-func (f *fakecmdbService) GetVersions(ctx context.Context, ciID string) (([]models.CIVersion, error)) {
-	return []models.CIVersion{}, nil
-}
-
-func (f *fakecmdbService) Health(ctx context.Context) ((*models.HealthStatus, error)) {
-	return &models.HealthStatus{}, nil
-}
-
-func (f *fakecmdbService) ImportCIs(ctx context.Context, cis []any, tenantID string, skipDuplicates bool, createdBy string) ((*models.ExportResult, error)) {
-	return &models.ExportResult{}, nil
-}
-
-func (f *fakecmdbService) List(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) (([]models.CI, int, error)) {
-	return []models.CI{}, 0, nil
-}
-
-func (f *fakecmdbService) ListCICDResources(ctx context.Context, status *string, limit, offset int) (([]models.CICDResource, int, error)) {
-	return []models.CICDResource{}, 0, nil
-}
-
-func (f *fakecmdbService) ListHosts(ctx context.Context, status *string, tags *string, limit, offset int) (([]models.CI, int, error)) {
-	return []models.CI{}, 0, nil
-}
-
-func (f *fakecmdbService) ListK8sResources(ctx context.Context, kind *string, namespace *string, limit, offset int) (([]models.K8sResource, int, error)) {
-	return []models.K8sResource{}, 0, nil
-}
-
-func (f *fakecmdbService) RestoreToVersion(ctx context.Context, ciID string, version int, user string, tenantID string) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) StartK8sSync(ctx context.Context, config *models.StartK8sSyncRequest) (error) {
-	return nil
-}
-
-func (f *fakecmdbService) StopK8sSync(ctx context.Context) (error) {
-	return nil
-}
-
-func (f *fakecmdbService) Update(ctx context.Context, id string, req *models.UpdateCIRequest) ((*models.CI, error)) {
-	return &models.CI{}, nil
-}
-
-func (f *fakecmdbService) Search(ctx context.Context, tenantID, query, domain string) (([]models.CI, error)) {
-	return []models.CI{}, nil
-}
-
-func (f *fakecmdbService) GenerateRecommendations(ctx context.Context, tenantID string, reqType *models.RecommendationType, limit int) ((*models.RecommendationResult, error)) {
-	return &models.RecommendationResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecmdbService)(nil)
->>>>>>> Stashed changes
 
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {

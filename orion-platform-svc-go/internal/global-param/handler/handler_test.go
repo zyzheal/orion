@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/global-param/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeGlobal_paramService struct{}
 
 func (f *fakeGlobal_paramService) Create(ctx context.Context, tenantID string, req *models.CreateGlobalParamRequest) (*models.GlobalParam, error) {
@@ -52,31 +48,6 @@ func (f *fakeGlobal_paramService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeGlobal_paramService)(nil)
-=======
-type fakeglobal_paramService struct{}
-
-func (f *fakeglobal_paramService) Create(ctx context.Context, tenantID string, req *models.CreateGlobalParamRequest) ((*models.GlobalParam, error)) {
-	return &models.GlobalParam{}, nil
-}
-
-func (f *fakeglobal_paramService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeglobal_paramService) Get(ctx context.Context, tenantID, id string) ((*models.GlobalParam, error)) {
-	return &models.GlobalParam{}, nil
-}
-
-func (f *fakeglobal_paramService) List(ctx context.Context, tenantID string) (([]models.GlobalParam, error)) {
-	return []models.GlobalParam{}, nil
-}
-
-func (f *fakeglobal_paramService) Update(ctx context.Context, tenantID, id string, req *models.UpdateGlobalParamRequest) ((*models.GlobalParam, error)) {
-	return &models.GlobalParam{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeglobal_paramService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_GLOBAL_PARAM_RegisterRoutes(t *testing.T) {

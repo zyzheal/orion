@@ -23,6 +23,7 @@ import {
   Typography,
   Popconfirm,
   Tooltip,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -64,6 +65,7 @@ const SubAppManagement: React.FC = () => {
   const [historyData, setHistoryData] = useState<SubAppConfigHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Load apps on mount
   useEffect(() => {
@@ -99,6 +101,7 @@ const SubAppManagement: React.FC = () => {
 
   // Handle form submit
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
 
@@ -125,12 +128,15 @@ const SubAppManagement: React.FC = () => {
 
       setDrawerOpen(false);
       form.resetFields();
-    } catch (err: any) {
-      if (err.errorFields) {
+    } catch (err: unknown) {
+      if ((err as { errorFields?: unknown[] })?.errorFields) {
         // Form validation error
         return;
       }
-      message.error(err.message || '操作失败');
+      const e = err as { message?: string };
+      message.error(e.message || '操作失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -354,6 +360,7 @@ const SubAppManagement: React.FC = () => {
           loading={loading}
           rowKey="key"
           pagination={false}
+          locale={{ emptyText: <Empty description="暂无子应用配置，点击「新增子应用」创建" /> }}
         />
       </Card>
 
@@ -366,8 +373,10 @@ const SubAppManagement: React.FC = () => {
           form.resetFields();
         }}
         onOk={handleSubmit}
+        confirmLoading={submitting}
         width={600}
         okText={isEditing ? '保存' : '创建'}
+        cancelText="取消"
       >
         <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item

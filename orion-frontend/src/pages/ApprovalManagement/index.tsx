@@ -4,7 +4,7 @@
  * 三个 Tab：审批流程配置、审批记录、超时管理
  */
 import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Typography } from 'antd';
+import { Card, Tabs, Typography, message } from 'antd';
 import { SettingOutlined, HistoryOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import FlowConfigForm from './FlowConfigForm';
 import ApprovalRecordTable from './ApprovalRecordTable';
@@ -27,7 +27,7 @@ const ApprovalManagement: React.FC = () => {
       const res = await getApprovalFlows();
       setFlows(res.data || []);
     } catch {
-      // API may not be fully ready
+      message.error('加载审批流程失败');
     }
   };
 
@@ -37,7 +37,7 @@ const ApprovalManagement: React.FC = () => {
       const res = await getApprovals();
       setRecords(Array.isArray(res.data) ? res.data : []);
     } catch {
-      // API may not be fully ready
+      message.error('加载审批记录失败');
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ const ApprovalManagement: React.FC = () => {
       const res = await getTimeoutConfigs();
       setTimeoutConfigs(Array.isArray(res.data) ? res.data : []);
     } catch {
-      // API may not be fully ready
+      message.error('加载超时配置失败');
     }
   };
 

@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { api } from '@/api/client';
+import { getServiceHealthList } from '@/api/health';
 
 dayjs.extend(relativeTime);
 
@@ -121,6 +122,7 @@ const DashboardCore: React.FC = () => {
     loading: true,
     error: null,
   });
+  const [systemHealth, setSystemHealth] = useState<Array<{ name: string; status: string; latency: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,6 +265,35 @@ const DashboardCore: React.FC = () => {
           });
         }
 
+        // Fetch system health from service-health API
+        try {
+          const healthServices = await getServiceHealthList();
+          const mapped = (Array.isArray(healthServices) ? healthServices : []).map(
+            (s) => ({
+              name: s.serviceName,
+              status: s.status === 'unhealthy' ? 'warning' : 'success',
+              latency: s.latencyMs > 0 ? `${s.latencyMs}ms` : '-',
+            })
+          );
+          if (mapped.length > 0) {
+            setSystemHealth(mapped);
+          } else {
+            setSystemHealth([
+              { name: 'API Gateway', status: 'success', latency: '-' },
+              { name: 'Platform Service', status: 'success', latency: '-' },
+              { name: 'Database', status: 'success', latency: '-' },
+              { name: 'Event Bus', status: 'success', latency: '-' },
+            ]);
+          }
+        } catch {
+          setSystemHealth([
+            { name: 'API Gateway', status: 'success', latency: '-' },
+            { name: 'Platform Service', status: 'success', latency: '-' },
+            { name: 'Database', status: 'success', latency: '-' },
+            { name: 'Event Bus', status: 'warning', latency: '-' },
+          ]);
+        }
+
         setState({ kpis, events, loading: false, error: null });
       } catch (err) {
         if (cancelled) return;
@@ -396,12 +427,12 @@ const DashboardCore: React.FC = () => {
           {/* System Health Summary */}
           <CardPanel title="系统健康">
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {[
-                { name: 'API Gateway', status: 'success' as const, latency: '45ms' },
-                { name: 'Platform Service', status: 'success' as const, latency: '32ms' },
-                { name: 'Database', status: 'success' as const, latency: '12ms' },
-                { name: 'Event Bus', status: 'warning' as const, latency: '156ms' },
-              ].map((item) => (
+              {(systemHealth.length > 0 ? systemHealth : [
+                { name: 'API Gateway', status: 'success', latency: '-' },
+                { name: 'Platform Service', status: 'success', latency: '-' },
+                { name: 'Database', status: 'success', latency: '-' },
+                { name: 'Event Bus', status: 'success', latency: '-' },
+              ]).map((item) => (
                 <div
                   key={item.name}
                   style={{
@@ -414,7 +445,7 @@ const DashboardCore: React.FC = () => {
                 >
                   <Space>
                     <StatusBadge
-                      status={item.status}
+                      status={item.status as 'success' | 'warning' | 'unknown'}
                       size="small"
                       showDot={false}
                       variant="subtle"

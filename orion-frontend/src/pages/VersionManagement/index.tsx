@@ -241,13 +241,11 @@ const VersionManagement: React.FC = () => {
             style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}
           >
             <Space>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => message.info('创建版本功能由 Pipeline 运行触发')}
-              >
-                新建版本
-              </Button>
+              <Tooltip title="版本由 Pipeline 运行自动生成">
+                <Button type="primary" icon={<PlusOutlined />} disabled>
+                  新建版本
+                </Button>
+              </Tooltip>
               <Button
                 icon={<DiffOutlined />}
                 onClick={handleCompare}
@@ -289,13 +287,11 @@ const VersionManagement: React.FC = () => {
           }}
         >
           <div style={{ marginBottom: spacing.md }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => message.info('制品版本由构建流程自动生成')}
-            >
-              新建版本
-            </Button>
+            <Tooltip title="制品版本由构建流程自动生成">
+              <Button type="primary" icon={<PlusOutlined />} disabled>
+                新建版本
+              </Button>
+            </Tooltip>
           </div>
           <Table
             columns={artifactColumns}

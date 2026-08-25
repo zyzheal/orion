@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/i18n/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeI18nService struct{}
 
 func (f *fakeI18nService) CreateLocale(ctx context.Context, tenantID string, req models.CreateLocaleRequest) (*models.Locale, error) {
@@ -60,39 +56,6 @@ func (f *fakeI18nService) SetTranslation(ctx context.Context, tenantID, localeCo
 }
 
 var _ service.ServiceInterface = (*fakeI18nService)(nil)
-=======
-type fakei18nService struct{}
-
-func (f *fakei18nService) CreateLocale(ctx context.Context, tenantID string, req models.CreateLocaleRequest) ((*models.Locale, error)) {
-	return &models.Locale{}, nil
-}
-
-func (f *fakei18nService) DeleteTranslation(ctx context.Context, tenantID, localeCode, namespace, key string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakei18nService) GetAllTranslations(ctx context.Context, tenantID, localeCode string) ((map[string]map[string]string, error)) {
-	return map[string]map[string]string{}, nil
-}
-
-func (f *fakei18nService) GetTranslationsByNamespace(ctx context.Context, tenantID, localeCode, namespace string) ((map[string]string, error)) {
-	return map[string]string{}, nil
-}
-
-func (f *fakei18nService) ListLocales(ctx context.Context, tenantID string) (([]models.Locale, error)) {
-	return []models.Locale{}, nil
-}
-
-func (f *fakei18nService) SetBulkTranslations(ctx context.Context, tenantID, localeCode, namespace string, kv map[string]string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakei18nService) SetTranslation(ctx context.Context, tenantID, localeCode, namespace, key, value string) ((*models.Translation, error)) {
-	return &models.Translation{}, nil
-}
-
-var _ service.ServiceInterface = (*fakei18nService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_I18N_RegisterRoutes(t *testing.T) {

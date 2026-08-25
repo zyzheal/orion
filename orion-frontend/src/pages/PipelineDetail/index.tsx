@@ -23,8 +23,8 @@ import {
   Result,
   Table,
   Modal,
+  Empty,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing, themeVars } from '@/tokens';
 import {
   PlayCircleOutlined,
@@ -66,20 +66,7 @@ const stageStatusColors: Record<string, string> = {
   cancelled: colors.neutral[400],
 };
 
-/**
- * Task output variable — represents a variable produced by a task/stage
- * and optionally propagated to downstream stages.
- */
-interface TaskOutput {
-  key: string;
-  stageName: string;
-  taskName: string;
-  variableName: string;
-  variableValue: string;
-  propagatedTo: string[];
-}
-
-// Pipeline display types — used for rendering run detail data
+// TaskOutputs: backend API not yet available (requires /v1/pipeline-runs/:runId/outputs)
 
 export interface PipelineStep {
   name: string;
@@ -129,82 +116,19 @@ export type StageFilterFn = (s: PipelineStage) => boolean;
  * with propagation information. Shows empty state until backend API is available.
  */
 const TaskOutputsTable: React.FC = () => {
-  const columns: ColumnsType<TaskOutput> = [
-    {
-      title: '所属阶段',
-      dataIndex: 'stageName',
-      key: 'stageName',
-      width: 140,
-      render: (text: string) => <Tag color="blue">{text}</Tag>,
-    },
-    {
-      title: '任务名称',
-      dataIndex: 'taskName',
-      key: 'taskName',
-      width: 160,
-      render: (text: string) => <Text code>{text}</Text>,
-    },
-    {
-      title: '变量名',
-      dataIndex: 'variableName',
-      key: 'variableName',
-      width: 200,
-      render: (text: string) => (
-        <Tag color="geekblue" style={{ fontFamily: 'monospace' }}>
-          {text}
-        </Tag>
-      ),
-    },
-    {
-      title: '变量值',
-      dataIndex: 'variableValue',
-      key: 'variableValue',
-      ellipsis: true,
-      render: (text: string) => (
-        <Text
-          code
-          style={{
-            maxWidth: 300,
-            display: 'inline-block',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            verticalAlign: 'middle',
-          }}
-          title={text}
-        >
-          {text}
-        </Text>
-      ),
-    },
-    {
-      title: '传播至',
-      dataIndex: 'propagatedTo',
-      key: 'propagatedTo',
-      width: 220,
-      render: (targets: string[]) =>
-        targets.length > 0 ? (
-          <Space wrap>
-            {targets.map((t) => (
-              <Tag key={t} color="green">
-                {t}
-              </Tag>
-            ))}
-          </Space>
-        ) : (
-          <Text type="secondary">无</Text>
-        ),
-    },
-  ];
-
   return (
-    <Table<TaskOutput>
-      columns={columns}
-      dataSource={[]}
-      size="middle"
-      pagination={false}
-      bordered
-      rowKey="key"
+    <Empty
+      description={
+        <div>
+          <Text type="secondary">任务输出 API 开发中</Text>
+          <Text
+            type="secondary"
+            style={{ display: 'block', fontSize: spacing[2], marginTop: 4 }}
+          >
+            需要后端提供 /v1/pipeline-runs/:runId/outputs 接口后自动展示变量传播数据
+          </Text>
+        </div>
+      }
     />
   );
 };

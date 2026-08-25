@@ -29,25 +29,29 @@ export interface BackupInput {
 }
 
 export async function getBackupStats() {
-  return api.get<BackupStats>('/api/v1/backup/stats');
+  return api.get<BackupStats>('/backup/stats');
 }
 
 export async function getBackups() {
-  return api.get<BackupRecord[]>('/api/v1/backup');
+  return api.get<BackupRecord[]>('/backup');
 }
 
 export async function createBackup(input: BackupInput) {
-  return api.post<BackupRecord>('/api/v1/backup', input);
+  return api.post<BackupRecord>('/backup', input);
 }
 
 export async function restoreBackup(id: string) {
-  return api.post<void>(`/api/v1/backup/${id}/restore`);
+  return api.post<void>(`/backup/${id}/restore`);
 }
 
 export async function getBackupDownloadUrl(id: string) {
-  return api.post<{ url: string }>(`/api/v1/backups/${id}/download`);
+  return api.post<{ url: string }>(`/backups/${id}/download`);
 }
 
 export async function deleteBackup(id: string) {
-  return api.delete<void>(`/api/v1/backup/${id}`);
+  return api.delete<void>(`/backup/${id}`);
+}
+
+export async function updateBackup(id: string, input: Partial<BackupInput>) {
+  return api.put<BackupRecord>(`/backup/${id}`, input);
 }

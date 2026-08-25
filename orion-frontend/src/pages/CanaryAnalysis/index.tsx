@@ -83,6 +83,8 @@ const CanaryAnalysis: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [triggerForm] = Form.useForm();
   const [configForm] = Form.useForm();
+  const [triggerSubmitting, setTriggerSubmitting] = useState(false);
+  const [configSubmitting, setConfigSubmitting] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -140,6 +142,7 @@ const CanaryAnalysis: React.FC = () => {
   };
 
   const handleTrigger = async (values: TriggerFormValues) => {
+    setTriggerSubmitting(true);
     try {
       await triggerCanaryAnalysis(values as CanaryTriggerInput);
       message.success('Canary analysis triggered');
@@ -152,6 +155,8 @@ const CanaryAnalysis: React.FC = () => {
       } else {
         message.error('Failed to trigger analysis');
       }
+    } finally {
+      setTriggerSubmitting(false);
     }
   };
 
@@ -186,6 +191,7 @@ const CanaryAnalysis: React.FC = () => {
   };
 
   const handleSaveConfig = async (values: ConfigFormValues) => {
+    setConfigSubmitting(true);
     try {
       await createCanaryConfig(values as CanaryConfigInput);
       message.success('Config created');
@@ -198,6 +204,8 @@ const CanaryAnalysis: React.FC = () => {
       } else {
         message.error('Failed to create config');
       }
+    } finally {
+      setConfigSubmitting(false);
     }
   };
 
@@ -588,6 +596,9 @@ const CanaryAnalysis: React.FC = () => {
         open={triggerModalVisible}
         onCancel={() => setTriggerModalVisible(false)}
         onOk={() => triggerForm.submit()}
+        confirmLoading={triggerSubmitting}
+        okText="触发分析"
+        cancelText="取消"
         destroyOnClose
       >
         <Form form={triggerForm} layout="vertical" onFinish={handleTrigger}>
@@ -606,6 +617,9 @@ const CanaryAnalysis: React.FC = () => {
         open={configModalVisible}
         onCancel={() => setConfigModalVisible(false)}
         onOk={() => configForm.submit()}
+        confirmLoading={configSubmitting}
+        okText="创建"
+        cancelText="取消"
         width={600}
         destroyOnClose
       >

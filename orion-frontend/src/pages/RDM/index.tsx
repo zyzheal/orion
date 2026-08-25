@@ -110,6 +110,7 @@ const RDM: React.FC = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
+      // 加载前 100 用户供经办人下拉选择，超过 100 的用户需后端提供搜索接口
       const res = await listUsers({ page: 1, limit: 100 });
       setUsers(res.data.data ?? []);
     } catch {

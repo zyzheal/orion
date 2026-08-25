@@ -135,6 +135,7 @@ const ConfigManagementPage: React.FC = () => {
   const [selectedConfig, setSelectedConfig] = useState<ConfigItem | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [form] = Form.useForm();
 
@@ -197,6 +198,7 @@ const ConfigManagementPage: React.FC = () => {
   }, []);
 
   const handleCreate = async (values: any) => {
+    setSubmitting(true);
     try {
       if (editingConfig) {
         await updateConfig(editingConfig.id, values);
@@ -215,6 +217,8 @@ const ConfigManagementPage: React.FC = () => {
       } else {
         message.error(`${editingConfig ? '更新' : '创建'}配置失败，请稍后重试`);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1073,6 +1077,9 @@ const ConfigManagementPage: React.FC = () => {
           form.resetFields();
         }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText={editingConfig ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>

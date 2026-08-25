@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/service-topology/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeService_topologyService struct{}
 
 func (f *fakeService_topologyService) AddDependency(ctx context.Context, tenantID, source, target string, relType models.RelationType) error {
@@ -92,71 +88,6 @@ func (f *fakeService_topologyService) ValidateTopology(ctx context.Context, tena
 }
 
 var _ service.ServiceInterface = (*fakeService_topologyService)(nil)
-=======
-type fakeservice_topologyService struct{}
-
-func (f *fakeservice_topologyService) AddDependency(ctx context.Context, tenantID, source, target string, relType models.RelationType) (error) {
-	return nil
-}
-
-func (f *fakeservice_topologyService) Create(ctx context.Context, tenantID string, req models.CreateServiceTopologyRequest) ((*models.ServiceTopology, error)) {
-	return &models.ServiceTopology{}, nil
-}
-
-func (f *fakeservice_topologyService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeservice_topologyService) DetectCycles(ctx context.Context, tenantID string) (([][]string, error)) {
-	return [][]string{}, nil
-}
-
-func (f *fakeservice_topologyService) FindImpactScope(ctx context.Context, tenantID, serviceName string) ((*models.ImpactScope, error)) {
-	return &models.ImpactScope{}, nil
-}
-
-func (f *fakeservice_topologyService) Get(ctx context.Context, tenantID, id string) ((*models.ServiceTopology, error)) {
-	return &models.ServiceTopology{}, nil
-}
-
-func (f *fakeservice_topologyService) GetByServiceName(ctx context.Context, tenantID, serviceName string) ((*models.ServiceTopology, error)) {
-	return &models.ServiceTopology{}, nil
-}
-
-func (f *fakeservice_topologyService) GetDependencies(ctx context.Context, tenantID, serviceName string) (([]models.TopologyEdge, error)) {
-	return []models.TopologyEdge{}, nil
-}
-
-func (f *fakeservice_topologyService) GetDownstreamDependents(ctx context.Context, tenantID, serviceName string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakeservice_topologyService) GetTopologyStats(ctx context.Context, tenantID string) ((*models.TopologyStats, error)) {
-	return &models.TopologyStats{}, nil
-}
-
-func (f *fakeservice_topologyService) GetUpstreamDependencies(ctx context.Context, tenantID, serviceName string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakeservice_topologyService) List(ctx context.Context, tenantID string) (([]models.ServiceTopology, error)) {
-	return []models.ServiceTopology{}, nil
-}
-
-func (f *fakeservice_topologyService) RemoveDependency(ctx context.Context, tenantID, source, target string) (error) {
-	return nil
-}
-
-func (f *fakeservice_topologyService) Update(ctx context.Context, tenantID, id string, req models.UpdateServiceTopologyRequest) ((*models.ServiceTopology, error)) {
-	return &models.ServiceTopology{}, nil
-}
-
-func (f *fakeservice_topologyService) ValidateTopology(ctx context.Context, tenantID string) ((*models.ValidateTopologyResult, error)) {
-	return &models.ValidateTopologyResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeservice_topologyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SERVICE_TOPOLO_RegisterRoutes(t *testing.T) {

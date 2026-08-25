@@ -247,7 +247,7 @@ export default function ScriptLibraryPage() {
       const res = await listVersions(scriptId);
       setVersions(res.data ?? []);
     } catch {
-      // ignore
+      message.error('加载版本列表失败');
     } finally {
       setVersionsLoading(false);
     }
@@ -294,7 +294,8 @@ export default function ScriptLibraryPage() {
       const res = await listParameters(scriptId);
       setParametersList(res.data ?? []);
     } catch {
-      // ignore
+      message.error('加载参数列表失败');
+      setParametersList([]);
     } finally {
       setParamsLoading(false);
     }

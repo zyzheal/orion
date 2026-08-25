@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/alert-breaker/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeAlert_breakerService struct{}
 
 func (f *fakeAlert_breakerService) Create(ctx context.Context, tenantID string, req *models.CreateAlertBreakerRequest) (*models.AlertBreaker, error) {
@@ -63,31 +59,6 @@ func (f *fakeAlert_breakerService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeAlert_breakerService)(nil)
-=======
-type fakealert_breakerService struct{}
-
-func (f *fakealert_breakerService) Create(ctx context.Context, tenantID string, req *models.CreateAlertBreakerRequest) ((*models.AlertBreaker, error)) {
-	return &models.AlertBreaker{}, nil
-}
-
-func (f *fakealert_breakerService) Delete(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakealert_breakerService) Get(ctx context.Context, tenantID, id string) ((*models.AlertBreaker, error)) {
-	return &models.AlertBreaker{}, nil
-}
-
-func (f *fakealert_breakerService) List(ctx context.Context, tenantID string) (([]models.AlertBreaker, int, error)) {
-	return []models.AlertBreaker{}, 0, nil
-}
-
-func (f *fakealert_breakerService) Update(ctx context.Context, tenantID, id string, req *models.UpdateAlertBreakerRequest) ((*models.AlertBreaker, error)) {
-	return &models.AlertBreaker{}, nil
-}
-
-var _ service.ServiceInterface = (*fakealert_breakerService)(nil)
->>>>>>> Stashed changes
 
 
 func TestALERT_BREAKER_Handler_RegisterRoutes(t *testing.T) {

@@ -48,17 +48,17 @@ export const federationApi = {
     region: string;
     endpoint: string;
   }) => {
-    const response = await apiClient.post('/api/v1/federation/clusters', data);
+    const response = await apiClient.post('/federation/clusters', data);
     return response.data as FederationCluster;
   },
 
   listClusters: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/federation/clusters', { params });
+    const response = await apiClient.get('/federation/clusters', { params });
     return response.data as FederationCluster[];
   },
 
   getClusterHealth: async (clusterId: string) => {
-    const response = await apiClient.get(`/api/v1/federation/clusters/${clusterId}/health`);
+    const response = await apiClient.get(`/federation/clusters/${clusterId}/health`);
     return response.data as ClusterHealth;
   },
 
@@ -67,17 +67,17 @@ export const federationApi = {
     targetClusters: string[];
     spec: Record<string, unknown>;
   }) => {
-    const response = await apiClient.post('/api/v1/federation/jobs', data);
+    const response = await apiClient.post('/federation/jobs', data);
     return response.data as CrossClusterJob;
   },
 
   getJobStatus: async (jobId: string) => {
-    const response = await apiClient.get(`/api/v1/federation/jobs/${jobId}`);
+    const response = await apiClient.get(`/federation/jobs/${jobId}`);
     return response.data as CrossClusterJob;
   },
 
   listJobs: async (params?: { status?: string }) => {
-    const response = await apiClient.get('/api/v1/federation/jobs', { params });
+    const response = await apiClient.get('/federation/jobs', { params });
     return response.data as CrossClusterJob[];
   },
 
@@ -86,12 +86,12 @@ export const federationApi = {
     targetClusters: string[];
     spec: Record<string, unknown>;
   }) => {
-    const response = await apiClient.post('/api/v1/federation/jobs', data);
+    const response = await apiClient.post('/federation/jobs', data);
     return response.data as CrossClusterJob;
   },
 
   listResourcePools: async (params?: { clusterId?: string }) => {
-    const response = await apiClient.get('/api/v1/federation/resource-pools', { params });
+    const response = await apiClient.get('/federation/resource-pools', { params });
     return response.data as ResourcePool[];
   },
 
@@ -101,8 +101,28 @@ export const federationApi = {
     cpuCores: number;
     memoryMb: number;
   }) => {
-    const response = await apiClient.post('/api/v1/federation/resource-pools', data);
+    const response = await apiClient.post('/federation/resource-pools', data);
     return response.data as ResourcePool;
+  },
+
+  deregisterCluster: async (clusterId: string) => {
+    const response = await apiClient.delete(`/federation/clusters/${clusterId}`);
+    return response.data;
+  },
+
+  updateCluster: async (clusterId: string, data: Partial<{ name: string; provider: string; region: string; endpoint: string }>) => {
+    const response = await apiClient.put(`/federation/clusters/${clusterId}`, data);
+    return response.data as FederationCluster;
+  },
+
+  deleteJob: async (jobId: string) => {
+    const response = await apiClient.delete(`/federation/jobs/${jobId}`);
+    return response.data;
+  },
+
+  deleteResourcePool: async (poolId: string) => {
+    const response = await apiClient.delete(`/federation/resource-pools/${poolId}`);
+    return response.data;
   },
 };
 

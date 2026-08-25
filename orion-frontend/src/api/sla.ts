@@ -1,7 +1,7 @@
 /**
  * SLA Management API Service
  *
- * Aligned with backend /api/v1/sla/* routes (sla-routes.ts)
+ * Aligned with backend /sla/* routes (sla-routes.ts)
  * Covers: SLA definitions CRUD, SLA tracking, breach events, statistics
  */
 import { api } from './client';
@@ -71,14 +71,14 @@ export const getSLADefinitions = async (params?: {
   offset?: number;
 }): Promise<{ data: SLADefinition[]; total: number }> => {
   const response = await api.get<{ data: SLADefinition[]; total: number }>(
-    '/api/v1/sla/definitions',
+    '/sla/definitions',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getSLADefinition = async (id: string): Promise<SLADefinition> => {
-  const response = await api.get<{ data: SLADefinition }>(`/api/v1/sla/definitions/${id}`);
+  const response = await api.get<{ data: SLADefinition }>(`/sla/definitions/${id}`);
   return response.data.data;
 };
 
@@ -93,7 +93,7 @@ export const createSLADefinition = async (data: {
   category?: string;
   escalation_rules?: Record<string, unknown>;
 }): Promise<SLADefinition> => {
-  const response = await api.post<{ data: SLADefinition }>('/api/v1/sla/definitions', data);
+  const response = await api.post<{ data: SLADefinition }>('/sla/definitions', data);
   return response.data.data;
 };
 
@@ -101,12 +101,12 @@ export const updateSLADefinition = async (
   id: string,
   data: Partial<SLADefinition>
 ): Promise<SLADefinition> => {
-  const response = await api.put<{ data: SLADefinition }>(`/api/v1/sla/definitions/${id}`, data);
+  const response = await api.put<{ data: SLADefinition }>(`/sla/definitions/${id}`, data);
   return response.data.data;
 };
 
 export const deleteSLADefinition = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/sla/definitions/${id}`);
+  await api.delete(`/sla/definitions/${id}`);
 };
 
 // ==================== SLA Tracking ====================
@@ -118,14 +118,14 @@ export const getSLATrackings = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ data: SLATracking[]; total: number }> => {
-  const response = await api.get<{ data: SLATracking[]; total: number }>('/api/v1/sla/tracking', {
+  const response = await api.get<{ data: SLATracking[]; total: number }>('/sla/tracking', {
     params,
   });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getSLATracking = async (id: string): Promise<SLATracking> => {
-  const response = await api.get<{ data: SLATracking }>(`/api/v1/sla/tracking/${id}`);
+  const response = await api.get<{ data: SLATracking }>(`/sla/tracking/${id}`);
   return response.data.data;
 };
 
@@ -136,7 +136,7 @@ export const createSLATracking = async (data: {
   target_time: string;
   notes?: string;
 }): Promise<SLATracking> => {
-  const response = await api.post<{ data: SLATracking }>('/api/v1/sla/tracking', data);
+  const response = await api.post<{ data: SLATracking }>('/sla/tracking', data);
   return response.data.data;
 };
 
@@ -145,7 +145,7 @@ export const updateSLATrackingStatus = async (
   status: string,
   notes?: string
 ): Promise<SLATracking> => {
-  const response = await api.patch<{ data: SLATracking }>(`/api/v1/sla/tracking/${id}`, {
+  const response = await api.patch<{ data: SLATracking }>(`/sla/tracking/${id}`, {
     status,
     notes,
   });
@@ -153,7 +153,7 @@ export const updateSLATrackingStatus = async (
 };
 
 export const markSLABreach = async (id: string): Promise<SLATracking> => {
-  const response = await api.post<{ data: SLATracking }>(`/api/v1/sla/tracking/${id}/breach`);
+  const response = await api.post<{ data: SLATracking }>(`/sla/tracking/${id}/breach`);
   return response.data.data;
 };
 
@@ -165,7 +165,7 @@ export const getSLABreaches = async (params?: {
   offset?: number;
 }): Promise<{ data: SLABreachEvent[]; total: number }> => {
   const response = await api.get<{ data: SLABreachEvent[]; total: number }>(
-    '/api/v1/sla/breaches',
+    '/sla/breaches',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
@@ -174,6 +174,6 @@ export const getSLABreaches = async (params?: {
 // ==================== Statistics ====================
 
 export const getSLAStats = async (): Promise<SLAStats> => {
-  const response = await api.get<{ data: SLAStats }>('/api/v1/sla/stats');
+  const response = await api.get<{ data: SLAStats }>('/sla/stats');
   return response.data.data;
 };

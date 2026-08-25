@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/canary-traffic/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCanary_trafficService struct{}
 
 func (f *fakeCanary_trafficService) AdjustWeight(ctx context.Context, id, tenantID string, canaryWeight int) (*models.CanaryTraffic, error) {
@@ -71,39 +67,6 @@ func (f *fakeCanary_trafficService) Update(ctx context.Context, id, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeCanary_trafficService)(nil)
-=======
-type fakecanary_trafficService struct{}
-
-func (f *fakecanary_trafficService) AdjustWeight(ctx context.Context, id, tenantID string, canaryWeight int) ((*models.CanaryTraffic, error)) {
-	return &models.CanaryTraffic{}, nil
-}
-
-func (f *fakecanary_trafficService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) ((*models.CanaryTraffic, error)) {
-	return &models.CanaryTraffic{}, nil
-}
-
-func (f *fakecanary_trafficService) Delete(ctx context.Context, id, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecanary_trafficService) Get(ctx context.Context, id, tenantID string) ((*models.CanaryTraffic, error)) {
-	return &models.CanaryTraffic{}, nil
-}
-
-func (f *fakecanary_trafficService) GetTrafficSplit(ctx context.Context, id, tenantID string) ((*models.TrafficSplit, error)) {
-	return &models.TrafficSplit{}, nil
-}
-
-func (f *fakecanary_trafficService) List(ctx context.Context, tenantID string) (([]models.CanaryTraffic, error)) {
-	return []models.CanaryTraffic{}, nil
-}
-
-func (f *fakecanary_trafficService) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) ((*models.CanaryTraffic, error)) {
-	return &models.CanaryTraffic{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecanary_trafficService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCANARY_TRAFFIC_Handler_RegisterRoutes(t *testing.T) {

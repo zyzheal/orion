@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/dependency-coordination/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDependency_coordinationService struct{}
 
 func (f *fakeDependency_coordinationService) Create(ctx context.Context, tenantID string, req *models.CreateDependencyCoordinationRequest) (*models.DependencyCoordination, error) {
@@ -52,31 +48,6 @@ func (f *fakeDependency_coordinationService) Update(ctx context.Context, tenantI
 }
 
 var _ service.ServiceInterface = (*fakeDependency_coordinationService)(nil)
-=======
-type fakedependency_coordinationService struct{}
-
-func (f *fakedependency_coordinationService) Create(ctx context.Context, tenantID string, req *models.CreateDependencyCoordinationRequest) ((*models.DependencyCoordination, error)) {
-	return &models.DependencyCoordination{}, nil
-}
-
-func (f *fakedependency_coordinationService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedependency_coordinationService) Get(ctx context.Context, tenantID, id string) ((*models.DependencyCoordination, error)) {
-	return &models.DependencyCoordination{}, nil
-}
-
-func (f *fakedependency_coordinationService) List(ctx context.Context, tenantID string) (([]models.DependencyCoordination, error)) {
-	return []models.DependencyCoordination{}, nil
-}
-
-func (f *fakedependency_coordinationService) Update(ctx context.Context, tenantID, id string, req *models.UpdateDependencyCoordinationRequest) ((*models.DependencyCoordination, error)) {
-	return &models.DependencyCoordination{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedependency_coordinationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DEPENDENCY_COO_RegisterRoutes(t *testing.T) {

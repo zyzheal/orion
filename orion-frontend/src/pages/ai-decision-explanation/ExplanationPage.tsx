@@ -378,6 +378,7 @@ const ExplanationHistoryTab: React.FC = () => {
       const res = await getExplanationById(id);
       setDetail(res.data || null);
     } catch {
+      message.error('加载解释详情失败');
       setDetail(null);
     } finally {
       setDetailLoading(false);
@@ -397,6 +398,7 @@ const ExplanationHistoryTab: React.FC = () => {
         message.info('未找到该解释');
       }
     } catch {
+      message.error('搜索解释失败');
       setDetail(null);
     } finally {
       setDetailLoading(false);

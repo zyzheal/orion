@@ -1,7 +1,7 @@
 /**
  * Incident Management API Service
  *
- * Aligned with backend /api/v1/incidents/* routes (incident-routes.ts)
+ * Aligned with backend /incidents/* routes (incident-routes.ts)
  * Covers: incident CRUD, lifecycle, timeline, postmortem, escalation, SLA, statistics
  */
 import { api } from './client';
@@ -107,7 +107,7 @@ export const getIncidents = async (params?: {
   offset?: number;
 }): Promise<{ incidents: Incident[]; total: number }> => {
   const response = await api.get<{ data: Incident[]; meta?: { total: number } }>(
-    '/api/v1/incidents',
+    '/incidents',
     { params }
   );
   return {
@@ -117,7 +117,7 @@ export const getIncidents = async (params?: {
 };
 
 export const getIncident = async (id: string): Promise<Incident> => {
-  const response = await api.get<{ data: Incident }>(`/api/v1/incidents/${id}`);
+  const response = await api.get<{ data: Incident }>(`/incidents/${id}`);
   return response.data.data;
 };
 
@@ -133,17 +133,17 @@ export const createIncident = async (data: {
   affected_services?: string[];
   tags?: string[];
 }): Promise<Incident> => {
-  const response = await api.post<{ data: Incident }>('/api/v1/incidents', data);
+  const response = await api.post<{ data: Incident }>('/incidents', data);
   return response.data.data;
 };
 
 export const updateIncident = async (id: string, data: Partial<Incident>): Promise<Incident> => {
-  const response = await api.put<{ data: Incident }>(`/api/v1/incidents/${id}`, data);
+  const response = await api.put<{ data: Incident }>(`/incidents/${id}`, data);
   return response.data.data;
 };
 
 export const deleteIncident = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/incidents/${id}`);
+  await api.delete(`/incidents/${id}`);
 };
 
 // ==================== Status & Assignment ====================
@@ -153,7 +153,7 @@ export const updateIncidentStatus = async (
   status: string,
   note?: string
 ): Promise<Incident> => {
-  const response = await api.patch<{ data: Incident }>(`/api/v1/incidents/${id}/status`, {
+  const response = await api.patch<{ data: Incident }>(`/incidents/${id}/status`, {
     status,
     note,
   });
@@ -161,7 +161,7 @@ export const updateIncidentStatus = async (
 };
 
 export const assignIncident = async (id: string, commanderId: string): Promise<Incident> => {
-  const response = await api.patch<{ data: Incident }>(`/api/v1/incidents/${id}/assign`, {
+  const response = await api.patch<{ data: Incident }>(`/incidents/${id}/assign`, {
     commander_id: commanderId,
   });
   return response.data.data;
@@ -177,7 +177,7 @@ export const escalateIncident = async (
   }
 ): Promise<EscalationRecord> => {
   const response = await api.post<{ data: EscalationRecord }>(
-    `/api/v1/incidents/${id}/escalate`,
+    `/incidents/${id}/escalate`,
     data
   );
   return response.data.data;
@@ -185,7 +185,7 @@ export const escalateIncident = async (
 
 export const getEscalations = async (id: string): Promise<EscalationRecord[]> => {
   const response = await api.get<{ data: EscalationRecord[] }>(
-    `/api/v1/incidents/${id}/escalations`
+    `/incidents/${id}/escalations`
   );
   return response.data.data;
 };
@@ -193,7 +193,7 @@ export const getEscalations = async (id: string): Promise<EscalationRecord[]> =>
 // ==================== Timeline ====================
 
 export const getIncidentTimeline = async (id: string): Promise<TimelineEvent[]> => {
-  const response = await api.get<{ data: TimelineEvent[] }>(`/api/v1/incidents/${id}/timeline`);
+  const response = await api.get<{ data: TimelineEvent[] }>(`/incidents/${id}/timeline`);
   return response.data.data;
 };
 
@@ -206,7 +206,7 @@ export const addTimelineEvent = async (
   }
 ): Promise<TimelineEvent> => {
   const response = await api.post<{ data: TimelineEvent }>(
-    `/api/v1/incidents/${id}/timeline`,
+    `/incidents/${id}/timeline`,
     data
   );
   return response.data.data;
@@ -215,7 +215,7 @@ export const addTimelineEvent = async (
 // ==================== Postmortem ====================
 
 export const getPostmortem = async (id: string): Promise<Postmortem> => {
-  const response = await api.get<{ data: Postmortem }>(`/api/v1/incidents/${id}/postmortem`);
+  const response = await api.get<{ data: Postmortem }>(`/incidents/${id}/postmortem`);
   return response.data.data;
 };
 
@@ -231,20 +231,20 @@ export const createPostmortem = async (
     lessons_learned?: string;
   }
 ): Promise<Postmortem> => {
-  const response = await api.post<{ data: Postmortem }>(`/api/v1/incidents/${id}/postmortem`, data);
+  const response = await api.post<{ data: Postmortem }>(`/incidents/${id}/postmortem`, data);
   return response.data.data;
 };
 
 export const publishPostmortem = async (id: string): Promise<Postmortem> => {
   const response = await api.patch<{ data: Postmortem }>(
-    `/api/v1/incidents/${id}/postmortem/publish`
+    `/incidents/${id}/postmortem/publish`
   );
   return response.data.data;
 };
 
 export const getPostmortemDraft = async (id: string): Promise<PostmortemDraft> => {
   const response = await api.get<{ data: PostmortemDraft }>(
-    `/api/v1/incidents/${id}/postmortem/draft`
+    `/incidents/${id}/postmortem/draft`
   );
   return response.data.data;
 };
@@ -252,6 +252,6 @@ export const getPostmortemDraft = async (id: string): Promise<PostmortemDraft> =
 // ==================== Statistics ====================
 
 export const getIncidentStats = async (): Promise<IncidentStats> => {
-  const response = await api.get<{ data: IncidentStats }>('/api/v1/incidents/stats');
+  const response = await api.get<{ data: IncidentStats }>('/incidents/stats');
   return response.data.data;
 };

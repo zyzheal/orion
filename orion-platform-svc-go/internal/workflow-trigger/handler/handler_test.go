@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/workflow-trigger/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeWorkflow_triggerService struct{}
 
 func (f *fakeWorkflow_triggerService) Create(ctx context.Context, tenantID string, req *models.CreateWorkflowTriggerRequest) (*models.WorkflowTrigger, error) {
@@ -60,39 +56,6 @@ func (f *fakeWorkflow_triggerService) Update(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeWorkflow_triggerService)(nil)
-=======
-type fakeworkflow_triggerService struct{}
-
-func (f *fakeworkflow_triggerService) Create(ctx context.Context, tenantID string, req *models.CreateWorkflowTriggerRequest) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-func (f *fakeworkflow_triggerService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeworkflow_triggerService) GetByID(ctx context.Context, tenantID, id string) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-func (f *fakeworkflow_triggerService) List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) (([]models.WorkflowTrigger, int, error)) {
-	return []models.WorkflowTrigger{}, 0, nil
-}
-
-func (f *fakeworkflow_triggerService) SetEnabled(ctx context.Context, tenantID, id string, enabled bool) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-func (f *fakeworkflow_triggerService) Trigger(ctx context.Context, tenantID, id string, payload map[string]any) (error) {
-	return nil
-}
-
-func (f *fakeworkflow_triggerService) Update(ctx context.Context, tenantID, id string, req *models.UpdateWorkflowTriggerRequest) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeworkflow_triggerService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_WORKFLOW_TRIGG_RegisterRoutes(t *testing.T) {

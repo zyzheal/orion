@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/pipeline-version/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePipeline_versionService struct{}
 
 func (f *fakePipeline_versionService) AddTag(ctx context.Context, versionID string, tenantID string, tag string) (*models.PipelineVersion, error) {
@@ -68,47 +64,6 @@ func (f *fakePipeline_versionService) SetBaseline(ctx context.Context, versionID
 }
 
 var _ service.ServiceInterface = (*fakePipeline_versionService)(nil)
-=======
-type fakepipeline_versionService struct{}
-
-func (f *fakepipeline_versionService) AddTag(ctx context.Context, versionID string, tenantID string, tag string) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-func (f *fakepipeline_versionService) CreateVersion(ctx context.Context, pipelineID string, tenantID string, req *models.CreateVersionRequest) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-func (f *fakepipeline_versionService) DiffVersions(ctx context.Context, fromID string, toID string, tenantID string) ((*models.DiffResult, error)) {
-	return &models.DiffResult{}, nil
-}
-
-func (f *fakepipeline_versionService) GetVersion(ctx context.Context, id string, tenantID string) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-func (f *fakepipeline_versionService) GetVersionByPipelineAndVersion(ctx context.Context, pipelineID string, version string, tenantID string) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-func (f *fakepipeline_versionService) ListVersionsByPipeline(ctx context.Context, pipelineID string, tenantID string) (([]models.PipelineVersion, int, error)) {
-	return []models.PipelineVersion{}, 0, nil
-}
-
-func (f *fakepipeline_versionService) RemoveTag(ctx context.Context, versionID string, tenantID string, tag string) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-func (f *fakepipeline_versionService) Rollback(ctx context.Context, versionID string, tenantID string) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-func (f *fakepipeline_versionService) SetBaseline(ctx context.Context, versionID string, tenantID string, set bool) ((*models.PipelineVersion, error)) {
-	return &models.PipelineVersion{}, nil
-}
-
-var _ service.ServiceInterface = (*fakepipeline_versionService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PIPELINE_VERSI_RegisterRoutes(t *testing.T) {

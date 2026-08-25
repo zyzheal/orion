@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/backup/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeBackupService struct{}
 
 func (f *fakeBackupService) CreatePlan(ctx context.Context, req *models.CreateBackupPlanRequest, tenantID string) (*models.BackupPlan, error) {
@@ -103,71 +99,6 @@ func (f *fakeBackupService) VerifyBackup(ctx context.Context, backupID string, t
 }
 
 var _ service.ServiceInterface = (*fakeBackupService)(nil)
-=======
-type fakebackupService struct{}
-
-func (f *fakebackupService) CreatePlan(ctx context.Context, req *models.CreateBackupPlanRequest, tenantID string) ((*models.BackupPlan, error)) {
-	return &models.BackupPlan{}, nil
-}
-
-func (f *fakebackupService) CreateRecoveryPlan(ctx context.Context, req *models.CreateRecoveryPlanRequest, tenantID string) ((*models.RecoveryPlan, error)) {
-	return &models.RecoveryPlan{}, nil
-}
-
-func (f *fakebackupService) DeletePlan(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakebackupService) DeleteRecoveryPlan(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakebackupService) GetBackup(ctx context.Context, id string, tenantID string) ((*models.BackupJob, error)) {
-	return &models.BackupJob{}, nil
-}
-
-func (f *fakebackupService) GetPlan(ctx context.Context, id string, tenantID string) ((*models.BackupPlan, error)) {
-	return &models.BackupPlan{}, nil
-}
-
-func (f *fakebackupService) GetRecoveryPlan(ctx context.Context, id string, tenantID string) ((*models.RecoveryPlan, error)) {
-	return &models.RecoveryPlan{}, nil
-}
-
-func (f *fakebackupService) InitiateRestore(ctx context.Context, planID string, tenantID string) ((*models.Restore, error)) {
-	return &models.Restore{}, nil
-}
-
-func (f *fakebackupService) ListBackups(ctx context.Context, tenantID string, status *string) (([]models.BackupJob, int, error)) {
-	return []models.BackupJob{}, 0, nil
-}
-
-func (f *fakebackupService) ListPlans(ctx context.Context, tenantID string) (([]models.BackupPlan, int, error)) {
-	return []models.BackupPlan{}, 0, nil
-}
-
-func (f *fakebackupService) ListRecoveryPlans(ctx context.Context, tenantID string) (([]models.RecoveryPlan, int, error)) {
-	return []models.RecoveryPlan{}, 0, nil
-}
-
-func (f *fakebackupService) TriggerBackup(ctx context.Context, planID string, tenantID string) ((*models.BackupJob, error)) {
-	return &models.BackupJob{}, nil
-}
-
-func (f *fakebackupService) UpdatePlan(ctx context.Context, id string, req *models.UpdateBackupPlanRequest, tenantID string) ((*models.BackupPlan, error)) {
-	return &models.BackupPlan{}, nil
-}
-
-func (f *fakebackupService) UpdateRecoveryPlan(ctx context.Context, id string, req *models.UpdateRecoveryPlanRequest, tenantID string) ((*models.RecoveryPlan, error)) {
-	return &models.RecoveryPlan{}, nil
-}
-
-func (f *fakebackupService) VerifyBackup(ctx context.Context, backupID string, tenantID string) ((*models.BackupJob, error)) {
-	return &models.BackupJob{}, nil
-}
-
-var _ service.ServiceInterface = (*fakebackupService)(nil)
->>>>>>> Stashed changes
 
 
 func TestBACKUP_Handler_RegisterRoutes(t *testing.T) {

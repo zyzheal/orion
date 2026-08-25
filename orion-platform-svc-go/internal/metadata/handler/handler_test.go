@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/metadata/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string) (error) {
@@ -64,43 +60,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakemetadataService struct{}
-
-func (f *fakemetadataService) BatchCreate(ctx context.Context, tenantID string) (error) {
-	return nil
-}
-
-func (f *fakemetadataService) Create(ctx context.Context, tenantID string, req models.CreateRequest) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *fakemetadataService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakemetadataService) Get(ctx context.Context, tenantID, id string) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *fakemetadataService) GetStats(ctx context.Context, tenantID string) ((gin.H, error)) {
-	return gin.H{}, nil
-}
-
-func (f *fakemetadataService) List(ctx context.Context, tenantID string) (([]models.Record, error)) {
-	return []models.Record{}, nil
-}
-
-func (f *fakemetadataService) Search(ctx context.Context, tenantID string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakemetadataService) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemetadataService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_METADATA_RegisterRoutes(t *testing.T) {

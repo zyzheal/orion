@@ -96,6 +96,7 @@ const IMNotificationsTab: React.FC = () => {
   const [error, setError] = useState<Error | null>(null);
   const [rules, setRules] = useState<IMNotificationRule[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [editingRule, setEditingRule] = useState<IMNotificationRule | null>(null);
   const [form] = Form.useForm();
 
@@ -142,6 +143,7 @@ const IMNotificationsTab: React.FC = () => {
 
   /** Handle form submission (create or update) */
   const handleSubmit = async (values: IMNotificationRuleInput) => {
+    setSubmitting(true);
     try {
       if (editingRule) {
         await updateIMNotificationRule(editingRule.id, values);
@@ -156,6 +158,8 @@ const IMNotificationsTab: React.FC = () => {
       loadRules();
     } catch (err) {
       message.error(editingRule ? '更新失败' : '创建失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -338,6 +342,9 @@ const IMNotificationsTab: React.FC = () => {
           setEditingRule(null);
         }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText={editingRule ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>

@@ -1,7 +1,7 @@
 /**
  * Plugin API Service
  * Auto-generated from backend plugin-routes.ts
- * Prefix: /api/v1/plugins
+ * Prefix: /plugins
  */
 import { api } from './client';
 
@@ -18,14 +18,14 @@ export interface Plugin {
 export const listPlugin = async (
   params?: Record<string, unknown>
 ): Promise<{ data: Plugin[]; total: number }> => {
-  const response = await api.get<{ data: Plugin[]; total: number }>('/api/v1/plugins/healthz', {
+  const response = await api.get<{ data: Plugin[]; total: number }>('/plugins/healthz', {
     params,
   });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getPlugin = async (pluginId: string): Promise<Plugin> => {
-  const response = await api.get<Plugin>('/api/v1/plugins/' + pluginId);
+  const response = await api.get<Plugin>('/plugins/' + pluginId);
   return response.data;
 };
 
@@ -33,7 +33,7 @@ export const createPluginInstall = async (
   pluginId: string,
   data?: Partial<Plugin>
 ): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/' + pluginId + '/install', data);
+  const response = await api.post<Plugin>('/plugins/' + pluginId + '/install', data);
   return response.data;
 };
 
@@ -41,7 +41,7 @@ export const createPluginEnable = async (
   pluginId: string,
   data?: Partial<Plugin>
 ): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/' + pluginId + '/enable', data);
+  const response = await api.post<Plugin>('/plugins/' + pluginId + '/enable', data);
   return response.data;
 };
 
@@ -49,19 +49,19 @@ export const createPluginDisable = async (
   pluginId: string,
   data?: Partial<Plugin>
 ): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/' + pluginId + '/disable', data);
+  const response = await api.post<Plugin>('/plugins/' + pluginId + '/disable', data);
   return response.data;
 };
 
 export const deletePlugin = async (pluginId: string): Promise<void> => {
-  await api.delete('/api/v1/plugins/' + pluginId);
+  await api.delete('/plugins/' + pluginId);
 };
 
 export const createPluginDebugPause = async (
   runId: string,
   data?: Partial<Plugin>
 ): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/' + runId + '/debug/pause', data);
+  const response = await api.post<Plugin>('/plugins/' + runId + '/debug/pause', data);
   return response.data;
 };
 
@@ -69,7 +69,7 @@ export const createPluginDebugResume = async (
   runId: string,
   data?: Partial<Plugin>
 ): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/' + runId + '/debug/resume', data);
+  const response = await api.post<Plugin>('/plugins/' + runId + '/debug/resume', data);
   return response.data;
 };
 
@@ -77,11 +77,11 @@ export const createPluginDebugStep = async (
   runId: string,
   data?: Partial<Plugin>
 ): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/' + runId + '/debug/step', data);
+  const response = await api.post<Plugin>('/plugins/' + runId + '/debug/step', data);
   return response.data;
 };
 
 export const createPluginAiDiagnose = async (data?: Partial<Plugin>): Promise<Plugin> => {
-  const response = await api.post<Plugin>('/api/v1/plugins/ai-diagnose', data);
+  const response = await api.post<Plugin>('/plugins/ai-diagnose', data);
   return response.data;
 };

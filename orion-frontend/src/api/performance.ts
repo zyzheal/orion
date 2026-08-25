@@ -64,12 +64,12 @@ export const performanceApi = {
     environment: string;
     metrics: Record<string, number>;
   }) => {
-    const response = await apiClient.post('/api/v1/performance/baselines', data);
+    const response = await apiClient.post('/performance/baselines', data);
     return response.data as PerformanceBaseline;
   },
 
   listBaselines: async (params?: { serviceName?: string; environment?: string }) => {
-    const response = await apiClient.get('/api/v1/performance/baselines', { params });
+    const response = await apiClient.get('/performance/baselines', { params });
     return response.data as PerformanceBaseline[];
   },
 
@@ -78,22 +78,22 @@ export const performanceApi = {
     baselineId: string;
     metrics: Record<string, number>;
   }) => {
-    const response = await apiClient.post('/api/v1/performance/evaluate', data);
+    const response = await apiClient.post('/performance/evaluate', data);
     return response.data as EvaluationResult;
   },
 
   profileService: async (serviceName: string) => {
-    const response = await apiClient.get(`/api/v1/performance/profile/${serviceName}`);
+    const response = await apiClient.get(`/performance/profile/${serviceName}`);
     return response.data as ServiceProfile;
   },
 
   getBottlenecks: async (params?: { serviceName?: string; severity?: string }) => {
-    const response = await apiClient.get('/api/v1/performance/bottlenecks', { params });
+    const response = await apiClient.get('/performance/bottlenecks', { params });
     return response.data as Bottleneck[];
   },
 
   getSuggestions: async (params?: { serviceName?: string }) => {
-    const response = await apiClient.get('/api/v1/performance/suggestions', { params });
+    const response = await apiClient.get('/performance/suggestions', { params });
     return response.data as PerformanceSuggestion[];
   },
 };

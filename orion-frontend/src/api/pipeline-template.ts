@@ -1,7 +1,7 @@
 /**
  * PipelineTemplate API Service
  * Auto-generated from backend pipeline-template-routes.ts
- * Prefix: /api/v1/pipeline-templates
+ * Prefix: /pipeline-templates
  */
 import { api } from './client';
 
@@ -19,21 +19,21 @@ export const listPipelineTemplate = async (
   params?: Record<string, unknown>
 ): Promise<{ data: PipelineTemplate[]; total: number }> => {
   const response = await api.get<{ data: PipelineTemplate[]; total: number }>(
-    '/api/v1/pipeline-templates/',
+    '/pipeline-templates/',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getPipelineTemplate = async (templateId: string): Promise<PipelineTemplate> => {
-  const response = await api.get<PipelineTemplate>('/api/v1/pipeline-templates/' + templateId);
+  const response = await api.get<PipelineTemplate>('/pipeline-templates/' + templateId);
   return response.data;
 };
 
 export const createPipelineTemplate = async (
   data?: Partial<PipelineTemplate>
 ): Promise<PipelineTemplate> => {
-  const response = await api.post<PipelineTemplate>('/api/v1/pipeline-templates/', data);
+  const response = await api.post<PipelineTemplate>('/pipeline-templates/', data);
   return response.data;
 };
 
@@ -42,14 +42,14 @@ export const updatePipelineTemplate = async (
   data: Partial<PipelineTemplate>
 ): Promise<PipelineTemplate> => {
   const response = await api.put<PipelineTemplate>(
-    '/api/v1/pipeline-templates/' + templateId,
+    '/pipeline-templates/' + templateId,
     data
   );
   return response.data;
 };
 
 export const deletePipelineTemplate = async (templateId: string): Promise<void> => {
-  await api.delete('/api/v1/pipeline-templates/' + templateId);
+  await api.delete('/pipeline-templates/' + templateId);
 };
 
 export const createPipelineTemplateInstantiate = async (
@@ -57,7 +57,7 @@ export const createPipelineTemplateInstantiate = async (
   data?: Partial<PipelineTemplate>
 ): Promise<PipelineTemplate> => {
   const response = await api.post<PipelineTemplate>(
-    '/api/v1/pipeline-templates/' + templateId + '/instantiate',
+    '/pipeline-templates/' + templateId + '/instantiate',
     data
   );
   return response.data;

@@ -4,7 +4,7 @@
  * 左侧文档分类树 + 右侧文档列表 + 详情 + 同步面板
  */
 import React, { useState, useEffect } from 'react';
-import { Card, Typography } from 'antd';
+import { Card, Typography, message } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import DocTree from './DocTree';
 import DocList from './DocList';
@@ -31,7 +31,8 @@ const DocumentCenter: React.FC = () => {
       const res = await getDocs();
       setDocs(Array.isArray(res) ? res : []);
     } catch {
-      // API may not be fully ready
+      message.error('加载文档列表失败');
+      setDocs([]);
     } finally {
       setLoading(false);
     }

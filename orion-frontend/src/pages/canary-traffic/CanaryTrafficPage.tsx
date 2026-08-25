@@ -28,6 +28,8 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   RocketOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   getCanaryRuns,
@@ -35,6 +37,8 @@ import {
   triggerCanaryAnalysis,
   forcePromote,
   forceRollback,
+  updateCanaryConfig,
+  deleteCanaryConfig,
   type CanaryAnalysisRun,
   type CanaryAnalysisConfig,
 } from '@/api/canary-analysis';
@@ -46,7 +50,10 @@ const CanaryTrafficPage: React.FC = () => {
   const [configs, setConfigs] = useState<CanaryAnalysisConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editConfigModalOpen, setEditConfigModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<CanaryAnalysisConfig | null>(null);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -85,23 +92,91 @@ const CanaryTrafficPage: React.FC = () => {
   };
 
   const handlePromote = async (runId: string) => {
-    try {
-      await forcePromote({ runId, reason: 'Manual promote' });
-      message.success('Canary promoted');
-      loadData();
-    } catch {
-      message.error('Failed to promote');
-    }
+    Modal.confirm({
+      title: '确认提升金丝雀发布？',
+      content: '将提升当前金丝雀分析到生产环境，此操作将影响线上流量。',
+      okText: '确认提升',
+      cancelText: '取消',
+      okButtonProps: { type: 'primary' },
+      onOk: async () => {
+        try {
+          await forcePromote({ runId, reason: 'Manual promote' });
+          message.success('金丝雀发布已提升');
+          loadData();
+        } catch {
+          message.error('提升失败');
+        }
+      },
+    });
   };
 
   const handleRollback = async (runId: string) => {
+    Modal.confirm({
+      title: '确认回滚金丝雀发布？',
+      content: '将回滚当前金丝雀分析到稳定版本，流量将恢复到基线。',
+      okText: '确认回滚',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await forceRollback({ runId, reason: 'Manual rollback' });
+          message.success('金丝雀发布已回滚');
+          loadData();
+        } catch {
+          message.error('回滚失败');
+        }
+      },
+    });
+  };
+
+  const handleEditConfig = (config: CanaryAnalysisConfig) => {
+    setEditingConfig(config);
+    editForm.setFieldsValue({
+      serviceName: config.serviceName,
+      environment: config.environment,
+      analysisIntervalSec: config.analysisIntervalSec,
+      maxRounds: config.maxRounds,
+      promoteThreshold: config.promoteThreshold,
+    });
+    setEditConfigModalOpen(true);
+  };
+
+  const handleEditConfigSubmit = async (values: any) => {
+    if (!editingConfig) return;
     try {
-      await forceRollback({ runId, reason: 'Manual rollback' });
-      message.success('Canary rolled back');
+      await updateCanaryConfig(editingConfig.id, {
+        serviceName: values.serviceName,
+        environment: values.environment,
+        analysisIntervalSec: values.analysisIntervalSec,
+        maxRounds: values.maxRounds,
+        promoteThreshold: values.promoteThreshold,
+      });
+      message.success('配置已更新');
+      setEditConfigModalOpen(false);
+      setEditingConfig(null);
       loadData();
     } catch {
-      message.error('Failed to rollback');
+      message.error('更新失败');
     }
+  };
+
+  const handleDeleteConfig = (config: CanaryAnalysisConfig) => {
+    Modal.confirm({
+      title: '确认删除分析配置？',
+      content: `确定要删除服务 "${config.serviceName}" 的分析配置吗？此操作不可撤销。`,
+      okText: '确认删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteCanaryConfig(config.id);
+          message.success('配置已删除');
+          loadData();
+        } catch {
+          message.error('删除失败');
+        }
+      },
+    });
   };
 
   const statusColor: Record<string, string> = {
@@ -152,7 +227,7 @@ const CanaryTrafficPage: React.FC = () => {
                 icon={<ArrowUpOutlined />}
                 onClick={() => handlePromote(record.id)}
               >
-                Promote
+                提升
               </Button>
               <Button
                 size="small"
@@ -160,7 +235,7 @@ const CanaryTrafficPage: React.FC = () => {
                 icon={<ArrowDownOutlined />}
                 onClick={() => handleRollback(record.id)}
               >
-                Rollback
+                回滚
               </Button>
             </>
           )}
@@ -181,6 +256,29 @@ const CanaryTrafficPage: React.FC = () => {
       render: (v: number) => `${(v * 100).toFixed(0)}%`,
     },
     { title: 'Updated', dataIndex: 'updatedAt', key: 'updatedAt' },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: any, record: CanaryAnalysisConfig) => (
+        <Space>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditConfig(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteConfig(record)}
+          >
+            删除
+          </Button>
+        </Space>
+      ),
+    },
   ];
 
   const runningCount = runs.filter((r) => r.status === 'running').length;
@@ -267,6 +365,36 @@ const CanaryTrafficPage: React.FC = () => {
           </Form.Item>
           <Form.Item label="Round Number" name="roundNumber" initialValue={1}>
             <Input type="number" min={1} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Config Modal */}
+      <Modal
+        title="编辑分析配置"
+        open={editConfigModalOpen}
+        onCancel={() => {
+          setEditConfigModalOpen(false);
+          setEditingConfig(null);
+        }}
+        onOk={() => editForm.submit()}
+        width={500}
+      >
+        <Form form={editForm} layout="vertical" onFinish={handleEditConfigSubmit}>
+          <Form.Item label="服务名" name="serviceName" rules={[{ required: true }]}>
+            <Input placeholder="服务名" />
+          </Form.Item>
+          <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
+            <Input placeholder="环境" />
+          </Form.Item>
+          <Form.Item label="分析间隔（秒）" name="analysisIntervalSec" rules={[{ required: true }]}>
+            <Input type="number" min={1} />
+          </Form.Item>
+          <Form.Item label="最大轮数" name="maxRounds" rules={[{ required: true }]}>
+            <Input type="number" min={1} />
+          </Form.Item>
+          <Form.Item label="提升阈值" name="promoteThreshold" rules={[{ required: true }]}>
+            <Input type="number" min={0} max={1} step={0.01} />
           </Form.Item>
         </Form>
       </Modal>

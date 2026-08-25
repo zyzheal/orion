@@ -47,6 +47,7 @@ const ComponentRegistryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<ComponentRegistry | null>(null);
   const [form] = Form.useForm();
@@ -57,6 +58,7 @@ const ComponentRegistryPage: React.FC = () => {
       const data = await listComponents(category || undefined);
       setComponents(Array.isArray(data) ? data : []);
     } catch {
+      message.error('加载组件列表失败');
       setComponents([]);
     } finally {
       setLoading(false);
@@ -68,6 +70,7 @@ const ComponentRegistryPage: React.FC = () => {
   }, [loadComponents]);
 
   const handleCreate = async (values: any) => {
+    setSubmitting(true);
     try {
       const propsSchema =
         typeof values.propsSchema === 'string'
@@ -92,6 +95,8 @@ const ComponentRegistryPage: React.FC = () => {
       loadComponents();
     } catch {
       message.error('注册失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -267,6 +272,9 @@ const ComponentRegistryPage: React.FC = () => {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText="注册"
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>

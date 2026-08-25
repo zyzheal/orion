@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/tenant-gateway/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeTenant_gatewayService struct{}
 
 func (f *fakeTenant_gatewayService) Activate(ctx context.Context, tenantID, id string) (*models.Tenant, error) {
@@ -68,47 +64,6 @@ func (f *fakeTenant_gatewayService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeTenant_gatewayService)(nil)
-=======
-type faketenant_gatewayService struct{}
-
-func (f *faketenant_gatewayService) Activate(ctx context.Context, tenantID, id string) ((*models.Tenant, error)) {
-	return &models.Tenant{}, nil
-}
-
-func (f *faketenant_gatewayService) AdjustQuota(ctx context.Context, tenantID, id string, req models.QuotaAdjustmentRequest) ((*models.Tenant, error)) {
-	return &models.Tenant{}, nil
-}
-
-func (f *faketenant_gatewayService) Create(ctx context.Context, tenantID string, req models.CreateTenantRequest) ((*models.Tenant, error)) {
-	return &models.Tenant{}, nil
-}
-
-func (f *faketenant_gatewayService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *faketenant_gatewayService) Get(ctx context.Context, tenantID, id string) ((*models.Tenant, error)) {
-	return &models.Tenant{}, nil
-}
-
-func (f *faketenant_gatewayService) GetQuotaStatus(ctx context.Context, tenantID, id string) ((*models.QuotaStatusResponse, error)) {
-	return &models.QuotaStatusResponse{}, nil
-}
-
-func (f *faketenant_gatewayService) List(ctx context.Context, tenantID string, q models.ListQuery) ((*models.TenantListResponse, error)) {
-	return &models.TenantListResponse{}, nil
-}
-
-func (f *faketenant_gatewayService) Suspend(ctx context.Context, tenantID, id string) ((*models.Tenant, error)) {
-	return &models.Tenant{}, nil
-}
-
-func (f *faketenant_gatewayService) Update(ctx context.Context, tenantID, id string, req models.UpdateTenantRequest) ((*models.Tenant, error)) {
-	return &models.Tenant{}, nil
-}
-
-var _ service.ServiceInterface = (*faketenant_gatewayService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TENANT_GATEWAY_RegisterRoutes(t *testing.T) {

@@ -19,6 +19,7 @@ import {
   Input,
   Select,
   message,
+  Empty,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -260,6 +261,9 @@ const AIReviewDashboard: React.FC = () => {
           loading={loading}
           pagination={{ pageSize: 10 }}
           size="small"
+          locale={{
+            emptyText: <Empty description="暂无评审记录" />,
+          }}
         />
       </Card>
 

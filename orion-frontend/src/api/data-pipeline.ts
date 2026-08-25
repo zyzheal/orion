@@ -1,20 +1,20 @@
 /**
  * Data Pipeline API Client
- * 对接后端 /api/v1/data-pipeline 路由
+ * 对接后端 /data-pipeline 路由
  *
  * 后端端点（Go data-pipeline service）:
- * - GET    /api/v1/data-pipeline          列表
- * - GET    /api/v1/data-pipeline/:id      获取单个
- * - POST   /api/v1/data-pipeline          创建
- * - PUT    /api/v1/data-pipeline/:id      更新
- * - DELETE /api/v1/data-pipeline/:id      删除
- * - POST   /api/v1/data-pipeline/:id/run  运行
- * - PUT    /api/v1/data-pipeline/:id/pause 暂停
- * - PUT    /api/v1/data-pipeline/:id/resume 恢复
- * - GET    /api/v1/data-pipeline/:id/status 状态
- * - GET    /api/v1/data-pipeline/:id/logs 日志
- * - GET    /api/v1/data-pipeline/schemas   列表模式
- * - GET    /api/v1/data-pipeline/lineage/:id 血缘
+ * - GET    /data-pipeline          列表
+ * - GET    /data-pipeline/:id      获取单个
+ * - POST   /data-pipeline          创建
+ * - PUT    /data-pipeline/:id      更新
+ * - DELETE /data-pipeline/:id      删除
+ * - POST   /data-pipeline/:id/run  运行
+ * - PUT    /data-pipeline/:id/pause 暂停
+ * - PUT    /data-pipeline/:id/resume 恢复
+ * - GET    /data-pipeline/:id/status 状态
+ * - GET    /data-pipeline/:id/logs 日志
+ * - GET    /data-pipeline/schemas   列表模式
+ * - GET    /data-pipeline/lineage/:id 血缘
  */
 import apiClient from './client';
 
@@ -73,7 +73,7 @@ export async function listDataPipelines(params?: {
   limit?: number;
   status?: string;
 }) {
-  const response = await apiClient.get('/api/v1/data-pipeline', { params });
+  const response = await apiClient.get('/data-pipeline', { params });
   // 后端返回 { data: [...], total: N }
   return response.data as { data: DataPipeline[]; total: number };
 }
@@ -82,7 +82,7 @@ export async function listDataPipelines(params?: {
  * 获取单个管道
  */
 export async function getDataPipeline(id: string) {
-  const response = await apiClient.get(`/api/v1/data-pipeline/${id}`);
+  const response = await apiClient.get(`/data-pipeline/${id}`);
   return response.data as DataPipeline;
 }
 
@@ -90,7 +90,7 @@ export async function getDataPipeline(id: string) {
  * 创建管道
  */
 export async function createDataPipeline(data: CreateDataPipelineRequest) {
-  const response = await apiClient.post('/api/v1/data-pipeline', data);
+  const response = await apiClient.post('/data-pipeline', data);
   return response.data as DataPipeline;
 }
 
@@ -98,7 +98,7 @@ export async function createDataPipeline(data: CreateDataPipelineRequest) {
  * 更新管道
  */
 export async function updateDataPipeline(id: string, data: UpdateDataPipelineRequest) {
-  const response = await apiClient.put(`/api/v1/data-pipeline/${id}`, data);
+  const response = await apiClient.put(`/data-pipeline/${id}`, data);
   return response.data as DataPipeline;
 }
 
@@ -106,7 +106,7 @@ export async function updateDataPipeline(id: string, data: UpdateDataPipelineReq
  * 删除管道
  */
 export async function deleteDataPipeline(id: string) {
-  const response = await apiClient.delete(`/api/v1/data-pipeline/${id}`);
+  const response = await apiClient.delete(`/data-pipeline/${id}`);
   return response.data;
 }
 
@@ -114,7 +114,7 @@ export async function deleteDataPipeline(id: string) {
  * 运行管道
  */
 export async function runDataPipeline(id: string) {
-  const response = await apiClient.post(`/api/v1/data-pipeline/${id}/run`);
+  const response = await apiClient.post(`/data-pipeline/${id}/run`);
   return response.data;
 }
 
@@ -122,7 +122,7 @@ export async function runDataPipeline(id: string) {
  * 暂停管道
  */
 export async function pauseDataPipeline(id: string) {
-  const response = await apiClient.put(`/api/v1/data-pipeline/${id}/pause`);
+  const response = await apiClient.put(`/data-pipeline/${id}/pause`);
   return response.data;
 }
 
@@ -130,7 +130,7 @@ export async function pauseDataPipeline(id: string) {
  * 恢复管道
  */
 export async function resumeDataPipeline(id: string) {
-  const response = await apiClient.put(`/api/v1/data-pipeline/${id}/resume`);
+  const response = await apiClient.put(`/data-pipeline/${id}/resume`);
   return response.data;
 }
 
@@ -138,7 +138,7 @@ export async function resumeDataPipeline(id: string) {
  * 获取管道状态
  */
 export async function getDataPipelineStatus(id: string) {
-  const response = await apiClient.get(`/api/v1/data-pipeline/${id}/status`);
+  const response = await apiClient.get(`/data-pipeline/${id}/status`);
   return response.data as PipelineStatus;
 }
 
@@ -146,7 +146,7 @@ export async function getDataPipelineStatus(id: string) {
  * 获取管道日志
  */
 export async function getDataPipelineLogs(id: string) {
-  const response = await apiClient.get(`/api/v1/data-pipeline/${id}/logs`);
+  const response = await apiClient.get(`/data-pipeline/${id}/logs`);
   return response.data as PipelineLogs;
 }
 
@@ -154,7 +154,7 @@ export async function getDataPipelineLogs(id: string) {
  * 获取可用 Schema 列表
  */
 export async function listDataPipelineSchemas() {
-  const response = await apiClient.get('/api/v1/data-pipeline/schemas');
+  const response = await apiClient.get('/data-pipeline/schemas');
   return response.data as PipelineSchemas;
 }
 
@@ -162,7 +162,7 @@ export async function listDataPipelineSchemas() {
  * 获取管道数据血缘
  */
 export async function getDataPipelineLineage(id: string) {
-  const response = await apiClient.get(`/api/v1/data-pipeline/lineage/${id}`);
+  const response = await apiClient.get(`/data-pipeline/lineage/${id}`);
   return response.data as PipelineLineage;
 }
 

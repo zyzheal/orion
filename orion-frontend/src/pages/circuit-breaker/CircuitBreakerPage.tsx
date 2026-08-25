@@ -128,6 +128,7 @@ const CircuitBreakerPage: React.FC = () => {
       const response = await getCircuitBreakerStats();
       setStats(response.data || null);
     } catch {
+      message.error('加载熔断器统计失败');
       setStats(null);
     }
   }, []);

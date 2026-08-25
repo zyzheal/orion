@@ -1,7 +1,7 @@
 /**
  * Deploy Enhanced API Service
  * Release management: plans, strategies, windows, approvals, records, versions, rollbacks, reports
- * Prefix: /api/v1/deploy-enhanced
+ * Prefix: /deploy-enhanced
  */
 import { api } from './client';
 
@@ -55,31 +55,31 @@ export function listPlans(params?: {
   status?: string;
   search?: string;
 }) {
-  return api.get('/api/v1/deploy-enhanced/plans', { params });
+  return api.get('/deploy-enhanced/plans', { params });
 }
 
 export function getPlan(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/plans/${id}`);
+  return api.get(`/deploy-enhanced/plans/${id}`);
 }
 
 export function createPlan(data: CreatePlanInput) {
-  return api.post('/api/v1/deploy-enhanced/plans', data);
+  return api.post('/deploy-enhanced/plans', data);
 }
 
 export function updatePlan(id: string, data: Partial<ReleasePlan>) {
-  return api.patch(`/api/v1/deploy-enhanced/plans/${id}`, data);
+  return api.patch(`/deploy-enhanced/plans/${id}`, data);
 }
 
 export function deletePlan(id: string) {
-  return api.delete(`/api/v1/deploy-enhanced/plans/${id}`);
+  return api.delete(`/deploy-enhanced/plans/${id}`);
 }
 
 export function approvePlan(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/plans/${id}/approve`);
+  return api.post(`/deploy-enhanced/plans/${id}/approve`);
 }
 
 export function cancelPlan(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/plans/${id}/cancel`);
+  return api.post(`/deploy-enhanced/plans/${id}/cancel`);
 }
 
 // ==================== Release Strategy ====================
@@ -114,27 +114,27 @@ export interface CreateStrategyInput {
 }
 
 export function listStrategies(params?: { page?: number; limit?: number; search?: string }) {
-  return api.get('/api/v1/deploy-enhanced/strategies', { params });
+  return api.get('/deploy-enhanced/strategies', { params });
 }
 
 export function getStrategy(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/strategies/${id}`);
+  return api.get(`/deploy-enhanced/strategies/${id}`);
 }
 
 export function createStrategy(data: CreateStrategyInput) {
-  return api.post('/api/v1/deploy-enhanced/strategies', data);
+  return api.post('/deploy-enhanced/strategies', data);
 }
 
 export function updateStrategy(id: string, data: Partial<ReleaseStrategy>) {
-  return api.patch(`/api/v1/deploy-enhanced/strategies/${id}`, data);
+  return api.patch(`/deploy-enhanced/strategies/${id}`, data);
 }
 
 export function deleteStrategy(id: string) {
-  return api.delete(`/api/v1/deploy-enhanced/strategies/${id}`);
+  return api.delete(`/deploy-enhanced/strategies/${id}`);
 }
 
 export function toggleStrategy(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/strategies/${id}/toggle`);
+  return api.post(`/deploy-enhanced/strategies/${id}/toggle`);
 }
 
 // ==================== Release Window ====================
@@ -170,31 +170,31 @@ export function listWindows(params?: {
   environment?: string;
   search?: string;
 }) {
-  return api.get('/api/v1/deploy-enhanced/windows', { params });
+  return api.get('/deploy-enhanced/windows', { params });
 }
 
 export function getWindow(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/windows/${id}`);
+  return api.get(`/deploy-enhanced/windows/${id}`);
 }
 
 export function createWindow(data: CreateWindowInput) {
-  return api.post('/api/v1/deploy-enhanced/windows', data);
+  return api.post('/deploy-enhanced/windows', data);
 }
 
 export function updateWindow(id: string, data: Partial<ReleaseWindow>) {
-  return api.patch(`/api/v1/deploy-enhanced/windows/${id}`, data);
+  return api.patch(`/deploy-enhanced/windows/${id}`, data);
 }
 
 export function deleteWindow(id: string) {
-  return api.delete(`/api/v1/deploy-enhanced/windows/${id}`);
+  return api.delete(`/deploy-enhanced/windows/${id}`);
 }
 
 export function toggleWindow(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/windows/${id}/toggle`);
+  return api.post(`/deploy-enhanced/windows/${id}/toggle`);
 }
 
 export function checkWindow(environment: string) {
-  return api.get(`/api/v1/deploy-enhanced/windows/check/${environment}`);
+  return api.get(`/deploy-enhanced/windows/check/${environment}`);
 }
 
 // ==================== Approval ====================
@@ -223,21 +223,21 @@ export interface ApprovalRecord {
 }
 
 export function listApprovals(params?: { page?: number; limit?: number; status?: string }) {
-  return api.get('/api/v1/deploy-enhanced/approvals', { params });
+  return api.get('/deploy-enhanced/approvals', { params });
 }
 
 export function getApproval(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/approvals/${id}`);
+  return api.get(`/deploy-enhanced/approvals/${id}`);
 }
 
 export function createApproval(planId: string, type: 'plan' | 'strategy' | 'rollback') {
-  return api.post('/api/v1/deploy-enhanced/approvals', { planId, type });
+  return api.post('/deploy-enhanced/approvals', { planId, type });
 }
 
 export function respondToApproval(id: string, approved: boolean, comment?: string) {
   const userId = localStorage.getItem('userId') || 'current-user';
   const userName = localStorage.getItem('userName') || 'Current User';
-  return api.post(`/api/v1/deploy-enhanced/approvals/${id}/respond`, {
+  return api.post(`/deploy-enhanced/approvals/${id}/respond`, {
     userId,
     userName,
     approved,
@@ -246,7 +246,7 @@ export function respondToApproval(id: string, approved: boolean, comment?: strin
 }
 
 export function cancelApproval(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/approvals/${id}/cancel`);
+  return api.post(`/deploy-enhanced/approvals/${id}/cancel`);
 }
 
 // ==================== Release Record ====================
@@ -284,11 +284,11 @@ export function listRecords(params?: {
   status?: string;
   search?: string;
 }) {
-  return api.get('/api/v1/deploy-enhanced/records', { params });
+  return api.get('/deploy-enhanced/records', { params });
 }
 
 export function getRecord(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/records/${id}`);
+  return api.get(`/deploy-enhanced/records/${id}`);
 }
 
 export function createRecord(data: {
@@ -298,15 +298,15 @@ export function createRecord(data: {
   environment: string;
   strategy: string;
 }) {
-  return api.post('/api/v1/deploy-enhanced/records', data);
+  return api.post('/deploy-enhanced/records', data);
 }
 
 export function updateRecordStatus(id: string, status: string, metrics?: ReleaseRecordMetrics) {
-  return api.patch(`/api/v1/deploy-enhanced/records/${id}/status`, { status, metrics });
+  return api.patch(`/deploy-enhanced/records/${id}/status`, { status, metrics });
 }
 
 export function cancelRecord(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/records/${id}/cancel`);
+  return api.post(`/deploy-enhanced/records/${id}/cancel`);
 }
 
 // ==================== Version ====================
@@ -343,31 +343,31 @@ export function listVersions(params?: {
   status?: string;
   search?: string;
 }) {
-  return api.get('/api/v1/deploy-enhanced/versions', { params });
+  return api.get('/deploy-enhanced/versions', { params });
 }
 
 export function getVersion(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/versions/${id}`);
+  return api.get(`/deploy-enhanced/versions/${id}`);
 }
 
 export function createVersion(data: CreateVersionInput) {
-  return api.post('/api/v1/deploy-enhanced/versions', data);
+  return api.post('/deploy-enhanced/versions', data);
 }
 
 export function updateVersion(id: string, data: Partial<VersionRecord>) {
-  return api.patch(`/api/v1/deploy-enhanced/versions/${id}`, data);
+  return api.patch(`/deploy-enhanced/versions/${id}`, data);
 }
 
 export function deleteVersion(id: string) {
-  return api.delete(`/api/v1/deploy-enhanced/versions/${id}`);
+  return api.delete(`/deploy-enhanced/versions/${id}`);
 }
 
 export function listVersionsByApp(appName: string) {
-  return api.get(`/api/v1/deploy-enhanced/versions/app/${appName}`);
+  return api.get(`/deploy-enhanced/versions/app/${appName}`);
 }
 
 export function compareVersions(id1: string, id2: string) {
-  return api.post('/api/v1/deploy-enhanced/versions/compare', { id1, id2 });
+  return api.post('/deploy-enhanced/versions/compare', { id1, id2 });
 }
 
 // ==================== Rollback ====================
@@ -395,11 +395,11 @@ export function listRollbacks(params?: {
   status?: string;
   search?: string;
 }) {
-  return api.get('/api/v1/deploy-enhanced/rollbacks', { params });
+  return api.get('/deploy-enhanced/rollbacks', { params });
 }
 
 export function getRollback(id: string) {
-  return api.get(`/api/v1/deploy-enhanced/rollbacks/${id}`);
+  return api.get(`/deploy-enhanced/rollbacks/${id}`);
 }
 
 export function createRollback(data: {
@@ -410,15 +410,15 @@ export function createRollback(data: {
   toVersion: string;
   reason: string;
 }) {
-  return api.post('/api/v1/deploy-enhanced/rollbacks', data);
+  return api.post('/deploy-enhanced/rollbacks', data);
 }
 
 export function executeRollback(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/rollbacks/${id}/execute`);
+  return api.post(`/deploy-enhanced/rollbacks/${id}/execute`);
 }
 
 export function cancelRollback(id: string) {
-  return api.post(`/api/v1/deploy-enhanced/rollbacks/${id}/cancel`);
+  return api.post(`/deploy-enhanced/rollbacks/${id}/cancel`);
 }
 
 // ==================== Reports ====================
@@ -442,9 +442,9 @@ export interface ReleaseReportMetrics {
 }
 
 export function getReportMetrics() {
-  return api.get('/api/v1/deploy-enhanced/reports/metrics');
+  return api.get('/deploy-enhanced/reports/metrics');
 }
 
 export function getMetricsSummary() {
-  return api.get('/api/v1/deploy-enhanced/reports/summary');
+  return api.get('/deploy-enhanced/reports/summary');
 }

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/pipeline-execution-control/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePipeline_execution_controlService struct{}
 
 func (f *fakePipeline_execution_controlService) Abort(ctx context.Context, runID string, req *models.AbortRequest, tenantID string) (*models.Run, error) {
@@ -60,39 +56,6 @@ func (f *fakePipeline_execution_controlService) Retry(ctx context.Context, runID
 }
 
 var _ service.ServiceInterface = (*fakePipeline_execution_controlService)(nil)
-=======
-type fakepipeline_execution_controlService struct{}
-
-func (f *fakepipeline_execution_controlService) Abort(ctx context.Context, runID string, req *models.AbortRequest, tenantID string) ((*models.Run, error)) {
-	return &models.Run{}, nil
-}
-
-func (f *fakepipeline_execution_controlService) GetCheckpoints(ctx context.Context, runID string, tenantID string) (([]models.Checkpoint, int, error)) {
-	return []models.Checkpoint{}, 0, nil
-}
-
-func (f *fakepipeline_execution_controlService) GetPauseResumeLogs(ctx context.Context, runID string, tenantID string) (([]models.ExecutionControlLog, int, error)) {
-	return []models.ExecutionControlLog{}, 0, nil
-}
-
-func (f *fakepipeline_execution_controlService) Pause(ctx context.Context, runID string, req *models.PauseRequest, tenantID string) ((*models.Run, error)) {
-	return &models.Run{}, nil
-}
-
-func (f *fakepipeline_execution_controlService) Restart(ctx context.Context, runID string, req *models.RestartRequest, tenantID string) ((*models.Run, error)) {
-	return &models.Run{}, nil
-}
-
-func (f *fakepipeline_execution_controlService) Resume(ctx context.Context, runID string, req *models.ResumeRequest, tenantID string) ((*models.Run, error)) {
-	return &models.Run{}, nil
-}
-
-func (f *fakepipeline_execution_controlService) Retry(ctx context.Context, runID string, req *models.RetryRequest, tenantID string) ((*models.Run, error)) {
-	return &models.Run{}, nil
-}
-
-var _ service.ServiceInterface = (*fakepipeline_execution_controlService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PIPELINE_EXECU_RegisterRoutes(t *testing.T) {

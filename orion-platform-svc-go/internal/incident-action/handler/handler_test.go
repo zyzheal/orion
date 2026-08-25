@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/incident-action/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeIncident_actionService struct{}
 
 func (f *fakeIncident_actionService) Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
@@ -52,31 +48,6 @@ func (f *fakeIncident_actionService) Update(ctx context.Context, tenantID, id st
 }
 
 var _ service.ServiceInterface = (*fakeIncident_actionService)(nil)
-=======
-type fakeincident_actionService struct{}
-
-func (f *fakeincident_actionService) Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) ((*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)) {
-	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
-}
-
-func (f *fakeincident_actionService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeincident_actionService) Get(ctx context.Context, tenantID, id string) ((*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)) {
-	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
-}
-
-func (f *fakeincident_actionService) List(ctx context.Context, tenantID string) (([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)) {
-	return []models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
-}
-
-func (f *fakeincident_actionService) Update(ctx context.Context, tenantID, id string, updates map[string]any) ((*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)) {
-	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeincident_actionService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_INCIDENT_ACTIO_RegisterRoutes(t *testing.T) {

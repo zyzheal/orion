@@ -5,9 +5,9 @@
  * 当前为 mock 实现，后端接口预留。
  *
  * 接口约定（后端实现时对接）：
- *   GET  /api/v1/observability/flamegraph/cpu?serviceId=&startTime=&endTime=
- *   GET  /api/v1/observability/flamegraph/memory?serviceId=&startTime=&endTime=
- *   GET  /api/v1/observability/flamegraph/io?serviceId=&startTime=&endTime=
+ *   GET  /observability/flamegraph/cpu?serviceId=&startTime=&endTime=
+ *   GET  /observability/flamegraph/memory?serviceId=&startTime=&endTime=
+ *   GET  /observability/flamegraph/io?serviceId=&startTime=&endTime=
  */
 
 import apiClient from './client';
@@ -78,7 +78,7 @@ export const getFlameGraph = async (
   }
 ) => {
   const response = await apiClient.get<FlameGraphProfile>(
-    `/api/v1/observability/flamegraph/${type}`,
+    `/observability/flamegraph/${type}`,
     { params }
   );
   return response.data;

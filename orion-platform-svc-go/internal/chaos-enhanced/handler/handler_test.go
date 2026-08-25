@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/chaos-enhanced/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) AvailableFaultTypes() ([]string) {
@@ -83,51 +79,6 @@ func (f *fakeHandlerService) StopExperiment(ctx context.Context, id string, tena
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakechaos_enhancedService struct{}
-
-func (f *fakechaos_enhancedService) AvailableFaultTypes(ctx context.Context, tenantID string) ([]string) {
-	return []string{}
-}
-
-func (f *fakechaos_enhancedService) CreateExperiment(ctx context.Context, req *models.CreateExperimentRequest, tenantID string) ((*models.Experiment, error)) {
-	return &models.Experiment{}, nil
-}
-
-func (f *fakechaos_enhancedService) FaultConfigTemplate(faultType string) (map[string]any) {
-	return map[string]any{}
-}
-
-func (f *fakechaos_enhancedService) GetExperiment(ctx context.Context, id string, tenantID string) ((*models.Experiment, error)) {
-	return &models.Experiment{}, nil
-}
-
-func (f *fakechaos_enhancedService) GetExperimentRecovery(ctx context.Context, id string, tenantID string) ((*ExperimentRecovery, error)) {
-	return &ExperimentRecovery{}, nil
-}
-
-func (f *fakechaos_enhancedService) GetExperimentStatus(ctx context.Context, id string, tenantID string) ((*ExperimentStatus, error)) {
-	return &ExperimentStatus{}, nil
-}
-
-func (f *fakechaos_enhancedService) InjectFault(ctx context.Context, experimentID string, tenantID string, faultType string, faultConfig string) ((*models.FaultInjection, error)) {
-	return &models.FaultInjection{}, nil
-}
-
-func (f *fakechaos_enhancedService) ListExperiments(ctx context.Context, tenantID string, status *string, environmentID *string) (([]models.Experiment, int, error)) {
-	return []models.Experiment{}, 0, nil
-}
-
-func (f *fakechaos_enhancedService) StartExperiment(ctx context.Context, id string, tenantID string) ((*models.Experiment, error)) {
-	return &models.Experiment{}, nil
-}
-
-func (f *fakechaos_enhancedService) StopExperiment(ctx context.Context, id string, tenantID string) ((*models.Experiment, error)) {
-	return &models.Experiment{}, nil
-}
-
-var _ service.ServiceInterface = (*fakechaos_enhancedService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCHAOS_ENHANCED_Handler_RegisterRoutes(t *testing.T) {

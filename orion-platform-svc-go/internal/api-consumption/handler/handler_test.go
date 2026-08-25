@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/api-consumption/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeApi_consumptionService struct{}
 
 func (f *fakeApi_consumptionService) CreateConsumption(ctx context.Context, tenantID string, req *models.CreateConsumptionRequest) (*models.Consumption, error) {
@@ -75,43 +71,6 @@ func (f *fakeApi_consumptionService) UpdateLimit(ctx context.Context, tenantID, 
 }
 
 var _ service.ServiceInterface = (*fakeApi_consumptionService)(nil)
-=======
-type fakeapi_consumptionService struct{}
-
-func (f *fakeapi_consumptionService) CreateConsumption(ctx context.Context, tenantID string, req *models.CreateConsumptionRequest) ((*models.Consumption, error)) {
-	return &models.Consumption{}, nil
-}
-
-func (f *fakeapi_consumptionService) CreateLimit(ctx context.Context, tenantID string, req *models.CreateLimitRequest) ((*models.Limit, error)) {
-	return &models.Limit{}, nil
-}
-
-func (f *fakeapi_consumptionService) DeleteLimit(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeapi_consumptionService) GetLimit(ctx context.Context, tenantID, id string) ((*models.Limit, error)) {
-	return &models.Limit{}, nil
-}
-
-func (f *fakeapi_consumptionService) GetStats(ctx context.Context, tenantID string) ((*models.ConsumptionStats, error)) {
-	return &models.ConsumptionStats{}, nil
-}
-
-func (f *fakeapi_consumptionService) ListConsumptions(ctx context.Context, tenantID string, filter *models.ConsumptionFilter) (([]models.Consumption, error)) {
-	return []models.Consumption{}, nil
-}
-
-func (f *fakeapi_consumptionService) ListLimits(ctx context.Context, tenantID string) (([]models.Limit, error)) {
-	return []models.Limit{}, nil
-}
-
-func (f *fakeapi_consumptionService) UpdateLimit(ctx context.Context, tenantID, id string, req *models.UpdateLimitRequest) ((*models.Limit, error)) {
-	return &models.Limit{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeapi_consumptionService)(nil)
->>>>>>> Stashed changes
 
 
 func TestAPI_CONSUMPTION_Handler_RegisterRoutes(t *testing.T) {

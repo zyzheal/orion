@@ -166,9 +166,13 @@ export default defineConfig({
     },
   },
   build: {
+    target: 'es2020',
     outDir: 'dist',
+    minify: 'esbuild',
     sourcemap: 'hidden',
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 500,
+    reportCompressedSize: true,
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -259,6 +263,11 @@ export default defineConfig({
         },
       },
     },
+  },
+  // 预构建依赖 — 加速 HMR
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@ant-design/icons', 'zustand', 'axios', 'dayjs'],
+    exclude: [],
   },
   esbuild: {
     loader: 'tsx',

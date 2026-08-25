@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/ueba/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeUebaService struct{}
 
 func (f *fakeUebaService) CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.UEBAAlert, error) {
@@ -64,43 +60,6 @@ func (f *fakeUebaService) SaveProfile(ctx context.Context, tenantID, userID, ent
 }
 
 var _ service.ServiceInterface = (*fakeUebaService)(nil)
-=======
-type fakeuebaService struct{}
-
-func (f *fakeuebaService) CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) ((*models.UEBAAlert, error)) {
-	return &models.UEBAAlert{}, nil
-}
-
-func (f *fakeuebaService) DetectAnomaly(ctx context.Context, tenantID string, req *models.DetectAnomalyRequest) ((*models.CreateAlertRequest, error)) {
-	return &models.CreateAlertRequest{}, nil
-}
-
-func (f *fakeuebaService) DismissAlert(ctx context.Context, id, tenantID string, req *models.DismissAlertRequest) (error) {
-	return nil
-}
-
-func (f *fakeuebaService) GetAlert(ctx context.Context, id, tenantID string) ((*models.UEBAAlert, error)) {
-	return &models.UEBAAlert{}, nil
-}
-
-func (f *fakeuebaService) GetProfile(ctx context.Context, tenantID, entityID string) ((*models.UEBAProfile, error)) {
-	return &models.UEBAProfile{}, nil
-}
-
-func (f *fakeuebaService) ListAlerts(ctx context.Context, tenantID string, q models.ListAlertsQuery) (([]models.UEBAAlert, error)) {
-	return []models.UEBAAlert{}, nil
-}
-
-func (f *fakeuebaService) ListProfiles(ctx context.Context, tenantID string) (([]models.UEBAProfile, error)) {
-	return []models.UEBAProfile{}, nil
-}
-
-func (f *fakeuebaService) SaveProfile(ctx context.Context, tenantID, userID, entityType, entityID, profileData string) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakeuebaService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_UEBA_RegisterRoutes(t *testing.T) {

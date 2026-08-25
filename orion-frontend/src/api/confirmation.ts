@@ -1,7 +1,7 @@
 /**
  * Confirmation API Service
  * Auto-generated from backend confirmation-routes.ts
- * Prefix: /api/v1/confirmations
+ * Prefix: /confirmations
  */
 import { api } from './client';
 
@@ -19,7 +19,7 @@ export const listConfirmation = async (
   params?: Record<string, unknown>
 ): Promise<{ data: Confirmation[]; total: number }> => {
   const response = await api.get<{ data: Confirmation[]; total: number }>(
-    '/api/v1/confirmations/',
+    '/confirmations/',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
@@ -28,24 +28,24 @@ export const listConfirmation = async (
 export const updateConfirmationSettings = async (
   data: Partial<Confirmation>
 ): Promise<Confirmation> => {
-  const response = await api.put<Confirmation>('/api/v1/confirmations/settings', data);
+  const response = await api.put<Confirmation>('/confirmations/settings', data);
   return response.data;
 };
 
 export const createConfirmation = async (data?: Partial<Confirmation>): Promise<Confirmation> => {
-  const response = await api.post<Confirmation>('/api/v1/confirmations/', data);
+  const response = await api.post<Confirmation>('/confirmations/', data);
   return response.data;
 };
 
 export const createConfirmationBatchApprove = async (
   data?: Partial<Confirmation>
 ): Promise<Confirmation> => {
-  const response = await api.post<Confirmation>('/api/v1/confirmations/batch-approve', data);
+  const response = await api.post<Confirmation>('/confirmations/batch-approve', data);
   return response.data;
 };
 
 export const getConfirmation = async (id: string): Promise<Confirmation> => {
-  const response = await api.get<Confirmation>('/api/v1/confirmations/' + id);
+  const response = await api.get<Confirmation>('/confirmations/' + id);
   return response.data;
 };
 
@@ -53,7 +53,7 @@ export const createConfirmationApprove = async (
   id: string,
   data?: Partial<Confirmation>
 ): Promise<Confirmation> => {
-  const response = await api.post<Confirmation>('/api/v1/confirmations/' + id + '/approve', data);
+  const response = await api.post<Confirmation>('/confirmations/' + id + '/approve', data);
   return response.data;
 };
 
@@ -61,6 +61,6 @@ export const createConfirmationReject = async (
   id: string,
   data?: Partial<Confirmation>
 ): Promise<Confirmation> => {
-  const response = await api.post<Confirmation>('/api/v1/confirmations/' + id + '/reject', data);
+  const response = await api.post<Confirmation>('/confirmations/' + id + '/reject', data);
   return response.data;
 };

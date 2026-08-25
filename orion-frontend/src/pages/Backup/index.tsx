@@ -39,6 +39,7 @@ import {
   FileProtectOutlined,
   SettingOutlined,
   SaveOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -50,6 +51,7 @@ import {
   createBackup,
   restoreBackup,
   deleteBackup,
+  updateBackup,
   getBackupDownloadUrl,
   type BackupRecord as APIBackupRecord,
   type BackupStats as APIBackupStats,
@@ -186,10 +188,13 @@ const BackupManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [restoreModalVisible, setRestoreModalVisible] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupRecord | null>(null);
+  const [editingBackup, setEditingBackup] = useState<BackupRecord | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createForm] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   // ---- Data Loading ----
 
@@ -305,6 +310,40 @@ const BackupManagement: React.FC = () => {
     setRestoreModalVisible(true);
   };
 
+  const openEdit = (record: BackupRecord) => {
+    setEditingBackup(record);
+    editForm.setFieldsValue({
+      name: record.name,
+      type: record.type,
+      description: record.description,
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editingBackup) return;
+    try {
+      const values = await editForm.validateFields();
+      setSubmitting(true);
+      await updateBackup(editingBackup.id, {
+        name: values.name,
+        type: values.type,
+      });
+      message.success('备份信息已更新');
+      setEditModalVisible(false);
+      editForm.resetFields();
+      setEditingBackup(null);
+      loadData();
+      loadStats();
+    } catch (error: unknown) {
+      if (!(error instanceof Error && error.name === 'ValidationError')) {
+        message.error(`更新失败：${(error as Error).message}`);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // ---- Table Columns ----
 
   const columns: TableColumn<BackupRecord>[] = useMemo<TableColumn<BackupRecord>[]>(
@@ -395,6 +434,14 @@ const BackupManagement: React.FC = () => {
         width: 200,
         render: (_: unknown, record: BackupRecord) => (
           <Space size="small" wrap>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => openEdit(record)}
+            >
+              编辑
+            </Button>
             {record.status === 'success' && (
               <Button
                 type="link"
@@ -428,7 +475,7 @@ const BackupManagement: React.FC = () => {
         ),
       },
     ],
-    [handleDelete, handleDownload, openRestore]
+    [handleDelete, handleDownload, openRestore, openEdit]
   );
 
   // ---- Filter Definitions ----
@@ -583,6 +630,41 @@ const BackupManagement: React.FC = () => {
             label="备份类型"
             rules={[{ required: true, message: '请选择备份类型' }]}
             initialValue="full"
+          >
+            <Select>
+              <Select.Option value="database">数据库备份</Select.Option>
+              <Select.Option value="config">配置备份</Select.Option>
+              <Select.Option value="full">完整备份</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={3} placeholder="备份描述（可选）..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Backup Modal */}
+      <Modal
+        title="编辑备份"
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        onOk={handleEdit}
+        confirmLoading={submitting}
+        width={520}
+        destroyOnClose
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="备份名称"
+            rules={[{ required: true, message: '请输入备份名称' }]}
+          >
+            <Input placeholder="如: manual-backup-2026-04-27" />
+          </Form.Item>
+          <Form.Item
+            name="type"
+            label="备份类型"
+            rules={[{ required: true, message: '请选择备份类型' }]}
           >
             <Select>
               <Select.Option value="database">数据库备份</Select.Option>

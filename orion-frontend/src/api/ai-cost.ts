@@ -103,61 +103,61 @@ export interface CostSummaryParams {
 // ---- Budgets ----
 
 export function getBudgets(params?: BudgetListParams) {
-  return api.get('/api/v1/ai-cost/budgets', { params });
+  return api.get('/ai-cost/budgets', { params });
 }
 
 export function getBudget(id: string) {
-  return api.get(`/api/v1/ai-cost/budgets/${id}`);
+  return api.get(`/ai-cost/budgets/${id}`);
 }
 
 export function createBudget(data: BudgetInput) {
-  return api.post('/api/v1/ai-cost/budgets', data);
+  return api.post('/ai-cost/budgets', data);
 }
 
 export function updateBudget(id: string, data: UpdateBudgetInput) {
-  return api.put(`/api/v1/ai-cost/budgets/${id}`, data);
+  return api.put(`/ai-cost/budgets/${id}`, data);
 }
 
 export function restoreBudget(id: string) {
-  return api.post(`/api/v1/ai-cost/budgets/${id}/restore`);
+  return api.post(`/ai-cost/budgets/${id}/restore`);
 }
 
 export function deleteBudget(id: string) {
-  return api.delete(`/api/v1/ai-cost/budgets/${id}`);
+  return api.delete(`/ai-cost/budgets/${id}`);
 }
 
 // ---- Costs ----
 
 export function getCosts(params?: CostListParams) {
-  return api.get('/api/v1/ai-cost/costs', { params });
+  return api.get('/ai-cost/costs', { params });
 }
 
 export function getCostSummary(params?: CostSummaryParams) {
-  return api.get('/api/v1/ai-cost/costs/summary', { params });
+  return api.get('/ai-cost/costs/summary', { params });
 }
 
 // ---- Dashboard ----
 
 export function getDashboardData(params?: { days?: number; startDate?: string; endDate?: string }) {
-  return api.get('/api/v1/ai-cost/dashboard', { params });
+  return api.get('/ai-cost/dashboard', { params });
 }
 
 // ---- Alerts ----
 
 export function getAlerts() {
-  return api.get('/api/v1/ai-cost/alerts');
+  return api.get('/ai-cost/alerts');
 }
 
 // ---- Model Pricing ----
 
 export function getModelPricing() {
-  return api.get('/api/v1/ai-cost/pricing');
+  return api.get('/ai-cost/pricing');
 }
 
 // ---- ROI ----
 
 export function getROIReport(params?: { period?: string }) {
-  return api.get('/api/v1/ai-cost/roi', { params });
+  return api.get('/ai-cost/roi', { params });
 }
 
 // ---- Module Cost Dashboard (TR-09/10/11 cost attribution) ----
@@ -178,5 +178,5 @@ export interface ModuleCostParams {
 }
 
 export function getModuleCostDashboard(params?: ModuleCostParams) {
-  return api.get<ModuleCostSummary[]>('/api/v1/llm/cost/module-dashboard', { params });
+  return api.get<ModuleCostSummary[]>('/llm/cost/module-dashboard', { params });
 }

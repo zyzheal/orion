@@ -55,33 +55,33 @@ export interface ApprovalListResponse {
  * Get all pending approvals
  */
 export function getApprovals() {
-  return api.get<ApprovalListResponse>('/api/v1/approvals');
+  return api.get<ApprovalListResponse>('/approvals');
 }
 
 /**
  * Get a single approval request by ID
  */
 export function getApproval(id: string) {
-  return api.get<ApprovalRequest>(`/api/v1/approvals/${id}`);
+  return api.get<ApprovalRequest>(`/approvals/${id}`);
 }
 
 /**
  * Create a new approval request
  */
 export function createApproval(data: CreateApprovalInput) {
-  return api.post<ApprovalRequest>('/api/v1/approvals', data);
+  return api.post<ApprovalRequest>('/approvals', data);
 }
 
 /**
  * Approve an approval request
  */
 export function approveApproval(id: string, data: ApproveRejectInput) {
-  return api.post<ApprovalRequest>(`/api/v1/approvals/${id}/approve`, data);
+  return api.post<ApprovalRequest>(`/approvals/${id}/approve`, data);
 }
 
 /**
  * Reject an approval request
  */
 export function rejectApproval(id: string, data: ApproveRejectInput) {
-  return api.post<ApprovalRequest>(`/api/v1/approvals/${id}/reject`, data);
+  return api.post<ApprovalRequest>(`/approvals/${id}/reject`, data);
 }

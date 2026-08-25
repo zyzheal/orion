@@ -19,7 +19,6 @@ import {
   InputNumber,
   Radio,
   Progress,
-  message,
   Statistic,
   Divider,
   Tooltip,
@@ -265,7 +264,7 @@ const UEBAPage: React.FC = () => {
             size="small"
             icon={<EyeOutlined />}
             style={{ color: commonStyle.primary }}
-            onClick={() => message.info(`查看 ${record.username} 的异常详情`)}
+            disabled
           >
             详情
           </Button>
@@ -274,10 +273,7 @@ const UEBAPage: React.FC = () => {
             size="small"
             icon={<CheckCircleOutlined />}
             style={{ color: commonStyle.success }}
-            disabled={record.status === '已确认'}
-            onClick={() => {
-              message.success(`已确认 ${record.username} 的异常事件`);
-            }}
+            disabled
           >
             确认异常
           </Button>
@@ -286,10 +282,7 @@ const UEBAPage: React.FC = () => {
             size="small"
             icon={<CloseCircleOutlined />}
             style={{ color: commonStyle.info }}
-            disabled={record.status === '误报'}
-            onClick={() => {
-              message.info(`已将 ${record.username} 的异常标记为误报`);
-            }}
+            disabled
           >
             误报
           </Button>

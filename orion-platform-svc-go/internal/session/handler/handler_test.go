@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/session/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSessionService struct{}
 
 func (f *fakeSessionService) CleanupExpired(ctx context.Context, tenantID string) (int64, error) {
@@ -60,39 +56,6 @@ func (f *fakeSessionService) Verify(ctx context.Context, tenantID, token string)
 }
 
 var _ service.ServiceInterface = (*fakeSessionService)(nil)
-=======
-type fakesessionService struct{}
-
-func (f *fakesessionService) CleanupExpired(ctx context.Context, tenantID string) ((int64, error)) {
-	return 0, nil
-}
-
-func (f *fakesessionService) Create(ctx context.Context, tenantID string, req *models.CreateSessionRequest) ((*models.Session, error)) {
-	return &models.Session{}, nil
-}
-
-func (f *fakesessionService) GetByID(ctx context.Context, tenantID, id string) ((*models.Session, error)) {
-	return &models.Session{}, nil
-}
-
-func (f *fakesessionService) List(ctx context.Context, tenantID, userID string, offset, limit int) (([]models.Session, error)) {
-	return []models.Session{}, nil
-}
-
-func (f *fakesessionService) Logout(ctx context.Context, tenantID, sessionID string) (error) {
-	return nil
-}
-
-func (f *fakesessionService) LogoutAll(ctx context.Context, tenantID, userID string) ((int64, error)) {
-	return 0, nil
-}
-
-func (f *fakesessionService) Verify(ctx context.Context, tenantID, token string) ((*models.VerifySessionResponse, error)) {
-	return &models.VerifySessionResponse{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesessionService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SESSION_RegisterRoutes(t *testing.T) {

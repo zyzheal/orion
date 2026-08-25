@@ -214,6 +214,8 @@ const ExperimentsTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [runsDrawerOpen, setRunsDrawerOpen] = useState(false);
   const [currentRuns, setCurrentRuns] = useState<MLExperimentRun[]>([]);
   const [currentRunsLoading, setCurrentRunsLoading] = useState(false);
@@ -241,6 +243,7 @@ const ExperimentsTab: React.FC = () => {
   }, []);
 
   const handleCreate = async (values: any) => {
+    setCreating(true);
     try {
       await createExperiment({
         name: values.name,
@@ -254,6 +257,8 @@ const ExperimentsTab: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -270,6 +275,7 @@ const ExperimentsTab: React.FC = () => {
 
   const handleSaveEdit = async (values: any) => {
     if (!currentExperiment) return;
+    setEditing(true);
     try {
       await updateExperiment(currentExperiment.id, {
         name: values.name,
@@ -283,6 +289,8 @@ const ExperimentsTab: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '更新失败');
+    } finally {
+      setEditing(false);
     }
   };
 
@@ -513,6 +521,9 @@ const ExperimentsTab: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => createForm.submit()}
+        confirmLoading={creating}
+        okText="创建"
+        cancelText="取消"
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           <Form.Item
@@ -546,6 +557,9 @@ const ExperimentsTab: React.FC = () => {
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={() => editForm.submit()}
+        confirmLoading={editing}
+        okText="保存"
+        cancelText="取消"
       >
         <Form form={editForm} layout="vertical" onFinish={handleSaveEdit}>
           <Form.Item
@@ -602,6 +616,7 @@ const ModelRegistryTab: React.FC = () => {
   const [models, setModels] = useState<MLModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
+  const [registering, setRegistering] = useState(false);
   const [registerForm] = Form.useForm();
   const [modelSearchQuery, setModelSearchQuery] = useState('');
   const [modelStatusFilter, setModelStatusFilter] = useState<string | undefined>();
@@ -623,6 +638,7 @@ const ModelRegistryTab: React.FC = () => {
   }, []);
 
   const handleRegister = async (values: any) => {
+    setRegistering(true);
     try {
       await registerModel({
         name: values.name,
@@ -636,6 +652,8 @@ const ModelRegistryTab: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '注册失败');
+    } finally {
+      setRegistering(false);
     }
   };
 
@@ -823,6 +841,9 @@ const ModelRegistryTab: React.FC = () => {
         open={registerModalOpen}
         onCancel={() => setRegisterModalOpen(false)}
         onOk={() => registerForm.submit()}
+        confirmLoading={registering}
+        okText="注册"
+        cancelText="取消"
       >
         <Form form={registerForm} layout="vertical" onFinish={handleRegister}>
           <Form.Item
@@ -855,6 +876,7 @@ const TrainingJobsTab: React.FC = () => {
   const [jobs, setJobs] = useState<TrainingJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [createForm] = Form.useForm();
 
   const loadData = async () => {
@@ -874,6 +896,7 @@ const TrainingJobsTab: React.FC = () => {
   }, []);
 
   const handleCreate = async (values: any) => {
+    setCreating(true);
     try {
       await createTrainingJob({
         dataset: values.dataset,
@@ -885,6 +908,8 @@ const TrainingJobsTab: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -1010,6 +1035,9 @@ const TrainingJobsTab: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => createForm.submit()}
+        confirmLoading={creating}
+        okText="创建"
+        cancelText="取消"
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           <Form.Item

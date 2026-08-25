@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/vectorize-rules/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeVectorize_rulesService struct{}
 
 func (f *fakeVectorize_rulesService) Create(ctx context.Context, tenantID string, req models.CreateVectorizeRulesRequest) (*models.VectorizeRules, error) {
@@ -52,31 +48,6 @@ func (f *fakeVectorize_rulesService) Update(ctx context.Context, tenantID, id st
 }
 
 var _ service.ServiceInterface = (*fakeVectorize_rulesService)(nil)
-=======
-type fakevectorize_rulesService struct{}
-
-func (f *fakevectorize_rulesService) Create(ctx context.Context, tenantID string, req models.CreateVectorizeRulesRequest) ((*models.VectorizeRules, error)) {
-	return &models.VectorizeRules{}, nil
-}
-
-func (f *fakevectorize_rulesService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakevectorize_rulesService) Get(ctx context.Context, tenantID, id string) ((*models.VectorizeRules, error)) {
-	return &models.VectorizeRules{}, nil
-}
-
-func (f *fakevectorize_rulesService) List(ctx context.Context, tenantID string) (([]models.VectorizeRules, error)) {
-	return []models.VectorizeRules{}, nil
-}
-
-func (f *fakevectorize_rulesService) Update(ctx context.Context, tenantID, id string, req models.UpdateVectorizeRulesRequest) ((*models.VectorizeRules, error)) {
-	return &models.VectorizeRules{}, nil
-}
-
-var _ service.ServiceInterface = (*fakevectorize_rulesService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_VECTORIZE_RULE_RegisterRoutes(t *testing.T) {

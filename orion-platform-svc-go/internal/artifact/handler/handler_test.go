@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/artifact/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) AddTags(ctx context.Context, tenantID, id string, tags []string) (error) {
@@ -120,87 +116,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeartifactService struct{}
-
-func (f *fakeartifactService) AddTags(ctx context.Context, tenantID, id string, tags []string) (error) {
-	return nil
-}
-
-func (f *fakeartifactService) Create(ctx context.Context, tenantID string, req models.CreateArtifactRequest) ((*models.Artifact, error)) {
-	return &models.Artifact{}, nil
-}
-
-func (f *fakeartifactService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeartifactService) Deprecate(ctx context.Context, tenantID, id string) ((*models.Artifact, error)) {
-	return &models.Artifact{}, nil
-}
-
-func (f *fakeartifactService) Download(ctx context.Context, tenantID, id string, req models.DownloadArtifactRequest) ((*models.Artifact, error)) {
-	return &models.Artifact{}, nil
-}
-
-func (f *fakeartifactService) Get(ctx context.Context, tenantID, id string) ((*models.Artifact, error)) {
-	return &models.Artifact{}, nil
-}
-
-func (f *fakeartifactService) GetCurrentStage(ctx context.Context, tenantID, id string) ((*string, error)) {
-	return &string{}, nil
-}
-
-func (f *fakeartifactService) GetDownloadHistory(ctx context.Context, tenantID, id string) (([]models.ArtifactDownload, error)) {
-	return []models.ArtifactDownload{}, nil
-}
-
-func (f *fakeartifactService) GetNamespaces(ctx context.Context, tenantID string) (([]models.NamespaceStat, error)) {
-	return []models.NamespaceStat{}, nil
-}
-
-func (f *fakeartifactService) GetPromotionHistory(ctx context.Context, tenantID, id string) (([]models.ArtifactPromotion, error)) {
-	return []models.ArtifactPromotion{}, nil
-}
-
-func (f *fakeartifactService) GetStats(ctx context.Context, tenantID string) ((*models.ArtifactStats, error)) {
-	return &models.ArtifactStats{}, nil
-}
-
-func (f *fakeartifactService) GetTags(ctx context.Context, tenantID, id string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakeartifactService) GetTypeStats(ctx context.Context, tenantID string) (([]models.ArtifactTypeStat, error)) {
-	return []models.ArtifactTypeStat{}, nil
-}
-
-func (f *fakeartifactService) List(ctx context.Context, tenantID string, q models.ListArtifactsQuery) ((*models.ArtifactListResponse, error)) {
-	return &models.ArtifactListResponse{}, nil
-}
-
-func (f *fakeartifactService) Promote(ctx context.Context, tenantID, id string, req models.PromoteArtifactRequest) ((*models.ArtifactPromotion, error)) {
-	return &models.ArtifactPromotion{}, nil
-}
-
-func (f *fakeartifactService) Quarantine(ctx context.Context, tenantID, id string, req models.QuarantineArtifactRequest) ((*models.Artifact, error)) {
-	return &models.Artifact{}, nil
-}
-
-func (f *fakeartifactService) RemoveTags(ctx context.Context, tenantID, id string, tags []string) (error) {
-	return nil
-}
-
-func (f *fakeartifactService) Search(ctx context.Context, tenantID string, query string, limit, offset int) (([]models.Artifact, error)) {
-	return []models.Artifact{}, nil
-}
-
-func (f *fakeartifactService) Update(ctx context.Context, tenantID, id string, req models.UpdateArtifactRequest) ((*models.Artifact, error)) {
-	return &models.Artifact{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeartifactService)(nil)
->>>>>>> Stashed changes
 
 
 func TestARTIFACT_Handler_RegisterRoutes(t *testing.T) {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/data-pipeline/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Pipeline, error) {
@@ -80,59 +76,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakedata_pipelineService struct{}
-
-func (f *fakedata_pipelineService) Create(ctx context.Context, tenantID string, req models.CreateRequest) ((*models.Pipeline, error)) {
-	return &models.Pipeline{}, nil
-}
-
-func (f *fakedata_pipelineService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedata_pipelineService) Get(ctx context.Context, tenantID, id string) ((*models.Pipeline, error)) {
-	return &models.Pipeline{}, nil
-}
-
-func (f *fakedata_pipelineService) GetLineage(ctx context.Context, tenantID, id string) ((map[string]any, error)) {
-	return map[string]any{}, nil
-}
-
-func (f *fakedata_pipelineService) GetLogs(ctx context.Context, tenantID, id string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakedata_pipelineService) GetStatus(ctx context.Context, tenantID, id string) ((string, error)) {
-	return "", nil
-}
-
-func (f *fakedata_pipelineService) List(ctx context.Context, tenantID string) (([]models.Pipeline, error)) {
-	return []models.Pipeline{}, nil
-}
-
-func (f *fakedata_pipelineService) ListSchemas(ctx context.Context, tenantID string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *fakedata_pipelineService) Pause(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedata_pipelineService) Resume(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedata_pipelineService) RunPipeline(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedata_pipelineService) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) ((*models.Pipeline, error)) {
-	return &models.Pipeline{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedata_pipelineService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DATA_PIPELINE_RegisterRoutes(t *testing.T) {

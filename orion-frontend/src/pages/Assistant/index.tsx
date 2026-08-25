@@ -93,6 +93,7 @@ const AssistantPage: React.FC = () => {
       const res = await listAssistantSessions(20);
       setSessions(res.data || []);
     } catch {
+      message.error('加载会话列表失败');
       setSessions([]);
     }
   }, []);
@@ -113,6 +114,7 @@ const AssistantPage: React.FC = () => {
       }));
       setMessages(chatItems);
     } catch {
+      message.error('加载会话详情失败');
       setMessages([]);
     }
   };

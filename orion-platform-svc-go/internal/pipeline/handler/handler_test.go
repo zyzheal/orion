@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/pipeline/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePipelineService struct{}
 
 func (f *fakePipelineService) BatchDelete(ctx context.Context, tenantID string, pipelineIDs []string) ([]models.BatchDeleteResult, error) {
@@ -84,63 +80,6 @@ func (f *fakePipelineService) ValidatePipeline(ctx context.Context, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakePipelineService)(nil)
-=======
-type fakepipelineService struct{}
-
-func (f *fakepipelineService) BatchDelete(ctx context.Context, tenantID string, pipelineIDs []string) (([]models.BatchDeleteResult, error)) {
-	return []models.BatchDeleteResult{}, nil
-}
-
-func (f *fakepipelineService) BatchStart(ctx context.Context, tenantID string, pipelineIDs []string) (([]models.BatchStartResult, error)) {
-	return []models.BatchStartResult{}, nil
-}
-
-func (f *fakepipelineService) BatchStop(ctx context.Context, tenantID string, runIDs []string) (([]models.BatchStopResult, error)) {
-	return []models.BatchStopResult{}, nil
-}
-
-func (f *fakepipelineService) CreatePipeline(ctx context.Context, tenantID string, req models.CreatePipelineRequest) ((*models.Pipeline, error)) {
-	return &models.Pipeline{}, nil
-}
-
-func (f *fakepipelineService) DeletePipeline(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakepipelineService) GetPipeline(ctx context.Context, tenantID, id string) ((*models.Pipeline, error)) {
-	return &models.Pipeline{}, nil
-}
-
-func (f *fakepipelineService) GetStats(ctx context.Context, tenantID, pipelineID string) ((*models.PipelineStats, error)) {
-	return &models.PipelineStats{}, nil
-}
-
-func (f *fakepipelineService) GetVersions(ctx context.Context, tenantID, pipelineID string) (([]models.PipelineVersion, error)) {
-	return []models.PipelineVersion{}, nil
-}
-
-func (f *fakepipelineService) ListPipelines(ctx context.Context, tenantID string, opt models.ListPipelinesOptions) (([]models.Pipeline, int, error)) {
-	return []models.Pipeline{}, 0, nil
-}
-
-func (f *fakepipelineService) StartRun(ctx context.Context, tenantID, id string) ((*models.PipelineRunResult, error)) {
-	return &models.PipelineRunResult{}, nil
-}
-
-func (f *fakepipelineService) StopRun(ctx context.Context, tenantID, runID string) (error) {
-	return nil
-}
-
-func (f *fakepipelineService) UpdatePipeline(ctx context.Context, tenantID, id string, req models.UpdatePipelineRequest) ((*models.Pipeline, error)) {
-	return &models.Pipeline{}, nil
-}
-
-func (f *fakepipelineService) ValidatePipeline(ctx context.Context, tenantID string, req models.CreatePipelineRequest) ((*models.PipelineValidationResult, error)) {
-	return &models.PipelineValidationResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakepipelineService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PIPELINE_RegisterRoutes(t *testing.T) {

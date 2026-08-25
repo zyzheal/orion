@@ -65,6 +65,8 @@ const PolicyManagement: React.FC = () => {
   const [policyModalVisible, setPolicyModalVisible] = useState(false);
   const [evaluateModalVisible, setEvaluateModalVisible] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<PolicyDefinition | null>(null);
+  const [policySubmitting, setPolicySubmitting] = useState(false);
+  const [evalSubmitting, setEvalSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [evalForm] = Form.useForm();
 
@@ -108,6 +110,7 @@ const PolicyManagement: React.FC = () => {
   const blockedViolations = violations.filter((v) => v.severity === 'block').length;
 
   const handleSavePolicy = async (values: any) => {
+    setPolicySubmitting(true);
     try {
       const payload: PolicyInput = {
         name: String(values.name),
@@ -135,6 +138,8 @@ const PolicyManagement: React.FC = () => {
       } else {
         message.error('Failed to save policy');
       }
+    } finally {
+      setPolicySubmitting(false);
     }
   };
 
@@ -167,6 +172,7 @@ const PolicyManagement: React.FC = () => {
   };
 
   const handleEvaluate = async (values: EvaluateFormValues) => {
+    setEvalSubmitting(true);
     try {
       const inputContext: Record<string, unknown> = values.input ? JSON.parse(values.input) : {};
       await evaluatePolicy({ policyId: values.policyId, input: inputContext });
@@ -179,6 +185,8 @@ const PolicyManagement: React.FC = () => {
       } else {
         message.error('Failed to evaluate policy');
       }
+    } finally {
+      setEvalSubmitting(false);
     }
   };
 
@@ -530,6 +538,9 @@ const PolicyManagement: React.FC = () => {
           setEditingPolicy(null);
         }}
         onOk={() => form.submit()}
+        confirmLoading={policySubmitting}
+        okText={editingPolicy ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
         destroyOnClose
       >
@@ -574,6 +585,9 @@ const PolicyManagement: React.FC = () => {
         open={evaluateModalVisible}
         onCancel={() => setEvaluateModalVisible(false)}
         onOk={() => evalForm.submit()}
+        confirmLoading={evalSubmitting}
+        okText="评估"
+        cancelText="取消"
         destroyOnClose
       >
         <Form form={evalForm} layout="vertical" onFinish={handleEvaluate}>

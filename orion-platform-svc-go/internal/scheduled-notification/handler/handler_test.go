@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/scheduled-notification/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeScheduled_notificationService struct{}
 
 func (f *fakeScheduled_notificationService) Count(ctx context.Context, tenantID string) (int, error) {
@@ -72,51 +68,6 @@ func (f *fakeScheduled_notificationService) Update(ctx context.Context, tenantID
 }
 
 var _ service.ServiceInterface = (*fakeScheduled_notificationService)(nil)
-=======
-type fakescheduled_notificationService struct{}
-
-func (f *fakescheduled_notificationService) Count(ctx context.Context, tenantID string) ((int, error)) {
-	return 0, nil
-}
-
-func (f *fakescheduled_notificationService) Create(ctx context.Context, tenantID, userID string, req *models.CreateScheduleRequest) ((*models.ScheduledNotification, error)) {
-	return &models.ScheduledNotification{}, nil
-}
-
-func (f *fakescheduled_notificationService) Delete(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakescheduled_notificationService) Execute(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakescheduled_notificationService) Get(ctx context.Context, tenantID, id string) ((*models.ScheduledNotification, error)) {
-	return &models.ScheduledNotification{}, nil
-}
-
-func (f *fakescheduled_notificationService) GetLogs(ctx context.Context, tenantID, id string) (([]models.ExecutionLog, error)) {
-	return []models.ExecutionLog{}, nil
-}
-
-func (f *fakescheduled_notificationService) List(ctx context.Context, tenantID string, filter *models.ListFilter, page, pageSize int) (([]models.ScheduledNotification, int, error)) {
-	return []models.ScheduledNotification{}, 0, nil
-}
-
-func (f *fakescheduled_notificationService) Pause(ctx context.Context, tenantID, id string) ((*models.ScheduledNotification, error)) {
-	return &models.ScheduledNotification{}, nil
-}
-
-func (f *fakescheduled_notificationService) Resume(ctx context.Context, tenantID, id string) ((*models.ScheduledNotification, error)) {
-	return &models.ScheduledNotification{}, nil
-}
-
-func (f *fakescheduled_notificationService) Update(ctx context.Context, tenantID, id string, req *models.UpdateScheduleRequest) ((*models.ScheduledNotification, error)) {
-	return &models.ScheduledNotification{}, nil
-}
-
-var _ service.ServiceInterface = (*fakescheduled_notificationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SCHEDULED_NOTI_RegisterRoutes(t *testing.T) {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/smart-deploy/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSmart_deployService struct{}
 
 func (f *fakeSmart_deployService) CancelDeployment(ctx context.Context, tenantID, id, cancelledBy string) (*models.Deployment, error) {
@@ -72,51 +68,6 @@ func (f *fakeSmart_deployService) Rollback(ctx context.Context, tenantID, deploy
 }
 
 var _ service.ServiceInterface = (*fakeSmart_deployService)(nil)
-=======
-type fakesmart_deployService struct{}
-
-func (f *fakesmart_deployService) CancelDeployment(ctx context.Context, tenantID, id, cancelledBy string) ((*models.Deployment, error)) {
-	return &models.Deployment{}, nil
-}
-
-func (f *fakesmart_deployService) CreateAuditEntry(ctx context.Context, tenantID string, deploymentID, action, performedBy, details string) (error) {
-	return nil
-}
-
-func (f *fakesmart_deployService) Deploy(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) ((*models.Deployment, error)) {
-	return &models.Deployment{}, nil
-}
-
-func (f *fakesmart_deployService) GetAuditTrail(ctx context.Context, tenantID, deploymentID string) (([]models.AuditEntry, error)) {
-	return []models.AuditEntry{}, nil
-}
-
-func (f *fakesmart_deployService) GetDeployment(ctx context.Context, tenantID, id string) ((*models.Deployment, error)) {
-	return &models.Deployment{}, nil
-}
-
-func (f *fakesmart_deployService) GetLatestDeployment(ctx context.Context, tenantID, appName, environment string) ((*models.Deployment, error)) {
-	return &models.Deployment{}, nil
-}
-
-func (f *fakesmart_deployService) GetMetrics(ctx context.Context, tenantID string) ((*models.DeploymentMetrics, error)) {
-	return &models.DeploymentMetrics{}, nil
-}
-
-func (f *fakesmart_deployService) GetRollbackHistory(ctx context.Context, tenantID, deploymentID string) (([]models.Rollback, error)) {
-	return []models.Rollback{}, nil
-}
-
-func (f *fakesmart_deployService) ListDeployments(ctx context.Context, tenantID string, opt models.ListDeploymentsOptions) (([]models.Deployment, int, error)) {
-	return []models.Deployment{}, 0, nil
-}
-
-func (f *fakesmart_deployService) Rollback(ctx context.Context, tenantID, deploymentID string, req models.CreateRollbackRequest) ((*models.Rollback, error)) {
-	return &models.Rollback{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesmart_deployService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SMART_DEPLOY_RegisterRoutes(t *testing.T) {

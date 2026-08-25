@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/test-generation/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error) {
@@ -68,47 +64,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type faketest_generationService struct{}
-
-func (f *faketest_generationService) Create(ctx context.Context, tenantID string, req models.CreateRequest) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *faketest_generationService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *faketest_generationService) GenerateTests(ctx context.Context, tenantID, id string) ((gin.H, error)) {
-	return gin.H{}, nil
-}
-
-func (f *faketest_generationService) Get(ctx context.Context, tenantID, id string) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-func (f *faketest_generationService) GetResults(ctx context.Context, tenantID, id string) (([]string, error)) {
-	return []string{}, nil
-}
-
-func (f *faketest_generationService) List(ctx context.Context, tenantID string) (([]models.Record, error)) {
-	return []models.Record{}, nil
-}
-
-func (f *faketest_generationService) ListTemplates(ctx context.Context, tenantID string) ((map[string]interface{}, error)) {
-	return map[string]interface{}{}, nil
-}
-
-func (f *faketest_generationService) Regenerate(ctx context.Context, tenantID, id string) ((gin.H, error)) {
-	return gin.H{}, nil
-}
-
-func (f *faketest_generationService) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) ((*models.Record, error)) {
-	return &models.Record{}, nil
-}
-
-var _ service.ServiceInterface = (*faketest_generationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TEST_GENERATIO_RegisterRoutes(t *testing.T) {

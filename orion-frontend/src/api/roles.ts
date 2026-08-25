@@ -147,32 +147,32 @@ export const PERMISSION_GROUPS = [
 
 /**
  * List roles for a tenant
- * GET /api/v1/roles?tenantId=xxx
+ * GET /roles?tenantId=xxx
  */
 export function getRoles(tenantId: string) {
-  return api.get<Role[]>('/api/v1/roles', { params: { tenantId } });
+  return api.get<Role[]>('/roles', { params: { tenantId } });
 }
 
 /**
  * Get role detail
- * GET /api/v1/roles/:id
+ * GET /roles/:id
  */
 export function getRole(id: string) {
-  return api.get<Role>(`/api/v1/roles/${id}`);
+  return api.get<Role>(`/roles/${id}`);
 }
 
 /**
  * Create a new role
- * POST /api/v1/roles
+ * POST /roles
  */
 export function createRole(data: CreateRoleInput) {
-  return api.post<Role>('/api/v1/roles', data);
+  return api.post<Role>('/roles', data);
 }
 
 /**
  * Delete a role
- * DELETE /api/v1/roles/:id
+ * DELETE /roles/:id
  */
 export function deleteRole(id: string) {
-  return api.delete(`/api/v1/roles/${id}`);
+  return api.delete(`/roles/${id}`);
 }

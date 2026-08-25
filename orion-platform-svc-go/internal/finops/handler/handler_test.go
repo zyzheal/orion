@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/finops/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeFinopsService struct{}
 
 func (f *fakeFinopsService) ApplyOptimization(ctx context.Context, tenantID string, id string) (bool, error) {
@@ -88,67 +84,6 @@ func (f *fakeFinopsService) RejectOptimization(ctx context.Context, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeFinopsService)(nil)
-=======
-type fakefinopsService struct{}
-
-func (f *fakefinopsService) ApplyOptimization(ctx context.Context, tenantID string, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakefinopsService) CompareCosts(ctx context.Context, tenantID string, serviceA string, serviceB string, period string) ((*models.CostComparisonResult, error)) {
-	return &models.CostComparisonResult{}, nil
-}
-
-func (f *fakefinopsService) CreateBudgetGuard(ctx context.Context, req *models.CreateBudgetGuardRequest, tenantID string) ((*models.BudgetGuard, error)) {
-	return &models.BudgetGuard{}, nil
-}
-
-func (f *fakefinopsService) DeleteBudgetGuard(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakefinopsService) DetectAnomalies(ctx context.Context, tenantID string, days *int, startStr *string, endStr *string) ((*models.AnomalyDetectionResult, error)) {
-	return &models.AnomalyDetectionResult{}, nil
-}
-
-func (f *fakefinopsService) EvaluateCost(ctx context.Context, tenantID string, pipelineID string, estimatedCost float64, projectID *string, environment *string) ((*models.EvaluationResult, error)) {
-	return &models.EvaluationResult{}, nil
-}
-
-func (f *fakefinopsService) GetBudgetGuard(ctx context.Context, id string, tenantID string) ((*models.BudgetGuard, error)) {
-	return &models.BudgetGuard{}, nil
-}
-
-func (f *fakefinopsService) GetCostOverview(ctx context.Context, tenantID string) ((*models.CostOverview, error)) {
-	return &models.CostOverview{}, nil
-}
-
-func (f *fakefinopsService) GetCostTrend(ctx context.Context, tenantID string, days int) ((*models.CostTrendResult, error)) {
-	return &models.CostTrendResult{}, nil
-}
-
-func (f *fakefinopsService) GetOptimizationSuggestions(ctx context.Context, tenantID string, category *string, minSavings *float64) (([]models.OptimizationSuggestion, error)) {
-	return []models.OptimizationSuggestion{}, nil
-}
-
-func (f *fakefinopsService) GetServiceCostTrend(ctx context.Context, tenantID string, serviceID string, period string) ((*models.CostTrendResult, error)) {
-	return &models.CostTrendResult{}, nil
-}
-
-func (f *fakefinopsService) GetServiceOptimizationSuggestions(ctx context.Context, tenantID string, serviceID string, entityType string) (([]models.OptimizationSuggestion, error)) {
-	return []models.OptimizationSuggestion{}, nil
-}
-
-func (f *fakefinopsService) ListBudgetGuards(ctx context.Context, tenantID string) (([]models.BudgetGuard, error)) {
-	return []models.BudgetGuard{}, nil
-}
-
-func (f *fakefinopsService) RejectOptimization(ctx context.Context, tenantID string, id string) ((bool, error)) {
-	return false, nil
-}
-
-var _ service.ServiceInterface = (*fakefinopsService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_FINOPS_RegisterRoutes(t *testing.T) {

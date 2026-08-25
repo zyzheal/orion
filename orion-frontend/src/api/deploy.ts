@@ -1,7 +1,7 @@
 /**
  * Deploy API Service
  * Auto-generated from backend deploy-routes.ts
- * Prefix: /api/v1/deploy
+ * Prefix: /deploy
  */
 import { api } from './client';
 
@@ -18,12 +18,12 @@ export interface Deploy {
 // ==================== Deployment CRUD ====================
 
 export const createDeployDeploy = async (data?: Partial<Deploy>): Promise<Deploy> => {
-  const response = await api.post<Deploy>('/api/v1/deploy/deploy', data);
+  const response = await api.post<Deploy>('/deploy/deploy', data);
   return response.data;
 };
 
 export const getDeploy = async (id: string): Promise<Deploy> => {
-  const response = await api.get<Deploy>('/api/v1/deploy/deploy/' + id);
+  const response = await api.get<Deploy>('/deploy/deploy/' + id);
   return response.data;
 };
 
@@ -31,7 +31,7 @@ export const listDeploy = async (
   params?: Record<string, unknown>
 ): Promise<{ data: Deploy[]; total: number }> => {
   const response = await api.get<{ data: Deploy[]; total: number }>(
-    '/api/v1/deploy/deploy/history',
+    '/deploy/deploy/history',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
@@ -41,7 +41,7 @@ export const createDeployDeployRollback = async (
   id: string,
   data?: Partial<Deploy>
 ): Promise<Deploy> => {
-  const response = await api.post<Deploy>('/api/v1/deploy/deploy/' + id + '/rollback', data);
+  const response = await api.post<Deploy>('/deploy/deploy/' + id + '/rollback', data);
   return response.data;
 };
 
@@ -49,7 +49,7 @@ export const createDeployDeployCancel = async (
   id: string,
   data?: Partial<Deploy>
 ): Promise<Deploy> => {
-  const response = await api.post<Deploy>('/api/v1/deploy/deploy/' + id + '/cancel', data);
+  const response = await api.post<Deploy>('/deploy/deploy/' + id + '/cancel', data);
   return response.data;
 };
 
@@ -99,7 +99,7 @@ export interface ReleaseNotes {
  * GET /deploy/:id/release-notes - 获取部署的版本说明
  */
 export const getReleaseNotes = async (deploymentId: string): Promise<ReleaseNotes | null> => {
-  const response = await api.get<ReleaseNotes>('/api/v1/deploy/' + deploymentId + '/release-notes');
+  const response = await api.get<ReleaseNotes>('/deploy/' + deploymentId + '/release-notes');
   return response.data;
 };
 
@@ -120,7 +120,7 @@ export const generateReleaseNotes = async (
   }
 ): Promise<ReleaseNotes> => {
   const response = await api.post<ReleaseNotes>(
-    '/api/v1/deploy/' + deploymentId + '/release-notes/generate',
+    '/deploy/' + deploymentId + '/release-notes/generate',
     options
   );
   return response.data;
@@ -134,7 +134,7 @@ export const getReleaseNotesByTenant = async (
   limit: number = 50
 ): Promise<{ data: ReleaseNotes[]; total: number; limit: number }> => {
   const response = await api.get<{ data: ReleaseNotes[]; total: number; limit: number }>(
-    '/api/v1/deploy/release-notes/tenant/' + tenantId,
+    '/deploy/release-notes/tenant/' + tenantId,
     { params: { limit: String(limit) } }
   );
   return response.data;

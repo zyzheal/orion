@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/tracing/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeTracingService struct{}
 
 func (f *fakeTracingService) CreateOtelConfig(ctx context.Context, tenantID string, req *models.CreateOtelRequest) (*models.OtelCollectorConfig, error) {
@@ -72,51 +68,6 @@ func (f *fakeTracingService) UpsertSamplingConfig(ctx context.Context, tenantID 
 }
 
 var _ service.ServiceInterface = (*fakeTracingService)(nil)
-=======
-type faketracingService struct{}
-
-func (f *faketracingService) CreateOtelConfig(ctx context.Context, tenantID string, req *models.CreateOtelRequest) ((*models.OtelCollectorConfig, error)) {
-	return &models.OtelCollectorConfig{}, nil
-}
-
-func (f *faketracingService) DeleteOtelConfig(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *faketracingService) GetOtelConfig(ctx context.Context, tenantID, id string) ((*models.OtelCollectorConfig, error)) {
-	return &models.OtelCollectorConfig{}, nil
-}
-
-func (f *faketracingService) GetOtelConfigs(ctx context.Context, tenantID, configType string) (([]models.OtelCollectorConfig, error)) {
-	return []models.OtelCollectorConfig{}, nil
-}
-
-func (f *faketracingService) GetSamplingConfigs(ctx context.Context, tenantID string) (([]models.TraceSamplingConfig, error)) {
-	return []models.TraceSamplingConfig{}, nil
-}
-
-func (f *faketracingService) GetTrace(ctx context.Context, tenantID, traceID string) (([]models.TraceSpan, error)) {
-	return []models.TraceSpan{}, nil
-}
-
-func (f *faketracingService) GetTraceList(ctx context.Context, tenantID string, serviceName string, limit int) (([]models.TraceSpan, error)) {
-	return []models.TraceSpan{}, nil
-}
-
-func (f *faketracingService) SearchTraces(ctx context.Context, tenantID string, req *models.TraceSearchRequest) (([]models.TraceSpan, error)) {
-	return []models.TraceSpan{}, nil
-}
-
-func (f *faketracingService) UpdateOtelConfig(ctx context.Context, tenantID, id string, req *models.UpdateOtelRequest) ((*models.OtelCollectorConfig, error)) {
-	return &models.OtelCollectorConfig{}, nil
-}
-
-func (f *faketracingService) UpsertSamplingConfig(ctx context.Context, tenantID string, req *models.UpsertSamplingRequest) ((*models.TraceSamplingConfig, error)) {
-	return &models.TraceSamplingConfig{}, nil
-}
-
-var _ service.ServiceInterface = (*faketracingService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TRACING_RegisterRoutes(t *testing.T) {

@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/sprint/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSprintService struct{}
 
 func (f *fakeSprintService) AddTicket(ctx context.Context, tenantID, sprintID string, req models.AddTicketRequest) (*models.SprintTicket, error) {
@@ -72,51 +68,6 @@ func (f *fakeSprintService) Update(ctx context.Context, tenantID, id string, req
 }
 
 var _ service.ServiceInterface = (*fakeSprintService)(nil)
-=======
-type fakesprintService struct{}
-
-func (f *fakesprintService) AddTicket(ctx context.Context, tenantID, sprintID string, req models.AddTicketRequest) ((*models.SprintTicket, error)) {
-	return &models.SprintTicket{}, nil
-}
-
-func (f *fakesprintService) Create(ctx context.Context, tenantID string, req models.CreateSprintRequest) ((*models.Sprint, error)) {
-	return &models.Sprint{}, nil
-}
-
-func (f *fakesprintService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakesprintService) Get(ctx context.Context, tenantID, id string) ((*models.Sprint, error)) {
-	return &models.Sprint{}, nil
-}
-
-func (f *fakesprintService) GetBoard(ctx context.Context, tenantID, sprintID string) ((*models.SprintBoard, error)) {
-	return &models.SprintBoard{}, nil
-}
-
-func (f *fakesprintService) GetBurndownData(ctx context.Context, tenantID, sprintID string) ((*models.BurndownData, error)) {
-	return &models.BurndownData{}, nil
-}
-
-func (f *fakesprintService) List(ctx context.Context, tenantID string, limit, offset int) (([]models.Sprint, error)) {
-	return []models.Sprint{}, nil
-}
-
-func (f *fakesprintService) RemoveTicket(ctx context.Context, tenantID, sprintID, ticketID string) (error) {
-	return nil
-}
-
-func (f *fakesprintService) ReorderTickets(ctx context.Context, tenantID, sprintID string, req models.ReorderTicketsRequest) (error) {
-	return nil
-}
-
-func (f *fakesprintService) Update(ctx context.Context, tenantID, id string, req models.UpdateSprintRequest) ((*models.Sprint, error)) {
-	return &models.Sprint{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesprintService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SPRINT_RegisterRoutes(t *testing.T) {

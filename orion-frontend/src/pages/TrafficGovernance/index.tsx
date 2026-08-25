@@ -66,6 +66,7 @@ const TrafficGovernance: React.FC = () => {
   const [trafficRules, setTrafficRules] = useState<TrafficRule[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState<TrafficRule | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
   const [stats, setStats] = useState({
     totalRules: 0,
@@ -139,6 +140,7 @@ const TrafficGovernance: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const values = await form.validateFields();
       if (editingRule) {
@@ -166,6 +168,8 @@ const TrafficGovernance: React.FC = () => {
       if (err instanceof Error) {
         message.error(err.message);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -410,7 +414,8 @@ const TrafficGovernance: React.FC = () => {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
-        okText="保存"
+        confirmLoading={submitting}
+        okText={editingRule ? '保存' : '创建'}
         cancelText="取消"
         width={600}
         style={{ borderRadius: componentRadius.modal }}

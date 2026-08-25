@@ -22,6 +22,7 @@ import {
   Tooltip,
   Popconfirm,
   Typography,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -71,6 +72,7 @@ const WorkflowTriggers: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState<WorkflowTrigger | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [form] = Form.useForm();
 
@@ -112,6 +114,7 @@ const WorkflowTriggers: React.FC = () => {
 
   // Handle create
   const handleCreate = async (values: CreateWorkflowTriggerInput) => {
+    setSubmitting(true);
     try {
       await createTrigger(values);
       message.success('触发器已创建');
@@ -120,12 +123,15 @@ const WorkflowTriggers: React.FC = () => {
       loadTriggers();
     } catch (err) {
       message.error('创建失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   // Handle update
   const handleUpdate = async (values: CreateWorkflowTriggerInput) => {
     if (!editingTrigger) return;
+    setSubmitting(true);
     try {
       await updateTrigger(editingTrigger.id, values);
       message.success('触发器已更新');
@@ -135,6 +141,8 @@ const WorkflowTriggers: React.FC = () => {
       loadTriggers();
     } catch (err) {
       message.error('更新失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -345,6 +353,7 @@ const WorkflowTriggers: React.FC = () => {
               setPage(pagination.current ?? 1);
               setPageSize(pagination.pageSize ?? 20);
             }}
+            locale={{ emptyText: <Empty description="暂无触发器配置，点击「新建触发器」创建" /> }}
           />
         </Card>
       </DataState>
@@ -358,6 +367,9 @@ const WorkflowTriggers: React.FC = () => {
           setEditingTrigger(null);
         }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText={editingTrigger ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form

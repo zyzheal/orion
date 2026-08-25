@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/report-designer/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeReport_designerService struct{}
 
 func (f *fakeReport_designerService) CreateDatasource(ctx context.Context, req *models.CreateDatasourceRequest) (*models.ReportDatasource, error) {
@@ -104,83 +100,6 @@ func (f *fakeReport_designerService) UpdateSchedule(ctx context.Context, id stri
 }
 
 var _ service.ServiceInterface = (*fakeReport_designerService)(nil)
-=======
-type fakereport_designerService struct{}
-
-func (f *fakereport_designerService) CreateDatasource(ctx context.Context, req *models.CreateDatasourceRequest) ((*models.ReportDatasource, error)) {
-	return &models.ReportDatasource{}, nil
-}
-
-func (f *fakereport_designerService) CreateReport(ctx context.Context, req *models.CreateReportRequest) ((*models.ReportDefinition, error)) {
-	return &models.ReportDefinition{}, nil
-}
-
-func (f *fakereport_designerService) CreateSchedule(ctx context.Context, req *models.CreateScheduleRequest) ((*models.ReportSchedule, error)) {
-	return &models.ReportSchedule{}, nil
-}
-
-func (f *fakereport_designerService) DeleteDatasource(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakereport_designerService) DeleteReport(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakereport_designerService) DeleteSchedule(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakereport_designerService) ExecuteReport(ctx context.Context, reportID string, tenantID string, req *models.ExecuteReportRequest) ((*models.ReportExecution, error)) {
-	return &models.ReportExecution{}, nil
-}
-
-func (f *fakereport_designerService) GetDatasource(ctx context.Context, id string, tenantID string) ((*models.ReportDatasource, error)) {
-	return &models.ReportDatasource{}, nil
-}
-
-func (f *fakereport_designerService) GetExecutionHistory(ctx context.Context, reportID string, tenantID string, limit int) (([]models.ReportExecution, error)) {
-	return []models.ReportExecution{}, nil
-}
-
-func (f *fakereport_designerService) GetReport(ctx context.Context, id string, tenantID string) ((*models.ReportDefinition, error)) {
-	return &models.ReportDefinition{}, nil
-}
-
-func (f *fakereport_designerService) GetSchedule(ctx context.Context, id string, tenantID string) ((*models.ReportSchedule, error)) {
-	return &models.ReportSchedule{}, nil
-}
-
-func (f *fakereport_designerService) ListDatasources(ctx context.Context, tenantID string) (([]models.ReportDatasource, error)) {
-	return []models.ReportDatasource{}, nil
-}
-
-func (f *fakereport_designerService) ListReports(ctx context.Context, tenantID string, req *models.ListReportsRequest) (([]models.ReportDefinition, int, error)) {
-	return []models.ReportDefinition{}, 0, nil
-}
-
-func (f *fakereport_designerService) ListSchedules(ctx context.Context, reportID string, tenantID string) (([]models.ReportSchedule, error)) {
-	return []models.ReportSchedule{}, nil
-}
-
-func (f *fakereport_designerService) PreviewReport(ctx context.Context, reportID string, tenantID string, req *models.PreviewReportRequest) ((*models.PreviewReportResult, error)) {
-	return &models.PreviewReportResult{}, nil
-}
-
-func (f *fakereport_designerService) UpdateDatasource(ctx context.Context, id string, tenantID string, req *models.UpdateDatasourceRequest) ((*models.ReportDatasource, error)) {
-	return &models.ReportDatasource{}, nil
-}
-
-func (f *fakereport_designerService) UpdateReport(ctx context.Context, id string, tenantID string, req *models.UpdateReportRequest) ((*models.ReportDefinition, error)) {
-	return &models.ReportDefinition{}, nil
-}
-
-func (f *fakereport_designerService) UpdateSchedule(ctx context.Context, id string, tenantID string, req *models.UpdateScheduleRequest) ((*models.ReportSchedule, error)) {
-	return &models.ReportSchedule{}, nil
-}
-
-var _ service.ServiceInterface = (*fakereport_designerService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_REPORT_DESIGNE_RegisterRoutes(t *testing.T) {

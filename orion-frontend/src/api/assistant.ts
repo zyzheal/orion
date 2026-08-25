@@ -1,6 +1,6 @@
 /**
  * Global AI Assistant (Copilot) API
- * POST /api/v1/assistant/ask — 跨模块智能问答
+ * POST /assistant/ask — 跨模块智能问答
  */
 import { api } from './client';
 
@@ -33,7 +33,7 @@ export interface AssistantAskParams {
 
 /** Ask the global AI assistant a question (cross-module retrieval). */
 export function assistantAsk(data: AssistantAskParams) {
-  return api.post<AssistantResponse>('/api/v1/assistant/ask', data);
+  return api.post<AssistantResponse>('/assistant/ask', data);
 }
 
 /** Health check for the assistant module. */
@@ -60,19 +60,19 @@ export interface AssistantSession {
 
 /** List recent sessions for the current user. */
 export function listAssistantSessions(limit?: number) {
-  return api.get<AssistantSession[]>('/api/v1/assistant/sessions', {
+  return api.get<AssistantSession[]>('/assistant/sessions', {
     params: limit ? { limit } : undefined,
   });
 }
 
 /** Get a session with its full message history. */
 export function getAssistantSession(sessionId: string) {
-  return api.get<AssistantSession>(`/api/v1/assistant/sessions/${sessionId}`);
+  return api.get<AssistantSession>(`/assistant/sessions/${sessionId}`);
 }
 
 /** Delete a session. */
 export function deleteAssistantSession(sessionId: string) {
-  return api.delete<AssistantSession>(`/api/v1/assistant/sessions/${sessionId}`);
+  return api.delete<AssistantSession>(`/assistant/sessions/${sessionId}`);
 }
 
 // --- Data Source Ingestion (TR-04) ---
@@ -132,5 +132,5 @@ export interface AssistantActionResult {
 
 /** Execute a workflow action via the assistant (trigger pipeline / suggest command / create ticket / create change). */
 export function assistantAction(data: AssistantActionRequest) {
-  return api.post<AssistantActionResult>('/api/v1/assistant/action', data);
+  return api.post<AssistantActionResult>('/assistant/action', data);
 }

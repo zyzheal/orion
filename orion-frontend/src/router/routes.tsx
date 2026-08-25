@@ -2042,6 +2042,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/KnowledgeBase')),
     protected: true,
   },
+  // Knowledge Base V2 (enhanced with TipTap editor + tree nav)
+  {
+    path: '/knowledge-base-v2',
+    element: React.lazy(() => import('@/pages/KnowledgeBaseV2')),
+    protected: true,
+  },
   // Notification Detail
   {
     path: '/notifications/:id',

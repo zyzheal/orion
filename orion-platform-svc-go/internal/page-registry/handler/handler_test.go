@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/page-registry/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePage_registryService struct{}
 
 func (f *fakePage_registryService) Create(ctx context.Context, tenantID string, req models.CreatePageRegistryRequest) (*models.PageRegistry, error) {
@@ -64,43 +60,6 @@ func (f *fakePage_registryService) Update(ctx context.Context, tenantID, path st
 }
 
 var _ service.ServiceInterface = (*fakePage_registryService)(nil)
-=======
-type fakepage_registryService struct{}
-
-func (f *fakepage_registryService) Create(ctx context.Context, tenantID string, req models.CreatePageRegistryRequest) ((*models.PageRegistry, error)) {
-	return &models.PageRegistry{}, nil
-}
-
-func (f *fakepage_registryService) Delete(ctx context.Context, tenantID, path string) (error) {
-	return nil
-}
-
-func (f *fakepage_registryService) GetAll(ctx context.Context, tenantID string) (([]models.PageRegistry, error)) {
-	return []models.PageRegistry{}, nil
-}
-
-func (f *fakepage_registryService) GetByPath(ctx context.Context, tenantID, path string) ((*models.PageRegistry, error)) {
-	return &models.PageRegistry{}, nil
-}
-
-func (f *fakepage_registryService) GetEnabled(ctx context.Context, tenantID string) (([]models.PageRegistry, error)) {
-	return []models.PageRegistry{}, nil
-}
-
-func (f *fakepage_registryService) GetHistory(ctx context.Context, tenantID, path string) (([]models.PageRegistryHistory, error)) {
-	return []models.PageRegistryHistory{}, nil
-}
-
-func (f *fakepage_registryService) ToggleStatus(ctx context.Context, tenantID, path string) ((*models.PageRegistry, error)) {
-	return &models.PageRegistry{}, nil
-}
-
-func (f *fakepage_registryService) Update(ctx context.Context, tenantID, path string, req models.UpdatePageRegistryRequest) ((*models.PageRegistry, error)) {
-	return &models.PageRegistry{}, nil
-}
-
-var _ service.ServiceInterface = (*fakepage_registryService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PAGE_REGISTRY_RegisterRoutes(t *testing.T) {

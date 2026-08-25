@@ -22,7 +22,7 @@ import {
   Space,
   Button,
   Switch,
-  message,
+  Tooltip,
   Divider,
 } from 'antd';
 import {
@@ -122,9 +122,9 @@ const NODE_STATUS_COLOR: Record<string, string> = {
 // ==================== Main Component ====================
 
 const DataPipelineMonitor: React.FC = () => {
-  const [pipelines, setPipelines] = useState<Pipeline[]>(MOCK_PIPELINES);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterFrequency, setFilterFrequency] = useState<string | null>(null);
+  const pipelines = MOCK_PIPELINES;
 
   const stats = useMemo(() => {
     const total = pipelines.length;
@@ -143,30 +143,6 @@ const DataPipelineMonitor: React.FC = () => {
       return true;
     });
   }, [pipelines, filterStatus, filterFrequency]);
-
-  const handleTogglePause = (id: string, checked: boolean) => {
-    setPipelines((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, isPaused: checked, status: checked ? 'paused' : 'running' } : p
-      )
-    );
-    message.info(checked ? '管道已暂停' : '管道已恢复运行');
-  };
-
-  const handleTrigger = (pipeline: Pipeline) => {
-    message.loading({
-      content: `正在手动触发管道：${pipeline.name}`,
-      key: pipeline.id,
-      duration: 0,
-    });
-    setTimeout(() => {
-      message.success({ content: `管道 ${pipeline.name} 已手动触发成功`, key: pipeline.id });
-    }, 1200);
-  };
-
-  const handleViewDetail = (pipeline: Pipeline) => {
-    message.info(`查看详情：${pipeline.name}（源：${pipeline.source} → 目标：${pipeline.target}）`);
-  };
 
   const tableColumns = [
     {
@@ -250,31 +226,25 @@ const DataPipelineMonitor: React.FC = () => {
       width: 240,
       render: (_: any, record: Pipeline) => (
         <Space size="small" wrap>
-          <Button
-            size="small"
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
-            详情
-          </Button>
-          <Button
-            size="small"
-            type="link"
-            icon={<SyncOutlined />}
-            onClick={() => handleTrigger(record)}
-            disabled={record.status === 'paused' || record.status === 'maintenance'}
-          >
-            触发
-          </Button>
-          <Switch
-            size="small"
-            checked={record.isPaused}
-            onChange={(checked) => handleTogglePause(record.id, checked)}
-            checkedChildren="暂停"
-            unCheckedChildren="运行"
-            disabled={record.status === 'maintenance'}
-          />
+          <Tooltip title="详情查看功能开发中">
+            <Button size="small" type="link" icon={<EyeOutlined />} disabled>
+              详情
+            </Button>
+          </Tooltip>
+          <Tooltip title="手动触发功能开发中">
+            <Button size="small" type="link" icon={<SyncOutlined />} disabled>
+              触发
+            </Button>
+          </Tooltip>
+          <Tooltip title="暂停/恢复功能开发中">
+            <Switch
+              size="small"
+              checked={record.isPaused}
+              checkedChildren="暂停"
+              unCheckedChildren="运行"
+              disabled
+            />
+          </Tooltip>
         </Space>
       ),
     },
@@ -658,22 +628,16 @@ const DataPipelineMonitor: React.FC = () => {
         />
         <Divider style={{ margin: `${spacing.sm} 0` }} />
         <Space size="small">
-          <Button
-            size="small"
-            type="primary"
-            ghost
-            onClick={() => message.info('查看告警规则配置')}
-          >
-            告警规则配置
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            ghost
-            onClick={() => message.info('查看 SLA 达标率报告')}
-          >
-            SLA 达标率报告
-          </Button>
+          <Tooltip title="告警规则配置功能开发中">
+            <Button size="small" type="primary" ghost disabled>
+              告警规则配置
+            </Button>
+          </Tooltip>
+          <Tooltip title="SLA 达标率报告功能开发中">
+            <Button size="small" type="primary" ghost disabled>
+              SLA 达标率报告
+            </Button>
+          </Tooltip>
         </Space>
       </Card>
     </div>

@@ -1,7 +1,7 @@
 /**
  * Self-Service API Service
  *
- * Aligned with backend /api/v1/self-service/* routes
+ * Aligned with backend /self-service/* routes
  * Covers: service catalog (read-only), ticket CRUD for end users
  */
 import { api } from './client';
@@ -55,7 +55,7 @@ export interface CreateSelfServiceTicketPayload {
 
 export const getServiceCategories = async (): Promise<{ data: ServiceCategory[] }> => {
   const response = await api.get<{ data: ServiceCategory[] }>(
-    '/api/v1/self-service/catalog/categories'
+    '/self-service/catalog/categories'
   );
   return { data: response.data.data };
 };
@@ -67,7 +67,7 @@ export const getCatalogServices = async (params?: {
   offset?: number;
 }): Promise<{ data: ServiceItem[]; total: number }> => {
   const response = await api.get<{ data: ServiceItem[]; total: number }>(
-    '/api/v1/self-service/catalog/services',
+    '/self-service/catalog/services',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
@@ -82,14 +82,14 @@ export const getMyTickets = async (params?: {
   offset?: number;
 }): Promise<{ data: SelfServiceTicket[]; total: number }> => {
   const response = await api.get<{ data: SelfServiceTicket[]; total: number }>(
-    '/api/v1/self-service/tickets',
+    '/self-service/tickets',
     { params }
   );
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getMyTicket = async (id: string): Promise<SelfServiceTicket> => {
-  const response = await api.get<{ data: SelfServiceTicket }>(`/api/v1/self-service/tickets/${id}`);
+  const response = await api.get<{ data: SelfServiceTicket }>(`/self-service/tickets/${id}`);
   return response.data.data;
 };
 
@@ -97,12 +97,12 @@ export const createMyTicket = async (
   payload: CreateSelfServiceTicketPayload
 ): Promise<SelfServiceTicket> => {
   const response = await api.post<{ data: SelfServiceTicket }>(
-    '/api/v1/self-service/tickets',
+    '/self-service/tickets',
     payload
   );
   return response.data.data;
 };
 
 export const cancelMyTicket = async (id: string): Promise<void> => {
-  await api.delete(`/api/v1/self-service/tickets/${id}`);
+  await api.delete(`/self-service/tickets/${id}`);
 };

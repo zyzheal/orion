@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/disaster-recovery/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDisaster_recoveryService struct{}
 
 func (f *fakeDisaster_recoveryService) CreatePlan(ctx context.Context, tenantID string, req models.CreateDisasterPlanRequest) (*models.DisasterPlan, error) {
@@ -56,35 +52,6 @@ func (f *fakeDisaster_recoveryService) UpdatePlan(ctx context.Context, tenantID,
 }
 
 var _ service.ServiceInterface = (*fakeDisaster_recoveryService)(nil)
-=======
-type fakedisaster_recoveryService struct{}
-
-func (f *fakedisaster_recoveryService) CreatePlan(ctx context.Context, tenantID string, req models.CreateDisasterPlanRequest) ((*models.DisasterPlan, error)) {
-	return &models.DisasterPlan{}, nil
-}
-
-func (f *fakedisaster_recoveryService) GetPlan(ctx context.Context, tenantID, id string) ((*models.DisasterPlan, error)) {
-	return &models.DisasterPlan{}, nil
-}
-
-func (f *fakedisaster_recoveryService) ListPlans(ctx context.Context, tenantID string, limit, offset int) ((*models.ListPlansResponse, error)) {
-	return &models.ListPlansResponse{}, nil
-}
-
-func (f *fakedisaster_recoveryService) ListRuns(ctx context.Context, tenantID, planID string) (([]models.RecoveryRun, error)) {
-	return []models.RecoveryRun{}, nil
-}
-
-func (f *fakedisaster_recoveryService) RunPlan(ctx context.Context, tenantID, planID string) ((*models.RecoveryRun, error)) {
-	return &models.RecoveryRun{}, nil
-}
-
-func (f *fakedisaster_recoveryService) UpdatePlan(ctx context.Context, tenantID, id string, req models.UpdateDisasterPlanRequest) ((*models.DisasterPlan, error)) {
-	return &models.DisasterPlan{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedisaster_recoveryService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DISASTER_RECOV_RegisterRoutes(t *testing.T) {

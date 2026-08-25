@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/build/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeBuildService struct{}
 
 func (f *fakeBuildService) CancelBuild(ctx context.Context, tenantID, id string) (*models.Build, error) {
@@ -99,67 +95,6 @@ func (f *fakeBuildService) UpdateEnvironment(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeBuildService)(nil)
-=======
-type fakebuildService struct{}
-
-func (f *fakebuildService) CancelBuild(ctx context.Context, tenantID, id string) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuildService) CreateBuild(ctx context.Context, tenantID string, req models.CreateBuildRequest) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuildService) CreateEnvironment(ctx context.Context, tenantID string, req models.CreateEnvironmentRequest) ((*models.BuildEnvironment, error)) {
-	return &models.BuildEnvironment{}, nil
-}
-
-func (f *fakebuildService) DeleteBuild(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakebuildService) DeleteEnvironment(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakebuildService) GetBuild(ctx context.Context, tenantID, id string) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuildService) GetBuildByPipelineRun(ctx context.Context, tenantID, pipelineRunID string) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuildService) GetBuildStats(ctx context.Context, tenantID string) ((*models.BuildStats, error)) {
-	return &models.BuildStats{}, nil
-}
-
-func (f *fakebuildService) GetEnvironment(ctx context.Context, tenantID, id string) ((*models.BuildEnvironment, error)) {
-	return &models.BuildEnvironment{}, nil
-}
-
-func (f *fakebuildService) ListBuilds(ctx context.Context, tenantID string, opt models.ListBuildsOptions) (([]models.Build, int, error)) {
-	return []models.Build{}, 0, nil
-}
-
-func (f *fakebuildService) ListEnvironments(ctx context.Context, tenantID string) (([]models.BuildEnvironment, error)) {
-	return []models.BuildEnvironment{}, nil
-}
-
-func (f *fakebuildService) RetryBuild(ctx context.Context, tenantID, id string) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuildService) StartBuild(ctx context.Context, tenantID, id string) ((*models.Build, error)) {
-	return &models.Build{}, nil
-}
-
-func (f *fakebuildService) UpdateEnvironment(ctx context.Context, tenantID, id string, req models.UpdateEnvironmentRequest) ((*models.BuildEnvironment, error)) {
-	return &models.BuildEnvironment{}, nil
-}
-
-var _ service.ServiceInterface = (*fakebuildService)(nil)
->>>>>>> Stashed changes
 
 
 func TestBUILD_Handler_RegisterRoutes(t *testing.T) {

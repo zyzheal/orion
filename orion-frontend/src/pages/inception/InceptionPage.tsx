@@ -105,7 +105,7 @@ const InceptionPage: React.FC = () => {
       const data = res.data as { databases: string[] };
       setDatabases(data?.databases || []);
     } catch {
-      // Databases endpoint may not be available yet
+      message.error('加载数据库列表失败');
       setDatabases([]);
     }
   };

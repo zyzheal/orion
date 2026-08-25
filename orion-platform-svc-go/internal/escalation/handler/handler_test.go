@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/escalation/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeEscalationService struct{}
 
 func (f *fakeEscalationService) CreateRule(ctx context.Context, tenantID string, req models.TriggerRequest) (*models.EscalationRule, error) {
@@ -64,43 +60,6 @@ func (f *fakeEscalationService) UpdateRule(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeEscalationService)(nil)
-=======
-type fakeescalationService struct{}
-
-func (f *fakeescalationService) CreateRule(ctx context.Context, tenantID string, req models.TriggerRequest) ((*models.EscalationRule, error)) {
-	return &models.EscalationRule{}, nil
-}
-
-func (f *fakeescalationService) DeleteRule(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeescalationService) GetEventsByRule(ctx context.Context, tenantID, ruleID string) (([]models.TriggerEvent, error)) {
-	return []models.TriggerEvent{}, nil
-}
-
-func (f *fakeescalationService) GetRule(ctx context.Context, tenantID, id string) ((*models.EscalationRule, error)) {
-	return &models.EscalationRule{}, nil
-}
-
-func (f *fakeescalationService) GetStats(ctx context.Context, tenantID string) ((*models.EscalationStats, error)) {
-	return &models.EscalationStats{}, nil
-}
-
-func (f *fakeescalationService) ListRules(ctx context.Context, tenantID string, q models.ListRulesQuery) (([]models.EscalationRule, error)) {
-	return []models.EscalationRule{}, nil
-}
-
-func (f *fakeescalationService) TriggerRule(ctx context.Context, tenantID, id string, req models.TriggerRequest) ((*models.TriggerEvent, error)) {
-	return &models.TriggerEvent{}, nil
-}
-
-func (f *fakeescalationService) UpdateRule(ctx context.Context, tenantID, id string, req models.TriggerRequest) ((*models.EscalationRule, error)) {
-	return &models.EscalationRule{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeescalationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_ESCALATION_RegisterRoutes(t *testing.T) {

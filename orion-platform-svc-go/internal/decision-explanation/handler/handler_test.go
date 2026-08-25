@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/decision-explanation/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDecision_explanationService struct{}
 
 func (f *fakeDecision_explanationService) Create(ctx context.Context, tenantID string, req *models.CreateDecisionExplanationRequest) (*models.DecisionExplanation, error) {
@@ -52,31 +48,6 @@ func (f *fakeDecision_explanationService) Update(ctx context.Context, tenantID, 
 }
 
 var _ service.ServiceInterface = (*fakeDecision_explanationService)(nil)
-=======
-type fakedecision_explanationService struct{}
-
-func (f *fakedecision_explanationService) Create(ctx context.Context, tenantID string, req *models.CreateDecisionExplanationRequest) ((*models.DecisionExplanation, error)) {
-	return &models.DecisionExplanation{}, nil
-}
-
-func (f *fakedecision_explanationService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedecision_explanationService) Get(ctx context.Context, tenantID, id string) ((*models.DecisionExplanation, error)) {
-	return &models.DecisionExplanation{}, nil
-}
-
-func (f *fakedecision_explanationService) List(ctx context.Context, tenantID string) (([]models.DecisionExplanation, error)) {
-	return []models.DecisionExplanation{}, nil
-}
-
-func (f *fakedecision_explanationService) Update(ctx context.Context, tenantID, id string, req *models.UpdateDecisionExplanationRequest) ((*models.DecisionExplanation, error)) {
-	return &models.DecisionExplanation{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedecision_explanationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DECISION_EXPLA_RegisterRoutes(t *testing.T) {

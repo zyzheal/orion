@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/workflow-task/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeWorkflow_taskService struct{}
 
 func (f *fakeWorkflow_taskService) Claim(ctx context.Context, id string, tenantID string, assigneeID string, comment *string) (*models.WorkflowTask, error) {
@@ -48,27 +44,6 @@ func (f *fakeWorkflow_taskService) ListTasks(ctx context.Context, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeWorkflow_taskService)(nil)
-=======
-type fakeworkflow_taskService struct{}
-
-func (f *fakeworkflow_taskService) Claim(ctx context.Context, id string, tenantID string, assigneeID string, comment *string) ((*models.WorkflowTask, error)) {
-	return &models.WorkflowTask{}, nil
-}
-
-func (f *fakeworkflow_taskService) Complete(ctx context.Context, id string, tenantID string, comment *string, formData *string) ((*models.WorkflowTask, error)) {
-	return &models.WorkflowTask{}, nil
-}
-
-func (f *fakeworkflow_taskService) GetTask(ctx context.Context, id string, tenantID string) ((*models.WorkflowTask, error)) {
-	return &models.WorkflowTask{}, nil
-}
-
-func (f *fakeworkflow_taskService) ListTasks(ctx context.Context, tenantID string, filter *models.ListFilter) (([]models.WorkflowTask, int, error)) {
-	return []models.WorkflowTask{}, 0, nil
-}
-
-var _ service.ServiceInterface = (*fakeworkflow_taskService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_WORKFLOW_TASK_RegisterRoutes(t *testing.T) {

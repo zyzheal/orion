@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/ephemeral-env/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeEphemeral_envService struct{}
 
 func (f *fakeEphemeral_envService) CreateEnv(ctx context.Context, tenantID string, req models.CreateEphemeralEnvRequest) (*models.EphemeralEnv, error) {
@@ -60,39 +56,6 @@ func (f *fakeEphemeral_envService) ListEnvs(ctx context.Context, tenantID string
 }
 
 var _ service.ServiceInterface = (*fakeEphemeral_envService)(nil)
-=======
-type fakeephemeral_envService struct{}
-
-func (f *fakeephemeral_envService) CreateEnv(ctx context.Context, tenantID string, req models.CreateEphemeralEnvRequest) ((*models.EphemeralEnv, error)) {
-	return &models.EphemeralEnv{}, nil
-}
-
-func (f *fakeephemeral_envService) DeleteEnv(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeephemeral_envService) DestroyEnv(ctx context.Context, tenantID, id string) ((*models.EphemeralEnv, error)) {
-	return &models.EphemeralEnv{}, nil
-}
-
-func (f *fakeephemeral_envService) ExtendTTL(ctx context.Context, tenantID, id string, req models.ExtendTTLRequest) ((*models.EphemeralEnv, error)) {
-	return &models.EphemeralEnv{}, nil
-}
-
-func (f *fakeephemeral_envService) GetEnv(ctx context.Context, tenantID, id string) ((*models.EphemeralEnv, error)) {
-	return &models.EphemeralEnv{}, nil
-}
-
-func (f *fakeephemeral_envService) GetLogs(ctx context.Context, tenantID, envID string, limit int) (([]models.EnvLog, error)) {
-	return []models.EnvLog{}, nil
-}
-
-func (f *fakeephemeral_envService) ListEnvs(ctx context.Context, tenantID string, limit, offset int) ((*models.ListEnvsResponse, error)) {
-	return &models.ListEnvsResponse{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeephemeral_envService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_EPHEMERAL_ENV_RegisterRoutes(t *testing.T) {

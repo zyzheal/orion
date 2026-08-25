@@ -27,7 +27,7 @@ import {
   Select,
   Progress,
 } from 'antd';
-import { ClusterOutlined, PlusOutlined, ReloadOutlined, GlobalOutlined } from '@ant-design/icons';
+import { ClusterOutlined, PlusOutlined, ReloadOutlined, GlobalOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   federationApi,
   type FederationCluster,
@@ -162,6 +162,63 @@ const FederationPage: React.FC = () => {
     }
   };
 
+  const handleDeregisterCluster = (cluster: FederationCluster) => {
+    Modal.confirm({
+      title: '确认注销集群？',
+      content: `确定要注销集群 "${cluster.name}" 吗？此操作不可撤销。`,
+      okText: '确认注销',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await federationApi.deregisterCluster(cluster.id);
+          message.success('集群已注销');
+          loadData();
+        } catch (error: unknown) {
+          message.error(`注销失败: ${(error as Error).message}`);
+        }
+      },
+    });
+  };
+
+  const handleDeleteJob = (job: CrossClusterJob) => {
+    Modal.confirm({
+      title: '确认删除作业？',
+      content: `确定要删除作业 "${job.name}" 吗？`,
+      okText: '确认删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await federationApi.deleteJob(job.id);
+          message.success('作业已删除');
+          loadData();
+        } catch (error: unknown) {
+          message.error(`删除失败: ${(error as Error).message}`);
+        }
+      },
+    });
+  };
+
+  const handleDeletePool = (pool: ResourcePool) => {
+    Modal.confirm({
+      title: '确认删除资源池？',
+      content: `确定要删除资源池 "${pool.name}" 吗？`,
+      okText: '确认删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await federationApi.deleteResourcePool(pool.id);
+          message.success('资源池已删除');
+          loadData();
+        } catch (error: unknown) {
+          message.error(`删除失败: ${(error as Error).message}`);
+        }
+      },
+    });
+  };
+
   // Stats
   const stats = useMemo(
     () => ({
@@ -228,6 +285,33 @@ const FederationPage: React.FC = () => {
       width: 160,
       render: (v: string) => new Date(v).toLocaleString('zh-CN'),
     },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      render: (_: unknown, record: FederationCluster) => (
+        <Space>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => {
+              clusterForm.setFieldsValue(record);
+              setCreateClusterModal(true);
+            }}
+          >
+            编辑
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeregisterCluster(record)}
+          >
+            注销
+          </Button>
+        </Space>
+      ),
+    },
   ];
 
   // Job columns
@@ -269,6 +353,21 @@ const FederationPage: React.FC = () => {
       width: 160,
       render: (v: string) => new Date(v).toLocaleString('zh-CN'),
     },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 100,
+      render: (_: unknown, record: CrossClusterJob) => (
+        <Button
+          size="small"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDeleteJob(record)}
+        >
+          删除
+        </Button>
+      ),
+    },
   ];
 
   // Resource pool columns
@@ -289,6 +388,21 @@ const FederationPage: React.FC = () => {
       key: 'status',
       width: 80,
       render: (v: string) => <Tag color={statusColorMap[v]}>{statusLabelMap[v]}</Tag>,
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 100,
+      render: (_: unknown, record: ResourcePool) => (
+        <Button
+          size="small"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDeletePool(record)}
+        >
+          删除
+        </Button>
+      ),
     },
   ];
 

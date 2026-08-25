@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/apk-upload-history/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeApk_upload_historyService struct{}
 
 func (f *fakeApk_upload_historyService) CheckDuplicate(ctx context.Context, tenantID, market, packageName, version string) (bool, error) {
@@ -71,39 +67,6 @@ func (f *fakeApk_upload_historyService) UpdateStatus(ctx context.Context, tenant
 }
 
 var _ service.ServiceInterface = (*fakeApk_upload_historyService)(nil)
-=======
-type fakeapk_upload_historyService struct{}
-
-func (f *fakeapk_upload_historyService) CheckDuplicate(ctx context.Context, tenantID, market, packageName, version string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakeapk_upload_historyService) CreateRecord(ctx context.Context, tenantID string, record *models.ApkUploadRecord) ((*models.ApkUploadRecord, error)) {
-	return &models.ApkUploadRecord{}, nil
-}
-
-func (f *fakeapk_upload_historyService) GetRecord(ctx context.Context, tenantID, id string) ((*models.ApkUploadRecord, error)) {
-	return &models.ApkUploadRecord{}, nil
-}
-
-func (f *fakeapk_upload_historyService) GetStats(ctx context.Context, tenantID string) ((*models.ApkUploadStats, error)) {
-	return &models.ApkUploadStats{}, nil
-}
-
-func (f *fakeapk_upload_historyService) ListRecords(ctx context.Context, tenantID string, q models.ListQuery) (([]models.ApkUploadRecord, int, error)) {
-	return []models.ApkUploadRecord{}, 0, nil
-}
-
-func (f *fakeapk_upload_historyService) RecentFailures(ctx context.Context, tenantID string) (([]models.ApkUploadRecord, error)) {
-	return []models.ApkUploadRecord{}, nil
-}
-
-func (f *fakeapk_upload_historyService) UpdateStatus(ctx context.Context, tenantID, id string, status models.ApkStatus, errMsg string) ((*models.ApkUploadRecord, error)) {
-	return &models.ApkUploadRecord{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeapk_upload_historyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestAPK_UPLOAD_HISTORY_Handler_RegisterRoutes(t *testing.T) {

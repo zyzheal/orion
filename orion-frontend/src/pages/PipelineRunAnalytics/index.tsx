@@ -373,7 +373,7 @@ export default function PipelineRunAnalyticsPage() {
     {
       title: '',
       key: 'actions',
-      width: 120,
+      width: 140,
       render: (_: unknown, r: RunRecord) => (
         <Space size="small">
           {r.status === 'running' && (
@@ -381,7 +381,14 @@ export default function PipelineRunAnalyticsPage() {
               size="small"
               danger
               onClick={() => {
-                cancelPipelineRun(r.id).then(() => loadRuns());
+                cancelPipelineRun(r.id)
+                  .then(() => {
+                    message.success('流水线已取消');
+                    loadRuns();
+                  })
+                  .catch(() => {
+                    message.error('取消失败');
+                  });
               }}
             >
               Cancel
@@ -392,7 +399,14 @@ export default function PipelineRunAnalyticsPage() {
               size="small"
               type="primary"
               onClick={() => {
-                retryPipelineRun(r.id).then(() => loadRuns());
+                retryPipelineRun(r.id)
+                  .then(() => {
+                    message.success('流水线已重新触发');
+                    loadRuns();
+                  })
+                  .catch(() => {
+                    message.error('重试失败');
+                  });
               }}
             >
               Retry

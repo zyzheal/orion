@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/privacy/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePrivacyService struct{}
 
 func (f *fakePrivacyService) DeletePrivacyConfig(ctx context.Context, tenantID string) error {
@@ -52,31 +48,6 @@ func (f *fakePrivacyService) UpsertPrivacyConfig(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakePrivacyService)(nil)
-=======
-type fakeprivacyService struct{}
-
-func (f *fakeprivacyService) DeletePrivacyConfig(ctx context.Context, tenantID string) (error) {
-	return nil
-}
-
-func (f *fakeprivacyService) GetPrivacyConfig(ctx context.Context, tenantID string) ((*models.PrivacyConfig, error)) {
-	return &models.PrivacyConfig{}, nil
-}
-
-func (f *fakeprivacyService) ListComplianceStatus(ctx context.Context) (([]models.ComplianceStatus, error)) {
-	return []models.ComplianceStatus{}, nil
-}
-
-func (f *fakeprivacyService) UpdatePrivacyConfig(ctx context.Context, tenantID string, updates map[string]any) ((*models.PrivacyConfig, error)) {
-	return &models.PrivacyConfig{}, nil
-}
-
-func (f *fakeprivacyService) UpsertPrivacyConfig(ctx context.Context, tenantID string, config *models.PrivacyConfig) ((*models.PrivacyConfig, error)) {
-	return &models.PrivacyConfig{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeprivacyService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PRIVACY_RegisterRoutes(t *testing.T) {

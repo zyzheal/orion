@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/ticket-automation/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeTicket_automationService struct{}
 
 func (f *fakeTicket_automationService) Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
@@ -52,31 +48,6 @@ func (f *fakeTicket_automationService) Update(ctx context.Context, tenantID, id 
 }
 
 var _ service.ServiceInterface = (*fakeTicket_automationService)(nil)
-=======
-type faketicket_automationService struct{}
-
-func (f *faketicket_automationService) Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) ((*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)) {
-	return &models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
-}
-
-func (f *faketicket_automationService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *faketicket_automationService) Get(ctx context.Context, tenantID, id string) ((*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)) {
-	return &models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
-}
-
-func (f *faketicket_automationService) List(ctx context.Context, tenantID string) (([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)) {
-	return []models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
-}
-
-func (f *faketicket_automationService) Update(ctx context.Context, tenantID, id string, updates map[string]any) ((*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)) {
-	return &models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
-}
-
-var _ service.ServiceInterface = (*faketicket_automationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TICKET_AUTOMAT_RegisterRoutes(t *testing.T) {

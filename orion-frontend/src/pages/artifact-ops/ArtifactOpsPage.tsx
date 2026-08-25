@@ -25,6 +25,7 @@ import { BoxPlotOutlined, PlusOutlined, ReloadOutlined, ToolOutlined } from '@an
 import {
   getArtifacts,
   getArtifactStats,
+  createArtifact,
   promoteArtifact,
   deprecateArtifact,
   quarantineArtifact,
@@ -60,10 +61,16 @@ const ArtifactOpsPage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (_values: any) => {
-    message.info('Artifact creation would be handled by backend API');
-    setCreateModalOpen(false);
-    form.resetFields();
+  const handleCreate = async (values: any) => {
+    try {
+      await createArtifact(values);
+      message.success('Artifact created');
+      setCreateModalOpen(false);
+      form.resetFields();
+      loadData();
+    } catch {
+      message.error('Failed to create artifact');
+    }
   };
 
   const handlePromote = async (id: string) => {

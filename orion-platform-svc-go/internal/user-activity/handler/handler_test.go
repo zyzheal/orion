@@ -25,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) CreateActivity(ctx context.Context, userID, action, resourceType, resourceID string, details any, ipAddress, userAgent string) (*models.UserActivity, error) {
@@ -45,27 +44,6 @@ func (f *fakeHandlerService) GetActivity(ctx context.Context, userID, activityID
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeuser_activityService struct{}
-
-func (f *fakeuser_activityService) CreateActivity(ctx context.Context, userID, action, resourceType, resourceID string, details any, ipAddress, userAgent string) ((*models.UserActivity, error)) {
-	return &models.UserActivity{}, nil
-}
-
-func (f *fakeuser_activityService) DeleteActivity(ctx context.Context, userID, activityID string) (error) {
-	return nil
-}
-
-func (f *fakeuser_activityService) GetActivities(ctx context.Context, userID string, page, pageSize int) ((*models.ActivitiesResponse, error)) {
-	return &models.ActivitiesResponse{}, nil
-}
-
-func (f *fakeuser_activityService) GetActivity(ctx context.Context, userID, activityID string) ((*models.UserActivity, error)) {
-	return &models.UserActivity{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeuser_activityService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_USER_ACTIVITY_RegisterRoutes(t *testing.T) {

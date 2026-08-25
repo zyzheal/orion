@@ -67,92 +67,92 @@ export interface PaginatedUserResult {
 
 /**
  * List users with pagination and optional filters
- * GET /api/v1/users
+ * GET /users
  */
 export function listUsers(params?: ListUsersParams) {
-  return api.get<PaginatedUserResult>('/api/v1/users', { params });
+  return api.get<PaginatedUserResult>('/users', { params });
 }
 
 /**
  * Get user detail by ID
- * GET /api/v1/users/:id
+ * GET /users/:id
  */
 export function getUser(id: string) {
-  return api.get<User>(`/api/v1/users/${id}`);
+  return api.get<User>(`/users/${id}`);
 }
 
 /**
  * Create a new user
- * POST /api/v1/users
+ * POST /users
  */
 export function createUser(data: CreateUserInput) {
-  return api.post<User>('/api/v1/users', data);
+  return api.post<User>('/users', data);
 }
 
 /**
  * Update an existing user
- * PUT /api/v1/users/:id
+ * PUT /users/:id
  */
 export function updateUser(id: string, data: UpdateUserInput) {
-  return api.put<User>(`/api/v1/users/${id}`, data);
+  return api.put<User>(`/users/${id}`, data);
 }
 
 /**
  * Soft delete a user
- * DELETE /api/v1/users/:id
+ * DELETE /users/:id
  */
 export function deleteUser(id: string) {
-  return api.delete(`/api/v1/users/${id}`);
+  return api.delete(`/users/${id}`);
 }
 
 // ---- Authentication ----
 
 /**
  * Authenticate user (internal use)
- * POST /api/v1/users/authenticate
+ * POST /users/authenticate
  */
 export function authenticateUser(username: string, password: string) {
-  return api.post<User>('/api/v1/users/authenticate', { username, password });
+  return api.post<User>('/users/authenticate', { username, password });
 }
 
 /**
  * Change user password
- * POST /api/v1/users/:id/change-password
+ * POST /users/:id/change-password
  */
 export function changePassword(id: string, data: ChangePasswordInput) {
-  return api.post(`/api/v1/users/${id}/change-password`, data);
+  return api.post(`/users/${id}/change-password`, data);
 }
 
 /**
  * 管理员重置用户密码 — 无需原密码
- * POST /api/v1/users/:id/admin-reset-password
+ * POST /users/:id/admin-reset-password
  */
 export function adminResetPassword(id: string, data: { newPassword: string }) {
-  return api.post(`/api/v1/users/${id}/admin-reset-password`, data);
+  return api.post(`/users/${id}/admin-reset-password`, data);
 }
 
 // ---- Tenant Management ----
 
 /**
  * Get users by tenant
- * GET /api/v1/users/by-tenant/:tenantId
+ * GET /users/by-tenant/:tenantId
  */
 export function getUsersByTenant(tenantId: string) {
-  return api.get<User[]>(`/api/v1/users/by-tenant/${tenantId}`);
+  return api.get<User[]>(`/users/by-tenant/${tenantId}`);
 }
 
 /**
  * Add user to tenant
- * POST /api/v1/users/:userId/tenants/:tenantId
+ * POST /users/:userId/tenants/:tenantId
  */
 export function addUserToTenant(userId: string, tenantId: string, role?: string) {
-  return api.post(`/api/v1/users/${userId}/tenants/${tenantId}`, { role });
+  return api.post(`/users/${userId}/tenants/${tenantId}`, { role });
 }
 
 /**
  * Remove user from tenant
- * DELETE /api/v1/users/:userId/tenants/:tenantId
+ * DELETE /users/:userId/tenants/:tenantId
  */
 export function removeUserFromTenant(userId: string, tenantId: string) {
-  return api.delete(`/api/v1/users/${userId}/tenants/${tenantId}`);
+  return api.delete(`/users/${userId}/tenants/${tenantId}`);
 }

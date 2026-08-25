@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/slo/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSloService struct{}
 
 func (f *fakeSloService) CreateSLO(ctx context.Context, slo *models.SLODefinition) error {
@@ -72,51 +68,6 @@ func (f *fakeSloService) UpdateSLO(ctx context.Context, tenantID, id string, upd
 }
 
 var _ service.ServiceInterface = (*fakeSloService)(nil)
-=======
-type fakesloService struct{}
-
-func (f *fakesloService) CreateSLO(ctx context.Context, slo *models.SLODefinition) (error) {
-	return nil
-}
-
-func (f *fakesloService) DeleteSLO(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakesloService) GetDashboard(ctx context.Context, tenantID string) (([]models.SLODefinition, error)) {
-	return []models.SLODefinition{}, nil
-}
-
-func (f *fakesloService) GetErrorBudgetHistory(ctx context.Context, sloID, tenantID string, limit int) (([]models.ErrorBudget, error)) {
-	return []models.ErrorBudget{}, nil
-}
-
-func (f *fakesloService) GetLatestErrorBudget(ctx context.Context, sloID, tenantID string) ((*models.ErrorBudget, error)) {
-	return &models.ErrorBudget{}, nil
-}
-
-func (f *fakesloService) GetSLIHistory(ctx context.Context, sloID, tenantID string, limit int) (([]models.SLIMeasurement, error)) {
-	return []models.SLIMeasurement{}, nil
-}
-
-func (f *fakesloService) GetSLO(ctx context.Context, tenantID, id string) ((*models.SLODefinition, error)) {
-	return &models.SLODefinition{}, nil
-}
-
-func (f *fakesloService) ListSLOs(ctx context.Context, tenantID string, sloType string, enabled *bool) (([]models.SLODefinition, error)) {
-	return []models.SLODefinition{}, nil
-}
-
-func (f *fakesloService) RecordSLI(ctx context.Context, m *models.SLIMeasurement) (error) {
-	return nil
-}
-
-func (f *fakesloService) UpdateSLO(ctx context.Context, tenantID, id string, updates map[string]any) ((*models.SLODefinition, error)) {
-	return &models.SLODefinition{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesloService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SLO_RegisterRoutes(t *testing.T) {

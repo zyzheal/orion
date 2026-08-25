@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/metrics/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeMetricsService struct{}
 
 func (f *fakeMetricsService) Create(ctx context.Context, tenantID string, req models.CreateMetricsRequest) (*models.Metrics, error) {
@@ -52,31 +48,6 @@ func (f *fakeMetricsService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeMetricsService)(nil)
-=======
-type fakemetricsService struct{}
-
-func (f *fakemetricsService) Create(ctx context.Context, tenantID string, req models.CreateMetricsRequest) ((*models.Metrics, error)) {
-	return &models.Metrics{}, nil
-}
-
-func (f *fakemetricsService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakemetricsService) Get(ctx context.Context, tenantID, id string) ((*models.Metrics, error)) {
-	return &models.Metrics{}, nil
-}
-
-func (f *fakemetricsService) List(ctx context.Context, tenantID string) (([]models.Metrics, error)) {
-	return []models.Metrics{}, nil
-}
-
-func (f *fakemetricsService) Update(ctx context.Context, tenantID, id string, req models.UpdateMetricsRequest) ((*models.Metrics, error)) {
-	return &models.Metrics{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemetricsService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_METRICS_RegisterRoutes(t *testing.T) {

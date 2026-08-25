@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/dual-engine/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeDual_engineService struct{}
 
 func (f *fakeDual_engineService) Create(ctx context.Context, tenantID string, req *models.CreateDualEngineRequest) (*models.DualEngine, error) {
@@ -52,31 +48,6 @@ func (f *fakeDual_engineService) Update(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeDual_engineService)(nil)
-=======
-type fakedual_engineService struct{}
-
-func (f *fakedual_engineService) Create(ctx context.Context, tenantID string, req *models.CreateDualEngineRequest) ((*models.DualEngine, error)) {
-	return &models.DualEngine{}, nil
-}
-
-func (f *fakedual_engineService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakedual_engineService) Get(ctx context.Context, tenantID, id string) ((*models.DualEngine, error)) {
-	return &models.DualEngine{}, nil
-}
-
-func (f *fakedual_engineService) List(ctx context.Context, tenantID string) (([]models.DualEngine, error)) {
-	return []models.DualEngine{}, nil
-}
-
-func (f *fakedual_engineService) Update(ctx context.Context, tenantID, id string, req *models.UpdateDualEngineRequest) ((*models.DualEngine, error)) {
-	return &models.DualEngine{}, nil
-}
-
-var _ service.ServiceInterface = (*fakedual_engineService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DUAL_ENGINE_RegisterRoutes(t *testing.T) {

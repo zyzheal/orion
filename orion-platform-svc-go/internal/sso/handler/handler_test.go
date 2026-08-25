@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/sso/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSsoService struct{}
 
 func (f *fakeSsoService) CreateProvider(ctx context.Context, tenantID string, provider *models.SSOProvider) (*models.SSOProvider, error) {
@@ -56,35 +52,6 @@ func (f *fakeSsoService) UpdateProvider(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeSsoService)(nil)
-=======
-type fakessoService struct{}
-
-func (f *fakessoService) CreateProvider(ctx context.Context, tenantID string, provider *models.SSOProvider) ((*models.SSOProvider, error)) {
-	return &models.SSOProvider{}, nil
-}
-
-func (f *fakessoService) GetProvider(ctx context.Context, tenantID, id string) ((*models.SSOProvider, error)) {
-	return &models.SSOProvider{}, nil
-}
-
-func (f *fakessoService) HandleCallback(ctx context.Context, tenantID string, state string, userID string) ((*models.SSOProvider, error)) {
-	return &models.SSOProvider{}, nil
-}
-
-func (f *fakessoService) InitiateLogin(ctx context.Context, tenantID string, req *models.SSOLoginRequest) ((*models.SSOSession, error)) {
-	return &models.SSOSession{}, nil
-}
-
-func (f *fakessoService) ListProviders(ctx context.Context, tenantID string, q models.ListProvidersQuery) (([]models.SSOProvider, int, error)) {
-	return []models.SSOProvider{}, 0, nil
-}
-
-func (f *fakessoService) UpdateProvider(ctx context.Context, tenantID, id string, updates map[string]any) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakessoService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SSO_RegisterRoutes(t *testing.T) {

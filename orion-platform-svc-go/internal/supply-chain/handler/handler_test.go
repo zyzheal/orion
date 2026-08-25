@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/supply-chain/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSupply_chainService struct{}
 
 func (f *fakeSupply_chainService) AnalyzeDependencies(ctx context.Context, tenantID, packageName, version string, depth int) error {
@@ -72,51 +68,6 @@ func (f *fakeSupply_chainService) VerifyArtifactSignature(ctx context.Context, a
 }
 
 var _ service.ServiceInterface = (*fakeSupply_chainService)(nil)
-=======
-type fakesupply_chainService struct{}
-
-func (f *fakesupply_chainService) AnalyzeDependencies(ctx context.Context, tenantID, packageName, version string, depth int) (error) {
-	return nil
-}
-
-func (f *fakesupply_chainService) GenerateSBOM(ctx context.Context, tenantID string, req *models.GenerateSBOMRequest) ((*models.SBOM, error)) {
-	return &models.SBOM{}, nil
-}
-
-func (f *fakesupply_chainService) GenerateSupplyChainReport(ctx context.Context, tenantID, pipelineID, artifactID string) ((*models.SupplyChainReport, error)) {
-	return &models.SupplyChainReport{}, nil
-}
-
-func (f *fakesupply_chainService) GetDependencyGraph(ctx context.Context, tenantID, packageName, version string) ((*models.DependencyGraph, error)) {
-	return &models.DependencyGraph{}, nil
-}
-
-func (f *fakesupply_chainService) GetSBOM(ctx context.Context, tenantID, sbomID string) ((*models.SBOM, error)) {
-	return &models.SBOM{}, nil
-}
-
-func (f *fakesupply_chainService) GetSupplyChainReport(ctx context.Context, tenantID, pipelineID string) ((*models.SupplyChainReport, error)) {
-	return &models.SupplyChainReport{}, nil
-}
-
-func (f *fakesupply_chainService) GetVulnerabilitiesForComponent(ctx context.Context, tenantID, name, version string) (([]models.Vulnerability, error)) {
-	return []models.Vulnerability{}, nil
-}
-
-func (f *fakesupply_chainService) ListSBOMs(ctx context.Context, tenantID string, q models.ListSBOMsQuery) (([]models.SBOM, error)) {
-	return []models.SBOM{}, nil
-}
-
-func (f *fakesupply_chainService) SignArtifact(ctx context.Context, tenantID, artifactID string, req *models.SignArtifactRequest) ((*models.ArtifactSignature, error)) {
-	return &models.ArtifactSignature{}, nil
-}
-
-func (f *fakesupply_chainService) VerifyArtifactSignature(ctx context.Context, artifactID, signature string, req *models.VerifySignatureRequest) ((*models.ArtifactSignature, error)) {
-	return &models.ArtifactSignature{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesupply_chainService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SUPPLY_CHAIN_RegisterRoutes(t *testing.T) {

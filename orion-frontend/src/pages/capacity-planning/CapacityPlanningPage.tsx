@@ -319,6 +319,7 @@ const MetricsTab: React.FC = () => {
   const [metrics, setMetrics] = useState<CapacityMetric[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   const loadData = async () => {
@@ -338,6 +339,7 @@ const MetricsTab: React.FC = () => {
   }, []);
 
   const handleCreate = async (values: any) => {
+    setSubmitting(true);
     try {
       await recordCapacityMetric({
         resourceType: values.resourceType,
@@ -353,6 +355,8 @@ const MetricsTab: React.FC = () => {
       loadData();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '记录失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -430,6 +434,9 @@ const MetricsTab: React.FC = () => {
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText="记录"
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>

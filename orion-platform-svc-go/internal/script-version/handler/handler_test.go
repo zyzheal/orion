@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/script-version/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeScript_versionService struct{}
 
 func (f *fakeScript_versionService) Create(ctx context.Context, tenantID string, req models.CreateScriptVersionRequest) (*models.ScriptVersion, error) {
@@ -52,31 +48,6 @@ func (f *fakeScript_versionService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeScript_versionService)(nil)
-=======
-type fakescript_versionService struct{}
-
-func (f *fakescript_versionService) Create(ctx context.Context, tenantID string, req models.CreateScriptVersionRequest) ((*models.ScriptVersion, error)) {
-	return &models.ScriptVersion{}, nil
-}
-
-func (f *fakescript_versionService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakescript_versionService) Get(ctx context.Context, tenantID, id string) ((*models.ScriptVersion, error)) {
-	return &models.ScriptVersion{}, nil
-}
-
-func (f *fakescript_versionService) List(ctx context.Context, tenantID string) (([]models.ScriptVersion, error)) {
-	return []models.ScriptVersion{}, nil
-}
-
-func (f *fakescript_versionService) Update(ctx context.Context, tenantID, id string, req models.UpdateScriptVersionRequest) ((*models.ScriptVersion, error)) {
-	return &models.ScriptVersion{}, nil
-}
-
-var _ service.ServiceInterface = (*fakescript_versionService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SCRIPT_VERSION_RegisterRoutes(t *testing.T) {

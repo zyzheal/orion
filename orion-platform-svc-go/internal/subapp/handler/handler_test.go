@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/subapp/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeSubappService struct{}
 
 func (f *fakeSubappService) Create(ctx context.Context, tenantID string, createdBy *string, req models.CreateSubAppRequest) (*models.SubApp, error) {
@@ -64,43 +60,6 @@ func (f *fakeSubappService) Update(ctx context.Context, tenantID, key string, up
 }
 
 var _ service.ServiceInterface = (*fakeSubappService)(nil)
-=======
-type fakesubappService struct{}
-
-func (f *fakesubappService) Create(ctx context.Context, tenantID string, createdBy *string, req models.CreateSubAppRequest) ((*models.SubApp, error)) {
-	return &models.SubApp{}, nil
-}
-
-func (f *fakesubappService) Delete(ctx context.Context, tenantID, key string, changedBy *string) (error) {
-	return nil
-}
-
-func (f *fakesubappService) GetAll(ctx context.Context, tenantID string) (([]models.SubApp, error)) {
-	return []models.SubApp{}, nil
-}
-
-func (f *fakesubappService) GetByKey(ctx context.Context, tenantID, key string) ((*models.SubApp, error)) {
-	return &models.SubApp{}, nil
-}
-
-func (f *fakesubappService) GetEnabled(ctx context.Context, tenantID string) (([]models.SubApp, error)) {
-	return []models.SubApp{}, nil
-}
-
-func (f *fakesubappService) GetHistory(ctx context.Context, tenantID, key string) (([]models.SubAppConfigHistory, error)) {
-	return []models.SubAppConfigHistory{}, nil
-}
-
-func (f *fakesubappService) ToggleStatus(ctx context.Context, tenantID, key string, changedBy *string) ((*models.SubApp, error)) {
-	return &models.SubApp{}, nil
-}
-
-func (f *fakesubappService) Update(ctx context.Context, tenantID, key string, updatedBy *string, req models.UpdateSubAppRequest) ((*models.SubApp, error)) {
-	return &models.SubApp{}, nil
-}
-
-var _ service.ServiceInterface = (*fakesubappService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_SUBAPP_RegisterRoutes(t *testing.T) {

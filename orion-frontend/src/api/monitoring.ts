@@ -52,27 +52,27 @@ export interface EscalationPolicy {
 // ==================== Monitoring Control ====================
 
 export function startMonitoring() {
-  return api.post<{ status: string; startedAt: string }>('/api/v1/monitoring/start');
+  return api.post<{ status: string; startedAt: string }>('/monitoring/start');
 }
 
 export function stopMonitoring() {
-  return api.post<{ status: string; stoppedAt: string }>('/api/v1/monitoring/stop');
+  return api.post<{ status: string; stoppedAt: string }>('/monitoring/stop');
 }
 
 export function getMonitoringHealth() {
   return api.get<{ status: string; uptime: number; metricsCount: number }>(
-    '/api/v1/monitoring/health'
+    '/monitoring/health'
   );
 }
 
 // ==================== Metrics ====================
 
 export function getMetrics(params?: { tags?: string }) {
-  return api.get<Metric[]>('/api/v1/monitoring/metrics', { params });
+  return api.get<Metric[]>('/monitoring/metrics', { params });
 }
 
 export function recordMetric(data: { name: string; value: number; tags?: Record<string, string> }) {
-  return api.post<{ recorded: boolean }>('/api/v1/monitoring/metrics', data);
+  return api.post<{ recorded: boolean }>('/monitoring/metrics', data);
 }
 
 export function registerMetric(data: {
@@ -81,7 +81,7 @@ export function registerMetric(data: {
   unit: string;
   tags?: Record<string, string>;
 }) {
-  return api.post<{ registered: boolean }>('/api/v1/monitoring/metrics/register', data);
+  return api.post<{ registered: boolean }>('/monitoring/metrics/register', data);
 }
 
 export function getMetricSeries(
@@ -89,14 +89,14 @@ export function getMetricSeries(
   params?: { from?: string; to?: string; step?: string }
 ) {
   return api.get<{ points: Array<{ timestamp: string; value: number }> }>(
-    `/api/v1/monitoring/metrics/${name}/series`,
+    `/monitoring/metrics/${name}/series`,
     { params }
   );
 }
 
 export function getMetricSummary(name: string, params?: { window?: string }) {
   return api.get<{ avg: number; min: number; max: number; p95: number; count: number }>(
-    `/api/v1/monitoring/metrics/${name}/summary`,
+    `/monitoring/metrics/${name}/summary`,
     { params }
   );
 }
@@ -104,35 +104,35 @@ export function getMetricSummary(name: string, params?: { window?: string }) {
 // ==================== Alert Rules ====================
 
 export function getAlertRules() {
-  return api.get<AlertRule[]>('/api/v1/monitoring/rules');
+  return api.get<AlertRule[]>('/monitoring/rules');
 }
 
 export function createAlertRule(data: Omit<AlertRule, 'id'>) {
-  return api.post<AlertRule>('/api/v1/monitoring/rules', data);
+  return api.post<AlertRule>('/monitoring/rules', data);
 }
 
 export function updateAlertRule(id: string, data: Partial<AlertRule>) {
-  return api.put<AlertRule>(`/api/v1/monitoring/rules/${id}`, data);
+  return api.put<AlertRule>(`/monitoring/rules/${id}`, data);
 }
 
 export function deleteAlertRule(id: string) {
-  return api.delete<{ deleted: boolean }>(`/api/v1/monitoring/rules/${id}`);
+  return api.delete<{ deleted: boolean }>(`/monitoring/rules/${id}`);
 }
 
 export function toggleAlertRule(id: string) {
-  return api.patch<{ enabled: boolean }>(`/api/v1/monitoring/rules/${id}/toggle`);
+  return api.patch<{ enabled: boolean }>(`/monitoring/rules/${id}/toggle`);
 }
 
 export function evaluateAlertRule(data: { ruleId: string }) {
-  return api.post<{ triggered: boolean; value: number }>(`/api/v1/monitoring/rules/evaluate`, data);
+  return api.post<{ triggered: boolean; value: number }>(`/monitoring/rules/evaluate`, data);
 }
 
 export function suppressAlertRule(id: string) {
-  return api.post<{ suppressed: boolean }>(`/api/v1/monitoring/rules/${id}/suppress`);
+  return api.post<{ suppressed: boolean }>(`/monitoring/rules/${id}/suppress`);
 }
 
 export function unsuppressAlertRule(id: string) {
-  return api.post<{ suppressed: boolean }>(`/api/v1/monitoring/rules/${id}/unsuppress`);
+  return api.post<{ suppressed: boolean }>(`/monitoring/rules/${id}/unsuppress`);
 }
 
 // ==================== Alerts ====================
@@ -143,58 +143,58 @@ export function getAlerts(params?: {
   from?: string;
   to?: string;
 }) {
-  return api.get<Alert[]>('/api/v1/monitoring/alerts', { params });
+  return api.get<Alert[]>('/monitoring/alerts', { params });
 }
 
 export function getActiveAlerts() {
-  return api.get<Alert[]>('/api/v1/monitoring/alerts/active');
+  return api.get<Alert[]>('/monitoring/alerts/active');
 }
 
 export function getAlert(id: string) {
-  return api.get<Alert>(`/api/v1/monitoring/alerts/${id}`);
+  return api.get<Alert>(`/monitoring/alerts/${id}`);
 }
 
 export function acknowledgeAlert(id: string, data?: { note?: string }) {
-  return api.post<{ acknowledged: boolean }>(`/api/v1/monitoring/alerts/${id}/acknowledge`, data);
+  return api.post<{ acknowledged: boolean }>(`/monitoring/alerts/${id}/acknowledge`, data);
 }
 
 export function resolveAlert(id: string) {
-  return api.post<{ resolved: boolean }>(`/api/v1/monitoring/alerts/${id}/resolve`);
+  return api.post<{ resolved: boolean }>(`/monitoring/alerts/${id}/resolve`);
 }
 
 export function escalateAlert(id: string, data: { reason: string; target?: string }) {
-  return api.post<{ escalated: boolean }>(`/api/v1/monitoring/alerts/${id}/escalate`, data);
+  return api.post<{ escalated: boolean }>(`/monitoring/alerts/${id}/escalate`, data);
 }
 
 // ==================== Notification Channels ====================
 
 export function getChannels() {
-  return api.get<NotificationChannel[]>('/api/v1/monitoring/channels');
+  return api.get<NotificationChannel[]>('/monitoring/channels');
 }
 
 export function createChannel(data: Omit<NotificationChannel, 'id'>) {
-  return api.post<NotificationChannel>('/api/v1/monitoring/channels', data);
+  return api.post<NotificationChannel>('/monitoring/channels', data);
 }
 
 export function toggleChannel(id: string) {
-  return api.patch<{ enabled: boolean }>(`/api/v1/monitoring/channels/${id}/toggle`);
+  return api.patch<{ enabled: boolean }>(`/monitoring/channels/${id}/toggle`);
 }
 
 // ==================== Escalation Policies ====================
 
 export function getEscalationPolicies() {
-  return api.get<EscalationPolicy[]>('/api/v1/monitoring/escalation');
+  return api.get<EscalationPolicy[]>('/monitoring/escalation');
 }
 
 export function createEscalationPolicy(data: Omit<EscalationPolicy, 'id'>) {
-  return api.post<EscalationPolicy>('/api/v1/monitoring/escalation', data);
+  return api.post<EscalationPolicy>('/monitoring/escalation', data);
 }
 
 // ==================== Notifications ====================
 
 export function getNotifications(params?: { channel?: string; from?: string; to?: string }) {
   return api.get<Array<{ id: string; channelId: string; sentAt: string; status: string }>>(
-    '/api/v1/monitoring/notifications',
+    '/monitoring/notifications',
     { params }
   );
 }
@@ -207,12 +207,12 @@ export function getDashboardData() {
     rules: { total: number; enabled: number };
     metrics: { total: number; rate: number };
     channels: { total: number; active: number };
-  }>('/api/v1/monitoring/dashboard');
+  }>('/monitoring/dashboard');
 }
 
 export function getAnomalySummary(params?: { window?: string }) {
   return api.get<{
     anomalies: Array<{ metric: string; time: string; severity: string }>;
     totalCount: number;
-  }>('/api/v1/monitoring/anomalies/summary', { params });
+  }>('/monitoring/anomalies/summary', { params });
 }

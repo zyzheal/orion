@@ -16,6 +16,7 @@ import {
   Space,
   Spin,
   Alert,
+  Empty,
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -35,7 +36,9 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getPipelines, getPipelineRuns, type PipelineRun } from '@/api/pipelines';
+import { retryPipelineRun } from '@/api/pipelineRuns';
 import { getMonitoringHealth } from '@/api/monitoring';
+import { getServiceHealthList } from '@/api/health';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
@@ -51,6 +54,7 @@ interface PipelineRecord {
   key: string;
   name: string;
   pipelineId: string;
+  runId?: string;
   status: string;
   duration: string;
   trigger: string;
@@ -233,30 +237,35 @@ const DashboardNew: React.FC = () => {
         setRecentRuns(Array.isArray(runsRes.data) ? runsRes.data : []);
       }
 
-      // Fetch monitoring health
+      // Fetch system health from service-health API
       try {
-        const healthRes = await getMonitoringHealth();
-        if (healthRes.data?.status) {
+        const healthServices = await getServiceHealthList();
+        const mapped = (Array.isArray(healthServices) ? healthServices : []).map(
+          (s) =>
+            ({
+              name: s.serviceName,
+              status: s.status === 'unhealthy' ? 'warning' : 'healthy',
+              latency: s.latencyMs > 0 ? `${s.latencyMs}ms` : '-',
+              uptime: s.uptimePercent > 0 ? `${s.uptimePercent.toFixed(1)}%` : '-',
+            }) as SystemHealthItem
+        );
+        if (mapped.length > 0) {
+          setSystemHealth(mapped);
+        } else {
+          // Fallback: use monitoring health endpoint
+          const healthRes = await getMonitoringHealth();
+          const baseStatus = healthRes.data?.status === 'ok' ? 'healthy' : 'warning';
           setSystemHealth([
-            { name: 'API Gateway', status: 'healthy', latency: '-', uptime: '-' },
-            {
-              name: 'Platform Service',
-              status: healthRes.data.status === 'ok' ? 'healthy' : 'warning',
-              latency: '-',
-              uptime: '-',
-            },
-            { name: 'Database', status: 'healthy', latency: '-', uptime: '-' },
-            { name: 'Redis', status: 'healthy', latency: '-', uptime: '-' },
+            { name: 'API Gateway', status: baseStatus, latency: '-', uptime: '-' },
+            { name: 'Platform Service', status: baseStatus, latency: '-', uptime: '-' },
+            { name: 'Database', status: baseStatus, latency: '-', uptime: '-' },
+            { name: 'Redis', status: baseStatus, latency: '-', uptime: '-' },
           ]);
         }
       } catch {
-        message.error('获取系统健康状态失败，请检查网络连接');
-        setSystemHealth([
-          { name: 'API Gateway', status: 'healthy', latency: '-', uptime: '-' },
-          { name: 'Platform Service', status: 'healthy', latency: '-', uptime: '-' },
-          { name: 'Database', status: 'healthy', latency: '-', uptime: '-' },
-          { name: 'Redis', status: 'healthy', latency: '-', uptime: '-' },
-        ]);
+        message.error('系统健康数据加载失败');
+        setError('系统健康数据加载失败，请稍后刷新重试');
+        setSystemHealth([]);
       }
     } catch (err) {
       // Backend endpoints may not all be available; use demo data
@@ -276,6 +285,7 @@ const DashboardNew: React.FC = () => {
     key: String(idx + 1),
     name: run.pipelineName || run.pipelineId,
     pipelineId: run.pipelineId,
+    runId: run.id,
     status: run.status,
     duration: formatDuration(run),
     trigger: run.author || formatTrigger(run.trigger),
@@ -396,7 +406,19 @@ const DashboardNew: React.FC = () => {
             查看
           </Button>
           {record.status === 'failed' && (
-            <Button type="link" size="small" onClick={() => navigate(`/pipeline-runs`)}>
+            <Button
+              type="link"
+              size="small"
+              onClick={async () => {
+                try {
+                  await retryPipelineRun(record.runId || record.pipelineId);
+                  message.success('流水线已重新触发');
+                  loadData();
+                } catch {
+                  message.error('重试失败');
+                }
+              }}
+            >
               重试
             </Button>
           )}
@@ -487,13 +509,19 @@ const DashboardNew: React.FC = () => {
             extra={<Button type="link">查看全部</Button>}
             style={{ marginBottom: spacing.md }}
           >
-            <Table
-              columns={taskColumns}
-              dataSource={tasks}
-              pagination={false}
-              size="small"
-              locale={{ emptyText: '暂无待处理任务' }}
-            />
+            {tasks.length > 0 ? (
+              <Table
+                columns={taskColumns}
+                dataSource={tasks}
+                pagination={false}
+                size="small"
+              />
+            ) : (
+              <Empty
+                description="暂无待处理任务"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            )}
           </Card>
 
           {/* 最近 Pipeline */}
@@ -505,13 +533,27 @@ const DashboardNew: React.FC = () => {
               </Button>
             }
           >
-            <Table
-              columns={pipelineColumns}
-              dataSource={recentPipelineRecords}
-              pagination={false}
-              size="small"
-              locale={{ emptyText: '暂无 Pipeline 运行记录' }}
-            />
+            {recentPipelineRecords.length > 0 ? (
+              <Table
+                columns={pipelineColumns}
+                dataSource={recentPipelineRecords}
+                pagination={false}
+                size="small"
+              />
+            ) : (
+              <Empty
+                description="暂无 Pipeline 运行记录"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              >
+                <Button
+                  type="primary"
+                  icon={<RocketOutlined />}
+                  onClick={() => navigate('/pipelines/new')}
+                >
+                  创建 Pipeline
+                </Button>
+              </Empty>
+            )}
           </Card>
         </Col>
 

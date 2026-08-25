@@ -11,11 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/ci-type/models"
 	"orion/platform-svc-go/internal/ci-type/repository"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -40,7 +37,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) CreateType(ctx context.Context, req *models.CreateCITypeRequest, tenantID string) (*models.CIType, error) {
@@ -88,55 +84,6 @@ func (f *fakeHandlerService) ValidateInstance(ctx context.Context, ciTypeID stri
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeci_typeService struct{}
-
-func (f *fakeci_typeService) CreateType(ctx context.Context, req *models.CreateCITypeRequest, tenantID string) ((*models.CIType, error)) {
-	return &models.CIType{}, nil
-}
-
-func (f *fakeci_typeService) CreateVersion(ctx context.Context, ciTypeID string, tenantID string, changeSummary *string) ((*models.CITypeVersion, error)) {
-	return &models.CITypeVersion{}, nil
-}
-
-func (f *fakeci_typeService) DeleteType(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakeci_typeService) GetAttributes(ctx context.Context, ciTypeID string, tenantID string) (([]models.CIAttribute, error)) {
-	return []models.CIAttribute{}, nil
-}
-
-func (f *fakeci_typeService) GetTypeWithSchema(ctx context.Context, id string, tenantID string) ((*models.TypeWithSchema, error)) {
-	return &models.TypeWithSchema{}, nil
-}
-
-func (f *fakeci_typeService) GetVersions(ctx context.Context, ciTypeID string, tenantID string) (([]models.CITypeVersion, error)) {
-	return []models.CITypeVersion{}, nil
-}
-
-func (f *fakeci_typeService) ListTypes(ctx context.Context, tenantID string, filter *repository.ListFilter) (([]models.CIType, int, error)) {
-	return []models.CIType{}, 0, nil
-}
-
-func (f *fakeci_typeService) Rollback(ctx context.Context, ciTypeID string, tenantID string, versionID string) ((*models.CIType, error)) {
-	return &models.CIType{}, nil
-}
-
-func (f *fakeci_typeService) SetAttributes(ctx context.Context, ciTypeID string, tenantID string, attrs []models.CreateCIAttributeRequest) (([]models.CIAttribute, error)) {
-	return []models.CIAttribute{}, nil
-}
-
-func (f *fakeci_typeService) UpdateType(ctx context.Context, id string, req *models.UpdateCITypeRequest, tenantID string) ((*models.CIType, error)) {
-	return &models.CIType{}, nil
-}
-
-func (f *fakeci_typeService) ValidateInstance(ctx context.Context, ciTypeID string, tenantID string, data map[string]any) ((*models.ValidationResult, error)) {
-	return &models.ValidationResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeci_typeService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCI_TYPE_Handler_RegisterRoutes(t *testing.T) {

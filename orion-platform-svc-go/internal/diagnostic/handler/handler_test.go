@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/diagnostic/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) AddPattern(ctx context.Context, tenantID string, req *models.CreatePatternRequest) (*models.Pattern, error) {
@@ -102,71 +98,6 @@ func (f *fakeHandlerService) TriggerDiagnostic(ctx context.Context, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakediagnosticService struct{}
-
-func (f *fakediagnosticService) AddPattern(ctx context.Context, tenantID string, req *models.CreatePatternRequest) ((*models.Pattern, error)) {
-	return &models.Pattern{}, nil
-}
-
-func (f *fakediagnosticService) AddSymptomToSession(ctx context.Context, sessionID string, req *models.AddSymptomRequest) ((*models.Session, error)) {
-	return &models.Session{}, nil
-}
-
-func (f *fakediagnosticService) CompleteSession(ctx context.Context, id string) ((*models.SessionWithReport, error)) {
-	return &models.SessionWithReport{}, nil
-}
-
-func (f *fakediagnosticService) EstimateFixComplexity(ctx context.Context, sessionID string) ((*models.ComplexityEstimate, error)) {
-	return &models.ComplexityEstimate{}, nil
-}
-
-func (f *fakediagnosticService) GetDiagnosticDetail(ctx context.Context, id string) ((*models.Session, error)) {
-	return &models.Session{}, nil
-}
-
-func (f *fakediagnosticService) GetDiagnosticHistory(ctx context.Context, tenantID string, status, triggerType, triggerID *string) (([]models.Session, int, error)) {
-	return []models.Session{}, 0, nil
-}
-
-func (f *fakediagnosticService) GetKnowledgeBaseStats(ctx context.Context, tenantID string) ((*models.KnowledgeBaseStats, error)) {
-	return &models.KnowledgeBaseStats{}, nil
-}
-
-func (f *fakediagnosticService) GetPattern(ctx context.Context, id string) ((*models.Pattern, error)) {
-	return &models.Pattern{}, nil
-}
-
-func (f *fakediagnosticService) GetReport(ctx context.Context, id string) ((*models.Report, error)) {
-	return &models.Report{}, nil
-}
-
-func (f *fakediagnosticService) GetReportBySession(ctx context.Context, sessionID string) ((*models.Report, error)) {
-	return &models.Report{}, nil
-}
-
-func (f *fakediagnosticService) GetReportHistory(ctx context.Context, tenantID, sessionID *string) (([]models.Report, int, error)) {
-	return []models.Report{}, 0, nil
-}
-
-func (f *fakediagnosticService) GetStatus(ctx context.Context, tenantID string) ((*struct { State    string `json:"state"` Sessions int    `json:"sessions"` Reports  int    `json:"reports"` Patterns int    `json:"patterns"` }, error)) {
-	return &struct { State    string `json:"state"` Sessions int    `json:"sessions"` Reports  int    `json:"reports"` Patterns int    `json:"patterns"` }{}, nil
-}
-
-func (f *fakediagnosticService) RecordOutcome(ctx context.Context, tenantID string, req *models.RecordOutcomeRequest) ((*models.Outcome, error)) {
-	return &models.Outcome{}, nil
-}
-
-func (f *fakediagnosticService) SearchPatterns(ctx context.Context, tenantID, category, keyword *string) (([]models.Pattern, int, error)) {
-	return []models.Pattern{}, 0, nil
-}
-
-func (f *fakediagnosticService) TriggerDiagnostic(ctx context.Context, tenantID string, req *models.CreateSessionRequest) ((*models.TriggerResult, error)) {
-	return &models.TriggerResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakediagnosticService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_DIAGNOSTIC_RegisterRoutes(t *testing.T) {

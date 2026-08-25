@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/multi-cloud/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) AddCloudAccount(ctx context.Context, tenantID string, input models.CloudAccountInput) (*models.CloudAccount, error) {
@@ -120,99 +116,6 @@ func (f *fakeHandlerService) UpdateCloudAccount(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakemulti_cloudService struct{}
-
-func (f *fakemulti_cloudService) AddCloudAccount(ctx context.Context, tenantID string, input models.CloudAccountInput) ((*models.CloudAccount, error)) {
-	return &models.CloudAccount{}, nil
-}
-
-func (f *fakemulti_cloudService) CompareCloudCosts(ctx context.Context, tenantID string, input models.CostCompareInput) (([]models.CostComparisonResult, error)) {
-	return []models.CostComparisonResult{}, nil
-}
-
-func (f *fakemulti_cloudService) CreateMigrationPlan(ctx context.Context, tenantID string, input models.MigrationPlanInput) ((*models.MigrationPlan, error)) {
-	return &models.MigrationPlan{}, nil
-}
-
-func (f *fakemulti_cloudService) CreateSchedulingPolicy(ctx context.Context, tenantID string, input models.SchedulingPolicyInput) ((*models.SchedulingPolicy, error)) {
-	return &models.SchedulingPolicy{}, nil
-}
-
-func (f *fakemulti_cloudService) ExecuteMigration(ctx context.Context, tenantID, planID string) ((*models.MigrationResult, error)) {
-	return &models.MigrationResult{}, nil
-}
-
-func (f *fakemulti_cloudService) GetCloudStats(ctx context.Context, tenantID string) ((*models.CloudStats, error)) {
-	return &models.CloudStats{}, nil
-}
-
-func (f *fakemulti_cloudService) GetComplianceRules(ctx context.Context, tenantID string) ([]models.ComplianceRule) {
-	return []models.ComplianceRule{}
-}
-
-func (f *fakemulti_cloudService) GetHealthStatus(ctx context.Context, tenantID string) ((*models.HealthStatus, error)) {
-	return &models.HealthStatus{}, nil
-}
-
-func (f *fakemulti_cloudService) GetProvider(ctx context.Context, tenantID, id string) ((*models.CloudAccount, error)) {
-	return &models.CloudAccount{}, nil
-}
-
-func (f *fakemulti_cloudService) GetProviderCost(ctx context.Context, tenantID, provider string) ((*models.CostBreakdown, error)) {
-	return &models.CostBreakdown{}, nil
-}
-
-func (f *fakemulti_cloudService) GetRecommendations(ctx context.Context, tenantID string) (([]models.Recommendation, error)) {
-	return []models.Recommendation{}, nil
-}
-
-func (f *fakemulti_cloudService) GetResourceInventory(ctx context.Context, tenantID, accountID string) (([]models.CloudResource, error)) {
-	return []models.CloudResource{}, nil
-}
-
-func (f *fakemulti_cloudService) GetResourceInventorySummary(ctx context.Context, tenantID string) ((*models.ResourceStatistics, error)) {
-	return &models.ResourceStatistics{}, nil
-}
-
-func (f *fakemulti_cloudService) GetResourceStatistics(ctx context.Context, tenantID string) ((*models.ResourceStatistics, error)) {
-	return &models.ResourceStatistics{}, nil
-}
-
-func (f *fakemulti_cloudService) GetSchedulingHistory(ctx context.Context, tenantID string) (([]models.ScheduleDecision, error)) {
-	return []models.ScheduleDecision{}, nil
-}
-
-func (f *fakemulti_cloudService) ListCloudAccounts(ctx context.Context, tenantID string) (([]models.CloudAccount, error)) {
-	return []models.CloudAccount{}, nil
-}
-
-func (f *fakemulti_cloudService) ListSchedulingPolicies(ctx context.Context, tenantID string) (([]models.SchedulingPolicy, error)) {
-	return []models.SchedulingPolicy{}, nil
-}
-
-func (f *fakemulti_cloudService) RemoveCloudAccount(ctx context.Context, tenantID, id string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakemulti_cloudService) RunComplianceCheck(ctx context.Context, tenantID string, categories []string) ((*models.ComplianceReport, error)) {
-	return &models.ComplianceReport{}, nil
-}
-
-func (f *fakemulti_cloudService) ScheduleResource(ctx context.Context, tenantID string, input models.ScheduleResourceInput) ((*models.ScheduleDecision, error)) {
-	return &models.ScheduleDecision{}, nil
-}
-
-func (f *fakemulti_cloudService) SyncResources(ctx context.Context, tenantID, accountID string) ((*models.SyncResult, error)) {
-	return &models.SyncResult{}, nil
-}
-
-func (f *fakemulti_cloudService) UpdateCloudAccount(ctx context.Context, tenantID, id string, input models.UpdateCloudAccountInput) ((*models.CloudAccount, error)) {
-	return &models.CloudAccount{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemulti_cloudService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_MULTI_CLOUD_RegisterRoutes(t *testing.T) {

@@ -1,6 +1,6 @@
 /**
  * PageRegistry API Service
- * Prefix: /api/v1/page-registry
+ * Prefix: /page-registry
  */
 
 import { api } from './client';
@@ -32,7 +32,7 @@ export interface PageRegistryEntry {
 export const listPageRegistry = async (params?: {
   enabled?: boolean;
 }): Promise<{ data: PageRegistryEntry[]; total: number }> => {
-  const endpoint = params?.enabled ? '/api/v1/page-registry/enabled' : '/api/v1/page-registry/';
+  const endpoint = params?.enabled ? '/page-registry/enabled' : '/page-registry/';
   const response = await api.get<{ data: PageRegistryEntry[]; total?: number }>(endpoint, {
     params,
   });
@@ -41,7 +41,7 @@ export const listPageRegistry = async (params?: {
 
 export const getPageEntry = async (path: string): Promise<PageRegistryEntry> => {
   const response = await api.get<PageRegistryEntry>(
-    '/api/v1/page-registry/' + encodeURIComponent(path)
+    '/page-registry/' + encodeURIComponent(path)
   );
   return response.data;
 };
@@ -49,7 +49,7 @@ export const getPageEntry = async (path: string): Promise<PageRegistryEntry> => 
 export const createPageEntry = async (
   data: Partial<PageRegistryEntry>
 ): Promise<PageRegistryEntry> => {
-  const response = await api.post<PageRegistryEntry>('/api/v1/page-registry/', data);
+  const response = await api.post<PageRegistryEntry>('/page-registry/', data);
   return response.data;
 };
 
@@ -58,26 +58,26 @@ export const updatePageEntry = async (
   data: Partial<PageRegistryEntry>
 ): Promise<PageRegistryEntry> => {
   const response = await api.put<PageRegistryEntry>(
-    '/api/v1/page-registry/' + encodeURIComponent(path),
+    '/page-registry/' + encodeURIComponent(path),
     data
   );
   return response.data;
 };
 
 export const deletePageEntry = async (path: string): Promise<void> => {
-  await api.delete('/api/v1/page-registry/' + encodeURIComponent(path));
+  await api.delete('/page-registry/' + encodeURIComponent(path));
 };
 
 export const togglePageStatus = async (path: string): Promise<PageRegistryEntry> => {
   const response = await api.put<PageRegistryEntry>(
-    '/api/v1/page-registry/' + encodeURIComponent(path) + '/status'
+    '/page-registry/' + encodeURIComponent(path) + '/status'
   );
   return response.data;
 };
 
 export const getPageHistory = async (path: string): Promise<PageRegistryEntry[]> => {
   const response = await api.get<{ data: PageRegistryEntry[] }>(
-    '/api/v1/page-registry/' + encodeURIComponent(path) + '/history'
+    '/page-registry/' + encodeURIComponent(path) + '/history'
   );
   return response.data.data;
 };

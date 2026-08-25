@@ -195,7 +195,7 @@ export const traceApi = {
    */
   getTraceSummary: async (traceId: string): Promise<TraceSummary> => {
     // TODO: 对接真实后端后替换为以下调用
-    // const response = await apiClient.get(`/api/v1/trace/${traceId}/summary`);
+    // const response = await apiClient.get(`/trace/${traceId}/summary`);
     // return response.data as TraceSummary;
     const detail = await traceApi.getTrace(traceId);
     return {
@@ -217,7 +217,7 @@ export const traceApi = {
    */
   getSpanEvents: async (_traceId: string, _spanId: string): Promise<SpanEvent[]> => {
     // TODO: 对接真实后端后替换
-    // const response = await apiClient.get(`/api/v1/trace/${traceId}/span/${spanId}/events`);
+    // const response = await apiClient.get(`/trace/${traceId}/span/${spanId}/events`);
     // return response.data as SpanEvent[];
 
     await mockDelay(50);

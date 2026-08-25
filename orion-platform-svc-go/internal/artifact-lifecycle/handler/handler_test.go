@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/artifact-lifecycle/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeArtifact_lifecycleService struct{}
 
 func (f *fakeArtifact_lifecycleService) AdvanceStage(ctx context.Context, tenantID, id string, req models.AdvanceStageRequest) (*models.ArtifactLifecycle, error) {
@@ -75,43 +71,6 @@ func (f *fakeArtifact_lifecycleService) List(ctx context.Context, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeArtifact_lifecycleService)(nil)
-=======
-type fakeartifact_lifecycleService struct{}
-
-func (f *fakeartifact_lifecycleService) AdvanceStage(ctx context.Context, tenantID, id string, req models.AdvanceStageRequest) ((*models.ArtifactLifecycle, error)) {
-	return &models.ArtifactLifecycle{}, nil
-}
-
-func (f *fakeartifact_lifecycleService) Archive(ctx context.Context, tenantID, id string) ((*models.ArtifactLifecycle, error)) {
-	return &models.ArtifactLifecycle{}, nil
-}
-
-func (f *fakeartifact_lifecycleService) Create(ctx context.Context, tenantID string, req models.CreateArtifactLifecycleRequest) ((*models.ArtifactLifecycle, error)) {
-	return &models.ArtifactLifecycle{}, nil
-}
-
-func (f *fakeartifact_lifecycleService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeartifact_lifecycleService) GetByArtifactID(ctx context.Context, tenantID, artifactID string) ((*models.ArtifactLifecycle, error)) {
-	return &models.ArtifactLifecycle{}, nil
-}
-
-func (f *fakeartifact_lifecycleService) GetByID(ctx context.Context, tenantID, id string) ((*models.ArtifactLifecycle, error)) {
-	return &models.ArtifactLifecycle{}, nil
-}
-
-func (f *fakeartifact_lifecycleService) GetStageHistory(ctx context.Context, tenantID, artifactID string) (([]models.ArtifactLifecycle, error)) {
-	return []models.ArtifactLifecycle{}, nil
-}
-
-func (f *fakeartifact_lifecycleService) List(ctx context.Context, tenantID string, limit, offset int) ((*models.ListLifecycleResponse, error)) {
-	return &models.ListLifecycleResponse{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeartifact_lifecycleService)(nil)
->>>>>>> Stashed changes
 
 
 func TestARTIFACT_LIFECYCLE_Handler_RegisterRoutes(t *testing.T) {

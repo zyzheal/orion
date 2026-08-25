@@ -143,23 +143,23 @@ export const getSpaces = async (params?: {
   page?: number;
   perPage?: number;
 }) => {
-  return api.get<Space[]>('/api/v1/knowledge/api/v1/spaces', { params });
+  return api.get<Space[]>('/knowledge/spaces', { params });
 };
 
 export const getSpace = async (id: string) => {
-  return api.get<Space>(`/api/v1/knowledge/api/v1/spaces/${id}`);
+  return api.get<Space>(`/knowledge/spaces/${id}`);
 };
 
 export const createSpace = async (input: SpaceInput) => {
-  return api.post<Space>('/api/v1/knowledge/api/v1/spaces', input);
+  return api.post<Space>('/knowledge/spaces', input);
 };
 
 export const updateSpace = async (id: string, input: Partial<SpaceInput>) => {
-  return api.put<Space>(`/api/v1/knowledge/api/v1/spaces/${id}`, input);
+  return api.put<Space>(`/knowledge/spaces/${id}`, input);
 };
 
 export const deleteSpace = async (id: string) => {
-  return api.delete(`/api/v1/knowledge/api/v1/spaces/${id}`);
+  return api.delete(`/knowledge/spaces/${id}`);
 };
 
 // ============================================================================
@@ -175,27 +175,27 @@ export const getDocs = async (params?: {
   search?: string;
   perPage?: number;
 }) => {
-  return api.get<Document[]>('/api/v1/knowledge/api/v1/docs', { params });
+  return api.get<Document[]>('/knowledge/docs', { params });
 };
 
 export const getDoc = async (id: string) => {
-  return api.get<Document>(`/api/v1/knowledge/api/v1/docs/${id}`);
+  return api.get<Document>(`/knowledge/docs/${id}`);
 };
 
 export const createDoc = async (input: DocInput | DocumentInput) => {
-  return api.post<Document>('/api/v1/knowledge/api/v1/docs', input);
+  return api.post<Document>('/knowledge/docs', input);
 };
 
 export const updateDoc = async (id: string, input: Partial<DocInput> | UpdateDocumentInput) => {
-  return api.put<Document>(`/api/v1/knowledge/api/v1/docs/${id}`, input);
+  return api.put<Document>(`/knowledge/docs/${id}`, input);
 };
 
 export const deleteDoc = async (id: string) => {
-  return api.delete(`/api/v1/knowledge/api/v1/docs/${id}`);
+  return api.delete(`/knowledge/docs/${id}`);
 };
 
 export const getDocVersions = async (id: string) => {
-  return api.get(`/api/v1/knowledge/docs/${id}/versions`);
+  return api.get(`/knowledge/docs/${id}/versions`);
 };
 
 // ============================================================================
@@ -203,11 +203,11 @@ export const getDocVersions = async (id: string) => {
 // ============================================================================
 
 export const ragRetrieve = async (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<RagRetrieveResponse>('/api/v1/knowledge/rag/retrieve', data);
+  return api.post<RagRetrieveResponse>('/knowledge/rag/retrieve', data);
 };
 
 export const ragQuery = async (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<RAGResponse>('/api/v1/knowledge/rag/query', data);
+  return api.post<RAGResponse>('/knowledge/rag/query', data);
 };
 
 export const ragFeedback = async (data: {
@@ -215,15 +215,15 @@ export const ragFeedback = async (data: {
   is_positive: boolean;
   corrected_answer?: string;
 }) => {
-  return api.post('/api/v1/knowledge/rag/feedback', data);
+  return api.post('/knowledge/rag/feedback', data);
 };
 
 export const ragQueryStream = (data: { query: string; spaceId?: string; topK?: number }) => {
-  return api.post<EventSource>('/api/v1/knowledge/rag/query/stream', data);
+  return api.post<EventSource>('/knowledge/rag/query/stream', data);
 };
 
 export const getRAGPromptTemplates = async () => {
-  return api.get('/api/v1/knowledge/rag/prompt/templates');
+  return api.get('/knowledge/rag/prompt/templates');
 };
 
 export const saveRAGPromptTemplate = async (data: {
@@ -231,27 +231,27 @@ export const saveRAGPromptTemplate = async (data: {
   version: string;
   content: string;
 }) => {
-  return api.post('/api/v1/knowledge/rag/prompt/templates', data);
+  return api.post('/knowledge/rag/prompt/templates', data);
 };
 
 export const deleteRAGPromptTemplate = async (id: string) => {
-  return api.delete(`/api/v1/knowledge/rag/prompt/templates/${id}`);
+  return api.delete(`/knowledge/rag/prompt/templates/${id}`);
 };
 
 export const triggerRAGIndex = async () => {
-  return api.post('/api/v1/knowledge/rag/index', {});
+  return api.post('/knowledge/rag/index', {});
 };
 
 export const getRAGAdminConfig = async () => {
-  return api.get('/api/v1/knowledge/rag/admin/config');
+  return api.get('/knowledge/rag/admin/config');
 };
 
 export const updateRAGAdminConfig = async (data: Record<string, unknown>) => {
-  return api.post('/api/v1/knowledge/rag/admin/config', data);
+  return api.post('/knowledge/rag/admin/config', data);
 };
 
 export const getRAGEvalMetrics = async () => {
-  return api.get('/api/v1/knowledge/rag/eval/metrics');
+  return api.get('/knowledge/rag/eval/metrics');
 };
 
 // ============================================================================
@@ -280,13 +280,13 @@ export interface RAGAuditLog {
 }
 
 export const getRAGAuditLogs = async (params?: { limit?: number; offset?: number }) => {
-  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/logs', {
+  return api.get<{ data: RAGAuditLog[]; total: number }>('/knowledge/rag/audit/logs', {
     params,
   });
 };
 
 export const getRAGFlaggedQueries = async (params?: { limit?: number; offset?: number }) => {
-  return api.get<{ data: RAGAuditLog[]; total: number }>('/api/v1/knowledge/rag/audit/flagged', {
+  return api.get<{ data: RAGAuditLog[]; total: number }>('/knowledge/rag/audit/flagged', {
     params,
   });
 };
@@ -296,5 +296,5 @@ export const getRAGFlaggedQueries = async (params?: { limit?: number; offset?: n
 // ============================================================================
 
 export const getKnowledgeGraph = async (params?: { spaceId?: string }) => {
-  return api.get('/api/v1/knowledge/graph', { params });
+  return api.get('/knowledge/graph', { params });
 };

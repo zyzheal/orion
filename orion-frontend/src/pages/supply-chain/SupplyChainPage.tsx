@@ -29,6 +29,8 @@ import {
   ScanOutlined,
   FileTextOutlined,
   TruckOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   getSbomDocuments,
@@ -36,6 +38,7 @@ import {
   getSbomComplianceReport,
   createSbomDocument,
   signSbomAttestation,
+  deleteSbomDocument,
   type SbomDocument,
   type SbomVulnerabilityResult,
 } from '@/api/sbom';
@@ -94,14 +97,42 @@ const SupplyChainPage: React.FC = () => {
     }
   };
 
-  const handleSign = async (id: string) => {
-    try {
-      await signSbomAttestation(id);
-      message.success('SBOM signed successfully');
-      loadData();
-    } catch {
-      message.error('Failed to sign SBOM');
-    }
+  const handleSign = async (id: string, documentId: string) => {
+    Modal.confirm({
+      title: '确认签名SBOM文档？',
+      content: `确定要为文档 "${documentId}" 生成SLSA签名吗？`,
+      okText: '确认签名',
+      cancelText: '取消',
+      okButtonProps: { type: 'primary' },
+      onOk: async () => {
+        try {
+          await signSbomAttestation(id);
+          message.success('SBOM 签名成功');
+          loadData();
+        } catch {
+          message.error('签名失败');
+        }
+      },
+    });
+  };
+
+  const handleDeleteDocument = (doc: SbomDocument) => {
+    Modal.confirm({
+      title: '确认删除SBOM文档？',
+      content: `确定要删除文档 "${doc.documentId}" 吗？此操作不可撤销。`,
+      okText: '确认删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteSbomDocument(doc.id);
+          message.success('SBOM 文档已删除');
+          loadData();
+        } catch {
+          message.error('删除失败');
+        }
+      },
+    });
   };
 
   const statusColor: Record<string, string> = {
@@ -132,8 +163,23 @@ const SupplyChainPage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: SbomDocument) => (
         <Space>
-          <Button size="small" onClick={() => handleSign(record.id)}>
-            Sign
+          <Button size="small" onClick={() => handleSign(record.id, record.documentId)}>
+            签名
+          </Button>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => setCreateModalOpen(true)}
+          >
+            复制
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteDocument(record)}
+          >
+            删除
           </Button>
         </Space>
       ),

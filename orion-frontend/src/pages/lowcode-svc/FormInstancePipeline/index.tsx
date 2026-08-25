@@ -60,6 +60,7 @@ const FormInstancePipeline: React.FC = () => {
 
   // Submit modal
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitForm] = Form.useForm();
 
   // Detail modal
@@ -74,6 +75,7 @@ const FormInstancePipeline: React.FC = () => {
       const data = await listInstances(selectedForm || undefined, status || undefined);
       setInstances(Array.isArray(data) ? data : []);
     } catch {
+      message.error('加载实例列表失败');
       setInstances([]);
     } finally {
       setLoading(false);
@@ -85,6 +87,7 @@ const FormInstancePipeline: React.FC = () => {
       const data = await listForms();
       setForms(Array.isArray(data) ? data : []);
     } catch {
+      message.error('加载表单列表失败');
       setForms([]);
     }
   }, []);
@@ -97,6 +100,7 @@ const FormInstancePipeline: React.FC = () => {
   }, [loadForms]);
 
   const handleSubmit = async (values: { formId: string; data: Record<string, unknown> }) => {
+    setSubmitting(true);
     try {
       const formData: Record<string, unknown> = {};
       if (typeof values.data === 'string') {
@@ -111,6 +115,8 @@ const FormInstancePipeline: React.FC = () => {
       loadInstances();
     } catch {
       message.error('提交失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -330,6 +336,9 @@ const FormInstancePipeline: React.FC = () => {
         open={submitModalOpen}
         onCancel={() => setSubmitModalOpen(false)}
         onOk={() => submitForm.submit()}
+        confirmLoading={submitting}
+        okText="提交"
+        cancelText="取消"
         width={600}
       >
         <Form form={submitForm} layout="vertical" onFinish={handleSubmit}>

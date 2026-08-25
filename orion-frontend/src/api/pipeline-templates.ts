@@ -34,12 +34,12 @@ export interface TemplateParameter {
 
 export const pipelineTemplatesApi = {
   list: async (params?: { category?: string; page?: number; limit?: number }) => {
-    const response = await apiClient.get('/api/v1/pipeline-templates', { params });
+    const response = await apiClient.get('/pipeline-templates', { params });
     return response.data;
   },
 
   get: async (templateId: string) => {
-    const response = await apiClient.get(`/api/v1/pipeline-templates/${templateId}`);
+    const response = await apiClient.get(`/pipeline-templates/${templateId}`);
     return response.data as PipelineTemplate;
   },
 
@@ -50,17 +50,17 @@ export const pipelineTemplatesApi = {
     yaml_definition: string;
     tags?: string[];
   }) => {
-    const response = await apiClient.post('/api/v1/pipeline-templates', data);
+    const response = await apiClient.post('/pipeline-templates', data);
     return response.data as PipelineTemplate;
   },
 
   update: async (templateId: string, data: Partial<PipelineTemplate>) => {
-    const response = await apiClient.put(`/api/v1/pipeline-templates/${templateId}`, data);
+    const response = await apiClient.put(`/pipeline-templates/${templateId}`, data);
     return response.data as PipelineTemplate;
   },
 
   delete: async (templateId: string) => {
-    const response = await apiClient.delete(`/api/v1/pipeline-templates/${templateId}`);
+    const response = await apiClient.delete(`/pipeline-templates/${templateId}`);
     return response.data;
   },
 
@@ -74,7 +74,7 @@ export const pipelineTemplatesApi = {
     }
   ) => {
     const response = await apiClient.post(
-      `/api/v1/pipeline-templates/${templateId}/instantiate`,
+      `/pipeline-templates/${templateId}/instantiate`,
       data
     );
     return response.data;
@@ -84,7 +84,7 @@ export const pipelineTemplatesApi = {
     pipelineId: string,
     data: { name: string; description?: string; category?: string }
   ) => {
-    const response = await apiClient.post('/api/v1/pipeline-templates', { ...data, pipelineId });
+    const response = await apiClient.post('/pipeline-templates', { ...data, pipelineId });
     return response.data as PipelineTemplate;
   },
 };

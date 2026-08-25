@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/event-trigger-registry/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeEvent_trigger_registryService struct{}
 
 func (f *fakeEvent_trigger_registryService) CreateTrigger(ctx context.Context, tenantID string, req models.CreateTriggerRequest) (*models.WorkflowTrigger, error) {
@@ -52,31 +48,6 @@ func (f *fakeEvent_trigger_registryService) UpdateTrigger(ctx context.Context, t
 }
 
 var _ service.ServiceInterface = (*fakeEvent_trigger_registryService)(nil)
-=======
-type fakeevent_trigger_registryService struct{}
-
-func (f *fakeevent_trigger_registryService) CreateTrigger(ctx context.Context, tenantID string, req models.CreateTriggerRequest) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-func (f *fakeevent_trigger_registryService) DeleteTrigger(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeevent_trigger_registryService) GetTrigger(ctx context.Context, tenantID, id string) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-func (f *fakeevent_trigger_registryService) ListTriggers(ctx context.Context, tenantID string) (([]models.WorkflowTrigger, error)) {
-	return []models.WorkflowTrigger{}, nil
-}
-
-func (f *fakeevent_trigger_registryService) UpdateTrigger(ctx context.Context, tenantID, id string, req models.CreateTriggerRequest) ((*models.WorkflowTrigger, error)) {
-	return &models.WorkflowTrigger{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeevent_trigger_registryService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_EVENT_TRIGGER__RegisterRoutes(t *testing.T) {

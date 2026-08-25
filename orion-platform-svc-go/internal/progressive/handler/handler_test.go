@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/progressive/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeProgressiveService struct{}
 
 func (f *fakeProgressiveService) CompleteStage(ctx context.Context, tenantID, deploymentID string, stageNumber int, healthOK bool, errorRate float64, metrics map[string]string) (*models.ProgressiveDeployment, error) {
@@ -80,59 +76,6 @@ func (f *fakeProgressiveService) Update(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeProgressiveService)(nil)
-=======
-type fakeprogressiveService struct{}
-
-func (f *fakeprogressiveService) CompleteStage(ctx context.Context, tenantID, deploymentID string, stageNumber int, healthOK bool, errorRate float64, metrics map[string]string) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) Create(ctx context.Context, tenantID string, req models.CreateProgressiveDeploymentRequest) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeprogressiveService) Get(ctx context.Context, tenantID, id string) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) GetProgress(ctx context.Context, tenantID, deploymentID string) ((*models.DeploymentProgress, error)) {
-	return &models.DeploymentProgress{}, nil
-}
-
-func (f *fakeprogressiveService) GetStages(ctx context.Context, tenantID, deploymentID string) (([]models.RolloutStage, error)) {
-	return []models.RolloutStage{}, nil
-}
-
-func (f *fakeprogressiveService) List(ctx context.Context, tenantID string) (([]models.ProgressiveDeployment, int, error)) {
-	return []models.ProgressiveDeployment{}, 0, nil
-}
-
-func (f *fakeprogressiveService) Pause(ctx context.Context, tenantID, deploymentID string) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) Resume(ctx context.Context, tenantID, deploymentID string) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) Rollback(ctx context.Context, tenantID, deploymentID string, reason string) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) StartRollout(ctx context.Context, tenantID, deploymentID string) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-func (f *fakeprogressiveService) Update(ctx context.Context, tenantID, id string, req models.UpdateProgressiveDeploymentRequest) ((*models.ProgressiveDeployment, error)) {
-	return &models.ProgressiveDeployment{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeprogressiveService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PROGRESSIVE_RegisterRoutes(t *testing.T) {

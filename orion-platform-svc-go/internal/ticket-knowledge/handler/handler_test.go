@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/ticket-knowledge/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeTicket_knowledgeService struct{}
 
 func (f *fakeTicket_knowledgeService) Create(ctx context.Context, tenantID string, req models.CreateTicketKnowledgeRequest) (*models.TicketKnowledge, error) {
@@ -52,31 +48,6 @@ func (f *fakeTicket_knowledgeService) Update(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeTicket_knowledgeService)(nil)
-=======
-type faketicket_knowledgeService struct{}
-
-func (f *faketicket_knowledgeService) Create(ctx context.Context, tenantID string, req models.CreateTicketKnowledgeRequest) ((*models.TicketKnowledge, error)) {
-	return &models.TicketKnowledge{}, nil
-}
-
-func (f *faketicket_knowledgeService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *faketicket_knowledgeService) Get(ctx context.Context, tenantID, id string) ((*models.TicketKnowledge, error)) {
-	return &models.TicketKnowledge{}, nil
-}
-
-func (f *faketicket_knowledgeService) List(ctx context.Context, tenantID string) (([]models.TicketKnowledge, error)) {
-	return []models.TicketKnowledge{}, nil
-}
-
-func (f *faketicket_knowledgeService) Update(ctx context.Context, tenantID, id string, req models.UpdateTicketKnowledgeRequest) ((*models.TicketKnowledge, error)) {
-	return &models.TicketKnowledge{}, nil
-}
-
-var _ service.ServiceInterface = (*faketicket_knowledgeService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_TICKET_KNOWLED_RegisterRoutes(t *testing.T) {

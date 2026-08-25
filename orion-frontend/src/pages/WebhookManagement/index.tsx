@@ -74,6 +74,7 @@ const WebhookManagement: React.FC = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [logDrawerVisible, setLogDrawerVisible] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<Webhook | null>(null);
   const [logs, setLogs] = useState<WebhookLog[]>([]);
@@ -97,6 +98,7 @@ const WebhookManagement: React.FC = () => {
   }, [loadWebhooks]);
 
   const handleCreate = async (values: WebhookInput) => {
+    setSubmitting(true);
     try {
       await createWebhook(values);
       message.success('Webhook 已创建');
@@ -105,11 +107,14 @@ const WebhookManagement: React.FC = () => {
       loadWebhooks();
     } catch (err) {
       message.error('创建失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleUpdate = async (values: WebhookInput) => {
     if (!editingWebhook) return;
+    setSubmitting(true);
     try {
       await updateWebhook(editingWebhook.id, values);
       message.success('Webhook 已更新');
@@ -119,6 +124,8 @@ const WebhookManagement: React.FC = () => {
       loadWebhooks();
     } catch (err) {
       message.error('更新失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -372,6 +379,9 @@ const WebhookManagement: React.FC = () => {
           setEditingWebhook(null);
         }}
         onOk={() => form.submit()}
+        confirmLoading={submitting}
+        okText={editingWebhook ? '保存' : '创建'}
+        cancelText="取消"
         width={600}
       >
         <Form form={form} layout="vertical" onFinish={editingWebhook ? handleUpdate : handleCreate}>

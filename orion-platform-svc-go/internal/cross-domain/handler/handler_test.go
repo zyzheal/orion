@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/cross-domain/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCross_domainService struct{}
 
 func (f *fakeCross_domainService) Create(ctx context.Context, tenantID string, req *models.CreateCrossDomainRequest) (*models.CrossDomain, error) {
@@ -52,31 +48,6 @@ func (f *fakeCross_domainService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeCross_domainService)(nil)
-=======
-type fakecross_domainService struct{}
-
-func (f *fakecross_domainService) Create(ctx context.Context, tenantID string, req *models.CreateCrossDomainRequest) ((*models.CrossDomain, error)) {
-	return &models.CrossDomain{}, nil
-}
-
-func (f *fakecross_domainService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakecross_domainService) Get(ctx context.Context, tenantID, id string) ((*models.CrossDomain, error)) {
-	return &models.CrossDomain{}, nil
-}
-
-func (f *fakecross_domainService) List(ctx context.Context, tenantID string) (([]models.CrossDomain, error)) {
-	return []models.CrossDomain{}, nil
-}
-
-func (f *fakecross_domainService) Update(ctx context.Context, tenantID, id string, req *models.UpdateCrossDomainRequest) ((*models.CrossDomain, error)) {
-	return &models.CrossDomain{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecross_domainService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_CROSS_DOMAIN_RegisterRoutes(t *testing.T) {

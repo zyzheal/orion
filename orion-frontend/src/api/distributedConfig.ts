@@ -1,6 +1,6 @@
 /**
  * Distributed Config Center API Service
- * /api/v1/config — Namespace / Group / Item / Snapshot / Release / Audit
+ * /config — Namespace / Group / Item / Snapshot / Release / Audit
  */
 import { api } from './client';
 
@@ -99,17 +99,17 @@ export interface ConfigAudit {
 // --- Namespace ---
 
 export const listNamespaces = async () => {
-  const res = await api.get('/api/v1/config/namespaces');
+  const res = await api.get('/config/namespaces');
   return res.data;
 };
 
 export const createNamespace = async (data: { name: string; description?: string }) => {
-  const res = await api.post('/api/v1/config/namespaces', data);
+  const res = await api.post('/config/namespaces', data);
   return res.data;
 };
 
 export const getNamespace = async (id: string) => {
-  const res = await api.get(`/api/v1/config/namespaces/${id}`);
+  const res = await api.get(`/config/namespaces/${id}`);
   return res.data;
 };
 
@@ -118,7 +118,7 @@ export const getNamespace = async (id: string) => {
 export const listGroups = async (namespaceId?: string) => {
   const params: Record<string, string> = {};
   if (namespaceId) params.namespaceId = namespaceId;
-  const res = await api.get('/api/v1/config/groups', { params });
+  const res = await api.get('/config/groups', { params });
   return res.data;
 };
 
@@ -127,7 +127,7 @@ export const createGroup = async (data: {
   name: string;
   description?: string;
 }) => {
-  const res = await api.post('/api/v1/config/groups', data);
+  const res = await api.post('/config/groups', data);
   return res.data;
 };
 
@@ -137,7 +137,7 @@ export const listItems = async (groupId?: string, namespaceId?: string) => {
   const params: Record<string, string> = {};
   if (groupId) params.groupId = groupId;
   if (namespaceId) params.namespaceId = namespaceId;
-  const res = await api.get('/api/v1/config/items', { params });
+  const res = await api.get('/config/items', { params });
   return res.data;
 };
 
@@ -151,12 +151,12 @@ export const createItem = async (data: {
   description?: string;
   labels?: Record<string, string>;
 }) => {
-  const res = await api.post('/api/v1/config/items', data);
+  const res = await api.post('/config/items', data);
   return res.data;
 };
 
 export const getItem = async (id: string) => {
-  const res = await api.get(`/api/v1/config/items/${id}`);
+  const res = await api.get(`/config/items/${id}`);
   return res.data;
 };
 
@@ -170,17 +170,17 @@ export const updateItem = async (
     labels?: Record<string, string>;
   }
 ) => {
-  const res = await api.put(`/api/v1/config/items/${id}`, data);
+  const res = await api.put(`/config/items/${id}`, data);
   return res.data;
 };
 
 export const deleteItem = async (id: string) => {
-  const res = await api.delete(`/api/v1/config/items/${id}`);
+  const res = await api.delete(`/config/items/${id}`);
   return res.data;
 };
 
 export const getItemHistory = async (id: string) => {
-  const res = await api.get(`/api/v1/config/items/${id}/history`);
+  const res = await api.get(`/config/items/${id}/history`);
   return res.data;
 };
 
@@ -190,7 +190,7 @@ export const publishSnapshot = async (
   groupId: string,
   data: { environment: string; operator: string }
 ) => {
-  const res = await api.post(`/api/v1/config/snapshots?groupId=${groupId}`, data);
+  const res = await api.post(`/config/snapshots?groupId=${groupId}`, data);
   return res.data;
 };
 
@@ -198,12 +198,12 @@ export const listSnapshots = async (groupId?: string, environment?: string) => {
   const params: Record<string, string> = {};
   if (groupId) params.groupId = groupId;
   if (environment) params.environment = environment;
-  const res = await api.get('/api/v1/config/snapshots', { params });
+  const res = await api.get('/config/snapshots', { params });
   return res.data;
 };
 
 export const getSnapshotData = async (id: string) => {
-  const res = await api.get(`/api/v1/config/snapshots/${id}/data`);
+  const res = await api.get(`/config/snapshots/${id}/data`);
   return res.data;
 };
 
@@ -215,7 +215,7 @@ export const publishRelease = async (data: {
   operator: string;
   releaseNote?: string;
 }) => {
-  const res = await api.post('/api/v1/config/releases', data);
+  const res = await api.post('/config/releases', data);
   return res.data;
 };
 
@@ -224,24 +224,24 @@ export const rollbackRelease = async (data: {
   operator: string;
   reason?: string;
 }) => {
-  const res = await api.post('/api/v1/config/releases/rollback', data);
+  const res = await api.post('/config/releases/rollback', data);
   return res.data;
 };
 
 export const listReleases = async (environment?: string) => {
   const params: Record<string, string> = {};
   if (environment) params.environment = environment;
-  const res = await api.get('/api/v1/config/releases', { params });
+  const res = await api.get('/config/releases', { params });
   return res.data;
 };
 
 export const getRelease = async (id: string) => {
-  const res = await api.get(`/api/v1/config/releases/${id}`);
+  const res = await api.get(`/config/releases/${id}`);
   return res.data;
 };
 
 export const getReleaseHistory = async (id: string) => {
-  const res = await api.get(`/api/v1/config/releases/${id}/history`);
+  const res = await api.get(`/config/releases/${id}/history`);
   return res.data;
 };
 
@@ -250,6 +250,6 @@ export const getReleaseHistory = async (id: string) => {
 export const listAudit = async (limit?: number) => {
   const params: Record<string, number> = {};
   if (limit) params.limit = limit;
-  const res = await api.get('/api/v1/config/audit', { params });
+  const res = await api.get('/config/audit', { params });
   return res.data;
 };

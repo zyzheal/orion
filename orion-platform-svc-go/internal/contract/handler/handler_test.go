@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/contract/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeContractService struct{}
 
 func (f *fakeContractService) CreateContract(ctx context.Context, tenantID string, req *models.CreateContractRequest) (*models.Contract, error) {
@@ -79,47 +75,6 @@ func (f *fakeContractService) UpdateContract(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeContractService)(nil)
-=======
-type fakecontractService struct{}
-
-func (f *fakecontractService) CreateContract(ctx context.Context, tenantID string, req *models.CreateContractRequest) ((*models.Contract, error)) {
-	return &models.Contract{}, nil
-}
-
-func (f *fakecontractService) CreateEndpoint(ctx context.Context, tenantID string, contractID string, req *models.CreateEndpointRequest) ((*models.Endpoint, error)) {
-	return &models.Endpoint{}, nil
-}
-
-func (f *fakecontractService) DeleteContract(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakecontractService) DeleteEndpoint(ctx context.Context, tenantID, contractID, id string) (error) {
-	return nil
-}
-
-func (f *fakecontractService) GetContract(ctx context.Context, tenantID, id string) ((*models.Contract, error)) {
-	return &models.Contract{}, nil
-}
-
-func (f *fakecontractService) GetStats(ctx context.Context, tenantID string) ((*models.ContractStats, error)) {
-	return &models.ContractStats{}, nil
-}
-
-func (f *fakecontractService) ListContracts(ctx context.Context, tenantID string, filter *models.ContractFilter) (([]models.Contract, error)) {
-	return []models.Contract{}, nil
-}
-
-func (f *fakecontractService) ListEndpoints(ctx context.Context, tenantID, contractID string) (([]models.Endpoint, error)) {
-	return []models.Endpoint{}, nil
-}
-
-func (f *fakecontractService) UpdateContract(ctx context.Context, tenantID, id string, req *models.UpdateContractRequest) ((*models.Contract, error)) {
-	return &models.Contract{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecontractService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCONTRACT_Handler_RegisterRoutes(t *testing.T) {

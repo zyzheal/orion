@@ -245,6 +245,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
       const apiData = response.data;
       setJobs(Array.isArray(apiData) ? apiData : []);
     } catch {
+      message.error('加载任务列表失败');
       setJobs([]);
     } finally {
       setJobsLoading(false);

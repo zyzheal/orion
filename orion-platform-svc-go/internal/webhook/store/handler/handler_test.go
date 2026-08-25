@@ -35,7 +35,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeStoreService struct{}
 
 func (f *fakeStoreService) Create(ctx context.Context, tenantID, domain string, req *models.CreateConfigEntryRequest) (*models.ConfigEntry, error) {
@@ -63,35 +62,6 @@ func (f *fakeStoreService) Delete(ctx context.Context, tenantID, id string) erro
 }
 
 var _ service.ServiceInterface = (*fakeStoreService)(nil)
-=======
-type fakestoreService struct{}
-
-func (f *fakestoreService) Create(ctx context.Context, tenantID, domain string, req *models.CreateConfigEntryRequest) ((*models.ConfigEntry, error)) {
-	return &models.ConfigEntry{}, nil
-}
-
-func (f *fakestoreService) Get(ctx context.Context, tenantID, id string) ((*models.ConfigEntry, error)) {
-	return &models.ConfigEntry{}, nil
-}
-
-func (f *fakestoreService) ListByDomain(ctx context.Context, tenantID, domain string) (([]models.ConfigEntry, error)) {
-	return []models.ConfigEntry{}, nil
-}
-
-func (f *fakestoreService) ListAll(ctx context.Context, tenantID string) (([]models.ConfigEntry, error)) {
-	return []models.ConfigEntry{}, nil
-}
-
-func (f *fakestoreService) Update(ctx context.Context, tenantID, id string, req *models.UpdateConfigEntryRequest) ((*models.ConfigEntry, error)) {
-	return &models.ConfigEntry{}, nil
-}
-
-func (f *fakestoreService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakestoreService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_WEBHOOK_STORE_NewHandler(t *testing.T) {

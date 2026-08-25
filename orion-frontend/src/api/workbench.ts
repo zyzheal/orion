@@ -86,7 +86,7 @@ export interface WorkbenchData {
  */
 export async function getWorkbenchData(): Promise<WorkbenchData> {
   try {
-    const response = await api.get('/api/v1/workbench');
+    const response = await api.get('/workbench');
     const body = response.data as { success: boolean; data: WorkbenchData };
     if (body?.success && body?.data) {
       return body.data;
@@ -109,16 +109,16 @@ export async function getWorkbenchData(): Promise<WorkbenchData> {
 export async function getWorkbenchFallback(): Promise<WorkbenchData> {
   const [pipelines, alerts, tickets, deployments] = await Promise.allSettled([
     api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
-      '/api/v1/pipeline-runs?limit=5&status=all'
+      '/pipeline-runs?limit=5&status=all'
     ),
     api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
-      '/api/v1/alerts?limit=5&status=active'
+      '/alerts?limit=5&status=active'
     ),
     api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
-      '/api/v1/tickets?limit=5&status=active'
+      '/tickets?limit=5&status=active'
     ),
     api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
-      '/api/v1/deployments?limit=5'
+      '/deployments?limit=5'
     ),
   ]);
 
@@ -260,25 +260,25 @@ export async function getWorkbenchFallback(): Promise<WorkbenchData> {
 
 /** Fetch my recent pipeline runs */
 export function getMyPipelineRuns(limit = 5) {
-  return api.get('/api/v1/pipeline-runs', { params: { limit, status: 'all' } });
+  return api.get('/pipeline-runs', { params: { limit, status: 'all' } });
 }
 
 /** Fetch my active alerts */
 export function getMyAlerts(limit = 5) {
-  return api.get('/api/v1/alerts', { params: { limit, status: 'active' } });
+  return api.get('/alerts', { params: { limit, status: 'active' } });
 }
 
 /** Fetch my active tickets */
 export function getMyTickets(limit = 5) {
-  return api.get('/api/v1/tickets', { params: { limit, status: 'active' } });
+  return api.get('/tickets', { params: { limit, status: 'active' } });
 }
 
 /** Fetch my recent deployments */
 export function getMyDeployments(limit = 5) {
-  return api.get('/api/v1/deployments', { params: { limit } });
+  return api.get('/deployments', { params: { limit } });
 }
 
 /** Acknowledge an alert */
 export function acknowledgeAlert(alertId: string) {
-  return api.post(`/api/v1/alerts/${alertId}/acknowledge`);
+  return api.post(`/alerts/${alertId}/acknowledge`);
 }

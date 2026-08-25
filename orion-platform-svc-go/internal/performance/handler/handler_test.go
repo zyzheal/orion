@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/performance/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakePerformanceService struct{}
 
 func (f *fakePerformanceService) CreateBaseline(ctx context.Context, tenantID string, req *models.CreateBaselineRequest) (*models.Baseline, error) {
@@ -76,55 +72,6 @@ func (f *fakePerformanceService) RecordTestResult(ctx context.Context, tenantID 
 }
 
 var _ service.ServiceInterface = (*fakePerformanceService)(nil)
-=======
-type fakeperformanceService struct{}
-
-func (f *fakeperformanceService) CreateBaseline(ctx context.Context, tenantID string, req *models.CreateBaselineRequest) ((*models.Baseline, error)) {
-	return &models.Baseline{}, nil
-}
-
-func (f *fakeperformanceService) DetectRegression(ctx context.Context, tenantID string, req *models.DetectRegressionRequest) ((*models.RegressionResult, error)) {
-	return &models.RegressionResult{}, nil
-}
-
-func (f *fakeperformanceService) EvaluatePerformance(ctx context.Context, tenantID string, req *models.EvaluateRequest) ((*models.Evaluation, error)) {
-	return &models.Evaluation{}, nil
-}
-
-func (f *fakeperformanceService) GetBaselineByID(ctx context.Context, id string, tenantID string) ((*models.Baseline, error)) {
-	return &models.Baseline{}, nil
-}
-
-func (f *fakeperformanceService) GetBottlenecks(ctx context.Context, tenantID string, profileID string) (([]models.Bottleneck, error)) {
-	return []models.Bottleneck{}, nil
-}
-
-func (f *fakeperformanceService) GetEvaluationHistory(ctx context.Context, id string, tenantID string) (([]models.Evaluation, error)) {
-	return []models.Evaluation{}, nil
-}
-
-func (f *fakeperformanceService) GetSuggestions(ctx context.Context, tenantID string, serviceName string) (([]models.Suggestion, error)) {
-	return []models.Suggestion{}, nil
-}
-
-func (f *fakeperformanceService) GetTestResults(ctx context.Context, tenantID string, serviceName string) (([]models.Baseline, error)) {
-	return []models.Baseline{}, nil
-}
-
-func (f *fakeperformanceService) ListBaselines(ctx context.Context, tenantID string) (([]models.Baseline, error)) {
-	return []models.Baseline{}, nil
-}
-
-func (f *fakeperformanceService) ProfileService(ctx context.Context, tenantID string, serviceName string) ((*models.Profile, error)) {
-	return &models.Profile{}, nil
-}
-
-func (f *fakeperformanceService) RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) (error) {
-	return nil
-}
-
-var _ service.ServiceInterface = (*fakeperformanceService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_PERFORMANCE_RegisterRoutes(t *testing.T) {

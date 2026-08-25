@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/message-queue/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeMessage_queueService struct{}
 
 func (f *fakeMessage_queueService) Create(ctx context.Context, tenantID string, req models.CreateMessageQueueRequest) (*models.MessageQueue, error) {
@@ -52,31 +48,6 @@ func (f *fakeMessage_queueService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeMessage_queueService)(nil)
-=======
-type fakemessage_queueService struct{}
-
-func (f *fakemessage_queueService) Create(ctx context.Context, tenantID string, req models.CreateMessageQueueRequest) ((*models.MessageQueue, error)) {
-	return &models.MessageQueue{}, nil
-}
-
-func (f *fakemessage_queueService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakemessage_queueService) Get(ctx context.Context, tenantID, id string) ((*models.MessageQueue, error)) {
-	return &models.MessageQueue{}, nil
-}
-
-func (f *fakemessage_queueService) List(ctx context.Context, tenantID string) (([]models.MessageQueue, error)) {
-	return []models.MessageQueue{}, nil
-}
-
-func (f *fakemessage_queueService) Update(ctx context.Context, tenantID, id string, req models.UpdateMessageQueueRequest) ((*models.MessageQueue, error)) {
-	return &models.MessageQueue{}, nil
-}
-
-var _ service.ServiceInterface = (*fakemessage_queueService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_MESSAGE_QUEUE_RegisterRoutes(t *testing.T) {

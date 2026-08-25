@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/workbench/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeWorkbenchService struct{}
 
 func (f *fakeWorkbenchService) Create(ctx context.Context, tenantID string, req models.CreateWorkbenchRequest) (*models.Workbench, error) {
@@ -52,31 +48,6 @@ func (f *fakeWorkbenchService) Update(ctx context.Context, tenantID, id string, 
 }
 
 var _ service.ServiceInterface = (*fakeWorkbenchService)(nil)
-=======
-type fakeworkbenchService struct{}
-
-func (f *fakeworkbenchService) Create(ctx context.Context, tenantID string, req models.CreateWorkbenchRequest) ((*models.Workbench, error)) {
-	return &models.Workbench{}, nil
-}
-
-func (f *fakeworkbenchService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeworkbenchService) Get(ctx context.Context, tenantID, id string) ((*models.Workbench, error)) {
-	return &models.Workbench{}, nil
-}
-
-func (f *fakeworkbenchService) List(ctx context.Context, tenantID string, limit, offset int) (([]models.Workbench, error)) {
-	return []models.Workbench{}, nil
-}
-
-func (f *fakeworkbenchService) Update(ctx context.Context, tenantID, id string, req models.UpdateWorkbenchRequest) ((*models.Workbench, error)) {
-	return &models.Workbench{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeworkbenchService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_WORKBENCH_RegisterRoutes(t *testing.T) {

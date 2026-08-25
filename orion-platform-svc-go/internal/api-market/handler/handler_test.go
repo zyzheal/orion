@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/api-market/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeHandlerService struct{}
 
 func (f *fakeHandlerService) CheckSubscription(ctx context.Context, appID string, productID string, tenantID string) (bool, error) {
@@ -99,67 +95,6 @@ func (f *fakeHandlerService) ValidateAPIKey(ctx context.Context, tenantID string
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-=======
-type fakeapi_marketService struct{}
-
-func (f *fakeapi_marketService) CheckSubscription(ctx context.Context, appID string, productID string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakeapi_marketService) CreateDeveloperApp(ctx context.Context, req *models.CreateDeveloperAppRequest, developerID string, tenantID string) ((*models.DeveloperApp, error)) {
-	return &models.DeveloperApp{}, nil
-}
-
-func (f *fakeapi_marketService) CreateProduct(ctx context.Context, req *models.CreateProductRequest, ownerID string, tenantID string) ((*models.Product, error)) {
-	return &models.Product{}, nil
-}
-
-func (f *fakeapi_marketService) DeleteProduct(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakeapi_marketService) GenerateAPIKey(ctx context.Context, appID string, scopes []string, tenantID string) ((*GenerateAPIKeyResult, error)) {
-	return &GenerateAPIKeyResult{}, nil
-}
-
-func (f *fakeapi_marketService) GetApp(ctx context.Context, id string, tenantID string) ((*models.DeveloperApp, error)) {
-	return &models.DeveloperApp{}, nil
-}
-
-func (f *fakeapi_marketService) GetProduct(ctx context.Context, id string, tenantID string) ((*models.Product, error)) {
-	return &models.Product{}, nil
-}
-
-func (f *fakeapi_marketService) ListAPIKeys(ctx context.Context, appID string, tenantID string) (([]models.SafeAPIKey, error)) {
-	return []models.SafeAPIKey{}, nil
-}
-
-func (f *fakeapi_marketService) ListAppsByDeveloper(ctx context.Context, tenantID string, developerID string) (([]models.DeveloperApp, error)) {
-	return []models.DeveloperApp{}, nil
-}
-
-func (f *fakeapi_marketService) ListProducts(ctx context.Context, tenantID string) (([]models.Product, error)) {
-	return []models.Product{}, nil
-}
-
-func (f *fakeapi_marketService) ListSubscriptions(ctx context.Context, appID string, tenantID string) (([]models.Subscription, error)) {
-	return []models.Subscription{}, nil
-}
-
-func (f *fakeapi_marketService) PublishProduct(ctx context.Context, id string, tenantID string) ((*models.Product, error)) {
-	return &models.Product{}, nil
-}
-
-func (f *fakeapi_marketService) Subscribe(ctx context.Context, req *models.SubscribeRequest, tenantID string) (error) {
-	return nil
-}
-
-func (f *fakeapi_marketService) ValidateAPIKey(ctx context.Context, tenantID string, clientID string, clientSecret string) ((*models.APIKeyValidationResult, error)) {
-	return &models.APIKeyValidationResult{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeapi_marketService)(nil)
->>>>>>> Stashed changes
 
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {

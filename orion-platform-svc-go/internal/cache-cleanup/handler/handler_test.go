@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/cache-cleanup/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeCache_cleanupService struct{}
 
 func (f *fakeCache_cleanupService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.CacheCleanup, error) {
@@ -63,31 +59,6 @@ func (f *fakeCache_cleanupService) Update(ctx context.Context, id, tenantID stri
 }
 
 var _ service.ServiceInterface = (*fakeCache_cleanupService)(nil)
-=======
-type fakecache_cleanupService struct{}
-
-func (f *fakecache_cleanupService) Create(ctx context.Context, req *models.CreateRequest, tenantID string) ((*models.CacheCleanup, error)) {
-	return &models.CacheCleanup{}, nil
-}
-
-func (f *fakecache_cleanupService) Delete(ctx context.Context, id, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakecache_cleanupService) Get(ctx context.Context, id, tenantID string) ((*models.CacheCleanup, error)) {
-	return &models.CacheCleanup{}, nil
-}
-
-func (f *fakecache_cleanupService) List(ctx context.Context, tenantID string) (([]models.CacheCleanup, error)) {
-	return []models.CacheCleanup{}, nil
-}
-
-func (f *fakecache_cleanupService) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) ((*models.CacheCleanup, error)) {
-	return &models.CacheCleanup{}, nil
-}
-
-var _ service.ServiceInterface = (*fakecache_cleanupService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCACHE_CLEANUP_Handler_RegisterRoutes(t *testing.T) {

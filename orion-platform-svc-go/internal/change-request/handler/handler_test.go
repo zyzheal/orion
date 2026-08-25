@@ -11,11 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/change-request/models"
 	"time"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -40,7 +37,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeChange_requestService struct{}
 
 func (f *fakeChange_requestService) ApproveRequest(ctx context.Context, requestID string, approvalID string, tenantID string, approverID string, comments *string) (*models.ChangeApproval, error) {
@@ -92,59 +88,6 @@ func (f *fakeChange_requestService) UpdateRequest(ctx context.Context, id string
 }
 
 var _ service.ServiceInterface = (*fakeChange_requestService)(nil)
-=======
-type fakechange_requestService struct{}
-
-func (f *fakechange_requestService) ApproveRequest(ctx context.Context, requestID string, approvalID string, tenantID string, approverID string, comments *string) ((*models.ChangeApproval, error)) {
-	return &models.ChangeApproval{}, nil
-}
-
-func (f *fakechange_requestService) CreateRequest(ctx context.Context, req *models.CreateChangeRequestRequest, tenantID string) ((*models.ChangeRequest, error)) {
-	return &models.ChangeRequest{}, nil
-}
-
-func (f *fakechange_requestService) DeleteRequest(ctx context.Context, id string, tenantID string) ((bool, error)) {
-	return false, nil
-}
-
-func (f *fakechange_requestService) GetApprovalChain(ctx context.Context, requestID string, tenantID string) (([]models.ChangeApproval, error)) {
-	return []models.ChangeApproval{}, nil
-}
-
-func (f *fakechange_requestService) GetExecutionProgress(ctx context.Context, requestID string, tenantID string) ((*models.ExecutionProgress, error)) {
-	return &models.ExecutionProgress{}, nil
-}
-
-func (f *fakechange_requestService) GetRequest(ctx context.Context, id string, tenantID string) ((*models.ChangeRequest, error)) {
-	return &models.ChangeRequest{}, nil
-}
-
-func (f *fakechange_requestService) ListRequests(ctx context.Context, tenantID string, filters *models.ListChangeRequestRequest) (([]models.ChangeRequest, int, error)) {
-	return []models.ChangeRequest{}, 0, nil
-}
-
-func (f *fakechange_requestService) RejectRequest(ctx context.Context, requestID string, approvalID string, tenantID string, approverID string, comments *string) ((*models.ChangeApproval, error)) {
-	return &models.ChangeApproval{}, nil
-}
-
-func (f *fakechange_requestService) StartExecution(ctx context.Context, requestID string, tenantID string, steps []models.CreateExecutionStepRequest) (([]models.ExecutionStep, error)) {
-	return []models.ExecutionStep{}, nil
-}
-
-func (f *fakechange_requestService) SubmitForApproval(ctx context.Context, id string, tenantID string) ((*models.ChangeRequest, error)) {
-	return &models.ChangeRequest{}, nil
-}
-
-func (f *fakechange_requestService) UpdateExecutionStep(ctx context.Context, stepID string, tenantID string, status string, result map[string]any, startedAt *time.Time, completedAt *time.Time) ((*models.ExecutionStep, error)) {
-	return &models.ExecutionStep{}, nil
-}
-
-func (f *fakechange_requestService) UpdateRequest(ctx context.Context, id string, tenantID string, req *models.UpdateChangeRequestRequest) ((*models.ChangeRequest, error)) {
-	return &models.ChangeRequest{}, nil
-}
-
-var _ service.ServiceInterface = (*fakechange_requestService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCHANGE_REQUEST_Handler_RegisterRoutes(t *testing.T) {

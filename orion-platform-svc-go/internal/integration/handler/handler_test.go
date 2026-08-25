@@ -9,10 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/integration/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -28,7 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeIntegrationService struct{}
 
 func (f *fakeIntegrationService) Create(ctx context.Context, tenantID string, req *models.CreateIntegrationRequest) (*models.Integration, error) {
@@ -52,31 +48,6 @@ func (f *fakeIntegrationService) Update(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeIntegrationService)(nil)
-=======
-type fakeintegrationService struct{}
-
-func (f *fakeintegrationService) Create(ctx context.Context, tenantID string, req *models.CreateIntegrationRequest) ((*models.Integration, error)) {
-	return &models.Integration{}, nil
-}
-
-func (f *fakeintegrationService) Delete(ctx context.Context, tenantID, id string) (error) {
-	return nil
-}
-
-func (f *fakeintegrationService) Get(ctx context.Context, tenantID, id string) ((*models.Integration, error)) {
-	return &models.Integration{}, nil
-}
-
-func (f *fakeintegrationService) List(ctx context.Context, tenantID string) (([]models.Integration, error)) {
-	return []models.Integration{}, nil
-}
-
-func (f *fakeintegrationService) Update(ctx context.Context, tenantID, id string, req *models.UpdateIntegrationRequest) ((*models.Integration, error)) {
-	return &models.Integration{}, nil
-}
-
-var _ service.ServiceInterface = (*fakeintegrationService)(nil)
->>>>>>> Stashed changes
 
 
 func TestHandler_INTEGRATION_RegisterRoutes(t *testing.T) {

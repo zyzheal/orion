@@ -11,10 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"context"
-<<<<<<< Updated upstream
 	"orion/platform-svc-go/internal/change-intelligence/models"
-=======
->>>>>>> Stashed changes
 )
 
 func newHandler() *Handler {
@@ -39,7 +36,6 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	return c, w
 }
 
-<<<<<<< Updated upstream
 type fakeChange_intelligenceService struct{}
 
 func (f *fakeChange_intelligenceService) Analyze(ctx context.Context, req *models.AnalyzeRequest, tenantID string, createdBy string) (*models.ChangeAnalysis, error) {
@@ -59,27 +55,6 @@ func (f *fakeChange_intelligenceService) ListReports(ctx context.Context, tenant
 }
 
 var _ service.ServiceInterface = (*fakeChange_intelligenceService)(nil)
-=======
-type fakechange_intelligenceService struct{}
-
-func (f *fakechange_intelligenceService) Analyze(ctx context.Context, req *models.AnalyzeRequest, tenantID string, createdBy string) ((*models.ChangeAnalysis, error)) {
-	return &models.ChangeAnalysis{}, nil
-}
-
-func (f *fakechange_intelligenceService) GetBlastRadius(ctx context.Context, analysisID string, tenantID string) ((*models.BlastRadiusResponse, error)) {
-	return &models.BlastRadiusResponse{}, nil
-}
-
-func (f *fakechange_intelligenceService) GetReport(ctx context.Context, id string, tenantID string) ((*models.ChangeAnalysis, error)) {
-	return &models.ChangeAnalysis{}, nil
-}
-
-func (f *fakechange_intelligenceService) ListReports(ctx context.Context, tenantID string) (([]models.ReportSummary, int, error)) {
-	return []models.ReportSummary{}, 0, nil
-}
-
-var _ service.ServiceInterface = (*fakechange_intelligenceService)(nil)
->>>>>>> Stashed changes
 
 
 func TestCHANGE_INTELLIGENCE_Handler_RegisterRoutes(t *testing.T) {

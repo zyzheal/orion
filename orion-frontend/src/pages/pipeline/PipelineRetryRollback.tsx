@@ -628,6 +628,7 @@ const PipelineRetryRollback: React.FC = () => {
           style: { color: colors.warning[500] },
         }}
         onOk={handleRetryConfirm}
+        confirmLoading={retryLoading}
       >
         <Space direction="vertical" size={spacing.md} style={{ width: '100%' }}>
           <div>
@@ -718,6 +719,7 @@ const PipelineRetryRollback: React.FC = () => {
           icon: <RollbackOutlined />,
         }}
         onOk={handleRollbackConfirm}
+        confirmLoading={rollbackLoading}
       >
         <Space direction="vertical" size={spacing.md} style={{ width: '100%' }}>
           <div>
@@ -806,6 +808,7 @@ const PipelineRetryRollback: React.FC = () => {
           icon: <StopOutlined />,
         }}
         onOk={handleCancelConfirm}
+        confirmLoading={cancelLoading}
       >
         <Space direction="vertical" size={spacing.sm} style={{ width: '100%' }}>
           <div>
