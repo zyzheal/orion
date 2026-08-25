@@ -18,7 +18,7 @@ import {
   Switch,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { getStrategies, createStrategy, toggleStrategy } from '@/api/self-healing';
+import { getStrategies, createStrategy, updateStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
 import { colors, spacing } from '@/tokens';
 
@@ -108,8 +108,8 @@ const StrategyList: React.FC = () => {
         confidence: values.confidence ? Number(values.confidence) : undefined,
       };
       if (editingStrategy) {
-        // Update via create API since no explicit update endpoint
-        message.info('更新功能需要后端支持');
+        await updateStrategy(editingStrategy.id, payload);
+        message.success('策略已更新');
       } else {
         await createStrategy(payload);
         message.success('策略已创建');

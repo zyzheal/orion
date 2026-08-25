@@ -18,6 +18,7 @@ import {
   Select,
   message,
   Tabs,
+  Tooltip,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -417,9 +418,11 @@ const PolicyManagement: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             刷新
           </Button>
-          <Button icon={<SyncOutlined />} onClick={() => message.info('Bundle sync triggered')}>
-            同步 Bundle
-          </Button>
+          <Tooltip title="Bundle 同步功能开发中">
+            <Button icon={<SyncOutlined />} disabled>
+              同步 Bundle
+            </Button>
+          </Tooltip>
           <Button icon={<PlayCircleOutlined />} onClick={() => setEvaluateModalVisible(true)}>
             评估策略
           </Button>

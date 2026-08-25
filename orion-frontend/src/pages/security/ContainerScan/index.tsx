@@ -327,9 +327,12 @@ const ContainerScanPage: React.FC = () => {
    */
   const handleSavePolicy = async () => {
     try {
+      setPolicySaving(true);
       message.info('扫描策略保存 API 开发中，暂未持久化');
     } catch {
       message.error('保存策略失败');
+    } finally {
+      setPolicySaving(false);
     }
   };
 

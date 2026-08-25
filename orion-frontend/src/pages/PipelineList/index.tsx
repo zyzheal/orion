@@ -48,7 +48,7 @@ import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilte
 import { PermissionActions, type PermissionAction } from '@/components/PermissionActions';
 import { usePermissionActions } from '@/hooks/usePermissionActions';
 import { usePagination } from '@/hooks/usePagination';
-import { getPipelines, deletePipeline, type Pipeline } from '@/api/pipelines';
+import { getPipelines, deletePipeline, triggerPipeline, type Pipeline } from '@/api/pipelines';
 
 dayjs.extend(relativeTime);
 
@@ -355,9 +355,27 @@ const PipelineList: React.FC = () => {
     }
   }, [selectedRowKeys, refresh]);
 
-  const handleBatchTrigger = useCallback(() => {
-    message.info(`批量触发 ${selectedRowKeys.length} 个 Pipeline（功能开发中）`);
-  }, [selectedRowKeys]);
+  const handleBatchTrigger = useCallback(async () => {
+    if (selectedRowKeys.length === 0) return;
+    setBatchLoading(true);
+    let succeeded = 0;
+    let failed = 0;
+    for (const id of selectedRowKeys) {
+      try {
+        await triggerPipeline(id);
+        succeeded += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBatchLoading(false);
+    if (failed === 0) {
+      message.success(`已成功触发 ${succeeded} 个 Pipeline`);
+    } else {
+      message.warning(`触发完成：${succeeded} 成功，${failed} 失败`);
+    }
+    refresh();
+  }, [selectedRowKeys, refresh]);
 
   const handleExport = useCallback(() => {
     try {

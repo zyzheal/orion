@@ -58,6 +58,11 @@ export const canaryTrafficApi = {
     const response = await apiClient.post(`/api/v1/canary/deployments/${id}/rollback`, data);
     return response.data;
   },
+
+  deleteCanaryDeployment: async (id: string) => {
+    const response = await apiClient.delete(`/api/v1/canary/deployments/${id}`);
+    return response.data;
+  },
 };
 
 export default canaryTrafficApi;

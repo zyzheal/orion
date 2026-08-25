@@ -304,9 +304,12 @@ const UEBAPage: React.FC = () => {
    */
   const handleSaveConfig = async () => {
     try {
+      setSaving(true);
       message.info('检测模型保存 API 开发中，暂未持久化');
     } catch {
       message.error('保存配置失败，请重试');
+    } finally {
+      setSaving(false);
     }
   };
 

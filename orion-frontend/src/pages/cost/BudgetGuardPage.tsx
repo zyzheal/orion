@@ -49,6 +49,8 @@ import type { TableColumn } from '@/components/Table';
 import {
   getBudgetGuards,
   createBudgetGuard,
+  updateBudgetGuard,
+  deleteBudgetGuard,
   evaluateBudgetGuard,
   getCostForecast,
   type BudgetGuard,
@@ -324,12 +326,19 @@ const BudgetGuardPage: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (_values: BudgetGuardInput) => {
+  const handleUpdate = async (values: BudgetGuardInput) => {
     if (!editingGuard) return;
     setSubmitting(true);
     try {
-      // Note: updateBudgetGuard would be added to API when backend supports it
-      message.info('更新功能待后端支持');
+      await updateBudgetGuard(editingGuard.id, {
+        name: values.name,
+        description: values.description,
+        budgetAmount: values.budgetAmount,
+        currency: values.currency,
+        action: values.action,
+        scope: values.scope,
+      });
+      message.success('Budget Guard 更新成功');
       setEditModalOpen(false);
       await loadGuards();
     } catch (error: unknown) {
@@ -343,10 +352,10 @@ const BudgetGuardPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (_id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      // Note: deleteBudgetGuard would be added to API when backend supports it
-      message.info('删除功能待后端支持');
+      await deleteBudgetGuard(id);
+      message.success('Budget Guard 删除成功');
       await loadGuards();
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -359,8 +368,16 @@ const BudgetGuardPage: React.FC = () => {
 
   const handleToggle = async (guard: BudgetGuard) => {
     try {
-      // Note: toggleBudgetGuard would be added to API when backend supports it
       const newStatus = guard.status === 'active' ? 'inactive' : 'active';
+      await updateBudgetGuard(guard.id, {
+        budgetAmount: guard.budgetAmount,
+        currency: guard.currency,
+        action: guard.action,
+        scope: guard.scope
+          ? { projectIds: guard.scope.projectIds, environment: guard.scope.environment ?? undefined }
+          : undefined,
+        status: newStatus,
+      });
       message.success(`Guard ${guard.name} ${newStatus === 'active' ? '已启用' : '已停用'}`);
       await loadGuards();
     } catch (error: unknown) {

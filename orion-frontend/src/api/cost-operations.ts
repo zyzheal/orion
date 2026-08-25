@@ -182,6 +182,7 @@ export interface BudgetGuardInput {
   currency?: string;
   action: 'allow' | 'block' | 'warn';
   scope?: { projectIds?: string[]; environment?: string };
+  status?: 'active' | 'inactive';
 }
 
 export interface EvaluationResult {
@@ -206,6 +207,24 @@ export function createBudgetGuard(data: BudgetGuardInput) {
     '/api/v1/cost-operations/budget-guards',
     data
   );
+}
+
+export function updateBudgetGuard(
+  id: string,
+  data: Partial<BudgetGuardInput> & {
+    name?: string;
+    budgetAmount?: number;
+    action?: 'allow' | 'block' | 'warn';
+  }
+) {
+  return api.put<{ success: boolean; data: BudgetGuard }>(
+    `/api/v1/cost-operations/budget-guards/${id}`,
+    data
+  );
+}
+
+export function deleteBudgetGuard(id: string) {
+  return api.delete<{ success: boolean }>(`/api/v1/cost-operations/budget-guards/${id}`);
 }
 
 export function evaluateBudgetGuard(

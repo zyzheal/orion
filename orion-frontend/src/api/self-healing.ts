@@ -127,6 +127,11 @@ export async function createStrategy(data: Omit<SelfHealingStrategy, 'id'>) {
   return (res.data as { success: boolean; data: SelfHealingStrategy }).data;
 }
 
+export async function updateStrategy(id: string, data: Partial<Omit<SelfHealingStrategy, 'id'>>) {
+  const res = await api.put(`/api/v1/self-healing/strategies/${id}`, data);
+  return (res.data as { success: boolean; data: SelfHealingStrategy }).data;
+}
+
 export async function toggleStrategy(id: string) {
   const res = await api.post(`/api/v1/self-healing/strategies/${id}/toggle`);
   return res.data;

@@ -139,11 +139,14 @@ const PasswordPolicyPage: React.FC = () => {
 
   const handleSave = async () => {
     try {
+      setSaving(true);
       await form.validateFields();
       message.info('密码策略保存 API 开发中，暂未持久化');
     } catch (err: any) {
       if (err.errorFields) return;
       message.error('保存失败: ' + (err.message || '未知错误'));
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -259,14 +259,14 @@ const DoraMetricsPage: React.FC = () => {
   const trendData = trends;
 
   const depFreq =
-    typeof metrics.deploymentFrequency === 'string'
+    metrics && typeof metrics.deploymentFrequency === 'string'
       ? parseFloat(metrics.deploymentFrequency)
-      : (metrics.deploymentFrequency as number);
+      : (Number(metrics?.deploymentFrequency) || 0);
 
   const currentDeploymentLevel = determineDeploymentFrequencyLevel(depFreq || 0);
-  const currentLeadTimeLevel = determineLeadTimeLevel(metrics.leadTimeForChanges || 0);
-  const currentCfrLevel = determineChangeFailureLevel(metrics.changeFailureRate || 0);
-  const currentMttrLevel = determineMttrLevel(metrics.meanTimeToRecovery || 0);
+  const currentLeadTimeLevel = determineLeadTimeLevel(metrics?.leadTimeForChanges || 0);
+  const currentCfrLevel = determineChangeFailureLevel(metrics?.changeFailureRate || 0);
+  const currentMttrLevel = determineMttrLevel(metrics?.meanTimeToRecovery || 0);
 
   // ---- Benchmark table data ----
 
@@ -283,7 +283,7 @@ const DoraMetricsPage: React.FC = () => {
     {
       key: 'leadTimeForChanges',
       name: '变更前置时间',
-      currentValue: `${metrics.leadTimeForChanges} 小时`,
+      currentValue: `${metrics?.leadTimeForChanges ?? 0} 小时`,
       elite: benchmarksData.leadTimeForChanges.elite,
       high: benchmarksData.leadTimeForChanges.high,
       medium: benchmarksData.leadTimeForChanges.medium,
@@ -292,7 +292,7 @@ const DoraMetricsPage: React.FC = () => {
     {
       key: 'changeFailureRate',
       name: '变更失败率',
-      currentValue: `${metrics.changeFailureRate}%`,
+      currentValue: `${metrics?.changeFailureRate ?? 0}%`,
       elite: benchmarksData.changeFailureRate.elite,
       high: benchmarksData.changeFailureRate.high,
       medium: benchmarksData.changeFailureRate.medium,
@@ -301,7 +301,7 @@ const DoraMetricsPage: React.FC = () => {
     {
       key: 'mttr',
       name: '平均恢复时间 (MTTR)',
-      currentValue: `${metrics.meanTimeToRecovery} 分钟`,
+      currentValue: `${metrics?.meanTimeToRecovery ?? 0} 分钟`,
       elite: benchmarksData.meanTimeToRecovery.elite,
       high: benchmarksData.meanTimeToRecovery.high,
       medium: benchmarksData.meanTimeToRecovery.medium,
@@ -464,7 +464,7 @@ const DoraMetricsPage: React.FC = () => {
           >
             <Statistic
               title="变更前置时间"
-              value={metrics.leadTimeForChanges}
+              value={metrics?.leadTimeForChanges ?? 0}
               suffix="小时"
               prefix={<ClockCircleOutlined style={{ color: colors.success[500] }} />}
               valueStyle={{ color: colors.success[500] }}
@@ -485,11 +485,11 @@ const DoraMetricsPage: React.FC = () => {
           >
             <Statistic
               title="变更失败率"
-              value={metrics.changeFailureRate}
+              value={metrics?.changeFailureRate ?? 0}
               suffix="%"
               prefix={<WarningOutlined style={{ color: colors.error[500] }} />}
               valueStyle={{
-                color: metrics.changeFailureRate <= 10 ? colors.success[500] : colors.error[500],
+                color: (metrics?.changeFailureRate ?? 0) <= 10 ? colors.success[500] : colors.error[500],
               }}
             />
             <div style={{ marginTop: spacing.sm, textAlign: 'right' }}>
@@ -508,7 +508,7 @@ const DoraMetricsPage: React.FC = () => {
           >
             <Statistic
               title="平均恢复时间 (MTTR)"
-              value={metrics.meanTimeToRecovery}
+              value={metrics?.meanTimeToRecovery ?? 0}
               suffix="分钟"
               prefix={<CheckCircleOutlined style={{ color: colors.info[500] }} />}
               valueStyle={{ color: colors.info[500] }}

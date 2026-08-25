@@ -189,9 +189,14 @@ const TrafficGovernance: React.FC = () => {
     }
   };
 
-  const handleDelete = async (_id: string) => {
-    message.info('删除功能需调用 DELETE /api/v1/canary/deployments/:id');
-    loadTrafficRules();
+  const handleDelete = async (id: string) => {
+    try {
+      await canaryTrafficApi.deleteCanaryDeployment(id);
+      message.success('流量规则已删除');
+      loadTrafficRules();
+    } catch (err) {
+      message.error('删除失败');
+    }
   };
 
   // ==================== Table Columns ====================
