@@ -234,6 +234,10 @@ export const saveRAGPromptTemplate = async (data: {
   return api.post('/api/v1/knowledge/rag/prompt/templates', data);
 };
 
+export const deleteRAGPromptTemplate = async (id: string) => {
+  return api.delete(`/api/v1/knowledge/rag/prompt/templates/${id}`);
+};
+
 export const triggerRAGIndex = async () => {
   return api.post('/api/v1/knowledge/rag/index', {});
 };

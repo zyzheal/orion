@@ -40,6 +40,7 @@ import {
   updateRAGAdminConfig,
   getRAGPromptTemplates,
   saveRAGPromptTemplate,
+  deleteRAGPromptTemplate,
   triggerRAGIndex,
 } from '@/api/ai-docs';
 import dayjs from 'dayjs';
@@ -272,9 +273,18 @@ const RAGAdminPage: React.FC = () => {
     }
   };
 
-  const handleDeleteTemplate = async (_record: PromptTemplate) => {
-    // TODO: 后端暂未提供删除模板 API，预留
-    message.info('删除功能待实现');
+  const handleDeleteTemplate = async (record: PromptTemplate) => {
+    if (!record.id) {
+      message.error('模板 ID 缺失，无法删除');
+      return;
+    }
+    try {
+      await deleteRAGPromptTemplate(record.id);
+      message.success('模板删除成功');
+      await loadTemplates();
+    } catch (error: unknown) {
+      message.error(`删除失败: ${(error as Error).message}`);
+    }
   };
 
   // ---- Trigger Index Rebuild ----
