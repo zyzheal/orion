@@ -195,10 +195,6 @@ const SBOMPage: React.FC = () => {
     setSelectedComponent(record);
   };
 
-  const handleUpdateVersion = (_record: SBOMComponent) => {
-    message.info('组件版本更新功能开发中');
-  };
-
   const handleViewVulnDetails = (record: SBOMComponent) => {
     handleSelectComponent(record);
   };
@@ -289,11 +285,11 @@ const SBOMPage: React.FC = () => {
               <EyeOutlined style={{ marginRight: 4 }} /> SBOM
             </Button>
           </Tooltip>
-          <Tooltip title="更新版本">
+          <Tooltip title="组件版本更新功能开发中">
             <Button
               size="small"
-              style={{ borderColor: cInfo }}
-              onClick={() => handleUpdateVersion(record)}
+              disabled
+              style={{ borderColor: cNeutral }}
             >
               <CloudUploadOutlined style={{ marginRight: 4 }} /> 更新
             </Button>
