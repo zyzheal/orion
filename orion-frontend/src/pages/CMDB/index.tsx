@@ -6,7 +6,7 @@
  * 原有组件拆分为独立文件
  * 2026-07-27: 新增 4 个统计卡片 (CI总数/主机/K8s/CICD)，调用后端 API
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { Row, Col, Tabs, Spin, Empty } from 'antd';
 import { StatCard } from '@/components/charts';
 import {
@@ -25,9 +25,11 @@ import { getCIs, getHosts, getK8sResources, getCICDResources } from '@/api/cmdb'
 import CITablePage from './CITablePage';
 import TopologyPage from './TopologyPage';
 import IntegrationPage from './IntegrationPage';
-import WebTerminalPage from './WebTerminalPage';
 import BatchExecPage from './BatchExecPage';
 import AuditLogPage from './AuditLogPage';
+
+// P2: xterm 436KB 仅在进入「Web 终端」tab 时加载
+const WebTerminalPage = lazy(() => import('./WebTerminalPage'));
 
 interface CMDBStats {
   ciTotal: number;
@@ -119,7 +121,11 @@ const CMDBPage: React.FC = () => {
           <DesktopOutlined /> Web 终端
         </span>
       ),
-      children: <WebTerminalPage />,
+      children: (
+        <Suspense fallback={<Spin style={{ padding: 48, textAlign: 'center' }} />}>
+          <WebTerminalPage />
+        </Suspense>
+      ),
     },
     {
       key: 'batch-exec',

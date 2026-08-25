@@ -5,8 +5,8 @@
  * - 导航项 hover 触发下拉面板（飞书风格 mega menu）
  * - 右上角：主题切换 + 控制台 (管理员) + 用户菜单
  */
-import React, { useEffect } from 'react';
-import { Layout as AntLayout, Avatar, Dropdown, Breadcrumb, Button } from 'antd';
+import React, { useEffect, lazy, Suspense } from 'react';
+import { Layout as AntLayout, Avatar, Dropdown, Breadcrumb, Button, Spin } from 'antd';
 import {
   SettingOutlined,
   UserOutlined,
@@ -27,9 +27,15 @@ import { useAuth } from '@/hooks/useAuth';
 import SubAppLauncher from '@/components/SubAppLauncher';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
-import { ChatTrigger, ChatPanel } from '@/components/ChatOps';
+import { ChatTrigger } from '@/components/ChatOps';
 import { TenantSelector } from '@/components/TenantSelector';
-import { initializeChatOpsStore } from '@/stores/chatOpsStore';
+import { initializeChatOpsStore, useChatOpsStore } from '@/stores/chatOpsStore';
+
+// P1: ChatPanel 含 SmartRecommend/MessageArea/ChatInput 共 ~290KB，
+// 仅在用户首次打开 ChatOps 面板时加载
+const ChatPanel = lazy(() =>
+  import('@/components/ChatOps/ChatPanel').then((m) => ({ default: m.ChatPanel })),
+);
 import {
   useMenuConfigStore,
   type MenuModuleConfig,
@@ -216,6 +222,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [configOpen, setConfigOpen] = React.useState(false);
   const [megaMenuKey, setMegaMenuKey] = React.useState<string | null>(null);
   const megaMenuTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // P1: 订阅 isOpen，仅在用户首次打开时懒加载 ChatPanel chunk
+  const chatOpsOpen = useChatOpsStore((s) => s.isOpen);
 
   // 注入 Mega Menu 动画 keyframes
   useEffect(() => {
@@ -805,8 +813,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </Content>
 
-      {/* ChatOps 面板 - 固定在右下角 */}
-      <ChatPanel />
+      {/* ChatOps 面板 - 仅在首次打开时加载 chunk */}
+      {chatOpsOpen && (
+        <Suspense fallback={<Spin style={{ position: 'fixed', right: 24, bottom: 24 }} />}>
+          <ChatPanel />
+        </Suspense>
+      )}
 
       {/* 菜单配置面板（仅管理员） */}
       {isAdmin && <MenuConfigPanel open={configOpen} onClose={() => setConfigOpen(false)} />}

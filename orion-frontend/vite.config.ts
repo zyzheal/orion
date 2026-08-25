@@ -196,8 +196,9 @@ export default defineConfig({
           if (id.includes('node_modules/antd/')) {
             return 'antd';
           }
+          // rc-* 是 antd 底层组件强依赖，合并到 antd chunk 减少重复打包和 HTTP 请求
           if (id.includes('node_modules/rc-')) {
-            return 'antd-rc';
+            return 'antd';
           }
           if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) {
             return 'vendor';
@@ -207,9 +208,8 @@ export default defineConfig({
           }
           // src/components/charts/ 不再归入 charts chunk，
           // 让 Vite 按页面自然拆分，每个页面只加载自己需要的图表组件
-          if (id.includes('node_modules/@xterm/')) {
-            return 'terminal';
-          }
+          // @xterm 不再独立打包，跟随 WebTerminalPage 页面 chunk
+          // WebTerminalPage 通过 React.lazy() 动态加载，非该页面不加载 436KB
           if (id.includes('node_modules/@orion-mf/')) {
             return 'orion-mf';
           }
@@ -219,9 +219,7 @@ export default defineConfig({
           if (id.includes('src/components/Lowcode/')) {
             return 'lowcode';
           }
-          if (id.includes('src/components/ChatOps/')) {
-            return 'chatops';
-          }
+          // src/components/ChatOps/ 不再强制独立打包
           // src/components/ 不再强制打包为 shared-ui，让 Vite 按页面依赖自然拆分
           // 只有大型组件（DAG/Lowcode/ChatOps）保持独立，小型共享组件随页面加载
         },
