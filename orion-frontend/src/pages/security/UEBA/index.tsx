@@ -22,6 +22,7 @@ import {
   message,
   Statistic,
   Divider,
+  Tooltip,
   Empty,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -161,7 +162,6 @@ const UEBAPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<AnomalyType | 'all'>('all');
   const [levelFilter, setLevelFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [configForm] = Form.useForm();
-  const [saving, setSaving] = useState(false);
   const [config] = useState<DetectionConfig>({
     method: 'Z-Score',
     sensitivity: 5,
@@ -297,21 +297,6 @@ const UEBAPage: React.FC = () => {
       ),
     },
   ];
-
-  /**
-   * 保存检测模型配置 — P0 修复：移除 setTimeout 假加载
-   * 当前状态：保存 API 开发中，仅展示表单配置，不做持久化
-   */
-  const handleSaveConfig = async () => {
-    try {
-      setSaving(true);
-      message.info('检测模型保存 API 开发中，暂未持久化');
-    } catch {
-      message.error('保存配置失败，请重试');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   /**
    * 渲染排行项
@@ -608,19 +593,20 @@ const UEBAPage: React.FC = () => {
           </Row>
 
           <Form.Item style={{ textAlign: 'right', marginTop: spacing.sm }}>
-            <Button
-              type="primary"
-              icon={<ExclamationCircleOutlined />}
-              loading={saving}
-              onClick={handleSaveConfig}
-              style={{
-                backgroundColor: commonStyle.primary,
-                borderColor: commonStyle.primary,
-                minWidth: 120,
-              }}
-            >
-              保存配置
-            </Button>
+            <Tooltip title="检测模型保存 API 开发中">
+              <Button
+                type="primary"
+                icon={<ExclamationCircleOutlined />}
+                disabled
+                style={{
+                  backgroundColor: commonStyle.neutral,
+                  borderColor: commonStyle.neutral,
+                  minWidth: 120,
+                }}
+              >
+                保存配置
+              </Button>
+            </Tooltip>
           </Form.Item>
         </Form>
       </Card>

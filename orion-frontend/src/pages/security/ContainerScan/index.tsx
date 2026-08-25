@@ -165,7 +165,6 @@ const ContainerScanPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<ScanStatus | 'all'>('all');
   const [scanningKey, setScanningKey] = useState<string | null>(null);
   const [policyForm] = Form.useForm();
-  const [policySaving, setPolicySaving] = useState(false);
   const [policy, setPolicy] = useState<ScanPolicy>({
     engine: 'Trivy',
     frequency: '每次推送',
@@ -321,20 +320,6 @@ const ContainerScanPage: React.FC = () => {
       ),
     },
   ];
-
-  /**
-   * 保存扫描策略
-   */
-  const handleSavePolicy = async () => {
-    try {
-      setPolicySaving(true);
-      message.info('扫描策略保存 API 开发中，暂未持久化');
-    } catch {
-      message.error('保存策略失败');
-    } finally {
-      setPolicySaving(false);
-    }
-  };
 
   /**
    * 漏洞分布卡片数据
@@ -611,19 +596,20 @@ const ContainerScanPage: React.FC = () => {
           </Row>
 
           <Form.Item style={{ textAlign: 'right', marginTop: spacing.sm }}>
-            <Button
-              type="primary"
-              icon={<StopOutlined />}
-              loading={policySaving}
-              onClick={handleSavePolicy}
-              style={{
-                backgroundColor: commonStyle.primary,
-                borderColor: commonStyle.primary,
-                minWidth: 120,
-              }}
-            >
-              保存策略
-            </Button>
+            <Tooltip title="扫描策略保存 API 开发中">
+              <Button
+                type="primary"
+                icon={<StopOutlined />}
+                disabled
+                style={{
+                  backgroundColor: commonStyle.neutral,
+                  borderColor: commonStyle.neutral,
+                  minWidth: 120,
+                }}
+              >
+                保存策略
+              </Button>
+            </Tooltip>
           </Form.Item>
         </Form>
       </Card>

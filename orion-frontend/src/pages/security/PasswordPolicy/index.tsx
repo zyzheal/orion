@@ -17,10 +17,10 @@ import {
   Progress,
   Table,
   Typography,
-  message,
   Space,
   Divider,
   Tag,
+  Tooltip,
   Empty,
 } from 'antd';
 import {
@@ -121,7 +121,6 @@ const mockHistoryData: Array<{
 
 const PasswordPolicyPage: React.FC = () => {
   const [form] = Form.useForm();
-  const [saving, setSaving] = useState(false);
   const [testPassword, setTestPassword] = useState('');
   const [strength, setStrength] = useState<{ score: number; label: string; color: string }>({
     score: 0,
@@ -136,19 +135,6 @@ const PasswordPolicyPage: React.FC = () => {
       setStrength(calculatePasswordStrength(testPassword));
     }
   }, [testPassword]);
-
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      await form.validateFields();
-      message.info('密码策略保存 API 开发中，暂未持久化');
-    } catch (err: any) {
-      if (err.errorFields) return;
-      message.error('保存失败: ' + (err.message || '未知错误'));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   /**
    * 密码检查项列表
@@ -352,19 +338,20 @@ const PasswordPolicyPage: React.FC = () => {
               </Row>
 
               <Form.Item style={{ marginTop: spacing.lg, textAlign: 'right' }}>
-                <Button
-                  type="primary"
-                  icon={<KeyOutlined />}
-                  loading={saving}
-                  onClick={handleSave}
-                  style={{
-                    backgroundColor: commonStyle.primary,
-                    borderColor: commonStyle.primary,
-                    minWidth: 120,
-                  }}
-                >
-                  保存配置
-                </Button>
+                <Tooltip title="密码策略保存 API 开发中">
+                  <Button
+                    type="primary"
+                    icon={<KeyOutlined />}
+                    disabled
+                    style={{
+                      backgroundColor: commonStyle.neutral,
+                      borderColor: commonStyle.neutral,
+                      minWidth: 120,
+                    }}
+                  >
+                    保存配置
+                  </Button>
+                </Tooltip>
               </Form.Item>
             </Form>
           </Card>
