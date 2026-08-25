@@ -65,6 +65,7 @@ import {
   updateTask,
   deleteTask,
 } from '@/api/rdm';
+import { listUsers, type User } from '@/api/users';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -105,6 +106,20 @@ const RDM: React.FC = () => {
   const [defects, setDefects] = useState<Defect[]>([]);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await listUsers({ page: 1, limit: 100 });
+      setUsers(res.data.data ?? []);
+    } catch {
+      setUsers([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -349,7 +364,18 @@ const RDM: React.FC = () => {
           </>
         )}
         <Form.Item name="assignee" label="经办人">
-          <Input />
+          <Select
+            showSearch
+            allowClear
+            placeholder="搜索并选择经办人"
+            optionFilterProp="children"
+          >
+            {users.map((u) => (
+              <Option key={u.id} value={u.id}>
+                {u.name || u.username}
+              </Option>
+            ))}
+          </Select>
         </Form.Item>
       </Form>
     );

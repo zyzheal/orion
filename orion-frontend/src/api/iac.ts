@@ -137,6 +137,10 @@ export function updateWorkspace(id: string, data: UpdateWorkspaceInput) {
   return api.put(`/api/v1/iac/workspaces/${id}`, data);
 }
 
+export function deleteWorkspace(id: string) {
+  return api.delete(`/api/v1/iac/workspaces/${id}`);
+}
+
 // ---- Plans ----
 
 export function planWorkspace(id: string, data?: PlanInput) {

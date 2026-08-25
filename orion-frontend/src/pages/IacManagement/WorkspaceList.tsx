@@ -32,6 +32,7 @@ import {
   getWorkspaces,
   createWorkspace,
   updateWorkspace,
+  deleteWorkspace,
   type IaCWorkspace,
   type WorkspaceInput,
 } from '@/api/iac';
@@ -167,6 +168,20 @@ const WorkspaceList: React.FC = () => {
     setEditModalVisible(true);
   };
 
+  const handleDeleteWorkspace = async (ws: IaCWorkspace) => {
+    try {
+      await deleteWorkspace(ws.id);
+      message.success('工作空间删除成功');
+      loadData();
+    } catch (error: unknown) {
+      const err = error as { errorFields?: unknown };
+      if (!err.errorFields) {
+        const msg = error instanceof Error ? error.message : '删除失败';
+        message.error(msg);
+      }
+    }
+  };
+
   const columns: TableColumn<IaCWorkspace>[] = useMemo<TableColumn<IaCWorkspace>[]>(
     () => [
       {
@@ -259,7 +274,7 @@ const WorkspaceList: React.FC = () => {
             >
               编辑
             </Button>
-            <Popconfirm title="确认删除?" onConfirm={() => message.info('删除功能待后端支持')}>
+            <Popconfirm title="确认删除?" onConfirm={() => handleDeleteWorkspace(record)}>
               <Button type="link" size="small" danger icon={<DeleteOutlined />}>
                 删除
               </Button>
@@ -268,7 +283,7 @@ const WorkspaceList: React.FC = () => {
         ),
       },
     ],
-    [openEdit]
+    [openEdit, handleDeleteWorkspace]
   );
 
   const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
