@@ -192,11 +192,11 @@ const SBOMPage: React.FC = () => {
   };
 
   const handleViewSBOM = (record: SBOMComponent) => {
-    message.info(`SBOM 报告生成 API 开发中，暂未对 ${record.name} 生成报告`);
+    setSelectedComponent(record);
   };
 
-  const handleUpdateVersion = (record: SBOMComponent) => {
-    message.info(`版本更新 API 开发中，暂未对 ${record.name} 发起版本更新`);
+  const handleUpdateVersion = (_record: SBOMComponent) => {
+    message.info('组件版本更新功能开发中');
   };
 
   const handleViewVulnDetails = (record: SBOMComponent) => {
