@@ -21,6 +21,7 @@ import {
   Space,
   Divider,
   Tag,
+  Empty,
 } from 'antd';
 import {
   LockOutlined,
@@ -139,15 +140,10 @@ const PasswordPolicyPage: React.FC = () => {
   const handleSave = async () => {
     try {
       await form.validateFields();
-      setSaving(true);
-      // Mock 保存操作
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      message.success('密码策略保存成功');
+      message.info('密码策略保存 API 开发中，暂未持久化');
     } catch (err: any) {
       if (err.errorFields) return;
       message.error('保存失败: ' + (err.message || '未知错误'));
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -483,6 +479,14 @@ const PasswordPolicyPage: React.FC = () => {
           size="middle"
           pagination={{ pageSize: 5, showSizeChanger: false }}
           style={{ marginTop: spacing.sm }}
+          locale={{
+            emptyText: (
+              <Empty
+                description="密码变更历史 API 开发中"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ),
+          }}
         />
       </Card>
     </div>

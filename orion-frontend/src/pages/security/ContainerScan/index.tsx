@@ -297,13 +297,13 @@ const ContainerScanPage: React.FC = () => {
       key: 'action',
       render: (_, record: ImageScanRecord) => (
         <Space size={8}>
-          <Tooltip title="查看详情">
+          <Tooltip title="扫描详情 API 开发中">
             <Button
               type="text"
               size="small"
               icon={<EyeOutlined />}
               style={{ color: commonStyle.primary }}
-              onClick={() => message.info(`查看 ${record.image}:${record.tag} 的扫描详情`)}
+              disabled
             />
           </Tooltip>
           <Tooltip title="重新扫描">
@@ -327,13 +327,9 @@ const ContainerScanPage: React.FC = () => {
    */
   const handleSavePolicy = async () => {
     try {
-      setPolicySaving(true);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      message.success('扫描策略保存成功');
+      message.info('扫描策略保存 API 开发中，暂未持久化');
     } catch {
       message.error('保存策略失败');
-    } finally {
-      setPolicySaving(false);
     }
   };
 

@@ -22,6 +22,7 @@ import {
   message,
   Statistic,
   Divider,
+  Empty,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -298,17 +299,14 @@ const UEBAPage: React.FC = () => {
   ];
 
   /**
-   * 保存检测模型配置
+   * 保存检测模型配置 — P0 修复：移除 setTimeout 假加载
+   * 当前状态：保存 API 开发中，仅展示表单配置，不做持久化
    */
   const handleSaveConfig = async () => {
     try {
-      setSaving(true);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      message.success('检测模型配置保存成功，模型将重新训练');
+      message.info('检测模型保存 API 开发中，暂未持久化');
     } catch {
       message.error('保存配置失败，请重试');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -510,6 +508,14 @@ const UEBAPage: React.FC = () => {
               pagination={{ pageSize: 8, showSizeChanger: false, showQuickJumper: true }}
               scroll={{ x: 1000 }}
               style={{ marginTop: spacing.sm }}
+              locale={{
+                emptyText: (
+                  <Empty
+                    description="UEBA 异常事件数据尚未接入，API 开发中"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                ),
+              }}
             />
           </Card>
         </Col>
@@ -528,7 +534,12 @@ const UEBAPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-              {mockRiskRanks.map((user, index) => renderRankItem(user, index))}
+              {mockRiskRanks.length > 0
+                ? mockRiskRanks.map((user, index) => renderRankItem(user, index))
+                : <Empty
+                    description="UEBA 风险排行数据尚未接入"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />}
             </div>
           </Card>
         </Col>
