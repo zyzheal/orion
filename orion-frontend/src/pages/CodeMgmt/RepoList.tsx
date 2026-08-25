@@ -19,6 +19,7 @@ import {
   getCodeRepos,
   getCodeRepoBranches,
   getPullRequests,
+  deleteCodeRepo,
   type CodeRepo,
 } from '@/api/code-mgmt';
 import { useNavigate } from 'react-router-dom';
@@ -133,11 +134,22 @@ const RepoList: React.FC = () => {
       content: `确定要删除仓库 "${repo.name}" 吗？此操作不可撤销。`,
       okText: '删除',
       okButtonProps: { danger: true },
-      onOk: () => {
-        message.info('删除功能需要后端支持');
+      onOk: async () => {
+        try {
+          if (!selectedAdapter) {
+            message.error('未选择适配器');
+            return;
+          }
+          await deleteCodeRepo(selectedAdapter, repo.id);
+          message.success('仓库删除成功');
+          loadRepos(selectedAdapter);
+        } catch (error: unknown) {
+          const err = error as Error;
+          message.error(`删除失败：${err.message}`);
+        }
       },
     });
-  }, []);
+  }, [selectedAdapter, loadRepos]);
 
   const filteredRepos = useMemo(() => {
     return repos;

@@ -163,6 +163,10 @@ export function getCodeRepos(adapterId: string, params?: RepoListParams) {
   return api.get(`/api/v1/code-repo/${adapterId}/repos`, { params });
 }
 
+export function deleteCodeRepo(adapterId: string, repoId: string) {
+  return api.delete(`/api/v1/code-repo/${adapterId}/repos/${repoId}`);
+}
+
 export function getCodeRepoBranches(adapterId: string, repoId: string) {
   return api.get(`/api/v1/code-repo/${adapterId}/repos/${repoId}/branches`);
 }

@@ -326,14 +326,12 @@ const QueueManagement: React.FC = () => {
             </>
           )}
           {record.status === 'failed' && record.attempts < 5 && (
-            <Tooltip title="重新入队">
+            <Tooltip title="重新入队功能开发中">
               <Button
                 type="link"
                 size="small"
                 icon={<SyncOutlined />}
-                onClick={() => {
-                  message.info('重新入队功能需要后端支持重试队列');
-                }}
+                disabled
               >
                 重试
               </Button>
