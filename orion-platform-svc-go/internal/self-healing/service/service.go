@@ -8,16 +8,25 @@ import (
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/self-healing/models"
 	"orion/platform-svc-go/internal/self-healing/repository"
+	"orion/platform-svc-go/internal/self-healing/executor"
+
 	"go.uber.org/zap"
 )
 
 type SelfHealingService struct {
-	repo   *repository.SelfHealingRepository
-	logger *zap.Logger
+	repo      *repository.SelfHealingRepository
+	executor  *executor.K8sExecutor // optional K8s executor for live cluster operations
+	logger    *zap.Logger
 }
 
 func NewSelfHealingService(repo *repository.SelfHealingRepository, logger *zap.Logger) *SelfHealingService {
 	return &SelfHealingService{repo: repo, logger: logger}
+}
+
+// WithExecutor attaches a K8s executor for live cluster operations.
+func (s *SelfHealingService) WithExecutor(ex *executor.K8sExecutor) *SelfHealingService {
+	s.executor = ex
+	return s
 }
 
 // CreateHealingAction creates a new healing action.
@@ -104,7 +113,7 @@ func (s *SelfHealingService) ExecuteAction(ctx context.Context, tenantID, action
 	}
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		if err := s.executeSingleAttempt(action, triggeredBy); err != nil {
+		if err := s.executeSingleAttempt(ctx, action, triggeredBy); err != nil {
 			s.logger.Warn("healing action attempt failed",
 				zap.String("actionId", action.ID.String()),
 				zap.Int("attempt", attempt),
@@ -129,7 +138,29 @@ func (s *SelfHealingService) ExecuteAction(ctx context.Context, tenantID, action
 	return history, nil
 }
 
-func (s *SelfHealingService) executeSingleAttempt(action *models.HealingAction, triggeredBy string) error {
+func (s *SelfHealingService) executeSingleAttempt(ctx context.Context, action *models.HealingAction, triggeredBy string) error {
+	// If a K8s executor is available, use it for live cluster operations.
+	if s.executor != nil {
+		result, err := s.executor.Execute(ctx, action.ActionType, action.Target, action.Command)
+		if err != nil {
+			s.logger.Error("K8s executor failed",
+				zap.String("action", action.ActionType),
+				zap.String("target", action.Target),
+				zap.Error(err),
+			)
+			return err
+		}
+		s.logger.Info("K8s healing action executed",
+			zap.String("action", action.ActionType),
+			zap.String("target", action.Target),
+			zap.Bool("success", result.Success),
+			zap.String("message", result.Message),
+			zap.Duration("duration", result.Duration),
+		)
+		return nil
+	}
+
+	// Fallback: log-only execution (no live K8s cluster available).
 	switch strings.ToLower(action.ActionType) {
 	case "restart":
 		s.logger.Info("executing restart action",
