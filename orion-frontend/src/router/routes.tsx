@@ -1435,6 +1435,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/pipeline-template/PipelineTemplatePage')),
     protected: true,
   },
+  // Pipeline Template Marketplace (GitLab include pattern)
+  {
+    path: '/pipeline/templates',
+    element: React.lazy(() => import('@/pages/pipeline/template')),
+    protected: true,
+  },
   // Rate Limiting (Workflow 6)
   {
     path: '/console/rate-limiting',
@@ -1593,6 +1599,13 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/federation/FederationAdvancedPage')),
     protected: true,
   },
+  // Multi-Tenant Workspace Management (Phase 4 - KubeSphere-style)
+  {
+    path: '/workspaces',
+    element: React.lazy(() => import('@/pages/federation/Workspace')),
+    protected: true,
+    requiredPermission: { resource: 'federation', action: 'read' },
+  },
   // Multi-Cloud Management Advanced (Phase 4)
   {
     path: '/multi-cloud/advanced',
@@ -1628,10 +1641,15 @@ export const routes: AppRoute[] = [
     protected: true,
   },
 
-  // Developer Portal
+  // Developer Portal (Backstage-style)
   {
     path: '/developer-portal',
     element: React.lazy(() => import('@/pages/developer-portal/DeveloperPortalPage')),
+    protected: true,
+  },
+  {
+    path: '/dev-portal',
+    element: React.lazy(() => import('@/pages/dev-portal')),
     protected: true,
   },
 
@@ -1641,6 +1659,18 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/dba')),
     protected: true,
     requiredPermission: { resource: 'dba', action: 'read' },
+  },
+  {
+    path: '/dba/audit-rules',
+    element: React.lazy(() => import('@/pages/dba/AuditRule')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'write' },
+  },
+  {
+    path: '/dba/schema-code',
+    element: React.lazy(() => import('@/pages/dba/SchemaCode')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'write' },
   },
 
   // Billing - Quota & Billing (Phase 4)
@@ -1813,6 +1843,13 @@ export const routes: AppRoute[] = [
   {
     path: '/ai/security',
     element: React.lazy(() => import('@/pages/AISecurity')),
+    protected: true,
+    requiredPermission: { resource: 'ai-security', action: 'read' },
+  },
+  // AI Hallucination Rate Monitoring (Phase 4 - AI Security)
+  {
+    path: '/ai/security/hallucination',
+    element: React.lazy(() => import('@/pages/AISecurity/HallucinationRate')),
     protected: true,
     requiredPermission: { resource: 'ai-security', action: 'read' },
   },
@@ -2157,6 +2194,12 @@ export const routes: AppRoute[] = [
   {
     path: '/pipeline-runs/analytics',
     element: React.lazy(() => import('@/pages/PipelineRunAnalytics')),
+    protected: true,
+  },
+  // SPACE 效能 Dashboard
+  {
+    path: '/space-dashboard',
+    element: React.lazy(() => import('@/pages/SpaceDashboard')),
     protected: true,
   },
 
