@@ -103,6 +103,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("/eval/compare", auth.RequirePermission("knowledge", "read"), h.CompareRuns)
 	// GET /eval/runs - list recent runs
 	f.GET("/eval/runs", auth.RequirePermission("knowledge", "read"), h.ListEvalRuns)
+	// POST /eval/sets/seed - seed default eval sets (TR-09/10/11 demo data)
+	f.POST("/eval/sets/seed", auth.RequirePermission("knowledge", "write"), h.SeedEvalSets)
 	// POST /eval/ci/run - CI-integrated evaluation: seeds + runs all TR scenarios
 	f.POST("/eval/ci/run", auth.RequirePermission("knowledge", "admin"), h.RunCIEvals)
 
@@ -1037,6 +1039,24 @@ func (h *Handler) ListEvalRuns(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"data": runs, "total": len(runs)})
+}
+
+// SeedEvalSets seeds default eval sets for TR-09/10/11 scenarios.
+// Used by the frontend when no eval sets exist yet.
+func (h *Handler) SeedEvalSets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SeedEvalSets")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	if userID == "" {
+		userID = "system"
+	}
+	seeded, err := h.svc.SeedEvalSetsForAllScenarios(ctx, tenantID, userID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondCreated(c, gin.H{"seeded": len(seeded), "sets": seeded})
 }
 
 // RunCIEvals triggers the CI-integrated evaluation pipeline: seeds eval sets for

@@ -33,6 +33,8 @@ import {
   ReloadOutlined,
   ThunderboltOutlined,
   FormOutlined,
+  ExportOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
@@ -134,6 +136,75 @@ const EvalSetManagement: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  const [seeding, setSeeding] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      const result = await apiCall<{ seeded: number }>('/eval/sets/seed', { method: 'POST' });
+      const count = (result as unknown as { seeded?: number })?.seeded ?? 0;
+      message.success(`已初始化 ${count} 个评测集（TR-09/10/11 演示数据）`);
+      loadSets();
+    } catch (error: unknown) {
+      message.error(`初始化失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleExportReport = async () => {
+    if (runs.length === 0) {
+      message.warning('暂无评测运行记录可导出');
+      return;
+    }
+    setExporting(true);
+    try {
+      const report = {
+        reportTitle: 'Orion RAG 评测报告',
+        exportTime: new Date().toISOString(),
+        totalRuns: runs.length,
+        summary: {
+          totalSets: sets.length,
+          totalCases: sets.reduce((sum, s) => sum + (s.cases?.length || 0), 0),
+          avgPassRate: runs.length > 0
+            ? runs.reduce((s, r) => s + (r.total_count > 0 ? r.pass_count / r.total_count : 0), 0) / runs.length
+            : 0,
+          avgRecall: runs.length > 0
+            ? runs.reduce((s, r) => s + (r.avg_recall ?? 0), 0) / runs.length
+            : 0,
+          avgScore: runs.length > 0
+            ? runs.reduce((s, r) => s + (r.avg_score ?? 0), 0) / runs.length
+            : 0,
+        },
+        runs: runs.map((r) => ({
+          runId: r.id,
+          setId: r.set_id,
+          model: r.model,
+          status: r.status,
+          passCount: r.pass_count,
+          totalCount: r.total_count,
+          passRate: r.total_count > 0 ? (r.pass_count / r.total_count * 100).toFixed(2) : '0',
+          avgRecall: r.avg_recall?.toFixed(4) ?? '-',
+          avgScore: r.avg_score?.toFixed(4) ?? '-',
+          createdAt: r.created_at,
+        })),
+      };
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eval-report-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success('评测报告已导出');
+    } catch (error: unknown) {
+      message.error(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     loadSets();
@@ -459,6 +530,15 @@ const EvalSetManagement: React.FC = () => {
         title="评测集列表"
         extra={
           <Space>
+            {sets.length === 0 && (
+              <Button
+                icon={<RocketOutlined />}
+                loading={seeding}
+                onClick={handleSeed}
+              >
+                初始化演示数据
+              </Button>
+            )}
             <Button icon={<ReloadOutlined />} onClick={loadSets}>
               刷新
             </Button>
@@ -484,6 +564,14 @@ const EvalSetManagement: React.FC = () => {
         title="评测运行记录"
         extra={
           <Space>
+            <Button
+              icon={<ExportOutlined />}
+              loading={exporting}
+              onClick={handleExportReport}
+              disabled={runs.length === 0}
+            >
+              导出报告
+            </Button>
             <Button
               icon={<SwapOutlined />}
               onClick={handleCompare}
