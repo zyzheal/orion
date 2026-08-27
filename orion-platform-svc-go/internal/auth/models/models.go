@@ -83,3 +83,43 @@ type RefreshToken struct {
 	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
+
+// AuthProvider represents an authentication source (OAuth2, OIDC, SAML, LDAP, MFA).
+type AuthProvider struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name" binding:"required"`
+	Type         string    `json:"type" binding:"required"`
+	Status       string    `json:"status"`
+	ClientID     string    `json:"clientId,omitempty"`
+	ClientSecret string    `json:"clientSecret,omitempty"`
+	DiscoveryURL string    `json:"discoveryUrl,omitempty"`
+	LDAPHost     string    `json:"ldapHost,omitempty"`
+	LDAPBaseDN   string    `json:"ldapBaseDn,omitempty"`
+	TenantID     string    `json:"tenantId,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// AuthPolicy represents an authentication policy (MFA enforcement, SSO scope, etc.)
+type AuthPolicy struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name" binding:"required"`
+	Description string    `json:"description,omitempty"`
+	Enabled     bool      `json:"enabled"`
+	Scope       string    `json:"scope,omitempty"`
+	Rules       string    `json:"rules,omitempty"`
+	TenantID    string    `json:"tenantId,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// CreateProviderRequest is the request body for creating a new auth provider.
+type CreateProviderRequest struct {
+	Name         string `json:"name" binding:"required"`
+	Type         string `json:"type" binding:"required"`
+	ClientID     string `json:"clientId,omitempty"`
+	ClientSecret string `json:"clientSecret,omitempty"`
+	DiscoveryURL string `json:"discoveryUrl,omitempty"`
+	LDAPHost     string `json:"ldapHost,omitempty"`
+	LDAPBaseDN   string `json:"ldapBaseDn,omitempty"`
+}

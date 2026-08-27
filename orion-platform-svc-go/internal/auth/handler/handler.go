@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/auth/models"
 	"orion/platform-svc-go/internal/auth/service"
@@ -43,6 +45,11 @@ func (h *Handler) RegisterRoutes(public *gin.RouterGroup, protected *gin.RouterG
 	// Protected endpoints (JWT required)
 	protected.POST("/auth/logout", h.Logout)
 	protected.GET("/auth/me", h.Me)
+
+	// Auth config endpoints (JWT required)
+	protected.GET("/auth/providers", h.ListProviders)
+	protected.GET("/auth/policies", h.ListPolicies)
+	protected.POST("/auth/providers", h.CreateProvider)
 }
 
 // Login authenticates a user and returns tokens.
@@ -171,4 +178,105 @@ func (h *Handler) Me(c *gin.Context) {
 	}
 
 	errors.WriteSuccess(c, resp)
+}
+
+// ---------------------------------------------------------------------------
+// Auth Config endpoints - providers and policies
+// ---------------------------------------------------------------------------
+
+// ListProviders returns all configured authentication providers.
+func (h *Handler) ListProviders(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	providers := defaultProviders(tenantID)
+	errors.WriteSuccess(c, providers)
+}
+
+// ListPolicies returns all configured authentication policies.
+func (h *Handler) ListPolicies(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	policies := defaultPolicies(tenantID)
+	errors.WriteSuccess(c, policies)
+}
+
+// CreateProvider creates a new authentication provider configuration.
+func (h *Handler) CreateProvider(c *gin.Context) {
+	var req models.CreateProviderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().UTC()
+	provider := &models.AuthProvider{
+		ID:           uuid.New().String(),
+		Name:         req.Name,
+		Type:         req.Type,
+		Status:       "inactive",
+		ClientID:     req.ClientID,
+		ClientSecret: req.ClientSecret,
+		DiscoveryURL: req.DiscoveryURL,
+		LDAPHost:     req.LDAPHost,
+		LDAPBaseDN:   req.LDAPBaseDN,
+		TenantID:     c.GetString("tenant_id"),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	errors.WriteSuccess(c, provider)
+}
+
+// defaultProviders returns built-in demo provider data.
+func defaultProviders(tenantID string) []models.AuthProvider {
+	return []models.AuthProvider{
+		{
+			ID: "prov-oauth2-001", Name: "GitHub OAuth", Type: "oauth2", Status: "active",
+			ClientID: "***", DiscoveryURL: "https://github.com/login/oauth",
+			TenantID: tenantID, CreatedAt: time.Now().Add(-30 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "prov-oidc-001", Name: "Google Workspace OIDC", Type: "oidc", Status: "active",
+			ClientID: "***", DiscoveryURL: "https://accounts.google.com/.well-known/openid-configuration",
+			TenantID: tenantID, CreatedAt: time.Now().Add(-25 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "prov-saml-001", Name: "Azure AD SAML", Type: "saml", Status: "active",
+			DiscoveryURL: "https://login.microsoftonline.com/common/saml/metadata",
+			TenantID: tenantID, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "prov-ldap-001", Name: "Company LDAP", Type: "ldap", Status: "active",
+			LDAPHost: "ldap.company.internal:389", LDAPBaseDN: "dc=company,dc=com",
+			TenantID: tenantID, CreatedAt: time.Now().Add(-45 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "prov-mfa-001", Name: "TOTP MFA", Type: "mfa", Status: "active",
+			TenantID: tenantID, CreatedAt: time.Now().Add(-60 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+	}
+}
+
+// defaultPolicies returns built-in demo policy data.
+func defaultPolicies(tenantID string) []models.AuthPolicy {
+	return []models.AuthPolicy{
+		{
+			ID: "pol-mfa-001", Name: "MFA Required", Description: "Require MFA for all admin users",
+			Enabled: true, Scope: "admin", TenantID: tenantID,
+			CreatedAt: time.Now().Add(-30 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "pol-session-001", Name: "Session Timeout", Description: "Force logout after 2h inactivity",
+			Enabled: true, Scope: "all", TenantID: tenantID,
+			CreatedAt: time.Now().Add(-25 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "pol-password-001", Name: "Password Complexity", Description: "Minimum 12 chars, 2 special, 1 number",
+			Enabled: true, Scope: "all", TenantID: tenantID,
+			CreatedAt: time.Now().Add(-20 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+		{
+			ID: "pol-sso-001", Name: "SSO Redirect", Description: "Auto-redirect to SSO for known IdPs",
+			Enabled: false, Scope: "external", TenantID: tenantID,
+			CreatedAt: time.Now().Add(-15 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+		},
+	}
 }

@@ -488,6 +488,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if security_complianceH != nil {
     security_complianceH.RegisterRoutes(api)
   }
+  if code_scanH != nil {
+    code_scanH.RegisterRoutes(api.Group("/security"))
+  }
   if self_serviceH != nil {
     self_serviceH.RegisterRoutes(api)
   }

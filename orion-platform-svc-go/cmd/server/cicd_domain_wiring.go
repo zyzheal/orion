@@ -73,6 +73,7 @@ import (
 	knowledge_handler "orion/platform-svc-go/internal/knowledge/handler"
 	knowledge_repo "orion/platform-svc-go/internal/knowledge/repository"
 	knowledge_service "orion/platform-svc-go/internal/knowledge/service"
+	code_scan_handler "orion/platform-svc-go/internal/code-scan/handler"
 	security_compliance_handler "orion/platform-svc-go/internal/security-compliance/handler"
 	security_compliance_repo "orion/platform-svc-go/internal/security-compliance/repository"
 	security_compliance_service "orion/platform-svc-go/internal/security-compliance/service"
@@ -261,6 +262,9 @@ func wireDomainModules(db *database.DB) {
 	security_complianceRepo := security_compliance_repo.NewRepository(db.DB)
 	security_complianceSvc := security_compliance_service.NewService(security_complianceRepo)
 	security_complianceH = security_compliance_handler.NewHandler(security_complianceSvc)
+
+	// code-scan handler (SAST scanning)
+	code_scanH = code_scan_handler.NewHandler()
 
 	// tenant services
 	tenantRepo := tenant_repo.NewRepository(db.DB)
@@ -512,6 +516,7 @@ var (
 	incidentH           *incident_handler.Handler
 	assistantH          *assistant_handler.Handler
 	knowledgeH          *knowledge_handler.Handler
+	code_scanH          *code_scan_handler.Handler
 	lowcodeH            *lowcode_handler.Handler
 	oncallH             *oncall_handler.OnCallHandler
 	pipelineH           *pipeline_handler.Handler
