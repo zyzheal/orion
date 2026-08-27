@@ -1,0 +1,57 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'orion-frontend/**'
+      - '.github/workflows/lighthouse.yml'
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly Monday 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'orion-frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: cd orion-frontend && npm ci
+
+      - name: Build frontend
+        run: cd orion-frontend && npm run build
+
+      - name: Install LHCI
+        run: cd orion-frontend && npm install --save-dev @lhci/cli@^0.13.0
+
+      - name: Run Lighthouse CI
+        run: cd orion-frontend && npx lhci autorun --config=.lighthouserc.json
+
+      - name: Upload Lighthouse reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: orion-frontend/lighthouse-reports/
+          retention-days: 30
+
+      - name: Lighthouse summary
+        if: always()
+        run: |
+          echo "## Lighthouse Results" >> $GITHUB_STEP_SUMMARY
+          cd orion-frontend
+          if [ -d "lighthouse-reports" ]; then
+            for f in lighthouse-reports/*.json; do
+              if [ -f "$f" ]; then
+                echo "### $(basename $f)" >> $GITHUB_STEP_SUMMARY
+                jq -r '.audits["first-contentful-paint"]?.numericValue, .audits["largest-contentful-paint"]?.numericValue, .audits["cumulative-layout-shift"]?.numericValue' "$f" 2>/dev/null | paste -sd ',' | sed 's/^/  FCP/LCP/CLS: /' >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          fi

@@ -33,7 +33,10 @@
     "test:e2e:debug": "playwright test --debug",
     "install:playwright": "playwright install",
     "postinstall": "bash scripts/fix-orion-mf-esm.sh",
-    "lhci": "lhci autorun"
+    "lhci": "lhci autorun --config=.lighthouserc.json",
+    "lhci:collect": "lhci collect --config=.lighthouserc.json",
+    "lhci:assert": "lhci assert --config=.lighthouserc.json",
+    "lhci:upload": "lhci upload --config=.lighthouserc.json"
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
