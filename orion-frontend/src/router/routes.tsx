@@ -1520,6 +1520,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/service-boundary')),
     protected: true,
   },
+  // Contract Testing / Pact (P1 #30)
+  {
+    path: '/contract-test',
+    element: React.lazy(() => import('@/pages/contract-test')),
+    protected: true,
+  },
   // Config Management Enhanced (Phase 3)
   {
     path: '/config-mgmt-enhanced',

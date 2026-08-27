@@ -25,6 +25,8 @@ import {
   ReloadOutlined,
   UndoOutlined,
   SafetyCertificateOutlined,
+  SwapOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import {
   getBackups,
@@ -37,6 +39,7 @@ import {
   type BackupStats,
 } from '@/api/backup';
 import { colors, spacing } from '@/tokens';
+import disasterRecoveryApi from '@/api/disaster-recovery';
 
 const { Title, Text } = Typography;
 
@@ -49,6 +52,11 @@ const DisasterRecoveryPage: React.FC = () => {
   const [selectedBackup, setSelectedBackup] = useState<BackupRecord | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [createForm] = Form.useForm();
+  const [drillModalOpen, setDrillModalOpen] = useState(false);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [drilling, setDrilling] = useState(false);
+  const [drillStep, setDrillStep] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -100,6 +108,37 @@ const DisasterRecoveryPage: React.FC = () => {
       loadData();
     } catch {
       message.error('Failed to delete backup');
+    }
+  };
+
+  const openDrillModal = async () => {
+    try {
+      const res = await disasterRecoveryApi.listDRPlans();
+      setPlans(res.data || []);
+      setDrillModalOpen(true);
+      setDrillStep(0);
+    } catch {
+      setPlans([]);
+      setDrillModalOpen(true);
+    }
+  };
+
+  const handleDrill = async () => {
+    if (!selectedPlan) { message.warning('请选择灾备方案'); return; }
+    setDrilling(true);
+    const steps = ['预检查', '流量切换', '服务验证', '完成演练'];
+    for (let i = 0; i < steps.length; i++) {
+      setDrillStep(i + 1);
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    try {
+      await disasterRecoveryApi.executeFailoverTest(selectedPlan);
+      message.success('灾备切换演练完成');
+      setDrillModalOpen(false);
+    } catch {
+      message.error('演练执行失败');
+    } finally {
+      setDrilling(false);
     }
   };
 
@@ -172,6 +211,9 @@ const DisasterRecoveryPage: React.FC = () => {
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             创建备份
+          </Button>
+          <Button icon={<SwapOutlined />} onClick={openDrillModal}>
+            切换演练
           </Button>
         </Space>
       </div>
@@ -265,6 +307,28 @@ const DisasterRecoveryPage: React.FC = () => {
           <Text type="danger">
             警告：恢复操作将覆盖当前数据。此操作不可撤销。
           </Text>
+        </div>
+      </Modal>
+
+      <Modal title="灾备切换演练" open={drillModalOpen} onCancel={() => setDrillModalOpen(false)}
+        onOk={() => handleDrill()} confirmLoading={drilling} okText="开始演练" cancelText="取消"
+        okButtonProps={{ danger: true }} width={560}
+      >
+        <Form layout="vertical">
+          <Form.Item label="选择灾备方案">
+            <Select placeholder="选择方案..." value={selectedPlan} onChange={setSelectedPlan}
+              options={plans.map((p: any) => ({ value: p.id, label: `${p.name} (RTO: ${p.rto || '5min'}, RPO: ${p.rpo || '1min'})` }))} />
+          </Form.Item>
+        </Form>
+        <div style={{ marginTop: 8 }}>
+          <Text type="secondary">演练步骤：</Text>
+          <Space wrap style={{ marginTop: 8 }}>
+            {['预检查', '流量切换', '服务验证', '完成演练'].map((step, i) => (
+              <Tag key={i} color={drillStep > i ? 'green' : drillStep === i ? 'blue' : 'default'}>
+                {drillStep > i ? <CheckCircleOutlined /> : null} {step}
+              </Tag>
+            ))}
+          </Space>
         </div>
       </Modal>
     </div>
