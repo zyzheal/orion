@@ -3,6 +3,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
@@ -24,9 +25,19 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 	r.Use(middleware.Timeout(middleware.DefaultTimeoutConfig()))
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.Prometheus())
+	r.Use(middleware.CircuitBreaker(middleware.CircuitBreakerConfig{
+		FailureThreshold:    10,
+		SuccessThreshold:    3,
+		Timeout:             30 * time.Second,
+		MaxHalfOpenRequests: 5,
+		Name:                "platform-api",
+	}))
 
 	// Prometheus metrics endpoint (unprotected)
 	r.GET("/metrics", middleware.MetricsHandler())
+
+	// Circuit breaker status endpoint (unprotected)
+	r.GET("/circuit-breakers/status", middleware.CircuitBreakerStatusHandler(middleware.DefaultManager()))
 
 	// Create /api/v1 group for all platform routes
 	api := r.Group("/api/v1")
