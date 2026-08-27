@@ -2095,3 +2095,42 @@ avgScore: r.avg_score?.toFixed(4) ?? '-',       // string
 > 代码评审完成时间：2026-08-26
 > 评审人：Claude Code（自动化评审）
 > 下一阶段：P1 问题修复（预计 1-2 次 commit）→ P2 问题修复 → 功能回归测试
+
+## 代码评审修复记录（2026-08-26）
+
+> 提交 `38c186821` — 7 个文件，434 行新增/27 行修改
+
+### P1 问题修复状态
+
+| # | 问题 | 修复方式 | 状态 |
+|---|------|---------|------|
+| P1-1 | 3 个安全页面 Modal 缺 `confirmLoading` | 各页面添加 `creating` state + `confirmLoading={creating}` + `finally { setCreating(false) }` | ✅ 已修复 |
+| P1-2 | AuthConfig 编辑/删除按钮无处理器 | 添加 `disabled` + `Tooltip` 说明"编辑/删除功能待实现" | ✅ 已修复 |
+| P1-3 | CodeScan "高危漏洞"口径错误 | `criticalVulns` → `highAndAboveVulns`，标签"严重+高危漏洞" | ✅ 已修复 |
+| P1-4 | ComplianceScan frameworkConfig 空值崩溃 | `val as FrameworkType` + `cfg?.color || 'default'` 空值保护 | ✅ 已修复 |
+| P1-5 | 后端 N+1 查询 | `ListEvalSets` 移出循环，使用 `map[string]bool` 去重 | ✅ 已修复 |
+| P1-6 | 后端 userID 静默回退 | 改为 `RespondUnauthorized(c, "用户身份缺失")` + `return` | ✅ 已修复 |
+
+### P2 问题修复状态
+
+| # | 问题 | 修复方式 | 状态 |
+|---|------|---------|------|
+| P2-1 | 导出报告 JSON 类型混合 | `passRate`/`avgRecall`/`avgScore` 统一为 `Number` 类型 | ✅ 已修复 |
+| P2-2 | AuthConfig Switch 禁用无说明 | 添加 `Tooltip` "启用/禁用功能待实现" | ✅ 已修复 |
+| P2-3 | 前端 `err.message` vs 后端 `error` 不匹配 | 系统性历史问题，不在本次范围 | ⬜ 标记为已知 |
+| P2-4 | 错误提示类型不一致 | `message.error` → `message.warning` | ✅ 已修复 |
+| P2-5 | 3 个安全页面后端端点存根 | Phase 4 设计预期，标记为"后端待实现" | ⬜ 标记为已知 |
+| P2-6 | 扫描中点击刷新状态不一致 | `loadCompliance()` 开始时 `setScanning(null)` | ✅ 已修复 |
+
+### 编译验证
+
+```
+TypeScript: 0 errors ✅
+Go backend:  0 errors ✅ (go build ./internal/knowledge/...)
+```
+
+### 待办事项（后续批次）
+
+- [ ] P2-3: 统一前后端错误响应字段名（`err.message` vs `err.error`）
+- [ ] P2-5: 实现 3 个安全页面后端 API（CodeScan > ComplianceScan > AuthConfig）
+- [ ] Phase 5: P0 剩余 6 项 + P1 剩余 17 项落地（设计文档已记录）
