@@ -113,8 +113,8 @@ const DisasterRecoveryPage: React.FC = () => {
 
   const openDrillModal = async () => {
     try {
-      const res = await disasterRecoveryApi.listDRPlans();
-      setPlans(res.data || []);
+      const plans = await disasterRecoveryApi.listDRPlans();
+      setPlans(plans || []);
       setDrillModalOpen(true);
       setDrillStep(0);
     } catch {

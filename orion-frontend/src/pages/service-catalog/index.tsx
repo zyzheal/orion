@@ -20,8 +20,6 @@ import {
   Empty,
   Tabs,
   Descriptions,
-  Select,
-  Badge,
 } from 'antd';
 import {
   CloudServerOutlined,
@@ -40,14 +38,12 @@ import {
   deleteCatalogItem,
   getCatalogItem,
   getRequestTimeline,
-  updateRequestStatus,
   getSLABreaches,
   type ServiceCatalog,
-  type ServiceRequest,
   type SLABreach,
   type TimelineEntry,
 } from '@/api/service-catalog';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 
 const { Title, Text } = Typography;
 

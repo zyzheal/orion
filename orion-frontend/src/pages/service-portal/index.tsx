@@ -19,8 +19,6 @@ import {
   Popconfirm,
   Empty,
   Descriptions,
-  Badge,
-  Tooltip,
   Row,
   Col,
   Statistic,
@@ -31,7 +29,6 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   EyeOutlined,
-  HeartOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   WarningOutlined,
@@ -46,7 +43,7 @@ import {
   type RegisterServicePayload,
   type ServiceHealth,
 } from '@/api/service-registry';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 
 const { Title, Text } = Typography;

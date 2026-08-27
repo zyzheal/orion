@@ -72,7 +72,8 @@ async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error(err.message || `HTTP ${resp.status}`);
+    const msg = err.message || err.error?.message || err.error?.Message || `HTTP ${resp.status}`;
+    throw new Error(msg);
   }
   const json = await resp.json();
   return json.data as T;
