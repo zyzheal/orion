@@ -15,6 +15,7 @@ import { radiusCSSVariables } from './tokens/radius';
 import { shadowsCSSVariables } from './tokens/shadows';
 import { initMicroFrontend, cleanupMicroFrontend } from './microfront/config';
 import { QueryProvider } from './providers/QueryProvider';
+import { IntlProvider } from './i18n/IntlProvider';
 import '@/assets/styles/global.css';
 import { webVitalsCollector, reportWebVitals } from './utils/web-vitals';
 
@@ -139,12 +140,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryProvider>
-        <MicroFrontendInitializer />
-        <AuthInitializer>
-          <ChartProvider>
-            <AppContent />
-          </ChartProvider>
-        </AuthInitializer>
+        <IntlProvider>
+          <MicroFrontendInitializer />
+          <AuthInitializer>
+            <ChartProvider>
+              <AppContent />
+            </ChartProvider>
+          </AuthInitializer>
+        </IntlProvider>
       </QueryProvider>
     </ErrorBoundary>
   </React.StrictMode>
