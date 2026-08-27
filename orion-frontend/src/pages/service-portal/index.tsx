@@ -47,6 +47,7 @@ import {
   type ServiceHealth,
 } from '@/api/service-registry';
 import { colors, spacing } from '@/tokens';
+import PageSkeleton from '@/components/PageSkeleton';
 
 const { Title, Text } = Typography;
 
@@ -224,7 +225,10 @@ const ServicePortalPage: React.FC = () => {
     []
   );
 
-  return (
+  // 初始加载骨架屏，提升感知性能
+  return loading ? (
+    <PageSkeleton rows={8} />
+  ) : (
     <div style={{ padding: 24 }}>
       <Title level={2} style={{ marginBottom: 8 }}>
         <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />

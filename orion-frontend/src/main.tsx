@@ -16,6 +16,22 @@ import { shadowsCSSVariables } from './tokens/shadows';
 import { initMicroFrontend, cleanupMicroFrontend } from './microfront/config';
 import { QueryProvider } from './providers/QueryProvider';
 import '@/assets/styles/global.css';
+import { webVitalsCollector, reportWebVitals } from './utils/web-vitals';
+
+/**
+ * 激活 Core Web Vitals 监控
+ * 在应用加载完成后立即启动所有 PerformanceObserver
+ * 用户离开页面时上报采集结果到后端
+ */
+webVitalsCollector.start();
+
+// 页面卸载时上报 Web Vitals（使用 keepalive + sendBeacon 双保险）
+window.addEventListener('beforeunload', async () => {
+  void reportWebVitals(webVitalsCollector);
+});
+window.addEventListener('pagehide', async () => {
+  void reportWebVitals(webVitalsCollector);
+}, { once: true });
 
 /**
  * 微前端初始化标记（模块级单例）

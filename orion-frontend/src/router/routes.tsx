@@ -1514,6 +1514,12 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/orchestration/OrchestrationPage')),
     protected: true,
   },
+  // Service Boundary & Module Coupling Analysis (P0 #16)
+  {
+    path: '/service-boundary',
+    element: React.lazy(() => import('@/pages/service-boundary')),
+    protected: true,
+  },
   // Config Management Enhanced (Phase 3)
   {
     path: '/config-mgmt-enhanced',

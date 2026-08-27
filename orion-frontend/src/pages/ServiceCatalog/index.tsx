@@ -41,6 +41,7 @@ import {
   type ServiceCatalog,
   type SLABreach,
 } from '@/api/service-catalog';
+import PageSkeleton from '@/components/PageSkeleton';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -217,7 +218,10 @@ const ServiceCatalogPage: React.FC = () => {
 
   const enabledCount = items.filter((i) => i.enabled).length;
 
-  return (
+  // 初始加载骨架屏，提升感知性能
+  return loading ? (
+    <PageSkeleton rows={8} />
+  ) : (
     <div style={{ padding: spacing.lg }}>
       <Title level={2} style={{ marginBottom: 8 }}>
         <AppstoreOutlined style={{ marginRight: 12, color: colors.primary[500] }} />

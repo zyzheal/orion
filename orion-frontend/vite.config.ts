@@ -243,7 +243,8 @@ export default defineConfig({
     setupFiles: './src/tests/setup.ts',
     css: true,
     include: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/__tests__/**/*.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/e2e/**', 'src/pages/**/*.tsx', 'src/pages/**/*.ts'],
+    // 不再排除 src/pages/**，允许页面级测试被 Vitest 发现并纳入覆盖率门禁
+    exclude: ['**/node_modules/**', '**/e2e/**'],
     fileParallelism: false,
     coverage: {
       provider: 'v8',

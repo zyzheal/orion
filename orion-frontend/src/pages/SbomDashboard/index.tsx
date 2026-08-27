@@ -38,6 +38,7 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import PageSkeleton from '@/components/PageSkeleton';
 import {
   getSbomDocuments,
   getSbomWaivers,
@@ -267,7 +268,10 @@ const SbomDashboard: React.FC = () => {
     []
   );
 
-  return (
+  // 初始加载时展示骨架屏，提升感知性能
+  return loading ? (
+    <PageSkeleton rows={6} />
+  ) : (
     <div style={{ padding: 0 }}>
       <div
         style={{

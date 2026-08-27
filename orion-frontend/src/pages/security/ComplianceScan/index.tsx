@@ -25,7 +25,6 @@ import {
   CheckCircleOutlined,
   ScanOutlined,
   ExclamationCircleOutlined,
-  ClockCircleOutlined,
   FileProtectOutlined,
   ReloadOutlined,
   PlayCircleOutlined,

@@ -18,6 +18,7 @@ import { ReloadOutlined, PlayCircleOutlined, ArrowLeftOutlined } from '@ant-desi
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import PageSkeleton from '@/components/PageSkeleton';
 import { getAllPipelineRuns, retryPipelineRun, type PipelineRunSummary } from '@/api/pipelineRuns';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -349,7 +350,9 @@ const PipelineRunList: React.FC = () => {
     loadRuns();
   };
 
-  return (
+  return loading ? (
+    <PageSkeleton rows={10} />
+  ) : (
     <div style={{ padding: 0 }}>
       {/* Page header */}
       <div

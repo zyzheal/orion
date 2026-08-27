@@ -3,6 +3,7 @@
  * Static Application Security Testing - code vulnerability scanning, OWASP Top 10 detection
  */
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -16,15 +17,13 @@ import {
   Modal,
   Form,
   Input,
-  Select,
-  Progress,
   message,
   Empty,
 } from 'antd';
 import {
   CodeOutlined,
   BugOutlined,
-  ShieldOutlined,
+  SafetyOutlined,
   ExclamationCircleOutlined,
   ClockCircleOutlined,
   ReloadOutlined,
@@ -35,7 +34,6 @@ import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 type SeverityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 type ScanStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -112,46 +110,114 @@ const categoryConfig: Record<VulnCategory, { label: string; owasp: string }> = {
 };
 
 const CodeScanPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [scans, setScans] = useState<ScanRecord[]>([]);
-  const [vulns, setVulns] = useState<VulnFinding[]>([]);
+  const queryClient = useQueryClient();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<{ target: string; branch?: string }>();
   const [scanning, setScanning] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
 
-  const loadScans = async () => {
-    setLoading(true);
-    try {
+  // React Query: 并行加载扫描任务 + 漏洞发现，替代 useEffect + fetch
+  const {
+    data = { scans: [] as ScanRecord[], vulns: [] as VulnFinding[] },
+    isLoading: loading,
+    refetch: loadScans,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['security', 'code-scan', 'all'],
+    queryFn: async () => {
       const [scansRes, vulnsRes] = await Promise.all([
         apiCall<ScanRecord[]>('/scans'),
         apiCall<VulnFinding[]>('/findings'),
       ]);
-      setScans(Array.isArray(scansRes) ? scansRes : []);
-      setVulns(Array.isArray(vulnsRes) ? vulnsRes : []);
-    } catch (_err: unknown) {
+      return {
+        scans: Array.isArray(scansRes) ? scansRes : [],
+        vulns: Array.isArray(vulnsRes) ? vulnsRes : [],
+      };
+    },
+  });
+
+  const { scans, vulns } = data;
+
+  // 错误时给出用户反馈（query 本身不会 throw，此处主动提示）
+  useEffect(() => {
+    if (queryError) {
       message.warning('代码扫描数据加载失败，显示默认状态');
-      setScans([]);
-      setVulns([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [queryError]);
 
-  useEffect(() => { loadScans(); }, []);
-
-  const handleScan = async (id: string) => {
-    setScanning(id);
-    try {
-      await apiCall<void>(`/scans/${id}/run`, { method: 'POST' });
+  // useMutation: 触发扫描重跑，成功后自动 invalidate query 刷新数据
+  const runScanMutation = useMutation({
+    mutationFn: (id: string) => apiCall<void>(`/scans/${id}/run`, { method: 'POST' }),
+    onSuccess: () => {
       message.success('代码安全扫描已启动');
-      loadScans();
-    } catch (_err: unknown) {
+      void queryClient.invalidateQueries({ queryKey: ['security', 'code-scan'] });
+    },
+    onError: () => {
       message.warning('扫描启动失败，请稍后重试');
-    } finally {
-      setScanning(null);
-    }
+    },
+  });
+
+  const handleScan = (id: string) => {
+    setScanning(id);
+    runScanMutation.mutate(id, {
+      onSettled: () => setScanning(null),
+    });
   };
+
+  // useMutation: 新建扫描任务（乐观更新）
+  const createScanMutation = useMutation({
+    mutationFn: (values: { target: string; branch?: string }) =>
+      apiCall<ScanRecord>('/scans', {
+        method: 'POST',
+        body: JSON.stringify(values),
+      }),
+    // 乐观更新：提交前先写入本地缓存，用户立即看到新增行
+    onMutate: async (variables) => {
+      // 取消可能存在的待完成 refetch，避免覆盖乐观数据
+      await queryClient.cancelQueries({ queryKey: ['security', 'code-scan'] });
+      const previousData = queryClient.getQueryData<{
+        scans: ScanRecord[];
+        vulns: VulnFinding[];
+      }>(['security', 'code-scan', 'all']);
+
+      // 生成乐观扫描记录（状态为 pending，漏洞数为 0）
+      const optimisticScan: ScanRecord = {
+        id: `new-${Date.now()}`,
+        target: variables.target,
+        branch: variables.branch || 'main',
+        status: 'pending',
+        totalVulns: 0,
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        duration: 0,
+        startedAt: new Date().toISOString(),
+      };
+
+      if (previousData) {
+        queryClient.setQueryData(
+          ['security', 'code-scan', 'all'],
+          { ...previousData, scans: [...previousData.scans, optimisticScan] },
+        );
+      }
+
+      return { previousData, optimisticScan };
+    },
+    onSuccess: (_data, variables) => {
+      message.success(`代码扫描 "${variables.target}" 已创建`);
+    },
+    onError: (_err, _variables, context) => {
+      message.warning('扫描创建失败，请稍后重试');
+      // 回滚到变更前数据
+      if (context?.previousData) {
+        queryClient.setQueryData(['security', 'code-scan', 'all'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      // 最终向服务端验证（refetch 真实数据）
+      void queryClient.invalidateQueries({ queryKey: ['security', 'code-scan'] });
+    },
+  });
 
   const scanColumns: ColumnsType<ScanRecord> = [
     {
@@ -292,7 +358,7 @@ const CodeScanPage: React.FC = () => {
       <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="扫描任务数" value={scans.length} prefix={<ShieldOutlined />} />
+            <Statistic title="扫描任务数" value={scans.length} prefix={<SafetyOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
@@ -327,7 +393,7 @@ const CodeScanPage: React.FC = () => {
         title="扫描任务列表"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadScans}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => { void loadScans(); }}>刷新</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
               新建扫描
             </Button>
@@ -361,25 +427,16 @@ const CodeScanPage: React.FC = () => {
       <Modal
         title="新建代码扫描"
         open={createModalOpen}
-        confirmLoading={creating}
+        confirmLoading={createScanMutation.isPending}
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
         onOk={async () => {
           const values = await createForm.validateFields();
-          setCreating(true);
-          try {
-            await apiCall<ScanRecord>('/scans', {
-              method: 'POST',
-              body: JSON.stringify(values),
-            });
-            message.success(`代码扫描 "${values.target}" 已创建`);
-            setCreateModalOpen(false);
-            createForm.resetFields();
-            loadScans();
-          } catch (_err: unknown) {
-            message.warning('扫描创建失败，请稍后重试');
-          } finally {
-            setCreating(false);
-          }
+          createScanMutation.mutate(values, {
+            onSuccess: () => {
+              setCreateModalOpen(false);
+              createForm.resetFields();
+            },
+          });
         }}
         okText="创建"
         cancelText="取消"

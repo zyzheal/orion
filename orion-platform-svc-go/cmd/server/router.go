@@ -1079,5 +1079,8 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 	})
 	}
 
+	// OpenAPI 3.0 spec generation and healthcheck endpoints
+	registerOpenAPIRoutes(r)
+
 	return r
 }

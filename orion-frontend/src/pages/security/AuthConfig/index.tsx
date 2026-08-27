@@ -23,7 +23,7 @@ import {
   Empty,
 } from 'antd';
 import {
-  ShieldOutlined,
+  SafetyOutlined,
   KeyOutlined,
   GlobalOutlined,
   LockOutlined,
@@ -214,7 +214,7 @@ const AuthConfigPage: React.FC = () => {
   return (
     <div style={{ padding: spacing.lg }}>
       <Title level={2} style={{ marginBottom: spacing.sm }}>
-        <ShieldOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
+        <SafetyOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
         认证授权管理
       </Title>
       <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
@@ -229,7 +229,7 @@ const AuthConfigPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="活跃认证源" value={activeProviders} prefix={<ShieldOutlined />} valueStyle={{ color: colors.success[500] }} />
+            <Statistic title="活跃认证源" value={activeProviders} prefix={<SafetyOutlined />} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>
