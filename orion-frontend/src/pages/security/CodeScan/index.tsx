@@ -118,6 +118,7 @@ const CodeScanPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<{ target: string; branch?: string }>();
   const [scanning, setScanning] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const loadScans = async () => {
     setLoading(true);
@@ -273,7 +274,7 @@ const CodeScanPage: React.FC = () => {
 
   const completedScans = scans.filter((s) => s.status === 'completed');
   const totalVulns = vulns.length;
-  const criticalVulns = vulns.filter((v) => v.severity === 'critical' || v.severity === 'high').length;
+  const highAndAboveVulns = vulns.filter((v) => v.severity === 'critical' || v.severity === 'high').length;
   const passRate = completedScans.length > 0
     ? Math.round((completedScans.filter((s) => s.totalVulns === 0).length / completedScans.length) * 100)
     : 0;
@@ -302,8 +303,8 @@ const CodeScanPage: React.FC = () => {
         <Col span={6}>
           <Card size="small">
             <Statistic
-              title="高危漏洞"
-              value={criticalVulns}
+              title="严重+高危漏洞"
+              value={highAndAboveVulns}
               valueStyle={{ color: colors.error[500] }}
               prefix={<ExclamationCircleOutlined />}
             />
@@ -360,9 +361,11 @@ const CodeScanPage: React.FC = () => {
       <Modal
         title="新建代码扫描"
         open={createModalOpen}
+        confirmLoading={creating}
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
         onOk={async () => {
           const values = await createForm.validateFields();
+          setCreating(true);
           try {
             await apiCall<ScanRecord>('/scans', {
               method: 'POST',
@@ -374,6 +377,8 @@ const CodeScanPage: React.FC = () => {
             loadScans();
           } catch (_err: unknown) {
             message.warning('扫描创建失败，请稍后重试');
+          } finally {
+            setCreating(false);
           }
         }}
         okText="创建"

@@ -1720,3 +1720,378 @@ Phase 4（持续）：横切维度强化 + 对标 L4 标杆
 | **AI Agent 架构 AF 维度** | 无 | v3.3 新增：AI/Agent 28000+ 行后端 = 系统最大集群，但 B 仅列功能清单(24 行)、O 仅从安全角度覆盖 — 12 子维度(编排/工具安全/决策追溯/审批/LLM 网关/可观测性/恢复/Skill 市场/多 Agent/RAG/超时/Hook Chain) |
 | **深度评审优化 v3.4** | — | v3.4 新增：①结构化导航索引(§〇) — 智能体按阶段按需加载而非线性读取；②会话策略/Token Budget 指引 — 4 会话拆分防上下文溢出；③维度优先级分层(P0/P1/P2) — 36 维分 3 级降级策略；④输出格式明确化 — 8 类输出均标注 Markdown 表格/列表格式；⑤已知事实表去重 — 修复重复表头；⑥输出 4 雷达更新为 B(11维)+AF(12维)；⑦输出 5 更新为 C(14维)+AE(8维)；⑧借鉴标杆库+对照表补充 AE/AF 标杆条目；⑨诊断段添加智能体跳过指令；⑩Step 3 探针执行须知(空目录 vs 0 行区分)；⑪交叉一致性校验规则(输出2 vs Step3 vs G维度)；⑫Step 4-7 执行指引段 |
 | **深度评审优化 v3.5** | — | v3.5 新增：①维度注册表(§〇) — 36 行全维度索引表(ID/名称/章节/优先级/探针层/输出关联)，智能体可一步定位任意维度；②Step→章节→Output 映射表 — 8 行映射消除步骤与章节的歧义；③探针→维度映射表 — 7 层探针与维度对应关系（以注释标记行锚点定位，非固定行号）；④§四标题修正 — "12 维"改为"6 主维(A-F)"消除计数歧义；⑤§五补计数修正 — "§四的12维"改为"§四~§五的12维"；⑥EXECUTION START 标记 — 醒目执行起点指示符；⑦Step 3 结果记录模板 — 标准化探针输出表格式(探针层/维度/探针名/实测值/预期阈值/判定)；⑧附录 A-D 概念 — Steps 0-3 采集结果+Step 7 校验报告记入附录供引用；⑨输出 1 列定义 — 6 列含义+评分标准明确化；⑩输出 4 术语修正 — "雷达图"改为"评分表"避免误导为可视化图表；⑪G 维度冗余消除 — 3 行重复介绍合并为 2 行；⑫§八 Checklist 章节引用 — 每个 Step 标注对应§章节+附录去向；⑬Session 计数修正 — 27维→24维/9维→8维ID(12项)；⑭README/i18n 覆盖率澄清 — 双分母标注消除歧义；⑮输出 3 L3 列数一致 — 3列格式统一；⑯输出 5 列定义补充 — 新增 Markdown 表格式 |
+
+---
+
+# 综合代码评审报告（2026-08-26 Phase 3+4 实现批次）
+
+> 评审范围：Phase 3（EvalSetManagement seed + export）+ Phase 4（H1/H2 安全页面 + FinOps 验证）全部代码变更
+> 评审文件：7 个文件，1,349 行新增代码
+> 评审方法：逐文件人工阅读 + 模式交叉校验 + TypeScript 编译验证
+
+## 评审文件清单
+
+| # | 文件 | 变更类型 | 行数 | 评审结论 |
+|---|------|---------|------|---------|
+| 1 | `orion-frontend/src/pages/security/AuthConfig/index.tsx` | 新增 | 325 | ✅ 通过（含 1 个 P1 问题） |
+| 2 | `orion-frontend/src/pages/security/ComplianceScan/index.tsx` | 新增 | 384 | ✅ 通过（含 1 个 P1 + 1 个 P2 问题） |
+| 3 | `orion-frontend/src/pages/security/CodeScan/index.tsx` | 新增 | 396 | ✅ 通过（含 1 个 P1 问题） |
+| 4 | `orion-frontend/src/pages/EvalSetManagement/index.tsx` | 修改 | +88 | ✅ 通过（含 1 个 P2 问题） |
+| 5 | `orion-frontend/src/router/routes.tsx` | 修改 | +18 | ✅ 通过（无问题） |
+| 6 | `orion-platform-svc-go/internal/knowledge/handler/handler.go` | 修改 | +20 | ✅ 通过（含 1 个 P1 问题） |
+| 7 | `orion-platform-svc-go/internal/knowledge/service/eval_set_seeding.go` | 既有 | 250 | ⚠️ 含 1 个 P1 性能问题（本次新增 handler 暴露） |
+
+## TypeScript 编译状态
+
+```
+npx tsc --noEmit = 0 errors ✅
+```
+
+## Go 后端编译状态
+
+```
+go build ./internal/knowledge/handler/ = 0 errors ✅
+```
+
+---
+
+## P0 级别问题：0 个
+
+未发现阻塞性缺陷。
+
+---
+
+## P1 级别问题：6 个
+
+### P1-1 [通用 / 3 个安全页面] Modal `confirmLoading` 缺失
+
+**文件**：`AuthConfig/index.tsx`（第 274 行）、`ComplianceScan/index.tsx`（第 338 行）、`CodeScan/index.tsx`（第 360 行）
+
+**问题描述**：所有 3 个安全页面的 `Modal` 组件使用了 `async onOk` 处理器，但缺少 `confirmLoading` 属性。这意味着：
+- "创建"按钮在异步操作期间不会显示加载旋转器
+- 用户可以连续点击两次"创建"按钮，发送 2 个重复请求
+- 如果后端有幂等性保障则无数据风险，但会触发重复的 `load*()` 刷新
+
+**影响范围**：3 个页面 × 1 个 Modal = 3 处
+
+**建议修复**：
+```tsx
+<Modal
+  confirmLoading={creating} // 新增
+  onOk={async () => { ... }}
+>
+```
+或在 `onOk` 开始处设置 `setCreating(true)`，finally 中设为 `false`。
+
+---
+
+### P1-2 [AuthConfig] 编辑/删除按钮无点击处理器
+
+**文件**：`AuthConfig/index.tsx` 第 166-167 行
+
+**问题描述**：认证源列表的"编辑"和"删除"按钮渲染在界面上，但没有绑定 `onClick` 处理器。点击后没有任何反应，用户会产生困惑。
+
+```tsx
+// 当前代码（死按钮）：
+<Button size="small" icon={<EditOutlined />}>编辑</Button>
+<Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+```
+
+**影响范围**：1 个页面 × 2 个按钮/行 = N 行死按钮
+
+**建议修复**：
+- 短期：移除这两个按钮，或添加 `disabled` 属性 + Tooltip 说明"待实现"
+- 长期：实现编辑/删除的后端 API 并绑定处理逻辑
+
+---
+
+### P1-3 [CodeScan] "高危漏洞"统计指标口径错误
+
+**文件**：`CodeScan/index.tsx` 第 276 行
+
+**问题描述**：
+```tsx
+const criticalVulns = vulns.filter((v) => v.severity === 'critical' || v.severity === 'high').length;
+```
+变量名 `criticalVulns` 暗示仅统计 critical 级别，但实际同时包含 critical + high。而页面展示标签为"高危漏洞"，用户看到的数字比实际"高危"漏洞数大（混入了"严重"级别）。
+
+**影响范围**：1 个页面，1 个统计卡片
+
+**建议修复**：
+```tsx
+const highAndAboveVulns = vulns.filter((v) => v.severity === 'critical' || v.severity === 'high').length;
+// 标签改为"严重+高危漏洞"
+// 或拆分为两个卡片：critical 和 high 分别统计
+```
+
+---
+
+### P1-4 [ComplianceScan] FrameworkType 类型不安全
+
+**文件**：`ComplianceScan/index.tsx` 第 158-160 行
+
+**问题描述**：
+```tsx
+render: (val: FrameworkType) => {
+  const cfg = frameworkConfig[val];
+  return <Tag color={cfg.color}>{cfg.label}</Tag>;
+}
+```
+API 可能返回不在 `FrameworkType` 联合类型中的字符串值（例如后端新增了一个框架类型）。当 `val` 不在 `frameworkConfig` 的 key 集中时，`cfg` 为 `undefined`，访问 `cfg.color` 会抛出 `TypeError: Cannot read properties of undefined`，导致整个页面崩溃。
+
+**影响范围**：1 个页面，Table 列渲染时可能崩溃
+
+**建议修复**：
+```tsx
+render: (val: string) => {
+  const cfg = frameworkConfig[val as FrameworkType];
+  return <Tag color={cfg?.color || 'default'}>{cfg?.label || val}</Tag>;
+}
+```
+
+---
+
+### P1-5 [Backend] SeedEvalSetsForAllScenarios N+1 查询
+
+**文件**：`orion-platform-svc-go/internal/knowledge/service/eval_set_seeding.go` 第 50-79 行
+
+**问题描述**：`ListEvalSets` 在 `for` 循环内部为每个场景调用一次，导致 3 次数据库查询（当前场景数=3）。虽然当前只有 3 个场景，性能影响可控，但代码模式是典型的 N+1 反模式。
+
+```go
+for _, seed := range defaultScenarioSeeds {
+    existing, err := s.ListEvalSets(ctx, tenantID)  // ← 循环内查询
+    ...
+}
+```
+
+**影响范围**：当前 3 次查询（可忽略），但作为代码质量基准应修正
+
+**建议修复**：
+```go
+existing, err := s.ListEvalSets(ctx, tenantID)  // ← 循环外查询一次
+if err != nil { return nil, err }
+for _, seed := range defaultScenarioSeeds {
+    found := false
+    for _, es := range existing {
+        if es.Name == seed.Scenario { found = true; seeded = append(seeded, es); break }
+    }
+    ...
+}
+```
+
+---
+
+### P1-6 [Backend] SeedEvalSets handler userID 静默回退
+
+**文件**：`orion-platform-svc-go/internal/knowledge/handler/handler.go` 第 1051-1053 行
+
+**问题描述**：
+```go
+userID := c.GetString("user_id")
+if userID == "" {
+    userID = "system"
+}
+```
+当 `user_id` 为空时（可能表示认证中间件未运行或 token 无效），代码静默回退到 "system"。这掩盖了潜在的身份认证问题——一个未认证的用户请求被当作系统操作处理。
+
+**影响范围**：1 个 handler，审计日志中可能产生误导性的 "system" 操作记录
+
+**建议修复**：
+```go
+userID := c.GetString("user_id")
+if userID == "" {
+    middleware.RespondUnauthorized(c, "用户身份缺失")
+    return
+}
+```
+或在注释中明确说明此回退是设计行为（仅允许系统级调用）。
+
+---
+
+## P2 级别问题：6 个
+
+### P2-1 [EvalSetManagement] 导出报告 JSON 类型不一致
+
+**文件**：`EvalSetManagement/index.tsx` 第 180-193 行
+
+**问题描述**：
+```ts
+passRate: r.total_count > 0 ? (r.pass_count / r.total_count * 100).toFixed(2) : '0',      // string
+avgRecall: r.avg_recall?.toFixed(4) ?? '-',     // string
+avgScore: r.avg_score?.toFixed(4) ?? '-',       // string
+```
+`passRate`、`avgRecall`、`avgScore` 全部是字符串类型，但 `passCount` 和 `totalCount` 是数字类型。导出 JSON 的消费者需要处理这种混合类型。此外，`passRate` 使用 `.toFixed(2)`（百分比格式），而 `avgRecall`/`avgScore` 使用 `.toFixed(4)`（小数格式），口径不统一。
+
+**建议修复**：统一为数字类型，在消费者端格式化显示。
+
+---
+
+### P2-2 [AuthConfig] 禁用 Switch 无说明
+
+**文件**：`AuthConfig/index.tsx` 第 198 行
+
+**问题描述**：
+```tsx
+<Switch checked={val} size="small" disabled />
+```
+策略的"启用状态"Switch 组件是禁用的，但没有任何 Tooltip 或说明文字告诉用户为什么不能操作。用户会以为这是 bug。
+
+**建议修复**：添加 `title="启用/禁用功能待实现"` Tooltip，或在表格上方加一行说明。
+
+---
+
+### P2-3 [通用 / 所有页面] 错误响应字段名不匹配
+
+**文件**：所有前端页面的 `apiCall` 函数
+
+**问题描述**：
+- 前端 `apiCall` 提取错误消息：`err.message || \`HTTP ${resp.status}\``
+- 后端 `RespondInternalError` 返回的 JSON 字段名：`"error": "实际错误信息"`
+- 字段名不匹配导致前端永远获取不到 `err.message`，用户看到的是 `HTTP 500` 而非实际错误信息
+
+**影响范围**：所有使用 `apiCall` 的页面（系统性历史问题，非本次引入）
+
+**建议修复**：统一错误响应字段命名为 `message`，或在前端 `apiCall` 中同时读取 `err.message || err.error`。
+
+---
+
+### P2-4 [EvalSetManagement] 错误提示类型不一致
+
+**文件**：`EvalSetManagement/index.tsx`
+
+**问题描述**：
+- `handleSeed` 的 catch 使用 `message.error`（红色错误提示）
+- `handleExportReport` 的 catch 使用 `message.error`
+- 其他所有页面（含安全页面）的 catch 统一使用 `message.warning`（黄色警告提示）
+
+`message.error` 和 `message.warning` 的语义和颜色不同。`handleSeed`/`handleExportReport` 使用 `error` 暗示严重问题，而实际上是可恢复的临时错误，使用 `warning` 更合适。
+
+**建议修复**：统一为 `message.warning`，或建立全局错误提示规范。
+
+---
+
+### P2-5 [通用 / 3 个安全页面] 后端端点均为存根
+
+**文件**：`AuthConfig`（`/api/v1/auth/*`）、`ComplianceScan`（`/api/v1/compliance/*`）、`CodeScan`（`/api/v1/security/code-scan/*`）
+
+**问题描述**：所有 3 个安全页面调用的后端 API 端点在当前 Orion 后端中均不存在。页面初始化时会收到 HTTP 404/500，显示"数据加载失败"警告并展示空表格。这是 Phase 4 设计阶段已知的预期行为——页面结构先行，后端 API 后续补充。
+
+**影响范围**：3 个页面，100% 的 API 调用
+
+**建议修复**：标记为"Phase 4 后端待实现"，不在本次代码评审中视为缺陷。后端实现优先级建议：
+1. CodeScan（OWASP SAST 是高价值场景）
+2. ComplianceScan（合规检查基线配置）
+3. AuthConfig（OAuth2/OIDC 管理）
+
+---
+
+### P2-6 [ComplianceScan] 扫描状态与刷新操作无隔离
+
+**文件**：`ComplianceScan/index.tsx` 第 133-144 行
+
+**问题描述**：`handleScan` 设置 `scanning = id` 后启动扫描，但用户在扫描过程中点击"刷新"按钮会触发 `loadCompliance()` → `setLoading(true)`。虽然 `loading` 和 `scanning` 是两个独立状态，但用户可能在扫描进行时刷新导致状态不一致（按钮显示"扫描中"但数据已重新加载）。
+
+**影响范围**：1 个页面，1 个边界场景
+
+**建议修复**：在 `loading` 期间禁用"扫描"按钮，或在 `loadCompliance` 的 finally 中重置 `scanning` 状态。
+
+---
+
+## 模式合规性检查
+
+### 设计 Token 使用率
+
+| 文件 | Token 使用 | 内联样式 | 评估 |
+|------|-----------|---------|------|
+| AuthConfig | `colors`, `spacing` | 标题 margin, button padding | ✅ 符合规范 |
+| ComplianceScan | `colors`, `spacing` | 标题 margin | ✅ 符合规范 |
+| CodeScan | `colors`, `spacing` | 标题 margin | ✅ 符合规范 |
+| EvalSetManagement | `colors`, `spacing` | 已有 | ✅ 符合规范 |
+
+### Empty 空态设计
+
+| 文件 | 空态文案 | 评估 |
+|------|---------|------|
+| AuthConfig（认证源） | "暂无认证源配置，请添加 OAuth2/OIDC/MFA/SSO 认证源" | ✅ 有引导性 |
+| AuthConfig（策略） | "暂无访问策略规则" | ✅ |
+| ComplianceScan（基线） | "暂无合规基线，请创建 OWASP/CIS/PCI/SOC2 基线" | ✅ 有引导性 |
+| ComplianceScan（发现） | "暂无违规发现，请先执行安全基线扫描" | ✅ 有操作指引 |
+| CodeScan（扫描） | "暂无代码扫描任务，请创建扫描任务执行 SAST 分析" | ✅ 有引导性 |
+| CodeScan（漏洞） | "暂无漏洞发现，请先执行代码扫描" | ✅ 有操作指引 |
+
+### 错误反馈机制
+
+| 文件 | 加载失败 | 操作失败 | 评估 |
+|------|---------|---------|------|
+| AuthConfig | `message.warning('认证配置数据加载失败...')` | `message.warning('认证源创建失败...')` | ✅ |
+| ComplianceScan | `message.warning('合规数据加载失败...')` | `message.warning('扫描启动失败...')` | ✅ |
+| CodeScan | `message.warning('代码扫描数据加载失败...')` | `message.warning('扫描启动失败...')` | ✅ |
+| EvalSetManagement | `message.error('初始化失败...')` | `message.error('导出失败...')` | ⚠️ 类型不一致（P2-4） |
+
+### API 调用模式一致性
+
+| 文件 | base path | auth header | error handling | 评估 |
+|------|-----------|------------|---------------|------|
+| AuthConfig | `/api/v1/auth` | `Bearer ${localStorage.getItem('token')}` | `.catch(() => ({}))` | ✅ |
+| ComplianceScan | `/api/v1/compliance` | 同上 | 同上 | ✅ |
+| CodeScan | `/api/v1/security/code-scan` | 同上 | 同上 | ✅ |
+| EvalSetManagement | `/api/v1/knowledge` | 同上 | 同上 | ✅ |
+
+### loading 状态
+
+| 文件 | Table loading | 操作按钮 loading | 评估 |
+|------|-------------|---------------|------|
+| AuthConfig | `loading={loading}` | — | ✅ |
+| ComplianceScan | `loading={loading}` | `loading={scanning === record.id}` | ✅ |
+| CodeScan | `loading={loading}` | `loading={scanning === record.id}` + `disabled={record.status === 'running'}` | ✅ |
+| EvalSetManagement | `loading={loading}` | `loading={seeding}` + `loading={exporting}` + `disabled={runs.length === 0}` | ✅ |
+
+---
+
+## 安全性评审
+
+### 前端安全
+
+| 检查项 | 结果 | 说明 |
+|--------|------|------|
+| XSS（dangerouslySetInnerHTML） | ✅ 未发现 | 所有页面使用受控 React 组件 |
+| 敏感信息泄露 | ✅ 未发现 | 无硬编码密钥/token |
+| API 认证 | ✅ 全部使用 Bearer Token | `localStorage.getItem('token')` |
+| 用户输入 sanitization | ✅ 未发现风险 | Ant Design Form 自动处理 |
+
+### 后端安全
+
+| 检查项 | 结果 | 说明 |
+|--------|------|------|
+| 权限校验 | ✅ `auth.RequirePermission("knowledge", "write")` | seed 端点需要 write 权限 |
+| 租户隔离 | ✅ 使用 `tenant_id` from context | 通过 auth middleware 注入 |
+| SQL 注入 | ✅ 使用 ORM/参数化查询 | 不涉及原始 SQL |
+| 输入验证 | ⚠️ 未显式验证 | `SeedEvalSetsForAllScenarios` 使用硬编码场景，不涉及用户输入 |
+
+---
+
+## 评审总结
+
+| 维度 | 结果 |
+|------|------|
+| P0 问题 | **0 个** ✅ |
+| P1 问题 | **6 个**（均为可修复的设计/实现细节问题） |
+| P2 问题 | **6 个**（一致性/边界场景问题） |
+| 编译通过 | TypeScript 0 errors ✅ + Go 0 errors ✅ |
+| 模式合规 | 设计 Token ✅ / Empty locale ✅ / loading 状态 ✅ / 错误反馈 ✅ |
+| 安全性 | 前端 ✅ / 后端 ✅ |
+
+### 优先级修复建议
+
+1. **P1-1**（Modal confirmLoading）：3 处修复，每处 +2 行，低工作量
+2. **P1-2**（AuthConfig 死按钮）：移除或添加 disabled + Tooltip
+3. **P1-3**（CodeScan 指标口径）：1 处变量名 + 标签修正
+4. **P1-4**（ComplianceScan 类型安全）：添加空值保护
+5. **P1-5**（N+1 查询）：将 ListEvalSets 移出循环
+6. **P1-6**（userID 回退）：添加注释或改为 Unauthorized 响应
+
+---
+
+> 代码评审完成时间：2026-08-26
+> 评审人：Claude Code（自动化评审）
+> 下一阶段：P1 问题修复（预计 1-2 次 commit）→ P2 问题修复 → 功能回归测试

@@ -49,22 +49,29 @@ var defaultScenarioSeeds = []ScenarioSeed{
 
 func (s *Service) SeedEvalSetsForAllScenarios(ctx context.Context, tenantID string, userID string) ([]models.EvalSet, error) {
 	var seeded []models.EvalSet
+
+	// Load existing eval sets once (avoid N+1 query)
+	existing, err := s.ListEvalSets(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	existingNames := make(map[string]bool, len(existing))
+	for _, es := range existing {
+		existingNames[es.Name] = true
+	}
+
 	for _, seed := range defaultScenarioSeeds {
-		existing, err := s.ListEvalSets(ctx, tenantID)
-		if err != nil {
-			continue
-		}
-		found := false
-		for _, es := range existing {
-			if es.Name == seed.Scenario {
-				found = true
-				seeded = append(seeded, es)
-				break
+		// Skip if already exists (pre-existing or just created in this loop)
+		if existingNames[seed.Scenario] {
+			for _, es := range existing {
+				if es.Name == seed.Scenario {
+					seeded = append(seeded, es)
+					break
+				}
 			}
-		}
-		if found {
 			continue
 		}
+
 		set, err := s.CreateEvalSet(ctx, tenantID, models.CreateEvalSetRequest{
 			Name:        seed.Scenario,
 			Description: "P3 基线评测集：" + seed.Tag,
@@ -74,6 +81,7 @@ func (s *Service) SeedEvalSetsForAllScenarios(ctx context.Context, tenantID stri
 			continue
 		}
 		seeded = append(seeded, *set)
+		existingNames[seed.Scenario] = true
 	}
 	return seeded, nil
 }

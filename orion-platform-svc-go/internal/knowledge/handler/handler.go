@@ -1049,7 +1049,8 @@ func (h *Handler) SeedEvalSets(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if userID == "" {
-		userID = "system"
+		middleware.RespondUnauthorized(c, "用户身份缺失")
+		return
 	}
 	seeded, err := h.svc.SeedEvalSetsForAllScenarios(ctx, tenantID, userID)
 	if err != nil {

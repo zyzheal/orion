@@ -109,9 +109,11 @@ const ComplianceScanPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<{ name: string; framework: FrameworkType; description?: string }>();
   const [scanning, setScanning] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const loadCompliance = async () => {
     setLoading(true);
+    setScanning(null);
     try {
       const [findingsRes, baselinesRes] = await Promise.all([
         apiCall<ComplianceFinding[]>('/findings'),
@@ -155,9 +157,9 @@ const ComplianceScanPage: React.FC = () => {
       dataIndex: 'framework',
       key: 'framework',
       width: 140,
-      render: (val: FrameworkType) => {
-        const cfg = frameworkConfig[val];
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
+      render: (val: string) => {
+        const cfg = frameworkConfig[val as FrameworkType];
+        return <Tag color={cfg?.color || 'default'}>{cfg?.label || val}</Tag>;
       },
     },
     {
@@ -338,9 +340,11 @@ const ComplianceScanPage: React.FC = () => {
       <Modal
         title="新建合规基线"
         open={createModalOpen}
+        confirmLoading={creating}
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
         onOk={async () => {
           const values = await createForm.validateFields();
+          setCreating(true);
           try {
             await apiCall<ComplianceBaseline>('/baselines', {
               method: 'POST',
@@ -352,6 +356,8 @@ const ComplianceScanPage: React.FC = () => {
             loadCompliance();
           } catch (_err: unknown) {
             message.warning('基线创建失败，请稍后重试');
+          } finally {
+            setCreating(false);
           }
         }}
         okText="创建"

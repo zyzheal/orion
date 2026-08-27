@@ -148,7 +148,7 @@ const EvalSetManagement: React.FC = () => {
       message.success(`已初始化 ${count} 个评测集（TR-09/10/11 演示数据）`);
       loadSets();
     } catch (error: unknown) {
-      message.error(`初始化失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      message.warning(`初始化失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setSeeding(false);
     }
@@ -185,9 +185,9 @@ const EvalSetManagement: React.FC = () => {
           status: r.status,
           passCount: r.pass_count,
           totalCount: r.total_count,
-          passRate: r.total_count > 0 ? (r.pass_count / r.total_count * 100).toFixed(2) : '0',
-          avgRecall: r.avg_recall?.toFixed(4) ?? '-',
-          avgScore: r.avg_score?.toFixed(4) ?? '-',
+          passRate: r.total_count > 0 ? Number((r.pass_count / r.total_count * 100).toFixed(2)) : 0,
+          avgRecall: r.avg_recall ?? 0,
+          avgScore: r.avg_score ?? 0,
           createdAt: r.created_at,
         })),
       };
@@ -200,7 +200,7 @@ const EvalSetManagement: React.FC = () => {
       URL.revokeObjectURL(url);
       message.success('评测报告已导出');
     } catch (error: unknown) {
-      message.error(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      message.warning(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setExporting(false);
     }

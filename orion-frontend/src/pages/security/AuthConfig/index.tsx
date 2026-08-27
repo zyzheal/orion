@@ -18,6 +18,7 @@ import {
   Input,
   Select,
   Switch,
+  Tooltip,
   message,
   Empty,
 } from 'antd';
@@ -96,6 +97,7 @@ const AuthConfigPage: React.FC = () => {
   const [providers, setProviders] = useState<AuthProvider[]>([]);
   const [policies, setPolicies] = useState<AuthPolicy[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [createForm] = Form.useForm<{ name: string; type: ProviderType; clientId?: string; clientSecret?: string; discoveryUrl?: string }>();
 
   const loadProviders = async () => {
@@ -163,8 +165,12 @@ const AuthConfigPage: React.FC = () => {
       width: 160,
       render: (_: unknown, record: AuthProvider) => (
         <Space size="small">
-          <Button size="small" icon={<EditOutlined />}>编辑</Button>
-          <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+          <Tooltip title="编辑功能待实现" placement="topLeft">
+            <Button size="small" icon={<EditOutlined />} disabled>编辑</Button>
+          </Tooltip>
+          <Tooltip title="删除功能待实现" placement="topLeft">
+            <Button size="small" danger icon={<DeleteOutlined />} disabled>删除</Button>
+          </Tooltip>
         </Space>
       ),
     },
@@ -195,7 +201,9 @@ const AuthConfigPage: React.FC = () => {
       key: 'enabled',
       width: 90,
       render: (val: boolean) => (
-        <Switch checked={val} size="small" disabled />
+        <Tooltip title="启用/禁用功能待实现" placement="top">
+          <Switch checked={val} size="small" disabled />
+        </Tooltip>
       ),
     },
   ];
@@ -274,9 +282,11 @@ const AuthConfigPage: React.FC = () => {
       <Modal
         title="新建认证源"
         open={createModalOpen}
+        confirmLoading={creating}
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
         onOk={async () => {
           const values = await createForm.validateFields();
+          setCreating(true);
           try {
             await apiCall<AuthProvider>('/providers', {
               method: 'POST',
@@ -288,6 +298,8 @@ const AuthConfigPage: React.FC = () => {
             loadProviders();
           } catch (_err: unknown) {
             message.warning('认证源创建失败，请联系管理员');
+          } finally {
+            setCreating(false);
           }
         }}
         okText="创建"
