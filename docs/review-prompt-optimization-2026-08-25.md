@@ -1426,9 +1426,32 @@ Phase 3（1-2月）：P2 改进 + AI Agent 评测体系
 
 Phase 4（持续）：横切维度强化 + 对标 L4 标杆
   验收标准：
-  - [ ] 安全域：H1 的 8 个子维度全部有对应前端页面（非空壳）
-  - [ ] 可观测性：H2 的 7 个子维度全部有对应前端页面（非空壳）
-  - [ ] FinOps：FinOpsDashboard 有真实成本数据（非 mock）
+  - [x] 安全域：H1 的 8 个子维度全部有对应前端页面（非空壳）— 2026-08-26 补齐
+    H1 8 子维度覆盖情况：
+    ✅ 认证授权 → /security/auth-config (AuthConfigPage)
+    ✅ ABAC/RBAC → /console/security-svc/abac-policy (ABACPolicy)
+    ✅ API 安全 → /rate-limiting (rate-limiting page)
+    ✅ 供应链安全 → /sbom + /supply-chain (SBOM + SupplyChain)
+    ✅ 用户行为分析 → /security-svc/ueba (UEBA)
+    ✅ 终端审计 → /audit-log (AuditLog)
+    ✅ 合规检查 → /security/compliance-scan (ComplianceScanPage)
+    ✅ OWASP Top 10 → /security/code-scan (CodeScanPage)
+  - [x] 可观测性：H2 的 7 个子维度全部有对应前端页面（非空壳）— 2026-08-26 验证
+    H2 子维度覆盖情况：
+    ✅ 三大支柱 → /observability
+    ✅ 分布式追踪 → /llm-trace-dashboard + /apm
+    ✅ 告警管理 → /alert-list + /alert-escalation
+    ✅ 熔断/降级/限流 → /circuit-breaker
+    ✅ 容量规划 → /capacity-planning
+    ✅ 成本治理(FinOps) → /finops-dashboard
+    ✅ 灾备演练 → /disaster-recovery
+    ✅ 智能部署验证 → /canary-analysis
+    ✅ 日志留存与审计 → /audit-log
+    ✅ 报表自动生成 → /report-designer
+    ✅ Toolchain 集成 → /observability
+  - [x] FinOps：FinOpsDashboard 有真实成本数据（非 mock）— 2026-08-26 验证
+    ✅ FinOpsDashboard 通过 getCostSummary/getCostByService/getCostTrend/getOptimizations/getBudgetAlerts 调用 finops-v2 API
+    ✅ 后端 GET /cost-overview + GET /cost-breakdown 已实现（finops-v2/handler.go）
 
 ### 最佳实践落地状态评估（2026-08-26 P3 批次）
 

@@ -370,6 +370,24 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/SbomDetail')),
     protected: true,
   },
+  // H1 Security - Auth Configuration
+  {
+    path: '/security/auth-config',
+    element: React.lazy(() => import('@/pages/security/AuthConfig')),
+    protected: true,
+  },
+  // H1 Security - Compliance Scan
+  {
+    path: '/security/compliance-scan',
+    element: React.lazy(() => import('@/pages/security/ComplianceScan')),
+    protected: true,
+  },
+  // H1 Security - Code Scan (SAST/OWASP)
+  {
+    path: '/security/code-scan',
+    element: React.lazy(() => import('@/pages/security/CodeScan')),
+    protected: true,
+  },
   // Quality Gates
   {
     path: '/console/quality-gates',
