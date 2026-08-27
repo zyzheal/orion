@@ -19,6 +19,7 @@ import {
   Input,
   Popconfirm,
   message,
+  Empty,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -399,9 +400,7 @@ const TopologyPage: React.FC = () => {
                 </ReactFlow>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 40, color: colors.neutral[400] }}>
-                暂无拓扑数据
-              </div>
+              <Empty description="暂无拓扑数据，请先创建配置项" />
             )}
           </Card>
 

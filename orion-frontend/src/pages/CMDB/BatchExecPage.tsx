@@ -30,6 +30,7 @@ import {
   Switch,
   Upload,
   Progress,
+  Empty,
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -113,7 +114,11 @@ const statusLabelMap: Record<ExecRecord['status'], string> = {
 // Command Execution Tab
 // ============================================================================
 
-const CommandExecTab: React.FC = () => {
+const CommandExecTab: React.FC<{
+  pendingContent?: string | null;
+  pendingName?: string | null;
+  onContentApplied?: () => void;
+}> = ({ pendingContent, pendingName, onContentApplied }) => {
   const [hosts, setHosts] = useState<HostInfo[]>([]);
   const [execRecords, setExecRecords] = useState<ExecRecord[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -147,6 +152,15 @@ const CommandExecTab: React.FC = () => {
       });
     loadRecords();
   }, []);
+
+  // 应用从脚本模板 Tab 加载的内容
+  useEffect(() => {
+    if (pendingContent) {
+      form.setFieldsValue({ command: pendingContent });
+      message.success(`已应用模板「${pendingName || '未知'}」到命令表单`);
+      onContentApplied?.();
+    }
+  }, [pendingContent, pendingName, form, onContentApplied]);
 
   const handleExecute = async () => {
     try {
@@ -298,6 +312,7 @@ const CommandExecTab: React.FC = () => {
         size="middle"
         loading={loading}
         pagination={{ pageSize: 10 }}
+        locale={{ emptyText: <Empty description="暂无执行记录，请先执行命令" /> }}
       />
 
       <Drawer
@@ -385,7 +400,9 @@ const CommandExecTab: React.FC = () => {
 // Script Template Tab
 // ============================================================================
 
-const ScriptTemplateTab: React.FC = () => {
+const ScriptTemplateTab: React.FC<{ onUseTemplate?: (tpl: ScriptTemplate) => void }> = ({
+  onUseTemplate,
+}) => {
   const [templates, setTemplates] = useState<ScriptTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
@@ -452,7 +469,11 @@ const ScriptTemplateTab: React.FC = () => {
   };
 
   const handleUse = (tpl: ScriptTemplate) => {
-    message.info(`已选择模板: ${tpl.name}`);
+    if (onUseTemplate) {
+      onUseTemplate(tpl);
+    } else {
+      message.info(`已选择模板: ${tpl.name}`);
+    }
   };
 
   const columns: TableProps<ScriptTemplate>['columns'] = [
@@ -530,6 +551,7 @@ const ScriptTemplateTab: React.FC = () => {
         size="middle"
         loading={loading}
         pagination={{ pageSize: 10 }}
+        locale={{ emptyText: <Empty description="暂无脚本模板，请创建第一个模板" /> }}
       />
 
       <Modal
@@ -783,6 +805,7 @@ const CronJobTab: React.FC = () => {
         size="middle"
         loading={loading}
         pagination={{ pageSize: 10 }}
+        locale={{ emptyText: <Empty description="暂无定时任务，请创建第一个任务" /> }}
       />
 
       <Modal
@@ -1060,6 +1083,7 @@ const FileUploadTab: React.FC = () => {
         size="middle"
         loading={loading}
         pagination={{ pageSize: 10 }}
+        locale={{ emptyText: <Empty description="暂无上传任务" /> }}
       />
     </div>
   );
@@ -1071,6 +1095,15 @@ const FileUploadTab: React.FC = () => {
 
 const BatchExecPage: React.FC = () => {
   const [execStats, setExecStats] = useState({ total: 0, success: 0, partial: 0, failed: 0 });
+  // 跨 Tab 通信：脚本模板"使用"按钮填充命令表单
+  const [pendingTemplateContent, setPendingTemplateContent] = useState<string | null>(null);
+  const [pendingTemplateName, setPendingTemplateName] = useState<string | null>(null);
+
+  const handleUseTemplate = (tpl: ScriptTemplate) => {
+    setPendingTemplateContent(tpl.content);
+    setPendingTemplateName(tpl.name);
+    message.success(`已加载模板「${tpl.name}」到命令表单，请切换到"命令执行"Tab`);
+  };
 
   useEffect(() => {
     listCommandLogs(1, 100)
@@ -1095,7 +1128,13 @@ const BatchExecPage: React.FC = () => {
           <PlayCircleOutlined /> 命令执行
         </span>
       ),
-      children: <CommandExecTab />,
+      children: (
+        <CommandExecTab
+          pendingContent={pendingTemplateContent}
+          pendingName={pendingTemplateName}
+          onContentApplied={() => setPendingTemplateContent(null)}
+        />
+      ),
     },
     {
       key: 'templates',
@@ -1104,7 +1143,7 @@ const BatchExecPage: React.FC = () => {
           <FileTextOutlined /> 脚本模板
         </span>
       ),
-      children: <ScriptTemplateTab />,
+      children: <ScriptTemplateTab onUseTemplate={handleUseTemplate} />,
     },
     {
       key: 'cron',

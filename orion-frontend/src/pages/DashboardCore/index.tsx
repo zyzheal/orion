@@ -11,7 +11,7 @@
  * - Quick action buttons
  */
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Space, Tag, Spin, Alert } from 'antd';
+import { Card, Row, Col, Typography, Space, Tag, Spin, Alert, message } from 'antd';
 import { colors, spacing, themeVars } from '@/tokens';
 import {
   RocketOutlined,
@@ -286,10 +286,11 @@ const DashboardCore: React.FC = () => {
             ]);
           }
         } catch {
+          message.warning('系统健康数据加载失败，显示默认状态');
           setSystemHealth([
-            { name: 'API Gateway', status: 'success', latency: '-' },
-            { name: 'Platform Service', status: 'success', latency: '-' },
-            { name: 'Database', status: 'success', latency: '-' },
+            { name: 'API Gateway', status: 'warning', latency: '-' },
+            { name: 'Platform Service', status: 'warning', latency: '-' },
+            { name: 'Database', status: 'warning', latency: '-' },
             { name: 'Event Bus', status: 'warning', latency: '-' },
           ]);
         }

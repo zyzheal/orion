@@ -17,6 +17,7 @@ import {
   Drawer,
   Descriptions,
   Space,
+  Empty,
 } from 'antd';
 import {
   SyncOutlined,
@@ -265,6 +266,7 @@ const IntegrationPage: React.FC = () => {
                       dataSource={hosts}
                       rowKey="ci_id"
                       pagination={{ pageSize: 10 }}
+                      locale={{ emptyText: <Empty description="暂无主机数据" /> }}
                     />
                   </Card>
                 ),
@@ -283,6 +285,7 @@ const IntegrationPage: React.FC = () => {
                       dataSource={k8sResources}
                       rowKey={(r) => `${r.kind}-${r.namespace}-${r.name}`}
                       pagination={{ pageSize: 10 }}
+                      locale={{ emptyText: <Empty description="暂无 K8s 资源数据" /> }}
                     />
                   </Card>
                 ),
@@ -297,7 +300,7 @@ const IntegrationPage: React.FC = () => {
                       dataSource={cicdResources}
                       rowKey={(r: CICDResource) => `${r.type}-${r.name}`}
                       pagination={{ pageSize: 10 }}
-                      locale={{ emptyText: '暂无 CI/CD 资源' }}
+                      locale={{ emptyText: <Empty description="暂无 CI/CD 资源" /> }}
                     />
                   </Card>
                 ),

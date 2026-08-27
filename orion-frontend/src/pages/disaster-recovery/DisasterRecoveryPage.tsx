@@ -25,7 +25,6 @@ import {
   ReloadOutlined,
   UndoOutlined,
   SafetyCertificateOutlined,
-  SyncOutlined,
 } from '@ant-design/icons';
 import {
   getBackups,
@@ -48,6 +47,7 @@ const DisasterRecoveryPage: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupRecord | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const [createForm] = Form.useForm();
 
   useEffect(() => {
@@ -80,6 +80,7 @@ const DisasterRecoveryPage: React.FC = () => {
   };
 
   const handleRestore = async (id: string) => {
+    setRestoring(true);
     try {
       await restoreBackup(id);
       message.success('Restore initiated');
@@ -87,6 +88,8 @@ const DisasterRecoveryPage: React.FC = () => {
       loadData();
     } catch {
       message.error('Failed to restore backup');
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -158,17 +161,17 @@ const DisasterRecoveryPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <SyncOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            <SafetyCertificateOutlined /> Disaster Recovery
+            <SafetyCertificateOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            灾备恢复管理
           </Title>
-          <Text type="secondary">Backup management, restore operations, and recovery drills</Text>
+          <Text type="secondary">备份管理、恢复操作与演练</Text>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            Refresh
+            刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            Create Backup
+            创建备份
           </Button>
         </Space>
       </div>
@@ -237,19 +240,21 @@ const DisasterRecoveryPage: React.FC = () => {
 
       {/* Restore Confirmation Modal */}
       <Modal
-        title="Confirm Restore"
+        title="确认恢复"
         open={restoreModalOpen}
         onCancel={() => setRestoreModalOpen(false)}
         onOk={() => selectedBackup && handleRestore(selectedBackup.id)}
-        okText="Confirm Restore"
+        confirmLoading={restoring}
+        okText="确认恢复"
+        cancelText="取消"
         okButtonProps={{ danger: true }}
       >
         {selectedBackup && (
           <Descriptions column={1} bordered>
-            <Descriptions.Item label="Name">{selectedBackup.name}</Descriptions.Item>
-            <Descriptions.Item label="Type">{selectedBackup.type}</Descriptions.Item>
-            <Descriptions.Item label="Created">{selectedBackup.createdAt}</Descriptions.Item>
-            <Descriptions.Item label="Size">
+            <Descriptions.Item label="备份名称">{selectedBackup.name}</Descriptions.Item>
+            <Descriptions.Item label="类型">{selectedBackup.type}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{selectedBackup.createdAt}</Descriptions.Item>
+            <Descriptions.Item label="大小">
               {selectedBackup.size > 0
                 ? `${(selectedBackup.size / (1024 * 1024)).toFixed(0)} MB`
                 : '-'}
@@ -258,7 +263,7 @@ const DisasterRecoveryPage: React.FC = () => {
         )}
         <div style={{ marginTop: spacing.md }}>
           <Text type="danger">
-            Warning: Restoring will overwrite current data. This action cannot be undone.
+            警告：恢复操作将覆盖当前数据。此操作不可撤销。
           </Text>
         </div>
       </Modal>

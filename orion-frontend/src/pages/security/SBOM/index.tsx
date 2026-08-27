@@ -20,6 +20,7 @@ import {
   Divider,
   Tooltip,
   message,
+  Empty,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -444,6 +445,7 @@ const SBOMPage: React.FC = () => {
               rowHoverable
               pagination={{ pageSize: 10, showSizeChanger: false }}
               style={{ fontSize: 13 }}
+              locale={{ emptyText: <Empty description="暂无 SBOM 组件数据" /> }}
             />
           </Card>
         </Col>

@@ -879,7 +879,14 @@ const PipelineDetail: React.FC = () => {
                 }))}
                 height={400}
                 showMiniMap={true}
-                onNodeClick={(_: string, __: unknown) => {}}
+                onNodeClick={(nodeId: string, data: unknown) => {
+                  const stage = (data as { name?: string; status?: string; steps?: unknown[] }) || {};
+                  message.info(
+                    `${stage.name || nodeId} 阶段 - 状态: ${stage.status || '未知'}，共 ${
+                      stage.steps?.length || 0
+                    } 个步骤`
+                  );
+                }}
               />
             ) : (
               <div style={{ textAlign: 'center', padding: 40 }}>
@@ -980,7 +987,13 @@ const PipelineDetail: React.FC = () => {
                         查看
                       </Button>
                       {record.status === 'failed' && (
-                        <Button type="link" size="small" onClick={() => triggerPipeline(id!)}>
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={handleRerun}
+                          loading={isRerunning}
+                          disabled={isRerunning}
+                        >
                           重跑
                         </Button>
                       )}

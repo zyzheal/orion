@@ -23,6 +23,7 @@ import {
   message,
   Statistic,
   Tooltip,
+  Empty,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -477,6 +478,7 @@ const ContainerScanPage: React.FC = () => {
               pagination={{ pageSize: 8, showSizeChanger: false, showQuickJumper: true }}
               scroll={{ x: 800 }}
               style={{ marginTop: spacing.sm }}
+              locale={{ emptyText: <Empty description="暂无扫描记录，请创建扫描策略并执行扫描" /> }}
             />
           </Card>
         </Col>

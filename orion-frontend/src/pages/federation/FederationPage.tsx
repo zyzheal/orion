@@ -26,6 +26,7 @@ import {
   InputNumber,
   Select,
   Progress,
+  Empty,
 } from 'antd';
 import { ClusterOutlined, PlusOutlined, ReloadOutlined, GlobalOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
@@ -417,6 +418,7 @@ const FederationPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          locale={{ emptyText: <Empty description="暂无集群数据，请注册第一个集群" /> }}
         />
       ),
     },
@@ -430,6 +432,7 @@ const FederationPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          locale={{ emptyText: <Empty description="暂无跨集群作业，请创建第一个作业" /> }}
         />
       ),
     },
@@ -443,6 +446,7 @@ const FederationPage: React.FC = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          locale={{ emptyText: <Empty description="暂无资源池，请创建第一个资源池" /> }}
         />
       ),
     },

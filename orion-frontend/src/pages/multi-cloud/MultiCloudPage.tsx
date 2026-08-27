@@ -171,10 +171,8 @@ const MultiCloudPage: React.FC = () => {
     try {
       await multiCloudApi.syncAccountResources(accountId);
       message.success('资源同步已启动');
-      setTimeout(() => {
-        loadData();
-        setSyncing(null);
-      }, 2000);
+      loadData();
+      setSyncing(null);
     } catch (error: unknown) {
       message.error(`同步失败: ${(error as Error).message}`);
       setSyncing(null);

@@ -25,6 +25,7 @@ import {
   Descriptions,
   Tabs,
   Popconfirm,
+  Empty,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -450,7 +451,7 @@ const CITablePage: React.FC = () => {
           pagination={false}
           size="small"
           style={{ marginBottom: spacing.md }}
-          locale={{ emptyText: '暂无下游关联' }}
+          locale={{ emptyText: <Empty description="暂无下游关联" /> }}
         />
 
         <Text style={{ marginBottom: spacing.xs, display: 'block' }}>
@@ -463,7 +464,7 @@ const CITablePage: React.FC = () => {
           rowKey="id"
           pagination={false}
           size="small"
-          locale={{ emptyText: '暂无上游关联' }}
+          locale={{ emptyText: <Empty description="暂无上游关联" /> }}
         />
       </div>
     );
@@ -537,6 +538,7 @@ const CITablePage: React.FC = () => {
             loading={loading}
             rowKey="id"
             pagination={{ pageSize: 10 }}
+            locale={{ emptyText: <Empty description="暂无配置项，请创建第一个配置项" /> }}
           />
 
           <Modal

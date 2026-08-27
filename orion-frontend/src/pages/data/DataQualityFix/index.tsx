@@ -17,6 +17,7 @@ import {
   Space,
   Select,
   Tooltip,
+  Empty,
 } from 'antd';
 import {
   DatabaseOutlined,
@@ -386,6 +387,7 @@ const DataQualityFixPage: React.FC = () => {
               rowKey="id"
               size="middle"
               pagination={{ pageSize: 8, showSizeChanger: false }}
+              locale={{ emptyText: <Empty description="暂无数据质量问题" /> }}
             />
           </Card>
         </Col>
@@ -430,6 +432,7 @@ const DataQualityFixPage: React.FC = () => {
           rowKey="id"
           size="small"
           pagination={false}
+          locale={{ emptyText: <Empty description="暂无修复历史记录" /> }}
           columns={[
             { title: '时间', dataIndex: 'time', key: 'time', width: 180 },
             { title: '问题', dataIndex: 'issue', key: 'issue' },

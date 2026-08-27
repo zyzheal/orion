@@ -22,6 +22,7 @@ import {
   Drawer,
   Tabs,
   message,
+  Empty,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -208,6 +209,7 @@ const ConnectLogTab: React.FC = () => {
         size="middle"
         loading={loading}
         pagination={{ pageSize: 10 }}
+        locale={{ emptyText: <Empty description="暂无审计日志记录" /> }}
       />
 
       <Drawer
@@ -359,6 +361,7 @@ const FileLogTab: React.FC = () => {
         size="middle"
         loading={loading}
         pagination={{ pageSize: 10 }}
+        locale={{ emptyText: <Empty description="暂无文件传输记录" /> }}
       />
     </div>
   );

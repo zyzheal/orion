@@ -24,6 +24,7 @@ import {
   Switch,
   Tooltip,
   Divider,
+  Empty,
 } from 'antd';
 import {
   BranchesOutlined,
@@ -360,6 +361,7 @@ const DataPipelineMonitor: React.FC = () => {
               size="small"
               pagination={{ pageSize: 8, showSizeChanger: false }}
               scroll={{ x: 900 }}
+              locale={{ emptyText: <Empty description="暂无数据管道" /> }}
             />
           </Card>
         </Col>
@@ -573,6 +575,7 @@ const DataPipelineMonitor: React.FC = () => {
           rowKey="id"
           size="small"
           pagination={false}
+          locale={{ emptyText: <Empty description="暂无告警记录" /> }}
           columns={[
             {
               title: '管道名',
