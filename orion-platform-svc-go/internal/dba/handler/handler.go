@@ -145,7 +145,9 @@ func (h *Handler) ExecuteOrder(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteOrder")
 	defer span.End()
 	id := c.Param("id")
-	order, err := h.svc.ExecuteOrder(ctx, id)
+	tenantID := c.GetString("tenant_id")
+	userID := c.GetString("user_id")
+	order, err := h.svc.ExecuteOrder(ctx, tenantID, userID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "order not found")
 		return

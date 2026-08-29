@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -89,9 +90,69 @@ func (s *Service) RejectOrder(ctx context.Context, id string) (*models.SqlOrder,
 	return s.repo.UpdateOrderStatus(ctx, id, "rejected", nil, nil)
 }
 
-func (s *Service) ExecuteOrder(ctx context.Context, id string) (*models.SqlOrder, error) {
-	result := "Execution completed"
-	return s.repo.UpdateOrderStatus(ctx, id, "completed", nil, &result)
+// ExecuteOrder executes the SQL of an approved order against its target
+// data source. It looks up the order by id, finds the data source matching
+// order.Database, connects (PostgreSQL only), runs the SQL, records the
+// execution in the audit log, and updates the order with the real result.
+// On failure the order is marked "failed" with the error message.
+func (s *Service) ExecuteOrder(ctx context.Context, tenantID, userID, id string) (*models.SqlOrder, error) {
+	order, err := s.repo.GetOrder(ctx, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("order not found")
+		}
+		return nil, fmt.Errorf("get order: %w", err)
+	}
+	if order == nil {
+		return nil, fmt.Errorf("order not found")
+	}
+
+	// Find the data source matching this order's database name.
+	sources, err := s.repo.ListDataSources(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("list data sources: %w", err)
+	}
+	var ds *models.DataSource
+	for i := range sources {
+		if sources[i].Database == order.Database {
+			ds = &sources[i]
+			break
+		}
+	}
+	if ds == nil {
+		errMsg := fmt.Sprintf("no data source found for database %q", order.Database)
+		_, _ = s.repo.UpdateOrderStatus(ctx, id, "failed", nil, &errMsg)
+		return nil, fmt.Errorf("%s", errMsg)
+	}
+
+	// Only PostgreSQL is supported for direct execution.
+	if ds.Type != "postgresql" && ds.Type != "postgres" {
+		errMsg := fmt.Sprintf("execution not supported for %s; only PostgreSQL data sources are supported", ds.Type)
+		_, _ = s.repo.UpdateOrderStatus(ctx, id, "failed", nil, &errMsg)
+		return nil, fmt.Errorf("%s", errMsg)
+	}
+
+	// Execute the SQL with a 60-second timeout.
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	normalized := strings.TrimSpace(strings.ToLower(order.SQL))
+	result, execErr := executePGSQL(ds, ctx, order.SQL, normalized)
+	latency := float64(time.Since(start).Milliseconds())
+
+	if execErr != nil {
+		errMsg := execErr.Error()
+		_ = s.repo.InsertQueryExecutionLog(ctx, newExecutionRecord(ctx, tenantID, userID, ds.ID, ds.Name, order.SQL, "error", errMsg, 0, &latency))
+		_, _ = s.repo.UpdateOrderStatus(ctx, id, "failed", nil, &errMsg)
+		return nil, fmt.Errorf("execute sql: %w", execErr)
+	}
+
+	_ = s.repo.InsertQueryExecutionLog(ctx, newExecutionRecord(ctx, tenantID, userID, ds.ID, ds.Name, order.SQL, "completed", "", result.RowCount, &latency))
+
+	resultJSON, _ := json.Marshal(result)
+	resultStr := string(resultJSON)
+	return s.repo.UpdateOrderStatus(ctx, id, "completed", nil, &resultStr)
 }
 
 // ---- Data Sources ----
@@ -468,6 +529,78 @@ func executePGQuery(ds *models.DataSource, ctx context.Context, query string) (*
 	conn.SetMaxOpenConns(1)
 	conn.SetConnMaxLifetime(30 * time.Second)
 	return conn.QueryContext(ctx, query)
+}
+
+// sqlExecResult holds the outcome of a SQL execution. For read-only statements
+// it carries columns and rows; for DML/DDL it carries the affected-row count.
+type sqlExecResult struct {
+	Columns      []string                 `json:"columns,omitempty"`
+	Rows         []map[string]interface{} `json:"rows,omitempty"`
+	RowCount     int                      `json:"row_count"`
+	RowsAffected int64                    `json:"rows_affected,omitempty"`
+}
+
+// executePGSQL executes an arbitrary SQL statement against a PostgreSQL
+// data source. Read-only statements (SELECT/SHOW/DESCRIBE/EXPLAIN) go
+// through QueryContext so the caller gets rows back; everything else uses
+// ExecContext and returns the affected-row count. The connection is
+// opened fresh per call (no pool reuse) because the data source may have
+// arbitrary credentials and we must not leak them across tenants.
+func executePGSQL(ds *models.DataSource, ctx context.Context, sqlStr, normalized string) (*sqlExecResult, error) {
+	dsn := buildPGDSN(ds)
+	conn, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open connection to %s: %w", ds.Name, err)
+	}
+	conn.SetMaxOpenConns(1)
+	conn.SetConnMaxLifetime(30 * time.Second)
+	defer conn.Close()
+
+	if isReadOnlySQL(normalized) {
+		rows, err := conn.QueryContext(ctx, sqlStr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		columns, _ := rows.Columns()
+		result := &sqlExecResult{
+			Columns: columns,
+			Rows:    []map[string]interface{}{},
+		}
+
+		for rows.Next() {
+			values := make([]interface{}, len(columns))
+			valuePtrs := make([]interface{}, len(columns))
+			for i := range values {
+				valuePtrs[i] = &values[i]
+			}
+			if err := rows.Scan(valuePtrs...); err != nil {
+				return nil, fmt.Errorf("scan row: %w", err)
+			}
+			row := make(map[string]interface{}, len(columns))
+			for i, col := range columns {
+				if b, ok := values[i].([]byte); ok {
+					row[col] = string(b)
+				} else {
+					row[col] = values[i]
+				}
+			}
+			result.Rows = append(result.Rows, row)
+		}
+		result.RowCount = len(result.Rows)
+		return result, nil
+	}
+
+	res, err := conn.ExecContext(ctx, sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	affected, _ := res.RowsAffected()
+	return &sqlExecResult{
+		RowsAffected: affected,
+		RowCount:     int(affected),
+	}, nil
 }
 
 func newExecutionRecord(_ context.Context, tenantID, userID, dataSourceID, dataSourceName, sql, status string, errMsg string, rowCount int, latency *float64) *models.QueryExecutionRecord {

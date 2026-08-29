@@ -708,3 +708,52 @@
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
   - PERM-6 — AI 端点权限定义（决策待定）
   - 死代码清理 — `database-devops` repository DS 方法 + models、`internal/identity/role/`
+
+### 2026-08-29（后端专项：P0-0 DBA ExecuteOrder 接真实 SQL 执行 — 把表单系统变数据库管理系统）
+
+> R7 终审将「DBA ExecuteOrder 接真实 SQL 执行」列为 P0-0——数据库域从 0 到 1 的三条关键路径之一。`internal/dba/service` 的 `ExecuteOrder` 原来是纯桩代码：只改状态为 `completed`、写 `"Execution completed"` 字符串，不连数据库、不执行 SQL。本批把它变成真的——拿到订单 → 找到数据源 → 连 PostgreSQL → 执行 SQL → 写入审计日志 → 更新订单状态。
+
+- ✅ **`internal/dba/service/service.go` — `ExecuteOrder` 从桩到真执行**
+  - 签名从 `ExecuteOrder(ctx, id)` 改为 `ExecuteOrder(ctx, tenantID, userID, id)`——对齐 `ExecuteDirectQuery` 模式，handler 跟进传 `tenant_id`/`user_id`
+  - 流程：`GetOrder` 取订单 → `ListDataSources(tenantID)` 遍历匹配 `order.Database` 找数据源 → 非 PostgreSQL 类型直接报错并标 `failed` → 调用新函数 `executePGSQL` → 60s 超时 → 执行结果 + 延迟写入 `QueryExecutionRecord` 审计日志 → 成功标 `completed`（result 为 JSON 序列化的 `sqlExecResult`）、失败标 `failed`（result 为错误信息）
+  - 新增 `sqlExecResult{Columns, Rows, RowCount, RowsAffected}` 结构体：只读语句返回列名+行数据，DML/DDL 返回受影响行数
+  - 新增 `executePGSQL(ds, ctx, sqlStr, normalized)` 函数：复用 `isReadOnlySQL` 判断（SELECT/SHOW/DESCRIBE/EXPLAIN/WITH…SELECT 走 `QueryContext` 返回列+行，其他走 `ExecContext` 返回 `RowsAffected`）；复用 `buildPGDSN` 构造连接串；每次开新连接（`SetMaxOpenConns(1)` + `SetConnMaxLifetime(30s)` + `defer conn.Close()`）避免跨租户泄漏凭据
+  - 新增 `encoding/json` import（序列化 `sqlExecResult` 到 order 的 `Result` 字段）
+  - 所有失败路径都写入审计日志并标记 order 为 `failed`——不静默失败
+
+- ✅ **`internal/dba/service/service_interface.go` — 签名跟进**
+  - `ExecuteOrder(ctx context.Context, tenantID, userID, id string) (*models.SqlOrder, error)`
+
+- ✅ **`internal/dba/handler/handler.go` + `handler_test.go` — 调用点跟进**
+  - handler：`c.GetString("tenant_id")` + `c.GetString("user_id")` 传入 service
+  - `fakeDbaService.ExecuteOrder` 签名对齐
+
+- ✅ **复用既有基础设施（零新依赖）**
+  - `buildPGDSN`（构造 PostgreSQL DSN，含 host/port/user/password/dbname/sslmode）
+  - `isReadOnlySQL`（只读判断：SELECT/SHOW/DESCRIBE/EXPLAIN/WITH…SELECT）
+  - `newExecutionRecord`（审计日志记录构造）
+  - `executePGQuery`（既有查询执行，本批新增 `executePGSQL` 是它的超集）
+  - `github.com/lib/pq` driver（已在 service 包导入）
+
+- ✅ **验证结果**
+  - `gofmt -l` 全干净
+  - `go build ./...` → ok
+  - `go vet ./internal/dba/...` → 干净
+  - `go test -c` 编译通过（handler + service 测试二进制均可编译）
+  - `/tmp/dba_handler.test` + `/tmp/dba_service.test` → 全 PASS
+  - `go test ./internal/dba/... ./internal/database-devops/... ./cmd/server/` → 全 PASS
+  - `go test ./...` → **545 包 ok / 0 FAIL**
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - **P0-0 剩余：备份/恢复/慢查询/Redis 采集接真实执行**（ARCH-0.10b + ARCH-0.15/0.16/0.17，6-9d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩，`internal/infrastructure/backup/` 的 `executeBackup` 仍是模拟执行
+  - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`——破坏性变更，需客户端迁移计划
+  - **ARCH-0.12**：datasource 补 ClickHouse / MongoDB 驱动
+  - **PERM-6**：AI 端点权限定义（决策待定）
+
+- 📌 **本轮明确未做（已排期）**
+  - ARCH-0.10b — 备份/恢复引擎真实现（3-5 天）
+  - ARCH-0.15/0.16/0.17 — 慢查询/Redis 采集接真实执行
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（需迁移计划）
+  - PERM-6 — AI 端点权限定义（决策待定）
+  - 死代码清理 — `database-devops` repository DS 方法 + models、`internal/identity/role/`

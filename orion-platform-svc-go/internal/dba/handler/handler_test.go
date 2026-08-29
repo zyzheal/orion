@@ -51,7 +51,7 @@ func (f *fakeDbaService) ExecuteDirectQuery(ctx context.Context, tenantID, userI
 	return &models.DirectQueryResponse{}, nil
 }
 
-func (f *fakeDbaService) ExecuteOrder(ctx context.Context, id string) (*models.SqlOrder, error) {
+func (f *fakeDbaService) ExecuteOrder(ctx context.Context, tenantID, userID, id string) (*models.SqlOrder, error) {
 	return &models.SqlOrder{}, nil
 }
 

@@ -10,8 +10,8 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 36 项 |
-| 🔴 待处理 | 4 项 P0 |
+| ✅ 已完成 | 37 项 |
+| 🔴 待处理 | 3 项 P0 |
 | 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
@@ -19,7 +19,7 @@
 
 ---
 
-## 二、已完成清单 (36 项)
+## 二、已完成清单 (37 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -59,6 +59,7 @@
 | ✅ | **ARCH-0.9 前端: `datasource.ts` 客户端** | 2026-08-29 | 后端已有 11 条带守卫路由，但前端无任何客户端，消费方各写各的 `fetch`；新增 `orion-frontend/src/api/datasource.ts`：**11 个类型化函数逐一对应 11 条后端路由**（list / types / health-all / get / health / create / update / delete / test / query / execute），每个函数尾注标注后端守卫（`datasource:read`/`write`/`execute`/`delete`）；10 个类型（`DataSourceType` 5 值、`DataSourceStatus` 4 值、`DataSource`、`DataSourceInput`、`QueryResult`、`DataSourceHealth`、`DataSourceListResponse`、`DataSourceHealthAllResponse`、`QueryArgs`）按 Go `models.go` 读字段而非猜；写清 4 条契约注记——`{success,data}` 信封由 `client.ts:67` 拦截器解包故函数直接 resolve 载荷、`password` 写时专用（Go 模型 `Password`/`PasswordEnc` 均 `json:"-"`，响应永不带凭据，ARCH-0.11 才是 database-devops 的明文问题）、`connMaxLifetime` 是 Go `time.Duration` 故 JSON 为纳秒整数、`List`/`HealthAll` 读 `c.GetString("tenant_id")` 空值即 401 `"tenant_id required"` 故须待 PERM-8 阶段 2；新增 `src/api/__tests__/datasource.test.ts` 11 条（每路由一条，断言精确 path 与载荷形状，含 `args = []` 默认值）→ vitest **11/11 PASS**、eslint `--max-warnings 0` 干净、`tsc --noEmit` **0 新增错误**（总数仍 45 且 0 条提及 datasource） |
 | ✅ | **ARCH-0.11 明文密码清理: database-devops 复用 datasource 加密模型** | 2026-08-29 | `internal/datasource/service` 原私持 40 行 AES-256-GCM 算法（`Key`/`Encrypt`/`Decrypt`）从未暴露给 `database-devops`，导致 `database-devops` 的 `DatabaseSource.Password` 以明文落库且 `POST /api/v1/database-devops/data-sources` 的 201 响应原样回显调用方密码（模型标签曾是 `json:"password,omitempty"`；`ListDataSources` 的 SELECT 本就不读该列故 list 路径从未泄漏，create 响应是唯一泄漏点）；本批抽出 `internal/shared/aesgcm`（`Key` 派生：64-hex 原样 / 其他 SHA-256；`Encrypt` 随机 nonce 前缀后 hex；`Decrypt` 验 GCM tag，错钥/篡改即失败），datasource 三助手改为单行委托（调用点与既有测试不变），database-devops `Service.key []byte` + `CreateDataSource` 加密前置 + `models.Password` 改 `json:"-"`（`db:"password"` 保留，`NamedExecContext` 绑定不变）+ `NewHandler(db *sqlx.DB, secretKey string)` 取与 `internal/datasource` **同一** `datasourceKey(logger)`（`DATASOURCE_SECRET_KEY` → `JWT_SECRET` → dev fallback，两模块同一把钥匙——`datasourceKey` 抽到 `cmd/server/wiring-datasource.go`，`wiring.go:628` 调用之）；新增 `aesgcm_test.go` 6 条（往返含 unicode/10KB、错钥、篡改一 bit、畸形输入、`Key` 派生含空密、nonce 非确定性）、`models_test.go` 2 条（反射断言 `json:"-"`/`db:"password"`/`binding:"required"` 标签 + 序列化输出不含 `password`/明文 + 非秘密字段仍序列化）、`service_test.go` 新增 `TestCreateDataSourceEncryptsPassword`（响应非明文、可解密回原文、错钥不解、落库行同密文、跨租户不可见）+ 7 处 `newServiceWithRepo(repo)` → `newServiceWithRepo(repo, testDSKey)` + `NewService(nil)` → `NewService(nil, testDSKey)` + fakeRepo 的 `CreateDataSource`/`ListDataSources` 改为真记录；**变异验证已做**：还原 `json:"password,omitempty"` → 3 条断言 FAIL（标签检查、明文回显、字段名），删除 `aesgcm.Encrypt` 调用 → "the response carries the caller's plaintext password" FAIL；恢复后 `gofmt -l` 全干净、`go build ./...` ok、`go vet` 干净、`go test ./internal/shared/aesgcm/ ./internal/database-devops/... ./internal/datasource/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL**（基线 543 + aesgcm 新包 + models 从无测试到有测试 = 545）。**未做**：ARCH-0.11b 三套数据源统一（删除 `/database-devops/data-sources` 重复端点）仍开放——本批只清了凭据路径 |
 | ✅ | **ARCH-0.11b 三套数据源统一: 删除 database-devops 重复 `/data-sources` 端点** | 2026-08-29 | `database-devops` handler 注册了 3 条重复数据源路由（`GET/POST/DELETE /database-devops/data-sources`），与 `internal/datasource` 的 `/data-sources`（11 条路由：list/types/health-all/get/health/create/update/delete/test/query/execute）完全重叠且功能更少（无 update/test/query/execute/health）；前端 0 处消费 `/database-devops/data-sources`（`grep -rn 'database-devops/data-sources' orion-frontend/src/` = 0）；本批删除 handler 3 条路由 + 3 个 handler 方法（`ListDataSources`/`CreateDataSource`/`DeleteDataSource`）+ service 3 个方法 + `repoInterface` 3 个接口方法 + `Service.key []byte` 字段 + `aesgcm` import，`NewHandler(db *sqlx.DB, secretKey string)` → `NewHandler(db *sqlx.DB)`、`NewService(db, secretKey)` → `NewService(db)`、`newServiceWithRepo(repo, secretKey)` → `newServiceWithRepo(repo)`；`wiring.go:631` 调用改为 `dbdevops_handler.NewHandler(infra.db.DB)`（不再传 `datasourceKey(logger)`）；`wiring-datasource.go` `datasourceKey` 文档注释更新（仅 `wireDatasource` 调用之）；`service_test.go` 移除 `aesgcm` import + `testDSKey` 常量 + fakeRepo 的 `dataSources` 字段与 3 个 DS 方法 + `TestCreateDataSourceEncryptsPassword`，7 处 `newServiceWithRepo(repo, testDSKey)` → `newServiceWithRepo(repo)`、`NewService(nil, testDSKey)` → `NewService(nil)`；repository 层 3 个 DS 方法 + models（`DatabaseSource`/`CreateDataSourceRequest`）保留为惰性类型（无 HTTP 路径可达，`models_test.go` 2 条标签断言仍 PASS）；路由 3447→3444（-3）、冲突 0、319 handler 不变；**变异验证已做**：临时恢复 1 条 `GET /data-sources` 路由 → 路由数 3444→3445（证明数量下降完全由本批删除引起），恢复后 3444；`gofmt -l` 全干净（`wiring.go` 保持原有 un-gofmt'd 状态不变）、`go build` ok、`go vet` 干净、`go test ./internal/database-devops/... ./internal/datasource/... ./internal/shared/aesgcm/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL** |
+| ✅ | **P0-0 DBA ExecuteOrder 接真实 SQL 执行** | 2026-08-29 | `internal/dba/service` 的 `ExecuteOrder` 原来是纯桩代码（只改状态为 `completed` + 写 `"Execution completed"` 字符串，不连数据库）；本批实现真实执行：`GetOrder` 取订单 → `ListDataSources(tenantID)` 遍历匹配 `order.Database` 找数据源 → 非 PostgreSQL 类型直接报错并标记 `failed` → 新增 `executePGSQL(ds, ctx, sql, normalized)` 函数：只读语句（`isReadOnlySQL` 判断 SELECT/SHOW/DESCRIBE/EXPLAIN/WITH…SELECT）走 `conn.QueryContext` 返回列名+行数据，DML/DDL 走 `conn.ExecContext` 返回 `RowsAffected` → 60s 超时 → 新增 `sqlExecResult{Columns, Rows, RowCount, RowsAffected}` 结构体，JSON 序列化后写入 order 的 `Result` 字段 → 执行结果 + 延迟写入 `QueryExecutionRecord` 审计日志 → 成功标 `completed`、失败标 `failed` + 错误信息；签名从 `ExecuteOrder(ctx, id)` 改为 `ExecuteOrder(ctx, tenantID, userID, id)`（对齐 `ExecuteDirectQuery` 模式），`ServiceInterface` + handler + `fakeDbaService` 三处跟进；复用既有 `buildPGDSN` / `isReadOnlySQL` / `newExecutionRecord` / `executePGQuery` 模式；`go build ./...` ok、`go vet` 干净、handler + service 测试全 PASS、`go test ./...` → **545 包 ok / 0 FAIL** |
 
 ---
 
@@ -70,7 +71,7 @@
 
 ---
 
-## 三、待处理 — P0 阻塞性 (4 项)
+## 三、待处理 — P0 阻塞性 (3 项)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -348,8 +349,8 @@ C. 完全缺失（企业必需）
 
 | 优先级 | 任务 | 工作量 |
 |--------|------|--------|
-| **P0-0** | **删除 database-devops 明文 `/data-sources` 端点**（堵数据泄露洞，比一切优先） | 0.5d |
-| **P0-0** | **DBA ExecuteOrder 接真实 SQL 执行**（复用 datasource.GetConnection / ExecuteDirectQuery 雏形）— 把表单系统变数据库管理系统 | 1-2d |
+| ~~**P0-0**~~ | ~~**删除 database-devops 明文 `/data-sources` 端点**（堵数据泄露洞，比一切优先）~~ ✅ **完成 2026-08-29** — ARCH-0.11b 已删除 3 条重复路由，`/data-sources`（internal/datasource）是唯一入口 | ~~0.5d~~ |
+| ~~**P0-0**~~ | ~~**DBA ExecuteOrder 接真实 SQL 执行**（复用 datasource.GetConnection / ExecuteDirectQuery 雏形）— 把表单系统变数据库管理系统~~ ✅ **完成 2026-08-29** — `ExecuteOrder` 从桩代码改为真实执行：按 `order.Database` 匹配数据源 → PostgreSQL 连接 → `executePGSQL`（只读语句走 `QueryContext` 返回行列，DML/DDL 走 `ExecContext` 返回受影响行数）→ 60s 超时 → 执行结果写入审计日志 + 更新 order 状态为 `completed`/`failed`；签名从 `ExecuteOrder(ctx, id)` 改为 `ExecuteOrder(ctx, tenantID, userID, id)`；新增 `sqlExecResult` 结构体 + `executePGSQL` 函数；handler 跟进传 `tenant_id`/`user_id`；545 包 0 FAIL | ~~1-2d~~ |
 | **P0-0** | **备份/恢复/慢查询/Redis 采集接真实执行**（ARCH-0.15/0.16/0.17） | 6-9d |
 
 > ✅ ARCH-0.11 明文密码清理 + ARCH-0.11b 三套数据源统一均已于 2026-08-29 完成（见上方已完成清单）。R4-3 最高风险点"重复端点 + 明文密码"两半全部关闭。

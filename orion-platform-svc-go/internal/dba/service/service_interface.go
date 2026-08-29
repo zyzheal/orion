@@ -18,7 +18,7 @@ type ServiceInterface interface {
 	CreateOrder(ctx context.Context, tenantID, userID string, req models.CreateOrderRequest) (*models.SqlOrder, error)
 	DeleteDataSource(ctx context.Context, id string) error
 	ExecuteDirectQuery(ctx context.Context, tenantID, userID string, req models.DirectQueryRequest) (*models.DirectQueryResponse, error)
-	ExecuteOrder(ctx context.Context, id string) (*models.SqlOrder, error)
+	ExecuteOrder(ctx context.Context, tenantID, userID, id string) (*models.SqlOrder, error)
 	GetDataSource(ctx context.Context, id string) (*models.DataSource, error)
 	GetOrder(ctx context.Context, id string) (*models.SqlOrder, error)
 	ListAuditRules(ctx context.Context, tenantID string) ([]models.AuditRule, error)
