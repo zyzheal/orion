@@ -405,3 +405,51 @@
   - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
   - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+
+---
+
+### 2026-08-29（后端专项：PERM-8 第一阶段 — 可选认证中间件上线，默认关闭）
+
+> 上一轮 PERM-7 撞出的 PERM-8 是 P0：平台服务从未挂过认证中间件，3640 处守卫全是死代码。本轮实施第一阶段——**非阻塞的可选认证**，默认关闭，用 `AUTH_OPTIONAL_ENABLED` 灰度开启。严格模式仍然是 `auth.Auth`，本轮**刻意不挂载**。
+
+- ✅ **认证逻辑抽成可复用的 `ParseClaims`（`orion-go-common/pkg/auth/middleware.go`）**
+  - 新增 `Claims` 结构体（`UserID` / `TenantID` / `Role` / `Roles` / `Status`）+ 三个哨兵错误 `ErrTokenInvalid` / `ErrTokenBadClaims` / `ErrTokenMissingSub`
+  - 新增 `jwtKeyfunc(cfg)` + `keyForMethod(method, cfg)`：算法白名单**从配置了哪些 key 派生**——`JWTSecret` 非空才允许 HS256，`JWTPublicKey` 非空才允许 RS256；两个都没配就没有任何方法可用，算法混淆攻击因此没有入口（原 `Auth` 的行内逻辑逐字搬出，行为不变）
+  - `ParseClaims(tokenString, cfg)`：`jwt.Parse` + `jwt.WithExpirationRequired()` 校验 → `jwt.MapClaims` 类型断言 → `sub` 必填 → 提取 `tenant_id` / `role` / `roles`（数组优先，缺省回退单 `role`）/ `status`（缺省 `"active"`）
+  - 两个刻意的设计决策，都写进了注释：**`tenant_id` 在这里不强制**（严格模式自己强制，可选模式必须能识别省略它的 token）；**黑名单不查**（黑名单是请求作用域的，需要 request context，由两个中间件各自负责）
+  - 新增 `applyClaims(c, claims)`：把身份同时写进 gin context（`user_id` / `tenant_id` / `role` / `roles` / `user_status`）和 request context（4 个 `ContextKey*`）。两个中间件共用这一个函数，所以它们对「一个 token 意味着什么」**不可能不一致**
+
+- ✅ **`Auth()` 改成薄封装，7 条 401 文案逐字保留**
+  - 原约 100 行行内 JWT 块替换为 `ParseClaims` + `applyClaims` + `tenant_id` 校验
+  - `ParseClaims` 把校验失败折叠成一个错误，`Auth` 里用 `switch` 把三个哨兵映射回原来的三条文案（`invalid or expired token` / `invalid token claims` / `token missing user ID`），加上 `Auth` 自己原有的四条文案（`missing authorization header` / `invalid authorization format, expected Bearer token` / `token has been revoked` / `token missing tenant ID`）——合计 7 条，严格模式调用方观察到的行为**零变化**
+  - `AuthConfig` 字段未动；全仓库 `auth.Auth(` 调用点共 16 处，其中 4 处 LIVE（`internal/identity/user`、`internal/config/internal/config`、`internal/notification/chatops`、`internal/monitoring/internal` 各自的 `middleware/middleware.go`），其余在 `blueprints/*.archived/` 与 `docs/archives/`，全部编译通过
+
+- ✅ **新增 `auth.OptionalAuth`：`Auth` 的非阻塞孪生**
+  - 契约：**从不 abort、从不 401、从不 403**。缺 header、非 Bearer 前缀、黑名单命中、`ParseClaims` 失败，一律 `c.Next()` 匿名放行
+  - 于是它**可以无客户端迁移地开关**：一个请求之前成功仍然成功；带守卫的请求**只能从 403 变 200，不可能从 200 变 401**。token 拼错降级成「无守卫路由的访问权」，不是硬失败
+  - 跳过路径（`SkipPaths`）、黑名单 key 格式（`token:blacklist:<token>`）、`applyClaims` 写入的身份全部与 `Auth` 对齐
+
+- ✅ **`cmd/server/router.go` 按环境变量挂载，默认关闭**
+  - `AUTH_OPTIONAL_ENABLED` 为 `1` 或 `true` 时才 `api.Use(auth.OptionalAuth(...))`，配置直接取 `infra.ffCfg.JWTSecret` 与 `infra.rdb`（测试里 `stubInfrastructure` 的 `rdb` 为 nil，黑名单自动跳过）
+  - 注释里写清了为什么**不挂严格模式**：`auth.Auth` 缺 header 就 401、缺 `tenant_id` claim 也 401，一上线就把整个无 token 客户端基础盘打穿。切严格模式是 PERM-8 的剩余工作，需要的是客户端迁移计划，不是一个 commit
+
+- ✅ **新增 `optional_auth_test.go`（3 个测试，覆盖契约的两半）**
+  - 测试工具：`signTestToken`（HS256，可选 `tenant_id` / `role` claim）、`newTestRouter`（`t.Setenv` 全套环境变量，走真实的 `stubInfrastructure` → `initWiring` → `setupRouter`）、`postRoles`（打一个有守卫的写端点）
+  - `TestOptionalAuthOffByDefault` — 环境变量关闭 → 403 + `no role assigned`
+  - `TestOptionalAuthDoesNotBreakTokenlessCallers` — 环境变量开启但无 token → **同样的 403、同样的响应体**（这是 flag 可以在生产翻而不需要迁移客户端的那条性质）；同时无守卫的 `GET /roles/permissions-map` → 200
+  - `TestOptionalAuthEnforcesGuardsForValidToken` — admin token（`*:*`）→ **不是** 403；viewer token → 403 + `insufficient permissions`（真的授权判断，不再是 `no role assigned`）；乱码 token → 403 + `no role assigned`（降级匿名而不是硬 401）；**不带 `tenant_id`** 的 admin token → **不是** 403
+  - GIN 日志实证：关 → 403；开 + 无 token → 403 且 permissions-map 200；开 + admin → **500**（守卫通过，打到 stub DB）；开 + viewer → 403；开 + 乱码 → 403；开 + 无 tenant 的 admin → **500**
+
+- ✅ **`roles_permissions_map_test.go` 反向断言保留但注释重写**
+  - 断言本身不动（仍然要求 403 + `no role assigned`），因为中间件默认关闭正是无 token 调用方继续工作的原因；注释与 `t.Log` 改为指向 `AUTH_OPTIONAL_ENABLED` 门控并交叉引用 `optional_auth_test.go`
+
+- ✅ **验证结果**
+  - `orion-go-common/pkg/auth`: `go build` + `go vet` + `go test -count=1` 全绿
+  - `orion-platform-svc-go`: `go build ./...` exit 0；`go test ./...` → **542 包 ok，0 FAIL**
+  - `cmd/server` 9 个测试全绿（新增 3 个）：`setupRouter assembled 3447 routes without panic`、`assembled 3451 routes; 0 registration conflicts`、`audited 765 guard pairs over 3640 call sites, 261 distinct resources, 310 module dirs`、`dumped per-handler route sets for 319 handlers`、`permissions-map served 44 roles` —— 与上一轮**逐字节一致**
+  - 格式：`pkg/auth/middleware.go` 与两个测试文件 gofmt 干净；`gofmt -l pkg/auth/` 与 `gofmt -l cmd/server/` 列出的既有未清理集合**未变**（`router.go` 本就在既有集合里，刻意未重排）
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - `RequirePermission` / `GetRole` 只读单角色 `c.Get("role")`，忽略 `auth.Auth` 与 `OptionalAuth` 都已经写进 context 的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义仍不一致。**本轮 Batch G 已经证明 `roles` 确实到达了 context**，所以这一步现在是纯后端改动，不再受认证缺失阻塞
+  - `/roles/permissions-map` 仍然无守卫（严格模式下必须补上，并翻转 `roles_permissions_map_test.go` 第 3 条断言）
+  - `internal/identity/role` 整包死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突、前端 API 面缺口——上一轮记录，本轮未动

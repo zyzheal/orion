@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 29 项 |
+| ✅ 已完成 | 30 项 |
 | 🔴 待处理 | 5 项 P0 |
-| 🟡 待处理 | 7 项 P1 |
+| 🟡 待处理 | 8 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **63 项** |
+| **总计** | **65 项** |
 
 ---
 
-## 二、已完成清单 (29 项)
+## 二、已完成清单 (30 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -52,6 +52,7 @@
 | ✅ | **ARCH-0.9 后端: datasource 模块接成 REST API** | 2026-08-29 | 从死代码 → 11 条带守卫路由 + repository + migration 551；路由 3414 → 3446 |
 | ✅ | **7 个死声明清理** | 2026-08-29 | 5 个按前缀归属删除、2 个（skillH / ai_knowledgeH）真正挂载；撞出并修掉 Gin 第二类 panic（同节点通配符 token 名冲突，2 处） |
 | ✅ | **PERM-7: 后端补 `GET /roles/permissions-map`** | 2026-08-29 | 新增 `auth.GetRolePermissionsMap()`（继承已展开、`_` 已归一）+ 标准 `{"success":true,"data":…}` 信封；前端 `usePermission.ts` 改 merge 不 replace；后端补 `admin` 角色别名（43→44）；新增 `roles_permissions_map_test.go`；路由 3446→3447、冲突 0。**连带撞出 PERM-8（见下）** |
+| ✅ | **PERM-8 阶段 1: 可选（非阻塞）认证中间件，默认关闭** | 2026-08-29 | `pkg/auth/middleware.go` 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改为薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**，带守卫的请求只能 403→200、不可能 200→401）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载，严格 `auth.Auth` **刻意不挂**（会 401 整个无 token 客户端盘）；新增 `optional_auth_test.go` 3 个测试；`cmd/server` 9 个测试全绿、542 包 0 FAIL、路由/守卫指标逐字节不变 |
 
 ---
 
@@ -63,7 +64,7 @@
 | ~~**P0-2** | Log 支柱缺失 | 交叉验证 | ~~核实为 stale claim: `internal/logging/` 模块完整 (handler.go 259行/10方法, wired in wiring.go+router.go, 6 REST endpoints)~~ | ✅ 2026-08-26 |
 | ~~**P0-3** | prompt-security 补 Repo 层 | 交叉验证 | ~~核实为 stale claim: `internal/prompt-security/repository/` 已存在 (322行/10方法), 已 wired to service~~ | ✅ 2026-08-26 |
 | ~~**P0-4** | alert-deduplication 补 Repo 层 | 交叉验证 | ~~核实为 stale claim: `internal/alert-deduplication/repository/` 已存在 (67行/2方法), 已 wired to service~~ | ✅ 2026-08-26 |
-| **PERM-8** | `/api/v1` 从未挂认证中间件 — 3640 处 `RequirePermission` 全部 403 | 权限审计 | `cmd/server/router.go` 对 `/api/v1` 只挂 7 个中间件（无 `auth.Auth`）；全仓库仅 `pkg/auth/middleware.go:173` 一处 `c.Set("role", …)`，位于 `auth.Auth` 内；平台 `internal/middleware/` 0 个认证中间件。认证原本在独立 auth 服务（`blueprints/orion-auth-svc.archived/`），归档时中间件未移植。修复需灰度方案：无 token 调用将立刻 401，`auth.Auth` 还强制 `tenant_id` claim；落地后要补 `/roles/permissions-map` 的守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言 | ⬜ 待做（2026-08-29 新发现） |
+| **PERM-8 阶段 2** | 把 `/api/v1` 切到严格 `auth.Auth` — 3640 处 `RequirePermission` 全部 403 | 权限审计 | 根因（阶段 1 已证实）：`cmd/server/router.go` 对 `/api/v1` 只挂 7 个中间件（无 `auth.Auth`）；全仓库仅 `pkg/auth/middleware.go` 一处 `c.Set("role", …)`，位于 `auth.Auth` 内；平台 `internal/middleware/` 0 个认证中间件。认证原本在独立 auth 服务（`blueprints/orion-auth-svc.archived/`），归档时中间件未移植。**阶段 1 已完成（2026-08-29）**：`auth.OptionalAuth` 默认关闭上线，`AUTH_OPTIONAL_ENABLED=1` 后带 token 的调用方即获得真实身份、守卫生效，无 token 调用方逐字不变（同一 403、同一响应体），可用环境变量灰度而无需迁移客户端。阶段 2 是破坏性变更：切 `auth.Auth` 后所有无 token 调用立刻 401，且 `auth.Auth` 强制 `tenant_id` claim；落地后要补 `/roles/permissions-map` 的守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言 | ⬜ 待做（**需客户端迁移计划，不是一个 commit**） |
 
 **P0 合计工作量**: 4.5-6 天
 
@@ -224,6 +225,44 @@
 
 **数据库类型实况修正**：datasource **宣称 5 种（PG/MySQL/ClickHouse/ES/MongoDB）实连仅 2 种（PG+MySQL）**（service.go 仅 import mysql+pgx 驱动，ClickHouse/ES/MongoDB 调用直接返回错误）；data-catalog 实连 3 种（PG/MySQL/SQLite）；DBA 执行/测试仅 PG（硬编码 postgres）。缺失企业级类型：Oracle/SQL Server/OceanBase/openGauss/TiDB。
 
+### 第六轮追加（企业级数据库管理能力深度分析，2026-08-29，ARCH-0.14~0.18）
+
+> 来源: `docs/dba-data-round6-enterprise-db-capabilities-2026-08-29.md` — 深度分析企业级数据库管理 5 大能力维度（容灾 DR / 备份 Backup / 性能调优 Performance / 数据库·Redis 监控 / 优化迁移 Migration），对照 Bytebase/Yearning/DataWorks/云厂商 RDS 管控
+> **核心洞察**: 企业级数据库管理 5 大能力中 **4 项为「部分具备」（均存在假数据 / 桩 / 重复 / 执行引擎缺失），1 项（迁移）完全缺失** — Orion 数据库域"框架完整、执行空心"：CRUD 和路由守卫齐全，但真正的数据库级能力（复制、切换、真实备份、真实采集、数据迁移）普遍是桩或缺失。
+
+**五维度能力矩阵**：
+
+```
+维度          已具备                    缺口                        等级
+容灾 DR       计划 CRUD+守卫+接线        执行引擎缺失(orchestrator孤立)  🟡 部分具备
+                                        + DefaultExecutor 跑 shell
+备份 Backup   两套真实系统(cron+verifier) 两套重复 + database-devops桩   🟡 部分具备(+重复)
+性能调优      调优框架完整(perfH 11路由)  慢查询采集假数据(APM fake)     🟡 部分具备
+监控          monitoring 完整+cache-monitor接线  Redis 硬编码假指标     🟡 部分具备(+假数据)
+                                           + cache-monitor 嵌套重复
+优化迁移      internal/migration 工具文件  无 handler/service/接线      🔴 缺失
+                                           + 无数据迁移/同步/校验
+```
+
+**R6 关键实况**：
+- **DR**：`internal/disaster-recovery/` 已接线（wiring.go:399 + router.go:838-839），6 条路由全带 `RequirePermission("disaster-recovery", ...)` 守卫；但 `NewService(repo)` 只接 repo，**orchestrator 未注入 service → 孤立**；`DefaultExecutor`（orchestrator.go:127-128）注释 `// DefaultExecutor is a stub...` 用 exec.Command 跑 shell → **无真实 PG 流复制/MySQL 主从切换/演练/RPO·RTO**
+- **备份**：存在**两套**真实系统（`internal/backup/` 15 路由 + `internal/infrastructure/backup/` 8 路由含 cron+verifier+私有 executeBackup+recovery_service）重复、无统一抽象；database-devops ExecuteBackup/ExecuteRestore 仍 `// TODO` 桩（R5-3 再确认）；`CreateDataSource` 明文 `Password: req.Password` + `/data-sources` HTTP 端点（R4-3 风险最高再确认）
+- **性能调优**：`internal/performance/` 已接线（router.go:407-408 wire 变量名 **perfH**），11 条路由全带 performance 守卫（baseline CRUD + /evaluate + /profile + /bottlenecks + /suggestions + /regression + /test-results），目录完整；但**慢查询采集缺失**（R5-2 APM GetSlowQueries 硬编码 3 条 fake）→ 调优框架完整、喂的是假数据
+- **监控**：顶层 `internal/cache-monitor/` 已接线 7 路由全带 `RequirePermission("monitor", ...)` 守卫；但 `internal/monitoring/internal/cache-monitor/` **未接线**且 `CollectMetrics` 在 `if name == "redis"` 分支**硬编码假指标**（ConnectionsActive=5/MemoryUsed=64MB/HitCount+=100/KeyCount=50000/AvgLatencyMs=0.5/P95LatencyMs=1.2）→ **无真实 Redis INFO 采集**；cache-monitor 存在嵌套重复
+- **迁移**：`internal/migration/` 仅工具文件（interfaces/models_json/utils/tenant_filter/version/watchdog/README），**无 handler/repository/service**；`cmd/server/` 对 migration 的引用仅在 config.go:83-108（schema 迁移工具配置，非 HTTP 模块）；无 schema diff/数据搬移/增量同步/一致性校验/回滚；前置依赖 ARCH-0.11 数据源统一
+
+| ID | 任务 | 解决缺口 | 优先级 | 工作量 |
+|----|------|---------|--------|--------|
+| ARCH-0.14 | **DR 执行引擎落地**：orchestrator 注入 service + 真实容灾执行（PG 流复制探测 / MySQL 主从切换 / 演练 / RPO·RTO 记录） | DR 执行缺失 | 🔴 高 | 3-4d |
+| ARCH-0.15 | **备份系统统一**：internal/backup + infrastructure/backup 合并为单一 backup 域，database-devops ExecuteBackup/ExecuteRestore 改接真实执行路径 | 备份重复 + R5-3 桩 | 🔴 高 | 2-3d |
+| ARCH-0.16 | **慢 SQL 真实采集**：dba/apm 接入 DB profiler（pg_stat_statements / performance_schema）替换 GetSlowQueries 假数据 | R5-2 + Performance 数据断裂 | 🔴 高 | 2d |
+| ARCH-0.17 | **Redis 真实监控**：cache-monitor 用 go-redis INFO/HitRate/Memory 采集替换硬编码假指标，删除未接线的 monitoring/internal/cache-monitor 重复 | Redis 假指标 + 重复 | 🔴 高 | 2d |
+| ARCH-0.18 | **Migration 能力建设**：internal/migration 补 service + 迁移/同步/校验/回滚 + handler 接线（schema diff + 数据搬移） | Migration 完全缺失 | 🟡 中 | 3-5d |
+
+**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（ARCH-0.14~0.17）→ 统一数据源（ARCH-0.11 前置）→ 再建迁移能力（ARCH-0.18），最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
+
+**验收标准**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`grep "TODO: Execute actual" internal/database-devops/` = 0；`grep "replace simulated data" internal/apm/` = 0；`grep "ConnectionsActive = 5" internal/monitoring/` = 0；`grep -rn "migration" cmd/server/` ≥1（非 config 引用）。
+
 ### P0 — 核心能力（17 项，原方案）
 
 | ID | 任务 | 模块 | 优先级 |
@@ -246,7 +285,7 @@
 | AI-06 | ETL DAG 生成 | data-pipeline | 🟡 |
 | AI-07 | 脱敏联动 Agent | data-masking | 🟡 |
 
-### 权限修复（PERM，8 项）
+### 权限修复（PERM，10 项）
 
 | ID | 任务 | 严重度 | 状态 |
 |----|------|--------|------|
@@ -257,7 +296,9 @@
 | ~~PERM-5~~ | 修拼写 data-mashing→data-masking + 命名统一 | 🟡 中 | ✅ 2026-08-29 — 第 30 行守卫修正；另加 `normResource()` 统一 4 组 `_`/`-` 拼写分叉 |
 | PERM-6 | AI 端点权限定义（新增 `:ai` action） | 🟡 中 | ⬜ 待做 |
 | ~~PERM-7~~ | 后端补 `GET /roles/permissions-map` | 🟡 中 | ✅ 2026-08-29 — 见上方已完成清单（路由 3446→3447） |
-| **PERM-8** | **`/api/v1` 接入认证中间件** — 平台服务从未挂过 `auth.Auth`，`c.Set("role", …)` 全仓库只有 `pkg/auth/middleware.go:173` 一处且在 `auth.Auth` 内，导致 **3640 处守卫对每个调用方都 403**（`GET /roles` 无守卫→500 可达，`POST /roles` 有守卫→403 "no role assigned"） | 🔴 高 | ⬜ 待做（2026-08-29 新发现；**破坏性变更，需灰度方案**：接上后所有无 token 调用立刻 401，且 `auth.Auth` 强制要求 `tenant_id` claim） |
+| ~~PERM-8 阶段 1~~ | **可选认证中间件上线（默认关闭）** — 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载 | 🔴 高 | ✅ 2026-08-29 — `OptionalAuth` 让带 token 的调用方获得真实身份、守卫真正生效；无 token 调用方逐字不变（同一 403、同一 `no role assigned` 响应体），带守卫请求**只能 403→200、不可能 200→401**；严格 `auth.Auth` 刻意不挂（会 401 整个无 token 客户端盘）；`optional_auth_test.go` 3 个测试 + 4 处 `auth.Auth` LIVE 调用点全部兼容 |
+| **PERM-8 阶段 2** | **切严格 `auth.Auth`** — 平台服务从未挂过 `auth.Auth`，`c.Set("role", …)` 全仓库只有 `pkg/auth/middleware.go` 一处且在 `auth.Auth` 内，导致 **3640 处守卫对每个调用方都 403**（`GET /roles` 无守卫→500 可达，`POST /roles` 有守卫→403 "no role assigned"） | 🔴 高 | ⬜ 待做（**破坏性变更，需客户端迁移计划**：接上后所有无 token 调用立刻 401，且 `auth.Auth` 强制要求 `tenant_id` claim；落地后要补 `/roles/permissions-map` 守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言） |
+| PERM-9 | **多角色语义对齐** — `RequirePermission` / `GetRole` 只读单角色 `c.Get("role")`，忽略 `auth.Auth` 与 `auth.OptionalAuth` 都已写进 context 的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义不一致 | 🟡 中 | ⬜ 待做（**PERM-8 阶段 1 已证明 `roles` 确实到达 context**，所以这一步是纯后端改动，不再受认证缺失阻塞；`GetRoles` 已存在且带单角色回退） |
 
 ### 前端工作台（UI，6 阶段 19 人天）
 

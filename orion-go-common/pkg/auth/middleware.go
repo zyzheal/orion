@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"crypto/rsa"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -41,9 +42,198 @@ type AuthConfig struct {
 	SkipPaths []string
 }
 
-// Auth returns a gin.HandlerFunc that validates JWT tokens.
-// It extracts user_id, tenant_id, and role from JWT claims and sets them in the gin.Context.
-// The JWT algorithm is restricted to HS256 to prevent algorithm confusion attacks.
+// Claims is the identity extracted from a verified JWT. It is the single
+// structure both Auth and OptionalAuth populate from, so the two middlewares
+// cannot disagree about what a token means.
+type Claims struct {
+	UserID   string
+	TenantID string
+	Role     string
+	Roles    []string
+	Status   string
+}
+
+// Parse failure reasons. Auth maps them back onto its original 401 messages so
+// strict callers observe no change after the ParseClaims extraction.
+var (
+	ErrTokenInvalid    = fmt.Errorf("invalid or expired token")
+	ErrTokenBadClaims  = fmt.Errorf("invalid token claims")
+	ErrTokenMissingSub = fmt.Errorf("token missing user ID")
+)
+
+// jwtKeyfunc builds the verification keyfunc from cfg. The algorithm allowlist
+// is derived from which keys are configured, which is what keeps alg-confusion
+// attacks out: with neither key set, no method is allowed.
+func jwtKeyfunc(cfg AuthConfig) jwt.Keyfunc {
+	return func(token *jwt.Token) (interface{}, error) {
+		allowedMethods := []string{}
+		if cfg.JWTSecret != "" {
+			allowedMethods = append(allowedMethods, "HS256")
+		}
+		if cfg.JWTPublicKey != nil {
+			allowedMethods = append(allowedMethods, "RS256")
+		}
+
+		method := token.Method.Alg()
+		for _, m := range allowedMethods {
+			if m == method {
+				return keyForMethod(token.Method, cfg)
+			}
+		}
+		return nil, jwt.ErrSignatureInvalid
+	}
+}
+
+// keyForMethod returns the signing key for an already-allowlisted method.
+func keyForMethod(method jwt.SigningMethod, cfg AuthConfig) (interface{}, error) {
+	switch method.(type) {
+	case *jwt.SigningMethodHMAC:
+		if cfg.JWTSecret == "" {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(cfg.JWTSecret), nil
+	case *jwt.SigningMethodRSA:
+		if cfg.JWTPublicKey == nil {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return cfg.JWTPublicKey, nil
+	default:
+		return nil, jwt.ErrSignatureInvalid
+	}
+}
+
+// ParseClaims verifies tokenString against cfg and extracts the identity claims.
+//
+// tenant_id is deliberately NOT required here: Auth enforces it itself, while
+// OptionalAuth must still be able to identify a token that omits it (setting
+// tenant_id only when present). The blacklist is not consulted here either — it
+// is a request-scoped concern (it needs the request context) owned by each
+// middleware.
+func ParseClaims(tokenString string, cfg AuthConfig) (*Claims, error) {
+	token, err := jwt.Parse(tokenString, jwtKeyfunc(cfg), jwt.WithExpirationRequired())
+	if err != nil || !token.Valid {
+		return nil, ErrTokenInvalid
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, ErrTokenBadClaims
+	}
+
+	userID, _ := claims["sub"].(string)
+	if userID == "" {
+		return nil, ErrTokenMissingSub
+	}
+
+	tenantID, _ := claims["tenant_id"].(string)
+	role, _ := claims["role"].(string)
+
+	// Multi-role support: "roles" array claim (preferred) or fallback to single "role"
+	var roles []string
+	if rolesRaw, ok := claims["roles"]; ok {
+		if rolesArr, ok := rolesRaw.([]interface{}); ok {
+			for _, r := range rolesArr {
+				if s, ok := r.(string); ok && s != "" {
+					roles = append(roles, s)
+				}
+			}
+		}
+	}
+	if len(roles) == 0 && role != "" {
+		roles = []string{role}
+	}
+
+	// Absent status claim means an active account, not a disabled one.
+	status, _ := claims["status"].(string)
+	if status == "" {
+		status = "active"
+	}
+
+	return &Claims{UserID: userID, TenantID: tenantID, Role: role, Roles: roles, Status: status}, nil
+}
+
+// applyClaims writes the identity into both the gin context and the request
+// context. Auth and OptionalAuth share it so downstream readers of either
+// ContextKey* or c.Get(...) see the same values.
+func applyClaims(c *gin.Context, claims *Claims) {
+	c.Set("user_id", claims.UserID)
+	c.Set("tenant_id", claims.TenantID)
+	c.Set("role", claims.Role)
+	c.Set("roles", claims.Roles)
+	c.Set("user_status", claims.Status)
+
+	ctx := context.WithValue(c.Request.Context(), ContextKeyUserID, claims.UserID)
+	ctx = context.WithValue(ctx, ContextKeyTenantID, claims.TenantID)
+	ctx = context.WithValue(ctx, ContextKeyRole, claims.Role)
+	ctx = context.WithValue(ctx, ContextKeyRoles, claims.Roles)
+	c.Request = c.Request.WithContext(ctx)
+}
+
+// OptionalAuth is the non-blocking twin of Auth. Callers that present a valid,
+// unrevoked token get user_id / tenant_id / role / roles in the context, so
+// auth.RequirePermission guards become real authorisation for them. Everyone
+// else continues anonymously.
+//
+// It never aborts, never 401s and never 403s, which makes it safe to switch on
+// without a client migration: a request that succeeded before still succeeds,
+// and a guarded request can only change from 403 to 200 — never from 200 to 401.
+// Missing or malformed headers are treated as anonymous rather than rejected,
+// so a token typo degrades to "no access to guarded routes" instead of a hard
+// failure. Strict enforcement is Auth, not this.
+func OptionalAuth(cfg AuthConfig) gin.HandlerFunc {
+	skipPaths := make(map[string]bool)
+	for _, p := range cfg.SkipPaths {
+		skipPaths[p] = true
+	}
+
+	return func(c *gin.Context) {
+		if skipPaths[c.Request.URL.Path] {
+			c.Next()
+			return
+		}
+
+		authHeader := c.GetHeader("Authorization")
+		if strings.TrimSpace(authHeader) == "" {
+			c.Next()
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			c.Next()
+			return
+		}
+
+		if cfg.RedisClient != nil {
+			blocked, err := cfg.RedisClient.Exists(c.Request.Context(), "token:blacklist:"+tokenString).Result()
+			if err == nil && blocked > 0 {
+				c.Next()
+				return
+			}
+		}
+
+		claims, err := ParseClaims(tokenString, cfg)
+		if err != nil {
+			c.Next()
+			return
+		}
+
+		applyClaims(c, claims)
+		c.Next()
+	}
+}
+
+// Auth is the strict authentication middleware. It returns 401 for a missing
+// or malformed Authorization header, a revoked token, a token that fails
+// verification, a token without a sub or tenant_id claim.
+//
+// Verification is delegated to ParseClaims, shared with OptionalAuth, so the two
+// cannot drift apart in how they read a token. Only two things are strict-mode
+// only: aborting on every failure instead of degrading to anonymous, and
+// requiring tenant_id.
+//
+// The accepted algorithms are restricted to HS256 / RS256 and derived from
+// which keys are configured, which is what prevents algorithm confusion.
 func Auth(cfg AuthConfig) gin.HandlerFunc {
 	skipPaths := make(map[string]bool)
 	for _, p := range cfg.SkipPaths {
@@ -78,109 +268,29 @@ func Auth(cfg AuthConfig) gin.HandlerFunc {
 		}
 
 		// Parse and validate JWT with algorithm restriction
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Build allowed methods list based on configured keys
-			allowedMethods := []string{}
-			if cfg.JWTSecret != "" {
-				allowedMethods = append(allowedMethods, "HS256")
+		claims, err := ParseClaims(tokenString, cfg)
+		if err != nil {
+			// ParseClaims collapses the verification failures; restore the
+			// original per-cause messages here so existing clients see no change.
+			msg := "invalid or expired token"
+			switch err {
+			case ErrTokenBadClaims:
+				msg = "invalid token claims"
+			case ErrTokenMissingSub:
+				msg = "token missing user ID"
 			}
-			if cfg.JWTPublicKey != nil {
-				allowedMethods = append(allowedMethods, "RS256")
-			}
-
-			// Check algorithm allowlist
-			method := token.Method.Alg()
-			allowed := false
-			for _, m := range allowedMethods {
-				if m == method {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				return nil, jwt.ErrSignatureInvalid
-			}
-
-			// Return key based on algorithm
-			switch token.Method.(type) {
-			case *jwt.SigningMethodHMAC:
-				if cfg.JWTSecret == "" {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return []byte(cfg.JWTSecret), nil
-			case *jwt.SigningMethodRSA:
-				if cfg.JWTPublicKey == nil {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return cfg.JWTPublicKey, nil
-			default:
-				return nil, jwt.ErrSignatureInvalid
-			}
-		},
-			jwt.WithExpirationRequired(),
-		)
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "invalid or expired token", nil))
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, msg, nil))
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "invalid token claims", nil))
-			return
-		}
-
-		// Extract and validate required claims
-		userID, _ := claims["sub"].(string)
-		if userID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "token missing user ID", nil))
-			return
-		}
-
-		tenantID, _ := claims["tenant_id"].(string)
-		if tenantID == "" {
+		// tenant_id is required only in strict mode: the platform authenticates
+		// per-tenant resources off it, while OptionalAuth works without one.
+		if claims.TenantID == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "token missing tenant ID", nil))
 			return
 		}
 
-		role, _ := claims["role"].(string)
-
-		// Parse multi-role support: "roles" array claim (preferred) or fallback to single "role"
-		var roles []string
-		if rolesRaw, ok := claims["roles"]; ok {
-			if rolesArr, ok := rolesRaw.([]interface{}); ok {
-				for _, r := range rolesArr {
-					if s, ok := r.(string); ok && s != "" {
-						roles = append(roles, s)
-					}
-				}
-			}
-		}
-		// Fallback: single role claim
-		if len(roles) == 0 && role != "" {
-			roles = []string{role}
-		}
-
-		// Extract user status claim (for disabled/suspended account detection)
-		userStatus, _ := claims["status"].(string)
-		if userStatus == "" {
-			userStatus = "active"
-		}
-
-		// Set values in gin context
-		c.Set("user_id", userID)
-		c.Set("tenant_id", tenantID)
-		c.Set("role", role)
-		c.Set("roles", roles)
-		c.Set("user_status", userStatus)
-
-		// Also set in request context for downstream use
-		ctx := context.WithValue(c.Request.Context(), ContextKeyUserID, userID)
-		ctx = context.WithValue(ctx, ContextKeyTenantID, tenantID)
-		ctx = context.WithValue(ctx, ContextKeyRole, role)
-		ctx = context.WithValue(ctx, ContextKeyRoles, roles)
-		c.Request = c.Request.WithContext(ctx)
-
+		applyClaims(c, claims)
 		c.Next()
 	}
 }

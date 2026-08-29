@@ -2,10 +2,12 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/observability"
 	ticket_handler "orion/platform-svc-go/internal/ticket/handler"
@@ -44,6 +46,26 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 	// Create /api/v1 group for all platform routes
 	api := r.Group("/api/v1")
 	{
+	// PERM-8 phase 1: optional (non-blocking) authentication, OFF by default.
+	//
+	// Nothing in this chain ever called c.Set("role", ...), so all 3640
+	// auth.RequirePermission guards answered 403 "no role assigned" to every
+	// caller — the guards were dead code, not authorisation. OptionalAuth
+	// authenticates callers who present a valid token and lets everyone else
+	// through anonymously, so the guards become real authorisation for
+	// authenticated callers while no unauthenticated caller can be newly 401'd.
+	//
+	// Strict mode is auth.Auth; it is deliberately NOT mounted here because it
+	// aborts on a missing header and on a missing tenant_id claim, which would
+	// 401 the entire token-less client base overnight. Switching to it is the
+	// remaining PERM-8 work and needs a client-migration plan, not a commit.
+	if os.Getenv("AUTH_OPTIONAL_ENABLED") == "1" || os.Getenv("AUTH_OPTIONAL_ENABLED") == "true" {
+		api.Use(auth.OptionalAuth(auth.AuthConfig{
+			JWTSecret:   infra.ffCfg.JWTSecret,
+			RedisClient: infra.rdb,
+		}))
+	}
+
   if abacH != nil {
     abacH.RegisterRoutes(api)
   }

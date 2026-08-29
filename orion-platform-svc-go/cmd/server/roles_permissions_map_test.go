@@ -21,10 +21,12 @@ import (
 // to the UI. This test pins the endpoint, the envelope shape, and the content.
 //
 // The final assertion is a deliberately inverted regression guard for the deeper
-// problem: setupRouter mounts /api/v1 with no authentication middleware in the
-// chain, so c.Get("role") is always empty and every auth.RequirePermission guard
-// answers 403 "no role assigned" to all callers. When authentication is wired
-// into the /api/v1 chain (PERM-8) that assertion must be flipped.
+// problem: with AUTH_OPTIONAL_ENABLED unset (the default), no middleware in the
+// /api/v1 chain ever calls c.Set("role", ...), so c.Get("role") is always empty
+// and every auth.RequirePermission guard answers 403 "no role assigned" to all
+// callers. optional_auth_test.go proves that flipping the env var makes the
+// guards real for token-bearing callers; this assertion stays true because the
+// middleware is off by default, which is what keeps token-less callers working.
 func TestRolesPermissionsMapServed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("JWT_SECRET", "test-secret")
@@ -92,7 +94,7 @@ func TestRolesPermissionsMapServed(t *testing.T) {
 	if !strings.Contains(w.Body.String(), "no role assigned") {
 		t.Fatalf("403 body no longer says 'no role assigned' — role resolution changed: %s", w.Body.String())
 	}
-	t.Log("PERM-8 confirmed: guarded routes reject every caller, no role is ever set")
+	t.Log("AUTH_OPTIONAL_ENABLED unset: guarded routes reject every caller, no role is ever set")
 }
 
 func containsPerm(perms []string, want string) bool {
