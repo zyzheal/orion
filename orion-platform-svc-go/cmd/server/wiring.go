@@ -625,7 +625,9 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		psH = promptSecurityH
 		// P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
 		agentsH = agents_handler.NewHandler(infra.db.DB)
-		dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB)
+		// database-devops stores data source passwords too (ARCH-0.11), so it must
+		// resolve the same AES-256 key as internal/datasource — see datasourceKey.
+		dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB, datasourceKey(logger))
 		gwRoutesH = gw_routes_handler.NewHandler(infra.db.DB)
 		rateLimitH = rate_limit_handler.NewHandler(infra.db.DB)
 		testReportsH = test_reports_handler.NewHandler(infra.db.DB)

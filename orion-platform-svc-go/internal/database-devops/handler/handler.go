@@ -16,8 +16,12 @@ type Handler struct {
 	svc *service.Service
 }
 
-func NewHandler(db *sqlx.DB) *Handler {
-	return &Handler{svc: service.NewService(db)}
+// NewHandler wires the module. secretKey is the AES-256 key for data source
+// passwords — cmd/server passes the same value it resolves for
+// internal/datasource, so both data source modules encrypt with one key
+// (ARCH-0.11).
+func NewHandler(db *sqlx.DB, secretKey string) *Handler {
+	return &Handler{svc: service.NewService(db, secretKey)}
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {

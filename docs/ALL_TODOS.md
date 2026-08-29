@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 34 项 |
+| ✅ 已完成 | 35 项 |
 | 🔴 待处理 | 5 项 P0 |
 | 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **67 项** |
+| **总计** | **68 项** |
 
 ---
 
-## 二、已完成清单 (34 项)
+## 二、已完成清单 (35 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -57,6 +57,7 @@
 | ✅ | **P1-3: chaos 三模块合并**（核实完成，无代码改动） | 2026-08-29 | `wireChaosEngine`（wiring-chaos-engine.go）已把 chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行) 接进同一个 `chaos_engine_handler.NewHandler(chaosSvc, chaosEnhancedSvc, chaosGatewaySvc)`；facade 挂 `/chaos` 组共 32 条路由、32 处 `auth.RequirePermission("chaos", …)` 守卫，三个子 handler 全部实际调用（chaosH×18 / enhancedH×7 / gatewayH×7）；`router.go` 挂载 `chaosEngineH` 并在注册点注释说明三个 legacy handler 刻意不注册（重复挂同一 `(method, path)` 会让 Gin panic）；已被 `route_dump_test.go` + `route_conflict_scan_test.go` 覆盖（0 conflicts） |
 | ✅ | **ARCH-0.10 剩余: database-devops 备份/恢复契约测试** | 2026-08-29 | `service.go` 抽出包私有 `repoInterface`（10 方法，与 `repository.Repository` 一一对应）+ 仅测试用 `newServiceWithRepo`，生产仍走 `NewService(db *sqlx.DB)`，**外部调用点 0 处改动**；新增 `service_test.go` 8 条契约测试（状态生命周期 `running→completed`、结果回读与落库一致、not-found 无副作用、**坏配置在置 running 之前失败**、空配置仍完成、每一次调用的租户作用域、`NewService(nil)` 容错），fakeRepo 记录调用序列因此能断言顺序而非仅最终值；**变异验证已做**：把最终 `UpdateStatus` 的 `completed` 改成 `failed` 后 `TestExecuteBackup_StatusLifecycle` 实测 FAIL 于两条预期断言，恢复后 8/8 PASS；`go test ./...` → 543 包 ok / 0 FAIL。**注意：这是契约测试，不是实现**——`ExecuteBackup`/`ExecuteRestore` 仍是桩（见下方第五轮 R5-3） |
 | ✅ | **ARCH-0.9 前端: `datasource.ts` 客户端** | 2026-08-29 | 后端已有 11 条带守卫路由，但前端无任何客户端，消费方各写各的 `fetch`；新增 `orion-frontend/src/api/datasource.ts`：**11 个类型化函数逐一对应 11 条后端路由**（list / types / health-all / get / health / create / update / delete / test / query / execute），每个函数尾注标注后端守卫（`datasource:read`/`write`/`execute`/`delete`）；10 个类型（`DataSourceType` 5 值、`DataSourceStatus` 4 值、`DataSource`、`DataSourceInput`、`QueryResult`、`DataSourceHealth`、`DataSourceListResponse`、`DataSourceHealthAllResponse`、`QueryArgs`）按 Go `models.go` 读字段而非猜；写清 4 条契约注记——`{success,data}` 信封由 `client.ts:67` 拦截器解包故函数直接 resolve 载荷、`password` 写时专用（Go 模型 `Password`/`PasswordEnc` 均 `json:"-"`，响应永不带凭据，ARCH-0.11 才是 database-devops 的明文问题）、`connMaxLifetime` 是 Go `time.Duration` 故 JSON 为纳秒整数、`List`/`HealthAll` 读 `c.GetString("tenant_id")` 空值即 401 `"tenant_id required"` 故须待 PERM-8 阶段 2；新增 `src/api/__tests__/datasource.test.ts` 11 条（每路由一条，断言精确 path 与载荷形状，含 `args = []` 默认值）→ vitest **11/11 PASS**、eslint `--max-warnings 0` 干净、`tsc --noEmit` **0 新增错误**（总数仍 45 且 0 条提及 datasource） |
+| ✅ | **ARCH-0.11 明文密码清理: database-devops 复用 datasource 加密模型** | 2026-08-29 | `internal/datasource/service` 原私持 40 行 AES-256-GCM 算法（`Key`/`Encrypt`/`Decrypt`）从未暴露给 `database-devops`，导致 `database-devops` 的 `DatabaseSource.Password` 以明文落库且 `POST /api/v1/database-devops/data-sources` 的 201 响应原样回显调用方密码（模型标签曾是 `json:"password,omitempty"`；`ListDataSources` 的 SELECT 本就不读该列故 list 路径从未泄漏，create 响应是唯一泄漏点）；本批抽出 `internal/shared/aesgcm`（`Key` 派生：64-hex 原样 / 其他 SHA-256；`Encrypt` 随机 nonce 前缀后 hex；`Decrypt` 验 GCM tag，错钥/篡改即失败），datasource 三助手改为单行委托（调用点与既有测试不变），database-devops `Service.key []byte` + `CreateDataSource` 加密前置 + `models.Password` 改 `json:"-"`（`db:"password"` 保留，`NamedExecContext` 绑定不变）+ `NewHandler(db *sqlx.DB, secretKey string)` 取与 `internal/datasource` **同一** `datasourceKey(logger)`（`DATASOURCE_SECRET_KEY` → `JWT_SECRET` → dev fallback，两模块同一把钥匙——`datasourceKey` 抽到 `cmd/server/wiring-datasource.go`，`wiring.go:628` 调用之）；新增 `aesgcm_test.go` 6 条（往返含 unicode/10KB、错钥、篡改一 bit、畸形输入、`Key` 派生含空密、nonce 非确定性）、`models_test.go` 2 条（反射断言 `json:"-"`/`db:"password"`/`binding:"required"` 标签 + 序列化输出不含 `password`/明文 + 非秘密字段仍序列化）、`service_test.go` 新增 `TestCreateDataSourceEncryptsPassword`（响应非明文、可解密回原文、错钥不解、落库行同密文、跨租户不可见）+ 7 处 `newServiceWithRepo(repo)` → `newServiceWithRepo(repo, testDSKey)` + `NewService(nil)` → `NewService(nil, testDSKey)` + fakeRepo 的 `CreateDataSource`/`ListDataSources` 改为真记录；**变异验证已做**：还原 `json:"password,omitempty"` → 3 条断言 FAIL（标签检查、明文回显、字段名），删除 `aesgcm.Encrypt` 调用 → "the response carries the caller's plaintext password" FAIL；恢复后 `gofmt -l` 全干净、`go build ./...` ok、`go vet` 干净、`go test ./internal/shared/aesgcm/ ./internal/database-devops/... ./internal/datasource/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL**（基线 543 + aesgcm 新包 + models 从无测试到有测试 = 545）。**未做**：ARCH-0.11b 三套数据源统一（删除 `/database-devops/data-sources` 重复端点）仍开放——本批只清了凭据路径 |
 
 ---
 
@@ -218,7 +219,8 @@
 |----|------|---------|--------|--------|
 | ~~ARCH-0.9~~ | datasource 补 handler 层 + 路由接线 | R4-1 | ✅ **完成 2026-08-29** — 后端: 11 条带守卫路由 `/api/v1/data-sources` + repository 实现 + wiring + migration 551；前端: `src/api/datasource.ts` 11 个类型化函数 + 10 个类型 + 11 条测试（见上方已完成清单） | 2d |
 | ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | ✅ **完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；备份/恢复**契约**测试已完成（8 条，`internal/database-devops/service/service_test.go`，变异验证已做） | 1.5d |
-| ARCH-0.11 | **三套数据源统一 + 明文密码清理**（database-devops 复用 datasource 加密模型，删除 `/data-sources` 明文端点） | R4-3 + IX-8 | 🔴 高 | 2d |
+| ~~ARCH-0.11a~~ | **明文密码清理**（database-devops 复用 datasource 加密模型） | R4-3 | ✅ **完成 2026-08-29** — `internal/shared/aesgcm` 共享实现 + `models.Password` 改 `json:"-"` + `CreateDataSource` 加密前置 + `datasourceKey` 两模块同一把钥匙；见上方已完成清单 | 0.5d |
+| ARCH-0.11b | **三套数据源统一**（删除 `/database-devops/data-sources` 重复端点，消费方迁至 `/data-sources`） | IX-8 | 🔴 高 | 1.5d |
 | ARCH-0.12 | **datasource 补 ClickHouse/MongoDB 驱动**（宣称 5 → 实连 5） | R4-2 | 🟡 中 | 1.5d |
 | ~~ARCH-0.13~~ | **库表权限授予用户（SQL 级 GRANT）能力盘点** | R5-1 | 🔴 高 | ✅ 2026-08-29 已核实缺失 → 设计待排期 |
 
@@ -274,6 +276,82 @@
 **第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（ARCH-0.14~0.17）→ 统一数据源（ARCH-0.11 前置）→ 再建迁移能力（ARCH-0.18），最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
 
 **验收标准**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`grep "TODO: Execute actual" internal/database-devops/` = 0；`grep "replace simulated data" internal/apm/` = 0；`grep "ConnectionsActive = 5" internal/monitoring/` = 0；`grep -rn "migration" cmd/server/` ≥1（非 config 引用）。
+
+### 第七轮追加（企业级能力盘点总结，2026-08-29，R4-1/R4-4 状态修正 + schema-registry 新发现）
+
+> 来源: 第七轮总结「当前已经具备企业所需的数据库哪些能力以及缺失进行分析」— 对 ~19 个数据库相关模块做接线实况 + 桩实现 + 驱动能力实测，按企业级能力维度归并为 **A 具备 / B 空心 / C 缺失** 三类。
+> **接线实况更新**：R4-1（datasource 未接线）、R4-4（database-devops 0 守卫）**均已解决并在此确认**；新增 schema-registry 未接线发现。
+
+**接线实况修正表**：
+
+| 结论 | 状态 |
+|------|------|
+| R4-1 datasource 完全未接线 🔴 | ✅ **已解决**：wiring-datasource.go + handler 11 路由全守卫 + repository + migration 551 + 前端 `src/api/datasource.ts`（11 函数 + 10 类型 + 11 测试） |
+| R4-4 database-devops 0 守卫 🔴 | ✅ **已解决**：现 10 个 `RequirePermission`（read/write/delete/execute）+ 契约测试 8 条 |
+| R4-2 宣称 5 实连 2（仅 mysql+pgx 驱动） | 🔴 仍成立 |
+| R5-2 慢 SQL 假数据（APM GetSlowQueries 硬编码 3 条 fake） | 🔴 仍成立 |
+| R5-3 备份/恢复桩（database-devops ExecuteBackup/ExecuteRestore `// TODO`） | 🔴 仍成立（真实现 → ARCH-0.15） |
+| R6 DR orchestrator DefaultExecutor stub / Redis 假指标 / migration 未接线 | 🔴 仍成立（→ ARCH-0.14/0.17/0.18） |
+| 🆕 **schema-registry 未接线** | 🔴 `grep -n schema-registry cmd/server/` = 0，未挂载到服务入口 |
+
+**17 类企业级能力矩阵（✅ 具备 / 🟡 空心 / 🔴 缺失）**：
+
+```
+A. 真实具备（数据治理层为主）
+  A1 数据目录/Schema发现   data-catalog 3 introspector(PG/MySQL/SQLite) 已接线 9守卫
+  A2 数据质量规则          data-quality evaluator.go 6规则执行器         已接线 13守卫
+  A3 血缘/分类/掩码        data-lineage/classification/masking           均已接线+全守卫
+  A4 BI 仪表盘+报表        bi-dashboard/report-designer                  已接线
+  A5 元数据管理            metadata                                      已接线 8守卫
+  A6 权限体系              orion-go-common/pkg/auth                      RBAC+ABAC+审计 完备
+  A7 统一数据源连接管理    datasource 11路由全守卫+前端客户端             ✅ (R4-1 已解决)
+  A8 AES-256-GCM 密码加密  datasource service PasswordEnc                 已实现
+
+B. 部分具备但"执行空心"（框架在、真实执行缺失）
+  B1 慢 SQL 采集          APM GetSlowQueries 硬编码 fake                 → ARCH-0.16
+  B2 备份/恢复            database-devops ExecuteBackup/Restore TODO桩   → ARCH-0.15
+  B3 容灾 DR              disaster-recovery orchestrator DefaultExecutor stub → ARCH-0.14
+  B4 Redis 监控           monitoring/internal/cache-monitor 硬编码假指标 → ARCH-0.17
+  B5 性能调优             performance 11路由全守卫但喂假数据(B1)          → ARCH-0.16
+  B6 备份第二套           internal/infrastructure/backup 与 backup 重复  → ARCH-0.15
+  B7 自动化调度引擎       internal/cron 引擎完整但数据域未接入           → R5-4/R5-5
+  B8 数据管道             data-pipeline 仅手动触发无调度器               → R5-4
+
+C. 完全缺失（企业必需）
+  C1 数据库类型支持       宣称5实连2 + dba硬编码PG + Oracle/SQL Server/OceanBase/openGauss/TiDB全缺 → ARCH-0.12/0.3/0.4
+  C2 数据迁移 Migration   internal/migration 仅工具文件 cmd/server零引用 → ARCH-0.18
+  C3 SQL级 GRANT 授权    全项目无SQL GRANT(仅平台RBAC)                   → ARCH-0.13
+  C4 建库/建仓           无 CREATE DATABASE/数仓                         → R5-4
+  C5 Redis 真实监控      顶层 cache-monitor已接线但无真实 go-redis INFO → ARCH-0.17
+  C6 AI 智能化           Text2SQL/SQLAdvisor/IndexAdvisor/NL→BI 全缺    → DBA-01~04/DM-04
+```
+
+**核心结论**：17 类企业级数据库能力中 **8 项真实具备（数据治理层）→ 8 项"框架完整、执行空心"（慢SQL/备份/容灾/Redis 监控/调优/自动化全在假数据或桩上）→ 6 项完全缺失（多库型/迁移/GRANT/建仓/AI）**。真实现状打分：数据治理层 ≈7/10 真实可用；数据库操作层 ≈2/10（多为壳）；AI 层 = 0/10。即 **"看数"能力有、"管数"能力半、"治数/用数"能力缺**。
+
+**新增待办**：ARCH-0.19 **schema-registry 接线**（补 handler + wiring 挂载 + 守卫，🟡 中，1-1.5d）。
+
+### 第七轮终审（领域专家，2026-08-29）
+
+> 一句话判断：**全平台没有一条真实执行 SQL 的路径** — 这不是"缺 AI"或"部分具备"，而是数据库操作域的**存亡问题**：DBA 工单"执行"不执行 SQL、备份"完成"不备份数据、慢查询"分析"喂硬编码数字。Orion 数据库域是**表单管理系统**，不是数据库管理系统。
+> 操作层得分修正：**2/10 → 0/10**（执行 SQL=0、产生备份文件=0、容灾执行=0、Redis 采集=0、慢查询采集=0 → 该维度就是 0，前几轮"框架完整性"误当能力计分）。
+
+**三大命门（代码级实证）**：
+
+| 命门 | 证据 | 影响 |
+|------|------|------|
+| 🔴 **审批"执行"不跑 SQL** | `internal/dba/service/service.go:92-95` `ExecuteOrder` 直接 `UpdateOrderStatus(...,"completed",...)` + 硬编码 `result := "Execution completed"` — **无任何 sql.DB 调用** | 全平台唯一 DBA 执行路径为零；整个工单闭环（提交→审批→执行）是假的 |
+| 🔴 **明文口令端点仍在线** | `internal/database-devops/service/service.go:200` `Password: req.Password` 明文存储 + `handler.go:35-37` `/data-sources` GET/POST/DELETE 仍挂载；router.go:1100-1101 注释自认"dbdevopsH keeps its own nested /database-devops/data-sources pair above" | AES-256-GCM 加密体系与明文体系**双轨运行**；最接近真实数据泄露的洞，至今原样存在 |
+| 🔴 **备份/恢复仍是 TODO 桩** | `service.go:143/:177` `// TODO: Execute actual backup/restore based on cfg` — 返回占位 `Status:"completed"` | 数据库无任何备份文件产生 |
+
+**待办优先级重排**：以下三条 = 数据库域从 0 到 1 的唯一关键路径，**先于一切 ARCH-0.x**：
+
+| 优先级 | 任务 | 工作量 |
+|--------|------|--------|
+| **P0-0** | **删除 database-devops 明文 `/data-sources` 端点**（堵数据泄露洞，比一切优先） | 0.5d |
+| **P0-0** | **DBA ExecuteOrder 接真实 SQL 执行**（复用 datasource.GetConnection / ExecuteDirectQuery 雏形）— 把表单系统变数据库管理系统 | 1-2d |
+| **P0-0** | **备份/恢复/慢查询/Redis 采集接真实执行**（ARCH-0.15/0.16/0.17） | 6-9d |
+
+> ⚠️ ARCH-0.11 明文清理半已于 2026-08-29 完成（见上方已完成清单）；ARCH-0.11b 三套数据源统一仍为最高优先级之一 — R4-3 最高风险点的"重复端点"半至今原样存在。
 
 ### P0 — 核心能力（17 项，原方案）
 

@@ -8,7 +8,13 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/database-devops/models"
+	"orion/platform-svc-go/internal/shared/aesgcm"
 )
+
+// testDSKey is the AES-256 secret the tests derive their key from. It must differ
+// from the production fallback so a test cannot pass by accidentally using the
+// dev key cmd/server falls back to when no secret is configured.
+const testDSKey = "test-datasource-secret"
 
 // ARCH-0.10, remainder: backup / restore coverage.
 //
@@ -29,6 +35,10 @@ type fakeRepo struct {
 	statuses []call   // UpdateStatus calls, in order
 	results  []call
 	deletes  []string
+
+	// dataSources mirrors what repository.CreateDataSource would have written, so
+	// the encryption test can assert on the row rather than on the response only.
+	dataSources []models.DatabaseSource
 }
 
 type call struct{ tenantID, id, value string }
@@ -93,9 +103,18 @@ func (f *fakeRepo) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeRepo) CreateDataSource(ctx context.Context, ds *models.DatabaseSource) error { return nil }
+func (f *fakeRepo) CreateDataSource(ctx context.Context, ds *models.DatabaseSource) error {
+	f.dataSources = append(f.dataSources, *ds)
+	return nil
+}
 func (f *fakeRepo) ListDataSources(ctx context.Context, tenantID string) ([]models.DatabaseSource, error) {
-	return nil, nil
+	var out []models.DatabaseSource
+	for _, ds := range f.dataSources {
+		if ds.TenantID == tenantID {
+			out = append(out, ds)
+		}
+	}
+	return out, nil
 }
 func (f *fakeRepo) DeleteDataSource(ctx context.Context, tenantID, id string) error { return nil }
 
@@ -103,7 +122,7 @@ func TestExecuteBackup_StatusLifecycle(t *testing.T) {
 	repo := newFakeRepo()
 	cfg := `{"backup_type":"wal","compress_level":6,"destination":"s3","retain_days":14}`
 	repo.seed("t1", "op1", cfg, "db-42")
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	result, err := svc.ExecuteBackup(context.Background(), "t1", "op1")
 	if err != nil {
@@ -168,7 +187,7 @@ func TestExecuteBackup_StatusLifecycle(t *testing.T) {
 
 func TestExecuteBackup_NotFoundDoesNotTouchStatus(t *testing.T) {
 	repo := newFakeRepo()
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	_, err := svc.ExecuteBackup(context.Background(), "t1", "missing")
 	if err == nil || !strings.Contains(err.Error(), "operation not found") {
@@ -182,7 +201,7 @@ func TestExecuteBackup_NotFoundDoesNotTouchStatus(t *testing.T) {
 func TestExecuteBackup_InvalidConfigFailsBeforeRunning(t *testing.T) {
 	repo := newFakeRepo()
 	repo.seed("t1", "op2", "{not json", "db-9")
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	_, err := svc.ExecuteBackup(context.Background(), "t1", "op2")
 	if err == nil || !strings.Contains(err.Error(), "parse backup config") {
@@ -197,7 +216,7 @@ func TestExecuteBackup_InvalidConfigFailsBeforeRunning(t *testing.T) {
 func TestExecuteBackup_EmptyConfigStillCompletes(t *testing.T) {
 	repo := newFakeRepo()
 	repo.seed("t1", "op3", "", "db-1")
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	result, err := svc.ExecuteBackup(context.Background(), "t1", "op3")
 	if err != nil {
@@ -211,7 +230,7 @@ func TestExecuteBackup_EmptyConfigStillCompletes(t *testing.T) {
 func TestExecuteRestore_StatusLifecycleAndTenantScoping(t *testing.T) {
 	repo := newFakeRepo()
 	repo.seed("t1", "r1", `{"backup_id":"b-7","point_in_time":"2026-08-26T00:00:00Z","dry_run":true}`, "db-1")
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	if err := svc.ExecuteRestore(context.Background(), "t1", "r1"); err != nil {
 		t.Fatalf("ExecuteRestore returned error: %v", err)
@@ -249,7 +268,7 @@ func TestExecuteRestore_StatusLifecycleAndTenantScoping(t *testing.T) {
 
 func TestExecuteRestore_NotFound(t *testing.T) {
 	repo := newFakeRepo()
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	if err := svc.ExecuteRestore(context.Background(), "t1", "missing"); err == nil ||
 		!strings.Contains(err.Error(), "operation not found") {
@@ -263,7 +282,7 @@ func TestExecuteRestore_NotFound(t *testing.T) {
 func TestExecuteRestore_InvalidConfigFailsBeforeRunning(t *testing.T) {
 	repo := newFakeRepo()
 	repo.seed("t1", "r2", "{not json", "db-2")
-	svc := newServiceWithRepo(repo)
+	svc := newServiceWithRepo(repo, testDSKey)
 
 	if err := svc.ExecuteRestore(context.Background(), "t1", "r2"); err == nil ||
 		!strings.Contains(err.Error(), "parse restore config") {
@@ -274,10 +293,72 @@ func TestExecuteRestore_InvalidConfigFailsBeforeRunning(t *testing.T) {
 	}
 }
 
+// ARCH-0.11: data source passwords used to be written to the database in plaintext
+// and echoed back to the caller verbatim in the create response. This test pins both
+// halves: the row must hold ciphertext, and the response object must not hold the
+// plaintext (the handler answers 201 with this very struct).
+func TestCreateDataSourceEncryptsPassword(t *testing.T) {
+	repo := newFakeRepo()
+	svc := newServiceWithRepo(repo, testDSKey)
+
+	ds, err := svc.CreateDataSource(context.Background(), "t1", &models.CreateDataSourceRequest{
+		Name: "analytics", Type: "postgres", Host: "db.internal", Port: 5432,
+		Database: "orion", Username: "app", Password: "hunter2-secret",
+	})
+	if err != nil {
+		t.Fatalf("CreateDataSource returned error: %v", err)
+	}
+	if ds.ID == "" {
+		t.Error("CreateDataSource did not assign an ID")
+	}
+
+	if ds.Password == "hunter2-secret" {
+		t.Fatal("the response carries the caller's plaintext password")
+	}
+	if ds.Password == "" {
+		t.Fatal("Password is empty — the ciphertext was dropped")
+	}
+
+	plain, err := aesgcm.Decrypt(aesgcm.Key(testDSKey), ds.Password)
+	if err != nil {
+		t.Fatalf("the returned Password does not decrypt under the module key: %v", err)
+	}
+	if plain != "hunter2-secret" {
+		t.Errorf("decrypted Password = %q, want the original", plain)
+	}
+
+	// A different key must not decrypt it, so the value is genuinely sealed rather
+	// than a pass-through with a cosmetic suffix.
+	if other, err := aesgcm.Decrypt(aesgcm.Key("some-other-secret"), ds.Password); err == nil {
+		t.Errorf("ciphertext decrypted under a different key (%q)", other)
+	}
+
+	// The row must hold the same ciphertext the response did.
+	got, err := svc.ListDataSources(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("ListDataSources errored: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("ListDataSources returned %d rows, want 1", len(got))
+	}
+	if got[0].Password != ds.Password {
+		t.Errorf("persisted Password = %q, returned = %q — the row and the response disagree",
+			got[0].Password, ds.Password)
+	}
+	if got[0].Password == "hunter2-secret" {
+		t.Error("the persisted row still holds plaintext")
+	}
+
+	// Tenant scoping still holds for data sources.
+	if other, err := svc.ListDataSources(context.Background(), "other-tenant"); err != nil || len(other) != 0 {
+		t.Errorf("another tenant sees %d rows (err %v), want 0", len(other), err)
+	}
+}
+
 // NewService(nil) is how the platform wires this module when no DB is available
 // (repository.Repository no-ops on a nil sqlx.DB). That path must not panic.
 func TestNewServiceNilDBIsTolerated(t *testing.T) {
-	svc := NewService(nil)
+	svc := NewService(nil, testDSKey)
 	items, err := svc.ListOperations(context.Background(), "t1")
 	if err != nil {
 		t.Fatalf("ListOperations with a nil DB errored: %v", err)

@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/database-devops/models"
 	"orion/platform-svc-go/internal/database-devops/repository"
+	"orion/platform-svc-go/internal/shared/aesgcm"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -33,18 +34,26 @@ type repoInterface interface {
 // Service implements database DevOps business logic
 type Service struct {
 	repo repoInterface
+
+	// key encrypts DatabaseSource.Password at rest. ARCH-0.11: the password used
+	// to reach the database in plaintext and be echoed back to the caller
+	// verbatim in the create response.
+	key []byte
 }
 
-// NewService creates a new database DevOps service
-func NewService(db *sqlx.DB) *Service {
-	return &Service{repo: repository.NewRepository(db)}
+// NewService creates a new database DevOps service. secretKey is the AES-256 key
+// for data source passwords; cmd/server passes the same value it resolves for
+// internal/datasource, so a credential created through either module is encrypted
+// with the same key.
+func NewService(db *sqlx.DB, secretKey string) *Service {
+	return &Service{repo: repository.NewRepository(db), key: aesgcm.Key(secretKey)}
 }
 
 // newServiceWithRepo wires a service against an explicit repository. It exists so
 // the status-lifecycle and tenant-scoping tests can drive the service against an
 // in-memory fake instead of a live sqlx.DB.
-func newServiceWithRepo(repo repoInterface) *Service {
-	return &Service{repo: repo}
+func newServiceWithRepo(repo repoInterface, secretKey string) *Service {
+	return &Service{repo: repo, key: aesgcm.Key(secretKey)}
 }
 
 // ListOperations returns all operations for a tenant
@@ -186,8 +195,16 @@ func (s *Service) ListDataSources(ctx context.Context, tenantID string) ([]model
 	return s.repo.ListDataSources(ctx, tenantID)
 }
 
-// CreateDataSource creates a new data source
+// CreateDataSource creates a new data source. The caller's plaintext password is
+// encrypted before it touches the database, and what comes back through the
+// create response carries only ciphertext (models.DatabaseSource.Password is
+// json:"-"), so a credential never travels back over HTTP.
 func (s *Service) CreateDataSource(ctx context.Context, tenantID string, req *models.CreateDataSourceRequest) (*models.DatabaseSource, error) {
+	enc, err := aesgcm.Encrypt(s.key, req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt password: %w", err)
+	}
+
 	ds := &models.DatabaseSource{
 		ID:        uuid.New().String(),
 		TenantID:  tenantID,
@@ -197,7 +214,7 @@ func (s *Service) CreateDataSource(ctx context.Context, tenantID string, req *mo
 		Port:      req.Port,
 		Database:  req.Database,
 		Username:  req.Username,
-		Password:  req.Password,
+		Password:  enc,
 		SSLMode:   req.SSLMode,
 		Status:    "active",
 		CreatedAt: time.Now().UTC(),

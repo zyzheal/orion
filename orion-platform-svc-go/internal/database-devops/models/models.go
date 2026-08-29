@@ -56,15 +56,21 @@ type RestoreConfig struct {
 
 // DatabaseSource represents a database data source
 type DatabaseSource struct {
-	ID        string    `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	Name      string    `json:"name" db:"name"`
-	Type      string    `json:"type" db:"type"` // postgres, mysql, clickhouse
-	Host      string    `json:"host" db:"host"`
-	Port      int       `json:"port" db:"port"`
-	Database  string    `json:"database" db:"database"`
-	Username  string    `json:"username" db:"username"`
-	Password  string    `json:"password,omitempty" db:"password"`
+	ID       string `json:"id" db:"id"`
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	Name     string `json:"name" db:"name"`
+	Type     string `json:"type" db:"type"` // postgres, mysql, clickhouse
+	Host     string `json:"host" db:"host"`
+	Port     int    `json:"port" db:"port"`
+	Database string `json:"database" db:"database"`
+	Username string `json:"username" db:"username"`
+	// Password holds the AES-256-GCM ciphertext service.CreateDataSource wrote —
+	// never plaintext after this commit. json:"-" means no response can ever echo
+	// a credential, and ListDataSources' SELECT deliberately does not read the
+	// column; this module has no live connection path, so nothing decrypts it.
+	// Rows inserted before the ciphertext switch still hold plaintext there;
+	// they were never served over HTTP and are only reachable at DB level.
+	Password  string    `json:"-" db:"password"`
 	SSLMode   string    `json:"ssl_mode" db:"ssl_mode"`
 	Status    string    `json:"status" db:"status"` // active, inactive, error
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
@@ -79,6 +85,9 @@ type CreateDataSourceRequest struct {
 	Port     int    `json:"port" binding:"required"`
 	Database string `json:"database" binding:"required"`
 	Username string `json:"username" binding:"required"`
+	// Callers send the plaintext here; the service encrypts it before persisting
+	// and never returns it. binding:"required" is deliberate — a data source
+	// record with no password would be useless to every consumer of it.
 	Password string `json:"password" binding:"required"`
 	SSLMode  string `json:"ssl_mode"`
 }

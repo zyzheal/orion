@@ -602,3 +602,53 @@
   - PERM-6 — AI 端点权限定义（决策待定：44 个角色里只有 1 个授予任何 `ai*`）
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
   - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+
+### 2026-08-29（后端专项：ARCH-0.11 明文密码清理 — database-devops 复用 datasource 加密模型）
+
+> ARCH-0.9 前端客户端那一节在文件头注释里写了一条「`password` 只写不读」的契约，并顺手点破：`datasource` 模块已经做对了（`Password`/`PasswordEnc` 都 `json:"-"`），**ARCH-0.11 要清理的明文密码问题在 `database-devops` 那边**。这一节就是去清那个问题。不是「三套数据源统一」——那是 ARCH-0.11b，仍开放；本批只清凭据路径，但清的方式是把加密实现抽到一个共享包，让两个模块用同一把钥匙、同一份算法，为后续统一端点铺好底。
+
+- ✅ **新增 `internal/shared/aesgcm/aesgcm.go`（共享 AES-256-GCM 实现）**
+  - 三个函数：`Key(secret string) []byte`（64-hex 原样用，其他 SHA-256 到 32 字节，空密也产出合法 key——拒绝 dev fallback 是调用方的责任，见 `datasourceKey`）、`Encrypt(key, plaintext) (string, error)`（随机 nonce 前缀后 hex）、`Decrypt(key, ciphertext) (string, error)`（验 GCM tag，错钥/篡改/畸形输入即失败）
+  - **为什么抽出来**：这 40 行算法原本私持在 `internal/datasource/service`。`database-devops` 从未拿到它，`DatabaseSource.Password` 因此以明文落库——**把 40 行复制进第二个包，正是让「我们加密凭据」对一个模块为真、对另一个为假的那种分叉**。共享实现是让 ARCH-0.11 的「一个凭据模型」从文档一行变成代码的事实
+
+- ✅ **`internal/datasource/service/service.go`：三助手改单行委托，调用点零改动**
+  - `cryptoKey` / `encrypt` / `decrypt` 三个本地函数保留签名，函数体变成对 `aesgcm` 的一行委托。理由是 `service_test.go` 直接调这三个名字且断言 `len(svc.key) == 32`，薄包装让既有测试无需改动；算法本体只活在一个地方
+  - 顺手清掉因此不再需要的 6 个 import（`crypto/aes`/`cipher`/`rand`/`sha256`/`encoding/hex`/`io`）——grep 确认这六个只被那三个助手用过
+
+- ✅ **`internal/database-devops`：加密前置 + 写入侧堵泄漏**
+  - `models.go`：`DatabaseSource.Password` 从 `json:"password,omitempty"` 改 `json:"-"`（`db:"password"` 保留，`NamedExecContext` 的 `:password` 绑定不变）。注释写清：行内存的是 `CreateDataSource` 写的密文、不是明文；切换前已落库的旧行仍是明文但从未经 HTTP 暴露、仅 DB 层可达。`CreateDataSourceRequest.Password` 保持 `json:"password" binding:"required"`——请求侧要接收明文，`binding:"required"` 是刻意的（无密码的数据源记录对每个消费方都没用）
+  - `service.go`：`Service` 加 `key []byte`；`NewService(db, secretKey)` 与仅测试用 `newServiceWithRepo(repo, secretKey)` 都用 `aesgcm.Key(secretKey)` 派生；`CreateDataSource` 在落库前 `aesgcm.Encrypt(s.key, req.Password)`，错误文本 `"encrypt password: %w"`
+  - `handler.go`：`NewHandler(db *sqlx.DB, secretKey string)`——签名加一个参数。**确认只有 `cmd/server/wiring.go:628` 一处构造 `dbdevopsH`**；`route_dump_test.go` / `route_conflict_scan_test.go` 走全局 `dbdevopsH`，不直接 `NewHandler`，所以测试无需改
+
+- ✅ **`cmd/server`：两模块同一把钥匙**
+  - `wiring-datasource.go` 抽出 `datasourceKey(logger *zap.Logger) string`：`DATASOURCE_SECRET_KEY` → `JWT_SECRET` → `"dev-datasource-key-change-me"`，每级 fallback 一条 `logger.Warn`。`wireDatasource` 改调它
+  - `wiring.go:628` 从 `dbdevops_handler.NewHandler(infra.db.DB)` 改成 `dbdevops_handler.NewHandler(infra.db.DB, datasourceKey(logger))`，加两行注释点明两模块必须同钥匙。`logger` 在作用域内（633 行 `wireMiddleware(db, logger)`）——**没有对 `wiring.go` 跑 gofmt**（它与 `router.go` 是那 ~44 个故意不格式化的文件之一，`wiring-datasource.go` 则是 gofmt 干净的）
+
+- ✅ **测试：新包 6 条 + 模型 2 条 + 服务 1 条 + 既有 7 处签名跟进**
+  - `internal/shared/aesgcm/aesgcm_test.go`（6 条）：往返含 unicode「数据库」与 10 KB 长串、错钥拒解、篡改最后一 bit（GCM tag 必捕获）、畸形输入（`""`/`"zz"`/`"abcd"`/32 hex 但短于 nonce+tag）、`Key` 派生（64-hex 原样 `bytes.Equal`、passphrase 仍 32 字节、不同输入不同 key、空密仍 32 字节）、同一明文两次加密不同（nonce 非确定性）。用 `encoding/hex` + `strings.Repeat`，不手卷 hex
+  - `internal/database-devops/models/models_test.go`（2 条）：`TestDatabaseSourcePasswordNeverSerialized` 用反射断言 `json:"-"` 与 `db:"password"` 标签 + 序列化输出不含 `hunter2-secret` 也不含 `password` 字段名 + 非秘密字段仍序列化（redaction 是外科手术）；`TestCreateDataSourceRequestAcceptsRequiredPassword` 断言请求侧 `json:"password"` + `binding:"required"` + `UpdateDatabaseDevopsRequest` 无 `Password` 字段（部分更新不能重置凭据）
+  - `internal/database-devops/service/service_test.go`：新增 `TestCreateDataSourceEncryptsPassword`（响应 `ds.Password != "hunter2-secret"` 且非空、`aesgcm.Decrypt(key, ds.Password) == "hunter2-secret"`、错钥不解、`ListDataSources` 回读的行同密文、跨租户不可见）；7 处 `newServiceWithRepo(repo)` → `newServiceWithRepo(repo, testDSKey)`；`NewService(nil)` → `NewService(nil, testDSKey)`；`fakeRepo` 加 `dataSources []` 字段，`CreateDataSource`/`ListDataSources` 从返回 nil 改为真记录
+
+- ✅ **变异验证（每批新测试都做过）**
+  - 还原 `models.Password` 标签为 `json:"password,omitempty"` → `TestDatabaseSourcePasswordNeverSerialized` 在 3 条断言 FAIL：标签检查（`"password,omitempty"` ≠ `"-"`）、明文回显（序列化输出含 `hunter2-secret`）、字段名（输出含 `password`）。恢复后 PASS
+  - 删掉 `service.go` 的 `aesgcm.Encrypt` 调用、直接存 `req.Password` → `TestCreateDataSourceEncryptsPassword` 在第一条断言 FAIL："the response carries the caller's plaintext password"。恢复后 PASS
+  - 两次都先备份、改、观察具体 FAIL 行、恢复、`gofmt -l` 干净、重跑 green
+
+- ✅ **验证结果**
+  - `gofmt -l internal/database-devops/... internal/datasource/... internal/shared/aesgcm/ cmd/server/wiring-datasource.go` → 全干净（`wiring.go`/`router.go` 故意不格式化，不在检查列）
+  - `go build ./...` → ok
+  - `go vet ./internal/database-devops/... ./internal/datasource/... ./internal/shared/aesgcm/ ./cmd/server/` → 干净
+  - `go test ./internal/shared/aesgcm/ ./internal/database-devops/... ./internal/datasource/... ./cmd/server/` → 全 PASS
+  - `go test ./...` → **545 包 ok / 0 FAIL**（基线 543 + `aesgcm` 新包 + `database-devops/models` 从无测试到有测试 = 545；0 个既有测试被改坏）
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - **ARCH-0.11b 三套数据源统一仍开放**：`/api/v1/database-devops/data-sources` 与 `/api/v1/data-sources` 仍是两套端点，本批只让它们用同一把加密钥匙、同一份算法，端点本身没删没合并。消费方迁移后再做
+  - **`database-devops` 无活跃连接路径**：`models.DatabaseSource.Password` 现存密文，但这个模块没有 `connect()`——没有东西会去解密它。等 ARCH-0.11b 统一到 `datasource` 模块（它有 `connect` 且会 `decrypt`）才有意义；本批的加密是为那一刻铺底
+  - **PERM-8 阶段 2**：`database-devops` 的 handler 也读 `c.GetString("tenant_id")`，空值 401——同 `datasource`，待严格认证
+  - **dev fallback 的两行重复警告**：若环境既无 `DATASOURCE_SECRET_KEY` 又无 `JWT_SECRET`，`datasourceKey` 会被两个模块各调一次，日志出现两行相同的 warning。这是刻意的——重复的那行就是让误配在启动日志里可见
+
+- 📌 **本轮明确未做（已排期）**
+  - ARCH-0.11b — 三套数据源统一（删 `/database-devops/data-sources` 重复端点，消费方迁至 `/data-sources`）
+  - ARCH-0.10b — 备份/恢复真实现（`ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩）
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动（Elasticsearch 故意委派给 global-search）
+  - PERM-8 阶段 2 / PERM-6 — 沿用记录

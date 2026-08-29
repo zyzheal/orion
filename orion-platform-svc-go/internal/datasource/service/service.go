@@ -2,13 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -22,6 +16,7 @@ import (
 	dsm "orion/platform-svc-go/internal/datasource/models"
 	dsr "orion/platform-svc-go/internal/datasource/repository"
 	"orion/platform-svc-go/internal/otel"
+	"orion/platform-svc-go/internal/shared/aesgcm"
 )
 
 // Default pool settings when caller doesn't specify.
@@ -32,60 +27,18 @@ const (
 	defaultHealthInterval  = 30 * time.Second
 )
 
-// cryptoKey derives a 32-byte AES-256 key from the provided secret.
-// A 64-char hex string is used directly; otherwise SHA-256 is applied.
-func cryptoKey(secret string) []byte {
-	if len(secret) == 64 {
-		if b, err := hex.DecodeString(secret); err == nil {
-			return b
-		}
-	}
-	h := sha256.Sum256([]byte(secret))
-	return h[:]
-}
+// The three helpers below are thin wrappers over internal/shared/aesgcm. They
+// exist so this module's call sites and tests stay untouched, but the algorithm
+// lives in exactly one place: internal/database-devops must encrypt data source
+// passwords with this same code, not with a second copy (ARCH-0.11).
+func cryptoKey(secret string) []byte { return aesgcm.Key(secret) }
 
-// encrypt encrypts plaintext using AES-256-GCM.
 func encrypt(key []byte, plaintext string) (string, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	return hex.EncodeToString(ciphertext), nil
+	return aesgcm.Encrypt(key, plaintext)
 }
 
-// decrypt decrypts hex-encoded AES-256-GCM data.
 func decrypt(key []byte, ciphertext string) (string, error) {
-	raw, err := hex.DecodeString(ciphertext)
-	if err != nil {
-		return "", fmt.Errorf("decode hex: %w", err)
-	}
-	if len(raw) < 33 {
-		return "", fmt.Errorf("ciphertext too short")
-	}
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonceSize := gcm.NonceSize()
-	nonce, ct := raw[:nonceSize], raw[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ct, nil)
-	if err != nil {
-		return "", fmt.Errorf("decrypt: %w", err)
-	}
-	return string(plaintext), nil
+	return aesgcm.Decrypt(key, ciphertext)
 }
 
 // --- managedDataSource ---
