@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 30 项 |
+| ✅ 已完成 | 31 项 |
 | 🔴 待处理 | 5 项 P0 |
-| 🟡 待处理 | 8 项 P1 |
+| 🟡 待处理 | 7 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
 | **总计** | **65 项** |
 
 ---
 
-## 二、已完成清单 (30 项)
+## 二、已完成清单 (31 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -53,6 +53,7 @@
 | ✅ | **7 个死声明清理** | 2026-08-29 | 5 个按前缀归属删除、2 个（skillH / ai_knowledgeH）真正挂载；撞出并修掉 Gin 第二类 panic（同节点通配符 token 名冲突，2 处） |
 | ✅ | **PERM-7: 后端补 `GET /roles/permissions-map`** | 2026-08-29 | 新增 `auth.GetRolePermissionsMap()`（继承已展开、`_` 已归一）+ 标准 `{"success":true,"data":…}` 信封；前端 `usePermission.ts` 改 merge 不 replace；后端补 `admin` 角色别名（43→44）；新增 `roles_permissions_map_test.go`；路由 3446→3447、冲突 0。**连带撞出 PERM-8（见下）** |
 | ✅ | **PERM-8 阶段 1: 可选（非阻塞）认证中间件，默认关闭** | 2026-08-29 | `pkg/auth/middleware.go` 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改为薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**，带守卫的请求只能 403→200、不可能 200→401）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载，严格 `auth.Auth` **刻意不挂**（会 401 整个无 token 客户端盘）；新增 `optional_auth_test.go` 3 个测试；`cmd/server` 9 个测试全绿、542 包 0 FAIL、路由/守卫指标逐字节不变 |
+| ✅ | **PERM-9: 多角色语义对齐** | 2026-08-29 | 四个守卫（`RequirePermission` / `RequireAnyPermission` / `RequireRole` / `RequireAnyRole`）全部改走 `GetRoles(c)`：**任一**持有角色授权即通过（并集语义，与前端 `matchPermission` 的多角色遍历一致，授权第二个角色不可能撤销第一个已给的访问权）；多角色规则收进两个单点实现 `anyRoleHasPermission`（permission.go）/ `hasRole`（middleware.go）；`GetRoles` 加固——`roles` 存在但为空也回退单 `role`，不再把「只设了 role」的调用方静默降为 `no role assigned`；`no role assigned` / `insufficient permissions` 两条 403 文案与无身份分支逐字保留；认证默认关闭时不会有任何角色写进 context，生产行为零变化；守卫层 8 个子测试 + 端到端 `TestOptionalAuthMultiRoleUnion`（真实多角色 JWT 走完 `roles` 数组→`ParseClaims`→`applyClaims`→`GetRoles`→`RequirePermission`）；**变异验证已做**：把守卫退回单角色后端到端测试实测 FAIL（`insufficient permissions`），恢复后 PASS |
 
 ---
 
@@ -298,7 +299,7 @@
 | ~~PERM-7~~ | 后端补 `GET /roles/permissions-map` | 🟡 中 | ✅ 2026-08-29 — 见上方已完成清单（路由 3446→3447） |
 | ~~PERM-8 阶段 1~~ | **可选认证中间件上线（默认关闭）** — 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载 | 🔴 高 | ✅ 2026-08-29 — `OptionalAuth` 让带 token 的调用方获得真实身份、守卫真正生效；无 token 调用方逐字不变（同一 403、同一 `no role assigned` 响应体），带守卫请求**只能 403→200、不可能 200→401**；严格 `auth.Auth` 刻意不挂（会 401 整个无 token 客户端盘）；`optional_auth_test.go` 3 个测试 + 4 处 `auth.Auth` LIVE 调用点全部兼容 |
 | **PERM-8 阶段 2** | **切严格 `auth.Auth`** — 平台服务从未挂过 `auth.Auth`，`c.Set("role", …)` 全仓库只有 `pkg/auth/middleware.go` 一处且在 `auth.Auth` 内，导致 **3640 处守卫对每个调用方都 403**（`GET /roles` 无守卫→500 可达，`POST /roles` 有守卫→403 "no role assigned"） | 🔴 高 | ⬜ 待做（**破坏性变更，需客户端迁移计划**：接上后所有无 token 调用立刻 401，且 `auth.Auth` 强制要求 `tenant_id` claim；落地后要补 `/roles/permissions-map` 守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言） |
-| PERM-9 | **多角色语义对齐** — `RequirePermission` / `GetRole` 只读单角色 `c.Get("role")`，忽略 `auth.Auth` 与 `auth.OptionalAuth` 都已写进 context 的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义不一致 | 🟡 中 | ⬜ 待做（**PERM-8 阶段 1 已证明 `roles` 确实到达 context**，所以这一步是纯后端改动，不再受认证缺失阻塞；`GetRoles` 已存在且带单角色回退） |
+| ~~PERM-9~~ | **多角色语义对齐** — 四个守卫原先只读单角色 `c.Get("role")`，忽略 `auth.Auth` 与 `auth.OptionalAuth` 都已写进 context 的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义不一致 | 🟡 中 | ✅ 2026-08-29 — 见上方已完成清单；四个守卫全改走 `GetRoles(c)`，并集语义与前端对齐；`GetRoles` 加固（`roles` 存在但为空也回退单 `role`）；两条 403 文案逐字保留；认证默认关闭时行为零变化；守卫层 8 子测试 + 端到端 1 测试，变异验证已做 |
 
 ### 前端工作台（UI，6 阶段 19 人天）
 

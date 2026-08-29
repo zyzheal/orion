@@ -298,16 +298,34 @@ func HasPermission(role, resource, action string) bool {
 	return false
 }
 
-// RequirePermission returns middleware that requires the user's role to have the specified permission.
+// anyRoleHasPermission reports whether any role the caller holds grants the
+// permission. A caller with several roles gets the union of their grants, which
+// matches the frontend matchPermission loop; RequirePermission and
+// RequireAnyPermission both delegate here so the multi-role rule lives in one
+// place. Roles are looked up individually — inheritance is already expanded
+// into allRolePermissions at init, so there is no graph walk to repeat.
+func anyRoleHasPermission(roles []string, resource, action string) bool {
+	for _, role := range roles {
+		if role != "" && HasPermission(role, resource, action) {
+			return true
+		}
+	}
+	return false
+}
+
+// RequirePermission returns middleware that requires the caller to hold a role
+// granting the specified permission. A caller with multiple roles is checked
+// against each of them, so granting a second role can never remove access that
+// the first one already provided.
 // Usage: router.Use(auth.RequirePermission("pipeline", "write"))
 func RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role := GetRole(c)
-		if role == "" {
+		roles := GetRoles(c)
+		if len(roles) == 0 {
 			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "no role assigned", nil))
 			return
 		}
-		if !HasPermission(role, resource, action) {
+		if !anyRoleHasPermission(roles, resource, action) {
 			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 			return
 		}
@@ -315,7 +333,8 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 	}
 }
 
-// RequireAnyPermission returns middleware that requires at least one of the given permissions.
+// RequireAnyPermission returns middleware that requires at least one of the given permissions,
+// matched against any role the caller holds (see anyRoleHasPermission).
 // Usage: router.Use(auth.RequireAnyPermission("pipeline:write", "pipeline:execute"))
 func RequireAnyPermission(perms ...string) gin.HandlerFunc {
 	type resAct struct{ resource, action string }
@@ -327,13 +346,13 @@ func RequireAnyPermission(perms ...string) gin.HandlerFunc {
 		}
 	}
 	return func(c *gin.Context) {
-		role := GetRole(c)
-		if role == "" {
+		roles := GetRoles(c)
+		if len(roles) == 0 {
 			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "no role assigned", nil))
 			return
 		}
 		for _, pa := range parsed {
-			if HasPermission(role, pa.resource, pa.action) {
+			if anyRoleHasPermission(roles, pa.resource, pa.action) {
 				c.Next()
 				return
 			}

@@ -48,6 +48,29 @@ func signTestToken(t *testing.T, role string, withTenant bool) string {
 	return token
 }
 
+// signTestTokenRoles mints a token whose "roles" array carries several roles
+// while the legacy single "role" claim stays on the least-privileged one. That
+// is exactly the shape the guards used to downgrade to the single role only.
+func signTestTokenRoles(t *testing.T, primary string, roles []string, withTenant bool) string {
+	t.Helper()
+	claims := jwt.MapClaims{
+		"sub":   "test-user-1",
+		"exp":   time.Now().Add(24 * time.Hour).Unix(),
+		"roles": roles,
+	}
+	if withTenant {
+		claims["tenant_id"] = "tenant-1"
+	}
+	if primary != "" {
+		claims["role"] = primary
+	}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(testJWTSecret))
+	if err != nil {
+		t.Fatalf("failed to sign test token: %v", err)
+	}
+	return token
+}
+
 // newTestRouter assembles the real router with AUTH_OPTIONAL_ENABLED either set
 // or unset. JWT_SECRET must equal testJWTSecret so the router's OptionalAuth
 // config verifies the tokens these tests mint.
@@ -155,5 +178,37 @@ func TestOptionalAuthEnforcesGuardsForValidToken(t *testing.T) {
 	w = postRoles(r, signTestToken(t, "admin", false))
 	if w.Code == http.StatusForbidden {
 		t.Fatalf("token without tenant_id got 403 - optional auth should not require tenant_id: %s", w.Body.String())
+	}
+}
+
+// PERM-9, end to end. A token holding several roles must get the union of their
+// grants: JWT "roles" array -> ParseClaims -> applyClaims -> GetRoles ->
+// RequirePermission. Before PERM-9 the guard read only the single "role" claim,
+// so this caller was downgraded to viewer and denied.
+func TestOptionalAuthMultiRoleUnion(t *testing.T) {
+	r := newTestRouter(t, true)
+
+	// POST /pipeline/validate is guarded by pipeline:write. viewer lacks it,
+	// pipeline.editor has it.
+	do := func(token string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/validate",
+			io.NopCloser(strings.NewReader(`{"name":"probe"}`)))
+		req.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	w := do(signTestToken(t, "viewer", true))
+	if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "insufficient permissions") {
+		t.Fatalf("viewer = %d %s, want 403 insufficient permissions", w.Code, w.Body.String())
+	}
+
+	w = do(signTestTokenRoles(t, "viewer", []string{"viewer", "pipeline.editor"}, true))
+	if w.Code == http.StatusForbidden {
+		t.Fatalf("multi-role caller got 403 - the guard must use the union of the held roles: %s", w.Body.String())
 	}
 }

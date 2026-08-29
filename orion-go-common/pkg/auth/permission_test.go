@@ -1,7 +1,12 @@
 package auth
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestHasPermission(t *testing.T) {
@@ -270,4 +275,104 @@ func TestModuleRoles_CannotAccessOtherModules(t *testing.T) {
 			}
 		})
 	}
+}
+
+// PERM-9. Every guard used to read only the single "role" claim via GetRole,
+// ignoring the "roles" array that Auth and OptionalAuth already write into the
+// context. A caller holding two roles therefore had the grants of the first one
+// only, which contradicts the frontend matchPermission loop that walks all of
+// them. These tests pin the union semantics on all four guards.
+func TestRequirePermission_MultiRole(t *testing.T) {
+	// run executes h against a context holding the given identity and returns the
+	// status code plus the response body, so the tests can also assert which 403
+	// reason came back.
+	run := func(role string, roles []string, h gin.HandlerFunc) (int, string) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		if role != "" {
+			c.Set("role", role)
+		}
+		if roles != nil {
+			c.Set("roles", roles)
+		}
+		h(c)
+		return w.Code, w.Body.String()
+	}
+
+	t.Run("no identity rejects with no role assigned", func(t *testing.T) {
+		code, body := run("", nil, RequirePermission("pipeline", "write"))
+		if code != http.StatusForbidden {
+			t.Fatalf("code = %d, want 403", code)
+		}
+		if !strings.Contains(body, "no role assigned") {
+			t.Fatalf("body = %s", body)
+		}
+	})
+
+	t.Run("single role decides as before", func(t *testing.T) {
+		if code, _ := run("pipeline.editor", nil, RequirePermission("pipeline", "write")); code != http.StatusOK {
+			t.Fatalf("pipeline.editor code = %d, want 200", code)
+		}
+		code, body := run("viewer", nil, RequirePermission("pipeline", "write"))
+		if code != http.StatusForbidden || !strings.Contains(body, "insufficient permissions") {
+			t.Fatalf("viewer code = %d body = %s, want 403 insufficient permissions", code, body)
+		}
+	})
+
+	t.Run("union of roles grants access", func(t *testing.T) {
+		// role is viewer, roles is [viewer pipeline.editor]. Before PERM-9 the
+		// guard read only "role" and denied; now the second role's grant wins.
+		code, _ := run("viewer", []string{"viewer", "pipeline.editor"}, RequirePermission("pipeline", "write"))
+		if code != http.StatusOK {
+			t.Fatalf("code = %d, want 200 - multi-role caller must get the union of grants", code)
+		}
+	})
+
+	t.Run("union still denies when no role grants", func(t *testing.T) {
+		code, body := run("viewer", []string{"viewer", "pipeline.viewer"}, RequirePermission("pipeline", "write"))
+		if code != http.StatusForbidden || !strings.Contains(body, "insufficient permissions") {
+			t.Fatalf("code = %d body = %s, want 403 insufficient permissions", code, body)
+		}
+	})
+
+	t.Run("empty roles slice falls back to the single role", func(t *testing.T) {
+		// GetRoles must not treat a present-but-empty "roles" as "no roles at
+		// all", otherwise a caller that only sets "role" loses access.
+		code, body := run("pipeline.editor", []string{}, RequirePermission("pipeline", "write"))
+		if code != http.StatusOK {
+			t.Fatalf("code = %d body = %s, want 200", code, body)
+		}
+	})
+
+	t.Run("RequireAnyPermission checks each permission against every role", func(t *testing.T) {
+		// viewer has pipeline:read; pipeline.editor has pipeline:write and
+		// pipeline:execute. The union must satisfy either alternative.
+		if code, _ := run("viewer", []string{"viewer", "pipeline.editor"},
+			RequireAnyPermission("pipeline:write", "config:write")); code != http.StatusOK {
+			t.Fatalf("code = %d, want 200", code)
+		}
+		if code, body := run("viewer", []string{"viewer", "pipeline.viewer"},
+			RequireAnyPermission("pipeline:write", "config:write")); code != http.StatusForbidden {
+			t.Fatalf("code = %d body = %s, want 403", code, body)
+		}
+	})
+
+	t.Run("RequireRole matches any held role", func(t *testing.T) {
+		if code, _ := run("viewer", []string{"viewer", "pipeline.editor"}, RequireRole("pipeline.editor")); code != http.StatusOK {
+			t.Fatalf("code = %d, want 200", code)
+		}
+		if code, body := run("viewer", []string{"viewer", "pipeline.viewer"}, RequireRole("pipeline.editor")); code != http.StatusForbidden {
+			t.Fatalf("code = %d body = %s, want 403", code, body)
+		}
+	})
+
+	t.Run("RequireAnyRole matches any held role", func(t *testing.T) {
+		if code, _ := run("viewer", []string{"pipeline.viewer", "pipeline.editor"},
+			RequireAnyRole("pipeline.editor", "pipeline.admin")); code != http.StatusOK {
+			t.Fatalf("code = %d, want 200", code)
+		}
+		if code, body := run("viewer", []string{"viewer"}, RequireAnyRole("pipeline.editor", "pipeline.admin")); code != http.StatusForbidden {
+			t.Fatalf("code = %d body = %s, want 403", code, body)
+		}
+	})
 }

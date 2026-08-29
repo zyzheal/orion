@@ -318,9 +318,12 @@ func GetRole(c *gin.Context) string {
 
 // GetRoles extracts all roles from the gin context (set by Auth middleware).
 // Supports JWT claims with "roles" array or single "role" string.
+//
+// The fallback also applies when "roles" is present but empty, so a caller that
+// only sets "role" is never silently downgraded to "no role assigned".
 func GetRoles(c *gin.Context) []string {
 	v, _ := c.Get("roles")
-	if roles, ok := v.([]string); ok {
+	if roles, ok := v.([]string); ok && len(roles) > 0 {
 		return roles
 	}
 	// Fallback to single role
@@ -345,11 +348,24 @@ func GetStatus(c *gin.Context) string {
 	return s
 }
 
-// RequireRole returns middleware that requires the user to have the specified role.
+// hasRole reports whether any role the caller holds equals required. RequireRole
+// and RequireAnyRole delegate here so they honour the "roles" array the same way
+// RequirePermission honours it (anyRoleHasPermission in permission.go), instead
+// of silently ignoring every role after the first.
+func hasRole(c *gin.Context, required string) bool {
+	for _, role := range GetRoles(c) {
+		if role == required {
+			return true
+		}
+	}
+	return false
+}
+
+// RequireRole returns middleware that requires the user to hold the specified role.
+// Holds means "present in any of the caller's roles", not "equal to the primary one".
 func RequireRole(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role := GetRole(c)
-		if role != requiredRole {
+		if !hasRole(c, requiredRole) {
 			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 			return
 		}
@@ -357,18 +373,19 @@ func RequireRole(requiredRole string) gin.HandlerFunc {
 	}
 }
 
-// RequireAnyRole returns middleware that requires the user to have one of the specified roles.
+// RequireAnyRole returns middleware that requires the user to hold one of the specified roles.
 func RequireAnyRole(roles ...string) gin.HandlerFunc {
 	roleSet := make(map[string]bool, len(roles))
 	for _, r := range roles {
 		roleSet[r] = true
 	}
 	return func(c *gin.Context) {
-		role := GetRole(c)
-		if !roleSet[role] {
-			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
-			return
+		for _, role := range GetRoles(c) {
+			if roleSet[role] {
+				c.Next()
+				return
+			}
 		}
-		c.Next()
+		c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 	}
 }

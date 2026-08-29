@@ -453,3 +453,65 @@
   - `RequirePermission` / `GetRole` 只读单角色 `c.Get("role")`，忽略 `auth.Auth` 与 `OptionalAuth` 都已经写进 context 的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义仍不一致。**本轮 Batch G 已经证明 `roles` 确实到达了 context**，所以这一步现在是纯后端改动，不再受认证缺失阻塞
   - `/roles/permissions-map` 仍然无守卫（严格模式下必须补上，并翻转 `roles_permissions_map_test.go` 第 3 条断言）
   - `internal/identity/role` 整包死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突、前端 API 面缺口——上一轮记录，本轮未动
+
+---
+
+### 2026-08-29（后端专项：PERM-9 — 多角色语义对齐，四个守卫改走 `GetRoles`）
+
+> 上一轮 Batch G 自己撞出的缺口：`auth.Auth` 与 `auth.OptionalAuth` 早就把多角色数组写进 context（`applyClaims` 里 `c.Set("roles", claims.Roles)`），但四个守卫**只读单角色** `c.Get("role")`。持有两个角色的调用方只拿到第一个角色的授权。前端 `matchPermission` 是多角色遍历——两边语义不一致。
+
+- ✅ **`GetRoles` 加固：空数组也回退单角色**（`orion-go-common/pkg/auth/middleware.go`）
+  - 原实现 `ok && len(roles) > 0` 已带长度判断，但缺一个说明：`roles` 存在但为空时同样走回退分支，所以**只设了 `role`、没设 `roles` 的调用方永远不会被静默降成 `no role assigned`**。这个契约是 `len(GetRoles(c)) == 0` 与旧的 `GetRole(c) == ""` 完全等价的前提，写进了注释
+  - grep 验证：生产代码里设置 `role` / `roles` 的地方**只有** `applyClaims` 一处（`middleware.go:161` / `:162`），所以加固不会与别的写入路径打架
+
+- ✅ **新增 `hasRole`，`RequireRole` / `RequireAnyRole` 重写**（middleware.go）
+  - `hasRole(c, required)` 遍历 `GetRoles(c)`，任一命中即通过。`RequireRole` 委托给它；`RequireAnyRole` 把参数建成 `map[string]bool` 后遍历持有角色，命中即 `c.Next()`
+  - 语义从「等于主角色」变成「**属于**持有角色之一」，并在注释里写清"Holds means present in any of the caller's roles, not equal to the primary one"
+  - 403 文案 `insufficient permissions` 未动
+
+- ✅ **新增 `anyRoleHasPermission`，`RequirePermission` / `RequireAnyPermission` 重写**（`orion-go-common/pkg/auth/permission.go`）
+  - 多角色规则收进**一个** helper：`for _, role := range roles { if role != "" && HasPermission(role, resource, action) { return true } }`。两个守卫都委托它，规则只有一处实现
+  - 逐个角色查表、不做继承图遍历——继承已在 `init()` 展开进 `allRolePermissions`，检查时没有图可走
+  - `RequirePermission`：`roles := GetRoles(c)` → `len(roles) == 0` 则 403 `no role assigned` → `anyRoleHasPermission` 不通过则 403 `insufficient permissions`。**两条 403 文案与无身份分支逐字保留**
+  - `RequireAnyPermission`：同样的 `roles` / `len(roles) == 0` 守卫，然后对每个 `resource:action` 备选调 `anyRoleHasPermission`；空 `parsed` 仍然 403 `insufficient permissions`（原有行为保留）
+  - 文档注释更新为「requires the caller to hold a role granting the specified permission… checked against each of them, so granting a second role can never remove access that the first one already provided」
+
+- ✅ **守卫层测试：`TestRequirePermission_MultiRole`，8 个子测试**（`permission_test.go`，gofmt 干净）
+  - `run(role, roles, h)` 用 `httptest.NewRecorder` + `gin.CreateTestContext` 直接构造 context，同时返回状态码与响应体，因此能断言**是哪条** 403
+  - `no identity rejects with no role assigned` — 无身份 → 403 + `no role assigned`
+  - `single role decides as before` — `pipeline.editor` → 200；`viewer` → 403 + `insufficient permissions`（证明单角色路径未变）
+  - `union of roles grants access` — `role=viewer` + `roles=[viewer, pipeline.editor]` → **200**（PERM-9 的核心断言：修复前这里是 403）
+  - `union still denies when no role grants` — `[viewer, pipeline.viewer]` → 403 + `insufficient permissions`（并集不能变成全放行）
+  - `empty roles slice falls back to the single role` — `role=pipeline.editor` + `roles=[]string{}` → 200（`GetRoles` 加固的那条）
+  - `RequireAnyPermission checks each permission against every role` — `config:write` 单个角色没有、但 `pipeline:write` 备选由第二个角色满足 → 200；反例 → 403
+  - `RequireRole matches any held role` / `RequireAnyRole matches any held role` — 命中第二个角色即通过，反例 403
+
+- ✅ **端到端测试：`TestOptionalAuthMultiRoleUnion`**（`orion-platform-svc-go/cmd/server/optional_auth_test.go`，共 4 个测试）
+  - 新增 `signTestTokenRoles(primary, roles, withTenant)`：`roles` 数组带两个角色，而遗留的单 `role` claim 停在**最低权限**那个上——这正是守卫原先会降级读到的形状
+  - 打 `POST /api/v1/pipeline/validate`（守卫 `pipeline:write`；`viewer` 没有、`pipeline.editor` 有）：viewer token → 403 + `insufficient permissions`；`role=viewer` + `roles=[viewer, pipeline.editor]` → **不得为 403**
+  - 于是这条测试串起了完整链路：JWT `roles` 数组 → `ParseClaims` → `applyClaims` → `GetRoles` → `RequirePermission`，全部走真实 router
+
+- ✅ **变异验证（证明测试真的会失败，不是恒真）**
+  - 把两个守卫临时退回单角色（`roles := []string{GetRole(c)}`）后重跑：`TestOptionalAuthMultiRoleUnion` **实测 FAIL**，报 `multi-role caller got 403 … {"error":"insufficient permissions"}`——正是预期的判别点
+  - 从备份恢复后：守卫层 8/8 PASS、端到端 4/4 PASS
+
+- ✅ **验证结果**
+  - `orion-go-common/pkg/auth`：`go build` + `go vet` + `go test -count=1` 全绿
+  - `orion-platform-svc-go`：`go build ./...` exit 0；`go vet ./cmd/server/` 干净；`go test -count=1 ./cmd/server/` ok；`go test ./...` → **542 包 ok，0 FAIL**
+  - `cmd/server` 指标**逐字节不变**：`setupRouter assembled 3447 routes without panic`、`assembled 3451 routes; 0 registration conflicts`、`audited 765 guard pairs over 3640 call sites, 261 distinct resources, 310 module dirs`、`dumped per-handler route sets for 319 handlers`、`permissions-map served 44 roles`
+  - 格式：`middleware.go`、`permission_test.go`、`optional_auth_test.go` 三者 gofmt 干净；`gofmt -l pkg/auth/` 仍只列 6 个既有未清理文件（`abac.go` / `abac_test.go` / `authorization_engine.go` / `integration_test.go` / `permission.go` / `permission_cache.go`）；`permission.go` 刻意未重排，`gofmt` 差异里 0 行是本轮新增代码
+  - `go test ./...`（go-common）仅剩 2 个**既有**失败：`pkg/cron`（`i_job_scheduler.go` 编译错误）与 `pkg/dag`（`dag_test.go` 引用不存在的 `Graph.RemoveEdge`），两者都不在本轮改动范围内，`pkg/auth` 之外无改动
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - **PERM-8 阶段 2** 仍是 P0：切严格 `auth.Auth` 需要客户端迁移计划（无 token 调用方会立刻 401，且 `auth.Auth` 强制 `tenant_id` claim），不是一个 commit
+  - `/roles/permissions-map` 仍然无守卫（严格模式下必须补上，并翻转 `roles_permissions_map_test.go` 第 3 条断言）
+  - 前端 `usePermission.ts` 的多角色遍历现在与后端一致了，但前端仍需在请求里带上真实 JWT，才能让 `AUTH_OPTIONAL_ENABLED=1` 真正起作用——属于 PERM-8 阶段 2 的客户端侧
+  - `internal/identity/role` 整包死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突、前端 API 面缺口——沿用记录，本轮未动
+
+- 📌 **本轮明确未做（已排期）**
+  - **PERM-8 阶段 2** — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+  - PERM-6 — AI 端点权限定义（新增 `:ai` action）
+  - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
+  - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
+  - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
