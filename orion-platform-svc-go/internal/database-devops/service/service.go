@@ -8,7 +8,6 @@ import (
 
 	"orion/platform-svc-go/internal/database-devops/models"
 	"orion/platform-svc-go/internal/database-devops/repository"
-	"orion/platform-svc-go/internal/shared/aesgcm"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -26,34 +25,25 @@ type repoInterface interface {
 	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 	UpdateResult(ctx context.Context, tenantID, id, result string) error
 	Delete(ctx context.Context, tenantID, id string) error
-	CreateDataSource(ctx context.Context, ds *models.DatabaseSource) error
-	ListDataSources(ctx context.Context, tenantID string) ([]models.DatabaseSource, error)
-	DeleteDataSource(ctx context.Context, tenantID, id string) error
 }
 
-// Service implements database DevOps business logic
+// Service implements database DevOps business logic. Data source management was
+// removed in ARCH-0.11b — the service now only handles backup/restore
+// operations; data source CRUD lives in internal/datasource.
 type Service struct {
 	repo repoInterface
-
-	// key encrypts DatabaseSource.Password at rest. ARCH-0.11: the password used
-	// to reach the database in plaintext and be echoed back to the caller
-	// verbatim in the create response.
-	key []byte
 }
 
-// NewService creates a new database DevOps service. secretKey is the AES-256 key
-// for data source passwords; cmd/server passes the same value it resolves for
-// internal/datasource, so a credential created through either module is encrypted
-// with the same key.
-func NewService(db *sqlx.DB, secretKey string) *Service {
-	return &Service{repo: repository.NewRepository(db), key: aesgcm.Key(secretKey)}
+// NewService creates a new database DevOps service.
+func NewService(db *sqlx.DB) *Service {
+	return &Service{repo: repository.NewRepository(db)}
 }
 
 // newServiceWithRepo wires a service against an explicit repository. It exists so
 // the status-lifecycle and tenant-scoping tests can drive the service against an
 // in-memory fake instead of a live sqlx.DB.
-func newServiceWithRepo(repo repoInterface, secretKey string) *Service {
-	return &Service{repo: repo, key: aesgcm.Key(secretKey)}
+func newServiceWithRepo(repo repoInterface) *Service {
+	return &Service{repo: repo}
 }
 
 // ListOperations returns all operations for a tenant
@@ -188,46 +178,4 @@ func (s *Service) ExecuteRestore(ctx context.Context, tenantID, opID string) err
 	_ = s.repo.UpdateStatus(ctx, tenantID, opID, "completed")
 
 	return nil
-}
-
-// ListDataSources returns all data sources for a tenant
-func (s *Service) ListDataSources(ctx context.Context, tenantID string) ([]models.DatabaseSource, error) {
-	return s.repo.ListDataSources(ctx, tenantID)
-}
-
-// CreateDataSource creates a new data source. The caller's plaintext password is
-// encrypted before it touches the database, and what comes back through the
-// create response carries only ciphertext (models.DatabaseSource.Password is
-// json:"-"), so a credential never travels back over HTTP.
-func (s *Service) CreateDataSource(ctx context.Context, tenantID string, req *models.CreateDataSourceRequest) (*models.DatabaseSource, error) {
-	enc, err := aesgcm.Encrypt(s.key, req.Password)
-	if err != nil {
-		return nil, fmt.Errorf("encrypt password: %w", err)
-	}
-
-	ds := &models.DatabaseSource{
-		ID:        uuid.New().String(),
-		TenantID:  tenantID,
-		Name:      req.Name,
-		Type:      req.Type,
-		Host:      req.Host,
-		Port:      req.Port,
-		Database:  req.Database,
-		Username:  req.Username,
-		Password:  enc,
-		SSLMode:   req.SSLMode,
-		Status:    "active",
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
-
-	if err := s.repo.CreateDataSource(ctx, ds); err != nil {
-		return nil, fmt.Errorf("create data source: %w", err)
-	}
-	return ds, nil
-}
-
-// DeleteDataSource deletes a data source
-func (s *Service) DeleteDataSource(ctx context.Context, tenantID, id string) error {
-	return s.repo.DeleteDataSource(ctx, tenantID, id)
 }

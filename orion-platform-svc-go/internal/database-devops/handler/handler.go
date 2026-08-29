@@ -16,12 +16,11 @@ type Handler struct {
 	svc *service.Service
 }
 
-// NewHandler wires the module. secretKey is the AES-256 key for data source
-// passwords — cmd/server passes the same value it resolves for
-// internal/datasource, so both data source modules encrypt with one key
-// (ARCH-0.11).
-func NewHandler(db *sqlx.DB, secretKey string) *Handler {
-	return &Handler{svc: service.NewService(db, secretKey)}
+// NewHandler wires the module. Data source management lives in
+// internal/datasource (ARCH-0.11b); this handler only serves backup/restore
+// operations.
+func NewHandler(db *sqlx.DB) *Handler {
+	return &Handler{svc: service.NewService(db)}
 }
 
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
@@ -35,10 +34,10 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	// Backup/Restore actions
 	r.POST("/:id/backup", auth.RequirePermission("database-devops", "execute"), h.ExecuteBackup)
 	r.POST("/:id/restore", auth.RequirePermission("database-devops", "execute"), h.ExecuteRestore)
-	// Data source management
-	r.GET("/data-sources", auth.RequirePermission("database-devops", "read"), h.ListDataSources)
-	r.POST("/data-sources", auth.RequirePermission("database-devops", "write"), h.CreateDataSource)
-	r.DELETE("/data-sources/:id", auth.RequirePermission("database-devops", "delete"), h.DeleteDataSource)
+	// Data source management was removed in ARCH-0.11b: the duplicate
+	// /database-devops/data-sources endpoints are gone; callers use
+	// /data-sources (internal/datasource) which has full CRUD + test +
+	// query + execute + health and shares the same AES-256 key.
 }
 
 func (h *Handler) ListOperations(c *gin.Context) {
@@ -127,46 +126,6 @@ func (h *Handler) ExecuteRestore(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.ExecuteRestore(ctx, tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
-func (h *Handler) ListDataSources(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDataSources")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListDataSources(ctx, tenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
-}
-
-func (h *Handler) CreateDataSource(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDataSource")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	var req models.CreateDataSourceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	ds, err := h.svc.CreateDataSource(ctx, tenantID, &req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, ds)
-}
-
-func (h *Handler) DeleteDataSource(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDataSource")
-	defer span.End()
-	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteDataSource(ctx, tenantID, c.Param("id")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

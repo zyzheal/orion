@@ -652,3 +652,59 @@
   - ARCH-0.10b — 备份/恢复真实现（`ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩）
   - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动（Elasticsearch 故意委派给 global-search）
   - PERM-8 阶段 2 / PERM-6 — 沿用记录
+
+### 2026-08-29（后端专项：ARCH-0.11b 三套数据源统一 — 删除 database-devops 重复 `/data-sources` 端点）
+
+> ARCH-0.11（上一批）让 `database-devops` 和 `datasource` 两个模块共用同一把 AES-256 钥匙、同一份 `aesgcm` 算法，但 `/api/v1/database-devops/data-sources` 与 `/api/v1/data-sources` 两套端点仍在并行——**双轨运行**。本批把那条重复轨道拆掉：`database-devops` 的 3 个 data-source 端点（GET/POST/DELETE `/database-devops/data-sources`）删除，`datasource` 模块的 `/data-sources`（11 条路由：CRUD + test + query + execute + health + types）成为唯一入口。零前端消费方迁移——grep 确认前端从不调 `/database-devops/data-sources`。
+
+- ✅ **`internal/database-devops/handler/handler.go` — 删 3 路由 + 3 方法 + 签名简化**
+  - `RegisterRoutes` 从 10 条路由降到 7 条（5 操作 CRUD + 2 备份/恢复）。3 条 `/data-sources` 路由删除，替换为一段注释说明迁移目标
+  - 3 个 handler 方法 `ListDataSources` / `CreateDataSource` / `DeleteDataSource` 删除（原 136-174 行）
+  - `NewHandler(db *sqlx.DB)`——去掉 `secretKey string` 参数（`database-devops` 不再需要加密钥匙，凭据管理全走 `datasource` 模块）
+
+- ✅ **`internal/database-devops/service/service.go` — 删 3 服务方法 + `key` 字段 + `aesgcm` import**
+  - `Service` 结构体从 `{repo, key}` 简化为 `{repo}`；`NewService(db)` 与 `newServiceWithRepo(repo)` 都去掉 `secretKey` 参数
+  - `repoInterface` 从 10 方法降到 7（删 `CreateDataSource`/`ListDataSources`/`DeleteDataSource`）
+  - `aesgcm` import 删除——加密的唯一调用点（`CreateDataSource` 里的 `aesgcm.Encrypt`）随方法一起移除
+  - `ExecuteBackup` / `ExecuteRestore` 的 `// TODO` 桩不变——那是 ARCH-0.10b 的范围
+
+- ✅ **`internal/database-devops/service/service_test.go` — 跟进签名 + 删过时测试**
+  - 7 处 `newServiceWithRepo(repo, testDSKey)` → `newServiceWithRepo(repo)`；`NewService(nil, testDSKey)` → `NewService(nil)`
+  - 删 `aesgcm` import、`testDSKey` 常量、`fakeRepo.dataSources` 字段、3 个 fakeRepo DS 方法
+  - 删 `TestCreateDataSourceEncryptsPassword`——该测试是 ARCH-0.11（上一批）为加密加的，服务不再有 `CreateDataSource` 方法，测试随之移除。余 8 条测试：7 条备份/恢复契约 + 1 条 nil-DB
+
+- ✅ **`cmd/server/wiring.go` — 构造调用跟进**
+  - `dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB)`（去掉 `datasourceKey(logger)` 参数），加两行注释说明 data source 管理已迁至 `internal/datasource`
+
+- ✅ **`cmd/server/wiring-datasource.go` — 文档注释更新**
+  - `datasourceKey` 函数体不变（`wireDatasource` 仍调用它）；注释更新：ARCH-0.11b 前 `database-devops` 也调用此函数，现在只有 `wireDatasource` 调用
+
+- ✅ **保留为死代码（刻意的最小范围）**
+  - `internal/database-devops/models/models.go`：`DatabaseSource` 与 `CreateDataSourceRequest` 类型保留——`models_test.go` 的 2 条 `json:"-"` 标签断言仍有效，类型本身无害
+  - `internal/database-devops/repository/repository.go`：3 个 DS 方法（108-140 行）保留——编译通过、无 HTTP 路径可达、无服务方法调用。死代码清理留到后续 batch
+
+- ✅ **路由数变异验证（证明 -3 来自本次删除）**
+  - 删除前：`TestSetupRouterFullRegistration` 断言 3447 条路由
+  - 删除后：3444 条（恰好 -3 = 删的 3 条 `/data-sources` 路由）
+  - 临时重加 1 条路由 → 3445（证明计数器的 drop 确由删除引起）；恢复 → 3444
+  - `TestRouteConflictScan`：0 冲突、319 handler 不变（handler 数不变因为路由删了但 handler 变量仍在）
+
+- ✅ **验证结果**
+  - `gofmt -l`：`handler.go` / `service.go` / `service_test.go` / `wiring-datasource.go` 全干净；`wiring.go` 保留既有不格式化状态
+  - `go build ./internal/database-devops/... ./cmd/server/` → ok
+  - `go vet ./internal/database-devops/... ./cmd/server/` → 干净
+  - 定向测试：`database-devops/service` 8 PASS、`datasource` PASS、`aesgcm` 6 PASS、`cmd/server` 9 PASS（含路由测试 3444 / 0 冲突 / 319 handler）
+  - `go test ./...` → **545 包 ok / 0 FAIL**
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - **ARCH-0.10b（🔴 高）**：`ExecuteBackup` / `ExecuteRestore` 仍是 `// TODO` 桩——返回占位结果，不执行真实备份/恢复。8 条契约测试约束未来实现。`internal/infrastructure/backup/` 的 `executeBackup` 与 `recovery_service.go` 的 `ExecuteRecovery` 同样是模拟桩
+  - **PERM-8 阶段 2**：`database-devops` handler 读 `c.GetString("tenant_id")`，空值不 401——待严格认证
+  - **死代码**：`database-devops` repository 的 3 个 DS 方法 + `models.DatabaseSource` / `CreateDataSourceRequest` 现在是死代码（无 HTTP 路径可达）。清理留到后续
+  - **R7 终审「双轨运行」**：本批彻底解决——`/database-devops/data-sources` 端点不再存在，`/data-sources` 是唯一数据源管理入口
+
+- 📌 **本轮明确未做（已排期）**
+  - ARCH-0.10b — 备份/恢复引擎真实现（3-5 天）
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+  - PERM-6 — AI 端点权限定义（决策待定）
+  - 死代码清理 — `database-devops` repository DS 方法 + models、`internal/identity/role/`

@@ -27,19 +27,15 @@ func wireDatasource(db *database.DB, logger *zap.Logger) {
 
 var datasourceH *ds_handler.Handler
 
-// datasourceKey resolves the AES-256 key every data source module encrypts
-// credentials with. DATASOURCE_SECRET_KEY is the purpose-built setting; JWT_SECRET
-// is accepted so an existing deployment needs no new variable; the final fallback
-// is a development key that logs a warning — production must set DATASOURCE_SECRET_KEY.
+// datasourceKey resolves the AES-256 key internal/datasource encrypts credentials
+// with. DATASOURCE_SECRET_KEY is the purpose-built setting; JWT_SECRET is accepted
+// so an existing deployment needs no new variable; the final fallback is a
+// development key that logs a warning — production must set DATASOURCE_SECRET_KEY.
 //
-// internal/database-devops calls this too (see wireMiddleware's caller in wiring.go),
-// because ARCH-0.11's point is that both modules encrypt with one key: a credential
-// created through /data-sources must stay decryptable if it is ever handed to
-// /database-devops/data-sources, and two different fallbacks would quietly break that.
-//
-// The cost of the sharing is that a misconfigured environment logs the warning twice
-// (once per module). That is deliberate: the duplicate line is the thing that makes
-// the misconfiguration visible in the startup logs.
+// Before ARCH-0.11b, internal/database-devops also called this function because it
+// had its own duplicate /database-devops/data-sources surface. That surface was
+// removed in ARCH-0.11b — data source management now lives solely in
+// internal/datasource, so only wireDatasource calls datasourceKey.
 func datasourceKey(logger *zap.Logger) string {
 	if key := os.Getenv("DATASOURCE_SECRET_KEY"); key != "" {
 		return key
