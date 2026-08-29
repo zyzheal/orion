@@ -249,3 +249,94 @@
   - `cmd/server/router.go:646` `workflowExtraH.RegisterRoutes(api)` 未加 nil 守卫（在 `if workflowH != nil` 内、当前安全但脆弱）
   - 前端 API 面缺口: `orion-frontend/src/api/api-governance.ts` 调用 `/governance/contracts|rules|violations|report|versions`，后端无 handler 认领；confirmation 客户端调 `/confirmations` 而后端 handler 注册 `/confirmation`（单复数不一致）
   - 待补: `internal/datasource/` 补 handler + 路由接线、database-devops 补权限守卫 + 测试（见上轮 ARCH-0.9~0.12）
+
+### 2026-08-29（后端专项：权限守卫源码审计 + 数据源 REST API + 死声明清理）
+
+> 本轮把「权限守卫是否真的可被非超管角色满足」从人工判断变成 CI 断言，并把一个完全死掉的模块（`internal/datasource`）接成可用的 REST API。上一轮遗留的 4 项待办中 3 项已闭环。
+
+- ✅ **PERM-1~5 全部修复（`orion-go-common/pkg/auth/permission.go`）**
+  - **PERM-3** — `dba` 角色原本一条 `dba:*` 都没有，34 处 `RequirePermission("dba", …)` 守卫对 DBA 用户全部 403（只有 `*:read` 顺带漏进了读操作）。现补 `dba:*` / `datasource:*` / `database-devops:*`
+  - **PERM-4** — 新增 `DataRolePermissions`：`data_admin` / `data_steward` / `bi_analyst` / `data_engineer` 4 个数据专业角色，覆盖 data-catalog / data-quality / data-lineage / data-masking / data-classification / data-pipeline / bi-dashboard / report-designer / datasource / database-devops
+  - **admin action** — 67 处守卫（chatops:admin x43、knowledge:admin x10、tracing:update x4、sprint:update x4、artifact-version:admin x2、event_bus:admin 等）此前只有 super_admin 可达，因为没有任何角色持有 `*:admin` 通配。现 `platform_admin` / `tenant_admin` 补 `*:admin`，并新增 `ModuleAdminRolePermissions`（chatops.admin / knowledge.admin / artifact-version.admin / ai.admin / sprint.admin / tracing.admin / event_bus.admin）
+  - **PERM-5** — `internal/data-masking/handler/handler.go` 第 30 行守卫写的是 `"data-mashing"`，其余 5 处是 `"data-masking"`；角色表里没有 `data-mashing:*`，那一条路由对所有人（除 super_admin）403
+  - **`_` / `-` 拼写归一** — 后端两套拼法并存（audit-log/audit_log、middleware-ops/middleware_ops 196 vs 289 处、oci-registry/oci_registry、report-designer/report_designer）。新增 `normResource()` / `normPerm()`，**在存储侧和查询侧同时归一**，一个 grant 写 `middleware_ops:*` 就能满足写 `middleware-ops` 的守卫 —— 零 handler 改动消除 4 组拼写分叉（对应 ARCH 层 Batch F）
+
+- ✅ **新增 `cmd/server/permission_guard_audit_test.go` — 权限守卫的源码级 CI 断言（5 条规则）**
+  - 扫描范围: 387 个 `.go` 文件，**765 个守卫对 / 3640 处调用点 / 261 个不同资源 / 310 个模块目录**
+  - R1 每个守卫对必须能被 ≥1 个**非 super_admin** 角色满足
+  - R2 `_` / `-` 两种拼法必须等价
+  - R3 每个含守卫的模块目录，必须以自己的名字被守卫
+  - R4 任何守卫资源不得与某模块目录名只差**一次字符替换**（长度 ≥ 5）—— 就是这条抓住了 `data-mashing` 拼写
+  - R5 以资源同名命名的角色必须能过自己的守卫 —— 就是这条抓住了 PERM-3 的 dba 锁死
+  - **两个反向验证（改一处即失败）**: 删掉 `dba:*` → R5 报 `role "dba" is locked out of its own resource by 5 guard pairs`；把 data-masking 的守卫改回 `data-mashing` → R4 报警
+  - 注意: 测试二进制的 cwd 是包目录（`cmd/server`），模块根必须向上找 `go.mod`，直接 `os.DirFS("..")` 会扫到 `cmd/` 导致「audited 0 guard pairs」这种假绿
+
+- ✅ **PERM-2 / ARCH-0.10 守卫部分 — database-devops 10 条路由全部加守卫**
+  - `internal/database-devops/handler/handler.go` 原本 10 条路由**一条守卫都没有**（已上线、任何人可写可删）
+  - 现按资源 `"database-devops"` 补齐: CRUD 走 read/write/delete，backup / restore 走 execute
+
+- ✅ **ARCH-0.9 后端 + PERM-1 — `internal/datasource` 从死代码变成 11 条路由的 REST API**
+  - 接线前实况: 有 model 有 interface，**没有 repository 实现、没有 handler、`wireDatasource` 从未被调用**，整个模块不可达
+  - 新增 `internal/datasource/repository/sql.go` — 实现 `repository.Interface`（Create/GetByID/List/Update/Delete）
+    - sqlx 的默认 mapper 会小写并去下划线，`SELECT *` 会把 `source_type` / `database_name` / `tenant_id` 扫进空值，所以用**显式别名列清单**（`source_type AS type`）
+    - `Tags map[string]string` 不能直接从 text 列扫入 map，走 `dsWithTags{TagsRaw *string}` 包装 + JSON 编解码
+    - `GetContext` 返回的是 `database/sql` 的 `sql.ErrNoRows`（不是 `sqlx.ErrNotFound`）
+  - 新增 `internal/datasource/handler/handler.go` — 11 条路由全带 `RequirePermission("datasource", …)`（PERM-1 要求 7 条，实际 11 条）
+  - 新增 `cmd/server/wiring-datasource.go` — 密钥解析顺序 `DATASOURCE_SECRET_KEY` → `JWT_SECRET`（Warn）→ 开发兜底值（Warn）；调用点补在 `wiring-core-domains.go` 的 `wireCoreDomains` 内
+  - 新增 `migrations/551_extend_datasources.sql` + `_down.sql` — 补 password_enc / ssl_mode / auth_source / 连接池三参数 / error / tags + 两个索引（migration 030 只有 7 列）；幂等 `DO $ … END $`
+  - **密码不回显**: `Password` / `PasswordEnc` 都是 `json:"-"`
+
+- ✅ **router.go 两处健壮性修复**
+  - `workflowExtraH` 与 `workflowH` 独立接线，原先挂在 `if workflowH != nil` 内 —— 只有其中一个被构造时就会 nil panic。现独立守卫
+  - 新增 `datasourceH` 挂载块，注释说明 `/api/v1/data-sources` 归 internal/datasource、`/database-devops/data-sources` 归 dbdevopsH，两者刻意并存
+
+- ✅ **7 个死声明清理（Batch E）— 5 个删除、2 个真正挂载**
+  - `wiring.go` 里 7 个 handler var 只声明从不赋值，永远是 nil，`if x != nil` 守卫下永远静默 no-op
+  - 挂载决策依据 `/tmp/perhandler.tsv` 的**前缀归属实测**，不是猜测:
+    - `/skill` 空闲 → 挂（24 条路由）
+    - `/knowledge/bases` 空闲 → 挂（8 条路由）
+    - `/graph` 归 graphH、`/middleware` 归 middlewareH、`/runs` 归 ciRunnerH+workflowH、`/configs` 归 configH、`/pipelines` 归 11 个 handler → **必须删除**，挂载会触发 Gin 重复注册 panic
+    - global-search 需要一个 `*elasticsearch.Client`，而接线层没有任何地方构造 ES 客户端 → 只能用 nil 构造，删除
+  - 新增 `cmd/server/wiring-dead-modules.go`（构造 + 挂载 skillH / ai_knowledgeH），`wiring.go` 删除 7 个声明 + 7 个 import + 2 处注释掉的赋值（716 → 712 行），决策理由写进文件头注释
+  - 两个重放型测试同步补了 `skillH` / `ai_knowledgeH` 条目（手工镜像 router.go，无生成脚本）
+
+- ⚠️ **本轮撞出 Gin 的第二类启动 panic：同一节点上的通配符 token 名冲突**
+  - 症状: `panic: ':base_id' in new path '/api/v1/knowledge/bases/:base_id/documents' conflicts with existing wildcard ':id' in existing prefix '/api/v1/knowledge/bases/:id'`
+  - 这不是 `(method, path)` 重复 —— 路径**规范化后完全相同**，只是 `:id` 和 `:base_id` 两个名字
+  - 冲突扫描**能兜住这一类**（所有 handler 重放进同一个 `gin.New()`，Gin panic → 测试失败），但只以 panic 栈暴露，不会像 `(method, path)` 重复那样输出可读的归因报告；本轮就是 boot_test 先炸出来的
+  - 修 2 处:
+    - `internal/ai/knowledge/handler/handler.go` — `/knowledge/bases/:id` → `/:base_id`，GetBase / DeleteBase 改读 `c.Param("base_id")`
+    - `internal/skill/handler/handler.go` — `/skill/:id`（3 条）→ `/:skillId`（该节点上另有 11 条用 `:skillId`），GetSkill / UpdateSkill / DeleteSkill 改读 `c.Param("skillId")`
+  - 关键坑: `/skill/instances/:id` 在**另一个节点**，不能一起替换 —— 用 `replace_all` 会误伤 6 处中的另外 3 处。必须按 handler 函数体逐处锚定
+  - 同类隐患仍存在: 上一轮已记录 `orchestrationH`(`/orchestration/:orch_id/runs`) vs `ai_orchestrationH`(`/orchestration/:id/runs`)，两者当前都未挂载所以无害
+
+- ✅ **前端权限 fallback 同步（`orion-frontend/src/hooks/usePermission.ts`）**
+  - `dba` 补 `dba:*` / `datasource:*` / `database-devops:*`（PERM-3 镜像）
+  - `platform_admin` / `tenant_admin` 补 `*:admin`
+  - `matchPermission` 加 `_` → `-` 归一（后端已归一，前端不归一就会对着另一种拼法锁死）
+  - `npx tsc --noEmit` 51 条错误全部为既有（都在 `__tests__` / `src/tokens` / `src/utils/auth.ts`），本文件 0 错误
+
+- ✅ **验证结果**
+  - `go build ./...` EXIT 0
+  - `go test ./...` EXIT 0 — **542 个包 ok，0 失败**
+  - `cmd/server` 5 个测试全绿:
+    - boot — `setupRouter assembled 3446 routes without panic`
+    - conflict scan — `assembled 3450 routes; 0 registration conflicts`
+    - dump — `dumped per-handler route sets for 319 handlers`
+    - audit — `audited 765 guard pairs over 3640 call sites, 261 distinct resources, 310 module dirs`
+    - TestTicketRoutesTreeConflict
+  - **路由数演进**: 3403 → 3414（datasource +11）→ **3446**（skill +24、ai-knowledge +8）
+  - **handler 数演进**: 316 → 317（datasourceH）→ **319**（skillH、ai_knowledgeH）
+  - 格式: `internal/` 全清、`cmd/server/` 全部测试文件全清、本轮新建的 3 个 wiring 文件全清；`router.go` / `wiring.go` / `permission.go` 刻意未 gofmt（既有手工缩进与 import 分组，gofmt 会引入大量无关 diff）
+
+- 🔍 **本轮新发现的缺口（记录，未在本轮实施）**
+  - **PERM-7（新）**: 前端调 `GET /roles/permissions-map` 但**后端没有任何路由服务它** —— `internal/identity/role/models.PermissionsMap` 类型定义了却从未被使用。所以前端权限**永远走硬编码 fallback**，后端 `permission.go` 的改动不会自动同步到前端。本轮改为直接修 fallback，但同步链路仍是断的
+  - `orchestrationH` vs `ai_orchestrationH` 的通配符名冲突（见上）
+  - 前端 API 面缺口仍在: `api-governance.ts` 调 `/governance/contracts|rules|violations|report|versions` 无后端认领；`/confirmations`（前端）vs `/confirmation`（后端）单复数不一致
+
+- 📌 **本轮明确未做（已排期）**
+  - PERM-6 — AI 端点权限定义（新增 `:ai` action）
+  - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
+  - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
+  - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动

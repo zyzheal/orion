@@ -15,8 +15,9 @@ import (
 // SystemRolePermissions defines permissions for system-level roles (5 roles).
 var SystemRolePermissions = map[string][]string{
 	"super_admin":    {"*:*"},
-	"platform_admin": {"*:manage", "*:read", "*:write", "*:execute", "*:delete", "*:approve"},
-	"tenant_admin":   {"*:read", "*:write", "*:manage", "audit_log:read"},
+	"platform_admin": {"*:manage", "*:read", "*:write", "*:execute", "*:delete", "*:approve",
+		"*:admin"},
+	"tenant_admin":   {"*:read", "*:write", "*:manage", "*:admin", "audit_log:read"},
 	"security_admin": {"audit_log:read", "config:read", "secrets:read", "user:read", "role:read",
 		"project:read", "pipeline:read", "deployment:read", "alert:read",
 		"security:manage", "ticket:read", "approval:approve"},
@@ -41,7 +42,11 @@ var BusinessRolePermissions = map[string][]string{
 		"ticket:read", "ticket:write", "oncall:*"},
 	"dba": {"project:read", "pipeline:read", "deployment:read",
 		"config:read", "alert:read", "cmdb:read",
-		"environment:read", "secrets:read"},
+		"environment:read", "secrets:read",
+		// PERM-3: the dba role defined no dba:* permission at all, so all 34
+		// RequirePermission("dba", ...) guards (read/write/execute/approve/delete)
+		// rejected DBA users with 403 — only reads slipped through via *:read.
+		"dba:*", "datasource:*", "database-devops:*"},
 	"viewer": {"project:read", "pipeline:read", "deployment:read",
 		"alert:read", "artifact:read", "knowledge:read",
 		"ticket:read", "finops:read"},
@@ -94,6 +99,47 @@ var ModuleRolePermissions = map[string][]string{
 	"deployment.viewer":   {"deployment:read"},
 }
 
+// DataRolePermissions defines the data-platform specialist roles (PERM-4).
+// Every resource name below is the exact string a backend guard passes to
+// RequirePermission; cmd/server/permission_guard_audit_test.go fails the build
+// if a guard resource ever stops resolving to a role, which is what caught the
+// "data-mashing" typo in internal/data-masking.
+var DataRolePermissions = map[string][]string{
+	"data_admin":    {"data:*", "datasource:*", "database-devops:*", "dba:*",
+		"data-catalog:*", "data-quality:*", "data-lineage:*", "data-masking:*",
+		"data-classification:*", "data-pipeline:*", "bi-dashboard:*",
+		"report-designer:*", "secrets:read"},
+	"data_steward":  {"data-catalog:*", "data-classification:*", "data-lineage:*",
+		"data-masking:read", "data-masking:write", "data-quality:read",
+		"data-quality:write", "data-pipeline:read", "bi-dashboard:*",
+		"datasource:read", "database-devops:read", "dba:read",
+		"report-designer:read", "report-designer:write"},
+	"bi_analyst":    {"bi-dashboard:*", "report-designer:*", "data-catalog:read",
+		"data-lineage:read", "data-quality:read", "data-classification:read",
+		"data-pipeline:read", "datasource:read", "project:read"},
+	"data_engineer": {"data-pipeline:*", "data-quality:*", "data-lineage:*",
+		"data-masking:*", "data-classification:*", "data-catalog:read",
+		"data-catalog:write", "datasource:read", "datasource:write",
+		"database-devops:read", "dba:read", "dba:write", "dba:execute",
+		"bi-dashboard:read", "project:read"},
+}
+
+// ModuleAdminRolePermissions covers the modules whose guards use the
+// non-standard "admin" action. Before this map existed, 67 guard call sites
+// (chatops:admin x43, knowledge:admin x10, tracing:update x4, sprint:update x4,
+// artifact-version:admin x2, sprint:create, ai:admin, event_bus:admin,
+// release:deploy, release:rollback) were reachable by super_admin alone — no role
+// held an "*:admin" wildcard and none of the module admin roles covered them.
+var ModuleAdminRolePermissions = map[string][]string{
+	"chatops.admin":          {"chatops:*"},
+	"knowledge.admin":        {"knowledge:*", "pandawiki:*"},
+	"artifact-version.admin": {"artifact-version:*", "artifact:*"},
+	"ai.admin":               {"ai:*", "ai-security:*", "prompt-security:*"},
+	"sprint.admin":           {"sprint:*", "release:*"},
+	"tracing.admin":          {"tracing:*", "observability:*"},
+	"event_bus.admin":        {"event_bus:*"},
+}
+
 // roleInheritance defines child → parent relationships.
 // Child roles automatically inherit all permissions from parent roles.
 //
@@ -129,6 +175,8 @@ var allRoleMaps = []map[string][]string{
 	BusinessRolePermissions,
 	ProjectRolePermissions,
 	ModuleRolePermissions,
+	DataRolePermissions,
+	ModuleAdminRolePermissions,
 }
 
 func init() {
@@ -141,7 +189,9 @@ func init() {
 				allRolePermissions[role] = make(map[string]bool)
 			}
 			for _, p := range perms {
-				allRolePermissions[role][p] = true
+				// Normalise the stored key as well, so a role map written as
+				// "audit_log:read" matches a guard that says "audit-log","read".
+				allRolePermissions[role][normPerm(p)] = true
 			}
 		}
 	}
@@ -175,12 +225,32 @@ func RoleCount() int {
 	return len(allRolePermissions)
 }
 
+// normResource maps a resource name to its canonical form. Backend guards use
+// both spellings of the same module — the audit found audit-log/audit_log,
+// middleware-ops/middleware_ops (196 vs 289 call sites), oci-registry/oci_registry
+// and report-designer/report_designer. A role granted "middleware-ops:*" would
+// otherwise 403 on the 289 middleware_ops guards. Normalising at the boundary
+// makes the two spellings equivalent.
+func normResource(resource string) string {
+	return strings.ReplaceAll(resource, "_", "-")
+}
+
+// normPerm normalises a whole "resource:action" string for storage and lookup.
+func normPerm(perm string) string {
+	parts := strings.SplitN(perm, ":", 2)
+	if len(parts) == 2 {
+		return normResource(parts[0]) + ":" + normResource(parts[1])
+	}
+	return normResource(perm)
+}
+
 // HasPermission checks if a role has the given resource:action permission.
 func HasPermission(role, resource, action string) bool {
 	perms, ok := allRolePermissions[role]
 	if !ok {
 		return false
 	}
+	resource = normResource(resource)
 
 	// Check exact match
 	if perms[resource+":"+action] {

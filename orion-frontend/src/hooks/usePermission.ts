@@ -1,13 +1,16 @@
 import { useMemo, useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { API_BASE_URL } from '@/api/client';
 import type { User } from '@/types/api';
 
 // 硬编码 fallback（与后端 permission.go / RoleService.ts 保持一致）
 const ROLE_PERMISSIONS_FALLBACK: Record<string, string[]> = {
   admin: ['*:*'],
   super_admin: ['*:*'],
-  platform_admin: ['*:manage', '*:read', '*:write', '*:execute', '*:delete', '*:approve'],
-  tenant_admin: ['*:read', '*:write', '*:manage', 'audit_log:read'],
+  // ':admin' is granted to both admins — 67 backend guard sites (chatops:admin,
+  // knowledge:admin, tracing:update, sprint:update, ...) resolve only through it.
+  platform_admin: ['*:manage', '*:read', '*:write', '*:execute', '*:delete', '*:approve', '*:admin'],
+  tenant_admin: ['*:read', '*:write', '*:manage', '*:admin', 'audit_log:read'],
   org_admin: ['*:read', '*:write', '*:execute', '*:manage', '*:approve'],
   security_admin: [
     'audit_log:read',
@@ -79,6 +82,12 @@ const ROLE_PERMISSIONS_FALLBACK: Record<string, string[]> = {
     'cmdb:read',
     'environment:read',
     'secrets:read',
+    // PERM-3 mirror: the backend dba role gained dba:* / datasource:* /
+    // database-devops:* in permission.go. Without them every DBA menu entry
+    // guarded by those resources renders as locked out.
+    'dba:*',
+    'datasource:*',
+    'database-devops:*',
   ],
   viewer: [
     'project:read',
@@ -170,7 +179,7 @@ async function fetchPermissionsMap(): Promise<Record<string, string[]>> {
 
   _fetchPromise = (async () => {
     try {
-      const resp = await fetch('/api/v1/roles/permissions-map', {
+      const resp = await fetch(`${API_BASE_URL}/roles/permissions-map`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
           'x-tenant-id': localStorage.getItem('tenant_id') || '',
@@ -202,13 +211,22 @@ export function clearPermissionsCache(): void {
   _fetchPromise = null;
 }
 
+// 同一模块在两套代码里各有两种写法（middleware_ops/middleware-ops、
+// audit_log/audit-log、oci_registry/oci-registry、report_designer/report-designer）。
+// 后端 permission.go 在权限比较时把 `_` 归一成 `-`，前端必须做同样的事，
+// 否则 routes.tsx 里写 "middleware-ops" 的页面会对着 "middleware_ops" 的守卫锁死。
+const normResource = (resource: string): string => resource.replace(/_/g, '-');
+
 // 通配符匹配逻辑
 function matchPermission(perms: string[], resource: string, action: string): boolean {
-  for (const perm of perms) {
+  const r = normResource(resource);
+  const a = normResource(action);
+  for (const raw of perms) {
+    const perm = raw.replace(/_/g, '-');
     if (perm === '*:*') return true;
-    if (perm === `${resource}:${action}`) return true;
-    if (perm === `${resource}:*`) return true;
-    if (perm === `*:${action}`) return true;
+    if (perm === `${r}:${a}`) return true;
+    if (perm === `${r}:*`) return true;
+    if (perm === `*:${a}`) return true;
   }
   return false;
 }

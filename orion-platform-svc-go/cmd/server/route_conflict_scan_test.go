@@ -1058,6 +1058,11 @@ func TestRouteConflictScan(t *testing.T) {
 				ai_skillH.RegisterRoutes(api)
 			}
 		}},
+		{"ai_knowledgeH", func() {
+			if ai_knowledgeH != nil {
+				ai_knowledgeH.RegisterRoutes(api)
+			}
+		}},
 		{"ai_intelligenceH", func() {
 			if ai_intelligenceH != nil {
 				ai_intelligenceH.RegisterRoutes(api)
@@ -1581,6 +1586,16 @@ func TestRouteConflictScan(t *testing.T) {
 		{"dbdevopsH", func() {
 			if dbdevopsH != nil {
 				dbdevopsH.RegisterRoutes(api)
+			}
+		}},
+		{"datasourceH", func() {
+			if datasourceH != nil {
+				datasourceH.RegisterRoutes(api)
+			}
+		}},
+		{"skillH", func() {
+			if skillH != nil {
+				skillH.RegisterRoutes(api)
 			}
 		}},
 		{"gwRoutesH", func() {

@@ -29,8 +29,11 @@ func (h *KnowledgeHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	kb.GET("", auth.RequirePermission("ai", "read"), h.ListBases)
 	kb.POST("", auth.RequirePermission("ai", "write"), h.CreateBase)
-	kb.GET("/:id", auth.RequirePermission("ai", "read"), h.GetBase)
-	kb.DELETE("/:id", auth.RequirePermission("ai", "delete"), h.DeleteBase)
+	// The param is :base_id, not :id — the documents group below also binds at
+	// /knowledge/bases/<id>, and Gin panics if two wildcard tokens with
+	// different names meet at one node (':base_id' conflicts with ':id').
+	kb.GET("/:base_id", auth.RequirePermission("ai", "read"), h.GetBase)
+	kb.DELETE("/:base_id", auth.RequirePermission("ai", "delete"), h.DeleteBase)
 
 	doc := rg.Group("/knowledge/bases/:base_id/documents")
 	doc.GET("", auth.RequirePermission("ai", "read"), h.ListDocuments)
@@ -80,7 +83,7 @@ func (h *KnowledgeHandler) GetBase(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeGetBase")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	id := c.Param("id")
+	id := c.Param("base_id")
 
 	base, err := h.svc.GetBase(ctx, tenantID, id)
 	if err != nil {
@@ -95,7 +98,7 @@ func (h *KnowledgeHandler) DeleteBase(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeDeleteBase")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	id := c.Param("id")
+	id := c.Param("base_id")
 
 	if err := h.svc.DeleteBase(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())

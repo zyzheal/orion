@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/database-devops/models"
 	"orion/platform-svc-go/internal/database-devops/service"
 
@@ -22,18 +23,18 @@ func NewHandler(db *sqlx.DB) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	r := router.Group("/database-devops")
 	// Operation CRUD
-	r.GET("", h.ListOperations)
-	r.GET("/:id", h.GetOperation)
-	r.POST("", h.CreateOperation)
-	r.PUT("/:id", h.UpdateOperation)
-	r.DELETE("/:id", h.DeleteOperation)
+	r.GET("", auth.RequirePermission("database-devops", "read"), h.ListOperations)
+	r.GET("/:id", auth.RequirePermission("database-devops", "read"), h.GetOperation)
+	r.POST("", auth.RequirePermission("database-devops", "write"), h.CreateOperation)
+	r.PUT("/:id", auth.RequirePermission("database-devops", "write"), h.UpdateOperation)
+	r.DELETE("/:id", auth.RequirePermission("database-devops", "delete"), h.DeleteOperation)
 	// Backup/Restore actions
-	r.POST("/:id/backup", h.ExecuteBackup)
-	r.POST("/:id/restore", h.ExecuteRestore)
+	r.POST("/:id/backup", auth.RequirePermission("database-devops", "execute"), h.ExecuteBackup)
+	r.POST("/:id/restore", auth.RequirePermission("database-devops", "execute"), h.ExecuteRestore)
 	// Data source management
-	r.GET("/data-sources", h.ListDataSources)
-	r.POST("/data-sources", h.CreateDataSource)
-	r.DELETE("/data-sources/:id", h.DeleteDataSource)
+	r.GET("/data-sources", auth.RequirePermission("database-devops", "read"), h.ListDataSources)
+	r.POST("/data-sources", auth.RequirePermission("database-devops", "write"), h.CreateDataSource)
+	r.DELETE("/data-sources/:id", auth.RequirePermission("database-devops", "delete"), h.DeleteDataSource)
 }
 
 func (h *Handler) ListOperations(c *gin.Context) {

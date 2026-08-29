@@ -1099,6 +1099,11 @@ func buildDumpEntries() []dumpEntry {
 				ai_skillH.RegisterRoutes(api)
 			}
 		}},
+		{"ai_knowledgeH", 711, func(api *gin.RouterGroup) {
+			if ai_knowledgeH != nil {
+				ai_knowledgeH.RegisterRoutes(api)
+			}
+		}},
 		{"ai_intelligenceH", 667, func(api *gin.RouterGroup) {
 			if ai_intelligenceH != nil {
 				ai_intelligenceH.RegisterRoutes(api)
@@ -1624,6 +1629,16 @@ func buildDumpEntries() []dumpEntry {
 		{"dbdevopsH", 1030, func(api *gin.RouterGroup) {
 			if dbdevopsH != nil {
 				dbdevopsH.RegisterRoutes(api)
+			}
+		}},
+		{"datasourceH", 1075, func(api *gin.RouterGroup) {
+			if datasourceH != nil {
+				datasourceH.RegisterRoutes(api)
+			}
+		}},
+		{"skillH", 1084, func(api *gin.RouterGroup) {
+			if skillH != nil {
+				skillH.RegisterRoutes(api)
 			}
 		}},
 		{"gwRoutesH", 1033, func(api *gin.RouterGroup) {

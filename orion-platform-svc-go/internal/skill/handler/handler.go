@@ -29,9 +29,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("", auth.RequirePermission("skill", "read"), h.ListSkills)
 	f.POST("", auth.RequirePermission("skill", "write"), h.CreateSkill)
 	f.GET("/stats", auth.RequirePermission("skill", "read"), h.GetStats)
-	f.GET("/:id", auth.RequirePermission("skill", "read"), h.GetSkill)
-	f.PUT("/:id", auth.RequirePermission("skill", "write"), h.UpdateSkill)
-	f.DELETE("/:id", auth.RequirePermission("skill", "delete"), h.DeleteSkill)
+	// The base path uses :skillId, the same token as the sub-routes below
+	// (/skill/:skillId/versions etc.). Gin panics if two wildcard tokens with
+	// different names bind at one node (':skillId' vs ':id').
+	f.GET("/:skillId", auth.RequirePermission("skill", "read"), h.GetSkill)
+	f.PUT("/:skillId", auth.RequirePermission("skill", "write"), h.UpdateSkill)
+	f.DELETE("/:skillId", auth.RequirePermission("skill", "delete"), h.DeleteSkill)
 
 	// === Version management ===
 	f.GET("/:skillId/versions", auth.RequirePermission("skill", "read"), h.ListVersions)
@@ -99,7 +102,7 @@ func (h *Handler) GetSkill(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSkill")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
+	id := c.Param("skillId")
 	skill, err := h.svc.GetSkill(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
@@ -116,7 +119,7 @@ func (h *Handler) UpdateSkill(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSkill")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
+	id := c.Param("skillId")
 	var req models.UpdateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -138,7 +141,7 @@ func (h *Handler) DeleteSkill(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSkill")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
+	id := c.Param("skillId")
 	if err := h.svc.DeleteSkill(ctx, tenantID, id); err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")

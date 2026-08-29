@@ -643,6 +643,11 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if workflowH != nil {
     workflowH.RegisterRoutes(api)
+  }
+  // workflowExtraH is wired independently of workflowH (see wiring.go), so it
+  // needs its own nil guard — piggy-backing on workflowH != nil would nil-panic
+  // whenever only one of the two is constructed.
+  if workflowExtraH != nil {
     workflowExtraH.RegisterRoutes(api)
   }
   if workflow_depH != nil {
@@ -700,6 +705,11 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if ai_skillH != nil {
     ai_skillH.RegisterRoutes(api)
+  }
+  // ai_skillH owns /skills; ai_knowledgeH owns /knowledge/bases + /knowledge/search
+  // (knowledgeH above uses /knowledge/spaces|docs|sync|eval, so no path is shared).
+  if ai_knowledgeH != nil {
+    ai_knowledgeH.RegisterRoutes(api)
   }
   if ai_intelligenceH != nil {
     ai_intelligenceH.RegisterRoutes(api)
@@ -1064,6 +1074,15 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if dbdevopsH != nil {
     dbdevopsH.RegisterRoutes(api)
+  }
+  // internal/datasource owns /data-sources at the /api/v1 level; dbdevopsH
+  // keeps its own nested /database-devops/data-sources pair above.
+  if datasourceH != nil {
+    datasourceH.RegisterRoutes(api)
+  }
+  // internal/skill owns /skill; ai_skillH above owns the plural /skills.
+  if skillH != nil {
+    skillH.RegisterRoutes(api)
   }
   if gwRoutesH != nil {
     gwRoutesH.RegisterRoutes(api)

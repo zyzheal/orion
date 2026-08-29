@@ -55,6 +55,9 @@ import (
 )
 
 func wireCoreDomains(db *database.DB, logger *zap.Logger) {
+	wireDatasource(db, logger)  // internal/datasource: repository + handler + /data-sources
+	wireDeadModules(db, logger) // skill + ai/knowledge: were declared in wiring.go but never assigned
+
 	wireGovernanceDomains(db, logger)
 	wireSecurityDomains(db, logger)
 	wireIdentityDomains(db, logger)

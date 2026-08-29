@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/rules", auth.RequirePermission("data-masking", "read"), h.ListRules)
 	f.GET("/rules/:id", auth.RequirePermission("data-masking", "read"), h.GetRule)
 	f.POST("/rules", auth.RequirePermission("data-masking", "write"), h.CreateRule)
-	f.PUT("/rules/:id", auth.RequirePermission("data-mashing", "write"), h.UpdateRule)
+	f.PUT("/rules/:id", auth.RequirePermission("data-masking", "write"), h.UpdateRule)
 	f.DELETE("/rules/:id", auth.RequirePermission("data-masking", "delete"), h.DeleteRule)
 
 	// --- Mask / Apply ---

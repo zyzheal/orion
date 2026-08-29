@@ -1,6 +1,5 @@
 package main
 import (
-	gs_handler "orion/platform-svc-go/internal/global-search/handler"
 	pm_handler "orion/platform-svc-go/internal/plugin-marketplace/handler"
 	pm_repo "orion/platform-svc-go/internal/plugin-marketplace/repository"
 	pm_service "orion/platform-svc-go/internal/plugin-marketplace/service"
@@ -14,7 +13,6 @@ import (
 	perm_repo "orion/platform-svc-go/internal/permission/repository"
 	perm_service "orion/platform-svc-go/internal/permission/service"
 	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
-	skill_handler "orion/platform-svc-go/internal/skill/handler"
 	// ---- Wave 2: Auth + Permission modules ----
 	// ---- Wave 5: Pipeline Assistant modules ----
 	// ---- Wave 7a: P2 modules ----
@@ -32,7 +30,6 @@ import (
 	dataPipeline_service "orion/platform-svc-go/internal/data-pipeline/service"
 	apiConsumption_handler "orion/platform-svc-go/internal/api-consumption/handler"
 	// ---- GraphViz module ----
-	graphviz_handler "orion/platform-svc-go/internal/graphviz/handler"
 	contract_handler "orion/platform-svc-go/internal/contract/handler"
 	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
 	// ---- Blueprint CI-CD merge: ci-cd subdomain handlers ----
@@ -43,9 +40,7 @@ import (
 	ciArtVer_repo "orion/platform-svc-go/internal/ci-cd/artifact-version/repository"
 	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
 	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
-	ciCanary_handler "orion/platform-svc-go/internal/ci-cd/canary/handler"
 	ciDeploy_handler "orion/platform-svc-go/internal/ci-cd/deploy/handler"
-	ciPipeline_handler "orion/platform-svc-go/internal/ci-cd/pipeline/handler"
 	ciPTmpl_handler "orion/platform-svc-go/internal/ci-cd/pipeline-template/handler"
 	ciPTmpl_repo "orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
 	ciPTmpl_service "orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
@@ -60,7 +55,6 @@ import (
 	infraEE_handler "orion/platform-svc-go/internal/infrastructure/ephemeral-env/handler"
 	infraEE_repo "orion/platform-svc-go/internal/infrastructure/ephemeral-env/repository"
 	infraEE_service "orion/platform-svc-go/internal/infrastructure/ephemeral-env/service"
-	infraMW_handler "orion/platform-svc-go/internal/infrastructure/middleware-ops/handler"
 	infraBackup_handler "orion/platform-svc-go/internal/infrastructure/backup/handler"
 	infraBackup_repo "orion/platform-svc-go/internal/infrastructure/backup/repository"
 	infraBackup_service "orion/platform-svc-go/internal/infrastructure/backup/service"
@@ -183,7 +177,6 @@ import (
 	incident_nats "orion/platform-svc-go/internal/incident/nats"
 	sh_nats "orion/platform-svc-go/internal/self-healing/nats"
 	// ---- AI module handler imports (internal/ai/) ----
-	ai_knowledge_handler "orion/platform-svc-go/internal/ai/knowledge/handler"
 	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
 	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
 	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
@@ -197,16 +190,13 @@ import (
 	test_reports_handler "orion/platform-svc-go/internal/test-reports/handler"
 	)
 var (
-	gsH                 *gs_handler.Handler // Global search service
 	pluginMarketplaceH  *pm_handler.Handler
 	authH               *auth_handler.Handler
 	pipelineRunnerSvc   *pipeline_service.Service
-	skillH              *skill_handler.Handler
 	dataQualityH        *dataQuality_handler.Handler
 	dataPipelineH       *dataPipeline_handler.Handler
 	apiConsumptionH     *apiConsumption_handler.Handler
 	// ---- GraphViz module ----
-	graphvizH           *graphviz_handler.Handler
 	contractH           *contract_handler.Handler
 	peH                 *pe_handler.Handler
 	aiAgentRunH         *ai_agent_run_handler.Handler
@@ -236,16 +226,13 @@ var (
 	ciArtRegH    *ciArtReg_handler.ArtifactRegistryHandler
 	ciArtVerH    *ciArtVer_handler.ArtifactVersionHandler
 	ciBuildH     *ciBuild_handler.Handler
-	ciCanaryH    *ciCanary_handler.Handler
 	ciDeployH    *ciDeploy_handler.Handler
-	ciPipelineH  *ciPipeline_handler.Handler
 	ciPTmplH     *ciPTmpl_handler.Handler
 	ciRunnerH    *ciRunner_handler.Handler
 	// ---- Blueprint InfraOps merge handlers ----
 	infraCapH *infraCap_handler.Handler
 	infraDrH  *infraDr_handler.Handler
 	infraEEH  *infraEE_handler.Handler
-	infraMWH  *infraMW_handler.Handler
 	infraBackupH  *infraBackup_handler.Handler
 	infraChaosH   *infraChaos_handler.Handler
 	infraDbaH     *infraDba_handler.Handler
@@ -257,7 +244,6 @@ var (
 	infraOCIH     *infraOCI_handler.Handler
 	infraServerlessH *infraServerless_handler.Handler
 	// ---- AI module handlers (internal/ai/) ----
-	ai_knowledgeH     *ai_knowledge_handler.KnowledgeHandler
 	psH *ps_handler.PromptSecurityHandler
 	// P1: handlers for agents, database-devops, gateway-routes, rate-limiting, test-reports
 	agentsH     *agents_handler.Handler
@@ -529,12 +515,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
 	// build: repo -> service -> handler (requires db + logger)
 	ciBuildH = ciBuild_handler.New(infra.db, infra.logger)
-	// canary: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
-	// ciCanaryH = ciCanary_handler.NewHandler(ciCanarySvc)
 	// deploy: repo -> service -> handler (requires db + logger)
 	ciDeployH = ciDeploy_handler.New(infra.db, infra.logger)
-	// pipeline: repo -> service -> handler (commented: undefined NewRepository + signature mismatch)
-	// ciPipelineH = ciPipeline_handler.NewHandler(ciPipelineSvc)
 	// pipeline-template: repo -> service -> handler
 	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
 	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo)
