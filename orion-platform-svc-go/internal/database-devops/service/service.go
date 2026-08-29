@@ -13,14 +13,38 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// repoInterface is the subset of repository.Repository the service calls. Keeping
+// it package-private means only a test inside this package can substitute a fake
+// for it; production always gets the sqlx-backed Repository, so the shape of the
+// call graph is unchanged.
+type repoInterface interface {
+	Get(ctx context.Context, tenantID, id string) (*models.DatabaseDevopsItem, error)
+	List(ctx context.Context, tenantID string) ([]models.DatabaseDevopsItem, error)
+	Create(ctx context.Context, item *models.DatabaseDevopsItem) error
+	Update(ctx context.Context, item *models.DatabaseDevopsItem) error
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
+	UpdateResult(ctx context.Context, tenantID, id, result string) error
+	Delete(ctx context.Context, tenantID, id string) error
+	CreateDataSource(ctx context.Context, ds *models.DatabaseSource) error
+	ListDataSources(ctx context.Context, tenantID string) ([]models.DatabaseSource, error)
+	DeleteDataSource(ctx context.Context, tenantID, id string) error
+}
+
 // Service implements database DevOps business logic
 type Service struct {
-	repo *repository.Repository
+	repo repoInterface
 }
 
 // NewService creates a new database DevOps service
 func NewService(db *sqlx.DB) *Service {
 	return &Service{repo: repository.NewRepository(db)}
+}
+
+// newServiceWithRepo wires a service against an explicit repository. It exists so
+// the status-lifecycle and tenant-scoping tests can drive the service against an
+// in-memory fake instead of a live sqlx.DB.
+func newServiceWithRepo(repo repoInterface) *Service {
+	return &Service{repo: repo}
 }
 
 // ListOperations returns all operations for a tenant

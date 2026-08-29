@@ -515,3 +515,50 @@
   - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
   - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+
+### 2026-08-29（后端专项：ARCH-0.10 收尾 — 备份/恢复契约测试 + P1-3 chaos 合并核实）
+
+> 两条都指向同一类问题：**文档说要做的和代码里真有的对不上**。ARCH-0.10 的尾巴写着「补备份/恢复测试」，但 `ExecuteBackup` / `ExecuteRestore` 是桩——只改状态、返回假结果，没有任何备份动作。P1-3 说 chaos 三模块结构重叠要合并，实际已经合并完了，只是清单没更新。
+
+- ✅ **ARCH-0.10 剩余：可测试化改造（零生产行为变更）**（`internal/database-devops/service/service.go`）
+  - 抽出包私有 `repoInterface`（10 个方法，与 `repository.Repository` 一一对应）。包私有意味着只有本包测试能塞假实现；生产仍走 `NewService(db *sqlx.DB)` → `repository.NewRepository(db)`，**调用图形状不变**，外部调用点 0 处改动
+  - 另加仅测试用的 `newServiceWithRepo(repo repoInterface)`，让测试用内存 fake 驱动 service，不需要活的 `sqlx.DB`
+  - 顺带确认：`repository.Repository` 每个方法开头都有 `if r.db == nil { return nil }` 守卫，所以 `NewService(nil)` 天然不 panic（单独写了条测试把这点钉住）
+
+- ✅ **`service_test.go`：8 条契约测试（全部 PASS）**
+  - `fakeRepo` 以 `tenantID+"/"+id` 为键存 operation，并把每次 `UpdateStatus` / `UpdateResult` 的 `{tenantID, id, value}` 记进切片——因此能断言**调用顺序**和**租户作用域**，而不只是最终值
+  - `TestExecuteBackup_StatusLifecycle` — 恰好 2 次 `UpdateStatus`，顺序为 `running` → `completed`；结果 JSON 能反序列化成 `BackupResult`，`BackupID` 非空、`Status` = `completed`、`Message` 同时含 `wal` 与 `db-42`；两个时间戳都是合法 RFC3339 且 `StartedAt <= FinishedAt`；**持久化到行的 JSON 与返回给调用方的结果一致**（防「调用方看到和数据库里存的不一样」）
+  - `TestExecuteBackup_NotFoundDoesNotTouchStatus` — 找不到 operation → `operation not found`，且 **0 次**状态/结果写入
+  - `TestExecuteBackup_InvalidConfigFailsBeforeRunning` — 坏 JSON 配置 → `parse backup config`，且 **0 次 `UpdateStatus`**（配置解析在置 `running` 之前，坏配置不得把 operation 卡在 running）
+  - `TestExecuteBackup_EmptyConfigStillCompletes` — 空配置仍正常完成
+  - `TestExecuteRestore_StatusLifecycleAndTenantScoping` — 同样的 `running` → `completed`；并断言**每一次** `UpdateStatus` 的 tenant 都是 `t1`、**每一次** `Get` 的键都以 `t1/` 开头（跨租户隔离）
+  - `TestExecuteRestore_NotFound` / `TestExecuteRestore_InvalidConfigFailsBeforeRunning` — 与备份侧对称
+  - `TestNewServiceNilDBIsTolerated` — `NewService(nil)` 的 `ListOperations` 返回空列表不报错
+  - 文件头注释**明确声明**：这些测试钉的是契约（查找、状态生命周期、结果回读、租户作用域），**不声称真的产生了备份**——service 里仍是 `// TODO: Execute actual backup based on cfg.BackupType`。契约是将来真引擎必须继续遵守的东西，所以 TODO 实现完后测试依然有效
+
+- ✅ **变异验证（证明测试真的会失败）**
+  - 把 `ExecuteBackup` 最后一次 `UpdateStatus` 的 `"completed"` 临时改成 `"failed"` 后重跑，`TestExecuteBackup_StatusLifecycle` **实测 FAIL** 在两条预期断言上：`service_test.go:123` 报 `UpdateStatus[1] = {tenantID:t1 id:op1 value:failed}, want {tenantID:t1 id:op1 value:completed}`；`service_test.go:130` 报 `final operation status = "failed", want completed`
+  - 从备份恢复（`diff` 确认与改前逐字节一致）后 8/8 PASS
+
+- ✅ **验证结果**
+  - `gofmt -l internal/database-devops/service/` 干净；`go build ./...` OK；`go vet ./cmd/server/` 干净；`go test -count=1 ./cmd/server/` ok
+  - `go test ./...` → **543 包 ok，0 FAIL**（基线 542；+1 因为 `internal/database-devops/service` 现在有了测试文件）
+
+- ✅ **P1-3 chaos 三模块合并：核实已完成，无代码改动**
+  - `cmd/server/wiring-chaos-engine.go` 的 `wireChaosEngine` 把 chaos + chaos-enhanced + chaos-gateway 三个模块接进同一个 `chaos_engine_handler.NewHandler(chaosSvc, chaosEnhancedSvc, chaosGatewaySvc)`；三模块各自保留自己的 repo / service
+  - `internal/chaos-engine/handler/handler.go` 的 facade 持有三个子 handler，`RegisterRoutes` 挂 `/chaos` 组共 **32 条路由**，**32 处** `auth.RequirePermission("chaos", …)` 守卫（路由数与守卫数一一对应），三个子 handler 全部被实际调用（chaosH ×18、enhancedH ×7、gatewayH ×7 次方法调用）
+  - `router.go` 挂载 `chaosEngineH`，并在注册点用注释写明 `chaosH` / `chaos_enhancedH` / `chaosGatewayH` **刻意不注册**——重复挂同一 `(method, path)` 会让 Gin panic
+  - 已被 `route_dump_test.go` 与 `route_conflict_scan_test.go` 覆盖（0 conflicts），所以这条合并不是「写完没测」
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - **R5-3 / ARCH-0.10 的真尾巴是缺实现，不是缺测试**：`ExecuteBackup` / `ExecuteRestore` 里的 `// TODO` 还在（`service.go` 的备份与恢复两处），返回的是占位 `BackupResult`。新测试把契约钉住了，但**真实备份/恢复引擎仍未实现**，已作为新的独立待办项记入 `ALL_TODOS.md`
+  - `DatabaseSource.Password` 仍是明文持久化且 `omitempty` 回吐、`CreateDataSourceRequest.Password` 是 `binding:"required"` —— 属 ARCH-0.11，本轮未动
+  - PERM-8 阶段 2、PERM-6、ARCH-0.9 前端、ARCH-0.12、`internal/identity/role` 死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突 —— 沿用记录
+
+- 📌 **本轮明确未做（已排期）**
+  - **ARCH-0.10 真实现** — 备份/恢复引擎（pg_dump / WAL 归档 / PITR），当前只有契约测试
+  - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+  - PERM-6 — AI 端点权限定义
+  - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
+  - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动

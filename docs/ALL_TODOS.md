@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 31 项 |
+| ✅ 已完成 | 33 项 |
 | 🔴 待处理 | 5 项 P0 |
-| 🟡 待处理 | 7 项 P1 |
+| 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **65 项** |
+| **总计** | **66 项** |
 
 ---
 
-## 二、已完成清单 (31 项)
+## 二、已完成清单 (33 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -54,6 +54,16 @@
 | ✅ | **PERM-7: 后端补 `GET /roles/permissions-map`** | 2026-08-29 | 新增 `auth.GetRolePermissionsMap()`（继承已展开、`_` 已归一）+ 标准 `{"success":true,"data":…}` 信封；前端 `usePermission.ts` 改 merge 不 replace；后端补 `admin` 角色别名（43→44）；新增 `roles_permissions_map_test.go`；路由 3446→3447、冲突 0。**连带撞出 PERM-8（见下）** |
 | ✅ | **PERM-8 阶段 1: 可选（非阻塞）认证中间件，默认关闭** | 2026-08-29 | `pkg/auth/middleware.go` 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改为薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**，带守卫的请求只能 403→200、不可能 200→401）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载，严格 `auth.Auth` **刻意不挂**（会 401 整个无 token 客户端盘）；新增 `optional_auth_test.go` 3 个测试；`cmd/server` 9 个测试全绿、542 包 0 FAIL、路由/守卫指标逐字节不变 |
 | ✅ | **PERM-9: 多角色语义对齐** | 2026-08-29 | 四个守卫（`RequirePermission` / `RequireAnyPermission` / `RequireRole` / `RequireAnyRole`）全部改走 `GetRoles(c)`：**任一**持有角色授权即通过（并集语义，与前端 `matchPermission` 的多角色遍历一致，授权第二个角色不可能撤销第一个已给的访问权）；多角色规则收进两个单点实现 `anyRoleHasPermission`（permission.go）/ `hasRole`（middleware.go）；`GetRoles` 加固——`roles` 存在但为空也回退单 `role`，不再把「只设了 role」的调用方静默降为 `no role assigned`；`no role assigned` / `insufficient permissions` 两条 403 文案与无身份分支逐字保留；认证默认关闭时不会有任何角色写进 context，生产行为零变化；守卫层 8 个子测试 + 端到端 `TestOptionalAuthMultiRoleUnion`（真实多角色 JWT 走完 `roles` 数组→`ParseClaims`→`applyClaims`→`GetRoles`→`RequirePermission`）；**变异验证已做**：把守卫退回单角色后端到端测试实测 FAIL（`insufficient permissions`），恢复后 PASS |
+| ✅ | **P1-3: chaos 三模块合并**（核实完成，无代码改动） | 2026-08-29 | `wireChaosEngine`（wiring-chaos-engine.go）已把 chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行) 接进同一个 `chaos_engine_handler.NewHandler(chaosSvc, chaosEnhancedSvc, chaosGatewaySvc)`；facade 挂 `/chaos` 组共 32 条路由、32 处 `auth.RequirePermission("chaos", …)` 守卫，三个子 handler 全部实际调用（chaosH×18 / enhancedH×7 / gatewayH×7）；`router.go` 挂载 `chaosEngineH` 并在注册点注释说明三个 legacy handler 刻意不注册（重复挂同一 `(method, path)` 会让 Gin panic）；已被 `route_dump_test.go` + `route_conflict_scan_test.go` 覆盖（0 conflicts） |
+| ✅ | **ARCH-0.10 剩余: database-devops 备份/恢复契约测试** | 2026-08-29 | `service.go` 抽出包私有 `repoInterface`（10 方法，与 `repository.Repository` 一一对应）+ 仅测试用 `newServiceWithRepo`，生产仍走 `NewService(db *sqlx.DB)`，**外部调用点 0 处改动**；新增 `service_test.go` 8 条契约测试（状态生命周期 `running→completed`、结果回读与落库一致、not-found 无副作用、**坏配置在置 running 之前失败**、空配置仍完成、每一次调用的租户作用域、`NewService(nil)` 容错），fakeRepo 记录调用序列因此能断言顺序而非仅最终值；**变异验证已做**：把最终 `UpdateStatus` 的 `completed` 改成 `failed` 后 `TestExecuteBackup_StatusLifecycle` 实测 FAIL 于两条预期断言，恢复后 8/8 PASS；`go test ./...` → 543 包 ok / 0 FAIL。**注意：这是契约测试，不是实现**——`ExecuteBackup`/`ExecuteRestore` 仍是桩（见下方第五轮 R5-3） |
+
+---
+
+### 本轮新增待办（2026-08-29，由 ARCH-0.10 收尾撞出）
+
+| ID | 任务 | 解决缺口 | 优先级 | 工作量 |
+|----|------|---------|--------|--------|
+| **ARCH-0.10b** | **备份/恢复引擎真实现** — `ExecuteBackup` / `ExecuteRestore` 目前只查 operation、解析 config、置 `running`、返回占位 `BackupResult`、置 `completed`，两处 `// TODO` 仍在（`internal/database-devops/service/service.go`）。**已有契约测试钉住 status 生命周期 / 结果回读 / 租户作用域 / 坏配置不置 running**，实现时必须继续满足这些断言。**提示：仓库里已存在两套真实备份系统**（`internal/backup/` 15 路由；`internal/infrastructure/backup/` 8 路由含 cron + verifier + 私有 `executeBackup` + `recovery_service`），优先复用而非新写 | R5-3（备份/恢复桩实现） | 🔴 高 | 3-5 天（pg_dump / WAL 归档 / PITR，含真实存储与并发保护） |
 
 ---
 
@@ -71,13 +81,13 @@
 
 ---
 
-## 四、待处理 — P1 高优先级 (8 项)
+## 四、待处理 — P1 高优先级 (7 项)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
 | ~~**P1-1** | crossover 补 Repository 实现 | 结构重叠 | ~~已修复: repository(316行), service(30+方法), handler(15 endpoints + 18 tests), adapter(CallRecord↔CrossoverCall), wiring.go/router.go 全部 wired, `go build ./cmd/server/` clean~~ | ✅ 2026-08-26 |
 | ~~**P1-2** | ticketing handler.go 核心拆分 | 结构重叠 | ~~已修复: handler.go 1370行/84方法拆分→14文件(handler.go 212行 + 13个handler_*.go)，纯机械拆分，0行为变更，`go build`+`go test`全部通过~~ | ✅ 2026-08-26 |
-| **P1-3** | chaos 三模块合并 | 结构重叠 | chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行)，三模块 Model/Repo/CRUD 完全独立，合并为 chaos-engine | 3-5 天 |
+| ~~**P1-3** | chaos 三模块合并 | 结构重叠 | ~~核实为已完成: `wireChaosEngine` 已把 chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行) 三个模块接进同一个 chaos-engine facade，facade 挂 `/chaos` 组 32 条路由 / 32 处 `chaos` 守卫、三个子 handler 全部实际调用；`router.go` 挂载 `chaosEngineH` 并注释说明三个 legacy handler 刻意不注册（重复挂同一 `(method, path)` 会让 Gin panic）；`route_dump_test.go` + `route_conflict_scan_test.go` 已覆盖，0 conflicts~~ | ✅ 2026-08-29（见上方已完成清单） |
 | ~~**P1-4** | 7 个未注册 TS 路由 | merged-action-items | ~~核实为 stale claim: 仅 federation 和 RiskDashboard 两个 page 目录存在，且两者均已在 routes.tsx 注册；其余 5 个目录(channel, deploy-enhanced, notification-management, pipeline-run-history, pipeline-trend)根本不存在~~ | ✅ 2026-08-26 |
 | ~~**P1-5** | 9 个孤岛 Controller | merged-action-items | ~~核实为 stale claim: `src/` 下 0 个 Controller 命名文件存在~~ | ✅ 2026-08-26 |
 | **P1-6** | 前端 API 路径统一 | merged-action-items | 137 个文件硬编码 `/api/v1`，迁移脚本不存在 | 2-3 天 |
@@ -206,7 +216,7 @@
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
 | ~~ARCH-0.9~~ | datasource 补 handler 层 + 路由接线 | R4-1 | 🟡 **部分完成 2026-08-29** — 后端已完成: 11 条带守卫路由 `/api/v1/data-sources` + repository 实现 + wiring + migration 551；**剩余: 前端 `datasource.ts` 客户端** | 2d |
-| ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | 🟡 **部分完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；**剩余: 备份/恢复测试** | 1.5d |
+| ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | ✅ **完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；备份/恢复**契约**测试已完成（8 条，`internal/database-devops/service/service_test.go`，变异验证已做） | 1.5d |
 | ARCH-0.11 | **三套数据源统一 + 明文密码清理**（database-devops 复用 datasource 加密模型，删除 `/data-sources` 明文端点） | R4-3 + IX-8 | 🔴 高 | 2d |
 | ARCH-0.12 | **datasource 补 ClickHouse/MongoDB 驱动**（宣称 5 → 实连 5） | R4-2 | 🟡 中 | 1.5d |
 | ~~ARCH-0.13~~ | **库表权限授予用户（SQL 级 GRANT）能力盘点** | R5-1 | 🔴 高 | ✅ 2026-08-29 已核实缺失 → 设计待排期 |
@@ -220,7 +230,7 @@
 |----|----------|------|---------|------|
 | R5-1 | **库表权限授予用户（SQL GRANT）** — 全项目 0 处 SQL 级 GRANT；仅平台 RBAC（identity user_permissions 表 / OAuth grant_type） | 全新维度（前四轮从未评估） | ARCH-0.13 | ✅ 盘点完成 → 设计待排期 |
 | R5-2 | **慢SQL 确认假数据** — `internal/apm/service/business.go` GetSlowQueries 返回 3 条硬编码 fake（`// TODO: replace simulated data with real DatabaseProfiler queries`）；dba 无 slowquery 采集 | DBA-05 缺口成立 | DBA-05 | ✅ 确认缺失 |
-| R5-3 | **备份/恢复桩实现** — database-devops ExecuteBackup/ExecuteRestore 均 `// TODO` 桩（只 UpdateStatus 不真执行）；dba ExecuteOrder 也是状态桩 | R4-4 深化 | ARCH-0.10 补测试 + 真实现 | ✅ 确认缺失 |
+| R5-3 | **备份/恢复桩实现** — database-devops ExecuteBackup/ExecuteRestore 均 `// TODO` 桩（只 UpdateStatus 不真执行）；dba ExecuteOrder 也是状态桩 | R4-4 深化 | 补测试 ✅ 2026-08-29（契约测试 8 条）；真实现 → **ARCH-0.10b**（并见 ARCH-0.15 备份系统统一） | ✅ 确认缺失 |
 | R5-4 | **建仓（建库/数仓）缺失** — 无 CREATE DATABASE / warehouse；data-pipeline 仅 Schedule 字段 + RunPipeline 手动触发（`"pipeline run triggered"`），无调度器接入 | 全新维度 | data-pipeline 调度器 | ✅ 确认缺失 |
 | R5-5 | **自动化引擎具备但未接线** — `internal/cron/` SchedulerManager 完整（CronJob/ShouldFireAt/JobHandlerFunc + scheduler_job_definitions 表），但 dba/data-pipeline/database-devops 均未接入 | 引擎在、消费者缺 | data-pipeline 调度器 | ✅ 盘点完成 |
 
