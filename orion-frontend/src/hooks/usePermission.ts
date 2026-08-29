@@ -187,8 +187,20 @@ async function fetchPermissionsMap(): Promise<Record<string, string[]>> {
       });
       if (resp.ok) {
         const body = await resp.json();
-        if (body.success && body.data && typeof body.data === 'object') {
-          _permissionsCache = body.data as Record<string, string[]>;
+        if (
+          body.success &&
+          body.data &&
+          typeof body.data === 'object' &&
+          !Array.isArray(body.data)
+        ) {
+          // Merge, never replace: the fallback also carries roles the backend map
+          // does not define (e.g. "oncall", which the backend expresses as the
+          // oncall:* resource granted to sre). Replacing would lock those users
+          // out of every menu entry the moment the API call succeeds.
+          _permissionsCache = {
+            ...ROLE_PERMISSIONS_FALLBACK,
+            ...body.data,
+          } as Record<string, string[]>;
           return _permissionsCache!;
         }
       }

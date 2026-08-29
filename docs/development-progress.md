@@ -340,3 +340,68 @@
   - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
   - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+
+### 2026-08-29（后端专项：PERM-7 权限映射端点 + 撞出 PERM-8 认证中间件缺失）
+
+> 本轮把前端与后端的权限同步链路接通（上一轮记录为 PERM-7），并在接线过程中撞出一个比 PERM-7 严重得多的问题：**整个平台服务从来没有挂过认证中间件**。
+
+- ✅ **PERM-7 闭环 — 后端新增 `GET /api/v1/roles/permissions-map`**
+  - 前端 `usePermission.ts` 一直在调这个端点，但后端 0 路由服务它（`grep 'permissions-map' internal/ cmd/` 全无结果），所以前端权限**永远走硬编码 `ROLE_PERMISSIONS_FALLBACK`**，后端 `permission.go` 的改动同步不到 UI
+  - 数据源必须是 `HasPermission` 实际使用的那张表 → 在 `orion-go-common/pkg/auth/permission.go` 新增导出 `GetRolePermissionsMap()`，直接读内部 `allRolePermissions`（继承已展开、`_` 已在存储侧归一为 `-`），前端拿到的就是后端真正执行的授权结果
+  - **坑：真正挂载的不是 `internal/identity/role/handler`**。那个包（`models.PermissionsMap` 定义处）从未被接线，`cmd/server` 对 `internal/identity/role` 的引用数为 0 —— 整包死代码。真正挂载的是 `internal/role/handler`（`core_infra_wiring.go:160`）。本轮先误改在死包上，grep 引用才发现，已回退
+  - 响应必须是 `{"success": true, "data": {...}}`（用 `orionerrors.WriteSuccess`）—— 前端判 `body.success`；identity/role 那套 `{"code": 0, "data": ...}` 形状、以及 `models.PermissionsMap`（值是对象数组而非 `string[]`）都会让前端**静默回落**到 fallback，PERM-7 等于白做
+  - `/roles/permissions-map` 是 `/roles/:id` 的静态兄弟，Gin 合法（与已有 `/roles/count` 同型），实测未挤掉通配
+  - 路由 3446 → **3447**
+
+- 🔴 **PERM-8（新发现，P0）— 平台服务完全没有认证中间件，3640 处守卫对每个调用方都 403**
+  - 证据链 1: `cmd/server/router.go` 对 `/api/v1` 只挂了 7 个中间件（Logger / Recovery / RateLimit / Timeout / SecurityHeaders / Prometheus / CircuitBreaker），**没有 `auth.Auth`**
+  - 证据链 2: `auth.RequirePermission` 读 `c.Get("role")`，而全仓库只有一处 `c.Set("role", …)`（`orion-go-common/pkg/auth/middleware.go:173`，在 `auth.Auth` 内部）；平台服务自己的 `internal/middleware` 包 **0 个认证相关中间件**
+  - 证据链 3（实证，见下方新测试）: 同一个装配出来的 router 上，`GET /api/v1/roles`（无守卫）→ 500（打到 stub DB，说明可达）；`POST /api/v1/roles`（有守卫）→ 403 且 body 含 `"no role assigned"`
+  - 结论: RBAC 角色表、3640 处守卫、5 条审计断言都完备，但**从未接到 token 校验上**。守卫目前不是「授权」，而是「全员拒绝」
+  - 历史线索: `docs/archives/blueprints-legacy/orion-auth-svc/internal/middleware/middleware.go:40` 有 `c.Set("role", claims["role"])` —— 认证原本在**独立 auth 服务**里，该蓝图已归档，中间件从未移植进平台服务
+  - **本轮刻意不修**: 一行 `api.Use(auth.Auth(...))` 就能接上，但后果是全局性的 —— 所有无 token 调用立刻 401（`auth.Auth` 还强制要求 `tenant_id` claim，缺则 401），3640 处守卫同时从「全员 403」翻成真实授权，属于需要灰度方案 + 前端配合的破坏性变更，不是可增量提交的小修
+  - 因此 `/roles/permissions-map` **当前必须无守卫**，否则同样被 403 打死、PERM-7 等于没修；代码注释里已写明 PERM-8 落地后要补上守卫
+
+- ✅ **后端补 `"admin"` 角色（PERM-7 的连带修正）**
+  - 前端 `role: 'admin'` 是默认角色值（`tests/mocks/handlers.ts:415/441`、`AuthInitializer.test`、`api/__tests__/auth.test.ts`、`user.test.ts`），fallback 给它 `['*:*']`
+  - 但后端 43 个角色里**没有 `admin`** → 这类用户前端看到全解锁、后端全 403 —— 正是 PERM-7 要消灭的分叉本身
+  - `SystemRolePermissions` 补 `"admin": {"*:*"}`，角色数 43 → **44**
+
+- ✅ **前端改为 merge 而非 replace（`orion-frontend/src/hooks/usePermission.ts`）**
+  - 原实现拿到后端返回就**整体替换** fallback。后端 44 个角色里没有 `oncall`（后端把 oncall 当**资源**，权限以 `oncall:*` 给 sre），整体替换会把这类用户菜单全锁死
+  - 现改为 `{ ...ROLE_PERMISSIONS_FALLBACK, ...body.data }` —— 后端优先、前端别名保底；另加 `Array.isArray` 防御（`typeof [] === 'object'` 会通过原判断，数组会被当成 map 吞进去）
+
+- ✅ **新增 `cmd/server/roles_permissions_map_test.go`（第 6 个 cmd/server 测试）**
+  - 断言 1: 200 + `success: true` + `data` 是 `map[string][]string` + ≥ 40 个角色 + `admin` 持有 `*:*`
+  - 断言 2: `GET /roles` 不被 403（静态兄弟没挤掉 `:id` 通配）
+  - 断言 3（**故意反向**）: `POST /roles` 必须 403 且 body 含 `"no role assigned"` —— 钉住 PERM-8 现状；PERM-8 落地后这条必须翻成 `!= 403`
+
+- ✅ **验证结果**
+  - `go build ./...` EXIT 0
+  - `go test ./...` EXIT 0 — **542 个包 ok，0 失败**
+  - `go vet ./pkg/auth/`、`./internal/role/...`、`./cmd/server/` 全清
+  - `cmd/server` 6 个测试全绿:
+    - boot — `setupRouter assembled 3447 routes without panic`
+    - conflict scan — `assembled 3451 routes; 0 registration conflicts`
+    - dump — `dumped per-handler route sets for 319 handlers`
+    - audit — `audited 765 guard pairs over 3640 call sites, 261 distinct resources, 310 module dirs`（不变）
+    - TestTicketRoutesTreeConflict
+    - TestRolesPermissionsMapServed — `permissions-map served 44 roles`
+  - `pkg/auth`: build + vet + test 全绿（`-count=1` 强制重跑，不吃缓存）
+  - `npx tsc --noEmit` 45 条错误全部为既有，`usePermission.ts` 0 错误
+  - 格式: 新增测试文件 gofmt 干净；`permission.go` 刻意未 gofmt（`pkg/auth` 目录整体本就不是 gofmt 状态，gofmt 会重排 43+/15- 的无关行）
+
+- 🔍 **本轮新发现的缺口（记录，未在本轮实施）**
+  - **PERM-8（P0）** — 认证中间件缺失（见上，含为何本轮不修的理由）
+  - `internal/identity/role` 整包死代码（handler / service / models 互相引用，`cmd/server` 0 引用）；`models.PermissionsMap` 从未使用 —— 建议删除或接线，二选一，别留第三态
+  - `RequirePermission` 只读单角色 `c.Get("role")`，忽略 `auth.Auth` 已解析好的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义不一致
+  - `orchestrationH`(`/orchestration/:orch_id/runs`) vs `ai_orchestrationH`(`/orchestration/:id/runs`) 通配符名冲突（沿用上一轮记录，两者仍未挂载）
+  - 前端 API 面缺口仍在: `api-governance.ts` 调 `/governance/contracts|rules|violations|report|versions` 无后端认领；`/confirmations`（前端）vs `/confirmation`（后端）单复数不一致
+
+- 📌 **本轮明确未做（已排期）**
+  - **PERM-8** — `/api/v1` 接入认证中间件（破坏性变更，需灰度方案，见上）
+  - PERM-6 — AI 端点权限定义（新增 `:ai` action）
+  - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
+  - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
+  - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动

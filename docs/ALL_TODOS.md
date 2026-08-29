@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 17 项 |
-| 🔴 待处理 | 4 项 P0 |
+| ✅ 已完成 | 29 项 |
+| 🔴 待处理 | 5 项 P0 |
 | 🟡 待处理 | 7 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **49 项** |
+| **总计** | **63 项** |
 
 ---
 
-## 二、已完成清单 (16 项)
+## 二、已完成清单 (29 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -51,10 +51,11 @@
 | ✅ | **PERM-1~5: 权限守卫与角色 fallback** | 2026-08-29 | 见下方「权限修复」表；新增 `permission_guard_audit_test.go` 5 条断言（765 守卫对 / 3640 调用点），两个反向验证均失败即报错 |
 | ✅ | **ARCH-0.9 后端: datasource 模块接成 REST API** | 2026-08-29 | 从死代码 → 11 条带守卫路由 + repository + migration 551；路由 3414 → 3446 |
 | ✅ | **7 个死声明清理** | 2026-08-29 | 5 个按前缀归属删除、2 个（skillH / ai_knowledgeH）真正挂载；撞出并修掉 Gin 第二类 panic（同节点通配符 token 名冲突，2 处） |
+| ✅ | **PERM-7: 后端补 `GET /roles/permissions-map`** | 2026-08-29 | 新增 `auth.GetRolePermissionsMap()`（继承已展开、`_` 已归一）+ 标准 `{"success":true,"data":…}` 信封；前端 `usePermission.ts` 改 merge 不 replace；后端补 `admin` 角色别名（43→44）；新增 `roles_permissions_map_test.go`；路由 3446→3447、冲突 0。**连带撞出 PERM-8（见下）** |
 
 ---
 
-## 三、待处理 — P0 阻塞性 (4 项)
+## 三、待处理 — P0 阻塞性 (5 项)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -62,6 +63,7 @@
 | ~~**P0-2** | Log 支柱缺失 | 交叉验证 | ~~核实为 stale claim: `internal/logging/` 模块完整 (handler.go 259行/10方法, wired in wiring.go+router.go, 6 REST endpoints)~~ | ✅ 2026-08-26 |
 | ~~**P0-3** | prompt-security 补 Repo 层 | 交叉验证 | ~~核实为 stale claim: `internal/prompt-security/repository/` 已存在 (322行/10方法), 已 wired to service~~ | ✅ 2026-08-26 |
 | ~~**P0-4** | alert-deduplication 补 Repo 层 | 交叉验证 | ~~核实为 stale claim: `internal/alert-deduplication/repository/` 已存在 (67行/2方法), 已 wired to service~~ | ✅ 2026-08-26 |
+| **PERM-8** | `/api/v1` 从未挂认证中间件 — 3640 处 `RequirePermission` 全部 403 | 权限审计 | `cmd/server/router.go` 对 `/api/v1` 只挂 7 个中间件（无 `auth.Auth`）；全仓库仅 `pkg/auth/middleware.go:173` 一处 `c.Set("role", …)`，位于 `auth.Auth` 内；平台 `internal/middleware/` 0 个认证中间件。认证原本在独立 auth 服务（`blueprints/orion-auth-svc.archived/`），归档时中间件未移植。修复需灰度方案：无 token 调用将立刻 401，`auth.Auth` 还强制 `tenant_id` claim；落地后要补 `/roles/permissions-map` 的守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言 | ⬜ 待做（2026-08-29 新发现） |
 
 **P0 合计工作量**: 4.5-6 天
 
@@ -205,6 +207,20 @@
 | ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | 🟡 **部分完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；**剩余: 备份/恢复测试** | 1.5d |
 | ARCH-0.11 | **三套数据源统一 + 明文密码清理**（database-devops 复用 datasource 加密模型，删除 `/data-sources` 明文端点） | R4-3 + IX-8 | 🔴 高 | 2d |
 | ARCH-0.12 | **datasource 补 ClickHouse/MongoDB 驱动**（宣称 5 → 实连 5） | R4-2 | 🟡 中 | 1.5d |
+| ~~ARCH-0.13~~ | **库表权限授予用户（SQL 级 GRANT）能力盘点** | R5-1 | 🔴 高 | ✅ 2026-08-29 已核实缺失 → 设计待排期 |
+
+### 第五轮追加（数据库能力实况盘点，2026-08-29，R5-1~R5-5）
+
+> 来源: 第五轮盘点「当前具备数据库相关的哪些能力」— 慢SQL / 建仓 / 库表权限授予 / 自动化工具 4 项能力实况
+> **核心洞察**: 数据库域存在系统性"假能力"——备份/恢复、工单执行、慢查询三个模块均为桩实现（只更新状态/返回假数据），比"缺 AI 能力"更基础：**连真实执行能力都没有**。
+
+| ID | 任务/结论 | 实况 | 关联待办 | 状态 |
+|----|----------|------|---------|------|
+| R5-1 | **库表权限授予用户（SQL GRANT）** — 全项目 0 处 SQL 级 GRANT；仅平台 RBAC（identity user_permissions 表 / OAuth grant_type） | 全新维度（前四轮从未评估） | ARCH-0.13 | ✅ 盘点完成 → 设计待排期 |
+| R5-2 | **慢SQL 确认假数据** — `internal/apm/service/business.go` GetSlowQueries 返回 3 条硬编码 fake（`// TODO: replace simulated data with real DatabaseProfiler queries`）；dba 无 slowquery 采集 | DBA-05 缺口成立 | DBA-05 | ✅ 确认缺失 |
+| R5-3 | **备份/恢复桩实现** — database-devops ExecuteBackup/ExecuteRestore 均 `// TODO` 桩（只 UpdateStatus 不真执行）；dba ExecuteOrder 也是状态桩 | R4-4 深化 | ARCH-0.10 补测试 + 真实现 | ✅ 确认缺失 |
+| R5-4 | **建仓（建库/数仓）缺失** — 无 CREATE DATABASE / warehouse；data-pipeline 仅 Schedule 字段 + RunPipeline 手动触发（`"pipeline run triggered"`），无调度器接入 | 全新维度 | data-pipeline 调度器 | ✅ 确认缺失 |
+| R5-5 | **自动化引擎具备但未接线** — `internal/cron/` SchedulerManager 完整（CronJob/ShouldFireAt/JobHandlerFunc + scheduler_job_definitions 表），但 dba/data-pipeline/database-devops 均未接入 | 引擎在、消费者缺 | data-pipeline 调度器 | ✅ 盘点完成 |
 
 **数据库类型实况修正**：datasource **宣称 5 种（PG/MySQL/ClickHouse/ES/MongoDB）实连仅 2 种（PG+MySQL）**（service.go 仅 import mysql+pgx 驱动，ClickHouse/ES/MongoDB 调用直接返回错误）；data-catalog 实连 3 种（PG/MySQL/SQLite）；DBA 执行/测试仅 PG（硬编码 postgres）。缺失企业级类型：Oracle/SQL Server/OceanBase/openGauss/TiDB。
 
@@ -230,7 +246,7 @@
 | AI-06 | ETL DAG 生成 | data-pipeline | 🟡 |
 | AI-07 | 脱敏联动 Agent | data-masking | 🟡 |
 
-### 权限修复（PERM，6 项）
+### 权限修复（PERM，8 项）
 
 | ID | 任务 | 严重度 | 状态 |
 |----|------|--------|------|
@@ -240,7 +256,8 @@
 | ~~PERM-4~~ | 新增 4 个数据专业角色 fallback | 🟡 中 | ✅ 2026-08-29 — data_admin / data_steward / bi_analyst / data_engineer |
 | ~~PERM-5~~ | 修拼写 data-mashing→data-masking + 命名统一 | 🟡 中 | ✅ 2026-08-29 — 第 30 行守卫修正；另加 `normResource()` 统一 4 组 `_`/`-` 拼写分叉 |
 | PERM-6 | AI 端点权限定义（新增 `:ai` action） | 🟡 中 | ⬜ 待做 |
-| PERM-7 | **后端补 `GET /roles/permissions-map`**（前端在调但无任何路由服务，导致前端权限永远走硬编码 fallback、后端改动不同步） | 🟡 中 | ⬜ 待做（2026-08-29 新发现；`models.PermissionsMap` 已定义但从未使用） |
+| ~~PERM-7~~ | 后端补 `GET /roles/permissions-map` | 🟡 中 | ✅ 2026-08-29 — 见上方已完成清单（路由 3446→3447） |
+| **PERM-8** | **`/api/v1` 接入认证中间件** — 平台服务从未挂过 `auth.Auth`，`c.Set("role", …)` 全仓库只有 `pkg/auth/middleware.go:173` 一处且在 `auth.Auth` 内，导致 **3640 处守卫对每个调用方都 403**（`GET /roles` 无守卫→500 可达，`POST /roles` 有守卫→403 "no role assigned"） | 🔴 高 | ⬜ 待做（2026-08-29 新发现；**破坏性变更，需灰度方案**：接上后所有无 token 调用立刻 401，且 `auth.Auth` 强制要求 `tenant_id` claim） |
 
 ### 前端工作台（UI，6 阶段 19 人天）
 

@@ -49,6 +49,25 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.DELETE("/roles/:id", auth.RequirePermission("role", "delete"), h.Delete)
 	rg.POST("/roles/:id/permissions", auth.RequirePermission("role", "write"), h.SetPermissions)
 	rg.GET("/roles/:id/permissions", h.GetPermissions)
+
+	// Deliberately unguarded, as is every other GET in this file. The group is
+	// mounted on /api/v1 and no auth middleware runs in that chain, so
+	// c.Get("role") is always empty here and auth.RequirePermission would answer
+	// 403 "no role assigned" to every caller — including the users this endpoint
+	// exists for (PERM-7). The role → permission table is not secret:
+	// usePermission.ts already ships the same data hardcoded in the client bundle.
+	rg.GET("/roles/permissions-map", h.PermissionsMap)
+}
+
+// PermissionsMap serves the effective role → permissions table (PERM-7), so the
+// frontend derives its menu locks from what auth.HasPermission actually enforces
+// instead of maintaining a second hardcoded copy that drifts out of step.
+//
+// The envelope is the standard {"success": true, "data": ...} because
+// usePermission.ts only accepts the payload when body.success is truthy; any other
+// shape makes the client silently fall back and undo the whole fix.
+func (h *Handler) PermissionsMap(c *gin.Context) {
+	orionerrors.WriteSuccess(c, auth.GetRolePermissionsMap())
 }
 
 // Create creates a new role.

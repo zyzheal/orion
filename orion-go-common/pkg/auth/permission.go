@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 
 	"orion/go-common/pkg/errors"
@@ -12,9 +13,14 @@ import (
 // Permission format: "{resource}:{action}"
 // Wildcards: "*:*" (all), "pipeline:*" (all pipeline actions), "*:read" (all read)
 
-// SystemRolePermissions defines permissions for system-level roles (5 roles).
+// SystemRolePermissions defines permissions for system-level roles (6 roles).
 var SystemRolePermissions = map[string][]string{
-	"super_admin":    {"*:*"},
+	// Legacy alias: the frontend still issues role: "admin" (tests/mocks/handlers.ts,
+	// AuthInitializer, auth/user api tests) and grants it "*:*". Without this entry
+	// such a user renders every menu as unlocked while HasPermission rejects every
+	// guarded request with 403 — the exact frontend/backend divergence PERM-7 fixes.
+	"admin":         {"*:*"},
+	"super_admin":   {"*:*"},
 	"platform_admin": {"*:manage", "*:read", "*:write", "*:execute", "*:delete", "*:approve",
 		"*:admin"},
 	"tenant_admin":   {"*:read", "*:write", "*:manage", "*:admin", "audit_log:read"},
@@ -223,6 +229,26 @@ func GetAllRoles() []string {
 // RoleCount returns the total number of defined roles.
 func RoleCount() int {
 	return len(allRolePermissions)
+}
+
+// GetRolePermissionsMap returns the effective role → permissions table as strings,
+// i.e. exactly what HasPermission enforces (inheritance applied, "_" already folded
+// to "-"). The frontend uses this instead of hardcoding its own copy, so a guard
+// added in one PR stops needing a second PR to reach the menu locks.
+//
+// json.Marshal sorts map keys, so role order in the payload is stable; the per-role
+// lists are sorted only so diffs and test assertions are readable.
+func GetRolePermissionsMap() map[string][]string {
+	out := make(map[string][]string, len(allRolePermissions))
+	for role, perms := range allRolePermissions {
+		list := make([]string, 0, len(perms))
+		for p := range perms {
+			list = append(list, p)
+		}
+		sort.Strings(list)
+		out[role] = list
+	}
+	return out
 }
 
 // normResource maps a resource name to its canonical form. Backend guards use
