@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 37 项 |
+| ✅ 已完成 | 38 项 |
 | 🔴 待处理 | 3 项 P0 |
 | 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **68 项** |
+| **总计** | **69 项** |
 
 ---
 
-## 二、已完成清单 (37 项)
+## 二、已完成清单 (38 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -60,6 +60,7 @@
 | ✅ | **ARCH-0.11 明文密码清理: database-devops 复用 datasource 加密模型** | 2026-08-29 | `internal/datasource/service` 原私持 40 行 AES-256-GCM 算法（`Key`/`Encrypt`/`Decrypt`）从未暴露给 `database-devops`，导致 `database-devops` 的 `DatabaseSource.Password` 以明文落库且 `POST /api/v1/database-devops/data-sources` 的 201 响应原样回显调用方密码（模型标签曾是 `json:"password,omitempty"`；`ListDataSources` 的 SELECT 本就不读该列故 list 路径从未泄漏，create 响应是唯一泄漏点）；本批抽出 `internal/shared/aesgcm`（`Key` 派生：64-hex 原样 / 其他 SHA-256；`Encrypt` 随机 nonce 前缀后 hex；`Decrypt` 验 GCM tag，错钥/篡改即失败），datasource 三助手改为单行委托（调用点与既有测试不变），database-devops `Service.key []byte` + `CreateDataSource` 加密前置 + `models.Password` 改 `json:"-"`（`db:"password"` 保留，`NamedExecContext` 绑定不变）+ `NewHandler(db *sqlx.DB, secretKey string)` 取与 `internal/datasource` **同一** `datasourceKey(logger)`（`DATASOURCE_SECRET_KEY` → `JWT_SECRET` → dev fallback，两模块同一把钥匙——`datasourceKey` 抽到 `cmd/server/wiring-datasource.go`，`wiring.go:628` 调用之）；新增 `aesgcm_test.go` 6 条（往返含 unicode/10KB、错钥、篡改一 bit、畸形输入、`Key` 派生含空密、nonce 非确定性）、`models_test.go` 2 条（反射断言 `json:"-"`/`db:"password"`/`binding:"required"` 标签 + 序列化输出不含 `password`/明文 + 非秘密字段仍序列化）、`service_test.go` 新增 `TestCreateDataSourceEncryptsPassword`（响应非明文、可解密回原文、错钥不解、落库行同密文、跨租户不可见）+ 7 处 `newServiceWithRepo(repo)` → `newServiceWithRepo(repo, testDSKey)` + `NewService(nil)` → `NewService(nil, testDSKey)` + fakeRepo 的 `CreateDataSource`/`ListDataSources` 改为真记录；**变异验证已做**：还原 `json:"password,omitempty"` → 3 条断言 FAIL（标签检查、明文回显、字段名），删除 `aesgcm.Encrypt` 调用 → "the response carries the caller's plaintext password" FAIL；恢复后 `gofmt -l` 全干净、`go build ./...` ok、`go vet` 干净、`go test ./internal/shared/aesgcm/ ./internal/database-devops/... ./internal/datasource/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL**（基线 543 + aesgcm 新包 + models 从无测试到有测试 = 545）。**未做**：ARCH-0.11b 三套数据源统一（删除 `/database-devops/data-sources` 重复端点）仍开放——本批只清了凭据路径 |
 | ✅ | **ARCH-0.11b 三套数据源统一: 删除 database-devops 重复 `/data-sources` 端点** | 2026-08-29 | `database-devops` handler 注册了 3 条重复数据源路由（`GET/POST/DELETE /database-devops/data-sources`），与 `internal/datasource` 的 `/data-sources`（11 条路由：list/types/health-all/get/health/create/update/delete/test/query/execute）完全重叠且功能更少（无 update/test/query/execute/health）；前端 0 处消费 `/database-devops/data-sources`（`grep -rn 'database-devops/data-sources' orion-frontend/src/` = 0）；本批删除 handler 3 条路由 + 3 个 handler 方法（`ListDataSources`/`CreateDataSource`/`DeleteDataSource`）+ service 3 个方法 + `repoInterface` 3 个接口方法 + `Service.key []byte` 字段 + `aesgcm` import，`NewHandler(db *sqlx.DB, secretKey string)` → `NewHandler(db *sqlx.DB)`、`NewService(db, secretKey)` → `NewService(db)`、`newServiceWithRepo(repo, secretKey)` → `newServiceWithRepo(repo)`；`wiring.go:631` 调用改为 `dbdevops_handler.NewHandler(infra.db.DB)`（不再传 `datasourceKey(logger)`）；`wiring-datasource.go` `datasourceKey` 文档注释更新（仅 `wireDatasource` 调用之）；`service_test.go` 移除 `aesgcm` import + `testDSKey` 常量 + fakeRepo 的 `dataSources` 字段与 3 个 DS 方法 + `TestCreateDataSourceEncryptsPassword`，7 处 `newServiceWithRepo(repo, testDSKey)` → `newServiceWithRepo(repo)`、`NewService(nil, testDSKey)` → `NewService(nil)`；repository 层 3 个 DS 方法 + models（`DatabaseSource`/`CreateDataSourceRequest`）保留为惰性类型（无 HTTP 路径可达，`models_test.go` 2 条标签断言仍 PASS）；路由 3447→3444（-3）、冲突 0、319 handler 不变；**变异验证已做**：临时恢复 1 条 `GET /data-sources` 路由 → 路由数 3444→3445（证明数量下降完全由本批删除引起），恢复后 3444；`gofmt -l` 全干净（`wiring.go` 保持原有 un-gofmt'd 状态不变）、`go build` ok、`go vet` 干净、`go test ./internal/database-devops/... ./internal/datasource/... ./internal/shared/aesgcm/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL** |
 | ✅ | **P0-0 DBA ExecuteOrder 接真实 SQL 执行** | 2026-08-29 | `internal/dba/service` 的 `ExecuteOrder` 原来是纯桩代码（只改状态为 `completed` + 写 `"Execution completed"` 字符串，不连数据库）；本批实现真实执行：`GetOrder` 取订单 → `ListDataSources(tenantID)` 遍历匹配 `order.Database` 找数据源 → 非 PostgreSQL 类型直接报错并标记 `failed` → 新增 `executePGSQL(ds, ctx, sql, normalized)` 函数：只读语句（`isReadOnlySQL` 判断 SELECT/SHOW/DESCRIBE/EXPLAIN/WITH…SELECT）走 `conn.QueryContext` 返回列名+行数据，DML/DDL 走 `conn.ExecContext` 返回 `RowsAffected` → 60s 超时 → 新增 `sqlExecResult{Columns, Rows, RowCount, RowsAffected}` 结构体，JSON 序列化后写入 order 的 `Result` 字段 → 执行结果 + 延迟写入 `QueryExecutionRecord` 审计日志 → 成功标 `completed`、失败标 `failed` + 错误信息；签名从 `ExecuteOrder(ctx, id)` 改为 `ExecuteOrder(ctx, tenantID, userID, id)`（对齐 `ExecuteDirectQuery` 模式），`ServiceInterface` + handler + `fakeDbaService` 三处跟进；复用既有 `buildPGDSN` / `isReadOnlySQL` / `newExecutionRecord` / `executePGQuery` 模式；`go build ./...` ok、`go vet` 干净、handler + service 测试全 PASS、`go test ./...` → **545 包 ok / 0 FAIL** |
+| ✅ | **ARCH-0.12 datasource 补 ClickHouse 驱动**（宣称 5 → 实连 3） | 2026-08-29 | `internal/datasource/service` 原仅 import mysql+pgx 驱动，ClickHouse/MongoDB/ES 调用直接返回 `"driver not loaded"` 错误；本批新增 `github.com/ClickHouse/clickhouse-go/v2`（v2.48.0）空白导入，ClickHouse 类型从错误返回改为与 Postgres/MySQL 相同的连接流程（`sql.Open("clickhouse", dsn)` + `PingContext` + 连接池设置），`buildDSN` 的 ClickHouse case 原已返回正确格式 `clickhouse://user:pass@host:port/database` 无需修改；MongoDB/ES 错误消息改为更明确的说明（`"mongodb is not a SQL engine and cannot be connected via database/sql"` / `"elasticsearch is not a SQL engine; use the global-search module"`）；`service_test.go` 将 `TestService_RegisterClickHouse` 改名为 `TestService_RegisterClickHouseConnectFail` 并改为断言连接失败（端口 1）而非"driver not loaded"；新增 `TestBuildDSN_ClickHouse` 测试 DSN 格式；`go build ./...` ok、`go test ./internal/datasource/...` 18 条全 PASS、`go test ./...` → **545 包 ok / 0 FAIL**；**剩余**：MongoDB/ES 非 SQL 引擎无法用 `database/sql` 连接，Oracle/SQL Server/OceanBase 等企业级类型仍未支持（→ ARCH-0.3） |
 
 ---
 
@@ -223,7 +224,7 @@
 | ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | ✅ **完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；备份/恢复**契约**测试已完成（8 条，`internal/database-devops/service/service_test.go`，变异验证已做） | 1.5d |
 | ~~ARCH-0.11a~~ | **明文密码清理**（database-devops 复用 datasource 加密模型） | R4-3 | ✅ **完成 2026-08-29** — `internal/shared/aesgcm` 共享实现 + `models.Password` 改 `json:"-"` + `CreateDataSource` 加密前置 + `datasourceKey` 两模块同一把钥匙；见上方已完成清单 | 0.5d |
 | ~~ARCH-0.11b~~ | **三套数据源统一**（删除 `/database-devops/data-sources` 重复端点，消费方迁至 `/data-sources`） | IX-8 | ✅ **完成 2026-08-29** — handler 3 条重复路由 + 3 个 handler 方法 + service 3 个方法 + `key` 字段 + `aesgcm` import 全部删除；`NewHandler(db, secretKey)` → `NewHandler(db)`；前端 0 消费方故无迁移；路由 3447→3444、545 包 0 FAIL；见上方已完成清单 | 1.5d |
-| ARCH-0.12 | **datasource 补 ClickHouse/MongoDB 驱动**（宣称 5 → 实连 5） | R4-2 | 🟡 中 | 1.5d |
+| ~~ARCH-0.12~~ | **datasource 补 ClickHouse 驱动**（宣称 5 → 实连 3） | R4-2 | ✅ **完成 2026-08-29** — 新增 `clickhouse-go/v2` 驱动，ClickHouse 类型从错误返回改为真实连接；MongoDB/ES 非 SQL 引擎无法用 database/sql，错误消息已改为明确说明；见上方已完成清单 | 1.5d |
 | ~~ARCH-0.13~~ | **库表权限授予用户（SQL 级 GRANT）能力盘点** | R5-1 | 🔴 高 | ✅ 2026-08-29 已核实缺失 → 设计待排期 |
 
 ### 第五轮追加（数据库能力实况盘点，2026-08-29，R5-1~R5-5）
@@ -239,7 +240,7 @@
 | R5-4 | **建仓（建库/数仓）缺失** — 无 CREATE DATABASE / warehouse；data-pipeline 仅 Schedule 字段 + RunPipeline 手动触发（`"pipeline run triggered"`），无调度器接入 | 全新维度 | data-pipeline 调度器 | ✅ 确认缺失 |
 | R5-5 | **自动化引擎具备但未接线** — `internal/cron/` SchedulerManager 完整（CronJob/ShouldFireAt/JobHandlerFunc + scheduler_job_definitions 表），但 dba/data-pipeline/database-devops 均未接入 | 引擎在、消费者缺 | data-pipeline 调度器 | ✅ 盘点完成 |
 
-**数据库类型实况修正**：datasource **宣称 5 种（PG/MySQL/ClickHouse/ES/MongoDB）实连仅 2 种（PG+MySQL）**（service.go 仅 import mysql+pgx 驱动，ClickHouse/ES/MongoDB 调用直接返回错误）；data-catalog 实连 3 种（PG/MySQL/SQLite）；DBA 执行/测试仅 PG（硬编码 postgres）。缺失企业级类型：Oracle/SQL Server/OceanBase/openGauss/TiDB。
+**数据库类型实况修正**：datasource **宣称 5 种（PG/MySQL/ClickHouse/ES/MongoDB）实连 3 种（PG+MySQL+ClickHouse）**（service.go import mysql+pgx+clickhouse-go 驱动，ES/MongoDB 返回明确错误说明"非 SQL 引擎无法用 database/sql 连接"，→ ARCH-0.12 ✅ 已补 ClickHouse）；data-catalog 实连 3 种（PG/MySQL/SQLite）；DBA 执行/测试仅 PG（硬编码 postgres）。缺失企业级类型：Oracle/SQL Server/OceanBase/openGauss/TiDB。
 
 ### 第六轮追加（企业级数据库管理能力深度分析，2026-08-29，ARCH-0.14~0.18）
 

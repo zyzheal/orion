@@ -339,7 +339,7 @@
   - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
   - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
 
 ### 2026-08-29（后端专项：PERM-7 权限映射端点 + 撞出 PERM-8 认证中间件缺失）
 
@@ -404,7 +404,7 @@
   - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
   - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
 
 ---
 
@@ -514,7 +514,7 @@
   - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
   - ARCH-0.10 剩余 — database-devops 备份 / 恢复测试
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
 
 ### 2026-08-29（后端专项：ARCH-0.10 收尾 — 备份/恢复契约测试 + P1-3 chaos 合并核实）
 
@@ -561,7 +561,7 @@
   - PERM-6 — AI 端点权限定义
   - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
 
 ### 2026-08-29（前端专项：ARCH-0.9 收尾 — `datasource.ts` 客户端）
 
@@ -601,7 +601,7 @@
   - ARCH-0.10b — 备份/恢复引擎真实现（复用 `internal/backup/` 或 `internal/infrastructure/backup/`，见 ARCH-0.15）
   - PERM-6 — AI 端点权限定义（决策待定：44 个角色里只有 1 个授予任何 `ai*`）
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
 
 ### 2026-08-29（后端专项：ARCH-0.11 明文密码清理 — database-devops 复用 datasource 加密模型）
 
@@ -650,7 +650,7 @@
 - 📌 **本轮明确未做（已排期）**
   - ARCH-0.11b — 三套数据源统一（删 `/database-devops/data-sources` 重复端点，消费方迁至 `/data-sources`）
   - ARCH-0.10b — 备份/恢复真实现（`ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩）
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动（Elasticsearch 故意委派给 global-search）
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成（Elasticsearch 故意委派给 global-search）
   - PERM-8 阶段 2 / PERM-6 — 沿用记录
 
 ### 2026-08-29（后端专项：ARCH-0.11b 三套数据源统一 — 删除 database-devops 重复 `/data-sources` 端点）
@@ -704,7 +704,7 @@
 
 - 📌 **本轮明确未做（已排期）**
   - ARCH-0.10b — 备份/恢复引擎真实现（3-5 天）
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
   - PERM-6 — AI 端点权限定义（决策待定）
   - 死代码清理 — `database-devops` repository DS 方法 + models、`internal/identity/role/`
@@ -747,13 +747,40 @@
 - 🔍 **本轮确认但仍未解的（记录）**
   - **P0-0 剩余：备份/恢复/慢查询/Redis 采集接真实执行**（ARCH-0.10b + ARCH-0.15/0.16/0.17，6-9d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩，`internal/infrastructure/backup/` 的 `executeBackup` 仍是模拟执行
   - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`——破坏性变更，需客户端迁移计划
-  - **ARCH-0.12**：datasource 补 ClickHouse / MongoDB 驱动
+  - ~~**ARCH-0.12**~~：datasource 补 ClickHouse 驱动 ✅ 已完成
   - **PERM-6**：AI 端点权限定义（决策待定）
 
 - 📌 **本轮明确未做（已排期）**
   - ARCH-0.10b — 备份/恢复引擎真实现（3-5 天）
   - ARCH-0.15/0.16/0.17 — 慢查询/Redis 采集接真实执行
-  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+  - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（需迁移计划）
   - PERM-6 — AI 端点权限定义（决策待定）
   - 死代码清理 — `database-devops` repository DS 方法 + models、`internal/identity/role/`
+
+---
+
+## Batch N — ARCH-0.12 datasource 补 ClickHouse 驱动 (2026-08-29)
+
+- 📌 **背景**
+  - `internal/datasource/service` 宣称支持 5 种数据库类型（PG/MySQL/ClickHouse/ES/MongoDB），但 `service.go` 仅 import mysql+pgx 驱动，ClickHouse/ES/MongoDB 调用直接返回 `"driver not loaded"` 错误
+  - R4-2 确认"宣称 5 实连 2"成立，ARCH-0.12 是架构评审 Phase 0 第 3 项
+
+- ✅ **实现**
+  - 新增 `github.com/ClickHouse/clickhouse-go/v2`（v2.48.0）空白导入 — 该驱动自动注册为 `database/sql` 的 `"clickhouse"` 驱动
+  - `connect()` 函数中 ClickHouse case 从错误返回改为与 Postgres/MySQL 相同的连接流程：`sql.Open("clickhouse", dsn)` → `SetMaxOpenConns` / `SetMaxIdleConns` / `SetConnMaxLifetime` → `PingContext`
+  - `buildDSN` 的 ClickHouse case 原已返回正确格式 `clickhouse://user:pass@host:port/database`，无需修改
+  - MongoDB/ES 错误消息从 `"driver not loaded (not in go.mod)"` 改为更明确的说明：`"mongodb is not a SQL engine and cannot be connected via database/sql; use the mongo-go-driver directly"` / `"elasticsearch is not a SQL engine; use the global-search module for Elasticsearch queries"`
+
+- ✅ **测试**
+  - `TestService_RegisterClickHouse` 改名为 `TestService_RegisterClickHouseConnectFail`，断言连接失败（端口 1）而非"driver not loaded"
+  - 新增 `TestBuildDSN_ClickHouse` 测试 DSN 格式正确性
+
+- ✅ **验证结果**
+  - `go build ./...` → ok
+  - `go test ./internal/datasource/...` → 18 条全 PASS
+  - `go test ./...` → **545 包 ok / 0 FAIL**
+
+- 🔍 **剩余**
+  - MongoDB/ES 非 SQL 引擎无法用 `database/sql` 连接，需独立驱动方案（非 ARCH-0.12 范围）
+  - Oracle/SQL Server/OceanBase/openGauss/TiDB 等企业级类型仍未支持（→ ARCH-0.3）

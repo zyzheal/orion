@@ -8,6 +8,7 @@ import (
 
 	"database/sql"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
@@ -160,13 +161,26 @@ func (s *Service) connect(ctx context.Context, ds *dsm.DataSource) error {
 		mds.db = db
 
 	case dsm.DSCClickHouse:
-		return fmt.Errorf("clickhouse driver not loaded (not in go.mod)")
+		dsn := buildDSN(ds, password)
+		db, err := sql.Open("clickhouse", dsn)
+		if err != nil {
+			return fmt.Errorf("open clickhouse: %w", err)
+		}
+		db.SetMaxOpenConns(ds.MaxOpenConns)
+		db.SetMaxIdleConns(ds.MaxIdleConns)
+		db.SetConnMaxLifetime(ds.ConnMaxLifetime)
+
+		if err := db.PingContext(ctx); err != nil {
+			db.Close()
+			return fmt.Errorf("ping clickhouse: %w", err)
+		}
+		mds.db = db
 
 	case dsm.DSCElasticsearch:
-		return fmt.Errorf("elasticsearch not supported as managed datasource (use global-search module)")
+		return fmt.Errorf("elasticsearch is not a SQL engine; use the global-search module for Elasticsearch queries")
 
 	case dsm.DSCMongoDB:
-		return fmt.Errorf("mongodb driver not loaded (not in go.mod)")
+		return fmt.Errorf("mongodb is not a SQL engine and cannot be connected via database/sql; use the mongo-go-driver directly")
 
 	default:
 		return fmt.Errorf("unsupported datasource type: %s", ds.Type)

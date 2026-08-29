@@ -100,6 +100,15 @@ func TestBuildDSN_MySQL(t *testing.T) {
 	}
 }
 
+func TestBuildDSN_ClickHouse(t *testing.T) {
+	ds := &dsm.DataSource{Type: dsm.DSCClickHouse, Host: "localhost", Port: 9000, Username: "user", Database: "default"}
+	dsn := buildDSN(ds, "pass")
+	expected := "clickhouse://user:pass@localhost:9000/default"
+	if dsn != expected {
+		t.Errorf("clickhouse DSN = %q, want %q", dsn, expected)
+	}
+}
+
 func TestBuildDSN_DefaultSSLMode(t *testing.T) {
 	ds := &dsm.DataSource{Type: dsm.DSCPostgres, Host: "h", Port: 5432, Username: "u", Database: "d", SSLMode: "require"}
 	dsn := buildDSN(ds, "p")
@@ -223,13 +232,13 @@ func TestStartHealthCheckLoop_ContextCancel(t *testing.T) {
 	}
 }
 
-func TestService_RegisterClickHouse(t *testing.T) {
+func TestService_RegisterClickHouseConnectFail(t *testing.T) {
 	ctx := context.Background()
 	svc := New(newFakeRepo(), "key", zaptest.NewLogger(t))
-	ds := &dsm.DataSource{ID: "ch-1", Name: "ch", Type: dsm.DSCClickHouse, Host: "localhost", Port: 9000, Database: "default"}
+	ds := &dsm.DataSource{ID: "ch-1", Name: "ch", Type: dsm.DSCClickHouse, Host: "localhost", Port: 1, Database: "default"}
 	err := svc.Register(ctx, ds)
 	if err == nil {
-		t.Error("expected error for clickhouse (driver not loaded)")
+		t.Error("expected connection error for unreachable clickhouse host")
 	}
 }
 
